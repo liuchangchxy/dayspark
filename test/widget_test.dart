@@ -10,8 +10,9 @@ void main() {
     // Verify the app title is shown
     expect(find.text('Calendar Todo'), findsOneWidget);
 
-    // Verify the skeleton text is shown
-    expect(find.text('Calendar & Todo'), findsOneWidget);
+    // Verify a loading indicator or calendar content is shown
+    // (HomePage now uses eventsInDateRangeProvider which loads async)
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
     // Verify settings button exists
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
