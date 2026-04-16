@@ -4288,6 +4288,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AttachmentsTable attachments = $AttachmentsTable(this);
   late final $SyncQueueTable syncQueue = $SyncQueueTable(this);
   late final $RemindersTable reminders = $RemindersTable(this);
+  late final CalendarsDao calendarsDao = CalendarsDao(this as AppDatabase);
+  late final EventsDao eventsDao = EventsDao(this as AppDatabase);
+  late final TodosDao todosDao = TodosDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
