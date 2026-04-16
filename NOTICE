@@ -1,0 +1,36 @@
+# Third-Party Notices
+
+This project uses the following third-party libraries:
+
+## Flutter SDK
+Copyright 2014 The Flutter Authors. All rights reserved.
+License: BSD-3-Clause
+
+## Drift (SQLite ORM)
+Copyright 2021 Simon Binder.
+License: MIT
+
+## Riverpod
+License: MIT
+
+## GoRouter
+License: BSD-3-Clause
+
+## Dio
+License: MIT
+
+## Freezed
+License: MIT
+
+## json_serializable
+License: BSD-3-Clause
+
+## flutter_local_notifications
+License: BSD-3-Clause
+
+## flutter_secure_storage
+License: BSD-3-Clause
+
+---
+Full license texts are available in the respective package repositories.
+This file will be auto-updated by `flutter_oss_licenses` in CI.
