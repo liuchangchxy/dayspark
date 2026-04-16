@@ -35,4 +35,14 @@ class EventsDao extends DatabaseAccessor<AppDatabase>
     return (select(events)..where((t) => t.calendarId.equals(calendarId)))
         .watch();
   }
+
+  Future<List<Event>> searchEvents(String query) {
+    final pattern = '%$query%';
+    return (select(events)
+          ..where((t) =>
+              t.summary.like(pattern) | t.description.like(pattern))
+          ..orderBy([(t) => OrderingTerm.asc(t.startDt)])
+          ..limit(50))
+        .get();
+  }
 }

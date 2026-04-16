@@ -43,4 +43,14 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
   Future<void> upsert(Todo entry) {
     return into(todos).insertOnConflictUpdate(entry);
   }
+
+  Future<List<Todo>> searchTodos(String query) {
+    final pattern = '%$query%';
+    return (select(todos)
+          ..where((t) =>
+              t.summary.like(pattern) | t.description.like(pattern))
+          ..orderBy([(t) => OrderingTerm.asc(t.dueDate)])
+          ..limit(50))
+        .get();
+  }
 }
