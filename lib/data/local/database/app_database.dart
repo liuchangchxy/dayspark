@@ -1,9 +1,5 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+import 'package:drift_flutter/drift_flutter.dart';
 
 import 'tables/calendars_table.dart';
 import 'tables/events_table.dart';
@@ -54,12 +50,14 @@ class AppDatabase extends _$AppDatabase {
   CalendarsDao get calendarsDao => CalendarsDao(this);
   EventsDao get eventsDao => EventsDao(this);
   TodosDao get todosDao => TodosDao(this);
-}
 
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'calendar_todo.db'));
-    return NativeDatabase.createInBackground(file);
-  });
+  static QueryExecutor _openConnection() {
+    return driftDatabase(
+      name: 'calendar_todo',
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+        driftWorker: Uri.parse('drift_worker.js'),
+      ),
+    );
+  }
 }
