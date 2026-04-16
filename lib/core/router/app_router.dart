@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:calendar_todo_app/data/local/database/app_database.dart';
 import 'package:calendar_todo_app/ui/pages/home/home_page.dart';
 import 'package:calendar_todo_app/ui/pages/settings/settings_page.dart';
 import 'package:calendar_todo_app/ui/pages/event/event_create_page.dart';
 import 'package:calendar_todo_app/ui/pages/event/event_edit_page.dart';
+import 'package:calendar_todo_app/ui/pages/todo/todo_create_page.dart';
+import 'package:calendar_todo_app/ui/pages/todo/todo_edit_page.dart';
+import 'package:calendar_todo_app/ui/pages/search/search_page.dart';
 import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
 
 abstract final class AppRouter {
@@ -43,6 +47,24 @@ abstract final class AppRouter {
           final event = state.extra as CalendaEventAdapter;
           return EventEditPage(event: event);
         },
+      ),
+      GoRoute(
+        path: '/todo/new',
+        name: 'todoCreate',
+        builder: (context, state) => const TodoCreatePage(),
+      ),
+      GoRoute(
+        path: '/todo/edit',
+        name: 'todoEdit',
+        builder: (context, state) {
+          final todo = state.extra as Todo;
+          return TodoEditPage(todo: todo);
+        },
+      ),
+      GoRoute(
+        path: '/search',
+        name: 'search',
+        builder: (context, state) => const SearchPage(),
       ),
     ],
   );
