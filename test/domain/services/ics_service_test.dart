@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:calendar_todo_app/domain/services/ics_service.dart';
+import 'package:dayspark/domain/services/ics_service.dart';
 
 void main() {
   group('IcsService', () {

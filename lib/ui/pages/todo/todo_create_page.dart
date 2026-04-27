@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
-import 'package:calendar_todo_app/core/utils/color_utils.dart';
-import 'package:calendar_todo_app/core/utils/date_formatters.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
-import 'package:calendar_todo_app/domain/providers/todos_provider.dart';
-import 'package:calendar_todo_app/domain/providers/events_provider.dart';
-import 'package:calendar_todo_app/domain/providers/tags_provider.dart';
-import 'package:calendar_todo_app/domain/providers/ai_provider.dart';
-import 'package:calendar_todo_app/domain/providers/reminders_provider.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 
 class TodoCreatePage extends ConsumerStatefulWidget {
   const TodoCreatePage({super.key});

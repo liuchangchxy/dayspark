@@ -5,18 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:calendar_todo_app/core/utils/date_formatters.dart';
-import 'package:calendar_todo_app/core/utils/file_reader.dart';
-import 'package:calendar_todo_app/domain/providers/sync_provider.dart';
-import 'package:calendar_todo_app/domain/providers/accounts_provider.dart';
-import 'package:calendar_todo_app/domain/providers/feature_flags_provider.dart';
-import 'package:calendar_todo_app/data/remote/caldav/sync_service.dart';
-import 'package:calendar_todo_app/domain/providers/ai_provider.dart';
-import 'package:calendar_todo_app/domain/providers/theme_provider.dart';
-import 'package:calendar_todo_app/domain/providers/database_provider.dart';
-import 'package:calendar_todo_app/domain/providers/mcp_provider.dart';
-import 'package:calendar_todo_app/domain/services/ics_service.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/core/utils/file_reader.dart';
+import 'package:dayspark/domain/providers/sync_provider.dart';
+import 'package:dayspark/domain/providers/accounts_provider.dart';
+import 'package:dayspark/domain/providers/feature_flags_provider.dart';
+import 'package:dayspark/data/remote/caldav/sync_service.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/theme_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/mcp_provider.dart';
+import 'package:dayspark/domain/services/ics_service.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});

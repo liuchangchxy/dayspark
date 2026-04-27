@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
 
 class HomeWidgetService {
   static Future<void> updateWidgets({

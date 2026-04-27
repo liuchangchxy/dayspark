@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 enum CalendarViewMode { day, week, month }
 

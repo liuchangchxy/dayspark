@@ -2,8 +2,8 @@ import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
-import 'package:calendar_todo_app/data/remote/caldav/ical_converter.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/data/remote/caldav/ical_converter.dart';
 
 void main() {
   late AppDatabase testDb;

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:calendar_todo_app/core/utils/color_utils.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
-import 'package:calendar_todo_app/domain/providers/tags_provider.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/tags_provider.dart';
 
 /// A row of tag chips that can toggle tag assignment.
 class TagChips extends ConsumerWidget {

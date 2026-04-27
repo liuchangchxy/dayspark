@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 
 void main() {
   group('CalendaEventAdapter', () {

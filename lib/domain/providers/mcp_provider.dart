@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:calendar_todo_app/domain/providers/database_provider.dart';
-import 'package:calendar_todo_app/domain/services/mcp_server_service.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/services/mcp_server_service.dart';
 
 final mcpServerProvider = Provider<McpServerService>((ref) {
   final db = ref.watch(databaseProvider);

@@ -2,11 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:calendar_todo_app/domain/providers/search_provider.dart';
-import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
-import 'package:calendar_todo_app/ui/widgets/todo/todo_list_tile.dart';
-import 'package:calendar_todo_app/domain/providers/todos_provider.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
+import 'package:dayspark/domain/providers/search_provider.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});

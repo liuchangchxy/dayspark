@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
-import 'package:calendar_todo_app/domain/providers/database_provider.dart';
-import 'package:calendar_todo_app/domain/providers/reminders_provider.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 
 final pendingTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);

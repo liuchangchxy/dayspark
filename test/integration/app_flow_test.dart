@@ -5,12 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
-import 'package:calendar_todo_app/ui/pages/home/home_page.dart';
-import 'package:calendar_todo_app/ui/pages/settings/settings_page.dart';
-import 'package:calendar_todo_app/ui/pages/event/event_create_page.dart';
-import 'package:calendar_todo_app/ui/pages/search/search_page.dart';
-import 'package:calendar_todo_app/ui/pages/tags/tags_page.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/pages/home/home_page.dart';
+import 'package:dayspark/ui/pages/settings/settings_page.dart';
+import 'package:dayspark/ui/pages/event/event_create_page.dart';
+import 'package:dayspark/ui/pages/search/search_page.dart';
+import 'package:dayspark/ui/pages/tags/tags_page.dart';
 
 GoRouter _createRouter() => GoRouter(
       initialLocation: '/',

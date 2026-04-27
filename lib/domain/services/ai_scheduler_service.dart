@@ -1,5 +1,5 @@
-import 'package:calendar_todo_app/domain/providers/ai_provider.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
 
 /// Uses AI to suggest optimal time slots for events and task scheduling.
 class AiSchedulerService {

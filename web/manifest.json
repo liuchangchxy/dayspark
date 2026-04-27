@@ -1,6 +1,6 @@
 {
-    "name": "calendar_todo_app",
-    "short_name": "calendar_todo_app",
+    "name": "DaySpark",
+    "short_name": "DaySpark",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

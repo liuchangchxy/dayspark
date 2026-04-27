@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:calendar_todo_app/core/theme/app_colors.dart';
-import 'package:calendar_todo_app/core/utils/color_utils.dart';
-import 'package:calendar_todo_app/domain/providers/tags_provider.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 class TodoListTile extends ConsumerWidget {
   final String summary;

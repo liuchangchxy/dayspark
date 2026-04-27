@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rrule/rrule.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
-import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 
 /// Expands a list of Drift [Event] records into [CalendaEventAdapter] instances.
 ///

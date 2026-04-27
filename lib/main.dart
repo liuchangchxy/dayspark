@@ -9,17 +9,17 @@ import 'domain/providers/theme_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: CalendarTodoApp()));
+  runApp(const ProviderScope(child: DaySparkApp()));
 }
 
-class CalendarTodoApp extends ConsumerWidget {
-  const CalendarTodoApp({super.key});
+class DaySparkApp extends ConsumerWidget {
+  const DaySparkApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
-      title: 'Calendar Todo',
+      title: 'DaySpark',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

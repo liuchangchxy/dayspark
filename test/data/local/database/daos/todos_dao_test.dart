@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
 
 void main() {
   late AppDatabase db;

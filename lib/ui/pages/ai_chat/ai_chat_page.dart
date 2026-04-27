@@ -2,12 +2,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:calendar_todo_app/domain/providers/ai_provider.dart';
-import 'package:calendar_todo_app/domain/providers/ai_scheduler_provider.dart';
-import 'package:calendar_todo_app/domain/providers/events_provider.dart';
-import 'package:calendar_todo_app/domain/providers/todos_provider.dart';
-import 'package:calendar_todo_app/domain/providers/reminders_provider.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/ai_scheduler_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 class AiChatPage extends ConsumerStatefulWidget {
   const AiChatPage({super.key});

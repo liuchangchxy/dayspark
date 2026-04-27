@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:calendar_todo_app/core/theme/app_colors.dart';
-import 'package:calendar_todo_app/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 /// App-wide theme configuration. Read DESIGN.md for design rationale.
 @immutable

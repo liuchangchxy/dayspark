@@ -1,4 +1,4 @@
-package dev.opencal.calendar_todo_app
+package com.dayspark.app
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider

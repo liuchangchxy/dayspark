@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
-import 'package:calendar_todo_app/domain/providers/database_provider.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 
 /// Stream all accounts from the database.
 final accountsProvider = StreamProvider<List<Account>>((ref) {

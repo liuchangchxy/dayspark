@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:calendar_todo_app/core/theme/app_colors.dart';
-import 'package:calendar_todo_app/core/utils/date_formatters.dart';
-import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 
 class EventTile extends StatelessWidget {
   final CalendaEventAdapter event;

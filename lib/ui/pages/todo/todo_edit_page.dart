@@ -4,16 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:rrule_generator/rrule_generator.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
-import 'package:calendar_todo_app/core/theme/app_colors.dart';
-import 'package:calendar_todo_app/core/utils/date_formatters.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
-import 'package:calendar_todo_app/domain/providers/todos_provider.dart';
-import 'package:calendar_todo_app/domain/providers/database_provider.dart';
-import 'package:calendar_todo_app/domain/providers/tags_provider.dart';
-import 'package:calendar_todo_app/domain/providers/reminders_provider.dart';
-import 'package:calendar_todo_app/ui/widgets/tag_chips.dart';
-import 'package:calendar_todo_app/ui/widgets/attachment_list.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/ui/widgets/tag_chips.dart';
+import 'package:dayspark/ui/widgets/attachment_list.dart';
 
 class TodoEditPage extends ConsumerStatefulWidget {
   final Todo todo;

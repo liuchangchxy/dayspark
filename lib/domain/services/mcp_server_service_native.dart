@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:mcp_dart/mcp_dart.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
 
 /// Embedded MCP Server that exposes calendar/todo data to external AI agents.
 /// Runs a StreamableHTTP server on localhost for desktop platforms.

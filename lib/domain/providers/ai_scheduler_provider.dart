@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:calendar_todo_app/domain/providers/ai_provider.dart';
-import 'package:calendar_todo_app/domain/providers/events_provider.dart';
-import 'package:calendar_todo_app/domain/services/ai_scheduler_service.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/services/ai_scheduler_service.dart';
 
 final aiSchedulerServiceProvider = Provider<AiSchedulerService>((ref) {
   return AiSchedulerService();

@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
 import 'package:rrule_generator/src/rrule_generator_locale_register.dart';
-import 'package:calendar_todo_app/core/utils/date_formatters.dart';
-import 'package:calendar_todo_app/domain/providers/events_provider.dart';
-import 'package:calendar_todo_app/domain/providers/ai_provider.dart';
-import 'package:calendar_todo_app/domain/providers/reminders_provider.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 class EventCreatePage extends ConsumerStatefulWidget {
   final DateTime initialStart;

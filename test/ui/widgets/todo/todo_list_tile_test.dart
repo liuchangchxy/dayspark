@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:calendar_todo_app/domain/providers/tags_provider.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
-import 'package:calendar_todo_app/ui/widgets/todo/todo_list_tile.dart';
+import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 
 Widget _wrap(Widget child) => ProviderScope(
       overrides: [

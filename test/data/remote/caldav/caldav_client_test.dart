@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:calendar_todo_app/data/remote/caldav/caldav_client.dart';
+import 'package:dayspark/data/remote/caldav/caldav_client.dart';
 
 void main() {
   // Test XML parsing by creating a client with dummy credentials

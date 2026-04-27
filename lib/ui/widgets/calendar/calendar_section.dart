@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:kalender/kalender.dart';
 import 'package:kalender/src/models/components/components.dart';
-import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
-import 'package:calendar_todo_app/ui/widgets/calendar/event_tile.dart';
-import 'package:calendar_todo_app/ui/widgets/calendar/view_switcher.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
+import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
 class CalendarSection extends StatefulWidget {
   final List<CalendaEventAdapter> events;

@@ -1,17 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
-import 'package:calendar_todo_app/ui/pages/home/home_page.dart';
-import 'package:calendar_todo_app/ui/pages/settings/settings_page.dart';
-import 'package:calendar_todo_app/ui/pages/event/event_create_page.dart';
-import 'package:calendar_todo_app/ui/pages/event/event_edit_page.dart';
-import 'package:calendar_todo_app/ui/pages/todo/todo_create_page.dart';
-import 'package:calendar_todo_app/ui/pages/todo/todo_edit_page.dart';
-import 'package:calendar_todo_app/ui/pages/search/search_page.dart';
-import 'package:calendar_todo_app/ui/pages/tags/tags_page.dart';
-import 'package:calendar_todo_app/ui/pages/ai_chat/ai_chat_page.dart';
-import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/ui/pages/home/home_page.dart';
+import 'package:dayspark/ui/pages/settings/settings_page.dart';
+import 'package:dayspark/ui/pages/event/event_create_page.dart';
+import 'package:dayspark/ui/pages/event/event_edit_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_create_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_edit_page.dart';
+import 'package:dayspark/ui/pages/search/search_page.dart';
+import 'package:dayspark/ui/pages/tags/tags_page.dart';
+import 'package:dayspark/ui/pages/ai_chat/ai_chat_page.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 
 CustomTransitionPage<void> _fadeTransition(Widget child) {
   return CustomTransitionPage(

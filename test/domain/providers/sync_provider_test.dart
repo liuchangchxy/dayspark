@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:calendar_todo_app/data/remote/caldav/sync_service.dart';
+import 'package:dayspark/data/remote/caldav/sync_service.dart';
 
 void main() {
   group('SyncStatus', () {

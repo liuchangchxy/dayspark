@@ -1,6 +1,8 @@
-# Calendar Todo App
+# DaySpark / 灵光
 
-An open-source cross-platform calendar and todo app built with Flutter, featuring CalDAV sync, AI integration, and offline-first design.
+**灵光一闪，日程了然。**
+
+An open-source, AI-powered calendar and todo app. Built with Flutter, runs everywhere.
 
 ![Preview](screenshots/todo-preview.png)
 
@@ -15,18 +17,17 @@ An open-source cross-platform calendar and todo app built with Flutter, featurin
 - **Search** — Full-text search across events and todos
 - **ICS Import/Export** — Calendar data interchange
 - **MCP Server** — Expose calendar/todo data to AI agents via localhost HTTP endpoint (desktop only)
-- **i18n** — English and Chinese (contribution welcome for more languages)
+- **i18n** — English and 中文 (contribution welcome for more languages)
 - **Offline-first** — All data stored locally in SQLite via Drift
 - **Cross-platform** — Web, macOS, iOS, Android, Windows, Linux
 
 ## Tech Stack
 
-- **Flutter 3.41** + Dart 3.11
+- **Flutter** + Dart
 - **Drift** (SQLite ORM) for local database
 - **Riverpod** for state management
 - **go_router** for navigation
 - **kalender** for calendar UI
-- **enough_icalendar** for iCalendar parsing
 - **Dio** for HTTP (CalDAV client)
 
 ## Getting Started
@@ -41,20 +42,11 @@ An open-source cross-platform calendar and todo app built with Flutter, featurin
 ### Install & Run
 
 ```bash
-# Install dependencies
 flutter pub get
-
-# Generate Drift code
 dart run build_runner build
-
-# Run on web
-flutter run -d chrome
-
-# Run on macOS
-flutter run -d macos
-
-# Run tests
-flutter test
+flutter run -d chrome    # Web
+flutter run -d macos     # macOS
+flutter test             # Run tests
 ```
 
 ### Build
@@ -64,26 +56,6 @@ flutter build web     # Web
 flutter build macos   # macOS
 flutter build apk     # Android
 flutter build ios     # iOS
-```
-
-## Project Structure
-
-```
-lib/
-├── core/           # Theme, router, constants
-├── data/
-│   ├── local/      # Drift database (tables, DAOs)
-│   └── remote/     # CalDAV client, sync service
-├── domain/
-│   ├── models/     # Data adapters
-│   ├── providers/  # Riverpod providers
-│   ├── services/   # Business logic (notifications, ICS, AI scheduler)
-│   └── utils/      # Helpers (recurring events)
-├── ui/
-│   ├── pages/      # All screen pages
-│   └── widgets/    # Reusable components
-├── l10n/           # Internationalization (ARB files)
-└── main.dart
 ```
 
 ## Configuration

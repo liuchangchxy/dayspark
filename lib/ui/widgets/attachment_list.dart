@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:calendar_todo_app/domain/providers/attachments_provider.dart';
-import 'package:calendar_todo_app/l10n/app_localizations.dart';
+import 'package:dayspark/domain/providers/attachments_provider.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 class AttachmentList extends ConsumerWidget {
   final String parentType;

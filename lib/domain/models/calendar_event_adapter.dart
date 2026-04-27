@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kalender/kalender.dart';
 import 'package:drift/drift.dart' hide Column;
-import 'package:calendar_todo_app/data/local/database/app_database.dart' as drift;
+import 'package:dayspark/data/local/database/app_database.dart' as drift;
 
 class CalendaEventAdapter extends CalendarEvent {
   final int drifId;

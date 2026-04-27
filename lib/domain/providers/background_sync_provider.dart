@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:calendar_todo_app/domain/providers/sync_provider.dart';
-import 'package:calendar_todo_app/domain/services/background_sync_service.dart';
+import 'package:dayspark/domain/providers/sync_provider.dart';
+import 'package:dayspark/domain/services/background_sync_service.dart';
 
 final backgroundSyncServiceProvider = Provider<BackgroundSyncService>((ref) {
   return BackgroundSyncService(

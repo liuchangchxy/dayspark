@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'package:calendar_todo_app/data/remote/caldav/caldav_client.dart';
-import 'package:calendar_todo_app/data/remote/caldav/sync_service.dart';
-import 'package:calendar_todo_app/domain/providers/database_provider.dart';
+import 'package:dayspark/data/remote/caldav/caldav_client.dart';
+import 'package:dayspark/data/remote/caldav/sync_service.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 
 /// Keys for secure storage of CalDAV credentials.
 const _keyServerUrl = 'caldav_server_url';

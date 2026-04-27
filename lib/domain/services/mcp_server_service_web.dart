@@ -1,4 +1,4 @@
-import 'package:calendar_todo_app/data/local/database/app_database.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
 
 class McpServerService {
   // ignore: unused_field

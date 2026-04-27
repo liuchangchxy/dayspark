@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:calendar_todo_app/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
 
 void main() {
   group('AiConfig', () {

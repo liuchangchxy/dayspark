@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <g transform="translate(512, 512)">
+    <path d="M 0 -280 C 20 -180 30 -120 0 -40 C -30 -120 -20 -180 0 -280 Z" fill="white" opacity="0.95"/>
+    <path d="M 0 280 C 20 180 30 120 0 40 C -30 120 -20 180 0 280 Z" fill="white" opacity="0.95"/>
+    <path d="M -280 0 C -180 -20 -120 -30 -40 0 C -120 20 -180 30 -280 0 Z" fill="white" opacity="0.95"/>
+    <path d="M 280 0 C 180 -20 120 -30 40 0 C 120 20 180 30 280 0 Z" fill="white" opacity="0.95"/>
+    <path d="M -198 -198 C -130 -150 -80 -100 -28 -28 C -100 -80 -150 -130 -198 -198 Z" fill="white" opacity="0.8"/>
+    <path d="M 198 -198 C 130 -150 80 -100 28 -28 C 100 -80 150 -130 198 -198 Z" fill="white" opacity="0.8"/>
+    <path d="M -198 198 C -130 150 -80 100 -28 28 C -100 80 -150 130 -198 198 Z" fill="white" opacity="0.8"/>
+    <path d="M 198 198 C 130 150 80 100 28 28 C 100 80 150 130 198 198 Z" fill="white" opacity="0.8"/>
+    <circle cx="0" cy="0" r="32" fill="white"/>
+  </g>
+</svg>

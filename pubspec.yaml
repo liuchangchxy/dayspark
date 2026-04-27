@@ -1,5 +1,5 @@
-name: calendar_todo_app
-description: An open-source cross-platform calendar and todo app with CalDAV sync.
+name: dayspark
+description: DaySpark / 灵光 — AI-powered cross-platform calendar & todo app with CalDAV sync.
 publish_to: 'none'
 version: 0.1.0+1
 
