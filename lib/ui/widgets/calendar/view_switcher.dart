@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:calendar_todo_app/l10n/app_localizations.dart';
 
 enum CalendarViewMode { day, week, month }
 
@@ -14,11 +15,13 @@ class ViewSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return SegmentedButton<CalendarViewMode>(
-      segments: const [
-        ButtonSegment(value: CalendarViewMode.day, label: Text('Day')),
-        ButtonSegment(value: CalendarViewMode.week, label: Text('Week')),
-        ButtonSegment(value: CalendarViewMode.month, label: Text('Month')),
+      showSelectedIcon: false,
+      segments: [
+        ButtonSegment(value: CalendarViewMode.day, label: Text(l.day)),
+        ButtonSegment(value: CalendarViewMode.week, label: Text(l.week)),
+        ButtonSegment(value: CalendarViewMode.month, label: Text(l.month)),
       ],
       selected: {currentMode},
       onSelectionChanged: (s) => onModeChanged(s.first),

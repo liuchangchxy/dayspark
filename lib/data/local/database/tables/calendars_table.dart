@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 @DataClassName('Calendar')
 class Calendars extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get accountId => integer().nullable()();
   TextColumn get caldavHref => text()();
   TextColumn get name => text()();
   TextColumn get color => text().withDefault(const Constant('#2563EB'))();

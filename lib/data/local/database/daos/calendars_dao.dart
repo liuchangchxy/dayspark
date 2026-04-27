@@ -15,17 +15,6 @@ class CalendarsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
-  Future<Calendar?> getById(int id) {
-    return (select(calendars)..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
-  }
-
-  Future<void> setActive(int id, bool active) {
-    return (update(calendars)..where((t) => t.id.equals(id))).write(
-      CalendarsCompanion(isActive: Value(active)),
-    );
-  }
-
   Future<void> upsert(Calendar entry) {
     return into(calendars).insertOnConflictUpdate(entry);
   }

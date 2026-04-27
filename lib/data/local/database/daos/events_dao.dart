@@ -18,22 +18,8 @@ class EventsDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
-  Future<void> markDirty(int id) {
-    return (update(events)..where((t) => t.id.equals(id))).write(
-      EventsCompanion(
-        isDirty: const Value(true),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
-  }
-
   Future<void> upsert(Event entry) {
     return into(events).insertOnConflictUpdate(entry);
-  }
-
-  Stream<List<Event>> watchByCalendar(int calendarId) {
-    return (select(events)..where((t) => t.calendarId.equals(calendarId)))
-        .watch();
   }
 
   Future<List<Event>> searchEvents(String query) {

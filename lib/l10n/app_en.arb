@@ -1,0 +1,219 @@
+{
+  "@@locale": "en",
+  "appName": "Calendar Todo",
+  "calendar": "Calendar",
+  "todos": "Todos",
+  "settings": "Settings",
+  "search": "Search",
+  "newEvent": "New Event",
+  "newTodo": "New Todo",
+  "editEvent": "Edit Event",
+  "editTodo": "Edit Todo",
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "remove": "Remove",
+  "create": "Create",
+  "title": "Title",
+  "description": "Description",
+  "location": "Location",
+  "startDate": "Starts at",
+  "endDate": "Ends at",
+  "dueDate": "Due date",
+  "allDay": "All day",
+  "priority": "Priority",
+  "priorityNone": "None",
+  "priorityLow": "Low",
+  "priorityMedium": "Medium",
+  "priorityHigh": "High",
+  "tags": "Tags",
+  "manageTags": "Manage Tags",
+  "createTag": "Create Tag",
+  "deleteTag": "Delete Tag",
+  "tagName": "Tag name",
+  "noTags": "No tags yet",
+  "caldavAccount": "CalDAV Account",
+  "addCalDav": "Add CalDAV Account",
+  "editCalDav": "Edit CalDAV Account",
+  "removeAccount": "Remove Account",
+  "serverUrl": "Server URL",
+  "username": "Username",
+  "password": "Password",
+  "syncNow": "Sync Now",
+  "syncing": "Syncing...",
+  "lastSync": "Last sync: {time}",
+  "@lastSync": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "notConfigured": "Not configured",
+  "connected": "Connected as {user}",
+  "@connected": {
+    "placeholders": {
+      "user": { "type": "String" }
+    }
+  },
+  "aiConfig": "AI Configuration",
+  "aiAssistant": "AI Assistant",
+  "apiKey": "API Key",
+  "baseUrl": "Base URL",
+  "model": "Model",
+  "aiHint": "Ask me to create events or todos",
+  "aiExample": "e.g. \"Meeting with John tomorrow 3pm\"",
+  "aiNotConfigured": "AI is not configured",
+  "aiGoToSettings": "Go to Settings > AI to configure your API key",
+  "notifications": "Notifications",
+  "appearance": "Appearance",
+  "theme": "Theme",
+  "themeSystem": "System Default",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "about": "About",
+  "noPendingTodos": "No pending todos",
+  "tapToCreate": "Tap + to create one",
+  "noResults": "No results",
+  "enterTitle": "Please enter a title",
+  "noCalendar": "No calendar available. Add one in Settings.",
+  "eventSaved": "Event saved",
+  "todoSaved": "Todo saved",
+  "confirmDelete": "Are you sure you want to delete?",
+  "clearChat": "Clear chat",
+  "typeMessage": "Type a message...",
+  "today": "Today",
+  "day": "Day",
+  "week": "Week",
+  "month": "Month",
+  "overdue": "Overdue",
+  "tomorrow": "Tomorrow",
+  "notSet": "Not set",
+  "events": "Events",
+  "typeToSearch": "Type to search",
+  "eventCreated": "Event created",
+  "todoCreated": "Todo created",
+  "importExport": "Import / Export",
+  "export": "Export",
+  "import": "Import",
+  "defaultReminderTimes": "Default reminder times",
+  "advancedFeatures": "Advanced Features",
+  "attachments": "Attachments",
+  "calendarData": "Calendar data",
+  "caldavAccounts": "CalDAV Accounts",
+  "noAccounts": "No accounts configured yet.",
+  "addAccount": "Add CalDAV Account",
+  "accountName": "Account Name",
+  "accountNameHint": "e.g. Work, Personal",
+  "removeAccountConfirm": "Remove \"{name}\" and all its calendars?",
+  "@removeAccountConfirm": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "removeAccountTitle": "Remove Account",
+  "add": "Add",
+  "mcpServerError": "MCP Server error: {error}",
+  "@mcpServerError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "syncFailed": "Sync failed: {error}",
+  "@syncFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "exportedTo": "Exported to {path}",
+  "@exportedTo": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "exportFailed": "Export failed: {error}",
+  "@exportFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "noCalendarToImport": "No calendar found to import into",
+  "importFailed": "Import failed: {error}",
+  "@importFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "importedResult": "Imported {events} event(s) and {todos} todo(s)",
+  "@importedResult": {
+    "placeholders": {
+      "events": { "type": "int" },
+      "todos": { "type": "int" }
+    }
+  },
+  "importExportDesc": "Export calendar events and todos to .ics, or import from a .ics file.",
+  "error": "Error: {error}",
+  "@error": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "endBeforeStart": "End time must be after start time",
+  "aiNotConfiguredHint": "AI not configured. Go to Settings > AI.",
+  "aiError": "AI error: {error}",
+  "@aiError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "deleteEventConfirm": "Delete \"{title}\"?",
+  "@deleteEventConfirm": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "noTimeSlots": "No time slot suggestions available",
+  "suggestedTimeSlots": "Suggested Time Slots",
+  "schedulingFailed": "Scheduling failed: {error}",
+  "@schedulingFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "noSubtasks": "No subtask suggestions available",
+  "taskBreakdown": "Task Breakdown",
+  "todoCreatedShort": "Todo created",
+  "failedCreateTodo": "Failed to create todo: {error}",
+  "@failedCreateTodo": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "breakdownFailed": "Breakdown failed: {error}",
+  "@breakdownFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "eventCreatedShort": "Event created",
+  "failedAction": "Failed: {error}",
+  "@failedAction": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "noAttachments": "No attachments",
+  "completed": "Completed",
+  "dayAfterTomorrow": "Day after",
+  "nextWeek": "Next week",
+  "custom": "Custom",
+  "todayTodo": "Today",
+  "allTasks": "All Tasks",
+  "upcoming": "Upcoming",
+  "noDueDate": "No due date",
+  "overdueCount": "{count} overdue",
+  "moveToToday": "Move to today",
+  "moveToTodayPrompt": "You have {count} overdue todo(s). Move due dates to today?",
+  "movedToToday": "Moved {count} todo(s) to today",
+  "skip": "Skip",
+  "completedRecently": "Recently completed",
+  "pendingTodos": "Pending"
+}

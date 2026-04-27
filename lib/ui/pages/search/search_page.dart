@@ -1,8 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:calendar_todo_app/domain/providers/search_provider.dart';
+import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
 import 'package:calendar_todo_app/ui/widgets/todo/todo_list_tile.dart';
 import 'package:calendar_todo_app/domain/providers/todos_provider.dart';
+import 'package:calendar_todo_app/l10n/app_localizations.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -27,13 +31,18 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(CupertinoIcons.back),
+          onPressed: () => context.pop(),
+        ),
         title: TextField(
           controller: _searchController,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Search events and todos...',
+          decoration: InputDecoration(
+            hintText: l.search,
             border: InputBorder.none,
           ),
           textInputAction: TextInputAction.search,
@@ -44,49 +53,53 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ),
       ),
       body: _query.isEmpty
-          ? const Center(child: Text('Type to search'))
+          ? Center(child: Text(l.typeToSearch))
           : ref.watch(searchResultsProvider(_query)).when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                error: (e, _) => Center(child: Text(l.error('$e'))),
                 data: (results) {
                   if (results.isEmpty) {
-                    return const Center(child: Text('No results'));
+                    return Center(child: Text(l.noResults));
                   }
                   return ListView(
                     children: [
                       if (results.events.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Text('Events',
-                              style: TextStyle(
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Text(l.events,
+                              style: const TextStyle(
                                   fontWeight: FontWeight.w600, fontSize: 14)),
                         ),
-                        ...results.events.map((event) => ListTile(
-                              leading: const Icon(Icons.event_outlined),
-                              title: Text(event.summary),
-                              subtitle: Text(
-                                  '${event.startDt.year}-${event.startDt.month.toString().padLeft(2, '0')}-${event.startDt.day.toString().padLeft(2, '0')}'),
-                              onTap: () {
-                                Navigator.of(context).pop();
-                              },
-                            )),
+                        ...results.events.map((event) {
+                              return ListTile(
+                                leading: const Icon(CupertinoIcons.calendar_badge_plus),
+                                title: Text(event.summary),
+                                subtitle: Text(
+                                    '${event.startDt.year}-${event.startDt.month.toString().padLeft(2, '0')}-${event.startDt.day.toString().padLeft(2, '0')}'),
+                                onTap: () {
+                                  context.push('/event/edit',
+                                      extra: CalendaEventAdapter.fromDrift(event));
+                                },
+                              );
+                            }),
                       ],
                       if (results.todos.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Text('Todos',
-                              style: TextStyle(
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Text(l.todos,
+                              style: const TextStyle(
                                   fontWeight: FontWeight.w600, fontSize: 14)),
                         ),
                         ...results.todos.map((todo) => TodoListTile(
                               summary: todo.summary,
                               isCompleted: todo.status == 'COMPLETED',
                               priority: todo.priority,
+                              todoId: todo.id,
                               dueDate: todo.dueDate,
                               onToggle: () =>
-                                  ref.read(completeTodoProvider)(todo.id),
+                                  ref.read(toggleTodoProvider)(id: todo.id, isCompleted: todo.status != 'COMPLETED'),
                               onTap: () {
-                                Navigator.of(context).pop();
+                                context.push('/todo/edit', extra: todo);
                               },
                             )),
                       ],

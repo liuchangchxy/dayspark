@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@android:color/white">
+
+    <!-- Events section header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="4dp">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Today's Events"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:textColor="#1976D2" />
+        <TextView
+            android:id="@+id/widget_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="#999999" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/event_0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="#333333"
+        android:paddingBottom="2dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/event_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="#333333"
+        android:paddingBottom="2dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/event_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="#333333"
+        android:paddingBottom="2dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/no_events"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No events today"
+        android:textSize="12sp"
+        android:textColor="#999999" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginVertical="8dp" />
+
+    <!-- Todos section header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="4dp">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="To-Do"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:textColor="#F57C00" />
+        <TextView
+            android:id="@+id/todo_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="#999999" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/todo_0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="#333333"
+        android:paddingBottom="2dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/todo_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="#333333"
+        android:paddingBottom="2dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/todo_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="#333333"
+        android:paddingBottom="2dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/no_todos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="All done!"
+        android:textSize="12sp"
+        android:textColor="#4CAF50" />
+
+</LinearLayout>

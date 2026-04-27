@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:calendar_todo_app/data/local/database/app_database.dart';
 import 'package:calendar_todo_app/domain/providers/database_provider.dart';
+import 'package:calendar_todo_app/domain/providers/reminders_provider.dart';
 
 final eventsInDateRangeProvider =
     StreamProvider.family<List<Event>, DateTimeRange>(
@@ -26,6 +27,7 @@ final createEventProvider = Provider<Future<int> Function({
   required bool isAllDay,
   String? description,
   String? location,
+  String? rrule,
 })>((ref) {
   final db = ref.watch(databaseProvider);
   return ({
@@ -37,6 +39,7 @@ final createEventProvider = Provider<Future<int> Function({
     required isAllDay,
     description,
     location,
+    rrule,
   }) async {
     return db.into(db.events).insert(
           EventsCompanion.insert(
@@ -48,6 +51,7 @@ final createEventProvider = Provider<Future<int> Function({
             isAllDay: Value(isAllDay),
             description: Value(description),
             location: Value(location),
+            rrule: Value(rrule),
           ),
         );
   };
@@ -55,7 +59,25 @@ final createEventProvider = Provider<Future<int> Function({
 
 final deleteEventProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.watch(databaseProvider);
+  final notifService = ref.watch(notificationServiceProvider);
   return (int id) async {
+    // Cancel and delete reminders
+    final reminders = await (db.select(db.reminders)
+          ..where((t) => t.parentType.equals('event') & t.parentId.equals(id)))
+        .get();
+    for (final r in reminders) {
+      await notifService.cancel(r.id);
+    }
+    await (db.delete(db.reminders)
+          ..where((t) => t.parentType.equals('event') & t.parentId.equals(id)))
+        .go();
+    // Delete junction table rows
+    await (db.delete(db.eventTags)..where((t) => t.eventId.equals(id))).go();
+    // Delete attachments
+    await (db.delete(db.attachments)
+          ..where((t) => t.parentType.equals('event') & t.parentId.equals(id)))
+        .go();
+    // Delete the event itself
     await (db.delete(db.events)..where((t) => t.id.equals(id))).go();
   };
 });

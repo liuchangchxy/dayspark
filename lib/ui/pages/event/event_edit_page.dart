@@ -1,10 +1,19 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:rrule_generator/rrule_generator.dart';
+import 'package:rrule_generator/src/rrule_generator_locale_register.dart';
 import 'package:calendar_todo_app/core/theme/app_colors.dart';
+import 'package:calendar_todo_app/core/utils/date_formatters.dart';
 import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
 import 'package:calendar_todo_app/domain/providers/events_provider.dart';
 import 'package:calendar_todo_app/domain/providers/database_provider.dart';
-import 'package:drift/drift.dart' hide Column;
+import 'package:calendar_todo_app/domain/providers/tags_provider.dart';
+import 'package:calendar_todo_app/domain/providers/reminders_provider.dart';
+import 'package:calendar_todo_app/ui/widgets/tag_chips.dart';
+import 'package:calendar_todo_app/ui/widgets/attachment_list.dart';
+import 'package:calendar_todo_app/l10n/app_localizations.dart';
 
 class EventEditPage extends ConsumerStatefulWidget {
   final CalendaEventAdapter event;
@@ -21,6 +30,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   bool _saving = false;
+  bool _isAllDay = false;
+  String? _rrule;
 
   @override
   void initState() {
@@ -29,6 +40,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     _titleController.text = _event.title;
     _descriptionController.text = _event.description ?? '';
     _locationController.text = _event.location ?? '';
+    _isAllDay = _event.isAllDay;
+    _rrule = _event.rrule;
   }
 
   @override
@@ -40,7 +53,20 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   }
 
   Future<void> _save() async {
-    if (_titleController.text.trim().isEmpty) return;
+    final l = AppLocalizations.of(context)!;
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.enterTitle)),
+      );
+      return;
+    }
+
+    if (!_isAllDay && _event.dateTimeRange.end.isBefore(_event.dateTimeRange.start)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.endBeforeStart)),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
     try {
@@ -53,14 +79,31 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
         location: _locationController.text.trim().isNotEmpty
             ? _locationController.text.trim()
             : null,
+        rrule: _rrule,
+        isAllDay: _isAllDay,
       );
       await (db.update(db.events)..where((t) => t.id.equals(_event.drifId)))
           .write(updated.toUpdateCompanion());
-      if (mounted) Navigator.of(context).pop(true);
+
+      // Reschedule reminders if start time changed
+      final oldStart = widget.event.dateTimeRange.start;
+      final newStart = updated.dateTimeRange.start;
+      if (oldStart != newStart && !_isAllDay) {
+        try {
+          await ref.read(rescheduleRemindersProvider)(
+            parentType: 'event',
+            parentId: _event.drifId,
+            oldReferenceTime: oldStart,
+            newReferenceTime: newStart,
+          );
+        } catch (_) {}
+      }
+
+      if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(l.error('$e'))),
         );
       }
     } finally {
@@ -69,21 +112,22 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   }
 
   Future<void> _delete() async {
+    final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Event'),
-        content: Text('Delete "${_event.title}"?'),
+        title: Text(l.delete),
+        content: Text(l.deleteEventConfirm(_event.title)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(
                 foregroundColor: AppColors.lightError),
-            child: const Text('Delete'),
+            child: Text(l.delete),
           ),
         ],
       ),
@@ -91,7 +135,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     if (confirmed != true || !mounted) return;
 
     await ref.read(deleteEventProvider)(_event.drifId);
-    if (mounted) Navigator.of(context).pop(true);
+    if (mounted) context.pop();
   }
 
   Future<void> _pickDateTime(bool isStart) async {
@@ -104,6 +148,25 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       lastDate: DateTime(2100),
     );
     if (date == null || !mounted) return;
+
+    if (_isAllDay) {
+      setState(() {
+        if (isStart) {
+          _event = _event.copyWithData(
+            dateTimeRange: DateTimeRange(
+                start: DateTime(date.year, date.month, date.day),
+                end: _event.dateTimeRange.end),
+          );
+        } else {
+          _event = _event.copyWithData(
+            dateTimeRange: DateTimeRange(
+                start: _event.dateTimeRange.start,
+                end: DateTime(date.year, date.month, date.day)),
+          );
+        }
+      });
+      return;
+    }
 
     final time = await showTimePicker(
       context: context,
@@ -130,18 +193,19 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(false),
+          icon: const Icon(CupertinoIcons.back),
+          onPressed: () => context.pop(),
         ),
-        title: const Text('Edit Event'),
+        title: Text(l.editEvent),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(CupertinoIcons.delete),
             onPressed: _delete,
-            tooltip: 'Delete',
+            tooltip: l.delete,
           ),
           TextButton(
             onPressed: _saving ? null : _save,
@@ -151,7 +215,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Save'),
+                : Text(l.save),
           ),
         ],
       ),
@@ -160,51 +224,92 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
         children: [
           TextField(
             controller: _titleController,
-            decoration: const InputDecoration(
-              labelText: 'Title',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l.title,
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
+          SwitchListTile(
+            value: _isAllDay,
+            onChanged: (v) => setState(() => _isAllDay = v),
+            title: Text(l.allDay),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 8),
           ListTile(
-            leading: const Icon(Icons.play_arrow_outlined),
-            title: const Text('Starts at'),
-            subtitle: Text(_formatDateTime(_event.dateTimeRange.start)),
+            leading: const Icon(CupertinoIcons.play),
+            title: Text(l.startDate),
+            subtitle: Text(_isAllDay
+                ? DateFormatters.formatDate(_event.dateTimeRange.start)
+                : DateFormatters.formatDateTime(_event.dateTimeRange.start)),
             onTap: () => _pickDateTime(true),
             contentPadding: EdgeInsets.zero,
           ),
           ListTile(
-            leading: const Icon(Icons.stop_outlined),
-            title: const Text('Ends at'),
-            subtitle: Text(_formatDateTime(_event.dateTimeRange.end)),
+            leading: const Icon(CupertinoIcons.stop),
+            title: Text(l.endDate),
+            subtitle: Text(_isAllDay
+                ? DateFormatters.formatDate(_event.dateTimeRange.end)
+                : DateFormatters.formatDateTime(_event.dateTimeRange.end)),
             onTap: () => _pickDateTime(false),
             contentPadding: EdgeInsets.zero,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Description',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l.description,
+              border: const OutlineInputBorder(),
             ),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _locationController,
-            decoration: const InputDecoration(
-              labelText: 'Location',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.location_on_outlined),
+            decoration: InputDecoration(
+              labelText: l.location,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(CupertinoIcons.location),
             ),
+          ),
+          const SizedBox(height: 16),
+          // Tags
+          ref.watch(eventTagsProvider(_event.drifId)).when(
+                data: (tags) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.tags, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    TagChips(
+                      parentType: 'event',
+                      parentId: _event.drifId,
+                      assignedTags: tags,
+                    ),
+                  ],
+                ),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+          const SizedBox(height: 16),
+          AttachmentList(parentType: 'event', parentId: _event.drifId),
+          const SizedBox(height: 16),
+          // Recurrence rule
+          RRuleGenerator(
+            locale: RRuleLocale.zh_CN,
+            config: RRuleGeneratorConfig(),
+            initialRRule: _rrule ?? '',
+            withExcludeDates: false,
+            onChange: (String rrule) {
+              setState(() {
+                _rrule = rrule.isEmpty ? null : rrule;
+              });
+            },
           ),
         ],
       ),
     );
   }
 
-  String _formatDateTime(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
+

@@ -30,6 +30,26 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<void> markIncomplete(int id) {
+    return (update(todos)..where((t) => t.id.equals(id))).write(
+      TodosCompanion(
+        status: const Value('NEEDS-ACTION'),
+        completedAt: const Value.absent(),
+        percentComplete: const Value(0),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Stream<List<Todo>> watchCompleted() {
+    return (select(todos)
+          ..where((t) => t.status.equals('COMPLETED'))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.completedAt),
+          ]))
+        .watch();
+  }
+
   Stream<List<Todo>> watchByDueDate(DateTime date) {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -38,6 +58,40 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
               t.dueDate.isBiggerOrEqualValue(startOfDay) &
               t.dueDate.isSmallerThanValue(endOfDay)))
         .watch();
+  }
+
+  Stream<List<Todo>> watchOverdue() {
+    final today = DateTime(
+        DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    return (select(todos)
+          ..where((t) =>
+              t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+              t.dueDate.isNotNull() &
+              t.dueDate.isSmallerThanValue(today)))
+        .watch();
+  }
+
+  Future<List<Todo>> getOverduePending() {
+    final today = DateTime(
+        DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    return (select(todos)
+          ..where((t) =>
+              t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+              t.dueDate.isNotNull() &
+              t.dueDate.isSmallerThanValue(today)))
+        .get();
+  }
+
+  Future<void> moveOverdueToToday(List<int> ids) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return (update(todos)..where((t) => t.id.isIn(ids))).write(
+      TodosCompanion(
+        dueDate: Value(today),
+        updatedAt: Value(now),
+        isDirty: const Value(true),
+      ),
+    );
   }
 
   Future<void> upsert(Todo entry) {

@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:calendar_todo_app/data/local/database/app_database.dart';
@@ -47,23 +46,6 @@ void main() {
           .first;
       expect(events.length, 1);
       expect(events.first.summary, 'Meeting');
-    });
-
-    test('markDirty sets isDirty flag', () async {
-      final eventId = await db.into(db.events).insert(
-            EventsCompanion.insert(
-              calendarId: calId,
-              uid: 'e3',
-              summary: 'Test',
-              startDt: DateTime(2026, 1, 1),
-              endDt: DateTime(2026, 1, 1, 1),
-            ),
-          );
-      await db.eventsDao.markDirty(eventId);
-      final event = await (db.select(db.events)
-            ..where((t) => t.id.equals(eventId)))
-          .getSingle();
-      expect(event.isDirty, true);
     });
   });
 }

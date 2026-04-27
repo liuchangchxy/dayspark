@@ -1,6 +1,14 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:rrule_generator/rrule_generator.dart';
+import 'package:rrule_generator/src/rrule_generator_locale_register.dart';
+import 'package:calendar_todo_app/core/utils/date_formatters.dart';
 import 'package:calendar_todo_app/domain/providers/events_provider.dart';
+import 'package:calendar_todo_app/domain/providers/ai_provider.dart';
+import 'package:calendar_todo_app/domain/providers/reminders_provider.dart';
+import 'package:calendar_todo_app/l10n/app_localizations.dart';
 
 class EventCreatePage extends ConsumerStatefulWidget {
   final DateTime initialStart;
@@ -24,6 +32,8 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
   final _locationController = TextEditingController();
   bool _isAllDay = false;
   bool _saving = false;
+  bool _aiLoading = false;
+  String? _rrule;
 
   @override
   void initState() {
@@ -41,9 +51,17 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context)!;
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a title')),
+        SnackBar(content: Text(l.enterTitle)),
+      );
+      return;
+    }
+
+    if (!_isAllDay && _end.isBefore(_start)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.endBeforeStart)),
       );
       return;
     }
@@ -55,15 +73,14 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       if (calendars.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('No calendar available. Add one in Settings.')),
+            SnackBar(content: Text(l.noCalendar)),
           );
         }
         return;
       }
 
       final createEvent = ref.read(createEventProvider);
-      await createEvent(
+      final eventId = await createEvent(
         calendarId: calendars.first.id,
         uid: 'local-${DateTime.now().millisecondsSinceEpoch}',
         summary: _titleController.text.trim(),
@@ -76,13 +93,24 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
         location: _locationController.text.trim().isNotEmpty
             ? _locationController.text.trim()
             : null,
+        rrule: _rrule,
       );
 
-      if (mounted) Navigator.of(context).pop(true);
+      // Add default reminders
+      if (!_isAllDay) {
+        try {
+          await ref.read(addDefaultEventRemindersProvider)(
+            eventId: eventId,
+            startDt: _start,
+          );
+        } catch (_) {}
+      }
+
+      if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(l.error('$e'))),
         );
       }
     } finally {
@@ -126,16 +154,83 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
     }
   }
 
+  Future<void> _aiParse() async {
+    final l = AppLocalizations.of(context)!;
+    final text = _titleController.text.trim();
+    if (text.isEmpty) return;
+
+    final config = ref.read(aiConfigProvider).value;
+    if (config == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.aiNotConfiguredHint)),
+        );
+      }
+      return;
+    }
+
+    setState(() => _aiLoading = true);
+    try {
+      final result = await parseNaturalLanguage(
+        config: config,
+        input: text,
+        type: 'event',
+      );
+      if (mounted) {
+        setState(() {
+          if (result['summary'] != null) {
+            _titleController.text = result['summary'] as String;
+          }
+          if (result['start'] != null) {
+            _start = DateTime.parse(result['start'] as String);
+          }
+          if (result['end'] != null) {
+            _end = DateTime.parse(result['end'] as String);
+          }
+          if (result['description'] != null) {
+            _descriptionController.text = result['description'] as String;
+          }
+          if (result['location'] != null) {
+            _locationController.text = result['location'] as String;
+          }
+          if (result['is_all_day'] == true) {
+            _isAllDay = true;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.aiError('$e'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _aiLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(false),
+          icon: const Icon(CupertinoIcons.xmark),
+          onPressed: () => context.pop(),
         ),
-        title: const Text('New Event'),
+        title: Text(l.newEvent),
         actions: [
+          IconButton(
+            onPressed: _aiLoading ? null : _aiParse,
+            icon: _aiLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(CupertinoIcons.sparkles),
+            tooltip: 'AI parse',
+          ),
           TextButton(
             onPressed: _saving ? null : _save,
             child: _saving
@@ -144,7 +239,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Save'),
+                : Text(l.save),
           ),
         ],
       ),
@@ -153,9 +248,9 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
         children: [
           TextField(
             controller: _titleController,
-            decoration: const InputDecoration(
-              labelText: 'Title',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l.title,
+              border: const OutlineInputBorder(),
             ),
             textCapitalization: TextCapitalization.sentences,
           ),
@@ -163,30 +258,34 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
           SwitchListTile(
             value: _isAllDay,
             onChanged: (v) => setState(() => _isAllDay = v),
-            title: const Text('All day'),
+            title: Text(l.allDay),
             contentPadding: EdgeInsets.zero,
           ),
           const SizedBox(height: 8),
           ListTile(
-            leading: const Icon(Icons.play_arrow_outlined),
-            title: Text(_isAllDay ? 'Starts' : 'Starts at'),
-            subtitle: Text(_formatDateTime(_start)),
+            leading: const Icon(CupertinoIcons.play),
+            title: Text(l.startDate),
+            subtitle: Text(_isAllDay
+                ? DateFormatters.formatDate(_start)
+                : DateFormatters.formatDateTime(_start)),
             onTap: () => _pickDateTime(true),
             contentPadding: EdgeInsets.zero,
           ),
           ListTile(
-            leading: const Icon(Icons.stop_outlined),
-            title: Text(_isAllDay ? 'Ends' : 'Ends at'),
-            subtitle: Text(_formatDateTime(_end)),
+            leading: const Icon(CupertinoIcons.stop),
+            title: Text(l.endDate),
+            subtitle: Text(_isAllDay
+                ? DateFormatters.formatDate(_end)
+                : DateFormatters.formatDateTime(_end)),
             onTap: () => _pickDateTime(false),
             contentPadding: EdgeInsets.zero,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Description',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l.description,
+              border: const OutlineInputBorder(),
             ),
             maxLines: 3,
             textCapitalization: TextCapitalization.sentences,
@@ -194,22 +293,29 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
           const SizedBox(height: 16),
           TextField(
             controller: _locationController,
-            decoration: const InputDecoration(
-              labelText: 'Location',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.location_on_outlined),
+            decoration: InputDecoration(
+              labelText: l.location,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(CupertinoIcons.location),
             ),
+          ),
+          const SizedBox(height: 16),
+          // Recurrence rule
+          RRuleGenerator(
+            locale: RRuleLocale.zh_CN,
+            config: RRuleGeneratorConfig(),
+            initialRRule: _rrule ?? '',
+            withExcludeDates: false,
+            onChange: (String rrule) {
+              setState(() {
+                _rrule = rrule.isEmpty ? null : rrule;
+              });
+            },
           ),
         ],
       ),
     );
   }
 
-  String _formatDateTime(DateTime dt) {
-    if (_isAllDay) {
-      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-    }
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
+

@@ -9,10 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # State management
   flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
+  cupertino_icons: ^1.0.8
 
   # Routing
   go_router: ^14.8.1
@@ -21,18 +23,45 @@ dependencies:
   drift: ^2.24.0
   sqlite3_flutter_libs: ^0.5.30
 
-  # Data models
-  freezed_annotation: ^2.4.4
-  json_annotation: ^4.9.0
-
   # Secure storage
   flutter_secure_storage: ^9.2.4
 
+  # Persistence
+  shared_preferences: ^2.5.3
+
   # Calendar UI
-  kalender: ^0.16.0
+  kalender: ^0.17.0
+  intl: any
+
+  # Recurring events (RRULE RFC 5545)
+  rrule: ^0.2.18
+  rrule_generator: ^0.9.8
+
+  # File picker
+  file_picker: ^9.2.1
 
   # HTTP client
   dio: ^5.8.0+1
+
+  # MCP Server for AI agent integration
+  mcp_dart: ^2.1.0
+
+  # CalDAV sync
+  enough_icalendar: ^0.17.0
+  xml: ^6.5.0
+
+  # Home screen widgets
+  home_widget: ^0.9.0
+
+  # Background periodic sync
+  workmanager: ^0.9.0
+
+  # Notifications
+  flutter_local_notifications: ^21.0.0
+  timezone: any
+
+  # System alarm reminders
+  alarm: ^5.1.5
   path: ^1.9.1
   path_provider: ^2.1.5
   drift_flutter: ^0.2.7
@@ -40,11 +69,16 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
   flutter_lints: ^5.0.0
 
   # Code generation
   build_runner: ^2.4.14
   drift_dev: ^2.24.0
-  freezed: ^2.5.8
-  json_serializable: ^6.9.4
-  riverpod_generator: ^2.6.3
+
+  # Testing
+  mocktail: ^1.0.4
+
+flutter:
+  generate: true

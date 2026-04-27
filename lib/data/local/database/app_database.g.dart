@@ -3,6 +3,399 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AccountsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Default'),
+  );
+  static const VerificationMeta _serverUrlMeta = const VerificationMeta(
+    'serverUrl',
+  );
+  @override
+  late final GeneratedColumn<String> serverUrl = GeneratedColumn<String>(
+    'server_url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _usernameMeta = const VerificationMeta(
+    'username',
+  );
+  @override
+  late final GeneratedColumn<String> username = GeneratedColumn<String>(
+    'username',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _passwordMeta = const VerificationMeta(
+    'password',
+  );
+  @override
+  late final GeneratedColumn<String> password = GeneratedColumn<String>(
+    'password',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    serverUrl,
+    username,
+    password,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'accounts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Account> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('server_url')) {
+      context.handle(
+        _serverUrlMeta,
+        serverUrl.isAcceptableOrUnknown(data['server_url']!, _serverUrlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverUrlMeta);
+    }
+    if (data.containsKey('username')) {
+      context.handle(
+        _usernameMeta,
+        username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_usernameMeta);
+    }
+    if (data.containsKey('password')) {
+      context.handle(
+        _passwordMeta,
+        password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_passwordMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Account map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Account(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      serverUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_url'],
+      )!,
+      username: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}username'],
+      )!,
+      password: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}password'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AccountsTable createAlias(String alias) {
+    return $AccountsTable(attachedDatabase, alias);
+  }
+}
+
+class Account extends DataClass implements Insertable<Account> {
+  final int id;
+  final String name;
+  final String serverUrl;
+  final String username;
+  final String password;
+  final DateTime createdAt;
+  const Account({
+    required this.id,
+    required this.name,
+    required this.serverUrl,
+    required this.username,
+    required this.password,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['server_url'] = Variable<String>(serverUrl);
+    map['username'] = Variable<String>(username);
+    map['password'] = Variable<String>(password);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AccountsCompanion toCompanion(bool nullToAbsent) {
+    return AccountsCompanion(
+      id: Value(id),
+      name: Value(name),
+      serverUrl: Value(serverUrl),
+      username: Value(username),
+      password: Value(password),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Account.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Account(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      serverUrl: serializer.fromJson<String>(json['serverUrl']),
+      username: serializer.fromJson<String>(json['username']),
+      password: serializer.fromJson<String>(json['password']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'serverUrl': serializer.toJson<String>(serverUrl),
+      'username': serializer.toJson<String>(username),
+      'password': serializer.toJson<String>(password),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Account copyWith({
+    int? id,
+    String? name,
+    String? serverUrl,
+    String? username,
+    String? password,
+    DateTime? createdAt,
+  }) => Account(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    serverUrl: serverUrl ?? this.serverUrl,
+    username: username ?? this.username,
+    password: password ?? this.password,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Account copyWithCompanion(AccountsCompanion data) {
+    return Account(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      serverUrl: data.serverUrl.present ? data.serverUrl.value : this.serverUrl,
+      username: data.username.present ? data.username.value : this.username,
+      password: data.password.present ? data.password.value : this.password,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Account(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('serverUrl: $serverUrl, ')
+          ..write('username: $username, ')
+          ..write('password: $password, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, serverUrl, username, password, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Account &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.serverUrl == this.serverUrl &&
+          other.username == this.username &&
+          other.password == this.password &&
+          other.createdAt == this.createdAt);
+}
+
+class AccountsCompanion extends UpdateCompanion<Account> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String> serverUrl;
+  final Value<String> username;
+  final Value<String> password;
+  final Value<DateTime> createdAt;
+  const AccountsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.serverUrl = const Value.absent(),
+    this.username = const Value.absent(),
+    this.password = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  AccountsCompanion.insert({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    required String serverUrl,
+    required String username,
+    required String password,
+    this.createdAt = const Value.absent(),
+  }) : serverUrl = Value(serverUrl),
+       username = Value(username),
+       password = Value(password);
+  static Insertable<Account> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? serverUrl,
+    Expression<String>? username,
+    Expression<String>? password,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (serverUrl != null) 'server_url': serverUrl,
+      if (username != null) 'username': username,
+      if (password != null) 'password': password,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  AccountsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<String>? serverUrl,
+    Value<String>? username,
+    Value<String>? password,
+    Value<DateTime>? createdAt,
+  }) {
+    return AccountsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      serverUrl: serverUrl ?? this.serverUrl,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (serverUrl.present) {
+      map['server_url'] = Variable<String>(serverUrl.value);
+    }
+    if (username.present) {
+      map['username'] = Variable<String>(username.value);
+    }
+    if (password.present) {
+      map['password'] = Variable<String>(password.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('serverUrl: $serverUrl, ')
+          ..write('username: $username, ')
+          ..write('password: $password, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $CalendarsTable extends Calendars
     with TableInfo<$CalendarsTable, Calendar> {
   @override
@@ -21,6 +414,17 @@ class $CalendarsTable extends Calendars
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
+    'account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _caldavHrefMeta = const VerificationMeta(
     'caldavHref',
@@ -125,6 +529,7 @@ class $CalendarsTable extends Calendars
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    accountId,
     caldavHref,
     name,
     color,
@@ -149,6 +554,12 @@ class $CalendarsTable extends Calendars
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
     }
     if (data.containsKey('caldav_href')) {
       context.handle(
@@ -224,6 +635,10 @@ class $CalendarsTable extends Calendars
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}account_id'],
+      ),
       caldavHref: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}caldav_href'],
@@ -271,6 +686,7 @@ class $CalendarsTable extends Calendars
 
 class Calendar extends DataClass implements Insertable<Calendar> {
   final int id;
+  final int? accountId;
   final String caldavHref;
   final String name;
   final String color;
@@ -282,6 +698,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   final int sortOrder;
   const Calendar({
     required this.id,
+    this.accountId,
     required this.caldavHref,
     required this.name,
     required this.color,
@@ -296,6 +713,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<int>(accountId);
+    }
     map['caldav_href'] = Variable<String>(caldavHref);
     map['name'] = Variable<String>(name);
     map['color'] = Variable<String>(color);
@@ -317,6 +737,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   CalendarsCompanion toCompanion(bool nullToAbsent) {
     return CalendarsCompanion(
       id: Value(id),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
       caldavHref: Value(caldavHref),
       name: Value(name),
       color: Value(color),
@@ -340,6 +763,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Calendar(
       id: serializer.fromJson<int>(json['id']),
+      accountId: serializer.fromJson<int?>(json['accountId']),
       caldavHref: serializer.fromJson<String>(json['caldavHref']),
       name: serializer.fromJson<String>(json['name']),
       color: serializer.fromJson<String>(json['color']),
@@ -356,6 +780,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'accountId': serializer.toJson<int?>(accountId),
       'caldavHref': serializer.toJson<String>(caldavHref),
       'name': serializer.toJson<String>(name),
       'color': serializer.toJson<String>(color),
@@ -370,6 +795,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
 
   Calendar copyWith({
     int? id,
+    Value<int?> accountId = const Value.absent(),
     String? caldavHref,
     String? name,
     String? color,
@@ -381,6 +807,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     int? sortOrder,
   }) => Calendar(
     id: id ?? this.id,
+    accountId: accountId.present ? accountId.value : this.accountId,
     caldavHref: caldavHref ?? this.caldavHref,
     name: name ?? this.name,
     color: color ?? this.color,
@@ -394,6 +821,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   Calendar copyWithCompanion(CalendarsCompanion data) {
     return Calendar(
       id: data.id.present ? data.id.value : this.id,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
       caldavHref: data.caldavHref.present
           ? data.caldavHref.value
           : this.caldavHref,
@@ -414,6 +842,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   String toString() {
     return (StringBuffer('Calendar(')
           ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
           ..write('caldavHref: $caldavHref, ')
           ..write('name: $name, ')
           ..write('color: $color, ')
@@ -430,6 +859,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   @override
   int get hashCode => Object.hash(
     id,
+    accountId,
     caldavHref,
     name,
     color,
@@ -445,6 +875,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
       identical(this, other) ||
       (other is Calendar &&
           other.id == this.id &&
+          other.accountId == this.accountId &&
           other.caldavHref == this.caldavHref &&
           other.name == this.name &&
           other.color == this.color &&
@@ -458,6 +889,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
 
 class CalendarsCompanion extends UpdateCompanion<Calendar> {
   final Value<int> id;
+  final Value<int?> accountId;
   final Value<String> caldavHref;
   final Value<String> name;
   final Value<String> color;
@@ -469,6 +901,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
   final Value<int> sortOrder;
   const CalendarsCompanion({
     this.id = const Value.absent(),
+    this.accountId = const Value.absent(),
     this.caldavHref = const Value.absent(),
     this.name = const Value.absent(),
     this.color = const Value.absent(),
@@ -481,6 +914,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
   });
   CalendarsCompanion.insert({
     this.id = const Value.absent(),
+    this.accountId = const Value.absent(),
     required String caldavHref,
     required String name,
     this.color = const Value.absent(),
@@ -494,6 +928,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
        name = Value(name);
   static Insertable<Calendar> custom({
     Expression<int>? id,
+    Expression<int>? accountId,
     Expression<String>? caldavHref,
     Expression<String>? name,
     Expression<String>? color,
@@ -506,6 +941,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (accountId != null) 'account_id': accountId,
       if (caldavHref != null) 'caldav_href': caldavHref,
       if (name != null) 'name': name,
       if (color != null) 'color': color,
@@ -520,6 +956,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
 
   CalendarsCompanion copyWith({
     Value<int>? id,
+    Value<int?>? accountId,
     Value<String>? caldavHref,
     Value<String>? name,
     Value<String>? color,
@@ -532,6 +969,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
   }) {
     return CalendarsCompanion(
       id: id ?? this.id,
+      accountId: accountId ?? this.accountId,
       caldavHref: caldavHref ?? this.caldavHref,
       name: name ?? this.name,
       color: color ?? this.color,
@@ -549,6 +987,9 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<int>(accountId.value);
     }
     if (caldavHref.present) {
       map['caldav_href'] = Variable<String>(caldavHref.value);
@@ -584,6 +1025,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
   String toString() {
     return (StringBuffer('CalendarsCompanion(')
           ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
           ..write('caldavHref: $caldavHref, ')
           ..write('name: $name, ')
           ..write('color: $color, ')
@@ -4279,6 +4721,7 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $AccountsTable accounts = $AccountsTable(this);
   late final $CalendarsTable calendars = $CalendarsTable(this);
   late final $EventsTable events = $EventsTable(this);
   late final $TodosTable todos = $TodosTable(this);
@@ -4296,6 +4739,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
+    accounts,
     calendars,
     events,
     todos,
@@ -4308,9 +4752,217 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ];
 }
 
+typedef $$AccountsTableCreateCompanionBuilder =
+    AccountsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      required String serverUrl,
+      required String username,
+      required String password,
+      Value<DateTime> createdAt,
+    });
+typedef $$AccountsTableUpdateCompanionBuilder =
+    AccountsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String> serverUrl,
+      Value<String> username,
+      Value<String> password,
+      Value<DateTime> createdAt,
+    });
+
+class $$AccountsTableFilterComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverUrl => $composableBuilder(
+    column: $table.serverUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AccountsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverUrl => $composableBuilder(
+    column: $table.serverUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AccountsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get serverUrl =>
+      $composableBuilder(column: $table.serverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get username =>
+      $composableBuilder(column: $table.username, builder: (column) => column);
+
+  GeneratedColumn<String> get password =>
+      $composableBuilder(column: $table.password, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AccountsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AccountsTable,
+          Account,
+          $$AccountsTableFilterComposer,
+          $$AccountsTableOrderingComposer,
+          $$AccountsTableAnnotationComposer,
+          $$AccountsTableCreateCompanionBuilder,
+          $$AccountsTableUpdateCompanionBuilder,
+          (Account, BaseReferences<_$AppDatabase, $AccountsTable, Account>),
+          Account,
+          PrefetchHooks Function()
+        > {
+  $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AccountsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AccountsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AccountsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> serverUrl = const Value.absent(),
+                Value<String> username = const Value.absent(),
+                Value<String> password = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => AccountsCompanion(
+                id: id,
+                name: name,
+                serverUrl: serverUrl,
+                username: username,
+                password: password,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                required String serverUrl,
+                required String username,
+                required String password,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => AccountsCompanion.insert(
+                id: id,
+                name: name,
+                serverUrl: serverUrl,
+                username: username,
+                password: password,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AccountsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AccountsTable,
+      Account,
+      $$AccountsTableFilterComposer,
+      $$AccountsTableOrderingComposer,
+      $$AccountsTableAnnotationComposer,
+      $$AccountsTableCreateCompanionBuilder,
+      $$AccountsTableUpdateCompanionBuilder,
+      (Account, BaseReferences<_$AppDatabase, $AccountsTable, Account>),
+      Account,
+      PrefetchHooks Function()
+    >;
 typedef $$CalendarsTableCreateCompanionBuilder =
     CalendarsCompanion Function({
       Value<int> id,
+      Value<int?> accountId,
       required String caldavHref,
       required String name,
       Value<String> color,
@@ -4324,6 +4976,7 @@ typedef $$CalendarsTableCreateCompanionBuilder =
 typedef $$CalendarsTableUpdateCompanionBuilder =
     CalendarsCompanion Function({
       Value<int> id,
+      Value<int?> accountId,
       Value<String> caldavHref,
       Value<String> name,
       Value<String> color,
@@ -4389,6 +5042,11 @@ class $$CalendarsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get accountId => $composableBuilder(
+    column: $table.accountId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4502,6 +5160,11 @@ class $$CalendarsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get caldavHref => $composableBuilder(
     column: $table.caldavHref,
     builder: (column) => ColumnOrderings(column),
@@ -4559,6 +5222,9 @@ class $$CalendarsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
 
   GeneratedColumn<String> get caldavHref => $composableBuilder(
     column: $table.caldavHref,
@@ -4671,6 +5337,7 @@ class $$CalendarsTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> accountId = const Value.absent(),
                 Value<String> caldavHref = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> color = const Value.absent(),
@@ -4682,6 +5349,7 @@ class $$CalendarsTableTableManager
                 Value<int> sortOrder = const Value.absent(),
               }) => CalendarsCompanion(
                 id: id,
+                accountId: accountId,
                 caldavHref: caldavHref,
                 name: name,
                 color: color,
@@ -4695,6 +5363,7 @@ class $$CalendarsTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<int?> accountId = const Value.absent(),
                 required String caldavHref,
                 required String name,
                 Value<String> color = const Value.absent(),
@@ -4706,6 +5375,7 @@ class $$CalendarsTableTableManager
                 Value<int> sortOrder = const Value.absent(),
               }) => CalendarsCompanion.insert(
                 id: id,
+                accountId: accountId,
                 caldavHref: caldavHref,
                 name: name,
                 color: color,
@@ -7652,6 +8322,8 @@ typedef $$RemindersTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$AccountsTableTableManager get accounts =>
+      $$AccountsTableTableManager(_db, _db.accounts);
   $$CalendarsTableTableManager get calendars =>
       $$CalendarsTableTableManager(_db, _db.calendars);
   $$EventsTableTableManager get events =>

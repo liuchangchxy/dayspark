@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:calendar_todo_app/core/theme/app_colors.dart';
+import 'package:calendar_todo_app/core/utils/date_formatters.dart';
 import 'package:calendar_todo_app/domain/models/calendar_event_adapter.dart';
 
 class EventTile extends StatelessWidget {
@@ -34,7 +35,7 @@ class EventTile extends StatelessWidget {
           ),
           if (!event.isAllDay)
             Text(
-              _formatTime(event.dateTimeRange.start),
+              DateFormatters.formatTime(event.dateTimeRange.start),
               style: TextStyle(
                 fontSize: 10,
                 color: bgColor.withValues(alpha: 0.8),
@@ -44,11 +45,5 @@ class EventTile extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
   }
 }
