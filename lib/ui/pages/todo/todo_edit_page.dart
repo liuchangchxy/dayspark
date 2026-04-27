@@ -58,9 +58,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   Future<void> _save() async {
     final l = AppLocalizations.of(context)!;
     if (_summaryController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.enterTitle)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
       return;
     }
 
@@ -70,9 +70,11 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       await (db.update(db.todos)..where((t) => t.id.equals(_todo.id))).write(
         TodosCompanion(
           summary: Value(_summaryController.text.trim()),
-          description: Value(_descriptionController.text.trim().isNotEmpty
-              ? _descriptionController.text.trim()
-              : null),
+          description: Value(
+            _descriptionController.text.trim().isNotEmpty
+                ? _descriptionController.text.trim()
+                : null,
+          ),
           priority: Value(_priority),
           dueDate: Value(_dueDate),
           startDate: Value(_startDate),
@@ -100,9 +102,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.error('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.error('$e'))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -123,8 +125,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style:
-                TextButton.styleFrom(foregroundColor: AppColors.lightError),
+            style: TextButton.styleFrom(foregroundColor: AppColors.lightError),
             child: Text(l.delete),
           ),
         ],
@@ -250,13 +251,18 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           const SizedBox(height: 16),
 
           // Priority
-          Text(l.priority,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(
+            l.priority,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 4),
           SegmentedButton<int>(
             showSelectedIcon: false,
             segments: _priorityValues
-                .map((v) => ButtonSegment(value: v, label: Text(priorityLabels[v]!)))
+                .map(
+                  (v) =>
+                      ButtonSegment(value: v, label: Text(priorityLabels[v]!)),
+                )
                 .toList(),
             selected: {_priority},
             onSelectionChanged: (s) => setState(() => _priority = s.first),
@@ -281,11 +287,16 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           const SizedBox(height: 16),
 
           // Tags
-          ref.watch(todoTagsProvider(_todo.id)).when(
+          ref
+              .watch(todoTagsProvider(_todo.id))
+              .when(
                 data: (tags) => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l.tags, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    Text(
+                      l.tags,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
                     const SizedBox(height: 8),
                     TagChips(
                       parentType: 'todo',
@@ -342,7 +353,8 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   }
 
   Widget _quickChip(String label, DateTime date) {
-    final isSelected = _dueDate != null &&
+    final isSelected =
+        _dueDate != null &&
         _dueDate!.year == date.year &&
         _dueDate!.month == date.month &&
         _dueDate!.day == date.day;

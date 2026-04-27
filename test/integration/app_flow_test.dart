@@ -13,35 +13,35 @@ import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
 
 GoRouter _createRouter() => GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(path: '/', builder: (_, __) => const HomePage()),
-        GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
-        GoRoute(
-          path: '/event/new',
-          builder: (_, __) => EventCreatePage(
-            initialStart: DateTime(2026, 5, 1),
-            initialEnd: DateTime(2026, 5, 1).add(const Duration(hours: 1)),
-          ),
-        ),
-        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
-        GoRoute(path: '/tags', builder: (_, __) => const TagsPage()),
-      ],
-    );
+  initialLocation: '/',
+  routes: [
+    GoRoute(path: '/', builder: (_, __) => const HomePage()),
+    GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
+    GoRoute(
+      path: '/event/new',
+      builder: (_, __) => EventCreatePage(
+        initialStart: DateTime(2026, 5, 1),
+        initialEnd: DateTime(2026, 5, 1).add(const Duration(hours: 1)),
+      ),
+    ),
+    GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+    GoRoute(path: '/tags', builder: (_, __) => const TagsPage()),
+  ],
+);
 
 Widget _createTestApp() => ProviderScope(
-      child: MaterialApp.router(
-        routerConfig: _createRouter(),
-        localizationsDelegates: const [
-          ...AppLocalizations.localizationsDelegates,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: AppLocalizations.supportedLocales,
-        locale: const Locale('en'),
-      ),
-    );
+  child: MaterialApp.router(
+    routerConfig: _createRouter(),
+    localizationsDelegates: const [
+      ...AppLocalizations.localizationsDelegates,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    supportedLocales: AppLocalizations.supportedLocales,
+    locale: const Locale('en'),
+  ),
+);
 
 Future<void> _settle(WidgetTester tester) async {
   // pumpAndSettle times out with infinite animations from kalender etc.

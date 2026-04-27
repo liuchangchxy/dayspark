@@ -1,12 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum FeatureFlag {
-  aiAssistant,
-  attachments,
-  caldavSync,
-  notifications,
-}
+enum FeatureFlag { aiAssistant, attachments, caldavSync, notifications }
 
 class FeatureFlags {
   final Map<FeatureFlag, bool> _flags;
@@ -30,9 +25,9 @@ final featureFlagsProvider = FutureProvider<FeatureFlags>((ref) async {
 
 final setFeatureFlagProvider =
     Provider<Future<void> Function(FeatureFlag, bool)>((ref) {
-  return (FeatureFlag flag, bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('feature_${flag.name}', enabled);
-    ref.invalidate(featureFlagsProvider);
-  };
-});
+      return (FeatureFlag flag, bool enabled) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('feature_${flag.name}', enabled);
+        ref.invalidate(featureFlagsProvider);
+      };
+    });

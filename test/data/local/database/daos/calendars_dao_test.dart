@@ -16,7 +16,9 @@ void main() {
 
   group('CalendarsDao', () {
     test('watchAll returns stream of calendars', () async {
-      await db.into(db.calendars).insert(
+      await db
+          .into(db.calendars)
+          .insert(
             CalendarsCompanion.insert(
               caldavHref: '/cal/1',
               name: 'Work',
@@ -24,7 +26,9 @@ void main() {
               timezone: const Value('Asia/Shanghai'),
             ),
           );
-      await db.into(db.calendars).insert(
+      await db
+          .into(db.calendars)
+          .insert(
             CalendarsCompanion.insert(
               caldavHref: '/cal/2',
               name: 'Personal',

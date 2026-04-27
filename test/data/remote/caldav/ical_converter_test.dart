@@ -20,10 +20,12 @@ void main() {
 
   group('eventToIcal', () {
     test('converts a simple event to iCalendar string', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'),
-          );
-      await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'test-uid-1',
@@ -45,10 +47,12 @@ void main() {
     });
 
     test('includes optional fields when present', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'),
-          );
-      await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'test-uid-2',
@@ -70,10 +74,12 @@ void main() {
 
   group('todoToIcal', () {
     test('converts a simple todo to iCalendar string', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'),
-          );
-      await testDb.into(testDb.todos).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calId,
               uid: 'todo-uid-1',
@@ -94,10 +100,12 @@ void main() {
     });
 
     test('includes due date and completed status', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'),
-          );
-      await testDb.into(testDb.todos).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calId,
               uid: 'todo-uid-2',
@@ -234,10 +242,12 @@ void main() {
 
   group('roundtrip', () {
     test('event → ical → event preserves core data', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'),
-          );
-      await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'roundtrip-1',
@@ -258,10 +268,12 @@ void main() {
     });
 
     test('todo → ical → todo preserves core data', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'),
-          );
-      await testDb.into(testDb.todos).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calId,
               uid: 'roundtrip-todo-1',

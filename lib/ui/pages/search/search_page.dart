@@ -54,59 +54,79 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       ),
       body: _query.isEmpty
           ? Center(child: Text(l.typeToSearch))
-          : ref.watch(searchResultsProvider(_query)).when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text(l.error('$e'))),
-                data: (results) {
-                  if (results.isEmpty) {
-                    return Center(child: Text(l.noResults));
-                  }
-                  return ListView(
-                    children: [
-                      if (results.events.isNotEmpty) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Text(l.events,
+          : ref
+                .watch(searchResultsProvider(_query))
+                .when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text(l.error('$e'))),
+                  data: (results) {
+                    if (results.isEmpty) {
+                      return Center(child: Text(l.noResults));
+                    }
+                    return ListView(
+                      children: [
+                        if (results.events.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Text(
+                              l.events,
                               style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
-                        ),
-                        ...results.events.map((event) {
-                              return ListTile(
-                                leading: const Icon(CupertinoIcons.calendar_badge_plus),
-                                title: Text(event.summary),
-                                subtitle: Text(
-                                    '${event.startDt.year}-${event.startDt.month.toString().padLeft(2, '0')}-${event.startDt.day.toString().padLeft(2, '0')}'),
-                                onTap: () {
-                                  context.push('/event/edit',
-                                      extra: CalendaEventAdapter.fromDrift(event));
-                                },
-                              );
-                            }),
-                      ],
-                      if (results.todos.isNotEmpty) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Text(l.todos,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          ...results.events.map((event) {
+                            return ListTile(
+                              leading: const Icon(
+                                CupertinoIcons.calendar_badge_plus,
+                              ),
+                              title: Text(event.summary),
+                              subtitle: Text(
+                                '${event.startDt.year}-${event.startDt.month.toString().padLeft(2, '0')}-${event.startDt.day.toString().padLeft(2, '0')}',
+                              ),
+                              onTap: () {
+                                context.push(
+                                  '/event/edit',
+                                  extra: CalendaEventAdapter.fromDrift(event),
+                                );
+                              },
+                            );
+                          }),
+                        ],
+                        if (results.todos.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Text(
+                              l.todos,
                               style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
-                        ),
-                        ...results.todos.map((todo) => TodoListTile(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          ...results.todos.map(
+                            (todo) => TodoListTile(
                               summary: todo.summary,
                               isCompleted: todo.status == 'COMPLETED',
                               priority: todo.priority,
                               todoId: todo.id,
                               dueDate: todo.dueDate,
-                              onToggle: () =>
-                                  ref.read(toggleTodoProvider)(id: todo.id, isCompleted: todo.status != 'COMPLETED'),
+                              onToggle: () => ref.read(toggleTodoProvider)(
+                                id: todo.id,
+                                isCompleted: todo.status != 'COMPLETED',
+                              ),
                               onTap: () {
                                 context.push('/todo/edit', extra: todo);
                               },
-                            )),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
     );
   }
 }

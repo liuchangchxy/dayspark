@@ -28,43 +28,43 @@ final lastSyncTimeProvider = StateProvider<DateTime?>((ref) => null);
 
 /// Provider that saves CalDAV credentials to secure storage.
 final saveCalDavCredentialsProvider =
-    Provider<Future<void> Function({
-  required String serverUrl,
-  required String username,
-  required String password,
-})>((ref) {
-  return ({
-    required serverUrl,
-    required username,
-    required password,
-  }) async {
-    const storage = FlutterSecureStorage();
-    await storage.write(key: _keyServerUrl, value: serverUrl);
-    await storage.write(key: _keyUsername, value: username);
-    await storage.write(key: _keyPassword, value: password);
-    ref.invalidate(isCalDavConfiguredProvider);
-  };
-});
+    Provider<
+      Future<void> Function({
+        required String serverUrl,
+        required String username,
+        required String password,
+      })
+    >((ref) {
+      return ({
+        required serverUrl,
+        required username,
+        required password,
+      }) async {
+        const storage = FlutterSecureStorage();
+        await storage.write(key: _keyServerUrl, value: serverUrl);
+        await storage.write(key: _keyUsername, value: username);
+        await storage.write(key: _keyPassword, value: password);
+        ref.invalidate(isCalDavConfiguredProvider);
+      };
+    });
 
 /// Provider that reads stored CalDAV credentials.
-final calDavCredentialsProvider = FutureProvider<Map<String, String>?>(
-    (ref) async {
+final calDavCredentialsProvider = FutureProvider<Map<String, String>?>((
+  ref,
+) async {
   const storage = FlutterSecureStorage();
   final url = await storage.read(key: _keyServerUrl);
   final username = await storage.read(key: _keyUsername);
   final password = await storage.read(key: _keyPassword);
 
   if (url == null || username == null || password == null) return null;
-  return {
-    'serverUrl': url,
-    'username': username,
-    'password': password,
-  };
+  return {'serverUrl': url, 'username': username, 'password': password};
 });
 
 /// Provider to delete CalDAV credentials.
-final deleteCalDavCredentialsProvider = Provider<Future<void> Function()>(
-    (ref) {
+final deleteCalDavCredentialsProvider = Provider<Future<void> Function()>((
+  ref,
+) {
   return () async {
     const storage = FlutterSecureStorage();
     await storage.delete(key: _keyServerUrl);
@@ -194,7 +194,8 @@ final triggerSyncAllAccountsProvider = Provider<Future<void> Function()>((ref) {
 
     ref.read(lastSyncTimeProvider.notifier).state = latestSync;
     ref.read(syncErrorProvider.notifier).state = firstError;
-    ref.read(syncStatusProvider.notifier).state =
-        firstError != null ? SyncStatus.error : SyncStatus.success;
+    ref.read(syncStatusProvider.notifier).state = firstError != null
+        ? SyncStatus.error
+        : SyncStatus.success;
   };
 });

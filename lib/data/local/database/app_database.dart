@@ -43,9 +43,26 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (Migrator m) async {
-          await m.createAll();
-          // Seed a default local calendar so the app works without CalDAV
+    onCreate: (Migrator m) async {
+      await m.createAll();
+      // Seed a default local calendar so the app works without CalDAV
+      await into(calendars).insert(
+        CalendarsCompanion.insert(
+          caldavHref: 'local://default',
+          name: 'Personal',
+          color: const Value('#2563EB'),
+        ),
+      );
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        await m.createTable(accounts);
+        await m.addColumn(calendars, calendars.accountId);
+      }
+      // Ensure default calendar exists for existing installs
+      if (from >= 1) {
+        final existing = await (select(calendars)).get();
+        if (existing.isEmpty) {
           await into(calendars).insert(
             CalendarsCompanion.insert(
               caldavHref: 'local://default',
@@ -53,27 +70,10 @@ class AppDatabase extends _$AppDatabase {
               color: const Value('#2563EB'),
             ),
           );
-        },
-        onUpgrade: (Migrator m, int from, int to) async {
-          if (from < 2) {
-            await m.createTable(accounts);
-            await m.addColumn(calendars, calendars.accountId);
-          }
-          // Ensure default calendar exists for existing installs
-          if (from >= 1) {
-            final existing = await (select(calendars)).get();
-            if (existing.isEmpty) {
-              await into(calendars).insert(
-                CalendarsCompanion.insert(
-                  caldavHref: 'local://default',
-                  name: 'Personal',
-                  color: const Value('#2563EB'),
-                ),
-              );
-            }
-          }
-        },
-      );
+        }
+      }
+    },
+  );
 
   // DAOs
   @override

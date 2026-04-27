@@ -10,14 +10,12 @@ final updateHomeWidgetProvider = Provider<Future<void> Function()>((ref) {
     final end = start.add(const Duration(days: 1));
 
     // Use DAOs which provide properly typed column accessors
-    final events = await db.eventsDao
-        .watchByDateRange(start, end)
-        .first;
-    final todos = await db.todosDao
-        .watchPending()
-        .first;
+    final events = await db.eventsDao.watchByDateRange(start, end).first;
+    final todos = await db.todosDao.watchPending().first;
 
     await HomeWidgetService.updateWidgets(
-        todayEvents: events, pendingTodos: todos);
+      todayEvents: events,
+      pendingTodos: todos,
+    );
   };
 });

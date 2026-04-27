@@ -28,7 +28,9 @@ class CalendaEventAdapter extends CalendarEvent {
     this.isAllDay = false,
     this.rrule,
     this.isDirty = false,
-  }) : super(dateTimeRange: DateTimeRange(start: start, end: end));
+  }) : super(
+         dateTimeRange: DateTimeRange(start: start, end: end),
+       );
 
   factory CalendaEventAdapter.fromDrift(drift.Event e, {Color? calendarColor}) {
     return CalendaEventAdapter(

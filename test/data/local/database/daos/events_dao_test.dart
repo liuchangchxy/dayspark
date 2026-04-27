@@ -8,12 +8,9 @@ void main() {
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    calId = await db.into(db.calendars).insert(
-          CalendarsCompanion.insert(
-            caldavHref: '/cal/',
-            name: 'Test',
-          ),
-        );
+    calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
   });
 
   tearDown(() async {
@@ -22,7 +19,9 @@ void main() {
 
   group('EventsDao', () {
     test('watchByDateRange returns events in range', () async {
-      await db.into(db.events).insert(
+      await db
+          .into(db.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e1',
@@ -31,7 +30,9 @@ void main() {
               endDt: DateTime(2026, 4, 17, 11),
             ),
           );
-      await db.into(db.events).insert(
+      await db
+          .into(db.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e2',

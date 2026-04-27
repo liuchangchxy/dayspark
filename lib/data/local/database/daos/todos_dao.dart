@@ -5,8 +5,7 @@ import '../tables/todos_table.dart';
 part 'todos_dao.g.dart';
 
 @DriftAccessor(tables: [Todos])
-class TodosDao extends DatabaseAccessor<AppDatabase>
-    with _$TodosDaoMixin {
+class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
   TodosDao(super.db);
 
   Stream<List<Todo>> watchPending() {
@@ -44,41 +43,48 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
   Stream<List<Todo>> watchCompleted() {
     return (select(todos)
           ..where((t) => t.status.equals('COMPLETED'))
-          ..orderBy([
-            (t) => OrderingTerm.desc(t.completedAt),
-          ]))
+          ..orderBy([(t) => OrderingTerm.desc(t.completedAt)]))
         .watch();
   }
 
   Stream<List<Todo>> watchByDueDate(DateTime date) {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
-    return (select(todos)
-          ..where((t) =>
+    return (select(todos)..where(
+          (t) =>
               t.dueDate.isBiggerOrEqualValue(startOfDay) &
-              t.dueDate.isSmallerThanValue(endOfDay)))
+              t.dueDate.isSmallerThanValue(endOfDay),
+        ))
         .watch();
   }
 
   Stream<List<Todo>> watchOverdue() {
     final today = DateTime(
-        DateTime.now().year, DateTime.now().month, DateTime.now().day);
-    return (select(todos)
-          ..where((t) =>
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    return (select(todos)..where(
+          (t) =>
               t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
               t.dueDate.isNotNull() &
-              t.dueDate.isSmallerThanValue(today)))
+              t.dueDate.isSmallerThanValue(today),
+        ))
         .watch();
   }
 
   Future<List<Todo>> getOverduePending() {
     final today = DateTime(
-        DateTime.now().year, DateTime.now().month, DateTime.now().day);
-    return (select(todos)
-          ..where((t) =>
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    return (select(todos)..where(
+          (t) =>
               t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
               t.dueDate.isNotNull() &
-              t.dueDate.isSmallerThanValue(today)))
+              t.dueDate.isSmallerThanValue(today),
+        ))
         .get();
   }
 
@@ -101,8 +107,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase>
   Future<List<Todo>> searchTodos(String query) {
     final pattern = '%$query%';
     return (select(todos)
-          ..where((t) =>
-              t.summary.like(pattern) | t.description.like(pattern))
+          ..where((t) => t.summary.like(pattern) | t.description.like(pattern))
           ..orderBy([(t) => OrderingTerm.asc(t.dueDate)])
           ..limit(50))
         .get();

@@ -14,11 +14,7 @@ class AiConfig {
   final String baseUrl;
   final String model;
 
-  AiConfig({
-    required this.apiKey,
-    required this.baseUrl,
-    required this.model,
-  });
+  AiConfig({required this.apiKey, required this.baseUrl, required this.model});
 }
 
 /// Current AI config (read from secure storage).
@@ -44,23 +40,21 @@ final isAiConfiguredProvider = FutureProvider<bool>((ref) async {
 
 /// Save AI configuration.
 final saveAiConfigProvider =
-    Provider<Future<void> Function({
-  required String apiKey,
-  required String baseUrl,
-  required String model,
-})>((ref) {
-  return ({
-    required apiKey,
-    required baseUrl,
-    required model,
-  }) async {
-    const storage = FlutterSecureStorage();
-    await storage.write(key: _keyAiApiKey, value: apiKey);
-    await storage.write(key: _keyAiBaseUrl, value: baseUrl);
-    await storage.write(key: _keyAiModel, value: model);
-    ref.invalidate(aiConfigProvider);
-  };
-});
+    Provider<
+      Future<void> Function({
+        required String apiKey,
+        required String baseUrl,
+        required String model,
+      })
+    >((ref) {
+      return ({required apiKey, required baseUrl, required model}) async {
+        const storage = FlutterSecureStorage();
+        await storage.write(key: _keyAiApiKey, value: apiKey);
+        await storage.write(key: _keyAiBaseUrl, value: baseUrl);
+        await storage.write(key: _keyAiModel, value: model);
+        ref.invalidate(aiConfigProvider);
+      };
+    });
 
 /// Delete AI configuration.
 final deleteAiConfigProvider = Provider<Future<void> Function()>((ref) {
@@ -111,7 +105,8 @@ Future<Map<String, dynamic>> parseNaturalLanguage({
   required String input,
   required String type, // 'event' or 'todo'
 }) async {
-  final systemPrompt = '''You are a calendar and todo parser. Parse the user's natural language input into structured data.
+  final systemPrompt =
+      '''You are a calendar and todo parser. Parse the user's natural language input into structured data.
 Return ONLY valid JSON with these fields:
 ${type == 'event' ? '''{
   "summary": "event title",
@@ -153,8 +148,8 @@ class AiChatMessage {
 /// Send a chat message to AI and get response.
 final aiChatProvider =
     StateNotifierProvider<AiChatNotifier, List<AiChatMessage>>((ref) {
-  return AiChatNotifier(ref);
-});
+      return AiChatNotifier(ref);
+    });
 
 class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
   final Ref _ref;
@@ -169,7 +164,8 @@ class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
     state = [...state, AiChatMessage(role: 'assistant', content: '...')];
 
     try {
-      final systemPrompt = 'You are a helpful calendar and todo assistant. '
+      final systemPrompt =
+          'You are a helpful calendar and todo assistant. '
           'Help the user manage their schedule. Be concise. Respond in the same language as the user.';
       final response = await callAiApi(
         config: config,

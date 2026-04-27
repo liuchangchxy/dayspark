@@ -82,9 +82,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(CupertinoIcons.sparkles,
-                                    size: 48,
-                                    color: Theme.of(context).disabledColor),
+                                Icon(
+                                  CupertinoIcons.sparkles,
+                                  size: 48,
+                                  color: Theme.of(context).disabledColor,
+                                ),
                                 const SizedBox(height: 16),
                                 Text(
                                   l.aiHint,
@@ -115,20 +117,20 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 10),
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
                                 constraints: BoxConstraints(
-                                  maxWidth: MediaQuery.of(context).size.width *
-                                      0.75,
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.75,
                                 ),
                                 decoration: BoxDecoration(
                                   color: isUser
-                                      ? Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withValues(alpha: 0.1)
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .surfaceContainerHighest,
+                                      ? Theme.of(context).colorScheme.primary
+                                            .withValues(alpha: 0.1)
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Column(
@@ -136,7 +138,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                   children: [
                                     SelectableText(
                                       msg.content,
-                                      style: Theme.of(context).textTheme.bodyMedium,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium,
                                     ),
                                     if (!isUser) ...[
                                       const SizedBox(height: 6),
@@ -145,28 +149,43 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                         runSpacing: 4,
                                         children: [
                                           _QuickActionChip(
-                                            icon: CupertinoIcons.calendar_badge_plus,
+                                            icon: CupertinoIcons
+                                                .calendar_badge_plus,
                                             label: 'Add Event',
                                             onTap: () => _tryCreateFromChat(
-                                              ref, msg.content, 'event',
+                                              ref,
+                                              msg.content,
+                                              'event',
                                             ),
                                           ),
                                           _QuickActionChip(
-                                            icon: CupertinoIcons.checkmark_rectangle,
+                                            icon: CupertinoIcons
+                                                .checkmark_rectangle,
                                             label: 'Add Todo',
                                             onTap: () => _tryCreateFromChat(
-                                              ref, msg.content, 'todo',
+                                              ref,
+                                              msg.content,
+                                              'todo',
                                             ),
                                           ),
                                           _QuickActionChip(
                                             icon: CupertinoIcons.clock,
                                             label: 'Schedule',
-                                            onTap: () => _suggestSchedule(context, ref, msg.content),
+                                            onTap: () => _suggestSchedule(
+                                              context,
+                                              ref,
+                                              msg.content,
+                                            ),
                                           ),
                                           _QuickActionChip(
-                                            icon: CupertinoIcons.checkmark_rectangle,
+                                            icon: CupertinoIcons
+                                                .checkmark_rectangle,
                                             label: 'Break Down',
-                                            onTap: () => _breakDownTask(context, ref, msg.content),
+                                            onTap: () => _breakDownTask(
+                                              context,
+                                              ref,
+                                              msg.content,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -192,7 +211,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                 borderRadius: BorderRadius.circular(24),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 10),
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                             ),
                             textInputAction: TextInputAction.send,
                             onSubmitted: (_) => _send(),
@@ -206,7 +227,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(CupertinoIcons.arrow_up_circle_fill),
                         ),
@@ -222,8 +244,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(CupertinoIcons.chat_bubble_2,
-                        size: 48, color: Theme.of(context).disabledColor),
+                    Icon(
+                      CupertinoIcons.chat_bubble_2,
+                      size: 48,
+                      color: Theme.of(context).disabledColor,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       l.aiNotConfigured,
@@ -243,7 +268,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   }
 
   Future<void> _suggestSchedule(
-      BuildContext context, WidgetRef ref, String content) async {
+    BuildContext context,
+    WidgetRef ref,
+    String content,
+  ) async {
     final l = AppLocalizations.of(context)!;
     try {
       final now = DateTime.now();
@@ -254,9 +282,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       );
       if (!mounted) return;
       if (suggestions.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.noTimeSlots)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.noTimeSlots)));
         return;
       }
       showDialog(
@@ -280,11 +308,14 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                     final start = startStr.isNotEmpty
                         ? DateTime.tryParse(startStr)
                         : null;
-                    final end =
-                        endStr.isNotEmpty ? DateTime.tryParse(endStr) : null;
-                    context.push('/event/new'
-                        '?start=${start?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch}'
-                        '&end=${end?.millisecondsSinceEpoch ?? DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch}');
+                    final end = endStr.isNotEmpty
+                        ? DateTime.tryParse(endStr)
+                        : null;
+                    context.push(
+                      '/event/new'
+                      '?start=${start?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch}'
+                      '&end=${end?.millisecondsSinceEpoch ?? DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch}',
+                    );
                   },
                 );
               }).toList(),
@@ -300,23 +331,26 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.schedulingFailed('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed('$e'))));
       }
     }
   }
 
   Future<void> _breakDownTask(
-      BuildContext context, WidgetRef ref, String content) async {
+    BuildContext context,
+    WidgetRef ref,
+    String content,
+  ) async {
     final l = AppLocalizations.of(context)!;
     try {
       final subtasks = await ref.read(suggestTaskBreakdownProvider)(content);
       if (!mounted) return;
       if (subtasks.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.noSubtasks)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.noSubtasks)));
         return;
       }
       showDialog(
@@ -328,18 +362,23 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
               mainAxisSize: MainAxisSize.min,
               children: subtasks.map((s) {
                 return ListTile(
-                  leading:
-                      const Icon(CupertinoIcons.checkmark_circle, size: 20),
+                  leading: const Icon(
+                    CupertinoIcons.checkmark_circle,
+                    size: 20,
+                  ),
                   title: Text(s),
                   onTap: () async {
                     Navigator.of(ctx).pop();
                     // Create the todo directly
                     try {
-                      final calendars =
-                          await ref.read(calendarsProvider.future);
+                      final calendars = await ref.read(
+                        calendarsProvider.future,
+                      );
                       if (calendars.isEmpty) return;
                       final calId = calendars.first.id;
-                      final todoId = await ref.read(createTodoProvider).call(
+                      final todoId = await ref
+                          .read(createTodoProvider)
+                          .call(
                             calendarId: calId,
                             uid:
                                 'ai-todo-${DateTime.now().millisecondsSinceEpoch}',
@@ -355,15 +394,13 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       } catch (_) {}
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(l.todoCreatedShort)),
+                          SnackBar(content: Text(l.todoCreatedShort)),
                         );
                       }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(l.failedCreateTodo('$e'))),
+                          SnackBar(content: Text(l.failedCreateTodo('$e'))),
                         );
                       }
                     }
@@ -382,9 +419,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.breakdownFailed('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.breakdownFailed('$e'))));
       }
     }
   }
@@ -433,25 +470,29 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         );
         try {
           await ref.read(addDefaultEventRemindersProvider)(
-            eventId: eventId, startDt: start,
+            eventId: eventId,
+            startDt: start,
           );
         } catch (_) {}
       } else {
         final dueDate = result['due_date'] != null
             ? DateTime.parse(result['due_date'] as String)
             : null;
-        final todoId = await ref.read(createTodoProvider).call(
-          calendarId: calId,
-          uid: 'ai-todo-${DateTime.now().millisecondsSinceEpoch}',
-          summary: result['summary'] as String? ?? 'New Todo',
-          priority: result['priority'] as int? ?? 5,
-          status: 'NEEDS-ACTION',
-          dueDate: dueDate,
-          description: result['description'] as String?,
-        );
+        final todoId = await ref
+            .read(createTodoProvider)
+            .call(
+              calendarId: calId,
+              uid: 'ai-todo-${DateTime.now().millisecondsSinceEpoch}',
+              summary: result['summary'] as String? ?? 'New Todo',
+              priority: result['priority'] as int? ?? 5,
+              status: 'NEEDS-ACTION',
+              dueDate: dueDate,
+              description: result['description'] as String?,
+            );
         try {
           await ref.read(addDefaultTodoRemindersProvider)(
-            todoId: todoId, dueDate: dueDate,
+            todoId: todoId,
+            dueDate: dueDate,
           );
         } catch (_) {}
       }
@@ -459,15 +500,19 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(type == 'event' ? l.eventCreatedShort : l.todoCreatedShort)),
+          SnackBar(
+            content: Text(
+              type == 'event' ? l.eventCreatedShort : l.todoCreatedShort,
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         final l = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.failedAction('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.failedAction('$e'))));
       }
     }
   }

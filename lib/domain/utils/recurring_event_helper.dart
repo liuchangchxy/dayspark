@@ -49,20 +49,22 @@ List<CalendaEventAdapter> expandRecurringEvents(
         if (instance.isAfter(rangeEndUtc)) break;
         if (instance.isBefore(rangeStartUtc)) continue;
 
-        result.add(CalendaEventAdapter(
-          drifId: event.id,
-          calendarId: event.calendarId,
-          uid: event.uid,
-          title: event.summary,
-          start: instance.copyWith(isUtc: false),
-          end: instance.add(duration).copyWith(isUtc: false),
-          description: event.description,
-          location: event.location,
-          color: color,
-          isAllDay: event.isAllDay,
-          rrule: event.rrule,
-          isDirty: event.isDirty,
-        ));
+        result.add(
+          CalendaEventAdapter(
+            drifId: event.id,
+            calendarId: event.calendarId,
+            uid: event.uid,
+            title: event.summary,
+            start: instance.copyWith(isUtc: false),
+            end: instance.add(duration).copyWith(isUtc: false),
+            description: event.description,
+            location: event.location,
+            color: color,
+            isAllDay: event.isAllDay,
+            rrule: event.rrule,
+            isDirty: event.isDirty,
+          ),
+        );
       }
     } catch (_) {
       // If RRULE parsing fails, fall back to showing the original event.

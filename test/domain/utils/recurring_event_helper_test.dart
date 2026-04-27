@@ -18,13 +18,12 @@ void main() {
 
   group('expandRecurringEvents', () {
     test('returns single adapter for event without rrule', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
-      await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e1',
@@ -47,13 +46,12 @@ void main() {
     });
 
     test('expands daily recurring event into multiple instances', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
-      await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e2',
@@ -84,13 +82,12 @@ void main() {
     });
 
     test('only returns instances within the given range', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
-      await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e3',
@@ -119,13 +116,12 @@ void main() {
     });
 
     test('falls back to single event on invalid rrule', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
-      await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e4',
@@ -150,13 +146,12 @@ void main() {
     });
 
     test('uses colorForCalendar callback', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
-      await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e5',

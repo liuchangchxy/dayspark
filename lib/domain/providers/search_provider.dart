@@ -9,12 +9,13 @@ class SearchResults {
   bool get isEmpty => events.isEmpty && todos.isEmpty;
 }
 
-final searchResultsProvider = FutureProvider.family<SearchResults, String>(
-  (ref, query) async {
-    if (query.trim().isEmpty) return SearchResults([], []);
-    final db = ref.watch(databaseProvider);
-    final events = await db.eventsDao.searchEvents(query.trim());
-    final todos = await db.todosDao.searchTodos(query.trim());
-    return SearchResults(events, todos);
-  },
-);
+final searchResultsProvider = FutureProvider.family<SearchResults, String>((
+  ref,
+  query,
+) async {
+  if (query.trim().isEmpty) return SearchResults([], []);
+  final db = ref.watch(databaseProvider);
+  final events = await db.eventsDao.searchEvents(query.trim());
+  final todos = await db.todosDao.searchTodos(query.trim());
+  return SearchResults(events, todos);
+});

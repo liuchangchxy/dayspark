@@ -24,14 +24,13 @@ void main() {
 
   group('eventsProvider', () {
     test('eventsInDateRangeProvider returns events in range', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
 
-      await testDb.into(testDb.events).insert(
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e1',
@@ -40,7 +39,9 @@ void main() {
               endDt: DateTime(2026, 4, 15, 11),
             ),
           );
-      await testDb.into(testDb.events).insert(
+      await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e2',
@@ -64,14 +65,13 @@ void main() {
     });
 
     test('createEvent inserts event', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
 
-      final id = await container.read(createEventProvider).call(
+      final id = await container
+          .read(createEventProvider)
+          .call(
             calendarId: calId,
             uid: 'new-uid',
             summary: 'New Event',
@@ -82,9 +82,9 @@ void main() {
 
       expect(id, greaterThan(0));
 
-      final event = await (testDb.select(testDb.events)
-            ..where((t) => t.id.equals(id)))
-          .getSingle();
+      final event = await (testDb.select(
+        testDb.events,
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(event.summary, 'New Event');
     });
   });

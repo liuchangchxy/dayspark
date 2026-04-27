@@ -18,7 +18,9 @@ void _ensureDefaultCalendar(AppDatabase db) {
     try {
       final calendars = await (db.select(db.calendars)).get();
       if (calendars.isEmpty) {
-        await db.into(db.calendars).insert(
+        await db
+            .into(db.calendars)
+            .insert(
               CalendarsCompanion.insert(
                 caldavHref: 'local://default',
                 name: 'Personal',

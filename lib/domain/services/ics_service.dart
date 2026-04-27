@@ -15,12 +15,12 @@ class IcsService {
 
   /// Export all events from a calendar to a .ics file.
   Future<String> exportCalendar(int calendarId) async {
-    final events = await (_db.select(_db.events)
-          ..where((t) => t.calendarId.equals(calendarId)))
-        .get();
-    final todos = await (_db.select(_db.todos)
-          ..where((t) => t.calendarId.equals(calendarId)))
-        .get();
+    final events = await (_db.select(
+      _db.events,
+    )..where((t) => t.calendarId.equals(calendarId))).get();
+    final todos = await (_db.select(
+      _db.todos,
+    )..where((t) => t.calendarId.equals(calendarId))).get();
 
     final cal = VCalendar();
     cal.productId = '-//CalendarTodoApp//EN';
@@ -69,7 +69,9 @@ class IcsService {
 
   /// Import events/todos from an .ics string into a calendar.
   Future<({int events, int todos})> importIcs(
-      String icsContent, int calendarId) async {
+    String icsContent,
+    int calendarId,
+  ) async {
     final component = VComponent.parse(icsContent);
     if (component is! VCalendar) {
       throw FormatException('Not a valid VCALENDAR');
@@ -90,7 +92,9 @@ class IcsService {
             null,
             null,
           );
-          await _db.into(_db.events).insertOnConflictUpdate(
+          await _db
+              .into(_db.events)
+              .insertOnConflictUpdate(
                 Event(
                   id: -1,
                   calendarId: companion.calendarId.value,
@@ -125,7 +129,9 @@ class IcsService {
             null,
             null,
           );
-          await _db.into(_db.todos).insertOnConflictUpdate(
+          await _db
+              .into(_db.todos)
+              .insertOnConflictUpdate(
                 Todo(
                   id: -1,
                   calendarId: companion.calendarId.value,
@@ -166,5 +172,4 @@ class IcsService {
 
     return (events: events, todos: todos);
   }
-
 }

@@ -14,27 +14,44 @@ class HomeWidgetService {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
 
     try {
-      final eventsJson = jsonEncode(todayEvents.take(3).map((e) => {
-            'summary': e.summary,
-            'start':
-                '${e.startDt.hour.toString().padLeft(2, '0')}:${e.startDt.minute.toString().padLeft(2, '0')}',
-            'isAllDay': e.isAllDay,
-          }).toList());
+      final eventsJson = jsonEncode(
+        todayEvents
+            .take(3)
+            .map(
+              (e) => {
+                'summary': e.summary,
+                'start':
+                    '${e.startDt.hour.toString().padLeft(2, '0')}:${e.startDt.minute.toString().padLeft(2, '0')}',
+                'isAllDay': e.isAllDay,
+              },
+            )
+            .toList(),
+      );
 
-      final todosJson = jsonEncode(pendingTodos.take(3).map((t) => {
-            'summary': t.summary,
-            'dueDate': t.dueDate?.toIso8601String().substring(0, 10),
-            'priority': t.priority,
-          }).toList());
+      final todosJson = jsonEncode(
+        pendingTodos
+            .take(3)
+            .map(
+              (t) => {
+                'summary': t.summary,
+                'dueDate': t.dueDate?.toIso8601String().substring(0, 10),
+                'priority': t.priority,
+              },
+            )
+            .toList(),
+      );
 
       await HomeWidget.saveWidgetData('today_events', eventsJson);
       await HomeWidget.saveWidgetData('pending_todos', todosJson);
       await HomeWidget.saveWidgetData(
-          'todo_count', pendingTodos.length.toString());
+        'todo_count',
+        pendingTodos.length.toString(),
+      );
 
       if (Platform.isAndroid) {
         await HomeWidget.updateWidget(
-            androidName: 'CalendarTodoWidgetProvider');
+          androidName: 'CalendarTodoWidgetProvider',
+        );
       } else if (Platform.isIOS) {
         await HomeWidget.updateWidget(iOSName: 'CalendarTodoWidget');
       }

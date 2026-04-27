@@ -93,8 +93,9 @@ void main() {
   });
 
   group('Todo CRUD', () {
-    testWidgets('FAB navigates to create todo when on Todos tab',
-        (tester) async {
+    testWidgets('FAB navigates to create todo when on Todos tab', (
+      tester,
+    ) async {
       app.main();
       await tester.pumpAndSettle();
 
@@ -190,8 +191,9 @@ void main() {
   });
 
   group('Event CRUD', () {
-    testWidgets('FAB navigates to create event on Calendar tab',
-        (tester) async {
+    testWidgets('FAB navigates to create event on Calendar tab', (
+      tester,
+    ) async {
       app.main();
       await tester.pumpAndSettle();
 
@@ -285,7 +287,9 @@ void main() {
 
       // Enter tag name
       await tester.enterText(
-          find.widgetWithText(TextField, 'Tag name'), 'Work');
+        find.widgetWithText(TextField, 'Tag name'),
+        'Work',
+      );
       await tester.pumpAndSettle();
 
       // Tap create
@@ -311,7 +315,9 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-          find.widgetWithText(TextField, 'Tag name'), 'DeleteMe');
+        find.widgetWithText(TextField, 'Tag name'),
+        'DeleteMe',
+      );
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 

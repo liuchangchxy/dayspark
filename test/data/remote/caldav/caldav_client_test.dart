@@ -44,10 +44,7 @@ void main() {
     });
 
     test('defaults supportsVEVENT and supportsVTODO to true', () {
-      final info = CalDavCalendarInfo(
-        href: '/cal/',
-        name: 'Cal',
-      );
+      final info = CalDavCalendarInfo(href: '/cal/', name: 'Cal');
 
       expect(info.supportsVEVENT, true);
       expect(info.supportsVTODO, true);

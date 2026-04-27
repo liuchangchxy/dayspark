@@ -20,7 +20,9 @@ void main() {
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(testDb),
-        notificationServiceProvider.overrideWithValue(_MockNotificationService()),
+        notificationServiceProvider.overrideWithValue(
+          _MockNotificationService(),
+        ),
       ],
     );
   });
@@ -32,14 +34,13 @@ void main() {
 
   group('todosProvider', () {
     test('pendingTodosProvider returns only non-completed todos', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
 
-      await testDb.into(testDb.todos).insert(
+      await testDb
+          .into(testDb.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calId,
               uid: 't1',
@@ -48,7 +49,9 @@ void main() {
               status: const Value('NEEDS-ACTION'),
             ),
           );
-      await testDb.into(testDb.todos).insert(
+      await testDb
+          .into(testDb.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calId,
               uid: 't2',
@@ -64,14 +67,13 @@ void main() {
     });
 
     test('createTodoProvider inserts a new todo', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
 
-      final id = await container.read(createTodoProvider).call(
+      final id = await container
+          .read(createTodoProvider)
+          .call(
             calendarId: calId,
             uid: 'new-uid',
             summary: 'New Todo',
@@ -81,21 +83,20 @@ void main() {
 
       expect(id, greaterThan(0));
 
-      final todo = await (testDb.select(testDb.todos)
-            ..where((t) => t.id.equals(id)))
-          .getSingle();
+      final todo = await (testDb.select(
+        testDb.todos,
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(todo.summary, 'New Todo');
     });
 
     test('completeTodoProvider marks a todo as completed', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
 
-      final todoId = await testDb.into(testDb.todos).insert(
+      final todoId = await testDb
+          .into(testDb.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calId,
               uid: 't3',
@@ -105,23 +106,24 @@ void main() {
             ),
           );
 
-      await container.read(toggleTodoProvider).call(id: todoId, isCompleted: true);
+      await container
+          .read(toggleTodoProvider)
+          .call(id: todoId, isCompleted: true);
 
-      final todo = await (testDb.select(testDb.todos)
-            ..where((t) => t.id.equals(todoId)))
-          .getSingle();
+      final todo = await (testDb.select(
+        testDb.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
       expect(todo.status, 'COMPLETED');
     });
 
     test('deleteTodoProvider removes a todo', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(
-              caldavHref: '/cal/',
-              name: 'Test',
-            ),
-          );
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
 
-      final todoId = await testDb.into(testDb.todos).insert(
+      final todoId = await testDb
+          .into(testDb.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calId,
               uid: 't-del',
@@ -133,8 +135,7 @@ void main() {
 
       await container.read(deleteTodoProvider).call(todoId);
 
-      final remaining =
-          await (testDb.select(testDb.todos)).get();
+      final remaining = await (testDb.select(testDb.todos)).get();
       expect(remaining.where((t) => t.id == todoId).isEmpty, true);
     });
   });

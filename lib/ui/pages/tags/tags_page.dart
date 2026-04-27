@@ -42,8 +42,10 @@ class TagsPage extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(l.noTags, style: const TextStyle(color: Colors.grey)),
                   const SizedBox(height: 8),
-                  Text(l.tapToCreate,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(
+                    l.tapToCreate,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ],
               ),
             );
@@ -102,8 +104,16 @@ class TagsPage extends ConsumerWidget {
     final nameController = TextEditingController();
     String selectedColor = '#6B7280';
     final colors = [
-      '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6',
-      '#EC4899', '#6B7280', '#14B8A6', '#F97316', '#6366F1',
+      '#EF4444',
+      '#F59E0B',
+      '#10B981',
+      '#3B82F6',
+      '#8B5CF6',
+      '#EC4899',
+      '#6B7280',
+      '#14B8A6',
+      '#F97316',
+      '#6366F1',
     ];
 
     showDialog(
@@ -154,9 +164,9 @@ class TagsPage extends ConsumerWidget {
               onPressed: () {
                 final name = nameController.text.trim();
                 if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.tagName)),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(l.tagName)));
                   return;
                 }
                 ref.read(createTagProvider)(name: name, color: selectedColor);
@@ -169,6 +179,4 @@ class TagsPage extends ConsumerWidget {
       ),
     );
   }
-
 }
-

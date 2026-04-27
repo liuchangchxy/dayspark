@@ -29,8 +29,10 @@ class AttachmentList extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Text(l.attachments,
-                  style: const TextStyle(fontWeight: FontWeight.w500)),
+              Text(
+                l.attachments,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
               const Spacer(),
               IconButton(
                 icon: const Icon(CupertinoIcons.paperclip, size: 20),
@@ -41,26 +43,29 @@ class AttachmentList extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           if (attachments.isEmpty)
-            Text(l.noAttachments,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600))
+            Text(
+              l.noAttachments,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            )
           else
-            ...attachments.map((a) => ListTile(
-                  dense: true,
-                  leading: const Icon(CupertinoIcons.doc_text,
-                      size: 20),
-                  title:
-                      Text(a.fileName, style: const TextStyle(fontSize: 13)),
-                  subtitle: a.fileSize > 0
-                      ? Text(_formatSize(a.fileSize),
-                          style: const TextStyle(fontSize: 11))
-                      : null,
-                  trailing: IconButton(
-                    icon: const Icon(CupertinoIcons.xmark, size: 16),
-                    onPressed: () =>
-                        ref.read(deleteAttachmentProvider)(a.id),
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                )),
+            ...attachments.map(
+              (a) => ListTile(
+                dense: true,
+                leading: const Icon(CupertinoIcons.doc_text, size: 20),
+                title: Text(a.fileName, style: const TextStyle(fontSize: 13)),
+                subtitle: a.fileSize > 0
+                    ? Text(
+                        _formatSize(a.fileSize),
+                        style: const TextStyle(fontSize: 11),
+                      )
+                    : null,
+                trailing: IconButton(
+                  icon: const Icon(CupertinoIcons.xmark, size: 16),
+                  onPressed: () => ref.read(deleteAttachmentProvider)(a.id),
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
         ],
       ),
       loading: () => const SizedBox.shrink(),

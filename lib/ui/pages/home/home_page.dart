@@ -25,7 +25,8 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver {
+class _HomePageState extends ConsumerState<HomePage>
+    with WidgetsBindingObserver {
   late int _currentTab;
   bool _todoShowToday = true;
   BackgroundSyncService? _syncService;
@@ -111,11 +112,13 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
     );
 
     if (moved == true && mounted) {
-      await ref.read(moveOverdueToTodayProvider)(overdue.map((t) => t.id).toList());
+      await ref.read(moveOverdueToTodayProvider)(
+        overdue.map((t) => t.id).toList(),
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.movedToToday(overdue.length))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.movedToToday(overdue.length))));
       }
     }
   }
@@ -134,7 +137,11 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       appBar: AppBar(
         title: Text(l.appName),
         actions: [
-          if (ref.watch(featureFlagsProvider).valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? true)
+          if (ref
+                  .watch(featureFlagsProvider)
+                  .valueOrNull
+                  ?.isEnabled(FeatureFlag.aiAssistant) ??
+              true)
             IconButton(
               icon: const Icon(CupertinoIcons.sparkles),
               tooltip: l.aiAssistant,
@@ -178,9 +185,13 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
         onDestinationSelected: (i) => setState(() => _currentTab = i),
         destinations: [
           NavigationDestination(
-              icon: const Icon(CupertinoIcons.calendar), label: l.calendar),
+            icon: const Icon(CupertinoIcons.calendar),
+            label: l.calendar,
+          ),
           NavigationDestination(
-              icon: const Icon(CupertinoIcons.checkmark_rectangle), label: l.todos),
+            icon: const Icon(CupertinoIcons.checkmark_rectangle),
+            label: l.todos,
+          ),
         ],
       ),
     );
@@ -189,9 +200,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
   Widget _buildCalendarTab() {
     final l = AppLocalizations.of(context)!;
     final range = _calendarRange();
-    final eventsAsync = ref.watch(
-      eventsInDateRangeProvider(range),
-    );
+    final eventsAsync = ref.watch(eventsInDateRangeProvider(range));
 
     return eventsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -264,7 +273,11 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
 
         for (final t in todos) {
           if (t.dueDate == null) continue;
-          final due = DateTime(t.dueDate!.year, t.dueDate!.month, t.dueDate!.day);
+          final due = DateTime(
+            t.dueDate!.year,
+            t.dueDate!.month,
+            t.dueDate!.day,
+          );
           if (due.isBefore(today)) {
             overdue.add(t);
           } else if (due == today) {
@@ -274,23 +287,36 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
 
         final todayCompleted = completed.where((t) {
           if (t.completedAt == null) return false;
-          final c = DateTime(t.completedAt!.year, t.completedAt!.month, t.completedAt!.day);
+          final c = DateTime(
+            t.completedAt!.year,
+            t.completedAt!.month,
+            t.completedAt!.day,
+          );
           return c == today;
         }).toList();
 
-        final allEmpty = overdue.isEmpty && todayTodos.isEmpty && todayCompleted.isEmpty;
+        final allEmpty =
+            overdue.isEmpty && todayTodos.isEmpty && todayCompleted.isEmpty;
         if (allEmpty) {
           return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(CupertinoIcons.checkmark_rectangle, size: 64, color: Colors.grey),
+                const Icon(
+                  CupertinoIcons.checkmark_rectangle,
+                  size: 64,
+                  color: Colors.grey,
+                ),
                 const SizedBox(height: 16),
-                Text(l.noPendingTodos,
-                    style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                Text(
+                  l.noPendingTodos,
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
                 const SizedBox(height: 8),
-                Text(l.tapToCreate,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(
+                  l.tapToCreate,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
           );
@@ -303,7 +329,11 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
               ...overdue.map((t) => _todoTile(t)),
             ],
             if (todayTodos.isNotEmpty) ...[
-              _sectionHeader(l.today, todayTodos.length, Theme.of(context).colorScheme.primary),
+              _sectionHeader(
+                l.today,
+                todayTodos.length,
+                Theme.of(context).colorScheme.primary,
+              ),
               ...todayTodos.map((t) => _todoTile(t)),
             ],
             if (todayCompleted.isNotEmpty) ...[
@@ -334,21 +364,28 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(CupertinoIcons.checkmark_rectangle, size: 64, color: Colors.grey),
+                const Icon(
+                  CupertinoIcons.checkmark_rectangle,
+                  size: 64,
+                  color: Colors.grey,
+                ),
                 const SizedBox(height: 16),
-                Text(l.noPendingTodos,
-                    style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                Text(
+                  l.noPendingTodos,
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
                 const SizedBox(height: 8),
-                Text(l.tapToCreate,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(
+                  l.tapToCreate,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
           );
         }
         return ListView(
           children: [
-            if (todos.isNotEmpty)
-              ...todos.map((t) => _todoTile(t)),
+            if (todos.isNotEmpty) ...todos.map((t) => _todoTile(t)),
             if (completed.isNotEmpty) ...[
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -379,10 +416,7 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
           const SizedBox(width: 6),
           Text(
             '$count',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade500,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
         ],
       ),
@@ -396,8 +430,8 @@ class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver
       priority: todo.priority,
       todoId: todo.id,
       dueDate: todo.dueDate,
-      onToggle: () => ref.read(toggleTodoProvider)(
-          id: todo.id, isCompleted: !isCompleted),
+      onToggle: () =>
+          ref.read(toggleTodoProvider)(id: todo.id, isCompleted: !isCompleted),
       onTap: () => context.push('/todo/edit', extra: todo),
     );
   }

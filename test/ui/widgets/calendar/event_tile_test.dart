@@ -18,9 +18,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: EventTile(event: event),
-          ),
+          home: Scaffold(body: EventTile(event: event)),
         ),
       );
 
@@ -41,9 +39,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: EventTile(event: event),
-          ),
+          home: Scaffold(body: EventTile(event: event)),
         ),
       );
 
@@ -64,15 +60,14 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: EventTile(event: event),
-          ),
+          home: Scaffold(body: EventTile(event: event)),
         ),
       );
 
       expect(find.text('Sync'), findsOneWidget);
       // CalendarEvent stores UTC; _formatTime reads dateTimeRange.start (UTC)
-      final expected = '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+      final expected =
+          '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
       expect(find.text(expected), findsOneWidget);
     });
 
@@ -90,9 +85,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: EventTile(event: event),
-          ),
+          home: Scaffold(body: EventTile(event: event)),
         ),
       );
 

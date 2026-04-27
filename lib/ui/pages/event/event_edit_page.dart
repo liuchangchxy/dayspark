@@ -55,16 +55,17 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   Future<void> _save() async {
     final l = AppLocalizations.of(context)!;
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.enterTitle)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
       return;
     }
 
-    if (!_isAllDay && _event.dateTimeRange.end.isBefore(_event.dateTimeRange.start)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.endBeforeStart)),
-      );
+    if (!_isAllDay &&
+        _event.dateTimeRange.end.isBefore(_event.dateTimeRange.start)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.endBeforeStart)));
       return;
     }
 
@@ -102,9 +103,9 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.error('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.error('$e'))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -125,8 +126,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.lightError),
+            style: TextButton.styleFrom(foregroundColor: AppColors.lightError),
             child: Text(l.delete),
           ),
         ],
@@ -139,8 +139,9 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   }
 
   Future<void> _pickDateTime(bool isStart) async {
-    final current =
-        isStart ? _event.dateTimeRange.start : _event.dateTimeRange.end;
+    final current = isStart
+        ? _event.dateTimeRange.start
+        : _event.dateTimeRange.end;
     final date = await showDatePicker(
       context: context,
       initialDate: current,
@@ -154,14 +155,16 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
         if (isStart) {
           _event = _event.copyWithData(
             dateTimeRange: DateTimeRange(
-                start: DateTime(date.year, date.month, date.day),
-                end: _event.dateTimeRange.end),
+              start: DateTime(date.year, date.month, date.day),
+              end: _event.dateTimeRange.end,
+            ),
           );
         } else {
           _event = _event.copyWithData(
             dateTimeRange: DateTimeRange(
-                start: _event.dateTimeRange.start,
-                end: DateTime(date.year, date.month, date.day)),
+              start: _event.dateTimeRange.start,
+              end: DateTime(date.year, date.month, date.day),
+            ),
           );
         }
       });
@@ -175,17 +178,26 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     if (time == null || !mounted) return;
 
     final dt = DateTime(
-        date.year, date.month, date.day, time.hour, time.minute);
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     setState(() {
       if (isStart) {
         _event = _event.copyWithData(
           dateTimeRange: DateTimeRange(
-              start: dt, end: _event.dateTimeRange.end),
+            start: dt,
+            end: _event.dateTimeRange.end,
+          ),
         );
       } else {
         _event = _event.copyWithData(
           dateTimeRange: DateTimeRange(
-              start: _event.dateTimeRange.start, end: dt),
+            start: _event.dateTimeRange.start,
+            end: dt,
+          ),
         );
       }
     });
@@ -240,18 +252,22 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
           ListTile(
             leading: const Icon(CupertinoIcons.play),
             title: Text(l.startDate),
-            subtitle: Text(_isAllDay
-                ? DateFormatters.formatDate(_event.dateTimeRange.start)
-                : DateFormatters.formatDateTime(_event.dateTimeRange.start)),
+            subtitle: Text(
+              _isAllDay
+                  ? DateFormatters.formatDate(_event.dateTimeRange.start)
+                  : DateFormatters.formatDateTime(_event.dateTimeRange.start),
+            ),
             onTap: () => _pickDateTime(true),
             contentPadding: EdgeInsets.zero,
           ),
           ListTile(
             leading: const Icon(CupertinoIcons.stop),
             title: Text(l.endDate),
-            subtitle: Text(_isAllDay
-                ? DateFormatters.formatDate(_event.dateTimeRange.end)
-                : DateFormatters.formatDateTime(_event.dateTimeRange.end)),
+            subtitle: Text(
+              _isAllDay
+                  ? DateFormatters.formatDate(_event.dateTimeRange.end)
+                  : DateFormatters.formatDateTime(_event.dateTimeRange.end),
+            ),
             onTap: () => _pickDateTime(false),
             contentPadding: EdgeInsets.zero,
           ),
@@ -275,11 +291,16 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
           ),
           const SizedBox(height: 16),
           // Tags
-          ref.watch(eventTagsProvider(_event.drifId)).when(
+          ref
+              .watch(eventTagsProvider(_event.drifId))
+              .when(
                 data: (tags) => Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l.tags, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    Text(
+                      l.tags,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
                     const SizedBox(height: 8),
                     TagChips(
                       parentType: 'event',
@@ -310,6 +331,4 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       ),
     );
   }
-
 }
-

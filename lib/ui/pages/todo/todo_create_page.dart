@@ -55,9 +55,9 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   Future<void> _save() async {
     final l = AppLocalizations.of(context)!;
     if (_summaryController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.enterTitle)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
       return;
     }
 
@@ -66,15 +66,17 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       final calendars = await ref.read(calendarsProvider.future);
       if (calendars.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.noCalendar)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l.noCalendar)));
         }
         return;
       }
 
       final calendarId = _selectedCalendarId ?? calendars.first.id;
-      final todoId = await ref.read(createTodoProvider).call(
+      final todoId = await ref
+          .read(createTodoProvider)
+          .call(
             calendarId: calendarId,
             uid: 'local-todo-${DateTime.now().millisecondsSinceEpoch}',
             summary: _summaryController.text.trim(),
@@ -106,9 +108,9 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.error('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.error('$e'))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -151,9 +153,9 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
     final config = ref.read(aiConfigProvider).value;
     if (config == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.notConfigured)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.notConfigured)));
       }
       return;
     }
@@ -183,9 +185,9 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.aiError('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.aiError('$e'))));
       }
     } finally {
       if (mounted) setState(() => _aiLoading = false);
@@ -294,13 +296,18 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           const SizedBox(height: 16),
 
           // Priority
-          Text(l.priority,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(
+            l.priority,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 4),
           SegmentedButton<int>(
             showSelectedIcon: false,
             segments: _priorityValues
-                .map((v) => ButtonSegment(value: v, label: Text(priorityLabels[v]!)))
+                .map(
+                  (v) =>
+                      ButtonSegment(value: v, label: Text(priorityLabels[v]!)),
+                )
                 .toList(),
             selected: {_priority},
             onSelectionChanged: (s) => setState(() => _priority = s.first),
@@ -354,15 +361,20 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l.calendar,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(
+              l.calendar,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
             const SizedBox(height: 4),
             DropdownButtonFormField<int>(
               initialValue: _selectedCalendarId ?? calendars.first.id,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
               items: calendars.map((c) {
                 final color = ColorUtils.parseHex(c.color);
@@ -420,7 +432,8 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   }
 
   Widget _quickChip(String label, DateTime date) {
-    final isToday = _dueDate != null &&
+    final isToday =
+        _dueDate != null &&
         _dueDate!.year == date.year &&
         _dueDate!.month == date.month &&
         _dueDate!.day == date.day;
@@ -443,7 +456,10 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
               children: [
                 const Icon(CupertinoIcons.tag, size: 16, color: Colors.grey),
                 const SizedBox(width: 8),
-                Text(l.noTags, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                Text(
+                  l.noTags,
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                ),
                 TextButton(
                   onPressed: () => context.push('/tags'),
                   child: Text(l.createTag),
@@ -457,11 +473,17 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           children: [
             Row(
               children: [
-                Text(l.tags, style: const TextStyle(fontWeight: FontWeight.w500)),
+                Text(
+                  l.tags,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
                 const Spacer(),
                 TextButton(
                   onPressed: () => context.push('/tags'),
-                  child: Text(l.manageTags, style: const TextStyle(fontSize: 12)),
+                  child: Text(
+                    l.manageTags,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -474,7 +496,9 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                 return FilterChip(
                   label: Text(tag.name),
                   selected: isSelected,
-                  selectedColor: ColorUtils.parseHex(tag.color).withValues(alpha: 0.3),
+                  selectedColor: ColorUtils.parseHex(
+                    tag.color,
+                  ).withValues(alpha: 0.3),
                   checkmarkColor: ColorUtils.parseHex(tag.color),
                   onSelected: (selected) {
                     setState(() {

@@ -57,8 +57,9 @@ class TodoListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final textColor =
-        isCompleted ? theme.disabledColor : theme.textTheme.bodyMedium?.color;
+    final textColor = isCompleted
+        ? theme.disabledColor
+        : theme.textTheme.bodyMedium?.color;
     final tagsAsync = ref.watch(todoTagsProvider(todoId));
 
     return InkWell(
@@ -99,8 +100,9 @@ class TodoListTile extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 14,
                       color: textColor,
-                      decoration:
-                          isCompleted ? TextDecoration.lineThrough : null,
+                      decoration: isCompleted
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -149,10 +151,7 @@ class TodoListTile extends ConsumerWidget {
             child: Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
           ),
         );

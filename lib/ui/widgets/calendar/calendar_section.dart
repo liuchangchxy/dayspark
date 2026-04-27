@@ -51,10 +51,7 @@ class _CalendarSectionState extends State<CalendarSection> {
     final range = _calendarController.visibleDateTimeRange.value;
     if (range != null && mounted) {
       setState(() {
-        _visibleRange = DateTimeRange(
-          start: range.start,
-          end: range.end,
-        );
+        _visibleRange = DateTimeRange(start: range.start, end: range.end);
       });
     }
   }
@@ -96,7 +93,9 @@ class _CalendarSectionState extends State<CalendarSection> {
 
   String _formatVisibleDate() {
     if (_visibleRange == null) {
-      return DateFormat.yMMMM(Localizations.localeOf(context).toString()).format(DateTime.now());
+      return DateFormat.yMMMM(
+        Localizations.localeOf(context).toString(),
+      ).format(DateTime.now());
     }
     final start = _visibleRange!.start;
     final locale = Localizations.localeOf(context).toString();
@@ -133,8 +132,8 @@ class _CalendarSectionState extends State<CalendarSection> {
                 child: Text(
                   _formatVisibleDate(),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -214,9 +213,7 @@ class _CalendarSectionState extends State<CalendarSection> {
                 }
               },
             ),
-            header: CalendarHeader(
-              multiDayTileComponents: tileComponents,
-            ),
+            header: CalendarHeader(multiDayTileComponents: tileComponents),
             body: CalendarBody(
               multiDayTileComponents: tileComponents,
               monthTileComponents: tileComponents,

@@ -36,10 +36,7 @@ class TagChips extends ConsumerWidget {
             final tagColor = ColorUtils.parseHex(tag.color);
             return FilterChip(
               label: Text(tag.name),
-              avatar: CircleAvatar(
-                radius: 6,
-                backgroundColor: tagColor,
-              ),
+              avatar: CircleAvatar(radius: 6, backgroundColor: tagColor),
               selected: isAssigned,
               selectedColor: tagColor.withValues(alpha: 0.3),
               checkmarkColor: tagColor,
@@ -47,18 +44,26 @@ class TagChips extends ConsumerWidget {
                 if (parentType == 'event') {
                   if (selected) {
                     ref.read(addTagToEventProvider)(
-                        eventId: parentId, tagId: tag.id);
+                      eventId: parentId,
+                      tagId: tag.id,
+                    );
                   } else {
                     ref.read(removeTagFromEventProvider)(
-                        eventId: parentId, tagId: tag.id);
+                      eventId: parentId,
+                      tagId: tag.id,
+                    );
                   }
                 } else {
                   if (selected) {
                     ref.read(addTagToTodoProvider)(
-                        todoId: parentId, tagId: tag.id);
+                      todoId: parentId,
+                      tagId: tag.id,
+                    );
                   } else {
                     ref.read(removeTagFromTodoProvider)(
-                        todoId: parentId, tagId: tag.id);
+                      todoId: parentId,
+                      tagId: tag.id,
+                    );
                   }
                 }
               },
@@ -70,5 +75,4 @@ class TagChips extends ConsumerWidget {
       error: (_, __) => const SizedBox.shrink(),
     );
   }
-
 }

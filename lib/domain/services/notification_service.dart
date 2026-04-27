@@ -21,8 +21,9 @@ class NotificationService {
 
     tz.initializeTimeZones();
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -43,7 +44,8 @@ class NotificationService {
     if (Platform.isAndroid) {
       await _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
     }
 
@@ -66,7 +68,9 @@ class NotificationService {
   Future<void> scheduleFromReminder(Reminder reminder) async {
     if (!_initialized) await init();
 
-    final title = reminder.parentType == 'event' ? 'Event Reminder' : 'Todo Reminder';
+    final title = reminder.parentType == 'event'
+        ? 'Event Reminder'
+        : 'Todo Reminder';
 
     await _scheduleNotification(
       id: reminder.id,

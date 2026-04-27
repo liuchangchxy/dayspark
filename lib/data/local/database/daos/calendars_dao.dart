@@ -10,9 +10,9 @@ class CalendarsDao extends DatabaseAccessor<AppDatabase>
   CalendarsDao(super.db);
 
   Stream<List<Calendar>> watchAll() {
-    return (select(calendars)
-          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
-        .watch();
+    return (select(
+      calendars,
+    )..orderBy([(t) => OrderingTerm.asc(t.sortOrder)])).watch();
   }
 
   Future<void> upsert(Calendar entry) {

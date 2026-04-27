@@ -53,16 +53,16 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
   Future<void> _save() async {
     final l = AppLocalizations.of(context)!;
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.enterTitle)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
       return;
     }
 
     if (!_isAllDay && _end.isBefore(_start)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.endBeforeStart)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.endBeforeStart)));
       return;
     }
 
@@ -72,9 +72,9 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       final calendars = await ref.read(calendarsProvider.future);
       if (calendars.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.noCalendar)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l.noCalendar)));
         }
         return;
       }
@@ -109,9 +109,9 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.error('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.error('$e'))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -135,7 +135,12 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       if (time == null || !mounted) return;
 
       final dt = DateTime(
-          date.year, date.month, date.day, time.hour, time.minute);
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
       setState(() {
         if (isStart) {
           _start = dt;
@@ -162,9 +167,9 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
     final config = ref.read(aiConfigProvider).value;
     if (config == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.aiNotConfiguredHint)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.aiNotConfiguredHint)));
       }
       return;
     }
@@ -200,9 +205,9 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.aiError('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.aiError('$e'))));
       }
     } finally {
       if (mounted) setState(() => _aiLoading = false);
@@ -265,18 +270,22 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
           ListTile(
             leading: const Icon(CupertinoIcons.play),
             title: Text(l.startDate),
-            subtitle: Text(_isAllDay
-                ? DateFormatters.formatDate(_start)
-                : DateFormatters.formatDateTime(_start)),
+            subtitle: Text(
+              _isAllDay
+                  ? DateFormatters.formatDate(_start)
+                  : DateFormatters.formatDateTime(_start),
+            ),
             onTap: () => _pickDateTime(true),
             contentPadding: EdgeInsets.zero,
           ),
           ListTile(
             leading: const Icon(CupertinoIcons.stop),
             title: Text(l.endDate),
-            subtitle: Text(_isAllDay
-                ? DateFormatters.formatDate(_end)
-                : DateFormatters.formatDateTime(_end)),
+            subtitle: Text(
+              _isAllDay
+                  ? DateFormatters.formatDate(_end)
+                  : DateFormatters.formatDateTime(_end),
+            ),
             onTap: () => _pickDateTime(false),
             contentPadding: EdgeInsets.zero,
           ),
@@ -316,6 +325,4 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       ),
     );
   }
-
 }
-

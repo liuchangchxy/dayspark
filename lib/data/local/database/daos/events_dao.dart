@@ -5,15 +5,16 @@ import '../tables/events_table.dart';
 part 'events_dao.g.dart';
 
 @DriftAccessor(tables: [Events])
-class EventsDao extends DatabaseAccessor<AppDatabase>
-    with _$EventsDaoMixin {
+class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
   EventsDao(super.db);
 
   Stream<List<Event>> watchByDateRange(DateTime start, DateTime end) {
     return (select(events)
-          ..where((t) =>
-              t.startDt.isBiggerOrEqualValue(start) &
-              t.startDt.isSmallerOrEqualValue(end))
+          ..where(
+            (t) =>
+                t.startDt.isBiggerOrEqualValue(start) &
+                t.startDt.isSmallerOrEqualValue(end),
+          )
           ..orderBy([(t) => OrderingTerm.asc(t.startDt)]))
         .watch();
   }
@@ -25,8 +26,7 @@ class EventsDao extends DatabaseAccessor<AppDatabase>
   Future<List<Event>> searchEvents(String query) {
     final pattern = '%$query%';
     return (select(events)
-          ..where((t) =>
-              t.summary.like(pattern) | t.description.like(pattern))
+          ..where((t) => t.summary.like(pattern) | t.description.like(pattern))
           ..orderBy([(t) => OrderingTerm.asc(t.startDt)])
           ..limit(50))
         .get();

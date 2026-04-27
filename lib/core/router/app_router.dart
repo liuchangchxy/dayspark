@@ -35,7 +35,9 @@ class _NavObserver extends NavigatorObserver {
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    debugPrint('[GoRouter] REPLACE: ${oldRoute?.settings.name} → ${newRoute?.settings.name}');
+    debugPrint(
+      '[GoRouter] REPLACE: ${oldRoute?.settings.name} → ${newRoute?.settings.name}',
+    );
   }
 }
 
@@ -52,7 +54,8 @@ abstract final class AppRouter {
         path: '/',
         name: 'home',
         builder: (context, state) {
-          final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+          final tab =
+              int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
           return HomePage(initialTab: tab);
         },
       ),
@@ -67,14 +70,16 @@ abstract final class AppRouter {
         pageBuilder: (context, state) {
           final start = state.uri.queryParameters['start'];
           final end = state.uri.queryParameters['end'];
-          return _fadeTransition(EventCreatePage(
-            initialStart: start != null
-                ? DateTime.fromMillisecondsSinceEpoch(int.parse(start))
-                : DateTime.now(),
-            initialEnd: end != null
-                ? DateTime.fromMillisecondsSinceEpoch(int.parse(end))
-                : DateTime.now().add(const Duration(hours: 1)),
-          ));
+          return _fadeTransition(
+            EventCreatePage(
+              initialStart: start != null
+                  ? DateTime.fromMillisecondsSinceEpoch(int.parse(start))
+                  : DateTime.now(),
+              initialEnd: end != null
+                  ? DateTime.fromMillisecondsSinceEpoch(int.parse(end))
+                  : DateTime.now().add(const Duration(hours: 1)),
+            ),
+          );
         },
       ),
       GoRoute(
@@ -88,7 +93,8 @@ abstract final class AppRouter {
       GoRoute(
         path: '/todo/new',
         name: 'todoCreate',
-        pageBuilder: (context, state) => _fadeTransition(const TodoCreatePage()),
+        pageBuilder: (context, state) =>
+            _fadeTransition(const TodoCreatePage()),
       ),
       GoRoute(
         path: '/todo/edit',

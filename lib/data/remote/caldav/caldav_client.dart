@@ -30,11 +30,7 @@ class CalDavObject {
   final String? etag;
   final String icalData;
 
-  CalDavObject({
-    required this.href,
-    this.etag,
-    required this.icalData,
-  });
+  CalDavObject({required this.href, this.etag, required this.icalData});
 }
 
 /// Raw CalDAV client using Dio for HTTP and xml package for XML parsing.
@@ -45,15 +41,16 @@ class CalDavClient {
     required String baseUrl,
     required String username,
     required String password,
-  }) : _dio = Dio(BaseOptions(
-          baseUrl: baseUrl,
-          headers: {
-            'Authorization':
-                'Basic ${_encodeBasicAuth(username, password)}',
-            'Content-Type': 'application/xml; charset=utf-8',
-          },
-          responseType: ResponseType.plain,
-        ));
+  }) : _dio = Dio(
+         BaseOptions(
+           baseUrl: baseUrl,
+           headers: {
+             'Authorization': 'Basic ${_encodeBasicAuth(username, password)}',
+             'Content-Type': 'application/xml; charset=utf-8',
+           },
+           responseType: ResponseType.plain,
+         ),
+       );
 
   static String _encodeBasicAuth(String username, String password) {
     final credentials = '$username:$password';
@@ -70,10 +67,7 @@ class CalDavClient {
     final response = await _dio.request<String>(
       path,
       data: body,
-      options: Options(
-        method: 'PROPFIND',
-        headers: {'Depth': '1'},
-      ),
+      options: Options(method: 'PROPFIND', headers: {'Depth': '1'}),
     );
 
     return _parseMultistatusCalendars(response.data!);
@@ -85,10 +79,7 @@ class CalDavClient {
     final response = await _dio.request<String>(
       calendarHref,
       data: body,
-      options: Options(
-        method: 'PROPFIND',
-        headers: {'Depth': '0'},
-      ),
+      options: Options(method: 'PROPFIND', headers: {'Depth': '0'}),
     );
 
     final calendars = _parseMultistatusCalendars(response.data!);
@@ -125,10 +116,7 @@ class CalDavClient {
     final response = await _dio.request<String>(
       calendarHref,
       data: body,
-      options: Options(
-        method: 'REPORT',
-        headers: {'Depth': '1'},
-      ),
+      options: Options(method: 'REPORT', headers: {'Depth': '1'}),
     );
 
     return _parseMultistatusObjects(response.data!);
@@ -143,10 +131,7 @@ class CalDavClient {
     final response = await _dio.request<String>(
       calendarHref,
       data: body,
-      options: Options(
-        method: 'REPORT',
-        headers: {'Depth': '1'},
-      ),
+      options: Options(method: 'REPORT', headers: {'Depth': '1'}),
     );
 
     return _parseMultistatusObjects(response.data!);
@@ -199,10 +184,7 @@ class CalDavClient {
   Future<void> deleteObject(String href, String etag) async {
     await _dio.request<String>(
       href,
-      options: Options(
-        method: 'DELETE',
-        headers: {'If-Match': etag},
-      ),
+      options: Options(method: 'DELETE', headers: {'If-Match': etag}),
     );
   }
 
@@ -281,10 +263,7 @@ class CalDavClient {
     final response = await _dio.request<String>(
       calendarHref,
       data: body,
-      options: Options(
-        method: 'REPORT',
-        headers: {'Depth': '1'},
-      ),
+      options: Options(method: 'REPORT', headers: {'Depth': '1'}),
     );
 
     return _parseMultistatusObjects(response.data!);
@@ -294,76 +273,79 @@ class CalDavClient {
     final doc = XmlDocument.parse(xmlStr);
     final responses = doc.findAllElements('response');
 
-    return responses.map((resp) {
-      final href = _findText(resp, 'href') ?? '';
-      final displayName = _findText(resp, 'displayname') ?? '';
-      final color = _findText(resp, 'calendar-color');
-      final ctag = _findText(resp, 'getctag');
-      final syncToken = _findText(resp, 'sync-token');
+    return responses
+        .map((resp) {
+          final href = _findText(resp, 'href') ?? '';
+          final displayName = _findText(resp, 'displayname') ?? '';
+          final color = _findText(resp, 'calendar-color');
+          final ctag = _findText(resp, 'getctag');
+          final syncToken = _findText(resp, 'sync-token');
 
-      bool supportsVEVENT = true;
-      bool supportsVTODO = true;
-      final compSets = resp.findAllElements('supported-calendar-component-set');
-      if (compSets.isNotEmpty) {
-        final comps = compSets.first.findAllElements('comp');
-        if (comps.isNotEmpty) {
-          final compNames = comps.map((e) => e.getAttribute('name')).toSet();
-          supportsVEVENT = compNames.contains('VEVENT');
-          supportsVTODO = compNames.contains('VTODO');
-        }
-      }
+          bool supportsVEVENT = true;
+          bool supportsVTODO = true;
+          final compSets = resp.findAllElements(
+            'supported-calendar-component-set',
+          );
+          if (compSets.isNotEmpty) {
+            final comps = compSets.first.findAllElements('comp');
+            if (comps.isNotEmpty) {
+              final compNames = comps
+                  .map((e) => e.getAttribute('name'))
+                  .toSet();
+              supportsVEVENT = compNames.contains('VEVENT');
+              supportsVTODO = compNames.contains('VTODO');
+            }
+          }
 
-      // Only return actual calendar resources (those with calendar resourcetype)
-      final rt = resp.findAllElements('resourcetype');
-      if (rt.isNotEmpty) {
-        final hasCalendar =
-            rt.first.findAllElements('calendar').isNotEmpty;
-        if (!hasCalendar) {
-          return null;
-        }
-      }
+          // Only return actual calendar resources (those with calendar resourcetype)
+          final rt = resp.findAllElements('resourcetype');
+          if (rt.isNotEmpty) {
+            final hasCalendar = rt.first.findAllElements('calendar').isNotEmpty;
+            if (!hasCalendar) {
+              return null;
+            }
+          }
 
-      return CalDavCalendarInfo(
-        href: href,
-        name: displayName,
-        color: color,
-        ctag: ctag,
-        syncToken: syncToken,
-        supportsVEVENT: supportsVEVENT,
-        supportsVTODO: supportsVTODO,
-      );
-    }).whereType<CalDavCalendarInfo>().toList();
+          return CalDavCalendarInfo(
+            href: href,
+            name: displayName,
+            color: color,
+            ctag: ctag,
+            syncToken: syncToken,
+            supportsVEVENT: supportsVEVENT,
+            supportsVTODO: supportsVTODO,
+          );
+        })
+        .whereType<CalDavCalendarInfo>()
+        .toList();
   }
 
   List<CalDavObject> _parseMultistatusObjects(String xmlStr) {
     final doc = XmlDocument.parse(xmlStr);
     final responses = doc.findAllElements('response');
 
-    return responses.map((resp) {
-      final href = _findText(resp, 'href') ?? '';
-      final etag = _findText(resp, 'getetag');
-      final calendarData = _findText(resp, 'calendar-data') ?? '';
+    return responses
+        .map((resp) {
+          final href = _findText(resp, 'href') ?? '';
+          final etag = _findText(resp, 'getetag');
+          final calendarData = _findText(resp, 'calendar-data') ?? '';
 
-      final status = _findText(resp, 'status');
-      if (status != null && status.contains('404')) {
-        return null;
-      }
+          final status = _findText(resp, 'status');
+          if (status != null && status.contains('404')) {
+            return null;
+          }
 
-      return CalDavObject(
-        href: href,
-        etag: etag,
-        icalData: calendarData,
-      );
-    }).whereType<CalDavObject>().toList();
+          return CalDavObject(href: href, etag: etag, icalData: calendarData);
+        })
+        .whereType<CalDavObject>()
+        .toList();
   }
 
   String? _findText(XmlElement parent, String localName) {
     try {
-      final elements = parent.descendants
-          .whereType<XmlElement>()
-          .where((e) =>
-              e.localName == localName ||
-              e.localName.endsWith(':$localName'));
+      final elements = parent.descendants.whereType<XmlElement>().where(
+        (e) => e.localName == localName || e.localName.endsWith(':$localName'),
+      );
       if (elements.isEmpty) return null;
       return elements.first.innerText.trim();
     } catch (_) {

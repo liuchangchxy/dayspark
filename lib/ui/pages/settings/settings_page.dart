@@ -45,7 +45,14 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.cloud),
             title: Text(l.caldavAccount),
-            subtitle: _buildSyncSubtitle(l, isConfigured, credentials, syncStatus, lastSync, syncError),
+            subtitle: _buildSyncSubtitle(
+              l,
+              isConfigured,
+              credentials,
+              syncStatus,
+              lastSync,
+              syncError,
+            ),
             trailing: isConfigured.when(
               data: (configured) => configured
                   ? IconButton(
@@ -97,8 +104,14 @@ class SettingsPage extends ConsumerWidget {
           ),
           if (isConfigured.valueOrNull == true)
             ListTile(
-              leading: Icon(CupertinoIcons.delete, color: Theme.of(context).colorScheme.error),
-              title: Text(l.removeAccount, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              leading: Icon(
+                CupertinoIcons.delete,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                l.removeAccount,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
               onTap: () => _confirmRemove(context, ref),
             ),
           const Divider(),
@@ -106,33 +119,47 @@ class SettingsPage extends ConsumerWidget {
           // ── Multi-Account CalDAV Section ──────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(l.caldavAccounts, style: Theme.of(context).textTheme.titleSmall),
+            child: Text(
+              l.caldavAccounts,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
           ),
-          ref.watch(accountsProvider).when(
-            data: (accounts) {
-              if (accounts.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(l.noAccounts, style: Theme.of(context).textTheme.bodySmall),
-                );
-              }
-              return Column(
-                children: accounts.map((account) {
-                  return ListTile(
-                    leading: const Icon(CupertinoIcons.cloud),
-                    title: Text(account.name),
-                    subtitle: Text('${account.username}@${account.serverUrl}'),
-                    trailing: IconButton(
-                      icon: Icon(CupertinoIcons.delete, color: Theme.of(context).colorScheme.error),
-                      onPressed: () => _confirmRemoveAccount(context, ref, account),
-                    ),
+          ref
+              .watch(accountsProvider)
+              .when(
+                data: (accounts) {
+                  if (accounts.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        l.noAccounts,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: accounts.map((account) {
+                      return ListTile(
+                        leading: const Icon(CupertinoIcons.cloud),
+                        title: Text(account.name),
+                        subtitle: Text(
+                          '${account.username}@${account.serverUrl}',
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(
+                            CupertinoIcons.delete,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          onPressed: () =>
+                              _confirmRemoveAccount(context, ref, account),
+                        ),
+                      );
+                    }).toList(),
                   );
-                }).toList(),
-              );
-            },
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
           ListTile(
             leading: const Icon(CupertinoIcons.plus_circle),
             title: Text(l.addAccount),
@@ -200,43 +227,63 @@ class SettingsPage extends ConsumerWidget {
             subtitle: const Text('Calendar Todo v0.1.0'),
           ),
           const Divider(),
-          ref.watch(featureFlagsProvider).when(
-            data: (flags) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(l.advancedFeatures, style: Theme.of(context).textTheme.titleSmall),
+          ref
+              .watch(featureFlagsProvider)
+              .when(
+                data: (flags) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        l.advancedFeatures,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    SwitchListTile(
+                      secondary: const Icon(CupertinoIcons.chat_bubble_2),
+                      title: Text(l.aiConfig),
+                      value: flags.isEnabled(FeatureFlag.aiAssistant),
+                      onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                        FeatureFlag.aiAssistant,
+                        v,
+                      ),
+                    ),
+                    SwitchListTile(
+                      secondary: const Icon(CupertinoIcons.paperclip),
+                      title: Text(l.attachments),
+                      value: flags.isEnabled(FeatureFlag.attachments),
+                      onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                        FeatureFlag.attachments,
+                        v,
+                      ),
+                    ),
+                    SwitchListTile(
+                      secondary: const Icon(CupertinoIcons.cloud),
+                      title: Text(l.caldavAccount),
+                      value: flags.isEnabled(FeatureFlag.caldavSync),
+                      onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                        FeatureFlag.caldavSync,
+                        v,
+                      ),
+                    ),
+                    SwitchListTile(
+                      secondary: const Icon(CupertinoIcons.bell),
+                      title: Text(l.notifications),
+                      value: flags.isEnabled(FeatureFlag.notifications),
+                      onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                        FeatureFlag.notifications,
+                        v,
+                      ),
+                    ),
+                  ],
                 ),
-                SwitchListTile(
-                  secondary: const Icon(CupertinoIcons.chat_bubble_2),
-                  title: Text(l.aiConfig),
-                  value: flags.isEnabled(FeatureFlag.aiAssistant),
-                  onChanged: (v) => ref.read(setFeatureFlagProvider)(FeatureFlag.aiAssistant, v),
-                ),
-                SwitchListTile(
-                  secondary: const Icon(CupertinoIcons.paperclip),
-                  title: Text(l.attachments),
-                  value: flags.isEnabled(FeatureFlag.attachments),
-                  onChanged: (v) => ref.read(setFeatureFlagProvider)(FeatureFlag.attachments, v),
-                ),
-                SwitchListTile(
-                  secondary: const Icon(CupertinoIcons.cloud),
-                  title: Text(l.caldavAccount),
-                  value: flags.isEnabled(FeatureFlag.caldavSync),
-                  onChanged: (v) => ref.read(setFeatureFlagProvider)(FeatureFlag.caldavSync, v),
-                ),
-                SwitchListTile(
-                  secondary: const Icon(CupertinoIcons.bell),
-                  title: Text(l.notifications),
-                  value: flags.isEnabled(FeatureFlag.notifications),
-                  onChanged: (v) => ref.read(setFeatureFlagProvider)(FeatureFlag.notifications, v),
-                ),
-              ],
-            ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
         ],
       ),
     );
@@ -265,7 +312,9 @@ class SettingsPage extends ConsumerWidget {
     if (syncStatus == SyncStatus.syncing) {
       buffer.write(' • ${l.syncing}');
     } else if (syncStatus == SyncStatus.success && lastSync != null) {
-      buffer.write(' • ${l.lastSync(DateFormatters.formatRelativeTime(lastSync))}');
+      buffer.write(
+        ' • ${l.lastSync(DateFormatters.formatRelativeTime(lastSync))}',
+      );
     } else if (syncStatus == SyncStatus.error) {
       buffer.write(' • Error');
     }
@@ -279,9 +328,9 @@ class SettingsPage extends ConsumerWidget {
       await ref.read(triggerSyncAllAccountsProvider)();
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.syncFailed('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.syncFailed('$e'))));
       }
     }
   }
@@ -360,7 +409,11 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  void _confirmRemoveAccount(BuildContext context, WidgetRef ref, dynamic account) {
+  void _confirmRemoveAccount(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic account,
+  ) {
     final l = AppLocalizations.of(context)!;
     showDialog(
       context: context,
@@ -393,9 +446,15 @@ class SettingsPage extends ConsumerWidget {
     Map<String, String>? existing,
   ) {
     final l = AppLocalizations.of(context)!;
-    final urlController = TextEditingController(text: existing?['serverUrl'] ?? '');
-    final userController = TextEditingController(text: existing?['username'] ?? '');
-    final passController = TextEditingController(text: existing?['password'] ?? '');
+    final urlController = TextEditingController(
+      text: existing?['serverUrl'] ?? '',
+    );
+    final userController = TextEditingController(
+      text: existing?['username'] ?? '',
+    );
+    final passController = TextEditingController(
+      text: existing?['password'] ?? '',
+    );
 
     showDialog(
       context: context,
@@ -490,7 +549,9 @@ class SettingsPage extends ConsumerWidget {
         children: [
           SimpleDialogOption(
             onPressed: () {
-              ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.system);
+              ref
+                  .read(themeModeProvider.notifier)
+                  .setThemeMode(ThemeMode.system);
               Navigator.of(ctx).pop();
             },
             child: ListTile(
@@ -501,7 +562,9 @@ class SettingsPage extends ConsumerWidget {
           ),
           SimpleDialogOption(
             onPressed: () {
-              ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.light);
+              ref
+                  .read(themeModeProvider.notifier)
+                  .setThemeMode(ThemeMode.light);
               Navigator.of(ctx).pop();
             },
             child: ListTile(
@@ -557,15 +620,15 @@ class SettingsPage extends ConsumerWidget {
                   'calendar_export_${DateTime.now().millisecondsSinceEpoch}.ics',
                 );
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.exportedTo(path))),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(l.exportedTo(path))));
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.exportFailed('$e'))),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(l.exportFailed('$e'))));
                 }
               }
             },
@@ -601,7 +664,10 @@ class SettingsPage extends ConsumerWidget {
                 }
 
                 final service = IcsService(db);
-                final imported = await service.importIcs(icsContent, cals.first.id);
+                final imported = await service.importIcs(
+                  icsContent,
+                  cals.first.id,
+                );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -613,9 +679,9 @@ class SettingsPage extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.importFailed('$e'))),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(l.importFailed('$e'))));
                 }
               }
             },
@@ -634,10 +700,12 @@ class SettingsPage extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final config = ref.read(aiConfigProvider).value;
     final keyController = TextEditingController(text: config?.apiKey ?? '');
-    final urlController =
-        TextEditingController(text: config?.baseUrl ?? 'https://api.openai.com/v1');
-    final modelController =
-        TextEditingController(text: config?.model ?? 'gpt-4o-mini');
+    final urlController = TextEditingController(
+      text: config?.baseUrl ?? 'https://api.openai.com/v1',
+    );
+    final modelController = TextEditingController(
+      text: config?.model ?? 'gpt-4o-mini',
+    );
 
     showDialog(
       context: context,

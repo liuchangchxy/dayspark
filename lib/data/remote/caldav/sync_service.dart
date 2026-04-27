@@ -29,8 +29,8 @@ class SyncService {
     required AppDatabase db,
     required CalDavClient client,
     this.onStatusChanged,
-  })  : _db = db,
-        _client = client;
+  }) : _db = db,
+       _client = client;
 
   // ── Full Sync ──────────────────────────────────────────────────
 
@@ -95,8 +95,10 @@ class SyncService {
         }
 
         try {
-          final changes =
-              await _client.getChanges(cal.caldavHref, cal.syncToken!);
+          final changes = await _client.getChanges(
+            cal.caldavHref,
+            cal.syncToken!,
+          );
 
           for (final obj in changes) {
             final type = _converter.detectComponentType(obj.icalData);
@@ -109,12 +111,14 @@ class SyncService {
 
           // Update sync token
           final meta = await _client.getCalendarMeta(cal.caldavHref);
-          await (_db.update(_db.calendars)
-                ..where((t) => t.id.equals(cal.id)))
-              .write(CalendarsCompanion(
-            syncToken: Value(meta.syncToken),
-            lastSyncedAt: Value(DateTime.now()),
-          ));
+          await (_db.update(
+            _db.calendars,
+          )..where((t) => t.id.equals(cal.id))).write(
+            CalendarsCompanion(
+              syncToken: Value(meta.syncToken),
+              lastSyncedAt: Value(DateTime.now()),
+            ),
+          );
         } catch (e) {
           // If incremental fails for one calendar, try full sync
           await _fullSyncCalendar(cal);
@@ -136,28 +140,35 @@ class SyncService {
 
   Future<int> _upsertCalendar(CalDavCalendarInfo remoteCal) async {
     // Check if calendar already exists by caldavHref
-    final existing = await (_db.select(_db.calendars)
-          ..where((t) => t.caldavHref.equals(remoteCal.href)))
-        .getSingleOrNull();
+    final existing = await (_db.select(
+      _db.calendars,
+    )..where((t) => t.caldavHref.equals(remoteCal.href))).getSingleOrNull();
 
     if (existing != null) {
-      await (_db.update(_db.calendars)..where((t) => t.id.equals(existing.id)))
-          .write(CalendarsCompanion(
-        name: Value(remoteCal.name),
-        color: Value(remoteCal.color ?? '#2563EB'),
-        syncToken: Value(remoteCal.syncToken),
-        lastSyncedAt: Value(DateTime.now()),
-      ));
-      return existing.id;
-    }
-
-    return _db.into(_db.calendars).insert(CalendarsCompanion.insert(
-          caldavHref: remoteCal.href,
-          name: remoteCal.name,
+      await (_db.update(
+        _db.calendars,
+      )..where((t) => t.id.equals(existing.id))).write(
+        CalendarsCompanion(
+          name: Value(remoteCal.name),
           color: Value(remoteCal.color ?? '#2563EB'),
           syncToken: Value(remoteCal.syncToken),
           lastSyncedAt: Value(DateTime.now()),
-        ));
+        ),
+      );
+      return existing.id;
+    }
+
+    return _db
+        .into(_db.calendars)
+        .insert(
+          CalendarsCompanion.insert(
+            caldavHref: remoteCal.href,
+            name: remoteCal.name,
+            color: Value(remoteCal.color ?? '#2563EB'),
+            syncToken: Value(remoteCal.syncToken),
+            lastSyncedAt: Value(DateTime.now()),
+          ),
+        );
   }
 
   // ── Internal: Pull Events ──────────────────────────────────────
@@ -170,33 +181,42 @@ class SyncService {
     }
   }
 
-  Future<void> _upsertEventFromRemote(
-      CalDavObject obj, int calendarId) async {
+  Future<void> _upsertEventFromRemote(CalDavObject obj, int calendarId) async {
     try {
-      final companion =
-          _converter.icalToEventCompanion(obj.icalData, calendarId, obj.href, obj.etag);
+      final companion = _converter.icalToEventCompanion(
+        obj.icalData,
+        calendarId,
+        obj.href,
+        obj.etag,
+      );
 
       // Check if event with same UID exists
-      final existing = await (_db.select(_db.events)
-            ..where((t) =>
-                t.calendarId.equals(calendarId) & t.uid.equals(companion.uid.value)))
-          .getSingleOrNull();
+      final existing =
+          await (_db.select(_db.events)..where(
+                (t) =>
+                    t.calendarId.equals(calendarId) &
+                    t.uid.equals(companion.uid.value),
+              ))
+              .getSingleOrNull();
 
       if (existing != null) {
         // Server wins: overwrite local even if dirty
-        await (_db.update(_db.events)..where((t) => t.id.equals(existing.id)))
-            .write(EventsCompanion(
-          summary: companion.summary,
-          startDt: companion.startDt,
-          endDt: companion.endDt,
-          isAllDay: companion.isAllDay,
-          description: companion.description,
-          location: companion.location,
-          rrule: companion.rrule,
-          etag: companion.etag,
-          isDirty: const Value(false),
-          updatedAt: Value(DateTime.now()),
-        ));
+        await (_db.update(
+          _db.events,
+        )..where((t) => t.id.equals(existing.id))).write(
+          EventsCompanion(
+            summary: companion.summary,
+            startDt: companion.startDt,
+            endDt: companion.endDt,
+            isAllDay: companion.isAllDay,
+            description: companion.description,
+            location: companion.location,
+            rrule: companion.rrule,
+            etag: companion.etag,
+            isDirty: const Value(false),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
       } else {
         await _db.into(_db.events).insert(companion);
       }
@@ -215,33 +235,42 @@ class SyncService {
     }
   }
 
-  Future<void> _upsertTodoFromRemote(
-      CalDavObject obj, int calendarId) async {
+  Future<void> _upsertTodoFromRemote(CalDavObject obj, int calendarId) async {
     try {
-      final companion =
-          _converter.icalToTodoCompanion(obj.icalData, calendarId, obj.href, obj.etag);
+      final companion = _converter.icalToTodoCompanion(
+        obj.icalData,
+        calendarId,
+        obj.href,
+        obj.etag,
+      );
 
-      final existing = await (_db.select(_db.todos)
-            ..where((t) =>
-                t.calendarId.equals(calendarId) & t.uid.equals(companion.uid.value)))
-          .getSingleOrNull();
+      final existing =
+          await (_db.select(_db.todos)..where(
+                (t) =>
+                    t.calendarId.equals(calendarId) &
+                    t.uid.equals(companion.uid.value),
+              ))
+              .getSingleOrNull();
 
       if (existing != null) {
-        await (_db.update(_db.todos)..where((t) => t.id.equals(existing.id)))
-            .write(TodosCompanion(
-          summary: companion.summary,
-          dueDate: companion.dueDate,
-          startDate: companion.startDate,
-          priority: companion.priority,
-          status: companion.status,
-          description: companion.description,
-          rrule: companion.rrule,
-          completedAt: companion.completedAt,
-          percentComplete: companion.percentComplete,
-          etag: companion.etag,
-          isDirty: const Value(false),
-          updatedAt: Value(DateTime.now()),
-        ));
+        await (_db.update(
+          _db.todos,
+        )..where((t) => t.id.equals(existing.id))).write(
+          TodosCompanion(
+            summary: companion.summary,
+            dueDate: companion.dueDate,
+            startDate: companion.startDate,
+            priority: companion.priority,
+            status: companion.status,
+            description: companion.description,
+            rrule: companion.rrule,
+            completedAt: companion.completedAt,
+            percentComplete: companion.percentComplete,
+            etag: companion.etag,
+            isDirty: const Value(false),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
       } else {
         await _db.into(_db.todos).insert(companion);
       }
@@ -253,15 +282,15 @@ class SyncService {
   // ── Internal: Push Dirty ───────────────────────────────────────
 
   Future<void> _pushDirtyEvents() async {
-    final dirtyEvents = await (_db.select(_db.events)
-          ..where((t) => t.isDirty.equals(true)))
-        .get();
+    final dirtyEvents = await (_db.select(
+      _db.events,
+    )..where((t) => t.isDirty.equals(true))).get();
 
     for (final event in dirtyEvents) {
       try {
-        final calendar = await (_db.select(_db.calendars)
-              ..where((t) => t.id.equals(event.calendarId)))
-            .getSingleOrNull();
+        final calendar = await (_db.select(
+          _db.calendars,
+        )..where((t) => t.id.equals(event.calendarId))).getSingleOrNull();
         if (calendar == null) continue;
 
         final icalData = _converter.eventToIcal(event);
@@ -278,29 +307,36 @@ class SyncService {
           );
         }
 
-        await (_db.update(_db.events)..where((t) => t.id.equals(event.id)))
-            .write(EventsCompanion(
-          etag: Value(newEtag),
-          isDirty: const Value(false),
-          updatedAt: Value(DateTime.now()),
-        ));
+        await (_db.update(
+          _db.events,
+        )..where((t) => t.id.equals(event.id))).write(
+          EventsCompanion(
+            etag: Value(newEtag),
+            isDirty: const Value(false),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
       } catch (_) {
-        await _enqueueSync('update', 'event', event.id,
-            _converter.eventToIcal(event));
+        await _enqueueSync(
+          'update',
+          'event',
+          event.id,
+          _converter.eventToIcal(event),
+        );
       }
     }
   }
 
   Future<void> _pushDirtyTodos() async {
-    final dirtyTodos = await (_db.select(_db.todos)
-          ..where((t) => t.isDirty.equals(true)))
-        .get();
+    final dirtyTodos = await (_db.select(
+      _db.todos,
+    )..where((t) => t.isDirty.equals(true))).get();
 
     for (final todo in dirtyTodos) {
       try {
-        final calendar = await (_db.select(_db.calendars)
-              ..where((t) => t.id.equals(todo.calendarId)))
-            .getSingleOrNull();
+        final calendar = await (_db.select(
+          _db.calendars,
+        )..where((t) => t.id.equals(todo.calendarId))).getSingleOrNull();
         if (calendar == null) continue;
 
         final icalData = _converter.todoToIcal(todo);
@@ -317,15 +353,20 @@ class SyncService {
           );
         }
 
-        await (_db.update(_db.todos)..where((t) => t.id.equals(todo.id)))
-            .write(TodosCompanion(
-          etag: Value(newEtag),
-          isDirty: const Value(false),
-          updatedAt: Value(DateTime.now()),
-        ));
+        await (_db.update(_db.todos)..where((t) => t.id.equals(todo.id))).write(
+          TodosCompanion(
+            etag: Value(newEtag),
+            isDirty: const Value(false),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
       } catch (_) {
-        await _enqueueSync('update', 'todo', todo.id,
-            _converter.todoToIcal(todo));
+        await _enqueueSync(
+          'update',
+          'todo',
+          todo.id,
+          _converter.todoToIcal(todo),
+        );
       }
     }
   }
@@ -338,12 +379,16 @@ class SyncService {
     int resourceId,
     String? payload,
   ) async {
-    await _db.into(_db.syncQueue).insert(SyncQueueCompanion.insert(
-          operation: operation,
-          resourceType: resourceType,
-          resourceId: resourceId,
-          payload: Value(payload),
-        ));
+    await _db
+        .into(_db.syncQueue)
+        .insert(
+          SyncQueueCompanion.insert(
+            operation: operation,
+            resourceType: resourceType,
+            resourceId: resourceId,
+            payload: Value(payload),
+          ),
+        );
   }
 
   // TODO(wire-up): Will be wired up to connectivity-aware callback.
@@ -354,72 +399,85 @@ class SyncService {
     for (final item in items) {
       try {
         if (item.resourceType == 'event') {
-          final event = await (_db.select(_db.events)
-                ..where((t) => t.id.equals(item.resourceId)))
-              .getSingleOrNull();
+          final event = await (_db.select(
+            _db.events,
+          )..where((t) => t.id.equals(item.resourceId))).getSingleOrNull();
           if (event == null) continue;
 
-          final calendar = await (_db.select(_db.calendars)
-                ..where((t) => t.id.equals(event.calendarId)))
-              .getSingleOrNull();
+          final calendar = await (_db.select(
+            _db.calendars,
+          )..where((t) => t.id.equals(event.calendarId))).getSingleOrNull();
           if (calendar == null) continue;
 
           final icalData = _converter.eventToIcal(event);
           String? newEtag;
           if (event.etag != null) {
             newEtag = await _client.updateObject(
-                '${calendar.caldavHref}${event.uid}.ics',
-                icalData,
-                event.etag!);
+              '${calendar.caldavHref}${event.uid}.ics',
+              icalData,
+              event.etag!,
+            );
           } else {
             newEtag = await _client.createObject(
-                calendar.caldavHref, event.uid, icalData);
+              calendar.caldavHref,
+              event.uid,
+              icalData,
+            );
           }
 
-          await (_db.update(_db.events)..where((t) => t.id.equals(event.id)))
-              .write(EventsCompanion(
-            etag: Value(newEtag),
-            isDirty: const Value(false),
-            updatedAt: Value(DateTime.now()),
-          ));
+          await (_db.update(
+            _db.events,
+          )..where((t) => t.id.equals(event.id))).write(
+            EventsCompanion(
+              etag: Value(newEtag),
+              isDirty: const Value(false),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
         } else if (item.resourceType == 'todo') {
-          final todo = await (_db.select(_db.todos)
-                ..where((t) => t.id.equals(item.resourceId)))
-              .getSingleOrNull();
+          final todo = await (_db.select(
+            _db.todos,
+          )..where((t) => t.id.equals(item.resourceId))).getSingleOrNull();
           if (todo == null) continue;
 
-          final calendar = await (_db.select(_db.calendars)
-                ..where((t) => t.id.equals(todo.calendarId)))
-              .getSingleOrNull();
+          final calendar = await (_db.select(
+            _db.calendars,
+          )..where((t) => t.id.equals(todo.calendarId))).getSingleOrNull();
           if (calendar == null) continue;
 
           final icalData = _converter.todoToIcal(todo);
           String? newEtag;
           if (todo.etag != null) {
             newEtag = await _client.updateObject(
-                '${calendar.caldavHref}${todo.uid}.ics',
-                icalData,
-                todo.etag!);
+              '${calendar.caldavHref}${todo.uid}.ics',
+              icalData,
+              todo.etag!,
+            );
           } else {
             newEtag = await _client.createObject(
-                calendar.caldavHref, todo.uid, icalData);
+              calendar.caldavHref,
+              todo.uid,
+              icalData,
+            );
           }
 
-          await (_db.update(_db.todos)..where((t) => t.id.equals(todo.id)))
-              .write(TodosCompanion(
-            etag: Value(newEtag),
-            isDirty: const Value(false),
-            updatedAt: Value(DateTime.now()),
-          ));
+          await (_db.update(
+            _db.todos,
+          )..where((t) => t.id.equals(todo.id))).write(
+            TodosCompanion(
+              etag: Value(newEtag),
+              isDirty: const Value(false),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
         }
 
-        await (_db.delete(_db.syncQueue)..where((t) => t.id.equals(item.id)))
-            .go();
+        await (_db.delete(
+          _db.syncQueue,
+        )..where((t) => t.id.equals(item.id))).go();
       } catch (_) {
         await (_db.update(_db.syncQueue)..where((t) => t.id.equals(item.id)))
-            .write(SyncQueueCompanion(
-          retryCount: Value(item.retryCount + 1),
-        ));
+            .write(SyncQueueCompanion(retryCount: Value(item.retryCount + 1)));
       }
     }
   }
@@ -432,12 +490,13 @@ class SyncService {
     await _pullEvents(cal.id, cal.caldavHref);
     await _pullTodos(cal.id, cal.caldavHref);
 
-    await (_db.update(_db.calendars)..where((t) => t.id.equals(cal.id)))
-        .write(CalendarsCompanion(
-      syncToken: Value(meta.syncToken),
-      etag: Value(meta.ctag),
-      lastSyncedAt: Value(DateTime.now()),
-    ));
+    await (_db.update(_db.calendars)..where((t) => t.id.equals(cal.id))).write(
+      CalendarsCompanion(
+        syncToken: Value(meta.syncToken),
+        etag: Value(meta.ctag),
+        lastSyncedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   // ── Status Helper ──────────────────────────────────────────────

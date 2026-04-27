@@ -17,10 +17,12 @@ void main() {
 
   group('Reminders', () {
     test('insert and read reminder', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'),
-          );
-      final eventId = await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      final eventId = await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e1',
@@ -31,7 +33,9 @@ void main() {
           );
 
       final triggerTime = DateTime(2026, 4, 30, 23, 55);
-      await testDb.into(testDb.reminders).insert(
+      await testDb
+          .into(testDb.reminders)
+          .insert(
             RemindersCompanion.insert(
               parentType: 'event',
               parentId: eventId,
@@ -47,10 +51,12 @@ void main() {
     });
 
     test('query reminders by parent', () async {
-      final calId = await testDb.into(testDb.calendars).insert(
-            CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'),
-          );
-      final eventId = await testDb.into(testDb.events).insert(
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+      final eventId = await testDb
+          .into(testDb.events)
+          .insert(
             EventsCompanion.insert(
               calendarId: calId,
               uid: 'e1',
@@ -59,7 +65,9 @@ void main() {
               endDt: DateTime(2026, 5, 2),
             ),
           );
-      final todoId = await testDb.into(testDb.todos).insert(
+      final todoId = await testDb
+          .into(testDb.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calId,
               uid: 't1',
@@ -67,21 +75,27 @@ void main() {
             ),
           );
 
-      await testDb.into(testDb.reminders).insert(
+      await testDb
+          .into(testDb.reminders)
+          .insert(
             RemindersCompanion.insert(
               parentType: 'event',
               parentId: eventId,
               triggerTime: DateTime(2026, 4, 30, 23, 55),
             ),
           );
-      await testDb.into(testDb.reminders).insert(
+      await testDb
+          .into(testDb.reminders)
+          .insert(
             RemindersCompanion.insert(
               parentType: 'event',
               parentId: eventId,
               triggerTime: DateTime(2026, 4, 30, 23, 45),
             ),
           );
-      await testDb.into(testDb.reminders).insert(
+      await testDb
+          .into(testDb.reminders)
+          .insert(
             RemindersCompanion.insert(
               parentType: 'todo',
               parentId: todoId,
@@ -89,21 +103,26 @@ void main() {
             ),
           );
 
-      final eventReminders = await (testDb.select(testDb.reminders)
-            ..where((t) =>
-                t.parentType.equals('event') & t.parentId.equals(eventId)))
-          .get();
+      final eventReminders =
+          await (testDb.select(testDb.reminders)..where(
+                (t) =>
+                    t.parentType.equals('event') & t.parentId.equals(eventId),
+              ))
+              .get();
       expect(eventReminders.length, 2);
 
-      final todoReminders = await (testDb.select(testDb.reminders)
-            ..where((t) =>
-                t.parentType.equals('todo') & t.parentId.equals(todoId)))
-          .get();
+      final todoReminders =
+          await (testDb.select(testDb.reminders)..where(
+                (t) => t.parentType.equals('todo') & t.parentId.equals(todoId),
+              ))
+              .get();
       expect(todoReminders.length, 1);
     });
 
     test('delete reminder', () async {
-      final id = await testDb.into(testDb.reminders).insert(
+      final id = await testDb
+          .into(testDb.reminders)
+          .insert(
             RemindersCompanion.insert(
               parentType: 'event',
               parentId: 1,
@@ -111,7 +130,9 @@ void main() {
             ),
           );
 
-      await (testDb.delete(testDb.reminders)..where((t) => t.id.equals(id))).go();
+      await (testDb.delete(
+        testDb.reminders,
+      )..where((t) => t.id.equals(id))).go();
       final reminders = await testDb.select(testDb.reminders).get();
       expect(reminders.length, 0);
     });

@@ -22,19 +22,20 @@ class BackgroundSyncService {
   BackgroundSyncService({
     required Future<void> Function() syncFn,
     Duration interval = const Duration(seconds: 30),
-  })  : _syncFn = syncFn,
-        _interval = interval;
+  }) : _syncFn = syncFn,
+       _interval = interval;
 
   /// Initialize workmanager for background sync.
   Future<void> init() async {
-    await Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+    await Workmanager().initialize(
+      callbackDispatcher,
+      isInDebugMode: kDebugMode,
+    );
     await Workmanager().registerPeriodicTask(
       'calendar-sync',
       'calendarPeriodicSync',
       frequency: const Duration(minutes: 15),
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
     );
   }
