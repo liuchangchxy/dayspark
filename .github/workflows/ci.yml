@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.x"
+          flutter-version: "3.x"
           channel: "stable"
       - run: flutter pub get
       - run: dart format --set-exit-if-changed .
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.x"
+          flutter-version: "3.x"
           channel: "stable"
       - run: flutter pub get
       - run: flutter build web --release
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.x"
+          flutter-version: "3.x"
           channel: "stable"
       - run: flutter pub get
       - run: flutter build apk --debug
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.x"
+          flutter-version: "3.x"
           channel: "stable"
       - run: flutter pub get
       - run: flutter build macos --debug
@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.x"
+          flutter-version: "3.x"
           channel: "stable"
       - run: flutter pub get
       - run: flutter build windows --debug
@@ -92,7 +92,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.x"
+          flutter-version: "3.x"
           channel: "stable"
       - run: |
           sudo apt-get update
