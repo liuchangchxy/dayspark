@@ -110,15 +110,18 @@ class TodoListTile extends ConsumerWidget {
                   Row(
                     children: [
                       if (dueDate != null)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Text(
-                            _dueDateLabel(context),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _isOverdue
-                                  ? AppColors.lightError
-                                  : theme.textTheme.bodySmall?.color,
+                        Flexible(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(
+                              _dueDateLabel(context),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _isOverdue
+                                    ? AppColors.lightError
+                                    : theme.textTheme.bodySmall?.color,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),

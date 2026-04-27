@@ -51,6 +51,15 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+Future<void> _openSettings(WidgetTester tester) async {
+  await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+  for (int i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  await tester.tap(find.text('Settings'));
+  await _settle(tester);
+}
+
 void main() {
   testWidgets('home page renders', (tester) async {
     await tester.pumpWidget(_createTestApp());
@@ -60,7 +69,8 @@ void main() {
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.text('Calendar'), findsOneWidget);
     expect(find.text('Todos'), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.settings), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.settings), findsNothing);
+    expect(find.byType(PopupMenuButton<String>), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
 
@@ -93,8 +103,7 @@ void main() {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
-    await tester.tap(find.byIcon(CupertinoIcons.settings));
-    await _settle(tester);
+    await _openSettings(tester);
 
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('CalDAV Account'), findsOneWidget);
@@ -123,8 +132,7 @@ void main() {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
-    await tester.tap(find.byIcon(CupertinoIcons.settings));
-    await _settle(tester);
+    await _openSettings(tester);
 
     await tester.tap(find.text('Manage Tags'));
     await _settle(tester);
@@ -136,8 +144,7 @@ void main() {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
-    await tester.tap(find.byIcon(CupertinoIcons.settings));
-    await _settle(tester);
+    await _openSettings(tester);
 
     // CalDAV Account section should be visible regardless of config state
     expect(find.text('CalDAV Account'), findsOneWidget);
@@ -147,8 +154,7 @@ void main() {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
-    await tester.tap(find.byIcon(CupertinoIcons.settings));
-    await _settle(tester);
+    await _openSettings(tester);
 
     // Scroll down to find the Appearance tile
     await tester.scrollUntilVisible(

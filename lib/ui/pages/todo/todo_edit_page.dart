@@ -256,20 +256,25 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
-          SegmentedButton<int>(
-            showSelectedIcon: false,
-            segments: _priorityValues
-                .map(
-                  (v) =>
-                      ButtonSegment(value: v, label: Text(priorityLabels[v]!)),
-                )
-                .toList(),
-            selected: {_priority},
-            onSelectionChanged: (s) => setState(() => _priority = s.first),
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              textStyle: WidgetStatePropertyAll(
-                Theme.of(context).textTheme.labelSmall,
+          SizedBox(
+            width: double.infinity,
+            child: FittedBox(
+              child: SegmentedButton<int>(
+                showSelectedIcon: false,
+                segments: _priorityValues
+                    .map(
+                      (v) =>
+                          ButtonSegment(value: v, label: Text(priorityLabels[v]!)),
+                    )
+                    .toList(),
+                selected: {_priority},
+                onSelectionChanged: (s) => setState(() => _priority = s.first),
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(
+                    Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
               ),
             ),
           ),

@@ -152,15 +152,20 @@ class _HomePageState extends ConsumerState<HomePage>
             tooltip: l.search,
             onPressed: () => context.push('/search'),
           ),
-          IconButton(
-            icon: const Icon(CupertinoIcons.tag),
-            tooltip: l.tags,
-            onPressed: () => context.push('/tags'),
-          ),
-          IconButton(
-            icon: const Icon(CupertinoIcons.settings),
-            tooltip: l.settings,
-            onPressed: () => context.push('/settings'),
+          PopupMenuButton<String>(
+            icon: const Icon(CupertinoIcons.ellipsis),
+            onSelected: (value) {
+              switch (value) {
+                case 'tags':
+                  context.push('/tags');
+                case 'settings':
+                  context.push('/settings');
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 'tags', child: Text(l.tags)),
+              PopupMenuItem(value: 'settings', child: Text(l.settings)),
+            ],
           ),
         ],
       ),

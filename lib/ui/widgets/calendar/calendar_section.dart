@@ -134,15 +134,17 @@ class _CalendarSectionState extends State<CalendarSection> {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               // Today button
               TextButton(
                 onPressed: () => _calendarController.jumpToDate(DateTime.now()),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                   minimumSize: Size.zero,
                 ),
                 child: Text(l.today),
@@ -150,20 +152,24 @@ class _CalendarSectionState extends State<CalendarSection> {
               const Spacer(),
               // Navigation arrows
               IconButton(
-                icon: const Icon(CupertinoIcons.chevron_left, size: 20),
+                icon: const Icon(CupertinoIcons.chevron_left, size: 18),
                 onPressed: () => _calendarController.animateToPreviousPage(),
                 visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               IconButton(
-                icon: const Icon(CupertinoIcons.chevron_right, size: 20),
+                icon: const Icon(CupertinoIcons.chevron_right, size: 18),
                 onPressed: () => _calendarController.animateToNextPage(),
                 visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               // View switcher
-              ViewSwitcher(
-                currentMode: _viewMode,
-                onModeChanged: (mode) => setState(() => _viewMode = mode),
+              Flexible(
+                child: ViewSwitcher(
+                  currentMode: _viewMode,
+                  onModeChanged: (mode) => setState(() => _viewMode = mode),
+                ),
               ),
             ],
           ),
