@@ -65,7 +65,7 @@ void main() {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
-    expect(find.text('Calendar Todo'), findsOneWidget);
+    expect(find.byType(AppBar), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.text('Calendar'), findsOneWidget);
     expect(find.text('Todos'), findsOneWidget);

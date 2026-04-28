@@ -134,5 +134,6 @@
   "movedToToday": "已将 {count} 条待办移到今天",
   "skip": "跳过",
   "completedRecently": "近期已完成",
-  "pendingTodos": "待处理"
+  "pendingTodos": "待处理",
+  "goToToday": "回到今天"
 }

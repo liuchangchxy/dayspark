@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:kalender/kalender.dart';
+import 'package:kalender/src/widgets/components/month_day_header.dart';
 import 'package:kalender/src/models/components/components.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -91,6 +92,13 @@ class _CalendarSectionState extends State<CalendarSection> {
     );
   }
 
+  bool get _isViewingToday {
+    if (_visibleRange == null) return true;
+    final now = DateTime.now();
+    final start = _visibleRange!.start;
+    return start.year == now.year && start.month == now.month;
+  }
+
   String _formatVisibleDate() {
     if (_visibleRange == null) {
       return DateFormat.yMMMM(
@@ -113,6 +121,66 @@ class _CalendarSectionState extends State<CalendarSection> {
     }
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _visibleRange?.start ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      _calendarController.jumpToDate(picked);
+    }
+  }
+
+  Widget _buildTodayButton(AppLocalizations l) {
+    if (_isViewingToday) return const SizedBox.shrink();
+    return IconButton(
+      icon: const Icon(CupertinoIcons.calendar_badge_plus, size: 20),
+      tooltip: l.goToToday,
+      onPressed: () => _calendarController.jumpToDate(DateTime.now()),
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+    );
+  }
+
+  Widget _buildCustomMonthDayHeader(
+    InternalDateTime date,
+    MonthDayHeaderStyle? style,
+  ) {
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    if (isToday) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          shape: BoxShape.circle,
+        ),
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        child: Text(
+          date.day.toString(),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        onPressed: null,
+        icon: Text(date.day.toString(), style: style?.numberTextStyle),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -121,51 +189,54 @@ class _CalendarSectionState extends State<CalendarSection> {
 
     return Column(
       children: [
-        // Custom header: date display + navigation
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              // Date display (tappable to go to today)
+              // Date display (tappable to pick a date)
               GestureDetector(
-                onTap: () => _calendarController.jumpToDate(DateTime.now()),
-                child: Text(
-                  _formatVisibleDate(),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+                onTap: _pickDate,
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Text(
+                        _formatVisibleDate(),
+                        key: ValueKey(_formatVisibleDate()),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      CupertinoIcons.calendar,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 4),
-              // Today button
-              TextButton(
-                onPressed: () => _calendarController.jumpToDate(DateTime.now()),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  minimumSize: Size.zero,
-                ),
-                child: Text(l.today),
-              ),
+              // "Return to today" icon (only when not on today)
+              _buildTodayButton(l),
               const Spacer(),
               // Navigation arrows
               IconButton(
-                icon: const Icon(CupertinoIcons.chevron_left, size: 18),
+                icon: const Icon(CupertinoIcons.chevron_left, size: 20),
                 onPressed: () => _calendarController.animateToPreviousPage(),
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               IconButton(
-                icon: const Icon(CupertinoIcons.chevron_right, size: 18),
+                icon: const Icon(CupertinoIcons.chevron_right, size: 20),
                 onPressed: () => _calendarController.animateToNextPage(),
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               const SizedBox(width: 4),
               // View switcher
-              Flexible(
+              FittedBox(
                 child: ViewSwitcher(
                   currentMode: _viewMode,
                   onModeChanged: (mode) => setState(() => _viewMode = mode),
@@ -181,6 +252,11 @@ class _CalendarSectionState extends State<CalendarSection> {
             calendarController: _calendarController,
             viewConfiguration: _viewConfig(),
             components: CalendarComponents(
+              monthComponents: MonthComponents(
+                bodyComponents: MonthBodyComponents(
+                  monthDayHeaderBuilder: _buildCustomMonthDayHeader,
+                ),
+              ),
               overlayStyles: OverlayStyles(
                 multiDayOverlayStyle: MultiDayOverlayStyle(
                   closeIcon: const Icon(CupertinoIcons.xmark, size: 16),

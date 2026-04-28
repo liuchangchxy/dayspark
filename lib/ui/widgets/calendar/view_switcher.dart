@@ -28,7 +28,7 @@ class ViewSwitcher extends StatelessWidget {
       style: ButtonStyle(
         visualDensity: VisualDensity.compact,
         textStyle: WidgetStatePropertyAll(
-          Theme.of(context).textTheme.labelMedium,
+          Theme.of(context).textTheme.labelLarge,
         ),
       ),
     );

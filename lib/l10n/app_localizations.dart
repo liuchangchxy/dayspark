@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appName.
   ///
   /// In en, this message translates to:
-  /// **'Calendar Todo'**
+  /// **'DaySpark'**
   String get appName;
 
   /// No description provided for @calendar.
@@ -907,6 +907,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pending'**
   String get pendingTodos;
+
+  /// No description provided for @goToToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to Today'**
+  String get goToToday;
 }
 
 class _AppLocalizationsDelegate

@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appName => '日历待办';
+  String get appName => '灵光';
 
   @override
   String get calendar => '日历';
@@ -450,4 +450,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pendingTodos => '待处理';
+
+  @override
+  String get goToToday => '回到今天';
 }

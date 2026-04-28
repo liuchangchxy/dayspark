@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'Calendar Todo';
+  String get appName => 'DaySpark';
 
   @override
   String get calendar => 'Calendar';
@@ -451,4 +451,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pendingTodos => 'Pending';
+
+  @override
+  String get goToToday => 'Return to Today';
 }

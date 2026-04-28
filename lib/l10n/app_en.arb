@@ -215,5 +215,6 @@
   "movedToToday": "Moved {count} todo(s) to today",
   "skip": "Skip",
   "completedRecently": "Recently completed",
-  "pendingTodos": "Pending"
+  "pendingTodos": "Pending",
+  "goToToday": "Return to Today"
 }

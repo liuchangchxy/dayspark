@@ -135,7 +135,6 @@ class _HomePageState extends ConsumerState<HomePage>
     final l = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l.appName),
         actions: [
           if (ref
                   .watch(featureFlagsProvider)
