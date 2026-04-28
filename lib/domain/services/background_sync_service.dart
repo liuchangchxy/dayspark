@@ -27,17 +27,21 @@ class BackgroundSyncService {
 
   /// Initialize workmanager for background sync.
   Future<void> init() async {
-    await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: kDebugMode,
-    );
-    await Workmanager().registerPeriodicTask(
-      'calendar-sync',
-      'calendarPeriodicSync',
-      frequency: const Duration(minutes: 15),
-      constraints: Constraints(networkType: NetworkType.connected),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-    );
+    try {
+      await Workmanager().initialize(
+        callbackDispatcher,
+        isInDebugMode: kDebugMode,
+      );
+      await Workmanager().registerPeriodicTask(
+        'calendar-sync',
+        'calendarPeriodicSync',
+        frequency: const Duration(minutes: 15),
+        constraints: Constraints(networkType: NetworkType.connected),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      );
+    } catch (_) {
+      // Workmanager not supported on this platform (e.g. macOS, Linux, Windows)
+    }
   }
 
   /// Start foreground periodic sync.
