@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - run: flutter pub get
+      - run: dart format --set-exit-if-changed .
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  build-web:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - run: flutter pub get
+      - run: flutter build web --release
+      - run: cd build/web && zip -r $GITHUB_WORKSPACE/dayspark-web.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: dayspark-web.zip
+
+  build-android:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - run: flutter pub get
+      - run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+
+  build-macos:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --debug
+      - run: cd build/macos/Build/Products/Debug && zip -r $GITHUB_WORKSPACE/dayspark-macos.zip DaySpark.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: dayspark-macos.zip
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build/windows/x64/runner/Debug/
+
+  build-linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev
+      - run: flutter pub get
+      - run: flutter build linux --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: build/linux/x64/debug/bundle/
+
+  release:
+    needs: [build-web, build-android, build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Prepare assets
+        run: |
+          mkdir -p release-assets
+          cp artifacts/android-apk/app-debug.apk release-assets/dayspark-android.apk
+          cp artifacts/macos-app/dayspark-macos.zip release-assets/
+          cp artifacts/web-build/dayspark-web.zip release-assets/
+          cd artifacts/windows-build && zip -r $GITHUB_WORKSPACE/release-assets/dayspark-windows.zip . && cd $GITHUB_WORKSPACE
+          cd artifacts/linux-build && zip -r $GITHUB_WORKSPACE/release-assets/dayspark-linux.zip . && cd $GITHUB_WORKSPACE
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          files: release-assets/*
+          generate_release_notes: true
