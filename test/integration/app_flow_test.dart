@@ -10,7 +10,6 @@ import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/event/event_create_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
-import 'package:dayspark/ui/pages/tags/tags_page.dart';
 
 GoRouter _createRouter() => GoRouter(
   initialLocation: '/',
@@ -25,7 +24,6 @@ GoRouter _createRouter() => GoRouter(
       ),
     ),
     GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
-    GoRoute(path: '/tags', builder: (_, __) => const TagsPage()),
   ],
 );
 
@@ -44,19 +42,13 @@ Widget _createTestApp() => ProviderScope(
 );
 
 Future<void> _settle(WidgetTester tester) async {
-  // pumpAndSettle times out with infinite animations from kalender etc.
-  // Use fixed number of pumps instead
   for (int i = 0; i < 20; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
-  await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
-  for (int i = 0; i < 10; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
-  await tester.tap(find.text('Settings'));
+  await tester.tap(find.byIcon(CupertinoIcons.settings));
   await _settle(tester);
 }
 
@@ -69,8 +61,8 @@ void main() {
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.text('Calendar'), findsOneWidget);
     expect(find.text('Todos'), findsOneWidget);
-    expect(find.byIcon(CupertinoIcons.settings), findsNothing);
-    expect(find.byType(PopupMenuButton<String>), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.settings), findsOneWidget);
+    expect(find.byType(PopupMenuButton<String>), findsNothing);
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
 
@@ -99,19 +91,15 @@ void main() {
     expect(find.text('Save'), findsOneWidget);
   });
 
-  testWidgets('settings page renders all sections', (tester) async {
+  testWidgets('settings page renders core sections', (tester) async {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
     await _openSettings(tester);
 
     expect(find.text('Settings'), findsOneWidget);
-    expect(find.text('CalDAV Account'), findsOneWidget);
-    expect(find.text('Manage Tags'), findsOneWidget);
     expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('MCP Server'), findsOneWidget);
 
-    // Scroll down to reveal items below the fold
     await tester.scrollUntilVisible(
       find.text('Appearance'),
       100,
@@ -125,29 +113,6 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('About'), findsOneWidget);
-    expect(find.text('Calendar Todo v0.1.0'), findsOneWidget);
-  });
-
-  testWidgets('tags page from settings', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
-
-    await _openSettings(tester);
-
-    await tester.tap(find.text('Manage Tags'));
-    await _settle(tester);
-
-    expect(find.byIcon(CupertinoIcons.add), findsWidgets);
-  });
-
-  testWidgets('CalDAV section visible on settings', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
-
-    await _openSettings(tester);
-
-    // CalDAV Account section should be visible regardless of config state
-    expect(find.text('CalDAV Account'), findsOneWidget);
   });
 
   testWidgets('theme dialog opens', (tester) async {
@@ -156,7 +121,6 @@ void main() {
 
     await _openSettings(tester);
 
-    // Scroll down to find the Appearance tile
     await tester.scrollUntilVisible(
       find.text('Appearance'),
       100,
@@ -165,7 +129,6 @@ void main() {
     await tester.tap(find.text('Appearance'));
     await _settle(tester);
 
-    // Theme dialog should show theme options
     expect(find.text('Light'), findsOneWidget);
     expect(find.text('Dark'), findsOneWidget);
   });

@@ -108,30 +108,41 @@ class _CalendarSectionState extends State<CalendarSection> {
     if (_visibleRange == null) return true;
     final now = DateTime.now();
     final start = _visibleRange!.start;
-    return start.year == now.year && start.month == now.month;
+    switch (_viewMode) {
+      case CalendarViewMode.day:
+        return start.year == now.year &&
+            start.month == now.month &&
+            start.day == now.day;
+      case CalendarViewMode.week:
+        // Check if today falls within the visible week range
+        final end = _visibleRange!.end;
+        return !now.isBefore(start) && now.isBefore(end);
+      case CalendarViewMode.month:
+        return start.year == now.year && start.month == now.month;
+    }
+  }
+
+  int _weekOfMonth(DateTime date) {
+    final firstDay = DateTime(date.year, date.month, 1);
+    final firstWeekday = firstDay.weekday % 7; // Sun=0
+    return ((date.day + firstWeekday - 1) / 7).floor() + 1;
   }
 
   String _formatVisibleDate() {
+    final now = DateTime.now();
+    final locale = Localizations.localeOf(context).toString();
+    final l = AppLocalizations.of(context)!;
     if (_visibleRange == null) {
-      return DateFormat.yMMMM(
-        Localizations.localeOf(context).toString(),
-      ).format(DateTime.now());
+      return DateFormat.yMMMM(locale).format(now);
     }
     final start = _visibleRange!.start;
-    final locale = Localizations.localeOf(context).toString();
     switch (_viewMode) {
       case CalendarViewMode.day:
         return DateFormat.yMMMMd(locale).format(start);
       case CalendarViewMode.week:
-        final end = _visibleRange!.end;
-        if (start.month == end.month) {
-          return DateFormat.yMMMM(locale).format(start);
-        }
-        // Cross-month: keep it short
-        if (start.year == end.year) {
-          return '${DateFormat.M(locale).format(start)} - ${DateFormat.M(locale).format(end)}';
-        }
-        return '${DateFormat.yM(locale).format(start)} - ${DateFormat.M(locale).format(end)}';
+        final weekNum = _weekOfMonth(start);
+        final monthStr = DateFormat.M(locale).format(start);
+        return l.weekOfMonth(weekNum, monthStr);
       case CalendarViewMode.month:
         return DateFormat.yMMMM(locale).format(start);
     }

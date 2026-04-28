@@ -159,17 +159,10 @@ class _HomePageState extends ConsumerState<HomePage>
             tooltip: l.search,
             onPressed: () => context.push('/search'),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(CupertinoIcons.ellipsis),
-            onSelected: (value) {
-              switch (value) {
-                case 'settings':
-                  context.push('/settings');
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(value: 'settings', child: Text(l.settings)),
-            ],
+          IconButton(
+            icon: const Icon(CupertinoIcons.settings),
+            tooltip: l.settings,
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -259,38 +252,55 @@ class _HomePageState extends ConsumerState<HomePage>
             ),
           ),
         ),
-        // Tag filter chips
+        // Tag filter chips + manage button
         tagsAsync.when(
           data: (tags) {
-            if (tags.isEmpty) return const SizedBox.shrink();
             return SizedBox(
               height: 36,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: tags.map((tag) {
-                  final selected = _selectedTagIds.contains(tag.id);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: FilterChip(
-                      label: Text(tag.name),
-                      selected: selected,
-                      selectedColor: ColorUtils.parseHex(
-                        tag.color,
-                      ).withValues(alpha: 0.3),
-                      checkmarkColor: ColorUtils.parseHex(tag.color),
-                      onSelected: (v) {
-                        setState(() {
-                          if (v) {
-                            _selectedTagIds.add(tag.id);
-                          } else {
-                            _selectedTagIds.remove(tag.id);
-                          }
-                        });
-                      },
-                    ),
-                  );
-                }).toList(),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: tags.isEmpty
+                        ? const SizedBox.shrink()
+                        : ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            children: tags.map((tag) {
+                              final selected = _selectedTagIds.contains(tag.id);
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
+                                child: FilterChip(
+                                  label: Text(tag.name),
+                                  selected: selected,
+                                  selectedColor: ColorUtils.parseHex(
+                                    tag.color,
+                                  ).withValues(alpha: 0.3),
+                                  checkmarkColor: ColorUtils.parseHex(
+                                    tag.color,
+                                  ),
+                                  onSelected: (v) {
+                                    setState(() {
+                                      if (v) {
+                                        _selectedTagIds.add(tag.id);
+                                      } else {
+                                        _selectedTagIds.remove(tag.id);
+                                      }
+                                    });
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                  ),
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.tag, size: 18),
+                    tooltip: l.manageTags,
+                    onPressed: () => context.push('/tags'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
               ),
             );
           },

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:rrule_generator/rrule_generator.dart';
+import 'package:dayspark/core/l10n/rrule_text_delegate.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
@@ -321,7 +322,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
 
           // Recurrence rule
           RRuleGenerator(
-            locale: RRuleLocale.zh_CN,
+            localeBuilder: (_) => const CorrectChineseTextDelegate(),
             config: RRuleGeneratorConfig(),
             initialRRule: _rrule ?? '',
             withExcludeDates: false,
