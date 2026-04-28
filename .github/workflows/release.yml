@@ -46,11 +46,11 @@ jobs:
           channel: "stable"
           cache: true
       - run: flutter pub get
-      - run: flutter build apk --debug
+      - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
 
   build-macos:
     needs: test
@@ -62,12 +62,16 @@ jobs:
           channel: "stable"
           cache: true
       - run: flutter pub get
-      - run: flutter build macos --debug
-      - run: cd build/macos/Build/Products/Debug && zip -r $GITHUB_WORKSPACE/dayspark-macos.zip DaySpark.app
+      - run: flutter build macos --release
+      - name: Create DMG
+        run: |
+          APP="build/macos/Build/Products/Release/DaySpark.app"
+          DMG="$GITHUB_WORKSPACE/dayspark-macos.dmg"
+          hdiutil create -volname "DaySpark" -srcfolder "$APP" -ov -format UDZO "$DMG"
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-app
-          path: dayspark-macos.zip
+          name: macos-dmg
+          path: dayspark-macos.dmg
 
   build-windows:
     needs: test
@@ -79,11 +83,11 @@ jobs:
           channel: "stable"
           cache: true
       - run: flutter pub get
-      - run: flutter build windows --debug
+      - run: flutter build windows --release
       - uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: build/windows/x64/runner/Debug/
+          path: build/windows/x64/runner/Release/
 
   build-linux:
     needs: test
@@ -98,11 +102,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev
       - run: flutter pub get
-      - run: flutter build linux --debug
+      - run: flutter build linux --release
       - uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: build/linux/x64/debug/bundle/
+          path: build/linux/x64/release/bundle/
 
   release:
     needs: [build-web, build-android, build-macos, build-windows, build-linux]
@@ -117,8 +121,8 @@ jobs:
       - name: Prepare assets
         run: |
           mkdir -p release-assets
-          cp artifacts/android-apk/app-debug.apk release-assets/dayspark-android.apk
-          cp artifacts/macos-app/dayspark-macos.zip release-assets/
+          cp artifacts/android-apk/app-release.apk release-assets/dayspark-android.apk
+          cp artifacts/macos-dmg/dayspark-macos.dmg release-assets/
           cp artifacts/web-build/dayspark-web.zip release-assets/
           cd artifacts/windows-build && zip -r $GITHUB_WORKSPACE/release-assets/dayspark-windows.zip . && cd $GITHUB_WORKSPACE
           cd artifacts/linux-build && zip -r $GITHUB_WORKSPACE/release-assets/dayspark-linux.zip . && cd $GITHUB_WORKSPACE
