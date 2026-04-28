@@ -453,4 +453,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get goToToday => '回到今天';
+
+  @override
+  String weekOfMonth(int week, String month) {
+    return '$month第$week周';
+  }
+
+  @override
+  String get ok => '确定';
 }

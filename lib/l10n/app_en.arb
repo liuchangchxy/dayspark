@@ -216,5 +216,13 @@
   "skip": "Skip",
   "completedRecently": "Recently completed",
   "pendingTodos": "Pending",
-  "goToToday": "Return to Today"
+  "goToToday": "Return to Today",
+  "weekOfMonth": "Week {week} of {month}",
+  "@weekOfMonth": {
+    "placeholders": {
+      "week": { "type": "int" },
+      "month": { "type": "String" }
+    }
+  },
+  "ok": "OK"
 }

@@ -336,8 +336,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get importExportDesc =>
-      'Export calendar events and todos to .ics, or import from a .ics file.';
+  String get importExportDesc => 'Export calendar events and todos to .ics, or import from a .ics file.';
 
   @override
   String error(String error) {
@@ -454,4 +453,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goToToday => 'Return to Today';
+
+  @override
+  String weekOfMonth(int week, String month) {
+    return 'Week $week of $month';
+  }
+
+  @override
+  String get ok => 'OK';
 }

@@ -27,10 +27,8 @@ class SettingsPage extends ConsumerWidget {
     final syncStatus = ref.watch(syncStatusProvider);
     final lastSync = ref.watch(lastSyncTimeProvider);
     final syncError = ref.watch(syncErrorProvider);
-    final isConfigured = ref.watch(isCalDavConfiguredProvider);
-    final credentials = ref.watch(calDavCredentialsProvider);
-
     final isSyncing = syncStatus == SyncStatus.syncing;
+    final flagsAsync = ref.watch(featureFlagsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -42,159 +40,140 @@ class SettingsPage extends ConsumerWidget {
       ),
       body: ListView(
         children: [
-          ListTile(
-            leading: const Icon(CupertinoIcons.cloud),
-            title: Text(l.caldavAccount),
-            subtitle: _buildSyncSubtitle(
-              l,
-              isConfigured,
-              credentials,
-              syncStatus,
-              lastSync,
-              syncError,
-            ),
-            trailing: isConfigured.when(
-              data: (configured) => configured
-                  ? IconButton(
-                      icon: isSyncing
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(CupertinoIcons.refresh),
-                      onPressed: isSyncing
-                          ? null
-                          : () => _triggerSync(context, ref),
-                    )
-                  : null,
-              loading: () => null,
-              error: (_, __) => null,
-            ),
-          ),
-          if (syncError != null)
+          // ── CalDAV Accounts (single unified section) ──
+          if (flagsAsync.valueOrNull?.isEnabled(FeatureFlag.caldavSync) ??
+              false) ...[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
-                syncError,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
-                ),
+                l.caldavAccounts,
+                style: Theme.of(context).textTheme.titleSmall,
               ),
             ),
-          const Divider(),
-
-          isConfigured.when(
-            data: (configured) => configured
-                ? ListTile(
-                    leading: const Icon(CupertinoIcons.pencil),
-                    title: Text(l.editCalDav),
-                    onTap: () =>
-                        _showConfigDialog(context, ref, credentials.value),
-                  )
-                : ListTile(
-                    leading: const Icon(CupertinoIcons.plus_circle),
-                    title: Text(l.addCalDav),
-                    subtitle: Text('${l.caldavAccount}...'),
-                    onTap: () => _showConfigDialog(context, ref, null),
-                  ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-          if (isConfigured.valueOrNull == true)
-            ListTile(
-              leading: Icon(
-                CupertinoIcons.delete,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                l.removeAccount,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              onTap: () => _confirmRemove(context, ref),
-            ),
-          const Divider(),
-
-          // ── Multi-Account CalDAV Section ──────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              l.caldavAccounts,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ),
-          ref
-              .watch(accountsProvider)
-              .when(
-                data: (accounts) {
-                  if (accounts.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        l.noAccounts,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    );
-                  }
-                  return Column(
-                    children: accounts.map((account) {
-                      return ListTile(
-                        leading: const Icon(CupertinoIcons.cloud),
-                        title: Text(account.name),
-                        subtitle: Text(
-                          '${account.username}@${account.serverUrl}',
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(
-                            CupertinoIcons.delete,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                          onPressed: () =>
-                              _confirmRemoveAccount(context, ref, account),
+            ref
+                .watch(accountsProvider)
+                .when(
+                  data: (accounts) {
+                    if (accounts.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          l.noAccounts,
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       );
-                    }).toList(),
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
+                    }
+                    return Column(
+                      children: accounts.map((account) {
+                        return ListTile(
+                          leading: const Icon(CupertinoIcons.cloud),
+                          title: Text(account.name),
+                          subtitle: Text(
+                            '${account.username}@${account.serverUrl}',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isSyncing)
+                                const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              else
+                                IconButton(
+                                  icon: const Icon(CupertinoIcons.refresh),
+                                  onPressed: () => _triggerSync(context, ref),
+                                ),
+                              IconButton(
+                                icon: Icon(
+                                  CupertinoIcons.delete,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                onPressed: () => _confirmRemoveAccount(
+                                  context,
+                                  ref,
+                                  account,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+            if (syncError != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  syncError,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-          ListTile(
-            leading: const Icon(CupertinoIcons.plus_circle),
-            title: Text(l.addAccount),
-            onTap: () => _showAddAccountDialog(context, ref),
-          ),
-          const Divider(),
+            if (lastSync != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  l.lastSync(DateFormatters.formatRelativeTime(lastSync)),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ListTile(
+              leading: const Icon(CupertinoIcons.plus_circle),
+              title: Text(l.addAccount),
+              onTap: () => _showAddAccountDialog(context, ref),
+            ),
+            const Divider(),
+          ], // end CalDAV section
+          // ── AI Config ──
+          if (flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ??
+              false) ...[
+            ListTile(
+              leading: const Icon(CupertinoIcons.chat_bubble_2),
+              title: Text(l.aiConfig),
+              subtitle: _buildAiSubtitle(ref),
+              onTap: () => _showAiConfigDialog(context, ref),
+            ),
+            const Divider(),
+          ],
 
-          ListTile(
-            leading: const Icon(CupertinoIcons.tag),
-            title: Text(l.manageTags),
-            subtitle: Text(l.createTag),
-            onTap: () => context.push('/tags'),
-          ),
-          const Divider(),
-
-          ListTile(
-            leading: const Icon(CupertinoIcons.chat_bubble_2),
-            title: Text(l.aiConfig),
-            subtitle: _buildAiSubtitle(ref),
-            onTap: () => _showAiConfigDialog(context, ref),
-          ),
+          // ── Notifications ──
           ListTile(
             leading: const Icon(CupertinoIcons.bell),
             title: Text(l.notifications),
             subtitle: Text(l.defaultReminderTimes),
-            onTap: null,
+            onTap: () => _showReminderDefaultsDialog(context, ref),
           ),
+          const Divider(),
+
+          // ── Import / Export ──
           ListTile(
             leading: const Icon(CupertinoIcons.arrow_down_doc),
             title: Text(l.importExport),
             subtitle: Text(l.calendarData),
             onTap: () => _showIcsDialog(context, ref),
           ),
+          const Divider(),
+
+          // ── Appearance ──
+          ListTile(
+            leading: const Icon(CupertinoIcons.paintbrush),
+            title: Text(l.appearance),
+            subtitle: Text(l.theme),
+            onTap: () => _showThemeDialog(context, ref),
+          ),
+
+          // ── MCP Server (desktop only) ──
           if (!kIsWeb)
             ListTile(
               leading: const Icon(CupertinoIcons.desktopcomputer),
@@ -217,114 +196,72 @@ class SettingsPage extends ConsumerWidget {
                 },
               ),
             ),
-          ListTile(
-            leading: const Icon(CupertinoIcons.paintbrush),
-            title: Text(l.appearance),
-            subtitle: Text(l.theme),
-            onTap: () => _showThemeDialog(context, ref),
-          ),
+
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('Calendar Todo v0.1.0'),
+            subtitle: const Text('DaySpark v0.7.0'),
           ),
           const Divider(),
-          ref
-              .watch(featureFlagsProvider)
-              .when(
-                data: (flags) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        l.advancedFeatures,
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                    ),
-                    SwitchListTile(
-                      secondary: const Icon(CupertinoIcons.chat_bubble_2),
-                      title: Text(l.aiConfig),
-                      value: flags.isEnabled(FeatureFlag.aiAssistant),
-                      onChanged: (v) => ref.read(setFeatureFlagProvider)(
-                        FeatureFlag.aiAssistant,
-                        v,
-                      ),
-                    ),
-                    SwitchListTile(
-                      secondary: const Icon(CupertinoIcons.paperclip),
-                      title: Text(l.attachments),
-                      value: flags.isEnabled(FeatureFlag.attachments),
-                      onChanged: (v) => ref.read(setFeatureFlagProvider)(
-                        FeatureFlag.attachments,
-                        v,
-                      ),
-                    ),
-                    SwitchListTile(
-                      secondary: const Icon(CupertinoIcons.cloud),
-                      title: Text(l.caldavAccount),
-                      value: flags.isEnabled(FeatureFlag.caldavSync),
-                      onChanged: (v) => ref.read(setFeatureFlagProvider)(
-                        FeatureFlag.caldavSync,
-                        v,
-                      ),
-                    ),
-                    SwitchListTile(
-                      secondary: const Icon(CupertinoIcons.bell),
-                      title: Text(l.notifications),
-                      value: flags.isEnabled(FeatureFlag.notifications),
-                      onChanged: (v) => ref.read(setFeatureFlagProvider)(
-                        FeatureFlag.notifications,
-                        v,
-                      ),
-                    ),
-                  ],
+
+          // ── Feature Toggles ──
+          flagsAsync.when(
+            data: (flags) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    l.advancedFeatures,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
+                SwitchListTile(
+                  secondary: const Icon(CupertinoIcons.sparkles),
+                  title: Text(l.aiAssistant),
+                  value: flags.isEnabled(FeatureFlag.aiAssistant),
+                  onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                    FeatureFlag.aiAssistant,
+                    v,
+                  ),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(CupertinoIcons.paperclip),
+                  title: Text(l.attachments),
+                  value: flags.isEnabled(FeatureFlag.attachments),
+                  onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                    FeatureFlag.attachments,
+                    v,
+                  ),
+                ),
+                SwitchListTile(
+                  secondary: const Icon(CupertinoIcons.cloud),
+                  title: Text(l.caldavAccount),
+                  value: flags.isEnabled(FeatureFlag.caldavSync),
+                  onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                    FeatureFlag.caldavSync,
+                    v,
+                  ),
+                ),
+              ],
+            ),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSyncSubtitle(
-    AppLocalizations l,
-    AsyncValue<bool> isConfigured,
-    AsyncValue<Map<String, String>?> credentials,
-    SyncStatus syncStatus,
-    DateTime? lastSync,
-    String? syncError,
-  ) {
-    if (isConfigured.isLoading) {
-      return Text('${l.notConfigured}...');
-    }
-
-    final configured = isConfigured.valueOrNull ?? false;
-    if (!configured) {
-      return Text(l.notConfigured);
-    }
-
-    final user = credentials.valueOrNull?['username'] ?? '';
-    final buffer = StringBuffer(l.connected(user));
-
-    if (syncStatus == SyncStatus.syncing) {
-      buffer.write(' • ${l.syncing}');
-    } else if (syncStatus == SyncStatus.success && lastSync != null) {
-      buffer.write(
-        ' • ${l.lastSync(DateFormatters.formatRelativeTime(lastSync))}',
-      );
-    } else if (syncStatus == SyncStatus.error) {
-      buffer.write(' • Error');
-    }
-
-    return Text(
-      buffer.toString(),
-      overflow: TextOverflow.ellipsis,
-      maxLines: 1,
+  Widget _buildAiSubtitle(WidgetRef ref) {
+    final aiConfigured = ref.watch(isAiConfiguredProvider);
+    return aiConfigured.when(
+      data: (configured) => Text(configured ? '✓' : ''),
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const Text(''),
     );
   }
 
@@ -339,6 +276,23 @@ class SettingsPage extends ConsumerWidget {
         ).showSnackBar(SnackBar(content: Text(l.syncFailed('$e'))));
       }
     }
+  }
+
+  void _showReminderDefaultsDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.notifications),
+        content: Text(l.defaultReminderTimes),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.ok),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddAccountDialog(BuildContext context, WidgetRef ref) {
@@ -446,106 +400,6 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  void _showConfigDialog(
-    BuildContext context,
-    WidgetRef ref,
-    Map<String, String>? existing,
-  ) {
-    final l = AppLocalizations.of(context)!;
-    final urlController = TextEditingController(
-      text: existing?['serverUrl'] ?? '',
-    );
-    final userController = TextEditingController(
-      text: existing?['username'] ?? '',
-    );
-    final passController = TextEditingController(
-      text: existing?['password'] ?? '',
-    );
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(existing != null ? l.editCalDav : l.addCalDav),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: urlController,
-                decoration: InputDecoration(
-                  labelText: l.serverUrl,
-                  hintText: 'https://caldav.example.com/',
-                ),
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: userController,
-                decoration: InputDecoration(labelText: l.username),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passController,
-                decoration: InputDecoration(labelText: l.password),
-                obscureText: true,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final url = urlController.text.trim();
-              final user = userController.text.trim();
-              final pass = passController.text;
-              if (url.isEmpty || user.isEmpty || pass.isEmpty) return;
-
-              await ref.read(saveCalDavCredentialsProvider)(
-                serverUrl: url,
-                username: user,
-                password: pass,
-              );
-
-              if (ctx.mounted) Navigator.of(ctx).pop();
-            },
-            child: Text(l.save),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmRemove(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.removeAccount),
-        content: Text(l.confirmDelete),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await ref.read(deleteCalDavCredentialsProvider)();
-              if (ctx.mounted) Navigator.of(ctx).pop();
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l.remove),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showThemeDialog(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     showDialog(
@@ -592,15 +446,6 @@ class SettingsPage extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildAiSubtitle(WidgetRef ref) {
-    final aiConfigured = ref.watch(isAiConfiguredProvider);
-    return aiConfigured.when(
-      data: (configured) => Text(configured ? '✓' : ''),
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => Text(''),
     );
   }
 

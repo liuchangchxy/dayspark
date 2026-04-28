@@ -135,5 +135,13 @@
   "skip": "跳过",
   "completedRecently": "近期已完成",
   "pendingTodos": "待处理",
-  "goToToday": "回到今天"
+  "goToToday": "回到今天",
+  "weekOfMonth": "{month}第{week}周",
+  "@weekOfMonth": {
+    "placeholders": {
+      "week": { "type": "int" },
+      "month": { "type": "String" }
+    }
+  },
+  "ok": "确定"
 }
