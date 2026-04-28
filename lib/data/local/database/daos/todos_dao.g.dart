@@ -6,4 +6,6 @@ part of 'todos_dao.dart';
 mixin _$TodosDaoMixin on DatabaseAccessor<AppDatabase> {
   $CalendarsTable get calendars => attachedDatabase.calendars;
   $TodosTable get todos => attachedDatabase.todos;
+  $TagsTable get tags => attachedDatabase.tags;
+  $TodoTagsTable get todoTags => attachedDatabase.todoTags;
 }

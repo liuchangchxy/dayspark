@@ -14,6 +14,16 @@ final completedTodosProvider = StreamProvider<List<Todo>>((ref) {
   return db.todosDao.watchCompleted();
 });
 
+final pendingTodosByTagsProvider = StreamProvider.family<List<Todo>, List<int>>(
+  (ref, tagIds) {
+    final db = ref.watch(databaseProvider);
+    if (tagIds.isEmpty) {
+      return db.todosDao.watchPending();
+    }
+    return db.todosDao.watchPendingByTags(tagIds);
+  },
+);
+
 final overdueTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.todosDao.watchOverdue();

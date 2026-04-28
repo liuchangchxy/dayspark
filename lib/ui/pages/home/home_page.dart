@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
@@ -29,6 +31,7 @@ class _HomePageState extends ConsumerState<HomePage>
     with WidgetsBindingObserver {
   late int _currentTab;
   bool _todoShowToday = true;
+  final Set<int> _selectedTagIds = {};
   BackgroundSyncService? _syncService;
 
   // Cached date range — recalculated only when the current month changes.
@@ -230,6 +233,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
   Widget _buildTodoTab() {
     final l = AppLocalizations.of(context)!;
+    final tagsAsync = ref.watch(tagsProvider);
     return Column(
       children: [
         Padding(
@@ -250,6 +254,44 @@ class _HomePageState extends ConsumerState<HomePage>
             ),
           ),
         ),
+        // Tag filter chips
+        tagsAsync.when(
+          data: (tags) {
+            if (tags.isEmpty) return const SizedBox.shrink();
+            return SizedBox(
+              height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: tags.map((tag) {
+                  final selected = _selectedTagIds.contains(tag.id);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: FilterChip(
+                      label: Text(tag.name),
+                      selected: selected,
+                      selectedColor: ColorUtils.parseHex(
+                        tag.color,
+                      ).withValues(alpha: 0.3),
+                      checkmarkColor: ColorUtils.parseHex(tag.color),
+                      onSelected: (v) {
+                        setState(() {
+                          if (v) {
+                            _selectedTagIds.add(tag.id);
+                          } else {
+                            _selectedTagIds.remove(tag.id);
+                          }
+                        });
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
         Expanded(
           child: _todoShowToday ? _buildTodayTodoView(l) : _buildAllTodoView(l),
         ),
@@ -258,7 +300,9 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _buildTodayTodoView(AppLocalizations l) {
-    final todosAsync = ref.watch(pendingTodosProvider);
+    final todosAsync = _selectedTagIds.isEmpty
+        ? ref.watch(pendingTodosProvider)
+        : ref.watch(pendingTodosByTagsProvider(_selectedTagIds.toList()));
     final completedAsync = ref.watch(completedTodosProvider);
 
     return todosAsync.when(
@@ -352,7 +396,9 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _buildAllTodoView(AppLocalizations l) {
-    final todosAsync = ref.watch(pendingTodosProvider);
+    final todosAsync = _selectedTagIds.isEmpty
+        ? ref.watch(pendingTodosProvider)
+        : ref.watch(pendingTodosByTagsProvider(_selectedTagIds.toList()));
     final completedAsync = ref.watch(completedTodosProvider);
 
     return todosAsync.when(

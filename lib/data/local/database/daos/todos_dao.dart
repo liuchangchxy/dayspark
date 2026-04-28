@@ -1,10 +1,11 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../tables/todos_table.dart';
+import '../tables/todo_tags_table.dart';
 
 part 'todos_dao.g.dart';
 
-@DriftAccessor(tables: [Todos])
+@DriftAccessor(tables: [Todos, TodoTags])
 class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
   TodosDao(super.db);
 
@@ -111,5 +112,20 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
           ..orderBy([(t) => OrderingTerm.asc(t.dueDate)])
           ..limit(50))
         .get();
+  }
+
+  Stream<List<Todo>> watchPendingByTags(List<int> tagIds) {
+    final query =
+        select(
+            todos,
+          ).join([innerJoin(todoTags, todoTags.todoId.equalsExp(todos.id))])
+          ..where(todos.status.isNotIn(const ['COMPLETED', 'CANCELLED']))
+          ..where(todoTags.tagId.isIn(tagIds))
+          ..groupBy([todos.id])
+          ..orderBy([
+            OrderingTerm.asc(todos.priority),
+            OrderingTerm.asc(todos.dueDate),
+          ]);
+    return query.map((row) => row.readTable(todos)).watch();
   }
 }
