@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
-import 'package:dayspark/core/l10n/rrule_text_delegate.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -346,7 +345,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
 
           // Recurrence rule
           RRuleGenerator(
-            localeBuilder: (_) => const CorrectChineseTextDelegate(),
+            locale: RRuleLocale.zh_CN,
             config: RRuleGeneratorConfig(),
             initialRRule: _rrule ?? '',
             withExcludeDates: false,

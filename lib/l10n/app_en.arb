@@ -216,19 +216,5 @@
   "skip": "Skip",
   "completedRecently": "Recently completed",
   "pendingTodos": "Pending",
-  "goToToday": "Return to Today",
-  "weekOfMonth": "Week {week} of {month}",
-  "@weekOfMonth": {
-    "placeholders": {
-      "week": { "type": "int" },
-      "month": { "type": "String" }
-    }
-  },
-  "ok": "OK",
-  "defaultTab": "Default Tab",
-  "defaultTabDesc": "Choose which tab opens when you launch the app",
-  "calendarFirst": "Calendar First",
-  "todosFirst": "Todos First",
-  "lunarCalendar": "Lunar Calendar",
-  "lunarCalendarDesc": "Show Chinese lunar dates alongside calendar"
+  "goToToday": "Return to Today"
 }

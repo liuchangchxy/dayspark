@@ -135,19 +135,5 @@
   "skip": "跳过",
   "completedRecently": "近期已完成",
   "pendingTodos": "待处理",
-  "goToToday": "回到今天",
-  "weekOfMonth": "{month}第{week}周",
-  "@weekOfMonth": {
-    "placeholders": {
-      "week": { "type": "int" },
-      "month": { "type": "String" }
-    }
-  },
-  "ok": "确定",
-  "defaultTab": "默认标签页",
-  "defaultTabDesc": "选择打开应用时默认进入的页面",
-  "calendarFirst": "日历优先",
-  "todosFirst": "待办优先",
-  "lunarCalendar": "农历",
-  "lunarCalendarDesc": "在日历中显示中国农历日期"
+  "goToToday": "回到今天"
 }
