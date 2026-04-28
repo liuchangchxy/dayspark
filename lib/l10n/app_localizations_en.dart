@@ -336,7 +336,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get importExportDesc => 'Export calendar events and todos to .ics, or import from a .ics file.';
+  String get importExportDesc =>
+      'Export calendar events and todos to .ics, or import from a .ics file.';
 
   @override
   String error(String error) {
