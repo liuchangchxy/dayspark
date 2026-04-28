@@ -54,9 +54,10 @@ abstract final class AppRouter {
         path: '/',
         name: 'home',
         builder: (context, state) {
-          final tab =
-              int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
-          return HomePage(initialTab: tab);
+          final tabParam = state.uri.queryParameters['tab'];
+          return HomePage(
+            initialTab: tabParam != null ? (int.tryParse(tabParam) ?? 0) : -1,
+          );
         },
       ),
       GoRoute(

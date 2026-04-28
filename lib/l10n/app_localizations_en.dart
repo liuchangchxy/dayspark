@@ -462,4 +462,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ok => 'OK';
+
+  @override
+  String get defaultTab => 'Default Tab';
+
+  @override
+  String get defaultTabDesc => 'Choose which tab opens when you launch the app';
+
+  @override
+  String get calendarFirst => 'Calendar First';
+
+  @override
+  String get todosFirst => 'Todos First';
+
+  @override
+  String get lunarCalendar => 'Lunar Calendar';
+
+  @override
+  String get lunarCalendarDesc => 'Show Chinese lunar dates alongside calendar';
 }

@@ -461,4 +461,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get ok => '确定';
+
+  @override
+  String get defaultTab => '默认标签页';
+
+  @override
+  String get defaultTabDesc => '选择打开应用时默认进入的页面';
+
+  @override
+  String get calendarFirst => '日历优先';
+
+  @override
+  String get todosFirst => '待办优先';
+
+  @override
+  String get lunarCalendar => '农历';
+
+  @override
+  String get lunarCalendarDesc => '在日历中显示中国农历日期';
 }
