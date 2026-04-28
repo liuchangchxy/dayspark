@@ -19,17 +19,21 @@ class AiConfig {
 
 /// Current AI config (read from secure storage).
 final aiConfigProvider = FutureProvider<AiConfig?>((ref) async {
-  const storage = FlutterSecureStorage();
-  final apiKey = await storage.read(key: _keyAiApiKey);
-  final baseUrl = await storage.read(key: _keyAiBaseUrl);
-  final model = await storage.read(key: _keyAiModel);
+  try {
+    const storage = FlutterSecureStorage();
+    final apiKey = await storage.read(key: _keyAiApiKey);
+    final baseUrl = await storage.read(key: _keyAiBaseUrl);
+    final model = await storage.read(key: _keyAiModel);
 
-  if (apiKey == null) return null;
-  return AiConfig(
-    apiKey: apiKey,
-    baseUrl: baseUrl ?? 'https://api.openai.com/v1',
-    model: model ?? 'gpt-4o-mini',
-  );
+    if (apiKey == null) return null;
+    return AiConfig(
+      apiKey: apiKey,
+      baseUrl: baseUrl ?? 'https://api.openai.com/v1',
+      model: model ?? 'gpt-4o-mini',
+    );
+  } catch (_) {
+    return null;
+  }
 });
 
 /// Whether AI is configured.
@@ -48,10 +52,12 @@ final saveAiConfigProvider =
       })
     >((ref) {
       return ({required apiKey, required baseUrl, required model}) async {
-        const storage = FlutterSecureStorage();
-        await storage.write(key: _keyAiApiKey, value: apiKey);
-        await storage.write(key: _keyAiBaseUrl, value: baseUrl);
-        await storage.write(key: _keyAiModel, value: model);
+        try {
+          const storage = FlutterSecureStorage();
+          await storage.write(key: _keyAiApiKey, value: apiKey);
+          await storage.write(key: _keyAiBaseUrl, value: baseUrl);
+          await storage.write(key: _keyAiModel, value: model);
+        } catch (_) {}
         ref.invalidate(aiConfigProvider);
       };
     });
@@ -59,10 +65,12 @@ final saveAiConfigProvider =
 /// Delete AI configuration.
 final deleteAiConfigProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    const storage = FlutterSecureStorage();
-    await storage.delete(key: _keyAiApiKey);
-    await storage.delete(key: _keyAiBaseUrl);
-    await storage.delete(key: _keyAiModel);
+    try {
+      const storage = FlutterSecureStorage();
+      await storage.delete(key: _keyAiApiKey);
+      await storage.delete(key: _keyAiBaseUrl);
+      await storage.delete(key: _keyAiModel);
+    } catch (_) {}
     ref.invalidate(aiConfigProvider);
   };
 });

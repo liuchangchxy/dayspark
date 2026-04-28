@@ -7,9 +7,13 @@ import 'package:dayspark/domain/providers/reminders_provider.dart';
 
 final eventsInDateRangeProvider =
     StreamProvider.family<List<Event>, DateTimeRange>((ref, range) {
-      final db = ref.watch(databaseProvider);
-      return db.eventsDao.watchByDateRange(range.start, range.end);
-    });
+  final db = ref.watch(databaseProvider);
+  final stream = db.eventsDao.watchByDateRange(range.start, range.end);
+  return stream.timeout(
+    const Duration(seconds: 10),
+    onTimeout: (sink) => sink.add([]),
+  );
+});
 
 final calendarsProvider = StreamProvider<List<Calendar>>((ref) {
   final db = ref.watch(databaseProvider);

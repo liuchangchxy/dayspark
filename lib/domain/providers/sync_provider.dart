@@ -12,9 +12,13 @@ const _keyPassword = 'caldav_password';
 
 /// Whether CalDAV is configured.
 final isCalDavConfiguredProvider = FutureProvider<bool>((ref) async {
-  const storage = FlutterSecureStorage();
-  final url = await storage.read(key: _keyServerUrl);
-  return url != null && url.isNotEmpty;
+  try {
+    const storage = FlutterSecureStorage();
+    final url = await storage.read(key: _keyServerUrl);
+    return url != null && url.isNotEmpty;
+  } catch (_) {
+    return false;
+  }
 });
 
 /// Current sync status.
@@ -40,36 +44,40 @@ final saveCalDavCredentialsProvider =
         required username,
         required password,
       }) async {
-        const storage = FlutterSecureStorage();
-        await storage.write(key: _keyServerUrl, value: serverUrl);
-        await storage.write(key: _keyUsername, value: username);
-        await storage.write(key: _keyPassword, value: password);
+        try {
+          const storage = FlutterSecureStorage();
+          await storage.write(key: _keyServerUrl, value: serverUrl);
+          await storage.write(key: _keyUsername, value: username);
+          await storage.write(key: _keyPassword, value: password);
+        } catch (_) {}
         ref.invalidate(isCalDavConfiguredProvider);
       };
     });
 
 /// Provider that reads stored CalDAV credentials.
-final calDavCredentialsProvider = FutureProvider<Map<String, String>?>((
-  ref,
-) async {
-  const storage = FlutterSecureStorage();
-  final url = await storage.read(key: _keyServerUrl);
-  final username = await storage.read(key: _keyUsername);
-  final password = await storage.read(key: _keyPassword);
+final calDavCredentialsProvider = FutureProvider<Map<String, String>?>((ref) async {
+  try {
+    const storage = FlutterSecureStorage();
+    final url = await storage.read(key: _keyServerUrl);
+    final username = await storage.read(key: _keyUsername);
+    final password = await storage.read(key: _keyPassword);
 
-  if (url == null || username == null || password == null) return null;
-  return {'serverUrl': url, 'username': username, 'password': password};
+    if (url == null || username == null || password == null) return null;
+    return {'serverUrl': url, 'username': username, 'password': password};
+  } catch (_) {
+    return null;
+  }
 });
 
 /// Provider to delete CalDAV credentials.
-final deleteCalDavCredentialsProvider = Provider<Future<void> Function()>((
-  ref,
-) {
+final deleteCalDavCredentialsProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    const storage = FlutterSecureStorage();
-    await storage.delete(key: _keyServerUrl);
-    await storage.delete(key: _keyUsername);
-    await storage.delete(key: _keyPassword);
+    try {
+      const storage = FlutterSecureStorage();
+      await storage.delete(key: _keyServerUrl);
+      await storage.delete(key: _keyUsername);
+      await storage.delete(key: _keyPassword);
+    } catch (_) {}
     ref.invalidate(isCalDavConfiguredProvider);
     ref.invalidate(calDavCredentialsProvider);
   };

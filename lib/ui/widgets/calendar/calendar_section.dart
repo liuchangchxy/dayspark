@@ -51,8 +51,20 @@ class _CalendarSectionState extends State<CalendarSection> {
   void _onVisibleChanged() {
     final range = _calendarController.visibleDateTimeRange.value;
     if (range != null && mounted) {
-      setState(() {
-        _visibleRange = DateTimeRange(start: range.start, end: range.end);
+      // Compare actual date values to avoid unnecessary setState().
+      // Without this check, kalender may fire the listener during layout,
+      // causing an infinite rebuild loop in release mode (no assertions).
+      if (_visibleRange != null &&
+          _visibleRange!.start == range.start &&
+          _visibleRange!.end == range.end) {
+        return;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _visibleRange = DateTimeRange(start: range.start, end: range.end);
+          });
+        }
       });
     }
   }

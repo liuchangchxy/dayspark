@@ -8,7 +8,7 @@ import 'package:dayspark/domain/services/notification_service.dart';
 /// NotificationService singleton provider.
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   final service = NotificationService();
-  service.init();
+  service.init().catchError((_) {});
   return service;
 });
 

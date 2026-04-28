@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -56,26 +58,29 @@ class _HomePageState extends ConsumerState<HomePage>
     super.initState();
     _currentTab = widget.initialTab.clamp(0, 1);
     WidgetsBinding.instance.addObserver(this);
-    // Trigger initial sync and start background sync service
-    Future.microtask(() {
-      final configured = ref.read(isCalDavConfiguredProvider).valueOrNull;
-      if (configured == true) {
-        final hasSynced = ref.read(lastSyncTimeProvider) != null;
-        if (hasSynced) {
-          ref.read(triggerIncrementalSyncProvider)();
-        } else {
-          ref.read(triggerFullSyncProvider)();
+    Future.microtask(() async {
+      try {
+        final configured = ref.read(isCalDavConfiguredProvider).valueOrNull;
+        if (configured == true) {
+          final hasSynced = ref.read(lastSyncTimeProvider) != null;
+          if (hasSynced) {
+            ref.read(triggerIncrementalSyncProvider)();
+          } else {
+            ref.read(triggerFullSyncProvider)();
+          }
         }
+        if (!kIsWeb && !kDebugMode) {
+          _syncService = ref.read(backgroundSyncServiceProvider);
+          await _syncService!.init();
+          _syncService!.startForeground();
+        }
+        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+          ref.read(updateHomeWidgetProvider)();
+        }
+        _checkOverdueTodos();
+      } catch (e) {
+        debugPrint('initState microtask error: $e');
       }
-      if (!kIsWeb && !kDebugMode) {
-        _syncService = ref.read(backgroundSyncServiceProvider);
-        _syncService!.init();
-        _syncService!.startForeground();
-      }
-      // Update home screen widgets with today's data
-      Future.microtask(() => ref.read(updateHomeWidgetProvider)());
-      // Check for overdue todos on launch
-      Future.microtask(() => _checkOverdueTodos());
     });
   }
 
