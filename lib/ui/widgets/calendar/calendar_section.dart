@@ -115,7 +115,11 @@ class _CalendarSectionState extends State<CalendarSection> {
         if (start.month == end.month) {
           return DateFormat.yMMMM(locale).format(start);
         }
-        return '${DateFormat.M(locale).format(start)} - ${DateFormat.yMMMM(locale).format(end)}';
+        // Cross-month: keep it short
+        if (start.year == end.year) {
+          return '${DateFormat.M(locale).format(start)} - ${DateFormat.M(locale).format(end)}';
+        }
+        return '${DateFormat.yM(locale).format(start)} - ${DateFormat.M(locale).format(end)}';
       case CalendarViewMode.month:
         return DateFormat.yMMMM(locale).format(start);
     }
@@ -131,17 +135,6 @@ class _CalendarSectionState extends State<CalendarSection> {
     if (picked != null) {
       _calendarController.jumpToDate(picked);
     }
-  }
-
-  Widget _buildTodayButton(AppLocalizations l) {
-    if (_isViewingToday) return const SizedBox.shrink();
-    return IconButton(
-      icon: const Icon(CupertinoIcons.calendar_badge_plus, size: 20),
-      tooltip: l.goToToday,
-      onPressed: () => _calendarController.jumpToDate(DateTime.now()),
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-    );
   }
 
   Widget _buildCustomMonthDayHeader(
@@ -189,58 +182,76 @@ class _CalendarSectionState extends State<CalendarSection> {
 
     return Column(
       children: [
+        // Header: two rows to avoid overflow
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
+          child: Column(
             children: [
-              // Date display (tappable to pick a date)
-              GestureDetector(
-                onTap: _pickDate,
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Text(
-                        _formatVisibleDate(),
-                        key: ValueKey(_formatVisibleDate()),
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+              // Row 1: date + navigation
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: _pickDate,
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Text(
+                            _formatVisibleDate(),
+                            key: ValueKey(_formatVisibleDate()),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          CupertinoIcons.calendar,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!_isViewingToday) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(
+                        CupertinoIcons.calendar_badge_plus,
+                        size: 18,
+                      ),
+                      tooltip: l.goToToday,
+                      onPressed: () =>
+                          _calendarController.jumpToDate(DateTime.now()),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      CupertinoIcons.calendar,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
                   ],
-                ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.chevron_left, size: 20),
+                    onPressed: () =>
+                        _calendarController.animateToPreviousPage(),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.chevron_right, size: 20),
+                    onPressed: () => _calendarController.animateToNextPage(),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
               ),
-              // "Return to today" icon (only when not on today)
-              _buildTodayButton(l),
-              const Spacer(),
-              // Navigation arrows
-              IconButton(
-                icon: const Icon(CupertinoIcons.chevron_left, size: 20),
-                onPressed: () => _calendarController.animateToPreviousPage(),
-                visualDensity: VisualDensity.compact,
-              ),
-              IconButton(
-                icon: const Icon(CupertinoIcons.chevron_right, size: 20),
-                onPressed: () => _calendarController.animateToNextPage(),
-                visualDensity: VisualDensity.compact,
-              ),
-              const SizedBox(width: 4),
-              // View switcher
-              FittedBox(
-                child: ViewSwitcher(
-                  currentMode: _viewMode,
-                  onModeChanged: (mode) => setState(() => _viewMode = mode),
-                ),
+              const SizedBox(height: 8),
+              // Row 2: view switcher (full width)
+              ViewSwitcher(
+                currentMode: _viewMode,
+                onModeChanged: (mode) => setState(() => _viewMode = mode),
               ),
             ],
           ),

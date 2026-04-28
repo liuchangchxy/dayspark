@@ -16,19 +16,22 @@ class ViewSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return SegmentedButton<CalendarViewMode>(
-      showSelectedIcon: false,
-      segments: [
-        ButtonSegment(value: CalendarViewMode.day, label: Text(l.day)),
-        ButtonSegment(value: CalendarViewMode.week, label: Text(l.week)),
-        ButtonSegment(value: CalendarViewMode.month, label: Text(l.month)),
-      ],
-      selected: {currentMode},
-      onSelectionChanged: (s) => onModeChanged(s.first),
-      style: ButtonStyle(
-        visualDensity: VisualDensity.compact,
-        textStyle: WidgetStatePropertyAll(
-          Theme.of(context).textTheme.labelLarge,
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<CalendarViewMode>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(value: CalendarViewMode.day, label: Text(l.day)),
+          ButtonSegment(value: CalendarViewMode.week, label: Text(l.week)),
+          ButtonSegment(value: CalendarViewMode.month, label: Text(l.month)),
+        ],
+        selected: {currentMode},
+        onSelectionChanged: (s) => onModeChanged(s.first),
+        style: ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          textStyle: WidgetStatePropertyAll(
+            Theme.of(context).textTheme.labelLarge,
+          ),
         ),
       ),
     );
