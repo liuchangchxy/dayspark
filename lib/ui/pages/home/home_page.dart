@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
-import 'package:dayspark/domain/providers/lunar_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
@@ -210,7 +209,6 @@ class _HomePageState extends ConsumerState<HomePage>
         final adapters = expandRecurringEvents(events, range);
         return CalendarSection(
           events: adapters,
-          showLunar: ref.read(lunarCalendarProvider),
           onEventTapped: (event) => context.push('/event/edit', extra: event),
           onTimeSlotTapped: (range) {
             context.push(

@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:kalender/kalender.dart';
 import 'package:kalender/src/widgets/components/month_day_header.dart';
 import 'package:kalender/src/models/components/components.dart';
-import 'package:lunar/lunar.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
@@ -12,7 +11,6 @@ import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
 class CalendarSection extends StatefulWidget {
   final List<CalendaEventAdapter> events;
-  final bool showLunar;
   final void Function(CalendaEventAdapter event)? onEventTapped;
   final void Function(DateTimeRange range)? onTimeSlotTapped;
   final void Function(CalendaEventAdapter event)? onEventChanged;
@@ -20,7 +18,6 @@ class CalendarSection extends StatefulWidget {
   const CalendarSection({
     super.key,
     required this.events,
-    this.showLunar = false,
     this.onEventTapped,
     this.onTimeSlotTapped,
     this.onEventChanged,
@@ -158,19 +155,6 @@ class _CalendarSectionState extends State<CalendarSection> {
     final now = DateTime.now();
     final isToday =
         date.year == now.year && date.month == now.month && date.day == now.day;
-
-    String? lunarText;
-    if (widget.showLunar) {
-      final solar = Solar.fromYmd(date.year, date.month, date.day);
-      final l = solar.getLunar();
-      final dayStr = l.getDayInChinese();
-      if (l.getDay() == 1) {
-        lunarText = l.getMonthInChinese() + '月';
-      } else {
-        lunarText = dayStr;
-      }
-    }
-
     if (isToday) {
       return Container(
         decoration: BoxDecoration(
@@ -178,49 +162,19 @@ class _CalendarSectionState extends State<CalendarSection> {
           shape: BoxShape.circle,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              date.day.toString(),
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            if (lunarText != null)
-              Text(
-                lunarText,
-                style: TextStyle(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onPrimary.withValues(alpha: 0.8),
-                  fontSize: 8,
-                ),
-              ),
-          ],
+        child: Text(
+          date.day.toString(),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
         ),
       );
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(date.day.toString(), style: style?.numberTextStyle),
-          if (lunarText != null)
-            Text(
-              lunarText,
-              style: TextStyle(
-                fontSize: 8,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-            ),
-        ],
-      ),
+      child: Text(date.day.toString(), style: style?.numberTextStyle),
     );
   }
 
