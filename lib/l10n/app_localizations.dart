@@ -925,6 +925,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OK'**
   String get ok;
+
+  /// No description provided for @defaultTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Default Tab'**
+  String get defaultTab;
+
+  /// No description provided for @defaultTabDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which tab opens when you launch the app'**
+  String get defaultTabDesc;
+
+  /// No description provided for @calendarFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar First'**
+  String get calendarFirst;
+
+  /// No description provided for @todosFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Todos First'**
+  String get todosFirst;
+
+  /// No description provided for @lunarCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Lunar Calendar'**
+  String get lunarCalendar;
+
+  /// No description provided for @lunarCalendarDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Chinese lunar dates alongside calendar'**
+  String get lunarCalendarDesc;
 }
 
 class _AppLocalizationsDelegate

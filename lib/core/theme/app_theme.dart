@@ -32,6 +32,9 @@ abstract final class AppTheme {
       onError: Colors.white,
       surface: surface,
       onSurface: textPrimary,
+      surfaceContainerHighest: isLight
+          ? const Color(0xFFEEEEEE)
+          : const Color(0xFF2D2D3A),
     );
 
     return ThemeData(
@@ -91,6 +94,7 @@ abstract final class AppTheme {
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
+      datePickerTheme: DatePickerThemeData(headerForegroundColor: Colors.white),
     );
   }
 }

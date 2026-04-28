@@ -13,7 +13,9 @@ import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/data/remote/caldav/sync_service.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
+import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/lunar_provider.dart';
 import 'package:dayspark/domain/providers/mcp_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -171,6 +173,28 @@ class SettingsPage extends ConsumerWidget {
             title: Text(l.appearance),
             subtitle: Text(l.theme),
             onTap: () => _showThemeDialog(context, ref),
+          ),
+
+          // ── Default Tab ──
+          ListTile(
+            leading: const Icon(CupertinoIcons.square_split_2x1),
+            title: Text(l.defaultTab),
+            subtitle: Text(
+              ref.watch(defaultTabProvider) == AppTab.calendar
+                  ? l.calendarFirst
+                  : l.todosFirst,
+            ),
+            onTap: () => _showDefaultTabDialog(context, ref),
+          ),
+
+          // ── Lunar Calendar ──
+          SwitchListTile(
+            secondary: const Icon(CupertinoIcons.moon),
+            title: Text(l.lunarCalendar),
+            subtitle: Text(l.lunarCalendarDesc),
+            value: ref.watch(lunarCalendarProvider),
+            onChanged: (v) =>
+                ref.read(lunarCalendarProvider.notifier).setEnabled(v),
           ),
 
           // ── MCP Server (desktop only) ──
@@ -625,6 +649,42 @@ class SettingsPage extends ConsumerWidget {
               if (ctx.mounted) Navigator.of(ctx).pop();
             },
             child: Text(l.save),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDefaultTabDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l.defaultTab),
+        children: [
+          SimpleDialogOption(
+            onPressed: () {
+              ref
+                  .read(defaultTabProvider.notifier)
+                  .setDefaultTab(AppTab.calendar);
+              Navigator.of(ctx).pop();
+            },
+            child: ListTile(
+              leading: const Icon(CupertinoIcons.calendar),
+              title: Text(l.calendarFirst),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              ref.read(defaultTabProvider.notifier).setDefaultTab(AppTab.todos);
+              Navigator.of(ctx).pop();
+            },
+            child: ListTile(
+              leading: const Icon(CupertinoIcons.checkmark_rectangle),
+              title: Text(l.todosFirst),
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
         ],
       ),

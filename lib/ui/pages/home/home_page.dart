@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
+import 'package:dayspark/domain/providers/default_tab_provider.dart';
+import 'package:dayspark/domain/providers/lunar_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
@@ -21,7 +23,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   final int initialTab;
-  const HomePage({super.key, this.initialTab = 0});
+  const HomePage({super.key, this.initialTab = -1});
 
   @override
   ConsumerState<HomePage> createState() => _HomePageState();
@@ -54,7 +56,9 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void initState() {
     super.initState();
-    _currentTab = widget.initialTab.clamp(0, 1);
+    _currentTab = widget.initialTab >= 0
+        ? widget.initialTab.clamp(0, 1)
+        : (ref.read(defaultTabProvider) == AppTab.todos ? 1 : 0);
     WidgetsBinding.instance.addObserver(this);
     // Trigger initial sync and start background sync service
     Future.microtask(() {
@@ -206,6 +210,7 @@ class _HomePageState extends ConsumerState<HomePage>
         final adapters = expandRecurringEvents(events, range);
         return CalendarSection(
           events: adapters,
+          showLunar: ref.read(lunarCalendarProvider),
           onEventTapped: (event) => context.push('/event/edit', extra: event),
           onTimeSlotTapped: (range) {
             context.push(
