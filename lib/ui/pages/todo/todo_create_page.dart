@@ -308,8 +308,10 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                 showSelectedIcon: false,
                 segments: _priorityValues
                     .map(
-                      (v) =>
-                          ButtonSegment(value: v, label: Text(priorityLabels[v]!)),
+                      (v) => ButtonSegment(
+                        value: v,
+                        label: Text(priorityLabels[v]!),
+                      ),
                     )
                     .toList(),
                 selected: {_priority},
@@ -397,10 +399,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          c.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        child: Text(c.name, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),

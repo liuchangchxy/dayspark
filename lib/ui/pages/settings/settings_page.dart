@@ -321,7 +321,11 @@ class SettingsPage extends ConsumerWidget {
       buffer.write(' • Error');
     }
 
-    return Text(buffer.toString(), overflow: TextOverflow.ellipsis, maxLines: 1);
+    return Text(
+      buffer.toString(),
+      overflow: TextOverflow.ellipsis,
+      maxLines: 1,
+    );
   }
 
   Future<void> _triggerSync(BuildContext context, WidgetRef ref) async {

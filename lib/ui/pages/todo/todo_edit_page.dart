@@ -263,8 +263,10 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                 showSelectedIcon: false,
                 segments: _priorityValues
                     .map(
-                      (v) =>
-                          ButtonSegment(value: v, label: Text(priorityLabels[v]!)),
+                      (v) => ButtonSegment(
+                        value: v,
+                        label: Text(priorityLabels[v]!),
+                      ),
                     )
                     .toList(),
                 selected: {_priority},
