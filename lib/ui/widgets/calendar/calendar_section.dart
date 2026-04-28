@@ -150,9 +150,7 @@ class _CalendarSectionState extends State<CalendarSection> {
           color: Theme.of(context).colorScheme.primary,
           shape: BoxShape.circle,
         ),
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
           date.day.toString(),
           style: TextStyle(
@@ -163,14 +161,9 @@ class _CalendarSectionState extends State<CalendarSection> {
         ),
       );
     }
-    return SizedBox(
-      width: 32,
-      height: 32,
-      child: IconButton(
-        onPressed: null,
-        icon: Text(date.day.toString(), style: style?.numberTextStyle),
-        visualDensity: VisualDensity.compact,
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Text(date.day.toString(), style: style?.numberTextStyle),
     );
   }
 
@@ -216,23 +209,20 @@ class _CalendarSectionState extends State<CalendarSection> {
                       ],
                     ),
                   ),
-                  if (!_isViewingToday) ...[
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: const Icon(
-                        CupertinoIcons.calendar_badge_plus,
-                        size: 18,
-                      ),
-                      tooltip: l.goToToday,
-                      onPressed: () =>
-                          _calendarController.jumpToDate(DateTime.now()),
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
+                  if (!_isViewingToday)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: TextButton(
+                        onPressed: () =>
+                            _calendarController.jumpToDate(DateTime.now()),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                        ),
+                        child: Text(l.goToToday),
                       ),
                     ),
-                  ],
                   const Spacer(),
                   IconButton(
                     icon: const Icon(CupertinoIcons.chevron_left, size: 20),

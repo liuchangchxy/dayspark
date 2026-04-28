@@ -254,16 +254,88 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       l.aiNotConfigured,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l.aiGoToSettings,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => _showConfigDialog(context, ref),
+                      icon: const Icon(CupertinoIcons.settings, size: 18),
+                      label: Text(l.aiConfig),
                     ),
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  void _showConfigDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final config = ref.read(aiConfigProvider).value;
+    final keyController = TextEditingController(text: config?.apiKey ?? '');
+    final urlController = TextEditingController(
+      text: config?.baseUrl ?? 'https://api.openai.com/v1',
+    );
+    final modelController = TextEditingController(
+      text: config?.model ?? 'gpt-4o-mini',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.aiConfig),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: keyController,
+                decoration: InputDecoration(
+                  labelText: l.apiKey,
+                  hintText: 'sk-...',
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                decoration: InputDecoration(
+                  labelText: l.baseUrl,
+                  hintText: 'https://api.openai.com/v1',
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: modelController,
+                decoration: InputDecoration(
+                  labelText: l.model,
+                  hintText: 'gpt-4o-mini',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final key = keyController.text.trim();
+              final url = urlController.text.trim();
+              final model = modelController.text.trim();
+              if (key.isEmpty) return;
+              await ref.read(saveAiConfigProvider)(
+                apiKey: key,
+                baseUrl: url.isEmpty ? 'https://api.openai.com/v1' : url,
+                model: model.isEmpty ? 'gpt-4o-mini' : model,
+              );
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+            child: Text(l.save),
+          ),
+        ],
+      ),
     );
   }
 

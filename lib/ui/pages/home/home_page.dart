@@ -155,14 +155,11 @@ class _HomePageState extends ConsumerState<HomePage>
             icon: const Icon(CupertinoIcons.ellipsis),
             onSelected: (value) {
               switch (value) {
-                case 'tags':
-                  context.push('/tags');
                 case 'settings':
                   context.push('/settings');
               }
             },
             itemBuilder: (context) => [
-              PopupMenuItem(value: 'tags', child: Text(l.tags)),
               PopupMenuItem(value: 'settings', child: Text(l.settings)),
             ],
           ),
