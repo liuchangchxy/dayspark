@@ -11,7 +11,11 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
 
   Stream<List<Todo>> watchPending() {
     return (select(todos)
-          ..where((t) => t.status.isNotIn(const ['COMPLETED', 'CANCELLED']))
+          ..where(
+            (t) =>
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                t.deletedAt.isNull(),
+          )
           ..orderBy([
             (t) => OrderingTerm.asc(t.priority),
             (t) => OrderingTerm.asc(t.dueDate),
@@ -43,7 +47,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
 
   Stream<List<Todo>> watchCompleted() {
     return (select(todos)
-          ..where((t) => t.status.equals('COMPLETED'))
+          ..where((t) => t.status.equals('COMPLETED') & t.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.desc(t.completedAt)]))
         .watch();
   }
@@ -53,6 +57,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
     final endOfDay = startOfDay.add(const Duration(days: 1));
     return (select(todos)..where(
           (t) =>
+              t.deletedAt.isNull() &
               t.dueDate.isBiggerOrEqualValue(startOfDay) &
               t.dueDate.isSmallerThanValue(endOfDay),
         ))
@@ -67,6 +72,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
     );
     return (select(todos)..where(
           (t) =>
+              t.deletedAt.isNull() &
               t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
               t.dueDate.isNotNull() &
               t.dueDate.isSmallerThanValue(today),
@@ -82,6 +88,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
     );
     return (select(todos)..where(
           (t) =>
+              t.deletedAt.isNull() &
               t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
               t.dueDate.isNotNull() &
               t.dueDate.isSmallerThanValue(today),
@@ -108,7 +115,11 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
   Future<List<Todo>> searchTodos(String query) {
     final pattern = '%$query%';
     return (select(todos)
-          ..where((t) => t.summary.like(pattern) | t.description.like(pattern))
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                (t.summary.like(pattern) | t.description.like(pattern)),
+          )
           ..orderBy([(t) => OrderingTerm.asc(t.dueDate)])
           ..limit(50))
         .get();
@@ -119,7 +130,10 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
         select(
             todos,
           ).join([innerJoin(todoTags, todoTags.todoId.equalsExp(todos.id))])
-          ..where(todos.status.isNotIn(const ['COMPLETED', 'CANCELLED']))
+          ..where(
+            todos.deletedAt.isNull() &
+                todos.status.isNotIn(const ['COMPLETED', 'CANCELLED']),
+          )
           ..where(todoTags.tagId.isIn(tagIds))
           ..groupBy([todos.id])
           ..orderBy([
@@ -127,5 +141,28 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
             OrderingTerm.asc(todos.dueDate),
           ]);
     return query.map((row) => row.readTable(todos)).watch();
+  }
+
+  Stream<List<Todo>> watchInbox() {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                t.dueDate.isNull(),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.priority)]))
+        .watch();
+  }
+
+  Stream<List<Todo>> watchDeleted() {
+    return (select(todos)
+          ..where((t) => t.deletedAt.isNotNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.deletedAt)]))
+        .watch();
+  }
+
+  Future<void> emptyTrash() {
+    return (delete(todos)..where((t) => t.deletedAt.isNotNull())).go();
   }
 }

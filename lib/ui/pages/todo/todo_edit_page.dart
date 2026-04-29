@@ -117,7 +117,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l.delete),
+        title: Text(l.moveToTrash),
         content: Text(l.confirmDelete),
         actions: [
           TextButton(
@@ -127,7 +127,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: AppColors.lightError),
-            child: Text(l.delete),
+            child: Text(l.moveToTrash),
           ),
         ],
       ),
@@ -184,7 +184,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           IconButton(
             icon: const Icon(CupertinoIcons.delete),
             onPressed: _delete,
-            tooltip: l.delete,
+            tooltip: l.moveToTrash,
           ),
           TextButton(
             onPressed: _saving ? null : _save,
@@ -341,7 +341,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
     final dayAfter = today.add(const Duration(days: 2));
-    final nextWeek = today.add(const Duration(days: 7));
 
     return Wrap(
       spacing: 8,
@@ -350,7 +349,11 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
         _quickChip(l.today, today),
         _quickChip(l.tomorrow, tomorrow),
         _quickChip(l.dayAfterTomorrow, dayAfter),
-        _quickChip(l.nextWeek, nextWeek),
+        ChoiceChip(
+          label: Text(l.noDueDate),
+          selected: _dueDate == null,
+          onSelected: (_) => setState(() => _dueDate = null),
+        ),
         ActionChip(
           label: Text(l.custom),
           avatar: const Icon(CupertinoIcons.calendar, size: 14),

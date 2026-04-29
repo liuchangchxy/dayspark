@@ -116,7 +116,7 @@ void main() {
       expect(todo.status, 'COMPLETED');
     });
 
-    test('deleteTodoProvider removes a todo', () async {
+    test('deleteTodoProvider soft-deletes a todo', () async {
       final calId = await testDb
           .into(testDb.calendars)
           .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
@@ -135,8 +135,9 @@ void main() {
 
       await container.read(deleteTodoProvider).call(todoId);
 
-      final remaining = await (testDb.select(testDb.todos)).get();
-      expect(remaining.where((t) => t.id == todoId).isEmpty, true);
+      final todo = await (testDb.select(testDb.todos)
+            ..where((t) => t.id.equals(todoId))).getSingle();
+      expect(todo.deletedAt != null, true);
     });
   });
 }

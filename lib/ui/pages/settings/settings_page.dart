@@ -213,7 +213,12 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.9.4'),
+            subtitle: const Text('DaySpark v0.9.5'),
+          ),
+          ListTile(
+            leading: const Icon(CupertinoIcons.trash),
+            title: Text(l.trash),
+            onTap: () => context.push('/trash'),
           ),
           const Divider(),
 
@@ -238,15 +243,6 @@ class SettingsPage extends ConsumerWidget {
                   value: flags.isEnabled(FeatureFlag.aiAssistant),
                   onChanged: (v) => ref.read(setFeatureFlagProvider)(
                     FeatureFlag.aiAssistant,
-                    v,
-                  ),
-                ),
-                SwitchListTile(
-                  secondary: const Icon(CupertinoIcons.paperclip),
-                  title: Text(l.attachments),
-                  value: flags.isEnabled(FeatureFlag.attachments),
-                  onChanged: (v) => ref.read(setFeatureFlagProvider)(
-                    FeatureFlag.attachments,
                     v,
                   ),
                 ),

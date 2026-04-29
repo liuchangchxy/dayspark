@@ -34,8 +34,8 @@ class TodoListTile extends ConsumerWidget {
   }
 
   String _dueDateLabel(BuildContext context) {
-    if (dueDate == null) return '';
     final l = AppLocalizations.of(context)!;
+    if (dueDate == null) return l.noDueDate;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final due = DateTime(dueDate!.year, dueDate!.month, dueDate!.day);
@@ -109,22 +109,23 @@ class TodoListTile extends ConsumerWidget {
                   ),
                   Row(
                     children: [
-                      if (dueDate != null)
-                        Flexible(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Text(
-                              _dueDateLabel(context),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _isOverdue
-                                    ? AppColors.lightError
-                                    : theme.textTheme.bodySmall?.color,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Text(
+                            _dueDateLabel(context),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _isOverdue
+                                  ? AppColors.lightError
+                                  : (dueDate == null
+                                        ? Colors.grey
+                                        : theme.textTheme.bodySmall?.color),
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                      ),
                       tagsAsync.when(
                         data: (tags) => _tagDots(tags),
                         loading: () => const SizedBox.shrink(),

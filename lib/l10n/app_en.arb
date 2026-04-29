@@ -230,5 +230,23 @@
   "calendarFirst": "Calendar First",
   "todosFirst": "Todos First",
   "lunarCalendar": "Lunar Calendar",
-  "lunarCalendarDesc": "Show Chinese lunar dates alongside calendar"
+  "lunarCalendarDesc": "Show Chinese lunar dates alongside calendar",
+  "inbox": "Inbox",
+  "trash": "Trash",
+  "emptyTrash": "Empty Trash",
+  "restoreTodo": "Restore",
+  "permanentDelete": "Delete Permanently",
+  "trashEmpty": "Trash is empty",
+  "moveToTrash": "Move to Trash",
+  "confirmPermanentDelete": "Permanently delete? This cannot be undone.",
+  "confirmEmptyTrash": "Permanently delete all items in trash?",
+  "yesterday": "Yesterday",
+  "noDate": "No date",
+  "dateLabel": "{month}/{day}",
+  "@dateLabel": {
+    "placeholders": {
+      "month": { "type": "int" },
+      "day": { "type": "int" }
+    }
+  }
 }

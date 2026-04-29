@@ -149,5 +149,23 @@
   "calendarFirst": "日历优先",
   "todosFirst": "待办优先",
   "lunarCalendar": "农历",
-  "lunarCalendarDesc": "在日历中显示中国农历日期"
+  "lunarCalendarDesc": "在日历中显示中国农历日期",
+  "inbox": "收件箱",
+  "trash": "回收站",
+  "emptyTrash": "清空回收站",
+  "restoreTodo": "恢复",
+  "permanentDelete": "永久删除",
+  "trashEmpty": "回收站为空",
+  "moveToTrash": "移到回收站",
+  "confirmPermanentDelete": "永久删除？此操作无法撤销。",
+  "confirmEmptyTrash": "确定永久删除回收站中的所有项目？",
+  "yesterday": "昨天",
+  "noDate": "无日期",
+  "dateLabel": "{month}月{day}日",
+  "@dateLabel": {
+    "placeholders": {
+      "month": { "type": "int" },
+      "day": { "type": "int" }
+    }
+  }
 }

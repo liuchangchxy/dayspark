@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum FeatureFlag { aiAssistant, attachments, caldavSync }
+enum FeatureFlag { aiAssistant, caldavSync }
 
 class FeatureFlags {
   final Map<FeatureFlag, bool> _flags;

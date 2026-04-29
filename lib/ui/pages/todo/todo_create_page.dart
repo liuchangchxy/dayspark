@@ -422,7 +422,6 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
     final today = DateTime(now.year, now.month, now.day);
     final tomorrow = today.add(const Duration(days: 1));
     final dayAfter = today.add(const Duration(days: 2));
-    final nextWeek = today.add(const Duration(days: 7));
 
     return Wrap(
       spacing: 8,
@@ -431,7 +430,11 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
         _quickChip(l.today, today),
         _quickChip(l.tomorrow, tomorrow),
         _quickChip(l.dayAfterTomorrow, dayAfter),
-        _quickChip(l.nextWeek, nextWeek),
+        ChoiceChip(
+          label: Text(l.noDueDate),
+          selected: _dueDate == null,
+          onSelected: (_) => setState(() => _dueDate = null),
+        ),
         ActionChip(
           label: Text(l.custom),
           avatar: const Icon(CupertinoIcons.calendar, size: 14),

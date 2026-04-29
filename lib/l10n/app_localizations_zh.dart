@@ -479,4 +479,42 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lunarCalendarDesc => '在日历中显示中国农历日期';
+
+  @override
+  String get inbox => '收件箱';
+
+  @override
+  String get trash => '回收站';
+
+  @override
+  String get emptyTrash => '清空回收站';
+
+  @override
+  String get restoreTodo => '恢复';
+
+  @override
+  String get permanentDelete => '永久删除';
+
+  @override
+  String get trashEmpty => '回收站为空';
+
+  @override
+  String get moveToTrash => '移到回收站';
+
+  @override
+  String get confirmPermanentDelete => '永久删除？此操作无法撤销。';
+
+  @override
+  String get confirmEmptyTrash => '确定永久删除回收站中的所有项目？';
+
+  @override
+  String get yesterday => '昨天';
+
+  @override
+  String get noDate => '无日期';
+
+  @override
+  String dateLabel(int month, int day) {
+    return '$month月$day日';
+  }
 }

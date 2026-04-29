@@ -480,4 +480,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lunarCalendarDesc => 'Show Chinese lunar dates alongside calendar';
+
+  @override
+  String get inbox => 'Inbox';
+
+  @override
+  String get trash => 'Trash';
+
+  @override
+  String get emptyTrash => 'Empty Trash';
+
+  @override
+  String get restoreTodo => 'Restore';
+
+  @override
+  String get permanentDelete => 'Delete Permanently';
+
+  @override
+  String get trashEmpty => 'Trash is empty';
+
+  @override
+  String get moveToTrash => 'Move to Trash';
+
+  @override
+  String get confirmPermanentDelete =>
+      'Permanently delete? This cannot be undone.';
+
+  @override
+  String get confirmEmptyTrash => 'Permanently delete all items in trash?';
+
+  @override
+  String get yesterday => 'Yesterday';
+
+  @override
+  String get noDate => 'No date';
+
+  @override
+  String dateLabel(int month, int day) {
+    return '$month/$day';
+  }
 }

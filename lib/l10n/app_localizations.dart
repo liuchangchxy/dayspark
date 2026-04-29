@@ -961,6 +961,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show Chinese lunar dates alongside calendar'**
   String get lunarCalendarDesc;
+
+  /// No description provided for @inbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get inbox;
+
+  /// No description provided for @trash.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash'**
+  String get trash;
+
+  /// No description provided for @emptyTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty Trash'**
+  String get emptyTrash;
+
+  /// No description provided for @restoreTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get restoreTodo;
+
+  /// No description provided for @permanentDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Permanently'**
+  String get permanentDelete;
+
+  /// No description provided for @trashEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash is empty'**
+  String get trashEmpty;
+
+  /// No description provided for @moveToTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Trash'**
+  String get moveToTrash;
+
+  /// No description provided for @confirmPermanentDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete? This cannot be undone.'**
+  String get confirmPermanentDelete;
+
+  /// No description provided for @confirmEmptyTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete all items in trash?'**
+  String get confirmEmptyTrash;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get yesterday;
+
+  /// No description provided for @noDate.
+  ///
+  /// In en, this message translates to:
+  /// **'No date'**
+  String get noDate;
+
+  /// No description provided for @dateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{month}/{day}'**
+  String dateLabel(int month, int day);
 }
 
 class _AppLocalizationsDelegate

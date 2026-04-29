@@ -11,6 +11,7 @@ import 'package:dayspark/ui/pages/todo/todo_edit_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
 import 'package:dayspark/ui/pages/ai_chat/ai_chat_page.dart';
+import 'package:dayspark/ui/pages/trash/trash_page.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 
 CustomTransitionPage<void> _fadeTransition(Widget child) {
@@ -119,6 +120,11 @@ abstract final class AppRouter {
         path: '/ai-chat',
         name: 'aiChat',
         builder: (context, state) => const AiChatPage(),
+      ),
+      GoRoute(
+        path: '/trash',
+        name: 'trash',
+        builder: (context, state) => const TrashPage(),
       ),
     ],
   );

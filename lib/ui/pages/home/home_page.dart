@@ -19,6 +19,7 @@ import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/domain/services/background_sync_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
+import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
@@ -33,7 +34,8 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage>
     with WidgetsBindingObserver {
   late int _currentTab;
-  bool _todoShowToday = true;
+  bool _userChangedTab = false;
+  DateTime? _selectedDate = DateTime.now();
   final Set<int> _selectedTagIds = {};
   BackgroundSyncService? _syncService;
 
@@ -57,10 +59,26 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void initState() {
     super.initState();
+    // Default to today for the selected date
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+
     _currentTab = widget.initialTab >= 0
         ? widget.initialTab.clamp(0, 1)
         : (ref.read(defaultTabProvider) == AppTab.todos ? 1 : 0);
     WidgetsBinding.instance.addObserver(this);
+    if (widget.initialTab < 0) {
+      Future.microtask(() {
+        if (!mounted) return;
+        ref.listenManual(defaultTabProvider, (prev, next) {
+          if (!_userChangedTab && prev != next && mounted) {
+            setState(() {
+              _currentTab = next == AppTab.todos ? 1 : 0;
+            });
+          }
+        }, fireImmediately: true);
+      });
+    }
     Future.microtask(() async {
       try {
         final configured = ref.read(isCalDavConfiguredProvider).valueOrNull;
@@ -187,7 +205,10 @@ class _HomePageState extends ConsumerState<HomePage>
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentTab,
-        onDestinationSelected: (i) => setState(() => _currentTab = i),
+        onDestinationSelected: (i) => setState(() {
+          _userChangedTab = true;
+          _currentTab = i;
+        }),
         destinations: [
           NavigationDestination(
             icon: const Icon(CupertinoIcons.calendar),
@@ -237,23 +258,23 @@ class _HomePageState extends ConsumerState<HomePage>
     final tagsAsync = ref.watch(tagsProvider);
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: SegmentedButton<bool>(
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(value: true, label: Text(l.todayTodo)),
-              ButtonSegment(value: false, label: Text(l.allTasks)),
-            ],
-            selected: {_todoShowToday},
-            onSelectionChanged: (s) => setState(() => _todoShowToday = s.first),
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              textStyle: WidgetStatePropertyAll(
-                Theme.of(context).textTheme.labelSmall,
-              ),
-            ),
-          ),
+        // Date strip
+        DateStrip(
+          selectedDate: _selectedDate,
+          onDateSelected: (date) => setState(() => _selectedDate = date),
+          onCalendarTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _selectedDate ?? DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) {
+              setState(() {
+                _selectedDate = DateTime(picked.year, picked.month, picked.day);
+              });
+            }
+          },
         ),
         // Tag filter chips + manage button
         tagsAsync.when(
@@ -310,79 +331,87 @@ class _HomePageState extends ConsumerState<HomePage>
           loading: () => const SizedBox.shrink(),
           error: (_, __) => const SizedBox.shrink(),
         ),
-        Expanded(
-          child: _todoShowToday ? _buildTodayTodoView(l) : _buildAllTodoView(l),
-        ),
+        Expanded(child: _buildTodoList()),
       ],
     );
   }
 
-  Widget _buildTodayTodoView(AppLocalizations l) {
-    final todosAsync = _selectedTagIds.isEmpty
-        ? ref.watch(pendingTodosProvider)
-        : ref.watch(pendingTodosByTagsProvider(_selectedTagIds.toList()));
+  Widget _buildTodoList() {
+    final l = AppLocalizations.of(context)!;
+    final tagKey = _selectedTagIds.isEmpty
+        ? ''
+        : (_selectedTagIds.toList()..sort()).join(',');
+
+    if (_selectedDate == null) {
+      // Inbox view — undated todos
+      final inboxAsync = ref.watch(inboxTodosProvider);
+      final completedAsync = ref.watch(completedTodosProvider);
+
+      return inboxAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text(l.error('$e'))),
+        data: (inboxTodos) {
+          final completed = completedAsync.valueOrNull ?? [];
+          if (inboxTodos.isEmpty && completed.isEmpty) {
+            return _emptyState(l);
+          }
+          return ListView(
+            children: [
+              if (inboxTodos.isNotEmpty) ...[
+                _sectionHeader(l.inbox, inboxTodos.length, null),
+                ...inboxTodos.map((t) => _todoTile(t)),
+              ],
+              if (completed.isNotEmpty) ..._completedGroups(completed),
+            ],
+          );
+        },
+      );
+    }
+
+    // Date-based view
+    final tagFilteredAsync = ref.watch(pendingTodosByTagsProvider(tagKey));
     final completedAsync = ref.watch(completedTodosProvider);
 
-    return todosAsync.when(
+    return tagFilteredAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text(l.error('$e'))),
-      data: (todos) {
+      data: (allPending) {
         final completed = completedAsync.valueOrNull ?? [];
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
+        final date = _selectedDate!;
 
+        // Filter pending todos for the selected date
         final overdue = <Todo>[];
-        final todayTodos = <Todo>[];
+        final dateTodos = <Todo>[];
 
-        for (final t in todos) {
+        for (final t in allPending) {
           if (t.dueDate == null) continue;
           final due = DateTime(
             t.dueDate!.year,
             t.dueDate!.month,
             t.dueDate!.day,
           );
-          if (due.isBefore(today)) {
+          if (due.isBefore(today) && date.isAtSameMomentAs(today)) {
             overdue.add(t);
-          } else if (due == today) {
-            todayTodos.add(t);
+          } else if (due == date) {
+            dateTodos.add(t);
           }
         }
 
-        final todayCompleted = completed.where((t) {
+        // Filter completed for the selected date
+        final dateCompleted = completed.where((t) {
           if (t.completedAt == null) return false;
           final c = DateTime(
             t.completedAt!.year,
             t.completedAt!.month,
             t.completedAt!.day,
           );
-          return c == today;
+          return c == date;
         }).toList();
 
-        final allEmpty =
-            overdue.isEmpty && todayTodos.isEmpty && todayCompleted.isEmpty;
-        if (allEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  CupertinoIcons.checkmark_rectangle,
-                  size: 64,
-                  color: Colors.grey,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  l.noPendingTodos,
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l.tapToCreate,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
+        if (overdue.isEmpty && dateTodos.isEmpty && dateCompleted.isEmpty) {
+          return _emptyState(l);
         }
 
         return ListView(
@@ -391,21 +420,23 @@ class _HomePageState extends ConsumerState<HomePage>
               _sectionHeader(l.overdue, overdue.length, Colors.red),
               ...overdue.map((t) => _todoTile(t)),
             ],
-            if (todayTodos.isNotEmpty) ...[
+            if (dateTodos.isNotEmpty) ...[
               _sectionHeader(
-                l.today,
-                todayTodos.length,
+                _selectedDate == today
+                    ? l.today
+                    : l.dateLabel(date.month, date.day),
+                dateTodos.length,
                 Theme.of(context).colorScheme.primary,
               ),
-              ...todayTodos.map((t) => _todoTile(t)),
+              ...dateTodos.map((t) => _todoTile(t)),
             ],
-            if (todayCompleted.isNotEmpty) ...[
+            if (dateCompleted.isNotEmpty) ...[
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Divider(height: 1),
               ),
-              _sectionHeader(l.completed, todayCompleted.length, null),
-              ...todayCompleted.map((t) => _todoTile(t, isCompleted: true)),
+              _sectionHeader(l.completed, dateCompleted.length, null),
+              ...dateCompleted.map((t) => _todoTile(t, isCompleted: true)),
             ],
           ],
         );
@@ -413,55 +444,91 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  Widget _buildAllTodoView(AppLocalizations l) {
-    final todosAsync = _selectedTagIds.isEmpty
-        ? ref.watch(pendingTodosProvider)
-        : ref.watch(pendingTodosByTagsProvider(_selectedTagIds.toList()));
-    final completedAsync = ref.watch(completedTodosProvider);
+  List<Widget> _completedGroups(List<Todo> completed) {
+    // Group by completedAt date
+    final groups = <DateTime, List<Todo>>{};
+    for (final t in completed) {
+      final date = t.completedAt != null
+          ? DateTime(
+              t.completedAt!.year,
+              t.completedAt!.month,
+              t.completedAt!.day,
+            )
+          : DateTime(1970, 1, 1);
+      groups.putIfAbsent(date, () => []).add(t);
+    }
 
-    return todosAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(l.error('$e'))),
-      data: (todos) {
-        final completed = completedAsync.valueOrNull ?? [];
-        if (todos.isEmpty && completed.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  CupertinoIcons.checkmark_rectangle,
-                  size: 64,
-                  color: Colors.grey,
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    final widgets = <Widget>[
+      const Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Divider(height: 1),
+      ),
+    ];
+
+    final sortedDates = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+    for (final date in sortedDates) {
+      final todos = groups[date]!;
+      String label;
+      if (date == today) {
+        label = AppLocalizations.of(context)!.today;
+      } else if (date == yesterday) {
+        label = AppLocalizations.of(context)!.yesterday;
+      } else {
+        label = '${date.month}/${date.day}';
+      }
+      widgets.add(
+        ExpansionTile(
+          title: Row(
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  l.noPendingTodos,
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l.tapToCreate,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        }
-        return ListView(
-          children: [
-            if (todos.isNotEmpty) ...todos.map((t) => _todoTile(t)),
-            if (completed.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Divider(height: 1),
               ),
-              _sectionHeader(l.completed, completed.length, null),
-              ...completed.map((t) => _todoTile(t, isCompleted: true)),
+              const SizedBox(width: 6),
+              Text(
+                '${todos.length}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
             ],
-          ],
-        );
-      },
+          ),
+          initiallyExpanded: date == today,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+          children: todos.map((t) => _todoTile(t, isCompleted: true)).toList(),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  Widget _emptyState(AppLocalizations l) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            CupertinoIcons.checkmark_rectangle,
+            size: 64,
+            color: Colors.grey,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            l.noPendingTodos,
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l.tapToCreate,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
+      ),
     );
   }
 

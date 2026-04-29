@@ -14,19 +14,31 @@ final completedTodosProvider = StreamProvider<List<Todo>>((ref) {
   return db.todosDao.watchCompleted();
 });
 
-final pendingTodosByTagsProvider = StreamProvider.family<List<Todo>, List<int>>(
-  (ref, tagIds) {
-    final db = ref.watch(databaseProvider);
-    if (tagIds.isEmpty) {
-      return db.todosDao.watchPending();
-    }
-    return db.todosDao.watchPendingByTags(tagIds);
-  },
-);
+final pendingTodosByTagsProvider = StreamProvider.family<List<Todo>, String>((
+  ref,
+  tagIdsKey,
+) {
+  final db = ref.watch(databaseProvider);
+  if (tagIdsKey.isEmpty) {
+    return db.todosDao.watchPending();
+  }
+  final tagIds = tagIdsKey.split(',').map(int.parse).toList();
+  return db.todosDao.watchPendingByTags(tagIds);
+});
 
 final overdueTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.todosDao.watchOverdue();
+});
+
+final inboxTodosProvider = StreamProvider<List<Todo>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.todosDao.watchInbox();
+});
+
+final deletedTodosProvider = StreamProvider<List<Todo>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.todosDao.watchDeleted();
 });
 
 final moveOverdueToTodayProvider = Provider<Future<void> Function(List<int>)>((
@@ -104,23 +116,50 @@ final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.watch(databaseProvider);
   final notifService = ref.watch(notificationServiceProvider);
   return (int id) async {
-    // Cancel and delete reminders
+    // Cancel scheduled notifications (keep reminder rows for restore)
     final reminders = await (db.select(
       db.reminders,
     )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).get();
     for (final r in reminders) {
       await notifService.cancel(r.id);
     }
+    // Soft delete
+    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
+      TodosCompanion(
+        deletedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  };
+});
+
+final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (int id) async {
+    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
+      TodosCompanion(
+        deletedAt: const Value.absent(),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  };
+});
+
+final permanentDeleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (int id) async {
     await (db.delete(
       db.reminders,
     )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).go();
-    // Delete junction table rows
     await (db.delete(db.todoTags)..where((t) => t.todoId.equals(id))).go();
-    // Delete attachments
     await (db.delete(
       db.attachments,
     )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).go();
-    // Delete the todo itself
     await (db.delete(db.todos)..where((t) => t.id.equals(id))).go();
   };
+});
+
+final emptyTrashProvider = Provider<Future<void> Function()>((ref) {
+  final db = ref.watch(databaseProvider);
+  return () => db.todosDao.emptyTrash();
 });
