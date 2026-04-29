@@ -21,44 +21,12 @@ class DateStrip extends StatefulWidget {
 
 class _DateStripState extends State<DateStrip> {
   DateTime _anchorDate = DateTime.now();
-  final _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _anchorDate = DateTime(now.year, now.month, now.day);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _scrollToSelected(DateTime date) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final startIndex = today
-          .subtract(const Duration(days: 7))
-          .difference(_anchorDate.subtract(const Duration(days: 7)))
-          .inDays;
-      final targetIndex = today
-          .subtract(const Duration(days: 7))
-          .difference(DateTime(date.year, date.month, date.day))
-          .inDays;
-      final offset = (startIndex - targetIndex) * 56.0;
-      _scrollController.animateTo(
-        (offset - _scrollController.position.maxScrollExtent / 2).clamp(
-          0,
-          _scrollController.position.maxScrollExtent,
-        ),
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
-    });
   }
 
   @override
@@ -108,7 +76,6 @@ class _DateStripState extends State<DateStrip> {
           // Date chips
           Expanded(
             child: SingleChildScrollView(
-              controller: _scrollController,
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: List.generate(15, (i) {
