@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
-class DateStrip extends StatelessWidget {
+class DateStrip extends StatefulWidget {
   final DateTime? selectedDate;
   final ValueChanged<DateTime?> onDateSelected;
   final VoidCallback? onCalendarTap;
@@ -16,6 +16,52 @@ class DateStrip extends StatelessWidget {
   });
 
   @override
+  State<DateStrip> createState() => _DateStripState();
+}
+
+class _DateStripState extends State<DateStrip> {
+  DateTime _anchorDate = DateTime.now();
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _anchorDate = DateTime(now.year, now.month, now.day);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToSelected(DateTime date) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final startIndex = today
+          .subtract(const Duration(days: 7))
+          .difference(_anchorDate.subtract(const Duration(days: 7)))
+          .inDays;
+      final targetIndex = today
+          .subtract(const Duration(days: 7))
+          .difference(DateTime(date.year, date.month, date.day))
+          .inDays;
+      final offset = (startIndex - targetIndex) * 56.0;
+      _scrollController.animateTo(
+        (offset - _scrollController.position.maxScrollExtent / 2).clamp(
+          0,
+          _scrollController.position.maxScrollExtent,
+        ),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
@@ -23,25 +69,37 @@ class DateStrip extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final locale = Localizations.localeOf(context).toString();
 
+    // Generate 15 dates centered on _anchorDate
+    final baseDate = DateTime(
+      _anchorDate.year,
+      _anchorDate.month,
+      _anchorDate.day,
+    );
+    final showTodayButton =
+        widget.selectedDate != null &&
+        (widget.selectedDate!.year != today.year ||
+            widget.selectedDate!.month != today.month ||
+            widget.selectedDate!.day != today.day);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
           // Inbox chip
           _chip(
             context: context,
             label: l.inbox,
-            selected: selectedDate == null,
+            selected: widget.selectedDate == null,
             accentColor: theme.colorScheme.tertiary,
-            onTap: () => onDateSelected(null),
+            onTap: () => widget.onDateSelected(null),
           ),
-          const SizedBox(width: 4),
           // Left arrow
           IconButton(
             icon: const Icon(CupertinoIcons.chevron_left, size: 16),
             onPressed: () {
-              final base = selectedDate ?? today;
-              onDateSelected(base.subtract(const Duration(days: 7)));
+              final newAnchor = baseDate.subtract(const Duration(days: 7));
+              setState(() => _anchorDate = newAnchor);
+              widget.onDateSelected(newAnchor.add(const Duration(days: 7)));
             },
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
@@ -50,17 +108,18 @@ class DateStrip extends StatelessWidget {
           // Date chips
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollController,
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: List.generate(15, (i) {
-                  final date = today
+                  final date = baseDate
                       .subtract(const Duration(days: 7))
                       .add(Duration(days: i));
                   final isSelected =
-                      selectedDate != null &&
-                      selectedDate!.year == date.year &&
-                      selectedDate!.month == date.month &&
-                      selectedDate!.day == date.day;
+                      widget.selectedDate != null &&
+                      widget.selectedDate!.year == date.year &&
+                      widget.selectedDate!.month == date.month &&
+                      widget.selectedDate!.day == date.day;
                   final isCurrentDay =
                       date.year == today.year &&
                       date.month == today.month &&
@@ -72,7 +131,10 @@ class DateStrip extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: GestureDetector(
-                      onTap: () => onDateSelected(date),
+                      onTap: () {
+                        final d = DateTime(date.year, date.month, date.day);
+                        widget.onDateSelected(d);
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -131,21 +193,45 @@ class DateStrip extends StatelessWidget {
           IconButton(
             icon: const Icon(CupertinoIcons.chevron_right, size: 16),
             onPressed: () {
-              final base = selectedDate ?? today;
-              onDateSelected(base.add(const Duration(days: 7)));
+              final newAnchor = baseDate.add(const Duration(days: 7));
+              setState(() => _anchorDate = newAnchor);
+              widget.onDateSelected(
+                newAnchor.subtract(const Duration(days: 7)),
+              );
             },
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
           ),
           // Calendar button
-          if (onCalendarTap != null)
+          if (widget.onCalendarTap != null)
             IconButton(
               icon: const Icon(CupertinoIcons.calendar, size: 18),
-              onPressed: onCalendarTap,
+              onPressed: widget.onCalendarTap,
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+          // Today button
+          if (showTodayButton)
+            Padding(
+              padding: const EdgeInsets.only(left: 2),
+              child: TextButton(
+                onPressed: () {
+                  setState(() => _anchorDate = today);
+                  widget.onDateSelected(today);
+                },
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  l.today,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
             ),
         ],
       ),

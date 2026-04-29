@@ -463,16 +463,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ok => '确定';
 
   @override
-  String get defaultTab => '默认标签页';
+  String get defaultTab => '标签页顺序';
 
   @override
-  String get defaultTabDesc => '选择打开应用时默认进入的页面';
+  String get defaultTabDesc => '选择日历和待办的显示顺序';
 
   @override
-  String get calendarFirst => '日历优先';
+  String get calendarFirst => '日历在前';
 
   @override
-  String get todosFirst => '待办优先';
+  String get todosFirst => '待办在前';
 
   @override
   String get lunarCalendar => '农历';
@@ -481,7 +481,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lunarCalendarDesc => '在日历中显示中国农历日期';
 
   @override
-  String get inbox => '收件箱';
+  String get inbox => '待办箱';
 
   @override
   String get trash => '回收站';

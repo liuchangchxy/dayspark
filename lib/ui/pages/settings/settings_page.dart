@@ -207,15 +207,9 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.9.6'),
+            subtitle: const Text('DaySpark v0.9.7'),
             onTap: () => context.push('/about'),
           ),
-          ListTile(
-            leading: const Icon(CupertinoIcons.trash),
-            title: Text(l.trash),
-            onTap: () => context.push('/trash'),
-          ),
-          const Divider(),
 
           // ── Feature Toggles ──
           flagsAsync.when(
@@ -332,7 +326,7 @@ class SettingsPage extends ConsumerWidget {
             onPressed: () {
               launchUrl(
                 Uri.parse(
-                  'https://github.com/liuchangchxy/dayspark/wiki/CalDAV-Setup',
+                  'https://github.com/liuchangchxy/dayspark/blob/main/docs/caldav-setup.md',
                 ),
                 mode: LaunchMode.externalApplication,
               );

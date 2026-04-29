@@ -929,13 +929,13 @@ abstract class AppLocalizations {
   /// No description provided for @defaultTab.
   ///
   /// In en, this message translates to:
-  /// **'Default Tab'**
+  /// **'Tab Order'**
   String get defaultTab;
 
   /// No description provided for @defaultTabDesc.
   ///
   /// In en, this message translates to:
-  /// **'Choose which tab opens when you launch the app'**
+  /// **'Choose the order of calendar and todos tabs'**
   String get defaultTabDesc;
 
   /// No description provided for @calendarFirst.
@@ -965,7 +965,7 @@ abstract class AppLocalizations {
   /// No description provided for @inbox.
   ///
   /// In en, this message translates to:
-  /// **'Inbox'**
+  /// **'To-do Box'**
   String get inbox;
 
   /// No description provided for @trash.

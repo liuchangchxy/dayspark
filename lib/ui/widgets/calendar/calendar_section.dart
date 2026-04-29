@@ -165,6 +165,12 @@ class _CalendarSectionState extends State<CalendarSection> {
     final now = DateTime.now();
     final isToday =
         date.year == now.year && date.month == now.month && date.day == now.day;
+
+    // Dim overflow days (dates not in the current visible month)
+    final visibleMonth = _visibleRange?.start.month ?? now.month;
+    final visibleYear = _visibleRange?.start.year ?? now.year;
+    final isOverflow = date.month != visibleMonth || date.year != visibleYear;
+
     if (isToday) {
       return Container(
         decoration: BoxDecoration(
@@ -193,8 +199,48 @@ class _CalendarSectionState extends State<CalendarSection> {
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Text(date.day.toString(), style: style?.numberTextStyle),
+      child: Text(
+        date.day.toString(),
+        style: isOverflow
+            ? (style?.numberTextStyle?.copyWith(
+                    color: Theme.of(
+                      context,
+                    ).disabledColor.withValues(alpha: 0.3),
+                  ) ??
+                  TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).disabledColor.withValues(alpha: 0.3),
+                  ))
+            : style?.numberTextStyle,
+      ),
     );
+  }
+
+  Widget _buildCustomDayHeader(InternalDateTime date, DayHeaderStyle? style) {
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    final theme = Theme.of(context);
+    final numberText = Text(
+      date.day.toString(),
+      style: TextStyle(
+        fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+        color: isToday ? theme.colorScheme.onPrimary : null,
+      ),
+    );
+
+    if (isToday) {
+      return Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary,
+          shape: BoxShape.circle,
+        ),
+        padding: const EdgeInsets.all(6),
+        child: numberText,
+      );
+    }
+    return Padding(padding: const EdgeInsets.all(6), child: numberText);
   }
 
   @override
@@ -286,6 +332,11 @@ class _CalendarSectionState extends State<CalendarSection> {
               monthComponents: MonthComponents(
                 bodyComponents: MonthBodyComponents(
                   monthDayHeaderBuilder: _buildCustomMonthDayHeader,
+                ),
+              ),
+              multiDayComponents: MultiDayComponents(
+                headerComponents: MultiDayHeaderComponents(
+                  dayHeaderBuilder: _buildCustomDayHeader,
                 ),
               ),
               multiDayComponentStyles: MultiDayComponentStyles(

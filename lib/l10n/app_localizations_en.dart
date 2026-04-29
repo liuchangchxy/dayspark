@@ -464,10 +464,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ok => 'OK';
 
   @override
-  String get defaultTab => 'Default Tab';
+  String get defaultTab => 'Tab Order';
 
   @override
-  String get defaultTabDesc => 'Choose which tab opens when you launch the app';
+  String get defaultTabDesc => 'Choose the order of calendar and todos tabs';
 
   @override
   String get calendarFirst => 'Calendar First';
@@ -482,7 +482,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lunarCalendarDesc => 'Show Chinese lunar dates alongside calendar';
 
   @override
-  String get inbox => 'Inbox';
+  String get inbox => 'To-do Box';
 
   @override
   String get trash => 'Trash';

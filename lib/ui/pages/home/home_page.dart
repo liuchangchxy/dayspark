@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
@@ -159,9 +160,14 @@ class _HomePageState extends ConsumerState<HomePage>
     super.dispose();
   }
 
+  bool get _todosFirst => ref.read(defaultTabProvider) == AppTab.todos;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final todosFirst = _todosFirst;
+    final isCalendarTab = todosFirst ? _currentTab == 1 : _currentTab == 0;
+
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -187,10 +193,10 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
         ],
       ),
-      body: _currentTab == 0 ? _buildCalendarTab() : _buildTodoTab(),
+      body: isCalendarTab ? _buildCalendarTab() : _buildTodoTab(),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          if (_currentTab == 0) {
+          if (isCalendarTab) {
             final now = DateTime.now();
             context.push(
               '/event/new?start=${now.millisecondsSinceEpoch}'
@@ -200,7 +206,7 @@ class _HomePageState extends ConsumerState<HomePage>
             context.push('/todo/new');
           }
         },
-        tooltip: _currentTab == 0 ? l.newEvent : l.newTodo,
+        tooltip: isCalendarTab ? l.newEvent : l.newTodo,
         child: const Icon(CupertinoIcons.add),
       ),
       bottomNavigationBar: NavigationBar(
@@ -209,16 +215,27 @@ class _HomePageState extends ConsumerState<HomePage>
           _userChangedTab = true;
           _currentTab = i;
         }),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.calendar),
-            label: l.calendar,
-          ),
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.checkmark_rectangle),
-            label: l.todos,
-          ),
-        ],
+        destinations: todosFirst
+            ? [
+                NavigationDestination(
+                  icon: const Icon(CupertinoIcons.checkmark_rectangle),
+                  label: l.todos,
+                ),
+                NavigationDestination(
+                  icon: const Icon(CupertinoIcons.calendar),
+                  label: l.calendar,
+                ),
+              ]
+            : [
+                NavigationDestination(
+                  icon: const Icon(CupertinoIcons.calendar),
+                  label: l.calendar,
+                ),
+                NavigationDestination(
+                  icon: const Icon(CupertinoIcons.checkmark_rectangle),
+                  label: l.todos,
+                ),
+              ],
       ),
     );
   }
@@ -237,6 +254,18 @@ class _HomePageState extends ConsumerState<HomePage>
           events: adapters,
           onEventTapped: (event) => context.push('/event/edit', extra: event),
           onTimeSlotTapped: (range) {
+            final timeLabel = DateFormatters.formatDateTime(range.start);
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '$timeLabel → ${DateFormatters.formatTime(range.end)}',
+                ),
+                duration: const Duration(seconds: 1),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.only(bottom: 80),
+              ),
+            );
             context.push(
               '/event/new?start=${range.start.millisecondsSinceEpoch}'
               '&end=${range.end.millisecondsSinceEpoch}',
@@ -322,6 +351,12 @@ class _HomePageState extends ConsumerState<HomePage>
                     icon: const Icon(CupertinoIcons.tag, size: 18),
                     tooltip: l.manageTags,
                     onPressed: () => context.push('/tags'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.trash, size: 18),
+                    tooltip: l.trash,
+                    onPressed: () => context.push('/trash'),
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
