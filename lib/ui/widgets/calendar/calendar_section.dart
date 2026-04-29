@@ -2,8 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:kalender/kalender.dart';
-import 'package:kalender/src/widgets/components/month_day_header.dart';
-import 'package:kalender/src/models/components/components.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
@@ -172,14 +170,23 @@ class _CalendarSectionState extends State<CalendarSection> {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.primary,
           shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.4),
+              blurRadius: 4,
+              spreadRadius: 1,
+            ),
+          ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(
           date.day.toString(),
           style: TextStyle(
             color: Theme.of(context).colorScheme.onPrimary,
             fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontSize: 16,
           ),
         ),
       );
@@ -281,6 +288,14 @@ class _CalendarSectionState extends State<CalendarSection> {
                   monthDayHeaderBuilder: _buildCustomMonthDayHeader,
                 ),
               ),
+              multiDayComponentStyles: MultiDayComponentStyles(
+                bodyStyles: MultiDayBodyComponentStyles(
+                  timelineStyle: TimelineStyle(
+                    stringBuilder: (time) =>
+                        '${time.hour.toString().padLeft(2, '0')}:00',
+                  ),
+                ),
+              ),
               overlayStyles: OverlayStyles(
                 multiDayOverlayStyle: MultiDayOverlayStyle(
                   closeIcon: const Icon(CupertinoIcons.xmark, size: 16),
@@ -304,12 +319,7 @@ class _CalendarSectionState extends State<CalendarSection> {
                 }
               },
               onTapped: (datetime) {
-                if (_viewMode == CalendarViewMode.month) {
-                  setState(() {
-                    _viewMode = CalendarViewMode.day;
-                  });
-                  _calendarController.jumpToDate(datetime);
-                } else if (widget.onTimeSlotTapped != null) {
+                if (widget.onTimeSlotTapped != null) {
                   widget.onTimeSlotTapped!(
                     DateTimeRange(
                       start: datetime,

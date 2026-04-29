@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/core/utils/file_reader.dart';
@@ -18,6 +20,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/mcp_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -143,19 +146,10 @@ class SettingsPage extends ConsumerWidget {
               leading: const Icon(CupertinoIcons.chat_bubble_2),
               title: Text(l.aiConfig),
               subtitle: _buildAiSubtitle(ref),
-              onTap: () => _showAiConfigDialog(context, ref),
+              onTap: () => showAiConfigDialog(context, ref),
             ),
             const Divider(),
           ],
-
-          // ── Notifications ──
-          ListTile(
-            leading: const Icon(CupertinoIcons.bell),
-            title: Text(l.notifications),
-            subtitle: Text(l.defaultReminderTimes),
-            onTap: () => _showReminderDefaultsDialog(context, ref),
-          ),
-          const Divider(),
 
           // ── Import / Export ──
           ListTile(
@@ -213,7 +207,8 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.9.5'),
+            subtitle: const Text('DaySpark v0.9.6'),
+            onTap: () => context.push('/about'),
           ),
           ListTile(
             leading: const Icon(CupertinoIcons.trash),
@@ -287,23 +282,6 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  void _showReminderDefaultsDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.notifications),
-        content: Text(l.defaultReminderTimes),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.ok),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showAddAccountDialog(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final nameController = TextEditingController(text: '');
@@ -350,6 +328,17 @@ class SettingsPage extends ConsumerWidget {
           ),
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              launchUrl(
+                Uri.parse(
+                  'https://github.com/liuchangchxy/dayspark/wiki/CalDAV-Setup',
+                ),
+                mode: LaunchMode.externalApplication,
+              );
+            },
+            child: Text(l.setupGuide),
+          ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(l.cancel),
@@ -480,9 +469,9 @@ class SettingsPage extends ConsumerWidget {
                   'calendar_export_${DateTime.now().millisecondsSinceEpoch}.ics',
                 );
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l.exportedTo(path))));
+                  await Share.shareXFiles([
+                    XFile(path),
+                  ], subject: 'DaySpark Calendar Export');
                 }
               } catch (e) {
                 if (context.mounted) {
@@ -550,90 +539,6 @@ class SettingsPage extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(l.cancel),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAiConfigDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final config = ref.read(aiConfigProvider).value;
-    final keyController = TextEditingController(text: config?.apiKey ?? '');
-    final urlController = TextEditingController(
-      text: config?.baseUrl ?? 'https://api.openai.com/v1',
-    );
-    final modelController = TextEditingController(
-      text: config?.model ?? 'gpt-4o-mini',
-    );
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.aiConfig),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: keyController,
-                decoration: InputDecoration(
-                  labelText: l.apiKey,
-                  hintText: 'sk-...',
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlController,
-                decoration: InputDecoration(
-                  labelText: l.baseUrl,
-                  hintText: 'https://api.openai.com/v1',
-                ),
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: modelController,
-                decoration: InputDecoration(
-                  labelText: l.model,
-                  hintText: 'gpt-4o-mini',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          if (config != null)
-            TextButton(
-              onPressed: () async {
-                await ref.read(deleteAiConfigProvider)();
-                if (ctx.mounted) Navigator.of(ctx).pop();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error,
-              ),
-              child: Text(l.remove),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final key = keyController.text.trim();
-              final url = urlController.text.trim();
-              final model = modelController.text.trim();
-              if (key.isEmpty) return;
-
-              await ref.read(saveAiConfigProvider)(
-                apiKey: key,
-                baseUrl: url.isEmpty ? 'https://api.openai.com/v1' : url,
-                model: model.isEmpty ? 'gpt-4o-mini' : model,
-              );
-              if (ctx.mounted) Navigator.of(ctx).pop();
-            },
-            child: Text(l.save),
           ),
         ],
       ),

@@ -163,6 +163,58 @@ class McpServerService {
     );
 
     _server!.registerTool(
+      'create_event',
+      description: 'Create a new calendar event',
+      inputSchema: ToolInputSchema(
+        properties: {
+          'summary': JsonSchema.string(description: 'Event title'),
+          'start': JsonSchema.string(description: 'Start time (ISO 8601)'),
+          'end': JsonSchema.string(description: 'End time (ISO 8601)'),
+          'isAllDay': JsonSchema.boolean(description: 'All-day event'),
+          'location': JsonSchema.string(description: 'Location'),
+          'description': JsonSchema.string(description: 'Description'),
+        },
+        required: ['summary', 'start', 'end'],
+      ),
+      callback: (args, extra) async {
+        final summary = args['summary'] as String;
+        final start = DateTime.parse(args['start'] as String);
+        final end = DateTime.parse(args['end'] as String);
+        final isAllDay = args['isAllDay'] as bool? ?? false;
+        final location = args['location'] as String?;
+        final description = args['description'] as String?;
+
+        final cals = await (_db.select(_db.calendars)).get();
+        if (cals.isEmpty) {
+          return CallToolResult(
+            content: [const TextContent(text: 'Error: No calendar found')],
+            isError: true,
+          );
+        }
+
+        await _db
+            .into(_db.events)
+            .insert(
+              EventsCompanion.insert(
+                calendarId: cals.first.id,
+                uid: 'mcp-${DateTime.now().millisecondsSinceEpoch}',
+                summary: summary,
+                startDt: start,
+                endDt: end,
+                isAllDay: Value(isAllDay),
+                location: Value(location),
+                description: Value(description),
+                isDirty: const Value(true),
+              ),
+            );
+
+        return CallToolResult(
+          content: [TextContent(text: 'Event "$summary" created')],
+        );
+      },
+    );
+
+    _server!.registerTool(
       'complete_todo',
       description: 'Mark a todo as completed',
       inputSchema: ToolInputSchema(

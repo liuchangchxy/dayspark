@@ -8,6 +8,56 @@ const _keyAiApiKey = 'ai_api_key';
 const _keyAiBaseUrl = 'ai_base_url';
 const _keyAiModel = 'ai_model';
 
+/// Preset AI providers.
+class AiProviderPreset {
+  final String name;
+  final String baseUrl;
+  const AiProviderPreset({required this.name, required this.baseUrl});
+}
+
+const kAiPresets = <AiProviderPreset>[
+  AiProviderPreset(name: 'OpenAI', baseUrl: 'https://api.openai.com/v1'),
+  AiProviderPreset(name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1'),
+  AiProviderPreset(name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1'),
+  AiProviderPreset(
+    name: 'Google Gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+  ),
+  AiProviderPreset(name: 'Moonshot', baseUrl: 'https://api.moonshot.cn/v1'),
+  AiProviderPreset(
+    name: 'Qwen',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  ),
+  AiProviderPreset(
+    name: 'GLM',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+  ),
+  AiProviderPreset(name: 'Ollama', baseUrl: 'http://localhost:11434/v1'),
+  AiProviderPreset(name: 'LM Studio', baseUrl: 'http://localhost:1234/v1'),
+];
+
+/// Fetch available models from an OpenAI-compatible /models endpoint.
+Future<List<String>> fetchModels(String baseUrl, String apiKey) async {
+  final dio = Dio();
+  final resp = await dio.get<List<dynamic>>(
+    '$baseUrl/models',
+    options: Options(
+      headers: {
+        'Authorization': 'Bearer $apiKey',
+        'Content-Type': 'application/json',
+      },
+    ),
+  );
+  final models = <String>[];
+  for (final item in resp.data ?? <dynamic>[]) {
+    final map = item as Map<String, dynamic>;
+    final id = map['id'] as String?;
+    if (id != null) models.add(id);
+  }
+  models.sort();
+  return models;
+}
+
 /// AI configuration state.
 class AiConfig {
   final String apiKey;

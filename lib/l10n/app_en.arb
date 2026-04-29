@@ -248,5 +248,24 @@
       "month": { "type": "int" },
       "day": { "type": "int" }
     }
-  }
+  },
+  "checkUpdate": "Check for Updates",
+  "upToDate": "Already up to date",
+  "newVersionAvailable": "New version available: {version}",
+  "@newVersionAvailable": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "currentVersion": "Current version",
+  "downloadUpdate": "Download Update",
+  "starOnGithub": "Star on GitHub",
+  "reportIssue": "Report an Issue",
+  "setupGuide": "Setup Guide",
+  "aiProvider": "Provider",
+  "customProvider": "Custom",
+  "detectModels": "Detect Models",
+  "detectingModels": "Detecting...",
+  "noModelsFound": "No models found",
+  "selectModel": "Select Model"
 }

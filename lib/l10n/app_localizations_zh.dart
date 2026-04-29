@@ -517,4 +517,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String dateLabel(int month, int day) {
     return '$month月$day日';
   }
+
+  @override
+  String get checkUpdate => '检查更新';
+
+  @override
+  String get upToDate => '已是最新版本';
+
+  @override
+  String newVersionAvailable(String version) {
+    return '发现新版本：$version';
+  }
+
+  @override
+  String get currentVersion => '当前版本';
+
+  @override
+  String get downloadUpdate => '下载更新';
+
+  @override
+  String get starOnGithub => '在 GitHub 上 Star';
+
+  @override
+  String get reportIssue => '反馈问题';
+
+  @override
+  String get setupGuide => '配置教程';
+
+  @override
+  String get aiProvider => '服务商';
+
+  @override
+  String get customProvider => '自定义';
+
+  @override
+  String get detectModels => '探测模型';
+
+  @override
+  String get detectingModels => '探测中…';
+
+  @override
+  String get noModelsFound => '未找到模型';
+
+  @override
+  String get selectModel => '选择模型';
 }

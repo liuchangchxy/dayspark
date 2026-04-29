@@ -336,8 +336,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get importExportDesc =>
-      'Export calendar events and todos to .ics, or import from a .ics file.';
+  String get importExportDesc => 'Export calendar events and todos to .ics, or import from a .ics file.';
 
   @override
   String error(String error) {
@@ -503,8 +502,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moveToTrash => 'Move to Trash';
 
   @override
-  String get confirmPermanentDelete =>
-      'Permanently delete? This cannot be undone.';
+  String get confirmPermanentDelete => 'Permanently delete? This cannot be undone.';
 
   @override
   String get confirmEmptyTrash => 'Permanently delete all items in trash?';
@@ -519,4 +517,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String dateLabel(int month, int day) {
     return '$month/$day';
   }
+
+  @override
+  String get checkUpdate => 'Check for Updates';
+
+  @override
+  String get upToDate => 'Already up to date';
+
+  @override
+  String newVersionAvailable(String version) {
+    return 'New version available: $version';
+  }
+
+  @override
+  String get currentVersion => 'Current version';
+
+  @override
+  String get downloadUpdate => 'Download Update';
+
+  @override
+  String get starOnGithub => 'Star on GitHub';
+
+  @override
+  String get reportIssue => 'Report an Issue';
+
+  @override
+  String get setupGuide => 'Setup Guide';
+
+  @override
+  String get aiProvider => 'Provider';
+
+  @override
+  String get customProvider => 'Custom';
+
+  @override
+  String get detectModels => 'Detect Models';
+
+  @override
+  String get detectingModels => 'Detecting...';
+
+  @override
+  String get noModelsFound => 'No models found';
+
+  @override
+  String get selectModel => 'Select Model';
 }
