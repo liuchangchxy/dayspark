@@ -55,7 +55,9 @@ final saveCalDavCredentialsProvider =
     });
 
 /// Provider that reads stored CalDAV credentials.
-final calDavCredentialsProvider = FutureProvider<Map<String, String>?>((ref) async {
+final calDavCredentialsProvider = FutureProvider<Map<String, String>?>((
+  ref,
+) async {
   try {
     const storage = FlutterSecureStorage();
     final url = await storage.read(key: _keyServerUrl);
@@ -70,7 +72,9 @@ final calDavCredentialsProvider = FutureProvider<Map<String, String>?>((ref) asy
 });
 
 /// Provider to delete CalDAV credentials.
-final deleteCalDavCredentialsProvider = Provider<Future<void> Function()>((ref) {
+final deleteCalDavCredentialsProvider = Provider<Future<void> Function()>((
+  ref,
+) {
   return () async {
     try {
       const storage = FlutterSecureStorage();

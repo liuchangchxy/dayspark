@@ -14,10 +14,13 @@ final updateHomeWidgetProvider = Provider<Future<void> Function()>((ref) {
       final start = DateTime(now.year, now.month, now.day);
       final end = start.add(const Duration(days: 1));
 
-      final events = await db.eventsDao.watchByDateRange(start, end).first
+      final events = await db.eventsDao
+          .watchByDateRange(start, end)
+          .first
           .timeout(const Duration(seconds: 3));
-      final todos = await db.todosDao.watchPending().first
-          .timeout(const Duration(seconds: 3));
+      final todos = await db.todosDao.watchPending().first.timeout(
+        const Duration(seconds: 3),
+      );
 
       await HomeWidgetService.updateWidgets(
         todayEvents: events,
