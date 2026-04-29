@@ -29,7 +29,8 @@ class DateStrip extends StatelessWidget {
     final weekStart = anchor.subtract(Duration(days: weekday - 1));
 
     final monthLabel = DateFormat.yM(locale).format(anchor);
-    final showTodayButton = selectedDate != null &&
+    final showTodayButton =
+        selectedDate != null &&
         (selectedDate!.year != today.year ||
             selectedDate!.month != today.month ||
             selectedDate!.day != today.day);
@@ -90,12 +91,14 @@ class DateStrip extends StatelessWidget {
               IconButton(
                 icon: const Icon(CupertinoIcons.chevron_left, size: 18),
                 onPressed: () {
-                  final newWeekStart =
-                      weekStart.subtract(const Duration(days: 7));
+                  final newWeekStart = weekStart.subtract(
+                    const Duration(days: 7),
+                  );
                   final targetDay = selectedDate ?? today;
                   final diff = targetDay.difference(weekStart).inDays;
-                  final newDate =
-                      newWeekStart.add(Duration(days: diff.clamp(0, 6)));
+                  final newDate = newWeekStart.add(
+                    Duration(days: diff.clamp(0, 6)),
+                  );
                   onDateSelected(newDate);
                 },
                 visualDensity: VisualDensity.compact,
@@ -107,15 +110,18 @@ class DateStrip extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: List.generate(7, (i) {
                     final date = weekStart.add(Duration(days: i));
-                    final isSelected = selectedDate != null &&
+                    final isSelected =
+                        selectedDate != null &&
                         selectedDate!.year == date.year &&
                         selectedDate!.month == date.month &&
                         selectedDate!.day == date.day;
-                    final isToday = date.year == today.year &&
+                    final isToday =
+                        date.year == today.year &&
                         date.month == today.month &&
                         date.day == today.day;
-                    final weekdayLabel =
-                        DateFormat.E(locale).format(date).substring(0, 2);
+                    final weekdayLabel = DateFormat.E(
+                      locale,
+                    ).format(date).substring(0, 2);
 
                     return Expanded(
                       child: GestureDetector(
@@ -128,8 +134,9 @@ class DateStrip extends StatelessWidget {
                             color: isSelected
                                 ? theme.colorScheme.primary
                                 : isToday
-                                ? theme.colorScheme.primary
-                                    .withValues(alpha: 0.12)
+                                ? theme.colorScheme.primary.withValues(
+                                    alpha: 0.12,
+                                  )
                                 : null,
                             borderRadius: BorderRadius.circular(12),
                             border: isToday && !isSelected
@@ -156,8 +163,9 @@ class DateStrip extends StatelessWidget {
                                 '${date.day}',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  fontWeight:
-                                      isToday ? FontWeight.bold : FontWeight.normal,
+                                  fontWeight: isToday
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                                   color: isSelected
                                       ? theme.colorScheme.onPrimary
                                       : theme.textTheme.bodyMedium?.color,
@@ -177,8 +185,9 @@ class DateStrip extends StatelessWidget {
                   final newWeekStart = weekStart.add(const Duration(days: 7));
                   final targetDay = selectedDate ?? today;
                   final diff = targetDay.difference(weekStart).inDays;
-                  final newDate =
-                      newWeekStart.add(Duration(days: diff.clamp(0, 6)));
+                  final newDate = newWeekStart.add(
+                    Duration(days: diff.clamp(0, 6)),
+                  );
                   onDateSelected(newDate);
                 },
                 visualDensity: VisualDensity.compact,

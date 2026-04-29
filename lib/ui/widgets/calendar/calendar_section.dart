@@ -93,9 +93,9 @@ class _CalendarSectionState extends State<CalendarSection> {
         // Use dominant month to avoid overflow days causing wrong month
         final start = _visibleRange!.start;
         final end = _visibleRange!.end;
-        final mid = start.add(Duration(
-          milliseconds: end.difference(start).inMilliseconds ~/ 2,
-        ));
+        final mid = start.add(
+          Duration(milliseconds: end.difference(start).inMilliseconds ~/ 2),
+        );
         return mid;
     }
   }
@@ -104,17 +104,11 @@ class _CalendarSectionState extends State<CalendarSection> {
     final date = _currentDate;
     switch (_viewMode) {
       case CalendarViewMode.day:
-        return MultiDayViewConfiguration.singleDay(
-          initialDateTime: date,
-        );
+        return MultiDayViewConfiguration.singleDay(initialDateTime: date);
       case CalendarViewMode.week:
-        return MultiDayViewConfiguration.week(
-          initialDateTime: date,
-        );
+        return MultiDayViewConfiguration.week(initialDateTime: date);
       case CalendarViewMode.month:
-        return MonthViewConfiguration.singleMonth(
-          initialDateTime: date,
-        );
+        return MonthViewConfiguration.singleMonth(initialDateTime: date);
     }
   }
 
@@ -180,7 +174,8 @@ class _CalendarSectionState extends State<CalendarSection> {
         date.month != visibleDate.month || date.year != visibleDate.year;
 
     // Tapped date highlight
-    final isTapped = _lastTappedDate != null &&
+    final isTapped =
+        _lastTappedDate != null &&
         date.year == _lastTappedDate!.year &&
         date.month == _lastTappedDate!.month &&
         date.day == _lastTappedDate!.day;
@@ -192,7 +187,9 @@ class _CalendarSectionState extends State<CalendarSection> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.4),
               blurRadius: 4,
               spreadRadius: 1,
             ),
@@ -233,12 +230,15 @@ class _CalendarSectionState extends State<CalendarSection> {
         date.day.toString(),
         style: isOverflow
             ? (style?.numberTextStyle?.copyWith(
-                  color:
-                      Theme.of(context).disabledColor.withValues(alpha: 0.3),
-                ) ??
-                TextStyle(
-                  color: Theme.of(context).disabledColor.withValues(alpha: 0.3),
-                ))
+                    color: Theme.of(
+                      context,
+                    ).disabledColor.withValues(alpha: 0.3),
+                  ) ??
+                  TextStyle(
+                    color: Theme.of(
+                      context,
+                    ).disabledColor.withValues(alpha: 0.3),
+                  ))
             : style?.numberTextStyle,
       ),
     );
@@ -250,7 +250,8 @@ class _CalendarSectionState extends State<CalendarSection> {
         date.year == now.year && date.month == now.month && date.day == now.day;
     final theme = Theme.of(context);
 
-    final isTapped = _lastTappedDate != null &&
+    final isTapped =
+        _lastTappedDate != null &&
         date.year == _lastTappedDate!.year &&
         date.month == _lastTappedDate!.month &&
         date.day == _lastTappedDate!.day;
@@ -334,7 +335,9 @@ class _CalendarSectionState extends State<CalendarSection> {
                       ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.08,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

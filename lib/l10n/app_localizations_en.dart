@@ -336,7 +336,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get importExportDesc => 'Export calendar events and todos to .ics, or import from a .ics file.';
+  String get importExportDesc =>
+      'Export calendar events and todos to .ics, or import from a .ics file.';
 
   @override
   String error(String error) {
@@ -502,7 +503,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moveToTrash => 'Move to Trash';
 
   @override
-  String get confirmPermanentDelete => 'Permanently delete? This cannot be undone.';
+  String get confirmPermanentDelete =>
+      'Permanently delete? This cannot be undone.';
 
   @override
   String get confirmEmptyTrash => 'Permanently delete all items in trash?';

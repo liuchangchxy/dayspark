@@ -112,13 +112,22 @@ class _HomePageState extends ConsumerState<HomePage>
   void _startDayCheckTimer() {
     final now = DateTime.now();
     _lastCheckedDay = DateTime(now.year, now.month, now.day);
-    _dayCheckTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+    _scheduleNextMidnightCheck();
+  }
+
+  void _scheduleNextMidnightCheck() {
+    final now = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day + 1);
+    final delay = midnight.difference(now);
+    _dayCheckTimer = Timer(delay, () {
+      if (!mounted) return;
       final current = DateTime.now();
       final today = DateTime(current.year, current.month, current.day);
-      if (_lastCheckedDay != null && today != _lastCheckedDay) {
+      if (today != _lastCheckedDay) {
         _lastCheckedDay = today;
         _checkOverdueTodos();
       }
+      _scheduleNextMidnightCheck();
     });
   }
 
