@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
