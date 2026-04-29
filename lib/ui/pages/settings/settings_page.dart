@@ -177,7 +177,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.9.8'),
+            subtitle: const Text('DaySpark v1.0.0'),
             onTap: () => context.push('/about'),
           ),
         ],

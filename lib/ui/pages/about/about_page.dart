@@ -13,7 +13,7 @@ class AboutPage extends StatefulWidget {
 }
 
 class _AboutPageState extends State<AboutPage> {
-  static const _currentVersion = '0.9.8';
+  static const _currentVersion = '1.0.0';
   static const _repo = 'liuchangchxy/dayspark';
 
   bool _checking = false;
