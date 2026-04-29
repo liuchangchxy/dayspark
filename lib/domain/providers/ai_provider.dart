@@ -130,6 +130,7 @@ Future<String> callAiApi({
   required AiConfig config,
   required String systemPrompt,
   required String userPrompt,
+  CancelToken? cancelToken,
 }) async {
   final dio = Dio();
   final response = await dio.post<void>(
@@ -148,6 +149,7 @@ Future<String> callAiApi({
       ],
       'temperature': 0.3,
     }),
+    cancelToken: cancelToken,
   );
 
   final data = response.data as Map<String, dynamic>;
@@ -211,12 +213,23 @@ final aiChatProvider =
 
 class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
   final Ref _ref;
+  CancelToken? _cancelToken;
 
   AiChatNotifier(this._ref) : super([]);
+
+  @override
+  void dispose() {
+    _cancelToken?.cancel();
+    super.dispose();
+  }
 
   Future<void> sendMessage(String message) async {
     final config = _ref.read(aiConfigProvider).value;
     if (config == null) return;
+
+    // Cancel previous request
+    _cancelToken?.cancel();
+    _cancelToken = CancelToken();
 
     state = [...state, AiChatMessage(role: 'user', content: message)];
     state = [...state, AiChatMessage(role: 'assistant', content: '...')];
@@ -229,11 +242,18 @@ class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
         config: config,
         systemPrompt: systemPrompt,
         userPrompt: message,
+        cancelToken: _cancelToken,
       );
 
       state = [
         ...state.sublist(0, state.length - 1),
         AiChatMessage(role: 'assistant', content: response),
+      ];
+    } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) return;
+      state = [
+        ...state.sublist(0, state.length - 1),
+        AiChatMessage(role: 'assistant', content: 'Error: $e'),
       ];
     } catch (e) {
       state = [

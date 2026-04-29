@@ -53,10 +53,7 @@ void main() {
 
       final events = await container.read(
         eventsInDateRangeProvider(
-          DateTimeRange(
-            start: DateTime(2026, 4, 1),
-            end: DateTime(2026, 4, 30),
-          ),
+          '${DateTime(2026, 4, 1).millisecondsSinceEpoch}-${DateTime(2026, 4, 30).millisecondsSinceEpoch}',
         ).future,
       );
 

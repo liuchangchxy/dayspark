@@ -74,12 +74,12 @@ class _HomePageState extends ConsumerState<HomePage>
       Future.microtask(() {
         if (!mounted) return;
         ref.listenManual(defaultTabProvider, (prev, next) {
-          if (!_userChangedTab && prev != next && mounted) {
+          if (!_userChangedTab && prev != null && mounted) {
             setState(() {
               _currentTab = next == AppTab.todos ? 1 : 0;
             });
           }
-        }, fireImmediately: true);
+        });
       });
     }
     Future.microtask(() async {
@@ -96,8 +96,10 @@ class _HomePageState extends ConsumerState<HomePage>
         if (!kIsWeb && !kDebugMode) {
           _syncService = ref.read(backgroundSyncServiceProvider);
           await _syncService!.init();
+          if (!mounted) return;
           _syncService!.startForeground();
         }
+        if (!mounted) return;
         if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
           ref.read(updateHomeWidgetProvider)();
         }
@@ -133,12 +135,13 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final service = ref.read(backgroundSyncServiceProvider);
     if (state == AppLifecycleState.resumed) {
-      service.startForeground();
+      _syncService?.startForeground();
       _checkOverdueTodos();
+      _dayCheckTimer?.cancel();
+      _scheduleNextMidnightCheck();
     } else if (state == AppLifecycleState.paused) {
-      service.stopForeground();
+      _syncService?.stopForeground();
     }
   }
 
@@ -269,7 +272,9 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget _buildCalendarTab() {
     final l = AppLocalizations.of(context)!;
     final range = _calendarRange();
-    final eventsAsync = ref.watch(eventsInDateRangeProvider(range));
+    final rangeKey =
+        '${range.start.millisecondsSinceEpoch}-${range.end.millisecondsSinceEpoch}';
+    final eventsAsync = ref.watch(eventsInDateRangeProvider(rangeKey));
 
     return eventsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -527,7 +532,7 @@ class _HomePageState extends ConsumerState<HomePage>
       } else if (date == yesterday) {
         label = AppLocalizations.of(context)!.yesterday;
       } else {
-        label = '${date.month}/${date.day}';
+        label = AppLocalizations.of(context)!.dateLabel(date.month, date.day);
       }
       widgets.add(
         ExpansionTile(

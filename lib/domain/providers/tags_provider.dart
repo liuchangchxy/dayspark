@@ -41,7 +41,7 @@ final createTagProvider =
     Provider<Future<int> Function({required String name, String? color})>((
       ref,
     ) {
-      final db = ref.watch(databaseProvider);
+      final db = ref.read(databaseProvider);
       return ({required name, color}) async {
         return db
             .into(db.tags)
@@ -56,7 +56,7 @@ final createTagProvider =
 
 /// Delete a tag.
 final deleteTagProvider = Provider<Future<void> Function(int)>((ref) {
-  final db = ref.watch(databaseProvider);
+  final db = ref.read(databaseProvider);
   return (int tagId) async {
     await (db.delete(db.eventTags)..where((t) => t.tagId.equals(tagId))).go();
     await (db.delete(db.todoTags)..where((t) => t.tagId.equals(tagId))).go();
@@ -68,7 +68,7 @@ final deleteTagProvider = Provider<Future<void> Function(int)>((ref) {
 final addTagToEventProvider =
     Provider<Future<void> Function({required int eventId, required int tagId})>(
       (ref) {
-        final db = ref.watch(databaseProvider);
+        final db = ref.read(databaseProvider);
         return ({required eventId, required tagId}) async {
           await db
               .into(db.eventTags)
@@ -83,7 +83,7 @@ final addTagToEventProvider =
 final removeTagFromEventProvider =
     Provider<Future<void> Function({required int eventId, required int tagId})>(
       (ref) {
-        final db = ref.watch(databaseProvider);
+        final db = ref.read(databaseProvider);
         return ({required eventId, required tagId}) async {
           await (db.delete(db.eventTags)..where(
                 (t) => t.eventId.equals(eventId) & t.tagId.equals(tagId),
@@ -98,7 +98,7 @@ final addTagToTodoProvider =
     Provider<Future<void> Function({required int todoId, required int tagId})>((
       ref,
     ) {
-      final db = ref.watch(databaseProvider);
+      final db = ref.read(databaseProvider);
       return ({required todoId, required tagId}) async {
         await db
             .into(db.todoTags)
@@ -111,7 +111,7 @@ final removeTagFromTodoProvider =
     Provider<Future<void> Function({required int todoId, required int tagId})>((
       ref,
     ) {
-      final db = ref.watch(databaseProvider);
+      final db = ref.read(databaseProvider);
       return ({required todoId, required tagId}) async {
         await (db.delete(
           db.todoTags,

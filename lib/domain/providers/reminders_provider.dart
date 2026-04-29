@@ -44,8 +44,8 @@ final createReminderProvider =
         required DateTime triggerTime,
       })
     >((ref) {
-      final db = ref.watch(databaseProvider);
-      final notifService = ref.watch(notificationServiceProvider);
+      final db = ref.read(databaseProvider);
+      final notifService = ref.read(notificationServiceProvider);
       return ({
         required parentType,
         required parentId,
@@ -72,8 +72,8 @@ final createReminderProvider =
 
 /// Delete a reminder and cancel its notification.
 final deleteReminderProvider = Provider<Future<void> Function(int)>((ref) {
-  final db = ref.watch(databaseProvider);
-  final notifService = ref.watch(notificationServiceProvider);
+  final db = ref.read(databaseProvider);
+  final notifService = ref.read(notificationServiceProvider);
   return (int id) async {
     await notifService.cancel(id);
     await (db.delete(db.reminders)..where((t) => t.id.equals(id))).go();
@@ -85,7 +85,7 @@ final addDefaultEventRemindersProvider =
     Provider<
       Future<void> Function({required int eventId, required DateTime startDt})
     >((ref) {
-      final createReminder = ref.watch(createReminderProvider);
+      final createReminder = ref.read(createReminderProvider);
       return ({required eventId, required startDt}) async {
         const offsets = [Duration(minutes: 5), Duration(minutes: 15)];
         for (final offset in offsets) {
@@ -106,7 +106,7 @@ final addDefaultTodoRemindersProvider =
     Provider<
       Future<void> Function({required int todoId, required DateTime? dueDate})
     >((ref) {
-      final createReminder = ref.watch(createReminderProvider);
+      final createReminder = ref.read(createReminderProvider);
       return ({required todoId, required dueDate}) async {
         if (dueDate == null) return;
 
@@ -135,9 +135,9 @@ final rescheduleRemindersProvider =
         required DateTime newReferenceTime,
       })
     >((ref) {
-      final db = ref.watch(databaseProvider);
-      final notifService = ref.watch(notificationServiceProvider);
-      final createReminder = ref.watch(createReminderProvider);
+      final db = ref.read(databaseProvider);
+      final notifService = ref.read(notificationServiceProvider);
+      final createReminder = ref.read(createReminderProvider);
       return ({
         required parentType,
         required parentId,

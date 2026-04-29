@@ -44,7 +44,7 @@ final deletedTodosProvider = StreamProvider<List<Todo>>((ref) {
 final moveOverdueToTodayProvider = Provider<Future<void> Function(List<int>)>((
   ref,
 ) {
-  final db = ref.watch(databaseProvider);
+  final db = ref.read(databaseProvider);
   return (List<int> ids) => db.todosDao.moveOverdueToToday(ids);
 });
 
@@ -62,7 +62,7 @@ final createTodoProvider =
         String? rrule,
       })
     >((ref) {
-      final db = ref.watch(databaseProvider);
+      final db = ref.read(databaseProvider);
       return ({
         required calendarId,
         required uid,
@@ -102,7 +102,7 @@ final toggleTodoProvider =
     Provider<
       Future<void> Function({required int id, required bool isCompleted})
     >((ref) {
-      final db = ref.watch(databaseProvider);
+      final db = ref.read(databaseProvider);
       return ({required int id, required bool isCompleted}) {
         if (isCompleted) {
           return db.todosDao.markComplete(id);
@@ -113,8 +113,8 @@ final toggleTodoProvider =
     });
 
 final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
-  final db = ref.watch(databaseProvider);
-  final notifService = ref.watch(notificationServiceProvider);
+  final db = ref.read(databaseProvider);
+  final notifService = ref.read(notificationServiceProvider);
   return (int id) async {
     // Cancel scheduled notifications (keep reminder rows for restore)
     final reminders = await (db.select(
@@ -134,7 +134,7 @@ final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
 });
 
 final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
-  final db = ref.watch(databaseProvider);
+  final db = ref.read(databaseProvider);
   return (int id) async {
     await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
       TodosCompanion(
@@ -146,7 +146,7 @@ final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
 });
 
 final permanentDeleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
-  final db = ref.watch(databaseProvider);
+  final db = ref.read(databaseProvider);
   return (int id) async {
     await (db.delete(
       db.reminders,
@@ -160,6 +160,6 @@ final permanentDeleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
 });
 
 final emptyTrashProvider = Provider<Future<void> Function()>((ref) {
-  final db = ref.watch(databaseProvider);
+  final db = ref.read(databaseProvider);
   return () => db.todosDao.emptyTrash();
 });

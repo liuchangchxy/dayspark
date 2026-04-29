@@ -38,7 +38,7 @@ final createAttachmentProvider =
         String? mimeType,
       })
     >((ref) {
-      final db = ref.watch(databaseProvider);
+      final db = ref.read(databaseProvider);
       return ({
         required parentType,
         required parentId,
@@ -62,7 +62,7 @@ final createAttachmentProvider =
 
 /// Delete an attachment.
 final deleteAttachmentProvider = Provider<Future<void> Function(int)>((ref) {
-  final db = ref.watch(databaseProvider);
+  final db = ref.read(databaseProvider);
   return (int id) async {
     await (db.delete(db.attachments)..where((t) => t.id.equals(id))).go();
   };

@@ -94,12 +94,12 @@ class DateStrip extends StatelessWidget {
                   final newWeekStart = weekStart.subtract(
                     const Duration(days: 7),
                   );
-                  final targetDay = selectedDate ?? today;
-                  final diff = targetDay.difference(weekStart).inDays;
-                  final newDate = newWeekStart.add(
-                    Duration(days: diff.clamp(0, 6)),
-                  );
-                  onDateSelected(newDate);
+                  // Use weekday offset within the displayed week (0-6)
+                  final offset = (selectedDate ?? today)
+                      .difference(weekStart)
+                      .inDays
+                      .clamp(0, 6);
+                  onDateSelected(newWeekStart.add(Duration(days: offset)));
                 },
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
@@ -121,7 +121,7 @@ class DateStrip extends StatelessWidget {
                         date.day == today.day;
                     final weekdayLabel = DateFormat.E(
                       locale,
-                    ).format(date).substring(0, 2);
+                    ).format(date).characters.take(2).toString();
 
                     return Expanded(
                       child: GestureDetector(
@@ -183,12 +183,11 @@ class DateStrip extends StatelessWidget {
                 icon: const Icon(CupertinoIcons.chevron_right, size: 18),
                 onPressed: () {
                   final newWeekStart = weekStart.add(const Duration(days: 7));
-                  final targetDay = selectedDate ?? today;
-                  final diff = targetDay.difference(weekStart).inDays;
-                  final newDate = newWeekStart.add(
-                    Duration(days: diff.clamp(0, 6)),
-                  );
-                  onDateSelected(newDate);
+                  final offset = (selectedDate ?? today)
+                      .difference(weekStart)
+                      .inDays
+                      .clamp(0, 6);
+                  onDateSelected(newWeekStart.add(Duration(days: offset)));
                 },
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
@@ -226,7 +225,7 @@ class DateStrip extends StatelessWidget {
             fontSize: 11,
             fontWeight: FontWeight.w600,
             color: selected
-                ? theme.colorScheme.onPrimary
+                ? theme.colorScheme.onTertiary
                 : theme.textTheme.bodySmall?.color,
           ),
         ),

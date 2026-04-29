@@ -5,15 +5,21 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 
-final eventsInDateRangeProvider =
-    StreamProvider.family<List<Event>, DateTimeRange>((ref, range) {
-      final db = ref.watch(databaseProvider);
-      final stream = db.eventsDao.watchByDateRange(range.start, range.end);
-      return stream.timeout(
-        const Duration(seconds: 10),
-        onTimeout: (sink) => sink.add([]),
-      );
-    });
+final eventsInDateRangeProvider = StreamProvider.family<List<Event>, String>((
+  ref,
+  rangeKey,
+) {
+  final db = ref.watch(databaseProvider);
+  // Parse range key: "startMs-endMs"
+  final parts = rangeKey.split('-');
+  final start = DateTime.fromMillisecondsSinceEpoch(int.parse(parts[0]));
+  final end = DateTime.fromMillisecondsSinceEpoch(int.parse(parts[1]));
+  final stream = db.eventsDao.watchByDateRange(start, end);
+  return stream.timeout(
+    const Duration(seconds: 10),
+    onTimeout: (sink) => sink.add([]),
+  );
+});
 
 final calendarsProvider = StreamProvider<List<Calendar>>((ref) {
   final db = ref.watch(databaseProvider);
@@ -34,7 +40,7 @@ final createEventProvider =
         String? rrule,
       })
     >((ref) {
-      final db = ref.watch(databaseProvider);
+      final db = ref.read(databaseProvider);
       return ({
         required calendarId,
         required uid,
@@ -65,8 +71,8 @@ final createEventProvider =
     });
 
 final deleteEventProvider = Provider<Future<void> Function(int)>((ref) {
-  final db = ref.watch(databaseProvider);
-  final notifService = ref.watch(notificationServiceProvider);
+  final db = ref.read(databaseProvider);
+  final notifService = ref.read(notificationServiceProvider);
   return (int id) async {
     // Cancel and delete reminders
     final reminders =

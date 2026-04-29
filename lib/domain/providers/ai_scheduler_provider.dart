@@ -27,7 +27,7 @@ final suggestTimeSlotsProvider =
 
         final events = await ref.read(
           eventsInDateRangeProvider(
-            DateTimeRange(start: rangeStart, end: rangeEnd),
+            '${rangeStart.millisecondsSinceEpoch}-${rangeEnd.millisecondsSinceEpoch}',
           ).future,
         );
 

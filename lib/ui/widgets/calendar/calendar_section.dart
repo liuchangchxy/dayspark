@@ -141,21 +141,23 @@ class _CalendarSectionState extends State<CalendarSection> {
     }
   }
 
-  String _formatVisibleDate() {
+  String _formatDayHeader() {
     final locale = Localizations.localeOf(context).toString();
-    switch (_viewMode) {
-      case CalendarViewMode.day:
-        final dateStr = DateFormat.MMMd(locale).format(_anchorDate);
-        final weekday = DateFormat.E(locale).format(_anchorDate);
-        return '$dateStr  $weekday';
-      case CalendarViewMode.week:
-        final s = _visibleRange?.start ?? _anchorDate;
-        final e =
-            _visibleRange?.end ?? _anchorDate.add(const Duration(days: 6));
-        return '${DateFormat.Md(locale).format(s)} – ${DateFormat.Md(locale).format(e)}';
-      case CalendarViewMode.month:
-        return DateFormat.yMMMM(locale).format(_anchorDate);
-    }
+    final dateStr = DateFormat.MMMd(locale).format(_anchorDate);
+    final weekday = DateFormat.E(locale).format(_anchorDate);
+    return '$dateStr  $weekday';
+  }
+
+  String _formatWeekHeader() {
+    final locale = Localizations.localeOf(context).toString();
+    final s = _visibleRange?.start ?? _anchorDate;
+    final e = _visibleRange?.end ?? _anchorDate.add(const Duration(days: 6));
+    return '${DateFormat.Md(locale).format(s)} – ${DateFormat.Md(locale).format(e)}';
+  }
+
+  String _formatMonthHeader() {
+    final locale = Localizations.localeOf(context).toString();
+    return DateFormat.yMMMM(locale).format(_anchorDate);
   }
 
   Future<void> _pickDate() async {
@@ -376,8 +378,12 @@ class _CalendarSectionState extends State<CalendarSection> {
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 200),
                             child: Text(
-                              _formatVisibleDate(),
-                              key: ValueKey(_formatVisibleDate()),
+                              (switch (_viewMode) {
+                                CalendarViewMode.day => _formatDayHeader(),
+                                CalendarViewMode.week => _formatWeekHeader(),
+                                CalendarViewMode.month => _formatMonthHeader(),
+                              }),
+                              key: ValueKey(_anchorDate),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: theme.colorScheme.primary,
