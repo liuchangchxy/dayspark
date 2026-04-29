@@ -123,16 +123,27 @@ class _CalendarSectionState extends State<CalendarSection> {
 
   bool get _isViewingToday {
     final now = DateTime.now();
-    final current = _currentDate;
+    final today = DateTime(now.year, now.month, now.day);
     switch (_viewMode) {
       case CalendarViewMode.day:
-        return current.year == now.year &&
-            current.month == now.month &&
-            current.day == now.day;
+        final d = _currentDate;
+        return d.year == now.year && d.month == now.month && d.day == now.day;
       case CalendarViewMode.week:
-        return current.year == now.year && current.month == now.month;
+        if (_visibleRange == null) return false;
+        final start = DateTime(
+          _visibleRange!.start.year,
+          _visibleRange!.start.month,
+          _visibleRange!.start.day,
+        );
+        final end = DateTime(
+          _visibleRange!.end.year,
+          _visibleRange!.end.month,
+          _visibleRange!.end.day,
+        );
+        return !today.isBefore(start) && !today.isAfter(end);
       case CalendarViewMode.month:
-        return current.year == now.year && current.month == now.month;
+        final d = _currentDate;
+        return d.year == now.year && d.month == now.month;
     }
   }
 
@@ -146,7 +157,7 @@ class _CalendarSectionState extends State<CalendarSection> {
     final l = AppLocalizations.of(context)!;
     final date = _currentDate;
     final weekNum = _weekOfMonth(date);
-    return '${date.year}/${date.month}/${date.day}  ${l.weekOfMonth(weekNum, '${date.month}')}';
+    return '${date.year}/${date.month}/${date.day}  ${l.weekOfMonth(weekNum)}';
   }
 
   Future<void> _pickDate() async {

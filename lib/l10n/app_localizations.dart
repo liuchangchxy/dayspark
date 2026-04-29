@@ -917,8 +917,8 @@ abstract class AppLocalizations {
   /// No description provided for @weekOfMonth.
   ///
   /// In en, this message translates to:
-  /// **'Week {week} of {month}'**
-  String weekOfMonth(int week, String month);
+  /// **'Week {week}'**
+  String weekOfMonth(int week);
 
   /// No description provided for @ok.
   ///

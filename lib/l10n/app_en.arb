@@ -217,11 +217,10 @@
   "completedRecently": "Recently completed",
   "pendingTodos": "Pending",
   "goToToday": "Return to Today",
-  "weekOfMonth": "Week {week} of {month}",
+  "weekOfMonth": "Week {week}",
   "@weekOfMonth": {
     "placeholders": {
-      "week": { "type": "int" },
-      "month": { "type": "String" }
+      "week": { "type": "int" }
     }
   },
   "ok": "OK",

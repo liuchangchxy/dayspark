@@ -456,8 +456,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goToToday => 'Return to Today';
 
   @override
-  String weekOfMonth(int week, String month) {
-    return 'Week $week of $month';
+  String weekOfMonth(int week) {
+    return 'Week $week';
   }
 
   @override
