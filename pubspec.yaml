@@ -1,7 +1,7 @@
 name: dayspark
 description: DaySpark / 灵光 — AI-powered cross-platform calendar & todo app with CalDAV sync.
 publish_to: 'none'
-version: 0.9.7+4
+version: 0.9.8+5
 
 environment:
   sdk: '>=3.11.0 <4.0.0'

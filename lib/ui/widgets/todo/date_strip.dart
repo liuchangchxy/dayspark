@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
-class DateStrip extends StatefulWidget {
+class DateStrip extends StatelessWidget {
   final DateTime? selectedDate;
   final ValueChanged<DateTime?> onDateSelected;
   final VoidCallback? onCalendarTap;
@@ -16,20 +16,6 @@ class DateStrip extends StatefulWidget {
   });
 
   @override
-  State<DateStrip> createState() => _DateStripState();
-}
-
-class _DateStripState extends State<DateStrip> {
-  DateTime _anchorDate = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    _anchorDate = DateTime(now.year, now.month, now.day);
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
@@ -37,169 +23,170 @@ class _DateStripState extends State<DateStrip> {
     final today = DateTime(now.year, now.month, now.day);
     final locale = Localizations.localeOf(context).toString();
 
-    // Generate 15 dates centered on _anchorDate
-    final baseDate = DateTime(
-      _anchorDate.year,
-      _anchorDate.month,
-      _anchorDate.day,
-    );
-    final showTodayButton =
-        widget.selectedDate != null &&
-        (widget.selectedDate!.year != today.year ||
-            widget.selectedDate!.month != today.month ||
-            widget.selectedDate!.day != today.day);
+    // Anchor to selected date or today; align to start of week (Monday)
+    final anchor = selectedDate ?? today;
+    final weekday = anchor.weekday; // 1=Mon .. 7=Sun
+    final weekStart = anchor.subtract(Duration(days: weekday - 1));
+
+    final monthLabel = DateFormat.yM(locale).format(anchor);
+    final showTodayButton = selectedDate != null &&
+        (selectedDate!.year != today.year ||
+            selectedDate!.month != today.month ||
+            selectedDate!.day != today.day);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Inbox chip
-          _chip(
-            context: context,
-            label: l.inbox,
-            selected: widget.selectedDate == null,
-            accentColor: theme.colorScheme.tertiary,
-            onTap: () => widget.onDateSelected(null),
+          // Top row: month label + today + calendar + todo box
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  monthLabel,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (showTodayButton)
+                TextButton(
+                  onPressed: () => onDateSelected(today),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    l.today,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              IconButton(
+                icon: const Icon(CupertinoIcons.calendar, size: 18),
+                onPressed: onCalendarTap,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+              const SizedBox(width: 4),
+              _chip(
+                context: context,
+                label: l.inbox,
+                selected: selectedDate == null,
+                accentColor: theme.colorScheme.tertiary,
+                onTap: () => onDateSelected(null),
+              ),
+            ],
           ),
-          // Left arrow
-          IconButton(
-            icon: const Icon(CupertinoIcons.chevron_left, size: 16),
-            onPressed: () {
-              final newAnchor = baseDate.subtract(const Duration(days: 7));
-              setState(() => _anchorDate = newAnchor);
-              widget.onDateSelected(newAnchor.add(const Duration(days: 7)));
-            },
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          ),
-          // Date chips
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(15, (i) {
-                  final date = baseDate
-                      .subtract(const Duration(days: 7))
-                      .add(Duration(days: i));
-                  final isSelected =
-                      widget.selectedDate != null &&
-                      widget.selectedDate!.year == date.year &&
-                      widget.selectedDate!.month == date.month &&
-                      widget.selectedDate!.day == date.day;
-                  final isCurrentDay =
-                      date.year == today.year &&
-                      date.month == today.month &&
-                      date.day == today.day;
-                  final weekday = DateFormat.E(
-                    locale,
-                  ).format(date).substring(0, 2);
+          // Date row: left arrow + 7 days + right arrow
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(CupertinoIcons.chevron_left, size: 18),
+                onPressed: () {
+                  final newWeekStart =
+                      weekStart.subtract(const Duration(days: 7));
+                  final targetDay = selectedDate ?? today;
+                  final diff = targetDay.difference(weekStart).inDays;
+                  final newDate =
+                      newWeekStart.add(Duration(days: diff.clamp(0, 6)));
+                  onDateSelected(newDate);
+                },
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(7, (i) {
+                    final date = weekStart.add(Duration(days: i));
+                    final isSelected = selectedDate != null &&
+                        selectedDate!.year == date.year &&
+                        selectedDate!.month == date.month &&
+                        selectedDate!.day == date.day;
+                    final isToday = date.year == today.year &&
+                        date.month == today.month &&
+                        date.day == today.day;
+                    final weekdayLabel =
+                        DateFormat.E(locale).format(date).substring(0, 2);
 
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: GestureDetector(
-                      onTap: () {
-                        final d = DateTime(date.year, date.month, date.day);
-                        widget.onDateSelected(d);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => onDateSelected(
+                          DateTime(date.year, date.month, date.day),
                         ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : isCurrentDay
-                              ? theme.colorScheme.primary.withValues(
-                                  alpha: 0.12,
-                                )
-                              : null,
-                          borderRadius: BorderRadius.circular(16),
-                          border: isCurrentDay && !isSelected
-                              ? Border.all(
-                                  color: theme.colorScheme.primary,
-                                  width: 1,
-                                )
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              weekday,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isSelected
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.textTheme.bodySmall?.color,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : isToday
+                                ? theme.colorScheme.primary
+                                    .withValues(alpha: 0.12)
+                                : null,
+                            borderRadius: BorderRadius.circular(12),
+                            border: isToday && !isSelected
+                                ? Border.all(
+                                    color: theme.colorScheme.primary,
+                                    width: 1,
+                                  )
+                                : null,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                weekdayLabel,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isSelected
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.textTheme.bodySmall?.color,
+                                ),
                               ),
-                            ),
-                            Text(
-                              '${date.day}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: isCurrentDay
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.textTheme.bodyMedium?.color,
+                              const SizedBox(height: 2),
+                              Text(
+                                '${date.day}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight:
+                                      isToday ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.textTheme.bodyMedium?.color,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
-            ),
-          ),
-          // Right arrow
-          IconButton(
-            icon: const Icon(CupertinoIcons.chevron_right, size: 16),
-            onPressed: () {
-              final newAnchor = baseDate.add(const Duration(days: 7));
-              setState(() => _anchorDate = newAnchor);
-              widget.onDateSelected(
-                newAnchor.subtract(const Duration(days: 7)),
-              );
-            },
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          ),
-          // Calendar button
-          if (widget.onCalendarTap != null)
-            IconButton(
-              icon: const Icon(CupertinoIcons.calendar, size: 18),
-              onPressed: widget.onCalendarTap,
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            ),
-          // Today button
-          if (showTodayButton)
-            Padding(
-              padding: const EdgeInsets.only(left: 2),
-              child: TextButton(
+              IconButton(
+                icon: const Icon(CupertinoIcons.chevron_right, size: 18),
                 onPressed: () {
-                  setState(() => _anchorDate = today);
-                  widget.onDateSelected(today);
+                  final newWeekStart = weekStart.add(const Duration(days: 7));
+                  final targetDay = selectedDate ?? today;
+                  final diff = targetDay.difference(weekStart).inDays;
+                  final newDate =
+                      newWeekStart.add(Duration(days: diff.clamp(0, 6)));
+                  onDateSelected(newDate);
                 },
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  l.today,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                ),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
-            ),
+            ],
+          ),
         ],
       ),
     );
@@ -216,7 +203,7 @@ class _DateStripState extends State<DateStrip> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: selected ? accentColor : null,
           borderRadius: BorderRadius.circular(16),
@@ -227,7 +214,7 @@ class _DateStripState extends State<DateStrip> {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: selected
                 ? theme.colorScheme.onPrimary

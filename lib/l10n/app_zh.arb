@@ -186,5 +186,7 @@
   "detectModels": "探测模型",
   "detectingModels": "探测中…",
   "noModelsFound": "未找到模型",
-  "selectModel": "选择模型"
+  "selectModel": "选择模型",
+  "data": "数据",
+  "tutorial": "教程"
 }

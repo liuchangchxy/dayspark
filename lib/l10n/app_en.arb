@@ -267,5 +267,7 @@
   "detectModels": "Detect Models",
   "detectingModels": "Detecting...",
   "noModelsFound": "No models found",
-  "selectModel": "Select Model"
+  "selectModel": "Select Model",
+  "data": "Data",
+  "tutorial": "Tutorial"
 }

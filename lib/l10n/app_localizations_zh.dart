@@ -561,4 +561,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get selectModel => '选择模型';
+
+  @override
+  String get data => '数据';
+
+  @override
+  String get tutorial => '教程';
 }

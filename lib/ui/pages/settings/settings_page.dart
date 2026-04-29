@@ -25,13 +25,11 @@ import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
+  static const _repo = 'liuchangchxy/dayspark';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final syncStatus = ref.watch(syncStatusProvider);
-    final lastSync = ref.watch(lastSyncTimeProvider);
-    final syncError = ref.watch(syncErrorProvider);
-    final isSyncing = syncStatus == SyncStatus.syncing;
     final flagsAsync = ref.watch(featureFlagsProvider);
 
     return Scaffold(
@@ -44,122 +42,6 @@ class SettingsPage extends ConsumerWidget {
       ),
       body: ListView(
         children: [
-          // ── CalDAV Accounts (single unified section) ──
-          if (flagsAsync.valueOrNull?.isEnabled(FeatureFlag.caldavSync) ??
-              false) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                l.caldavAccounts,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ),
-            ref
-                .watch(accountsProvider)
-                .when(
-                  data: (accounts) {
-                    if (accounts.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          l.noAccounts,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      );
-                    }
-                    return Column(
-                      children: accounts.map((account) {
-                        return ListTile(
-                          leading: const Icon(CupertinoIcons.cloud),
-                          title: Text(account.name),
-                          subtitle: Text(
-                            '${account.username}@${account.serverUrl}',
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (isSyncing)
-                                const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              else
-                                IconButton(
-                                  icon: const Icon(CupertinoIcons.refresh),
-                                  onPressed: () => _triggerSync(context, ref),
-                                ),
-                              IconButton(
-                                icon: Icon(
-                                  CupertinoIcons.delete,
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                                onPressed: () => _confirmRemoveAccount(
-                                  context,
-                                  ref,
-                                  account,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                ),
-            if (syncError != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  syncError,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            if (lastSync != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  l.lastSync(DateFormatters.formatRelativeTime(lastSync)),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            ListTile(
-              leading: const Icon(CupertinoIcons.plus_circle),
-              title: Text(l.addAccount),
-              onTap: () => _showAddAccountDialog(context, ref),
-            ),
-            const Divider(),
-          ], // end CalDAV section
-          // ── AI Config ──
-          if (flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ??
-              false) ...[
-            ListTile(
-              leading: const Icon(CupertinoIcons.chat_bubble_2),
-              title: Text(l.aiConfig),
-              subtitle: _buildAiSubtitle(ref),
-              onTap: () => showAiConfigDialog(context, ref),
-            ),
-            const Divider(),
-          ],
-
-          // ── Import / Export ──
-          ListTile(
-            leading: const Icon(CupertinoIcons.arrow_down_doc),
-            title: Text(l.importExport),
-            subtitle: Text(l.calendarData),
-            onTap: () => _showIcsDialog(context, ref),
-          ),
-          const Divider(),
-
           // ── Appearance ──
           ListTile(
             leading: const Icon(CupertinoIcons.paintbrush),
@@ -168,7 +50,7 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => _showThemeDialog(context, ref),
           ),
 
-          // ── Default Tab ──
+          // ── Tab Order ──
           ListTile(
             leading: const Icon(CupertinoIcons.square_split_2x1),
             title: Text(l.defaultTab),
@@ -180,77 +62,228 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => _showDefaultTabDialog(context, ref),
           ),
 
-          // ── MCP Server (desktop only) ──
-          if (!kIsWeb)
-            ListTile(
-              leading: const Icon(CupertinoIcons.desktopcomputer),
-              title: const Text('MCP Server'),
-              subtitle: ref.watch(mcpRunningProvider)
-                  ? const Text('Running on localhost:3001')
-                  : const Text('Allow AI agents to access your data'),
-              trailing: Switch(
-                value: ref.watch(mcpRunningProvider),
-                onChanged: (v) async {
-                  try {
-                    await ref.read(toggleMcpServerProvider)();
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l.mcpServerError('$e'))),
-                      );
-                    }
-                  }
-                },
-              ),
-            ),
+          const Divider(),
 
+          // ── Data ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(l.data, style: Theme.of(context).textTheme.titleSmall),
+          ),
+          ListTile(
+            leading: const Icon(CupertinoIcons.arrow_down_doc),
+            title: Text(l.importExport),
+            subtitle: Text(l.calendarData),
+            onTap: () => _showIcsDialog(context, ref),
+          ),
+
+          const Divider(),
+
+          // ── Advanced Features (ExpansionTile) ──
+          ExpansionTile(
+            leading: const Icon(CupertinoIcons.lab_flask),
+            title: Text(l.advancedFeatures),
+            children: [
+              // AI Assistant
+              SwitchListTile(
+                secondary: const Icon(CupertinoIcons.sparkles),
+                title: Row(
+                  children: [
+                    Expanded(child: Text(l.aiAssistant)),
+                    _tutorialLink(context, 'ai-setup'),
+                  ],
+                ),
+                value:
+                    flagsAsync.valueOrNull?.isEnabled(
+                      FeatureFlag.aiAssistant,
+                    ) ??
+                    true,
+                onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                  FeatureFlag.aiAssistant,
+                  v,
+                ),
+              ),
+              if (flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ??
+                  true)
+                ListTile(
+                  leading: const SizedBox(width: 24),
+                  title: Text(l.aiConfig),
+                  subtitle: _buildAiSubtitle(ref),
+                  trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
+                  onTap: () => showAiConfigDialog(context, ref),
+                ),
+
+              const Divider(indent: 16, endIndent: 16),
+
+              // CalDAV Sync
+              SwitchListTile(
+                secondary: const Icon(CupertinoIcons.cloud),
+                title: Row(
+                  children: [
+                    Expanded(child: Text(l.caldavAccount)),
+                    _tutorialLink(context, 'caldav-setup'),
+                  ],
+                ),
+                value:
+                    flagsAsync.valueOrNull?.isEnabled(FeatureFlag.caldavSync) ??
+                    false,
+                onChanged: (v) =>
+                    ref.read(setFeatureFlagProvider)(FeatureFlag.caldavSync, v),
+              ),
+              if (flagsAsync.valueOrNull?.isEnabled(FeatureFlag.caldavSync) ??
+                  false) ...[
+                _buildCaldavSection(context, ref),
+              ],
+
+              if (!kIsWeb) ...[
+                const Divider(indent: 16, endIndent: 16),
+
+                // MCP Server
+                SwitchListTile(
+                  secondary: const Icon(CupertinoIcons.desktopcomputer),
+                  title: Row(
+                    children: [
+                      Expanded(child: const Text('MCP Server')),
+                      _tutorialLink(context, 'mcp-setup'),
+                    ],
+                  ),
+                  subtitle: ref.watch(mcpRunningProvider)
+                      ? const Text('Running on localhost:3001')
+                      : const Text('Allow AI agents to access your data'),
+                  value: ref.watch(mcpRunningProvider),
+                  onChanged: (v) async {
+                    try {
+                      await ref.read(toggleMcpServerProvider)();
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(l.mcpServerError('$e'))),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ],
+            ],
+          ),
+
+          const Divider(),
+
+          // ── About ──
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.9.7'),
+            subtitle: const Text('DaySpark v0.9.8'),
             onTap: () => context.push('/about'),
-          ),
-
-          // ── Feature Toggles ──
-          flagsAsync.when(
-            data: (flags) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    l.advancedFeatures,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-                SwitchListTile(
-                  secondary: const Icon(CupertinoIcons.sparkles),
-                  title: Text(l.aiAssistant),
-                  value: flags.isEnabled(FeatureFlag.aiAssistant),
-                  onChanged: (v) => ref.read(setFeatureFlagProvider)(
-                    FeatureFlag.aiAssistant,
-                    v,
-                  ),
-                ),
-                SwitchListTile(
-                  secondary: const Icon(CupertinoIcons.cloud),
-                  title: Text(l.caldavAccount),
-                  value: flags.isEnabled(FeatureFlag.caldavSync),
-                  onChanged: (v) => ref.read(setFeatureFlagProvider)(
-                    FeatureFlag.caldavSync,
-                    v,
-                  ),
-                ),
-              ],
-            ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _tutorialLink(BuildContext context, String docName) {
+    return IconButton(
+      icon: Icon(
+        CupertinoIcons.book,
+        size: 16,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      tooltip: AppLocalizations.of(context)!.tutorial,
+      onPressed: () => launchUrl(
+        Uri.parse('https://github.com/$_repo/blob/main/docs/$docName.md'),
+        mode: LaunchMode.externalApplication,
+      ),
+    );
+  }
+
+  Widget _buildCaldavSection(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final syncStatus = ref.watch(syncStatusProvider);
+    final lastSync = ref.watch(lastSyncTimeProvider);
+    final syncError = ref.watch(syncErrorProvider);
+    final isSyncing = syncStatus == SyncStatus.syncing;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ref
+            .watch(accountsProvider)
+            .when(
+              data: (accounts) {
+                if (accounts.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      l.noAccounts,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  );
+                }
+                return Column(
+                  children: accounts.map((account) {
+                    return ListTile(
+                      leading: const SizedBox(width: 24),
+                      title: Text(account.name),
+                      subtitle: Text(
+                        '${account.username}@${account.serverUrl}',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isSyncing)
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            IconButton(
+                              icon: const Icon(CupertinoIcons.refresh),
+                              onPressed: () => _triggerSync(context, ref),
+                            ),
+                          IconButton(
+                            icon: Icon(
+                              CupertinoIcons.delete,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            onPressed: () =>
+                                _confirmRemoveAccount(context, ref, account),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+        if (syncError != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              syncError,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        if (lastSync != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              l.lastSync(DateFormatters.formatRelativeTime(lastSync)),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ListTile(
+          contentPadding: const EdgeInsets.only(left: 24, right: 16),
+          title: Text(l.addAccount),
+          onTap: () => _showAddAccountDialog(context, ref),
+        ),
+      ],
     );
   }
 

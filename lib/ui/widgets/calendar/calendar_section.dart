@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:kalender/kalender.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -30,6 +29,7 @@ class _CalendarSectionState extends State<CalendarSection> {
   final _calendarController = CalendarController();
   final _eventsController = DefaultEventsController();
   DateTimeRange? _visibleRange;
+  DateTime? _lastTappedDate;
 
   @override
   void initState() {
@@ -49,9 +49,6 @@ class _CalendarSectionState extends State<CalendarSection> {
   void _onVisibleChanged() {
     final range = _calendarController.visibleDateTimeRange.value;
     if (range != null && mounted) {
-      // Compare actual date values to avoid unnecessary setState().
-      // Without this check, kalender may fire the listener during layout,
-      // causing an infinite rebuild loop in release mode (no assertions).
       if (_visibleRange != null &&
           _visibleRange!.start == range.start &&
           _visibleRange!.end == range.end) {
@@ -82,14 +79,42 @@ class _CalendarSectionState extends State<CalendarSection> {
     super.dispose();
   }
 
-  ViewConfiguration _viewConfig() {
+  /// Get the user-meaningful "current date" from the visible range.
+  /// For month view, use the dominant month date to avoid overflow issues.
+  DateTime get _currentDate {
+    if (_visibleRange == null) return DateTime.now();
     switch (_viewMode) {
       case CalendarViewMode.day:
-        return MultiDayViewConfiguration.singleDay();
+        return _visibleRange!.start;
       case CalendarViewMode.week:
-        return MultiDayViewConfiguration.week();
+        // Use the middle of the week
+        return _visibleRange!.start.add(const Duration(days: 3));
       case CalendarViewMode.month:
-        return MonthViewConfiguration.singleMonth();
+        // Use dominant month to avoid overflow days causing wrong month
+        final start = _visibleRange!.start;
+        final end = _visibleRange!.end;
+        final mid = start.add(Duration(
+          milliseconds: end.difference(start).inMilliseconds ~/ 2,
+        ));
+        return mid;
+    }
+  }
+
+  ViewConfiguration _viewConfig() {
+    final date = _currentDate;
+    switch (_viewMode) {
+      case CalendarViewMode.day:
+        return MultiDayViewConfiguration.singleDay(
+          initialDateTime: date,
+        );
+      case CalendarViewMode.week:
+        return MultiDayViewConfiguration.week(
+          initialDateTime: date,
+        );
+      case CalendarViewMode.month:
+        return MonthViewConfiguration.singleMonth(
+          initialDateTime: date,
+        );
     }
   }
 
@@ -103,53 +128,37 @@ class _CalendarSectionState extends State<CalendarSection> {
   }
 
   bool get _isViewingToday {
-    if (_visibleRange == null) return true;
     final now = DateTime.now();
-    final start = _visibleRange!.start;
+    final current = _currentDate;
     switch (_viewMode) {
       case CalendarViewMode.day:
-        return start.year == now.year &&
-            start.month == now.month &&
-            start.day == now.day;
+        return current.year == now.year &&
+            current.month == now.month &&
+            current.day == now.day;
       case CalendarViewMode.week:
-        // Check if today falls within the visible week range
-        final end = _visibleRange!.end;
-        return !now.isBefore(start) && now.isBefore(end);
+        return current.year == now.year && current.month == now.month;
       case CalendarViewMode.month:
-        return start.year == now.year && start.month == now.month;
+        return current.year == now.year && current.month == now.month;
     }
   }
 
   int _weekOfMonth(DateTime date) {
     final firstDay = DateTime(date.year, date.month, 1);
-    final firstWeekday = firstDay.weekday % 7; // Sun=0
+    final firstWeekday = firstDay.weekday % 7;
     return ((date.day + firstWeekday - 1) / 7).floor() + 1;
   }
 
   String _formatVisibleDate() {
-    final now = DateTime.now();
-    final locale = Localizations.localeOf(context).toString();
     final l = AppLocalizations.of(context)!;
-    if (_visibleRange == null) {
-      return DateFormat.yMMMM(locale).format(now);
-    }
-    final start = _visibleRange!.start;
-    switch (_viewMode) {
-      case CalendarViewMode.day:
-        return DateFormat.yMMMMd(locale).format(start);
-      case CalendarViewMode.week:
-        final weekNum = _weekOfMonth(start);
-        final monthStr = DateFormat.M(locale).format(start);
-        return l.weekOfMonth(weekNum, monthStr);
-      case CalendarViewMode.month:
-        return DateFormat.yMMMM(locale).format(start);
-    }
+    final date = _currentDate;
+    final weekNum = _weekOfMonth(date);
+    return '${date.year}/${date.month}/${date.day}  ${l.weekOfMonth(weekNum, '${date.month}')}';
   }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _visibleRange?.start ?? DateTime.now(),
+      initialDate: _currentDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
@@ -166,10 +175,15 @@ class _CalendarSectionState extends State<CalendarSection> {
     final isToday =
         date.year == now.year && date.month == now.month && date.day == now.day;
 
-    // Dim overflow days (dates not in the current visible month)
-    final visibleMonth = _visibleRange?.start.month ?? now.month;
-    final visibleYear = _visibleRange?.start.year ?? now.year;
-    final isOverflow = date.month != visibleMonth || date.year != visibleYear;
+    final visibleDate = _currentDate;
+    final isOverflow =
+        date.month != visibleDate.month || date.year != visibleDate.year;
+
+    // Tapped date highlight
+    final isTapped = _lastTappedDate != null &&
+        date.year == _lastTappedDate!.year &&
+        date.month == _lastTappedDate!.month &&
+        date.day == _lastTappedDate!.day;
 
     if (isToday) {
       return Container(
@@ -178,9 +192,7 @@ class _CalendarSectionState extends State<CalendarSection> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.4),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
               blurRadius: 4,
               spreadRadius: 1,
             ),
@@ -197,21 +209,36 @@ class _CalendarSectionState extends State<CalendarSection> {
         ),
       );
     }
+
+    if (isTapped) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+          shape: BoxShape.circle,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(
+          date.day.toString(),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Text(
         date.day.toString(),
         style: isOverflow
             ? (style?.numberTextStyle?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).disabledColor.withValues(alpha: 0.3),
-                  ) ??
-                  TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).disabledColor.withValues(alpha: 0.3),
-                  ))
+                  color:
+                      Theme.of(context).disabledColor.withValues(alpha: 0.3),
+                ) ??
+                TextStyle(
+                  color: Theme.of(context).disabledColor.withValues(alpha: 0.3),
+                ))
             : style?.numberTextStyle,
       ),
     );
@@ -222,10 +249,17 @@ class _CalendarSectionState extends State<CalendarSection> {
     final isToday =
         date.year == now.year && date.month == now.month && date.day == now.day;
     final theme = Theme.of(context);
+
+    final isTapped = _lastTappedDate != null &&
+        date.year == _lastTappedDate!.year &&
+        date.month == _lastTappedDate!.month &&
+        date.day == _lastTappedDate!.day;
+
+    final highlight = isToday || isTapped;
     final numberText = Text(
       date.day.toString(),
       style: TextStyle(
-        fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+        fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
         color: isToday ? theme.colorScheme.onPrimary : null,
       ),
     );
@@ -240,7 +274,38 @@ class _CalendarSectionState extends State<CalendarSection> {
         child: numberText,
       );
     }
+
+    if (isTapped) {
+      return Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary.withValues(alpha: 0.15),
+          shape: BoxShape.circle,
+        ),
+        padding: const EdgeInsets.all(6),
+        child: numberText,
+      );
+    }
+
     return Padding(padding: const EdgeInsets.all(6), child: numberText);
+  }
+
+  void _handleTap(DateTime datetime) {
+    if (widget.onTimeSlotTapped == null) return;
+    setState(() {
+      _lastTappedDate = DateTime(datetime.year, datetime.month, datetime.day);
+    });
+    // Clear highlight after a short delay and navigate
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        setState(() => _lastTappedDate = null);
+      }
+    });
+    widget.onTimeSlotTapped!(
+      DateTimeRange(
+        start: datetime,
+        end: datetime.add(const Duration(hours: 1)),
+      ),
+    );
   }
 
   @override
@@ -248,57 +313,66 @@ class _CalendarSectionState extends State<CalendarSection> {
     final l = AppLocalizations.of(context)!;
     final tileComponents = _tileComponents();
     final locale = Localizations.localeOf(context).toString();
+    final theme = Theme.of(context);
 
     return Column(
       children: [
-        // Header: two rows to avoid overflow
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Column(
             children: [
-              // Row 1: date + navigation
+              // Row 1: date + pick + today + nav
               Row(
                 children: [
                   GestureDetector(
                     onTap: _pickDate,
                     behavior: HitTestBehavior.opaque,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Text(
-                            _formatVisibleDate(),
-                            key: ValueKey(_formatVisibleDate()),
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Text(
+                              _formatVisibleDate(),
+                              key: ValueKey(_formatVisibleDate()),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          CupertinoIcons.calendar,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!_isViewingToday)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: TextButton(
-                        onPressed: () =>
-                            _calendarController.jumpToDate(DateTime.now()),
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          minimumSize: Size.zero,
-                        ),
-                        child: Text(l.goToToday),
+                          const SizedBox(width: 6),
+                          Icon(
+                            CupertinoIcons.calendar,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ],
                       ),
                     ),
+                  ),
+                  if (!_isViewingToday) ...[
+                    const SizedBox(width: 6),
+                    TextButton(
+                      onPressed: () =>
+                          _calendarController.jumpToDate(DateTime.now()),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                      ),
+                      child: Text(l.goToToday),
+                    ),
+                  ],
                   const Spacer(),
                   IconButton(
                     icon: const Icon(CupertinoIcons.chevron_left, size: 20),
@@ -313,8 +387,8 @@ class _CalendarSectionState extends State<CalendarSection> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              // Row 2: view switcher (full width)
+              const SizedBox(height: 6),
+              // Row 2: view switcher
               ViewSwitcher(
                 currentMode: _viewMode,
                 onModeChanged: (mode) => setState(() => _viewMode = mode),
@@ -337,6 +411,7 @@ class _CalendarSectionState extends State<CalendarSection> {
               multiDayComponents: MultiDayComponents(
                 headerComponents: MultiDayHeaderComponents(
                   dayHeaderBuilder: _buildCustomDayHeader,
+                  weekNumberBuilder: (_, __) => const SizedBox.shrink(),
                 ),
               ),
               multiDayComponentStyles: MultiDayComponentStyles(
@@ -369,16 +444,7 @@ class _CalendarSectionState extends State<CalendarSection> {
                   widget.onEventChanged!(rescheduled);
                 }
               },
-              onTapped: (datetime) {
-                if (widget.onTimeSlotTapped != null) {
-                  widget.onTimeSlotTapped!(
-                    DateTimeRange(
-                      start: datetime,
-                      end: datetime.add(const Duration(hours: 1)),
-                    ),
-                  );
-                }
-              },
+              onTapped: _handleTap,
             ),
             header: CalendarHeader(multiDayTileComponents: tileComponents),
             body: CalendarBody(

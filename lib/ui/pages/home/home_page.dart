@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -11,7 +12,6 @@ import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
-import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
@@ -39,6 +39,8 @@ class _HomePageState extends ConsumerState<HomePage>
   DateTime? _selectedDate = DateTime.now();
   final Set<int> _selectedTagIds = {};
   BackgroundSyncService? _syncService;
+  Timer? _dayCheckTimer;
+  DateTime? _lastCheckedDay;
 
   // Cached date range — recalculated only when the current month changes.
   DateTimeRange? _cachedRange;
@@ -100,8 +102,22 @@ class _HomePageState extends ConsumerState<HomePage>
           ref.read(updateHomeWidgetProvider)();
         }
         _checkOverdueTodos();
+        _startDayCheckTimer();
       } catch (e) {
         debugPrint('initState microtask error: $e');
+      }
+    });
+  }
+
+  void _startDayCheckTimer() {
+    final now = DateTime.now();
+    _lastCheckedDay = DateTime(now.year, now.month, now.day);
+    _dayCheckTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final current = DateTime.now();
+      final today = DateTime(current.year, current.month, current.day);
+      if (_lastCheckedDay != null && today != _lastCheckedDay) {
+        _lastCheckedDay = today;
+        _checkOverdueTodos();
       }
     });
   }
@@ -155,6 +171,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   void dispose() {
+    _dayCheckTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _syncService?.stopForeground();
     super.dispose();
@@ -254,18 +271,6 @@ class _HomePageState extends ConsumerState<HomePage>
           events: adapters,
           onEventTapped: (event) => context.push('/event/edit', extra: event),
           onTimeSlotTapped: (range) {
-            final timeLabel = DateFormatters.formatDateTime(range.start);
-            ScaffoldMessenger.of(context).clearSnackBars();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '$timeLabel → ${DateFormatters.formatTime(range.end)}',
-                ),
-                duration: const Duration(seconds: 1),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(bottom: 80),
-              ),
-            );
             context.push(
               '/event/new?start=${range.start.millisecondsSinceEpoch}'
               '&end=${range.end.millisecondsSinceEpoch}',
