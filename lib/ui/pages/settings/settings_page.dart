@@ -82,6 +82,11 @@ class SettingsPage extends ConsumerWidget {
           ExpansionTile(
             leading: const Icon(CupertinoIcons.lab_flask),
             title: Text(l.advancedFeatures),
+            initiallyExpanded:
+                flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ==
+                    true ||
+                flagsAsync.valueOrNull?.isEnabled(FeatureFlag.caldavSync) ==
+                    true,
             children: [
               // AI Assistant
               SwitchListTile(

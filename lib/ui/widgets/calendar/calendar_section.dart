@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:kalender/kalender.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -26,14 +29,18 @@ class CalendarSection extends StatefulWidget {
 
 class _CalendarSectionState extends State<CalendarSection> {
   CalendarViewMode _viewMode = CalendarViewMode.week;
+  DateTime _anchorDate = DateTime.now();
   final _calendarController = CalendarController();
   final _eventsController = DefaultEventsController();
   DateTimeRange? _visibleRange;
   DateTime? _lastTappedDate;
+  Timer? _tapHighlightTimer;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _anchorDate = DateTime(now.year, now.month, now.day);
     _syncEvents();
     _calendarController.visibleDateTimeRange.addListener(_onVisibleChanged);
   }
@@ -48,20 +55,33 @@ class _CalendarSectionState extends State<CalendarSection> {
 
   void _onVisibleChanged() {
     final range = _calendarController.visibleDateTimeRange.value;
-    if (range != null && mounted) {
-      if (_visibleRange != null &&
-          _visibleRange!.start == range.start &&
-          _visibleRange!.end == range.end) {
-        return;
-      }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _visibleRange = DateTimeRange(start: range.start, end: range.end);
-          });
-        }
-      });
+    if (range == null || !mounted) return;
+    if (_visibleRange != null &&
+        _visibleRange!.start == range.start &&
+        _visibleRange!.end == range.end) {
+      return;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      DateTime newAnchor;
+      switch (_viewMode) {
+        case CalendarViewMode.day:
+          newAnchor = range.start;
+        case CalendarViewMode.week:
+          newAnchor = range.start.add(const Duration(days: 3));
+        case CalendarViewMode.month:
+          newAnchor = range.start.add(
+            Duration(
+              milliseconds:
+                  range.end.difference(range.start).inMilliseconds ~/ 2,
+            ),
+          );
+      }
+      setState(() {
+        _anchorDate = DateTime(newAnchor.year, newAnchor.month, newAnchor.day);
+        _visibleRange = DateTimeRange(start: range.start, end: range.end);
+      });
+    });
   }
 
   void _syncEvents() {
@@ -73,61 +93,36 @@ class _CalendarSectionState extends State<CalendarSection> {
 
   @override
   void dispose() {
+    _tapHighlightTimer?.cancel();
     _calendarController.visibleDateTimeRange.removeListener(_onVisibleChanged);
     _calendarController.dispose();
     _eventsController.dispose();
     super.dispose();
   }
 
-  /// Get the user-meaningful "current date" from the visible range.
-  /// For month view, use the dominant month date to avoid overflow issues.
-  DateTime get _currentDate {
-    if (_visibleRange == null) return DateTime.now();
-    switch (_viewMode) {
-      case CalendarViewMode.day:
-        return _visibleRange!.start;
-      case CalendarViewMode.week:
-        // Use the middle of the week
-        return _visibleRange!.start.add(const Duration(days: 3));
-      case CalendarViewMode.month:
-        // Use dominant month to avoid overflow days causing wrong month
-        final start = _visibleRange!.start;
-        final end = _visibleRange!.end;
-        final mid = start.add(
-          Duration(milliseconds: end.difference(start).inMilliseconds ~/ 2),
-        );
-        return mid;
-    }
-  }
+  // ── View config ──
 
   ViewConfiguration _viewConfig() {
-    final date = _currentDate;
     switch (_viewMode) {
       case CalendarViewMode.day:
-        return MultiDayViewConfiguration.singleDay(initialDateTime: date);
+        return MultiDayViewConfiguration.singleDay(
+          initialDateTime: _anchorDate,
+        );
       case CalendarViewMode.week:
-        return MultiDayViewConfiguration.week(initialDateTime: date);
+        return MultiDayViewConfiguration.week(initialDateTime: _anchorDate);
       case CalendarViewMode.month:
-        return MonthViewConfiguration.singleMonth(initialDateTime: date);
+        return MonthViewConfiguration.singleMonth(initialDateTime: _anchorDate);
     }
   }
 
-  TileComponents _tileComponents() {
-    return TileComponents(
-      tileBuilder: (event, tileRange) {
-        final adapter = event as CalendaEventAdapter;
-        return EventTile(event: adapter);
-      },
-    );
-  }
+  // ── Header ──
 
   bool get _isViewingToday {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     switch (_viewMode) {
       case CalendarViewMode.day:
-        final d = _currentDate;
-        return d.year == now.year && d.month == now.month && d.day == now.day;
+        return _anchorDate == today;
       case CalendarViewMode.week:
         if (_visibleRange == null) return false;
         final start = DateTime(
@@ -142,35 +137,60 @@ class _CalendarSectionState extends State<CalendarSection> {
         );
         return !today.isBefore(start) && !today.isAfter(end);
       case CalendarViewMode.month:
-        final d = _currentDate;
-        return d.year == now.year && d.month == now.month;
+        return _anchorDate.year == now.year && _anchorDate.month == now.month;
     }
   }
 
-  int _weekOfMonth(DateTime date) {
-    final firstDay = DateTime(date.year, date.month, 1);
-    final firstWeekday = firstDay.weekday % 7;
-    return ((date.day + firstWeekday - 1) / 7).floor() + 1;
-  }
-
   String _formatVisibleDate() {
-    final l = AppLocalizations.of(context)!;
-    final date = _currentDate;
-    final weekNum = _weekOfMonth(date);
-    return '${date.year}/${date.month}/${date.day}  ${l.weekOfMonth(weekNum)}';
+    final locale = Localizations.localeOf(context).toString();
+    switch (_viewMode) {
+      case CalendarViewMode.day:
+        final dateStr = DateFormat.MMMd(locale).format(_anchorDate);
+        final weekday = DateFormat.E(locale).format(_anchorDate);
+        return '$dateStr  $weekday';
+      case CalendarViewMode.week:
+        final s = _visibleRange?.start ?? _anchorDate;
+        final e =
+            _visibleRange?.end ?? _anchorDate.add(const Duration(days: 6));
+        return '${DateFormat.Md(locale).format(s)} – ${DateFormat.Md(locale).format(e)}';
+      case CalendarViewMode.month:
+        return DateFormat.yMMMM(locale).format(_anchorDate);
+    }
   }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _currentDate,
+      initialDate: _anchorDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
     if (picked != null) {
-      _calendarController.jumpToDate(picked);
+      final d = DateTime(picked.year, picked.month, picked.day);
+      setState(() => _anchorDate = d);
+      _calendarController.jumpToDate(d);
     }
   }
+
+  void _goToToday() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    setState(() => _anchorDate = today);
+    _calendarController.jumpToDate(now);
+  }
+
+  // ── Tile components ──
+
+  TileComponents _tileComponents() {
+    return TileComponents(
+      tileBuilder: (event, tileRange) {
+        final adapter = event as CalendaEventAdapter;
+        return EventTile(event: adapter);
+      },
+    );
+  }
+
+  // ── Custom headers ──
 
   Widget _buildCustomMonthDayHeader(
     InternalDateTime date,
@@ -180,11 +200,9 @@ class _CalendarSectionState extends State<CalendarSection> {
     final isToday =
         date.year == now.year && date.month == now.month && date.day == now.day;
 
-    final visibleDate = _currentDate;
     final isOverflow =
-        date.month != visibleDate.month || date.year != visibleDate.year;
+        date.month != _anchorDate.month || date.year != _anchorDate.year;
 
-    // Tapped date highlight
     final isTapped =
         _lastTappedDate != null &&
         date.year == _lastTappedDate!.year &&
@@ -301,16 +319,16 @@ class _CalendarSectionState extends State<CalendarSection> {
     return Padding(padding: const EdgeInsets.all(6), child: numberText);
   }
 
+  // ── Tap handling ──
+
   void _handleTap(DateTime datetime) {
     if (widget.onTimeSlotTapped == null) return;
     setState(() {
       _lastTappedDate = DateTime(datetime.year, datetime.month, datetime.day);
     });
-    // Clear highlight after a short delay and navigate
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) {
-        setState(() => _lastTappedDate = null);
-      }
+    _tapHighlightTimer?.cancel();
+    _tapHighlightTimer = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) setState(() => _lastTappedDate = null);
     });
     widget.onTimeSlotTapped!(
       DateTimeRange(
@@ -319,6 +337,8 @@ class _CalendarSectionState extends State<CalendarSection> {
       ),
     );
   }
+
+  // ── Build ──
 
   @override
   Widget build(BuildContext context) {
@@ -377,8 +397,7 @@ class _CalendarSectionState extends State<CalendarSection> {
                   if (!_isViewingToday) ...[
                     const SizedBox(width: 6),
                     TextButton(
-                      onPressed: () =>
-                          _calendarController.jumpToDate(DateTime.now()),
+                      onPressed: _goToToday,
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
