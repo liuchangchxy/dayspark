@@ -45,6 +45,8 @@ Future<void> _settle(WidgetTester tester) async {
   for (int i = 0; i < 20; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
+  // Drain any pending timers (e.g. stream timeouts).
+  await tester.pumpAndSettle(const Duration(milliseconds: 100));
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
