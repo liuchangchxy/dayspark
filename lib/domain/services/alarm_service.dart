@@ -1,5 +1,4 @@
 import 'package:alarm/alarm.dart';
-import 'package:alarm/model/alarm_settings.dart';
 
 /// Service for scheduling system-level alarm reminders.
 ///

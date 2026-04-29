@@ -102,7 +102,7 @@ class TagsPage extends ConsumerWidget {
   void _showCreateDialog(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final nameController = TextEditingController();
-    String selectedColor = '#6B7280';
+    var selectedColor = '#6B7280';
     final colors = [
       '#EF4444',
       '#F59E0B',

@@ -281,7 +281,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         rangeStart: now,
         rangeEnd: now.add(const Duration(days: 7)),
       );
-      if (!mounted) return;
+      if (!context.mounted) return;
       if (suggestions.isEmpty) {
         ScaffoldMessenger.of(
           context,
@@ -331,7 +331,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ),
       );
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(l.schedulingFailed('$e'))));
@@ -347,7 +347,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final l = AppLocalizations.of(context)!;
     try {
       final subtasks = await ref.read(suggestTaskBreakdownProvider)(content);
-      if (!mounted) return;
+      if (!context.mounted) return;
       if (subtasks.isEmpty) {
         ScaffoldMessenger.of(
           context,
@@ -393,13 +393,13 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           dueDate: null,
                         );
                       } catch (_) {}
-                      if (mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(l.todoCreatedShort)),
                         );
                       }
                     } catch (e) {
-                      if (mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(l.failedCreateTodo('$e'))),
                         );
@@ -419,7 +419,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ),
       );
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(l.breakdownFailed('$e'))));
@@ -437,7 +437,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
     // Find the user message that prompted this response
     final messages = ref.read(aiChatProvider);
-    String input = content;
+    var input = content;
     final idx = messages.indexWhere((m) => m.content == content);
     if (idx > 0) input = messages[idx - 1].content;
 

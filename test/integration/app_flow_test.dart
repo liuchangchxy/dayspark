@@ -42,7 +42,7 @@ Widget _createTestApp() => ProviderScope(
 );
 
 Future<void> _settle(WidgetTester tester) async {
-  for (int i = 0; i < 20; i++) {
+  for (var i = 0; i < 20; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
   // Drain any pending timers (e.g. stream timeouts).
@@ -103,7 +103,7 @@ void main() {
 
     // Scroll down to find Appearance
     final gesture = await tester.startGesture(Offset.zero);
-    for (int i = 0; i < 15; i++) {
+    for (var i = 0; i < 15; i++) {
       await gesture.moveBy(const Offset(0, -50));
       await tester.pump();
     }

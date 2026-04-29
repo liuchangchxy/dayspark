@@ -36,7 +36,7 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
-  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
+  AppDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => 3;
@@ -80,11 +80,11 @@ class AppDatabase extends _$AppDatabase {
 
   // DAOs
   @override
-  late final calendarsDao = CalendarsDao(this);
+  CalendarsDao get calendarsDao => CalendarsDao(this);
   @override
-  late final eventsDao = EventsDao(this);
+  EventsDao get eventsDao => EventsDao(this);
   @override
-  late final todosDao = TodosDao(this);
+  TodosDao get todosDao => TodosDao(this);
 
   static QueryExecutor _openConnection() {
     return driftDatabase(

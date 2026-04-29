@@ -12,7 +12,7 @@ Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
 
   // Find which preset matches the current base URL
   final currentUrl = config?.baseUrl ?? '';
-  int selectedPresetIndex = kAiPresets.indexWhere(
+  var selectedPresetIndex = kAiPresets.indexWhere(
     (p) => p.baseUrl == currentUrl,
   );
   final isCustom = selectedPresetIndex < 0 && currentUrl.isNotEmpty;

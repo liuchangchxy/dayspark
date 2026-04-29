@@ -281,8 +281,8 @@ class CalDavClient {
           final ctag = _findText(resp, 'getctag');
           final syncToken = _findText(resp, 'sync-token');
 
-          bool supportsVEVENT = true;
-          bool supportsVTODO = true;
+          var supportsVEVENT = true;
+          var supportsVTODO = true;
           final compSets = resp.findAllElements(
             'supported-calendar-component-set',
           );

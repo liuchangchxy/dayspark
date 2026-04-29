@@ -30,7 +30,6 @@ class BackgroundSyncService {
     try {
       await Workmanager().initialize(
         callbackDispatcher,
-        isInDebugMode: kDebugMode,
       );
       await Workmanager().registerPeriodicTask(
         'calendar-sync',

@@ -77,8 +77,8 @@ class IcsService {
       throw FormatException('Not a valid VCALENDAR');
     }
 
-    int events = 0;
-    int todos = 0;
+    var events = 0;
+    var todos = 0;
 
     for (final child in component.children) {
       if (child is VEvent) {
