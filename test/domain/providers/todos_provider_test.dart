@@ -135,8 +135,9 @@ void main() {
 
       await container.read(deleteTodoProvider).call(todoId);
 
-      final todo = await (testDb.select(testDb.todos)
-            ..where((t) => t.id.equals(todoId))).getSingle();
+      final todo = await (testDb.select(
+        testDb.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
       expect(todo.deletedAt != null, true);
     });
   });
