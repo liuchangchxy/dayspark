@@ -213,7 +213,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.7.0'),
+            subtitle: const Text('DaySpark v0.9.4'),
           ),
           const Divider(),
 
