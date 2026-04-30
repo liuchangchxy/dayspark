@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
+import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
 import 'package:dayspark/core/l10n/rrule_text_delegate.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
@@ -171,8 +172,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       return;
     }
 
-    final time = await showTimePicker(
-      context: context,
+    final time = await showWheelTimePicker(
+      context,
       initialTime: TimeOfDay.fromDateTime(current),
     );
     if (time == null || !mounted) return;

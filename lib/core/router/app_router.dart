@@ -12,6 +12,7 @@ import 'package:dayspark/ui/pages/tags/tags_page.dart';
 import 'package:dayspark/ui/pages/ai_chat/ai_chat_page.dart';
 import 'package:dayspark/ui/pages/about/about_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
+import 'package:dayspark/ui/pages/feedback/feedback_page.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 
 CustomTransitionPage<void> _fadeTransition(Widget child) {
@@ -130,6 +131,11 @@ abstract final class AppRouter {
         path: '/trash',
         name: 'trash',
         builder: (context, state) => const TrashPage(),
+      ),
+      GoRoute(
+        path: '/feedback',
+        name: 'feedback',
+        builder: (context, state) => const FeedbackPage(),
       ),
     ],
   );

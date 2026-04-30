@@ -590,4 +590,28 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get snooze => '延后';
+
+  @override
+  String get themeColor => '主题色';
+
+  @override
+  String get resetColor => '重置';
+
+  @override
+  String get feedback => '反馈';
+
+  @override
+  String get feedbackHint => '描述你的反馈或 Bug…';
+
+  @override
+  String get feedbackSubmit => '提交反馈';
+
+  @override
+  String get feedbackCopied => '反馈已复制到剪贴板';
+
+  @override
+  String get whatsNew => '更新内容';
+
+  @override
+  String get changelogDismiss => '确定';
 }

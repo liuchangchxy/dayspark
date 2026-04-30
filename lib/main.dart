@@ -6,7 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
-import 'domain/providers/theme_provider.dart';
+import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,11 +30,12 @@ class DaySparkApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final seedColor = ref.watch(themeColorProvider);
     return MaterialApp.router(
       title: 'DaySpark',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: AppTheme.light(seedColor: seedColor),
+      darkTheme: AppTheme.dark(seedColor: seedColor),
       themeMode: themeMode,
       localizationsDelegates: const [
         ...AppLocalizations.localizationsDelegates,

@@ -41,6 +41,11 @@ final deletedTodosProvider = StreamProvider<List<Todo>>((ref) {
   return db.todosDao.watchDeleted();
 });
 
+final allTodosProvider = StreamProvider<List<Todo>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.todosDao.watchAllNotDeleted();
+});
+
 final moveOverdueToTodayProvider = Provider<Future<void> Function(List<int>)>((
   ref,
 ) {

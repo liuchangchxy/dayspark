@@ -40,7 +40,7 @@ class McpServerService {
     await _server!.connect(transport);
 
     // Bind an HTTP server and route /mcp requests to the transport.
-    _httpServer = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+    _httpServer = await HttpServer.bind(InternetAddress.anyIPv4, port);
     _httpServer!.listen((HttpRequest request) {
       if (request.uri.path == '/mcp') {
         transport.handleRequest(request);

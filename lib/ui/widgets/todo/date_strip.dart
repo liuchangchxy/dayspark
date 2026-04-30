@@ -7,12 +7,16 @@ class DateStrip extends StatelessWidget {
   final DateTime? selectedDate;
   final ValueChanged<DateTime?> onDateSelected;
   final VoidCallback? onCalendarTap;
+  final bool showAllMode;
+  final VoidCallback? onShowAll;
 
   const DateStrip({
     super.key,
     required this.selectedDate,
     required this.onDateSelected,
     this.onCalendarTap,
+    this.showAllMode = false,
+    this.onShowAll,
   });
 
   @override
@@ -78,8 +82,16 @@ class DateStrip extends StatelessWidget {
               const SizedBox(width: 4),
               _chip(
                 context: context,
+                label: l.allTasks,
+                selected: showAllMode,
+                accentColor: theme.colorScheme.primary,
+                onTap: () => onShowAll?.call(),
+              ),
+              const SizedBox(width: 4),
+              _chip(
+                context: context,
                 label: l.inbox,
-                selected: selectedDate == null,
+                selected: selectedDate == null && !showAllMode,
                 accentColor: theme.colorScheme.tertiary,
                 onTap: () => onDateSelected(null),
               ),

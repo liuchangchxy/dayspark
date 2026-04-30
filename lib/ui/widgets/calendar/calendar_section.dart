@@ -70,12 +70,11 @@ class _CalendarSectionState extends State<CalendarSection> {
         case CalendarViewMode.week:
           newAnchor = range.start.add(const Duration(days: 3));
         case CalendarViewMode.month:
-          newAnchor = range.start.add(
-            Duration(
-              milliseconds:
-                  range.end.difference(range.start).inMilliseconds ~/ 2,
-            ),
-          );
+          // Don't change anchor in month view — keep it at today or user's last pick
+          setState(() {
+            _visibleRange = DateTimeRange(start: range.start, end: range.end);
+          });
+          return;
       }
       setState(() {
         _anchorDate = DateTime(newAnchor.year, newAnchor.month, newAnchor.day);

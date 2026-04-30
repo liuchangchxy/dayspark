@@ -336,8 +336,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get importExportDesc =>
-      'Export calendar events and todos to .ics, or import from a .ics file.';
+  String get importExportDesc => 'Export calendar events and todos to .ics, or import from a .ics file.';
 
   @override
   String error(String error) {
@@ -503,8 +502,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moveToTrash => 'Move to Trash';
 
   @override
-  String get confirmPermanentDelete =>
-      'Permanently delete? This cannot be undone.';
+  String get confirmPermanentDelete => 'Permanently delete? This cannot be undone.';
 
   @override
   String get confirmEmptyTrash => 'Permanently delete all items in trash?';
@@ -592,4 +590,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get snooze => 'Snooze';
+
+  @override
+  String get themeColor => 'Theme Color';
+
+  @override
+  String get resetColor => 'Reset';
+
+  @override
+  String get feedback => 'Feedback';
+
+  @override
+  String get feedbackHint => 'Describe your feedback or bug report...';
+
+  @override
+  String get feedbackSubmit => 'Submit Feedback';
+
+  @override
+  String get feedbackCopied => 'Feedback copied to clipboard';
+
+  @override
+  String get whatsNew => 'What\'s New';
+
+  @override
+  String get changelogDismiss => 'OK';
 }

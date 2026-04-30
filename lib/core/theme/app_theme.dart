@@ -5,10 +5,10 @@ import 'package:dayspark/core/theme/app_typography.dart';
 /// App-wide theme configuration. Read DESIGN.md for design rationale.
 @immutable
 abstract final class AppTheme {
-  static ThemeData get light => _buildTheme(Brightness.light);
-  static ThemeData get dark => _buildTheme(Brightness.dark);
+  static ThemeData light({Color? seedColor}) => _buildTheme(Brightness.light, seedColor);
+  static ThemeData dark({Color? seedColor}) => _buildTheme(Brightness.dark, seedColor);
 
-  static ThemeData _buildTheme(Brightness brightness) {
+  static ThemeData _buildTheme(Brightness brightness, [Color? seedColor]) {
     final isLight = brightness == Brightness.light;
     final bg = isLight ? AppColors.lightBackground : AppColors.darkBackground;
     final surface = isLight ? AppColors.lightSurface : AppColors.darkSurface;
@@ -22,20 +22,28 @@ abstract final class AppTheme {
     final border = isLight ? AppColors.lightBorder : AppColors.darkBorder;
     final error = isLight ? AppColors.lightError : AppColors.darkError;
 
-    final colorScheme = ColorScheme(
-      brightness: brightness,
-      primary: accent,
-      onPrimary: Colors.white,
-      secondary: accent,
-      onSecondary: Colors.white,
-      error: error,
-      onError: Colors.white,
-      surface: surface,
-      onSurface: textPrimary,
-      surfaceContainerHighest: isLight
-          ? const Color(0xFFEEEEEE)
-          : const Color(0xFF2D2D3A),
-    );
+    final ColorScheme colorScheme;
+    if (seedColor != null) {
+      colorScheme = ColorScheme.fromSeed(
+        seedColor: seedColor,
+        brightness: brightness,
+      );
+    } else {
+      colorScheme = ColorScheme(
+        brightness: brightness,
+        primary: accent,
+        onPrimary: Colors.white,
+        secondary: accent,
+        onSecondary: Colors.white,
+        error: error,
+        onError: Colors.white,
+        surface: surface,
+        onSurface: textPrimary,
+        surfaceContainerHighest: isLight
+            ? const Color(0xFFEEEEEE)
+            : const Color(0xFF2D2D3A),
+      );
+    }
 
     return ThemeData(
       useMaterial3: true,

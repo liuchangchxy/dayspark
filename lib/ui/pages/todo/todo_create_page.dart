@@ -23,7 +23,7 @@ class TodoCreatePage extends ConsumerStatefulWidget {
 class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   final _summaryController = TextEditingController();
   final _descriptionController = TextEditingController();
-  DateTime? _dueDate;
+  late DateTime? _dueDate;
   DateTime? _startDate;
   int _priority = 5;
   bool _saving = false;
@@ -44,6 +44,8 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _dueDate = DateTime(now.year, now.month, now.day);
     // Pre-select first calendar
     Future.microtask(() async {
       final calendars = await ref.read(calendarsProvider.future);

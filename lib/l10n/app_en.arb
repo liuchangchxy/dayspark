@@ -280,5 +280,13 @@
   },
   "oneHour": "1 hour",
   "markComplete": "Mark Complete",
-  "snooze": "Snooze"
+  "snooze": "Snooze",
+  "themeColor": "Theme Color",
+  "resetColor": "Reset",
+  "feedback": "Feedback",
+  "feedbackHint": "Describe your feedback or bug report...",
+  "feedbackSubmit": "Submit Feedback",
+  "feedbackCopied": "Feedback copied to clipboard",
+  "whatsNew": "What's New",
+  "changelogDismiss": "OK"
 }

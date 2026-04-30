@@ -49,6 +49,12 @@ class SettingsPage extends ConsumerWidget {
             subtitle: Text(l.theme),
             onTap: () => _showThemeDialog(context, ref),
           ),
+          ListTile(
+            leading: const Icon(CupertinoIcons.color_filter),
+            title: Text(l.themeColor),
+            subtitle: _themeColorPreview(ref),
+            onTap: () => _showColorPicker(context, ref),
+          ),
 
           // ── Tab Order ──
           ListTile(
@@ -177,7 +183,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.10.0'),
+            subtitle: const Text('DaySpark v0.12.0'),
             onTap: () => context.push('/about'),
           ),
         ],
@@ -473,6 +479,83 @@ class SettingsPage extends ConsumerWidget {
               title: Text(l.themeDark),
               contentPadding: EdgeInsets.zero,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const _presetColors = [
+    Color(0xFF2563EB), // Blue (default)
+    Color(0xFF7C3AED), // Purple
+    Color(0xFFDB2777), // Pink
+    Color(0xFFDC2626), // Red
+    Color(0xFFEA580C), // Orange
+    Color(0xFFCA8A04), // Yellow
+    Color(0xFF16A34A), // Green
+    Color(0xFF0891B2), // Cyan
+    Color(0xFF4F46E5), // Indigo
+    Color(0xFF64748B), // Slate
+  ];
+
+  Widget _themeColorPreview(WidgetRef ref) {
+    final color = ref.watch(themeColorProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color ?? const Color(0xFF2563EB),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showColorPicker(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final current = ref.read(themeColorProvider);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.themeColor),
+        content: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: _presetColors.map((color) {
+            final selected = (current ?? const Color(0xFF2563EB)) == color;
+            return GestureDetector(
+              onTap: () {
+                ref.read(themeColorProvider.notifier).setColor(color);
+                Navigator.of(ctx).pop();
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: selected
+                      ? Border.all(color: Colors.black, width: 3)
+                      : null,
+                ),
+                child: selected
+                    ? const Icon(Icons.check, color: Colors.white, size: 20)
+                    : null,
+              ),
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              ref.read(themeColorProvider.notifier).setColor(null);
+              Navigator.of(ctx).pop();
+            },
+            child: Text(l.resetColor),
           ),
         ],
       ),

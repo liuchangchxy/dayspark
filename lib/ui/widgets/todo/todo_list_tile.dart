@@ -11,6 +11,7 @@ class TodoListTile extends ConsumerWidget {
   final int priority;
   final int todoId;
   final DateTime? dueDate;
+  final DateTime? startDate;
   final VoidCallback onToggle;
   final VoidCallback onTap;
 
@@ -21,6 +22,7 @@ class TodoListTile extends ConsumerWidget {
     required this.priority,
     required this.todoId,
     this.dueDate,
+    this.startDate,
     required this.onToggle,
     required this.onTap,
   });
@@ -42,6 +44,16 @@ class TodoListTile extends ConsumerWidget {
     if (diff < 0) return l.overdue;
     if (diff == 0) return l.today;
     if (diff == 1) return l.tomorrow;
+
+    // Show date range when startDate differs from dueDate by > 1 day
+    if (startDate != null) {
+      final start = DateTime(startDate!.year, startDate!.month, startDate!.day);
+      final span = due.difference(start).inDays;
+      if (span > 1) {
+        return '${start.month}/${start.day} – ${due.month}/${due.day}';
+      }
+    }
+
     return '${dueDate!.month}/${dueDate!.day}';
   }
 

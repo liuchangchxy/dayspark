@@ -166,6 +166,17 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
         .watch();
   }
 
+  Stream<List<Todo>> watchAllNotDeleted() {
+    return (select(todos)
+          ..where((t) => t.deletedAt.isNull())
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.status),
+            (t) => OrderingTerm.asc(t.sortOrder),
+            (t) => OrderingTerm.asc(t.dueDate),
+          ]))
+        .watch();
+  }
+
   Future<void> emptyTrash() {
     return (delete(todos)..where((t) => t.deletedAt.isNotNull())).go();
   }

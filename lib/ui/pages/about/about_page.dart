@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
 class AboutPage extends StatefulWidget {
@@ -13,12 +14,23 @@ class AboutPage extends StatefulWidget {
 }
 
 class _AboutPageState extends State<AboutPage> {
-  static const _currentVersion = '0.10.0';
   static const _repo = 'liuchangchxy/dayspark';
 
+  String _currentVersion = '';
   bool _checking = false;
   Map<String, dynamic>? _latestRelease;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _currentVersion = info.version);
+  }
 
   Future<void> _checkUpdate() async {
     setState(() {
@@ -29,12 +41,13 @@ class _AboutPageState extends State<AboutPage> {
     try {
       final dio = Dio();
       final resp = await dio.get(
-        'https://api.github.com/repos/$_repo/releases/latest',
+        'https://api.github.com/repos/$_repo/releases?per_page=1',
         options: Options(headers: {'Accept': 'application/vnd.github+json'}),
       );
       if (mounted) {
+        final list = resp.data as List;
         setState(() {
-          _latestRelease = resp.data as Map<String, dynamic>;
+          _latestRelease = list.isNotEmpty ? list.first as Map<String, dynamic> : null;
           _checking = false;
         });
       }
@@ -223,8 +236,8 @@ class _AboutPageState extends State<AboutPage> {
           ListTile(
             leading: const Icon(CupertinoIcons.exclamationmark_triangle),
             title: Text(l.reportIssue),
-            onTap: () => _openUrl('https://github.com/$_repo/issues'),
-            trailing: const Icon(CupertinoIcons.link, size: 16),
+            onTap: () => context.push('/feedback'),
+            trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
           ),
         ],
       ),

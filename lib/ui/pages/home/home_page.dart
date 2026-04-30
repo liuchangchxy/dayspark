@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
@@ -39,6 +41,7 @@ class _HomePageState extends ConsumerState<HomePage>
   late int _currentTab;
   bool _userChangedTab = false;
   DateTime? _selectedDate = DateTime.now();
+  bool _showAllTodos = false;
   final Set<int> _selectedTagIds = {};
   BackgroundSyncService? _syncService;
   Timer? _dayCheckTimer;
@@ -114,6 +117,7 @@ class _HomePageState extends ConsumerState<HomePage>
         };
         _checkOverdueTodos();
         _startDayCheckTimer();
+        _checkVersionChangelog();
       } catch (e) {
         debugPrint('initState microtask error: $e');
       }
@@ -152,6 +156,37 @@ class _HomePageState extends ConsumerState<HomePage>
     } else if (state == AppLifecycleState.paused) {
       _syncService?.stopForeground();
     }
+  }
+
+  Future<void> _checkVersionChangelog() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final info = await PackageInfo.fromPlatform();
+      final current = info.version;
+      final lastSeen = prefs.getString('last_seen_version');
+      if (lastSeen != null && lastSeen != current) {
+        prefs.setString('last_seen_version', current);
+        if (!mounted) return;
+        final l = AppLocalizations.of(context)!;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(l.whatsNew),
+            content: SingleChildScrollView(
+              child: Text('v$current'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(l.changelogDismiss),
+              ),
+            ],
+          ),
+        );
+      } else {
+        prefs.setString('last_seen_version', current);
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkOverdueTodos() async {
@@ -338,7 +373,12 @@ class _HomePageState extends ConsumerState<HomePage>
         // Date strip
         DateStrip(
           selectedDate: _selectedDate,
-          onDateSelected: (date) => setState(() => _selectedDate = date),
+          showAllMode: _showAllTodos,
+          onDateSelected: (date) => setState(() {
+            _selectedDate = date;
+            _showAllTodos = false;
+          }),
+          onShowAll: () => setState(() => _showAllTodos = true),
           onCalendarTap: () async {
             final picked = await showDatePicker(
               context: context,
@@ -424,6 +464,38 @@ class _HomePageState extends ConsumerState<HomePage>
     final tagKey = _selectedTagIds.isEmpty
         ? ''
         : (_selectedTagIds.toList()..sort()).join(',');
+
+    if (_showAllTodos) {
+      final allAsync = ref.watch(allTodosProvider);
+      return allAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text(l.error('$e'))),
+        data: (todos) {
+          if (todos.isEmpty) return _emptyState(l);
+          final pending = todos
+              .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
+              .toList();
+          final completed = todos
+              .where((t) => t.status == 'COMPLETED')
+              .toList();
+          return CustomScrollView(
+            slivers: [
+              if (pending.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: _sectionHeader(l.allTasks, pending.length, null),
+                ),
+                SliverList(
+                  delegate: SliverChildListDelegate(
+                    pending.map((t) => _todoTile(t)).toList(),
+                  ),
+                ),
+              ],
+              if (completed.isNotEmpty) ..._completedSliverGroups(completed),
+            ],
+          );
+        },
+      );
+    }
 
     if (_selectedDate == null) {
       // Inbox view — undated todos
@@ -710,6 +782,7 @@ class _HomePageState extends ConsumerState<HomePage>
       priority: todo.priority,
       todoId: todo.id,
       dueDate: todo.dueDate,
+      startDate: todo.startDate,
       onToggle: () =>
           ref.read(toggleTodoProvider)(id: todo.id, isCompleted: !isCompleted),
       onTap: () => context.push('/todo/edit', extra: todo),

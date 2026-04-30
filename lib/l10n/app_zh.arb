@@ -194,5 +194,13 @@
   "snoozedFor": "已延后 {duration}",
   "oneHour": "1 小时",
   "markComplete": "标记完成",
-  "snooze": "延后"
+  "snooze": "延后",
+  "themeColor": "主题色",
+  "resetColor": "重置",
+  "feedback": "反馈",
+  "feedbackHint": "描述你的反馈或 Bug…",
+  "feedbackSubmit": "提交反馈",
+  "feedbackCopied": "反馈已复制到剪贴板",
+  "whatsNew": "更新内容",
+  "changelogDismiss": "确定"
 }
