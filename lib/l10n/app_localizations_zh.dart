@@ -567,4 +567,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tutorial => '教程';
+
+  @override
+  String get undo => '撤销';
+
+  @override
+  String get deleted => '已删除';
+
+  @override
+  String get markedComplete => '已标记完成';
+
+  @override
+  String snoozedFor(String duration) {
+    return '已延后 $duration';
+  }
+
+  @override
+  String get oneHour => '1 小时';
+
+  @override
+  String get markComplete => '标记完成';
+
+  @override
+  String get snooze => '延后';
 }

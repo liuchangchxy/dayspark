@@ -39,7 +39,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -61,6 +61,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await m.addColumn(todos, todos.deletedAt);
+      }
+      if (from < 4) {
+        await m.addColumn(todos, todos.sortOrder);
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

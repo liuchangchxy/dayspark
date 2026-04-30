@@ -134,8 +134,22 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     );
     if (confirmed != true || !mounted) return;
 
-    await ref.read(deleteTodoProvider)(_todo.id);
-    if (mounted) context.pop();
+    final todoId = _todo.id;
+    final restore = ref.read(restoreTodoProvider);
+    await ref.read(deleteTodoProvider)(todoId);
+    if (!mounted) return;
+    context.pop();
+    // Show undo SnackBar in the parent page
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.deleted),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: l.undo,
+          onPressed: () => restore(todoId),
+        ),
+      ),
+    );
   }
 
   void _setQuickDueDate(DateTime date) {

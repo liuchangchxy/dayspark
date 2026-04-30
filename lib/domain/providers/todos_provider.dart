@@ -163,3 +163,8 @@ final emptyTrashProvider = Provider<Future<void> Function()>((ref) {
   final db = ref.read(databaseProvider);
   return () => db.todosDao.emptyTrash();
 });
+
+final reorderTodosProvider = Provider<Future<void> Function(List<int>)>((ref) {
+  final db = ref.read(databaseProvider);
+  return (List<int> ids) => db.todosDao.updateSortOrders(ids);
+});

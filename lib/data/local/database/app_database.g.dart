@@ -2029,6 +2029,18 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2048,6 +2060,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     createdAt,
     updatedAt,
     deletedAt,
+    sortOrder,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2175,6 +2188,12 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
     return context;
   }
 
@@ -2252,6 +2271,10 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
     );
   }
 
@@ -2279,6 +2302,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
+  final int sortOrder;
   const Todo({
     required this.id,
     required this.calendarId,
@@ -2297,6 +2321,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
+    required this.sortOrder,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2332,6 +2357,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
+    map['sort_order'] = Variable<int>(sortOrder);
     return map;
   }
 
@@ -2366,6 +2392,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      sortOrder: Value(sortOrder),
     );
   }
 
@@ -2392,6 +2419,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
   }
   @override
@@ -2415,6 +2443,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'sortOrder': serializer.toJson<int>(sortOrder),
     };
   }
 
@@ -2436,6 +2465,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
+    int? sortOrder,
   }) => Todo(
     id: id ?? this.id,
     calendarId: calendarId ?? this.calendarId,
@@ -2454,6 +2484,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    sortOrder: sortOrder ?? this.sortOrder,
   );
   Todo copyWithCompanion(TodosCompanion data) {
     return Todo(
@@ -2482,6 +2513,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
   }
 
@@ -2504,7 +2536,8 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('isDirty: $isDirty, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
   }
@@ -2528,6 +2561,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     createdAt,
     updatedAt,
     deletedAt,
+    sortOrder,
   );
   @override
   bool operator ==(Object other) =>
@@ -2549,7 +2583,8 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.isDirty == this.isDirty &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.sortOrder == this.sortOrder);
 }
 
 class TodosCompanion extends UpdateCompanion<Todo> {
@@ -2570,6 +2605,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
+  final Value<int> sortOrder;
   const TodosCompanion({
     this.id = const Value.absent(),
     this.calendarId = const Value.absent(),
@@ -2588,6 +2624,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
   });
   TodosCompanion.insert({
     this.id = const Value.absent(),
@@ -2607,6 +2644,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
   }) : calendarId = Value(calendarId),
        uid = Value(uid),
        summary = Value(summary);
@@ -2628,6 +2666,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
+    Expression<int>? sortOrder,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2647,6 +2686,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (sortOrder != null) 'sort_order': sortOrder,
     });
   }
 
@@ -2668,6 +2708,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
+    Value<int>? sortOrder,
   }) {
     return TodosCompanion(
       id: id ?? this.id,
@@ -2687,6 +2728,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
@@ -2744,6 +2786,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
     return map;
   }
 
@@ -2766,7 +2811,8 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('isDirty: $isDirty, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
   }
@@ -6078,6 +6124,7 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
+      Value<int> sortOrder,
     });
 typedef $$TodosTableUpdateCompanionBuilder =
     TodosCompanion Function({
@@ -6098,6 +6145,7 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
+      Value<int> sortOrder,
     });
 
 final class $$TodosTableReferences
@@ -6226,6 +6274,11 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6367,6 +6420,11 @@ class $$TodosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$CalendarsTableOrderingComposer get calendarId {
     final $$CalendarsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6453,6 +6511,9 @@ class $$TodosTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
   $$CalendarsTableAnnotationComposer get calendarId {
     final $$CalendarsTableAnnotationComposer composer = $composerBuilder(
@@ -6548,6 +6609,7 @@ class $$TodosTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
               }) => TodosCompanion(
                 id: id,
                 calendarId: calendarId,
@@ -6566,6 +6628,7 @@ class $$TodosTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                sortOrder: sortOrder,
               ),
           createCompanionCallback:
               ({
@@ -6586,6 +6649,7 @@ class $$TodosTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
               }) => TodosCompanion.insert(
                 id: id,
                 calendarId: calendarId,
@@ -6604,6 +6668,7 @@ class $$TodosTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
+                sortOrder: sortOrder,
               ),
           withReferenceMapper: (p0) => p0
               .map(

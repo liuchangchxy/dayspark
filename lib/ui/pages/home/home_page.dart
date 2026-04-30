@@ -17,6 +17,8 @@ import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/background_sync_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
+import 'package:dayspark/domain/providers/connectivity_provider.dart';
+import 'package:dayspark/domain/services/notification_service.dart';
 import 'package:dayspark/domain/services/background_sync_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
@@ -103,6 +105,13 @@ class _HomePageState extends ConsumerState<HomePage>
         if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
           ref.read(updateHomeWidgetProvider)();
         }
+        // Activate connectivity-aware sync queue processor
+        ref.read(connectivitySyncQueueProcessorProvider);
+        // Wire up notification action handler
+        final notifService = NotificationService();
+        notifService.onNotificationAction = (actionId, parentId, parentType) {
+          _handleNotificationAction(actionId, parentId, parentType);
+        };
         _checkOverdueTodos();
         _startDayCheckTimer();
       } catch (e) {
@@ -178,6 +187,22 @@ class _HomePageState extends ConsumerState<HomePage>
           context,
         ).showSnackBar(SnackBar(content: Text(l.movedToToday(overdue.length))));
       }
+    }
+  }
+
+  void _handleNotificationAction(String actionId, int parentId, String parentType) {
+    final db = ref.read(databaseProvider);
+    if (actionId == NotificationActions.markComplete && parentType == 'todo') {
+      db.todosDao.markComplete(parentId);
+    } else if (actionId == NotificationActions.snooze) {
+      final newTime = DateTime.now().add(const Duration(hours: 1));
+      NotificationService().snooze(
+        id: parentId,
+        title: parentType == 'event' ? 'Event Reminder' : 'Todo Reminder',
+        body: 'Snoozed reminder',
+        scheduledTime: newTime,
+        payload: '$parentType:$parentId',
+      );
     }
   }
 
@@ -409,13 +434,28 @@ class _HomePageState extends ConsumerState<HomePage>
           if (inboxTodos.isEmpty && completed.isEmpty) {
             return _emptyState(l);
           }
-          return ListView(
-            children: [
+          return CustomScrollView(
+            slivers: [
               if (inboxTodos.isNotEmpty) ...[
-                _sectionHeader(l.inbox, inboxTodos.length, null),
-                ...inboxTodos.map((t) => _todoTile(t)),
+                SliverToBoxAdapter(
+                  child: _sectionHeader(l.inbox, inboxTodos.length, null),
+                ),
+                SliverReorderableList(
+                  itemCount: inboxTodos.length,
+                  onReorder: (oldIndex, newIndex) =>
+                      _onReorder(inboxTodos, oldIndex, newIndex),
+                  itemBuilder: (context, index) {
+                    final t = inboxTodos[index];
+                    return _reorderableTodoTile(
+                      t,
+                      Key('inbox-${t.id}'),
+                      index: index,
+                    );
+                  },
+                ),
               ],
-              if (completed.isNotEmpty) ..._completedGroups(completed),
+              if (completed.isNotEmpty)
+                ..._completedSliverGroups(completed),
             ],
           );
         },
@@ -468,29 +508,63 @@ class _HomePageState extends ConsumerState<HomePage>
           return _emptyState(l);
         }
 
-        return ListView(
-          children: [
+        return CustomScrollView(
+          slivers: [
             if (overdue.isNotEmpty) ...[
-              _sectionHeader(l.overdue, overdue.length, Colors.red),
-              ...overdue.map((t) => _todoTile(t)),
+              SliverToBoxAdapter(
+                child: _sectionHeader(l.overdue, overdue.length, Colors.red),
+              ),
+              SliverList(
+                delegate: SliverChildListDelegate(
+                  overdue.map((t) => _todoTile(t)).toList(),
+                ),
+              ),
             ],
             if (dateTodos.isNotEmpty) ...[
-              _sectionHeader(
-                _selectedDate == today
-                    ? l.today
-                    : l.dateLabel(date.month, date.day),
-                dateTodos.length,
-                Theme.of(context).colorScheme.primary,
+              SliverToBoxAdapter(
+                child: _sectionHeader(
+                  _selectedDate == today
+                      ? l.today
+                      : l.dateLabel(date.month, date.day),
+                  dateTodos.length,
+                  Theme.of(context).colorScheme.primary,
+                ),
               ),
-              ...dateTodos.map((t) => _todoTile(t)),
+              SliverReorderableList(
+                itemCount: dateTodos.length,
+                onReorder: (oldIndex, newIndex) =>
+                    _onReorder(dateTodos, oldIndex, newIndex),
+                itemBuilder: (context, index) {
+                  final t = dateTodos[index];
+                  return _reorderableTodoTile(
+                    t,
+                    Key('date-${t.id}'),
+                    index: index,
+                  );
+                },
+              ),
             ],
             if (dateCompleted.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Divider(height: 1),
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Divider(height: 1),
+                ),
               ),
-              _sectionHeader(l.completed, dateCompleted.length, null),
-              ...dateCompleted.map((t) => _todoTile(t, isCompleted: true)),
+              SliverToBoxAdapter(
+                child: _sectionHeader(
+                  l.completed,
+                  dateCompleted.length,
+                  null,
+                ),
+              ),
+              SliverList(
+                delegate: SliverChildListDelegate(
+                  dateCompleted
+                      .map((t) => _todoTile(t, isCompleted: true))
+                      .toList(),
+                ),
+              ),
             ],
           ],
         );
@@ -498,8 +572,23 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  List<Widget> _completedGroups(List<Todo> completed) {
-    // Group by completedAt date
+  void _onReorder(List<Todo> todos, int oldIndex, int newIndex) {
+    final list = [...todos];
+    final item = list.removeAt(oldIndex);
+    final insertAt = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    list.insert(insertAt, item);
+    ref.read(reorderTodosProvider)(list.map((t) => t.id).toList());
+  }
+
+  Widget _reorderableTodoTile(Todo todo, Key key, {required int index}) {
+    return ReorderableDelayedDragStartListener(
+      key: key,
+      index: index,
+      child: _todoTile(todo),
+    );
+  }
+
+  List<Widget> _completedSliverGroups(List<Todo> completed) {
     final groups = <DateTime, List<Todo>>{};
     for (final t in completed) {
       final date = t.completedAt != null
@@ -516,10 +605,12 @@ class _HomePageState extends ConsumerState<HomePage>
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
-    final widgets = <Widget>[
-      const Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Divider(height: 1),
+    final slivers = <Widget>[
+      const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Divider(height: 1),
+        ),
       ),
     ];
 
@@ -534,31 +625,33 @@ class _HomePageState extends ConsumerState<HomePage>
       } else {
         label = AppLocalizations.of(context)!.dateLabel(date.month, date.day);
       }
-      widgets.add(
-        ExpansionTile(
-          title: Row(
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+      slivers.add(
+        SliverToBoxAdapter(
+          child: ExpansionTile(
+            title: Row(
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${todos.length}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  '${todos.length}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+            initiallyExpanded: date == today,
+            tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+            children: todos.map((t) => _todoTile(t, isCompleted: true)).toList(),
           ),
-          initiallyExpanded: date == today,
-          tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-          children: todos.map((t) => _todoTile(t, isCompleted: true)).toList(),
         ),
       );
     }
-    return widgets;
+    return slivers;
   }
 
   Widget _emptyState(AppLocalizations l) {

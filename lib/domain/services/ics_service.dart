@@ -137,6 +137,7 @@ class IcsService {
                   calendarId: companion.calendarId.value,
                   uid: companion.uid.value,
                   summary: companion.summary.value,
+                  sortOrder: 0,
                   dueDate: companion.dueDate.present
                       ? companion.dueDate.value
                       : null,

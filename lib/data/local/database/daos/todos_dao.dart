@@ -17,6 +17,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
                 t.deletedAt.isNull(),
           )
           ..orderBy([
+            (t) => OrderingTerm.asc(t.sortOrder),
             (t) => OrderingTerm.asc(t.priority),
             (t) => OrderingTerm.asc(t.dueDate),
           ]))
@@ -151,7 +152,10 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
                 t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
                 t.dueDate.isNull(),
           )
-          ..orderBy([(t) => OrderingTerm.asc(t.priority)]))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.sortOrder),
+            (t) => OrderingTerm.asc(t.priority),
+          ]))
         .watch();
   }
 
@@ -164,5 +168,19 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
 
   Future<void> emptyTrash() {
     return (delete(todos)..where((t) => t.deletedAt.isNotNull())).go();
+  }
+
+  /// Update the sort order for a list of todo IDs in batch.
+  Future<void> updateSortOrders(List<int> ids) async {
+    await transaction(() async {
+      for (var i = 0; i < ids.length; i++) {
+        await (update(todos)..where((t) => t.id.equals(ids[i]))).write(
+          TodosCompanion(
+            sortOrder: Value(i),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+      }
+    });
   }
 }

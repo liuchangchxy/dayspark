@@ -187,5 +187,12 @@
   "noModelsFound": "未找到模型",
   "selectModel": "选择模型",
   "data": "数据",
-  "tutorial": "教程"
+  "tutorial": "教程",
+  "undo": "撤销",
+  "deleted": "已删除",
+  "markedComplete": "已标记完成",
+  "snoozedFor": "已延后 {duration}",
+  "oneHour": "1 小时",
+  "markComplete": "标记完成",
+  "snooze": "延后"
 }

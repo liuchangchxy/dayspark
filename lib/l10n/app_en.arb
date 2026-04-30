@@ -268,5 +268,17 @@
   "noModelsFound": "No models found",
   "selectModel": "Select Model",
   "data": "Data",
-  "tutorial": "Tutorial"
+  "tutorial": "Tutorial",
+  "undo": "Undo",
+  "deleted": "Deleted",
+  "markedComplete": "Marked complete",
+  "snoozedFor": "Snoozed for {duration}",
+  "@snoozedFor": {
+    "placeholders": {
+      "duration": { "type": "String" }
+    }
+  },
+  "oneHour": "1 hour",
+  "markComplete": "Mark Complete",
+  "snooze": "Snooze"
 }
