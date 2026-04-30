@@ -282,5 +282,16 @@
   "feedbackSubmit": "Submit Feedback",
   "feedbackCopied": "Feedback copied to clipboard",
   "whatsNew": "What's New",
-  "changelogDismiss": "OK"
+  "changelogDismiss": "OK",
+  "addEventShort": "Add Event",
+  "addTodoShort": "Add Todo",
+  "schedule": "Schedule",
+  "breakDown": "Break Down",
+  "eventReminder": "Event Reminder",
+  "todoReminder": "Todo Reminder",
+  "snoozedReminder": "Snoozed reminder",
+  "eventStartingSoon": "Event starting soon",
+  "taskDueSoon": "Task due soon",
+  "addAttachment": "Add attachment",
+  "defaultAccountName": "Default"
 }

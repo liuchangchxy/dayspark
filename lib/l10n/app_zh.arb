@@ -201,5 +201,16 @@
   "feedbackSubmit": "提交反馈",
   "feedbackCopied": "反馈已复制到剪贴板",
   "whatsNew": "更新内容",
-  "changelogDismiss": "确定"
+  "changelogDismiss": "确定",
+  "addEventShort": "添加日程",
+  "addTodoShort": "添加待办",
+  "schedule": "排程",
+  "breakDown": "拆分任务",
+  "eventReminder": "日程提醒",
+  "todoReminder": "待办提醒",
+  "snoozedReminder": "已延后的提醒",
+  "eventStartingSoon": "日程即将开始",
+  "taskDueSoon": "待办即将到期",
+  "addAttachment": "添加附件",
+  "defaultAccountName": "默认"
 }

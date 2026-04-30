@@ -1,9 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/data/remote/caldav/caldav_client.dart';
 import 'package:dayspark/data/remote/caldav/sync_service.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+
+Future<void> _saveLastSyncTime() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setInt('last_sync_time_ms', DateTime.now().millisecondsSinceEpoch);
+}
 
 /// Keys for secure storage of CalDAV credentials.
 const _keyServerUrl = 'caldav_server_url';
@@ -115,6 +121,7 @@ final triggerFullSyncProvider = Provider<Future<void> Function()>((ref) {
 
       ref.read(lastSyncTimeProvider.notifier).state = service.lastSyncTime;
       ref.read(syncErrorProvider.notifier).state = service.lastError;
+      _saveLastSyncTime();
     } catch (e) {
       ref.read(syncStatusProvider.notifier).state = SyncStatus.error;
       ref.read(syncErrorProvider.notifier).state = e.toString();
@@ -152,6 +159,7 @@ final triggerIncrementalSyncProvider = Provider<Future<void> Function()>((ref) {
 
       ref.read(lastSyncTimeProvider.notifier).state = service.lastSyncTime;
       ref.read(syncErrorProvider.notifier).state = service.lastError;
+      _saveLastSyncTime();
     } catch (e) {
       ref.read(syncStatusProvider.notifier).state = SyncStatus.error;
       ref.read(syncErrorProvider.notifier).state = e.toString();

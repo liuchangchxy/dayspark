@@ -36,7 +36,7 @@ class AttachmentList extends ConsumerWidget {
               const Spacer(),
               IconButton(
                 icon: const Icon(CupertinoIcons.paperclip, size: 20),
-                tooltip: 'Add attachment',
+                tooltip: l.addAttachment,
                 onPressed: () => _pickFile(context, ref),
               ),
             ],

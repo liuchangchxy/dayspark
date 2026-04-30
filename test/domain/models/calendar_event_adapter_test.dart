@@ -60,27 +60,5 @@ void main() {
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
     });
-
-    test('toCreateCompanion converts to Drift EventsCompanion', () {
-      final start = DateTime(2026, 4, 17, 10);
-      final end = DateTime(2026, 4, 17, 11);
-      final adapter = CalendaEventAdapter(
-        drifId: 0,
-        calendarId: 5,
-        uid: 'new-uid',
-        title: 'New Event',
-        description: 'Desc',
-        start: start,
-        end: end,
-        isAllDay: false,
-      );
-
-      final companion = adapter.toCreateCompanion();
-      expect(companion.calendarId.value, 5);
-      expect(companion.summary.value, 'New Event');
-      expect(companion.startDt.value, start);
-      expect(companion.endDt.value, end);
-      expect(companion.isAllDay.value, false);
-    });
   });
 }

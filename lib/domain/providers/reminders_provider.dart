@@ -64,7 +64,13 @@ final createReminderProvider =
         final reminder = await (db.select(
           db.reminders,
         )..where((t) => t.id.equals(id))).getSingle();
-        await notifService.scheduleFromReminder(reminder);
+        await notifService.scheduleFromReminder(
+          reminder,
+          eventReminderTitle: 'Event Reminder',
+          todoReminderTitle: 'Todo Reminder',
+          eventReminderBody: 'Event starting soon',
+          todoReminderBody: 'Task due soon',
+        );
 
         return id;
       };

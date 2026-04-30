@@ -153,7 +153,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.13.0'),
+            subtitle: const Text('DaySpark v0.14.0'),
             onTap: () => context.push('/about'),
           ),
         ],
@@ -360,7 +360,7 @@ class SettingsPage extends ConsumerWidget {
               if (url.isEmpty || user.isEmpty || pass.isEmpty) return;
 
               await ref.read(addAccountProvider)(
-                name: name.isEmpty ? 'Default' : name,
+                name: name.isEmpty ? l.defaultAccountName : name,
                 serverUrl: url,
                 username: user,
                 password: pass,

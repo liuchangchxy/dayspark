@@ -1182,6 +1182,17 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1220,6 +1231,7 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     rrule,
     etag,
     isDirty,
+    deletedAt,
     createdAt,
     updatedAt,
   ];
@@ -1317,6 +1329,12 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         isDirty.isAcceptableOrUnknown(data['is_dirty']!, _isDirtyMeta),
       );
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1386,6 +1404,10 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_dirty'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1416,6 +1438,7 @@ class Event extends DataClass implements Insertable<Event> {
   final String? rrule;
   final String? etag;
   final bool isDirty;
+  final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Event({
@@ -1431,6 +1454,7 @@ class Event extends DataClass implements Insertable<Event> {
     this.rrule,
     this.etag,
     required this.isDirty,
+    this.deletedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1457,6 +1481,9 @@ class Event extends DataClass implements Insertable<Event> {
       map['etag'] = Variable<String>(etag);
     }
     map['is_dirty'] = Variable<bool>(isDirty);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1482,6 +1509,9 @@ class Event extends DataClass implements Insertable<Event> {
           : Value(rrule),
       etag: etag == null && nullToAbsent ? const Value.absent() : Value(etag),
       isDirty: Value(isDirty),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1505,6 +1535,7 @@ class Event extends DataClass implements Insertable<Event> {
       rrule: serializer.fromJson<String?>(json['rrule']),
       etag: serializer.fromJson<String?>(json['etag']),
       isDirty: serializer.fromJson<bool>(json['isDirty']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1525,6 +1556,7 @@ class Event extends DataClass implements Insertable<Event> {
       'rrule': serializer.toJson<String?>(rrule),
       'etag': serializer.toJson<String?>(etag),
       'isDirty': serializer.toJson<bool>(isDirty),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1543,6 +1575,7 @@ class Event extends DataClass implements Insertable<Event> {
     Value<String?> rrule = const Value.absent(),
     Value<String?> etag = const Value.absent(),
     bool? isDirty,
+    Value<DateTime?> deletedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Event(
@@ -1558,6 +1591,7 @@ class Event extends DataClass implements Insertable<Event> {
     rrule: rrule.present ? rrule.value : this.rrule,
     etag: etag.present ? etag.value : this.etag,
     isDirty: isDirty ?? this.isDirty,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1579,6 +1613,7 @@ class Event extends DataClass implements Insertable<Event> {
       rrule: data.rrule.present ? data.rrule.value : this.rrule,
       etag: data.etag.present ? data.etag.value : this.etag,
       isDirty: data.isDirty.present ? data.isDirty.value : this.isDirty,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1599,6 +1634,7 @@ class Event extends DataClass implements Insertable<Event> {
           ..write('rrule: $rrule, ')
           ..write('etag: $etag, ')
           ..write('isDirty: $isDirty, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1619,6 +1655,7 @@ class Event extends DataClass implements Insertable<Event> {
     rrule,
     etag,
     isDirty,
+    deletedAt,
     createdAt,
     updatedAt,
   );
@@ -1638,6 +1675,7 @@ class Event extends DataClass implements Insertable<Event> {
           other.rrule == this.rrule &&
           other.etag == this.etag &&
           other.isDirty == this.isDirty &&
+          other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1655,6 +1693,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
   final Value<String?> rrule;
   final Value<String?> etag;
   final Value<bool> isDirty;
+  final Value<DateTime?> deletedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const EventsCompanion({
@@ -1670,6 +1709,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.rrule = const Value.absent(),
     this.etag = const Value.absent(),
     this.isDirty = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1686,6 +1726,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.rrule = const Value.absent(),
     this.etag = const Value.absent(),
     this.isDirty = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : calendarId = Value(calendarId),
@@ -1706,6 +1747,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Expression<String>? rrule,
     Expression<String>? etag,
     Expression<bool>? isDirty,
+    Expression<DateTime>? deletedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -1722,6 +1764,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       if (rrule != null) 'rrule': rrule,
       if (etag != null) 'etag': etag,
       if (isDirty != null) 'is_dirty': isDirty,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1740,6 +1783,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Value<String?>? rrule,
     Value<String?>? etag,
     Value<bool>? isDirty,
+    Value<DateTime?>? deletedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -1756,6 +1800,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       rrule: rrule ?? this.rrule,
       etag: etag ?? this.etag,
       isDirty: isDirty ?? this.isDirty,
+      deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1800,6 +1845,9 @@ class EventsCompanion extends UpdateCompanion<Event> {
     if (isDirty.present) {
       map['is_dirty'] = Variable<bool>(isDirty.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1824,6 +1872,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
           ..write('rrule: $rrule, ')
           ..write('etag: $etag, ')
           ..write('isDirty: $isDirty, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5095,6 +5144,7 @@ typedef $$EventsTableCreateCompanionBuilder =
       Value<String?> rrule,
       Value<String?> etag,
       Value<bool> isDirty,
+      Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -5112,6 +5162,7 @@ typedef $$EventsTableUpdateCompanionBuilder =
       Value<String?> rrule,
       Value<String?> etag,
       Value<bool> isDirty,
+      Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -5217,6 +5268,11 @@ class $$EventsTableFilterComposer
 
   ColumnFilters<bool> get isDirty => $composableBuilder(
     column: $table.isDirty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5343,6 +5399,11 @@ class $$EventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -5420,6 +5481,9 @@ class $$EventsTableAnnotationComposer
 
   GeneratedColumn<bool> get isDirty =>
       $composableBuilder(column: $table.isDirty, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5516,6 +5580,7 @@ class $$EventsTableTableManager
                 Value<String?> rrule = const Value.absent(),
                 Value<String?> etag = const Value.absent(),
                 Value<bool> isDirty = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => EventsCompanion(
@@ -5531,6 +5596,7 @@ class $$EventsTableTableManager
                 rrule: rrule,
                 etag: etag,
                 isDirty: isDirty,
+                deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -5548,6 +5614,7 @@ class $$EventsTableTableManager
                 Value<String?> rrule = const Value.absent(),
                 Value<String?> etag = const Value.absent(),
                 Value<bool> isDirty = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => EventsCompanion.insert(
@@ -5563,6 +5630,7 @@ class $$EventsTableTableManager
                 rrule: rrule,
                 etag: etag,
                 isDirty: isDirty,
+                deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

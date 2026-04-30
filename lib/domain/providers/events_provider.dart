@@ -73,7 +73,7 @@ final deleteEventProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   final notifService = ref.read(notificationServiceProvider);
   return (int id) async {
-    // Cancel and delete reminders
+    // Cancel scheduled notifications
     final reminders =
         await (db.select(db.reminders)..where(
               (t) => t.parentType.equals('event') & t.parentId.equals(id),
@@ -85,13 +85,13 @@ final deleteEventProvider = Provider<Future<void> Function(int)>((ref) {
     await (db.delete(
       db.reminders,
     )..where((t) => t.parentType.equals('event') & t.parentId.equals(id))).go();
-    // Delete junction table rows
-    await (db.delete(db.eventTags)..where((t) => t.eventId.equals(id))).go();
-    // Delete attachments
-    await (db.delete(
-      db.attachments,
-    )..where((t) => t.parentType.equals('event') & t.parentId.equals(id))).go();
-    // Delete the event itself
-    await (db.delete(db.events)..where((t) => t.id.equals(id))).go();
+    // Soft delete — mark for CalDAV deletion sync
+    await (db.update(db.events)..where((t) => t.id.equals(id))).write(
+      EventsCompanion(
+        deletedAt: Value(DateTime.now()),
+        isDirty: const Value(true),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   };
 });

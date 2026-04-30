@@ -33,7 +33,7 @@ void main() {
   });
 
   group('todosProvider', () {
-    test('pendingTodosProvider returns only non-completed todos', () async {
+    test('allTodosProvider returns non-deleted todos', () async {
       final calId = await testDb
           .into(testDb.calendars)
           .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
@@ -61,9 +61,8 @@ void main() {
             ),
           );
 
-      final todos = await container.read(pendingTodosProvider.future);
-      expect(todos.length, 1);
-      expect(todos.first.summary, 'Pending task');
+      final todos = await container.read(allTodosProvider.future);
+      expect(todos.length, 2);
     });
 
     test('createTodoProvider inserts a new todo', () async {

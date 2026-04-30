@@ -81,8 +81,9 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
 
   List<CalendaEventAdapter> _eventsForDate(DateTime date) {
     return widget.events.where((e) {
-      final eventDate = DateTime(e.start.year, e.start.month, e.start.day);
-      return eventDate == date;
+      final s = DateTime(e.start.year, e.start.month, e.start.day);
+      final end = DateTime(e.end.year, e.end.month, e.end.day);
+      return !s.isAfter(date) && date.isBefore(end);
     }).toList();
   }
 

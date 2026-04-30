@@ -104,19 +104,21 @@ class NotificationService {
   }
 
   /// Schedule a reminder from the Reminders table.
-  Future<void> scheduleFromReminder(Reminder reminder) async {
+  Future<void> scheduleFromReminder(
+    Reminder reminder, {
+    required String eventReminderTitle,
+    required String todoReminderTitle,
+    required String eventReminderBody,
+    required String todoReminderBody,
+  }) async {
     if (!_initialized) await init();
 
-    final title = reminder.parentType == 'event'
-        ? 'Event Reminder'
-        : 'Todo Reminder';
+    final isEvent = reminder.parentType == 'event';
 
     await _scheduleNotification(
       id: reminder.id,
-      title: title,
-      body: reminder.parentType == 'event'
-          ? 'Event starting soon'
-          : 'Task due soon',
+      title: isEvent ? eventReminderTitle : todoReminderTitle,
+      body: isEvent ? eventReminderBody : todoReminderBody,
       scheduledTime: reminder.triggerTime,
       payload: '${reminder.parentType}:${reminder.parentId}',
     );

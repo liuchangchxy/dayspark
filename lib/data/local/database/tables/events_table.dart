@@ -16,6 +16,7 @@ class Events extends Table {
   TextColumn get rrule => text().nullable()();
   TextColumn get etag => text().nullable()();
   BoolColumn get isDirty => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }

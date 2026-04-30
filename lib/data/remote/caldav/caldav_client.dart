@@ -133,23 +133,6 @@ class CalDavClient {
     return _parseMultistatusObjects(data);
   }
 
-  /// REPORT: multiget — fetch specific objects by href.
-  Future<List<CalDavObject>> multiget(
-    String calendarHref,
-    List<String> hrefs,
-  ) async {
-    final body = _buildMultigetBody(hrefs);
-    final response = await _dio.request<String>(
-      calendarHref,
-      data: body,
-      options: Options(method: 'REPORT', headers: {'Depth': '1'}),
-    );
-
-    final data = response.data;
-    if (data == null) return <CalDavObject>[];
-    return _parseMultistatusObjects(data);
-  }
-
   // ── Create / Update / Delete ────────────────────────────────────
 
   /// PUT: create a new CalDAV object. Returns the new etag.
@@ -252,18 +235,6 @@ class CalDavClient {
         '    <c:calendar-data />'
         '  </d:prop>'
         '</d:sync-collection>';
-  }
-
-  String _buildMultigetBody(List<String> hrefs) {
-    final hrefElements = hrefs.map((h) => '    <d:href>$h</d:href>').join('\n');
-    return '<?xml version="1.0" encoding="utf-8" ?>'
-        '<c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
-        '  <d:prop>'
-        '    <d:getetag />'
-        '    <c:calendar-data />'
-        '  </d:prop>'
-        '$hrefElements'
-        '</c:calendar-multiget>';
   }
 
   // ── XML Response Parsers ────────────────────────────────────────

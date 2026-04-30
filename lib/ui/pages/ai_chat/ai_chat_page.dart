@@ -152,7 +152,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                           _QuickActionChip(
                                             icon: CupertinoIcons
                                                 .calendar_badge_plus,
-                                            label: 'Add Event',
+                                            label: l.addEventShort,
                                             onTap: () => _tryCreateFromChat(
                                               ref,
                                               msg.content,
@@ -162,7 +162,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                           _QuickActionChip(
                                             icon: CupertinoIcons
                                                 .checkmark_rectangle,
-                                            label: 'Add Todo',
+                                            label: l.addTodoShort,
                                             onTap: () => _tryCreateFromChat(
                                               ref,
                                               msg.content,
@@ -171,7 +171,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                           ),
                                           _QuickActionChip(
                                             icon: CupertinoIcons.clock,
-                                            label: 'Schedule',
+                                            label: l.schedule,
                                             onTap: () => _suggestSchedule(
                                               context,
                                               ref,
@@ -181,7 +181,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                           _QuickActionChip(
                                             icon: CupertinoIcons
                                                 .checkmark_rectangle,
-                                            label: 'Break Down',
+                                            label: l.breakDown,
                                             onTap: () => _breakDownTask(
                                               context,
                                               ref,

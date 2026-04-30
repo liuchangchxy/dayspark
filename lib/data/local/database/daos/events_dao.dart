@@ -12,8 +12,9 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
     return (select(events)
           ..where(
             (t) =>
-                t.startDt.isBiggerOrEqualValue(start) &
-                t.startDt.isSmallerOrEqualValue(end),
+                t.deletedAt.isNull() &
+                t.startDt.isSmallerThanValue(end) &
+                t.endDt.isBiggerThanValue(start),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.startDt)]))
         .watch();

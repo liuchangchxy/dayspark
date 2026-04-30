@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
 
@@ -98,16 +99,18 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
   List<CalendaEventAdapter> _eventsForDate(DateTime date) {
     return widget.events.where((e) {
       if (e.isAllDay) return false;
-      final eventDate = DateTime(e.start.year, e.start.month, e.start.day);
-      return eventDate == date;
+      final s = DateTime(e.start.year, e.start.month, e.start.day);
+      final end = DateTime(e.end.year, e.end.month, e.end.day);
+      return !s.isAfter(date) && date.isBefore(end);
     }).toList();
   }
 
   List<CalendaEventAdapter> _allDayEventsForDate(DateTime date) {
     return widget.events.where((e) {
       if (!e.isAllDay) return false;
-      final eventDate = DateTime(e.start.year, e.start.month, e.start.day);
-      return eventDate == date;
+      final s = DateTime(e.start.year, e.start.month, e.start.day);
+      final end = DateTime(e.end.year, e.end.month, e.end.day);
+      return !s.isAfter(date) && date.isBefore(end);
     }).toList();
   }
 
@@ -120,23 +123,14 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     }).toList();
   }
 
-  static const List<String> _weekdayAbbr = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final locale = Localizations.localeOf(context).toString();
 
     return Column(
       children: [
-        _buildAllDayBar(context, theme),
+        _buildAllDayBar(context, theme, locale),
         Expanded(
           child: PageView.builder(
             controller: _pageController,
@@ -147,7 +141,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
             },
             itemBuilder: (context, index) {
               final monday = _indexToWeek(index);
-              return _buildWeekPage(context, theme, monday);
+              return _buildWeekPage(context, theme, locale, monday);
             },
           ),
         ),
@@ -155,7 +149,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     );
   }
 
-  Widget _buildAllDayBar(BuildContext context, ThemeData theme) {
+  Widget _buildAllDayBar(BuildContext context, ThemeData theme, String locale) {
     return Builder(
       builder: (context) {
         final monday = _mondayOfWeek(widget.anchorDate);
@@ -165,7 +159,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
 
         return Column(
           children: [
-            _buildDayHeaderRow(theme, weekDates),
+            _buildDayHeaderRow(theme, locale, weekDates),
             if (rowCount > 0)
               SizedBox(
                 height: rowCount * 24.0,
@@ -216,7 +210,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     );
   }
 
-  Widget _buildDayHeaderRow(ThemeData theme, List<DateTime> weekDates) {
+  Widget _buildDayHeaderRow(ThemeData theme, String locale, List<DateTime> weekDates) {
     final today = _dateOnly(DateTime.now());
 
     return Row(
@@ -229,7 +223,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
             child: Column(
               children: [
                 Text(
-                  _weekdayAbbr[entry.key],
+                  DateFormat.E(locale).format(date),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -267,26 +261,64 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
   Widget _buildWeekPage(
     BuildContext context,
     ThemeData theme,
+    String locale,
     DateTime monday,
   ) {
     final weekDates = _weekDates(monday);
     final totalHeight = 24 * _hourHeight;
 
-    return SingleChildScrollView(
-      controller: _scrollController,
-      child: SizedBox(
-        height: totalHeight,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTimeline(theme, totalHeight),
-            ...weekDates.map(
-              (date) => Expanded(
-                child: _buildDayColumn(theme, date, totalHeight),
-              ),
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController,
+          child: SizedBox(
+            height: totalHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTimeline(theme, totalHeight),
+                ...weekDates.map(
+                  (date) => Expanded(
+                    child: _buildDayColumn(theme, date, totalHeight),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+        _buildNowIndicator(theme, weekDates, totalHeight),
+      ],
+    );
+  }
+
+  Widget _buildNowIndicator(
+    ThemeData theme,
+    List<DateTime> weekDates,
+    double totalHeight,
+  ) {
+    final now = DateTime.now();
+    final today = _dateOnly(now);
+    if (!weekDates.contains(today)) return const SizedBox.shrink();
+
+    final top = (now.hour + now.minute / 60) * _hourHeight;
+    return Positioned(
+      top: top,
+      left: _timelineWidth,
+      right: 0,
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.error,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Container(height: 2, color: theme.colorScheme.error),
+          ),
+        ],
       ),
     );
   }

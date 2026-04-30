@@ -1,9 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
@@ -11,7 +11,7 @@ import 'package:dayspark/ui/widgets/calendar/views/month_calendar_view.dart';
 import 'package:dayspark/ui/widgets/calendar/views/week_calendar_view.dart';
 import 'package:dayspark/ui/widgets/calendar/views/day_calendar_view.dart';
 
-class CalendarSection extends StatefulWidget {
+class CalendarSection extends ConsumerStatefulWidget {
   final List<CalendaEventAdapter> events;
   final void Function(CalendaEventAdapter event)? onEventTapped;
   final void Function(DateTimeRange range)? onTimeSlotTapped;
@@ -26,11 +26,10 @@ class CalendarSection extends StatefulWidget {
   });
 
   @override
-  State<CalendarSection> createState() => _CalendarSectionState();
+  ConsumerState<CalendarSection> createState() => _CalendarSectionState();
 }
 
-class _CalendarSectionState extends State<CalendarSection> {
-  CalendarViewMode _viewMode = CalendarViewMode.week;
+class _CalendarSectionState extends ConsumerState<CalendarSection> {
   DateTime _anchorDate = DateTime.now();
 
   @override
@@ -40,10 +39,8 @@ class _CalendarSectionState extends State<CalendarSection> {
     _anchorDate = DateTime(now.year, now.month, now.day);
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
+  CalendarViewMode get _viewMode =>
+      ref.watch(calendarViewModeProvider);
 
   bool get _isViewingToday {
     final now = DateTime.now();
@@ -221,7 +218,8 @@ class _CalendarSectionState extends State<CalendarSection> {
               const SizedBox(height: 6),
               ViewSwitcher(
                 currentMode: _viewMode,
-                onModeChanged: (mode) => setState(() => _viewMode = mode),
+                onModeChanged: (mode) =>
+                    ref.read(calendarViewModeProvider.notifier).setViewMode(mode),
               ),
             ],
           ),

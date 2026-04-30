@@ -89,16 +89,18 @@ class _DayCalendarViewState extends State<DayCalendarView> {
   List<CalendaEventAdapter> _timedEvents(DateTime date) {
     return widget.events.where((e) {
       if (e.isAllDay) return false;
-      final eventDate = DateTime(e.start.year, e.start.month, e.start.day);
-      return eventDate == date;
+      final s = DateTime(e.start.year, e.start.month, e.start.day);
+      final end = DateTime(e.end.year, e.end.month, e.end.day);
+      return !s.isAfter(date) && date.isBefore(end);
     }).toList();
   }
 
   List<CalendaEventAdapter> _allDayEvents(DateTime date) {
     return widget.events.where((e) {
       if (!e.isAllDay) return false;
-      final eventDate = DateTime(e.start.year, e.start.month, e.start.day);
-      return eventDate == date;
+      final s = DateTime(e.start.year, e.start.month, e.start.day);
+      final end = DateTime(e.end.year, e.end.month, e.end.day);
+      return !s.isAfter(date) && date.isBefore(end);
     }).toList();
   }
 
@@ -222,19 +224,52 @@ class _DayCalendarViewState extends State<DayCalendarView> {
     final totalHeight = 24 * _hourHeight;
     final events = _timedEvents(date);
 
-    return SingleChildScrollView(
-      controller: _scrollController,
-      child: SizedBox(
-        height: totalHeight,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTimeline(theme, totalHeight),
-            Expanded(
-              child: _buildEventColumn(theme, date, events, totalHeight),
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController,
+          child: SizedBox(
+            height: totalHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTimeline(theme, totalHeight),
+                Expanded(
+                  child: _buildEventColumn(theme, date, events, totalHeight),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+        _buildNowIndicator(theme, date, totalHeight),
+      ],
+    );
+  }
+
+  Widget _buildNowIndicator(ThemeData theme, DateTime date, double totalHeight) {
+    final now = DateTime.now();
+    final today = _dateOnly(now);
+    if (_dateOnly(date) != today) return const SizedBox.shrink();
+
+    final top = (now.hour + now.minute / 60) * _hourHeight;
+    return Positioned(
+      top: top,
+      left: _timelineWidth,
+      right: 0,
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.error,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Container(height: 2, color: theme.colorScheme.error),
+          ),
+        ],
       ),
     );
   }

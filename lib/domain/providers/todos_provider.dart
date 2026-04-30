@@ -4,11 +4,6 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 
-final pendingTodosProvider = StreamProvider<List<Todo>>((ref) {
-  final db = ref.watch(databaseProvider);
-  return db.todosDao.watchPending();
-});
-
 final completedTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.todosDao.watchCompleted();
@@ -24,11 +19,6 @@ final pendingTodosByTagsProvider = StreamProvider.family<List<Todo>, String>((
   }
   final tagIds = tagIdsKey.split(',').map(int.parse).toList();
   return db.todosDao.watchPendingByTags(tagIds);
-});
-
-final overdueTodosProvider = StreamProvider<List<Todo>>((ref) {
-  final db = ref.watch(databaseProvider);
-  return db.todosDao.watchOverdue();
 });
 
 final inboxTodosProvider = StreamProvider<List<Todo>>((ref) {

@@ -609,4 +609,37 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get changelogDismiss => '确定';
+
+  @override
+  String get addEventShort => '添加日程';
+
+  @override
+  String get addTodoShort => '添加待办';
+
+  @override
+  String get schedule => '排程';
+
+  @override
+  String get breakDown => '拆分任务';
+
+  @override
+  String get eventReminder => '日程提醒';
+
+  @override
+  String get todoReminder => '待办提醒';
+
+  @override
+  String get snoozedReminder => '已延后的提醒';
+
+  @override
+  String get eventStartingSoon => '日程即将开始';
+
+  @override
+  String get taskDueSoon => '待办即将到期';
+
+  @override
+  String get addAttachment => '添加附件';
+
+  @override
+  String get defaultAccountName => '默认';
 }

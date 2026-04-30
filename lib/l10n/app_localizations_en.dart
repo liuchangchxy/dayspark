@@ -609,4 +609,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get changelogDismiss => 'OK';
+
+  @override
+  String get addEventShort => 'Add Event';
+
+  @override
+  String get addTodoShort => 'Add Todo';
+
+  @override
+  String get schedule => 'Schedule';
+
+  @override
+  String get breakDown => 'Break Down';
+
+  @override
+  String get eventReminder => 'Event Reminder';
+
+  @override
+  String get todoReminder => 'Todo Reminder';
+
+  @override
+  String get snoozedReminder => 'Snoozed reminder';
+
+  @override
+  String get eventStartingSoon => 'Event starting soon';
+
+  @override
+  String get taskDueSoon => 'Task due soon';
+
+  @override
+  String get addAttachment => 'Add attachment';
+
+  @override
+  String get defaultAccountName => 'Default';
 }

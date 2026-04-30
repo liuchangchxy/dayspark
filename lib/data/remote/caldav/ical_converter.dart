@@ -169,6 +169,16 @@ class IcalConverter {
 
   // ── Helpers ────────────────────────────────────────────────────
 
+  String? extractUid(String icalData) {
+    try {
+      final component = VComponent.parse(icalData);
+      if (component is VCalendar) {
+        return component.event?.uid ?? component.todo?.uid;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   bool _isAllDay(VEvent event) {
     final start = event.start;
     if (start == null) return false;

@@ -75,20 +75,6 @@ class CalendaEventAdapter {
     );
   }
 
-  drift.EventsCompanion toCreateCompanion() {
-    return drift.EventsCompanion.insert(
-      calendarId: calendarId,
-      uid: uid,
-      summary: title,
-      startDt: start,
-      endDt: end,
-      isAllDay: Value(isAllDay),
-      description: Value(description),
-      location: Value(location),
-      rrule: Value(rrule),
-    );
-  }
-
   drift.EventsCompanion toUpdateCompanion() {
     return drift.EventsCompanion(
       id: Value(drifId),

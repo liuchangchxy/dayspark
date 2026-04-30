@@ -1210,6 +1210,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OK'**
   String get changelogDismiss;
+
+  /// No description provided for @addEventShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Event'**
+  String get addEventShort;
+
+  /// No description provided for @addTodoShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Todo'**
+  String get addTodoShort;
+
+  /// No description provided for @schedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get schedule;
+
+  /// No description provided for @breakDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Break Down'**
+  String get breakDown;
+
+  /// No description provided for @eventReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Reminder'**
+  String get eventReminder;
+
+  /// No description provided for @todoReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo Reminder'**
+  String get todoReminder;
+
+  /// No description provided for @snoozedReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Snoozed reminder'**
+  String get snoozedReminder;
+
+  /// No description provided for @eventStartingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Event starting soon'**
+  String get eventStartingSoon;
+
+  /// No description provided for @taskDueSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Task due soon'**
+  String get taskDueSoon;
+
+  /// No description provided for @addAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add attachment'**
+  String get addAttachment;
+
+  /// No description provided for @defaultAccountName.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultAccountName;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

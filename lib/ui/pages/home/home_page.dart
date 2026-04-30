@@ -15,6 +15,8 @@ import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dayspark/domain/providers/connectivity_provider.dart';
 import 'package:dayspark/domain/services/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
@@ -133,7 +135,22 @@ class _HomePageState extends ConsumerState<HomePage>
       _checkOverdueTodos();
       _dayCheckTimer?.cancel();
       _scheduleNextMidnightCheck();
+      _autoSyncOnResume();
     }
+  }
+
+  Future<void> _autoSyncOnResume() async {
+    try {
+      final configured = ref.read(isCalDavConfiguredProvider).valueOrNull;
+      if (configured != true) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final lastSyncMs = prefs.getInt('last_sync_time_ms') ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - lastSyncMs > 5 * 60 * 1000) {
+        ref.read(triggerIncrementalSyncProvider)();
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkVersionChangelog() async {
@@ -212,11 +229,12 @@ class _HomePageState extends ConsumerState<HomePage>
     if (actionId == NotificationActions.markComplete && parentType == 'todo') {
       db.todosDao.markComplete(parentId);
     } else if (actionId == NotificationActions.snooze) {
+      final l = AppLocalizations.of(context)!;
       final newTime = DateTime.now().add(const Duration(hours: 1));
       NotificationService().snooze(
         id: parentId,
-        title: parentType == 'event' ? 'Event Reminder' : 'Todo Reminder',
-        body: 'Snoozed reminder',
+        title: parentType == 'event' ? l.eventReminder : l.todoReminder,
+        body: l.snoozedReminder,
         scheduledTime: newTime,
         payload: '$parentType:$parentId',
       );
@@ -237,6 +255,18 @@ class _HomePageState extends ConsumerState<HomePage>
     final l = AppLocalizations.of(context)!;
     final todosFirst = _todosFirst;
     final isCalendarTab = todosFirst ? _currentTab == 1 : _currentTab == 0;
+
+    // Listen for network recovery → trigger sync
+    ref.listen(connectivityProvider, (prev, next) {
+      final wasOffline = ref.read(wasOfflineProvider);
+      final isOnline = next.valueOrNull?.any(
+        (r) => r != ConnectivityResult.none,
+      ) ?? false;
+      if (wasOffline && isOnline) {
+        ref.read(triggerIncrementalSyncProvider)();
+      }
+      ref.read(wasOfflineProvider.notifier).state = !isOnline;
+    });
 
     return Scaffold(
       appBar: AppBar(

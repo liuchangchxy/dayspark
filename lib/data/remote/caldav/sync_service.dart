@@ -76,11 +76,15 @@ class SyncService {
         }
       }
 
-      // 4. Push dirty events
+      // 4. Push dirty events (exclude soft-deleted)
       await _pushDirtyEvents();
 
-      // 5. Push dirty todos
+      // 5. Push dirty todos (exclude soft-deleted)
       await _pushDirtyTodos();
+
+      // 6. Push locally-deleted events/todos to server
+      await _pushDeletedEvents();
+      await _pushDeletedTodos();
 
       // Update sync metadata
       _lastSyncTime = DateTime.now();
@@ -148,6 +152,8 @@ class SyncService {
 
       await _pushDirtyEvents();
       await _pushDirtyTodos();
+      await _pushDeletedEvents();
+      await _pushDeletedTodos();
 
       _lastSyncTime = DateTime.now();
       _setStatus(SyncStatus.success);
@@ -200,8 +206,26 @@ class SyncService {
   Future<void> _pullEvents(int calendarId, String calendarHref) async {
     final remoteObjects = await _client.getEvents(calendarHref);
 
+    final remoteUids = <String>{};
     for (final obj in remoteObjects) {
       await _upsertEventFromRemote(obj, calendarId);
+      try {
+        final uid = _converter.extractUid(obj.icalData);
+        if (uid != null) remoteUids.add(uid);
+      } catch (_) {}
+    }
+
+    // Delete local events that no longer exist on server
+    final localEvents = await (_db.select(
+      _db.events,
+    )..where(
+        (t) => t.calendarId.equals(calendarId) & t.etag.isNotNull(),
+      ))
+        .get();
+    for (final e in localEvents) {
+      if (!remoteUids.contains(e.uid)) {
+        await _hardDeleteEvent(e.id);
+      }
     }
   }
 
@@ -254,8 +278,26 @@ class SyncService {
   Future<void> _pullTodos(int calendarId, String calendarHref) async {
     final remoteObjects = await _client.getTodos(calendarHref);
 
+    final remoteUids = <String>{};
     for (final obj in remoteObjects) {
       await _upsertTodoFromRemote(obj, calendarId);
+      try {
+        final uid = _converter.extractUid(obj.icalData);
+        if (uid != null) remoteUids.add(uid);
+      } catch (_) {}
+    }
+
+    // Delete local todos that no longer exist on server
+    final localTodos = await (_db.select(
+      _db.todos,
+    )..where(
+        (t) => t.calendarId.equals(calendarId) & t.etag.isNotNull(),
+      ))
+        .get();
+    for (final t in localTodos) {
+      if (!remoteUids.contains(t.uid)) {
+        await _hardDeleteTodo(t.id);
+      }
     }
   }
 
@@ -308,7 +350,7 @@ class SyncService {
   Future<void> _pushDirtyEvents() async {
     final dirtyEvents = await (_db.select(
       _db.events,
-    )..where((t) => t.isDirty.equals(true))).get();
+    )..where((t) => t.isDirty.equals(true) & t.deletedAt.isNull())).get();
 
     for (final event in dirtyEvents) {
       try {
@@ -349,7 +391,7 @@ class SyncService {
   Future<void> _pushDirtyTodos() async {
     final dirtyTodos = await (_db.select(
       _db.todos,
-    )..where((t) => t.isDirty.equals(true))).get();
+    )..where((t) => t.isDirty.equals(true) & t.deletedAt.isNull())).get();
 
     for (final todo in dirtyTodos) {
       try {
@@ -383,6 +425,70 @@ class SyncService {
         // Will be retried on next sync cycle (isDirty stays true)
       }
     }
+  }
+
+  // ── Internal: Push Deleted ──────────────────────────────────────
+
+  Future<void> _pushDeletedEvents() async {
+    final deleted = await (_db.select(
+      _db.events,
+    )..where((t) => t.deletedAt.isNotNull() & t.etag.isNotNull())).get();
+
+    for (final event in deleted) {
+      try {
+        final calendar = await (_db.select(
+          _db.calendars,
+        )..where((t) => t.id.equals(event.calendarId))).getSingleOrNull();
+        if (calendar == null) continue;
+
+        final href = '${calendar.caldavHref}${event.uid}.ics';
+        await _client.deleteObject(href, event.etag!);
+
+        await _hardDeleteEvent(event.id);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _pushDeletedTodos() async {
+    final deleted = await (_db.select(
+      _db.todos,
+    )..where((t) => t.deletedAt.isNotNull() & t.etag.isNotNull())).get();
+
+    for (final todo in deleted) {
+      try {
+        final calendar = await (_db.select(
+          _db.calendars,
+        )..where((t) => t.id.equals(todo.calendarId))).getSingleOrNull();
+        if (calendar == null) continue;
+
+        final href = '${calendar.caldavHref}${todo.uid}.ics';
+        await _client.deleteObject(href, todo.etag!);
+
+        await _hardDeleteTodo(todo.id);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _hardDeleteEvent(int id) async {
+    await (_db.delete(
+      _db.reminders,
+    )..where((t) => t.parentType.equals('event') & t.parentId.equals(id))).go();
+    await (_db.delete(_db.eventTags)..where((t) => t.eventId.equals(id))).go();
+    await (_db.delete(
+      _db.attachments,
+    )..where((t) => t.parentType.equals('event') & t.parentId.equals(id))).go();
+    await (_db.delete(_db.events)..where((t) => t.id.equals(id))).go();
+  }
+
+  Future<void> _hardDeleteTodo(int id) async {
+    await (_db.delete(
+      _db.reminders,
+    )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).go();
+    await (_db.delete(_db.todoTags)..where((t) => t.todoId.equals(id))).go();
+    await (_db.delete(
+      _db.attachments,
+    )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).go();
+    await (_db.delete(_db.todos)..where((t) => t.id.equals(id))).go();
   }
 
   // ── Internal: Full Sync Single Calendar ────────────────────────
