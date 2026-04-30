@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 
 import '../../local/database/app_database.dart';
@@ -17,6 +19,18 @@ class SyncService {
   SyncStatus _status = SyncStatus.idle;
   String? _lastError;
   DateTime? _lastSyncTime;
+  Completer<void>? _syncLock;
+
+  bool _tryAcquireLock() {
+    if (_syncLock != null) return false;
+    _syncLock = Completer<void>();
+    return true;
+  }
+
+  void _releaseLock() {
+    _syncLock?.complete();
+    _syncLock = null;
+  }
 
   /// Optional callback for status changes.
   void Function(SyncStatus)? onStatusChanged;
@@ -38,6 +52,8 @@ class SyncService {
   /// 1. Discover calendars from server
   /// 2. For each calendar: pull remote → upsert local, push dirty local → server
   Future<void> fullSync() async {
+    if (!_tryAcquireLock()) return;
+    try {
     _setStatus(SyncStatus.syncing);
     _lastError = null;
 
@@ -73,6 +89,9 @@ class SyncService {
       _lastError = e.toString();
       _setStatus(SyncStatus.error);
     }
+    } finally {
+      _releaseLock();
+    }
   }
 
   // ── Incremental Sync ───────────────────────────────────────────
@@ -80,6 +99,8 @@ class SyncService {
   // TODO(wire-up): Will be wired up to UI/settings for automatic periodic sync.
   /// Run incremental sync using sync-token for calendars that have one.
   Future<void> incrementalSync() async {
+    if (!_tryAcquireLock()) return;
+    try {
     _setStatus(SyncStatus.syncing);
     _lastError = null;
 
@@ -133,6 +154,9 @@ class SyncService {
     } catch (e) {
       _lastError = e.toString();
       _setStatus(SyncStatus.error);
+    }
+    } finally {
+      _releaseLock();
     }
   }
 
@@ -317,12 +341,7 @@ class SyncService {
           ),
         );
       } catch (_) {
-        await _enqueueSync(
-          'update',
-          'event',
-          event.id,
-          _converter.eventToIcal(event),
-        );
+        // Will be retried on next sync cycle (isDirty stays true)
       }
     }
   }
@@ -361,123 +380,7 @@ class SyncService {
           ),
         );
       } catch (_) {
-        await _enqueueSync(
-          'update',
-          'todo',
-          todo.id,
-          _converter.todoToIcal(todo),
-        );
-      }
-    }
-  }
-
-  // ── Sync Queue ─────────────────────────────────────────────────
-
-  Future<void> _enqueueSync(
-    String operation,
-    String resourceType,
-    int resourceId,
-    String? payload,
-  ) async {
-    await _db
-        .into(_db.syncQueue)
-        .insert(
-          SyncQueueCompanion.insert(
-            operation: operation,
-            resourceType: resourceType,
-            resourceId: resourceId,
-            payload: Value(payload),
-          ),
-        );
-  }
-
-  // TODO(wire-up): Will be wired up to connectivity-aware callback.
-  /// Process pending sync queue items (call on connectivity restore).
-  Future<void> processSyncQueue() async {
-    final items = await _db.select(_db.syncQueue).get();
-
-    for (final item in items) {
-      try {
-        if (item.resourceType == 'event') {
-          final event = await (_db.select(
-            _db.events,
-          )..where((t) => t.id.equals(item.resourceId))).getSingleOrNull();
-          if (event == null) continue;
-
-          final calendar = await (_db.select(
-            _db.calendars,
-          )..where((t) => t.id.equals(event.calendarId))).getSingleOrNull();
-          if (calendar == null) continue;
-
-          final icalData = _converter.eventToIcal(event);
-          String? newEtag;
-          if (event.etag != null) {
-            newEtag = await _client.updateObject(
-              '${calendar.caldavHref}${event.uid}.ics',
-              icalData,
-              event.etag!,
-            );
-          } else {
-            newEtag = await _client.createObject(
-              calendar.caldavHref,
-              event.uid,
-              icalData,
-            );
-          }
-
-          await (_db.update(
-            _db.events,
-          )..where((t) => t.id.equals(event.id))).write(
-            EventsCompanion(
-              etag: Value(newEtag),
-              isDirty: const Value(false),
-              updatedAt: Value(DateTime.now()),
-            ),
-          );
-        } else if (item.resourceType == 'todo') {
-          final todo = await (_db.select(
-            _db.todos,
-          )..where((t) => t.id.equals(item.resourceId))).getSingleOrNull();
-          if (todo == null) continue;
-
-          final calendar = await (_db.select(
-            _db.calendars,
-          )..where((t) => t.id.equals(todo.calendarId))).getSingleOrNull();
-          if (calendar == null) continue;
-
-          final icalData = _converter.todoToIcal(todo);
-          String? newEtag;
-          if (todo.etag != null) {
-            newEtag = await _client.updateObject(
-              '${calendar.caldavHref}${todo.uid}.ics',
-              icalData,
-              todo.etag!,
-            );
-          } else {
-            newEtag = await _client.createObject(
-              calendar.caldavHref,
-              todo.uid,
-              icalData,
-            );
-          }
-
-          await (_db.update(
-            _db.todos,
-          )..where((t) => t.id.equals(todo.id))).write(
-            TodosCompanion(
-              etag: Value(newEtag),
-              isDirty: const Value(false),
-              updatedAt: Value(DateTime.now()),
-            ),
-          );
-        }
-
-        await (_db.delete(
-          _db.syncQueue,
-        )..where((t) => t.id.equals(item.id))).go();
-      } catch (_) {
-        await (_db.update(_db.syncQueue)..where((t) => t.id.equals(item.id)))
-            .write(SyncQueueCompanion(retryCount: Value(item.retryCount + 1)));
+        // Will be retried on next sync cycle (isDirty stays true)
       }
     }
   }

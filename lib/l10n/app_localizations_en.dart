@@ -303,11 +303,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get add => 'Add';
 
   @override
-  String mcpServerError(String error) {
-    return 'MCP Server error: $error';
-  }
-
-  @override
   String syncFailed(String error) {
     return 'Sync failed: $error';
   }

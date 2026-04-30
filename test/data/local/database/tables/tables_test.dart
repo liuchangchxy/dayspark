@@ -135,26 +135,6 @@ void main() {
     });
   });
 
-  group('SyncQueueTable', () {
-    test('insert and read a sync queue item', () async {
-      final id = await db
-          .into(db.syncQueue)
-          .insert(
-            SyncQueueCompanion.insert(
-              operation: 'create',
-              resourceType: 'event',
-              resourceId: 1,
-            ),
-          );
-      final item = await (db.select(
-        db.syncQueue,
-      )..where((t) => t.id.equals(id))).getSingle();
-      expect(item.operation, 'create');
-      expect(item.resourceType, 'event');
-      expect(item.retryCount, 0); // default
-    });
-  });
-
   group('RemindersTable', () {
     test('insert and read a reminder', () async {
       final triggerTime = DateTime(2026, 4, 17, 14, 30);

@@ -63,7 +63,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     }
 
     if (!_isAllDay &&
-        _event.dateTimeRange.end.isBefore(_event.dateTimeRange.start)) {
+        _event.end.isBefore(_event.start)) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l.endBeforeStart)));
@@ -88,8 +88,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
           .write(updated.toUpdateCompanion());
 
       // Reschedule reminders if start time changed
-      final oldStart = widget.event.dateTimeRange.start;
-      final newStart = updated.dateTimeRange.start;
+      final oldStart = widget.event.start;
+      final newStart = updated.start;
       if (oldStart != newStart && !_isAllDay) {
         try {
           await ref.read(rescheduleRemindersProvider)(
@@ -141,8 +141,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
 
   Future<void> _pickDateTime(bool isStart) async {
     final current = isStart
-        ? _event.dateTimeRange.start
-        : _event.dateTimeRange.end;
+        ? _event.start
+        : _event.end;
     final date = await showDatePicker(
       context: context,
       initialDate: current,
@@ -155,17 +155,11 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       setState(() {
         if (isStart) {
           _event = _event.copyWithData(
-            dateTimeRange: DateTimeRange(
-              start: DateTime(date.year, date.month, date.day),
-              end: _event.dateTimeRange.end,
-            ),
+            start: DateTime(date.year, date.month, date.day),
           );
         } else {
           _event = _event.copyWithData(
-            dateTimeRange: DateTimeRange(
-              start: _event.dateTimeRange.start,
-              end: DateTime(date.year, date.month, date.day),
-            ),
+            end: DateTime(date.year, date.month, date.day),
           );
         }
       });
@@ -187,19 +181,9 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     );
     setState(() {
       if (isStart) {
-        _event = _event.copyWithData(
-          dateTimeRange: DateTimeRange(
-            start: dt,
-            end: _event.dateTimeRange.end,
-          ),
-        );
+        _event = _event.copyWithData(start: dt);
       } else {
-        _event = _event.copyWithData(
-          dateTimeRange: DateTimeRange(
-            start: _event.dateTimeRange.start,
-            end: dt,
-          ),
-        );
+        _event = _event.copyWithData(end: dt);
       }
     });
   }
@@ -255,8 +239,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             title: Text(l.startDate),
             subtitle: Text(
               _isAllDay
-                  ? DateFormatters.formatDate(_event.dateTimeRange.start)
-                  : DateFormatters.formatDateTime(_event.dateTimeRange.start),
+                  ? DateFormatters.formatDate(_event.start)
+                  : DateFormatters.formatDateTime(_event.start),
             ),
             onTap: () => _pickDateTime(true),
             contentPadding: EdgeInsets.zero,
@@ -266,8 +250,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             title: Text(l.endDate),
             subtitle: Text(
               _isAllDay
-                  ? DateFormatters.formatDate(_event.dateTimeRange.end)
-                  : DateFormatters.formatDateTime(_event.dateTimeRange.end),
+                  ? DateFormatters.formatDate(_event.end)
+                  : DateFormatters.formatDateTime(_event.end),
             ),
             onTap: () => _pickDateTime(false),
             contentPadding: EdgeInsets.zero,

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:kalender/kalender.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart' as drift;
 
-class CalendaEventAdapter extends CalendarEvent {
+class CalendaEventAdapter {
   final int drifId;
   final int calendarId;
   final String uid;
@@ -14,23 +13,23 @@ class CalendaEventAdapter extends CalendarEvent {
   final bool isAllDay;
   final String? rrule;
   final bool isDirty;
+  final DateTime start;
+  final DateTime end;
 
   CalendaEventAdapter({
     required this.drifId,
     required this.calendarId,
     required this.uid,
     required this.title,
-    required DateTime start,
-    required DateTime end,
+    required this.start,
+    required this.end,
     this.description,
     this.location,
     this.color,
     this.isAllDay = false,
     this.rrule,
     this.isDirty = false,
-  }) : super(
-         dateTimeRange: DateTimeRange(start: start, end: end),
-       );
+  });
 
   factory CalendaEventAdapter.fromDrift(drift.Event e, {Color? calendarColor}) {
     return CalendaEventAdapter(
@@ -49,12 +48,9 @@ class CalendaEventAdapter extends CalendarEvent {
     );
   }
 
-  /// Creates a copy of this adapter with custom fields replaced.
-  ///
-  /// This is separate from [CalendarEvent.copyWith] which only handles
-  /// date-time range changes and is inherited from the base class.
   CalendaEventAdapter copyWithData({
-    DateTimeRange? dateTimeRange,
+    DateTime? start,
+    DateTime? end,
     String? title,
     String? description,
     String? location,
@@ -63,13 +59,13 @@ class CalendaEventAdapter extends CalendarEvent {
     String? rrule,
     bool? isDirty,
   }) {
-    final updated = CalendaEventAdapter(
+    return CalendaEventAdapter(
       drifId: drifId,
       calendarId: calendarId,
       uid: uid,
       title: title ?? this.title,
-      start: dateTimeRange?.start ?? this.dateTimeRange.start,
-      end: dateTimeRange?.end ?? this.dateTimeRange.end,
+      start: start ?? this.start,
+      end: end ?? this.end,
       description: description ?? this.description,
       location: location ?? this.location,
       color: color ?? this.color,
@@ -77,8 +73,6 @@ class CalendaEventAdapter extends CalendarEvent {
       rrule: rrule ?? this.rrule,
       isDirty: isDirty ?? this.isDirty,
     );
-    updated.id = id;
-    return updated;
   }
 
   drift.EventsCompanion toCreateCompanion() {
@@ -86,8 +80,8 @@ class CalendaEventAdapter extends CalendarEvent {
       calendarId: calendarId,
       uid: uid,
       summary: title,
-      startDt: dateTimeRange.start,
-      endDt: dateTimeRange.end,
+      startDt: start,
+      endDt: end,
       isAllDay: Value(isAllDay),
       description: Value(description),
       location: Value(location),
@@ -101,8 +95,8 @@ class CalendaEventAdapter extends CalendarEvent {
       calendarId: Value(calendarId),
       uid: Value(uid),
       summary: Value(title),
-      startDt: Value(dateTimeRange.start),
-      endDt: Value(dateTimeRange.end),
+      startDt: Value(start),
+      endDt: Value(end),
       isAllDay: Value(isAllDay),
       description: Value(description),
       location: Value(location),
@@ -115,8 +109,7 @@ class CalendaEventAdapter extends CalendarEvent {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (super == other &&
-          other is CalendaEventAdapter &&
+      (other is CalendaEventAdapter &&
           other.drifId == drifId &&
           other.title == title &&
           other.description == description &&
@@ -124,6 +117,5 @@ class CalendaEventAdapter extends CalendarEvent {
           other.isAllDay == isAllDay);
 
   @override
-  int get hashCode =>
-      Object.hash(super.hashCode, drifId, title, description, color, isAllDay);
+  int get hashCode => Object.hash(drifId, title, description, color, isAllDay);
 }

@@ -303,11 +303,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get add => '添加';
 
   @override
-  String mcpServerError(String error) {
-    return 'MCP 服务器出错：$error';
-  }
-
-  @override
   String syncFailed(String error) {
     return '同步失败：$error';
   }

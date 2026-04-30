@@ -17,7 +17,6 @@ import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/providers/mcp_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
@@ -145,35 +144,6 @@ class SettingsPage extends ConsumerWidget {
                 _buildCaldavSection(context, ref),
               ],
 
-              if (!kIsWeb) ...[
-                const Divider(indent: 16, endIndent: 16),
-
-                // MCP Server
-                SwitchListTile(
-                  secondary: const Icon(CupertinoIcons.desktopcomputer),
-                  title: Row(
-                    children: [
-                      Expanded(child: const Text('MCP Server')),
-                      _tutorialLink(context, 'mcp-setup'),
-                    ],
-                  ),
-                  subtitle: ref.watch(mcpRunningProvider)
-                      ? const Text('Running on localhost:3001')
-                      : const Text('Allow AI agents to access your data'),
-                  value: ref.watch(mcpRunningProvider),
-                  onChanged: (v) async {
-                    try {
-                      await ref.read(toggleMcpServerProvider)();
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l.mcpServerError('$e'))),
-                        );
-                      }
-                    }
-                  },
-                ),
-              ],
             ],
           ),
 
@@ -183,7 +153,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.12.0'),
+            subtitle: const Text('DaySpark v0.13.0'),
             onTap: () => context.push('/about'),
           ),
         ],

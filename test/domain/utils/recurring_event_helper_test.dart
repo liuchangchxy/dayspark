@@ -75,7 +75,7 @@ void main() {
       for (final adapter in result) {
         expect(adapter.title, 'Daily standup');
         expect(
-          adapter.dateTimeRange.end.difference(adapter.dateTimeRange.start),
+          adapter.end.difference(adapter.start),
           const Duration(minutes: 30),
         );
       }
@@ -111,7 +111,7 @@ void main() {
       // Within Feb range: Feb 5,12,19,26 = 4 instances
       expect(result.length, 4);
       for (final adapter in result) {
-        expect(adapter.dateTimeRange.start.month, 2);
+        expect(adapter.start.month, 2);
       }
     });
 

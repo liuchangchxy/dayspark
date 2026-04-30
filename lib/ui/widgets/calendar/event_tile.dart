@@ -35,7 +35,7 @@ class EventTile extends StatelessWidget {
           ),
           if (!event.isAllDay)
             Text(
-              DateFormatters.formatTime(event.dateTimeRange.start),
+              DateFormatters.formatTime(event.start),
               style: TextStyle(
                 fontSize: 10,
                 color: bgColor.withValues(alpha: 0.8),

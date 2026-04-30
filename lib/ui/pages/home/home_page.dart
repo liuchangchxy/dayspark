@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,11 +15,7 @@ import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/providers/background_sync_provider.dart';
-import 'package:dayspark/domain/providers/home_widget_provider.dart';
-import 'package:dayspark/domain/providers/connectivity_provider.dart';
 import 'package:dayspark/domain/services/notification_service.dart';
-import 'package:dayspark/domain/services/background_sync_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
@@ -43,7 +37,6 @@ class _HomePageState extends ConsumerState<HomePage>
   DateTime? _selectedDate = DateTime.now();
   bool _showAllTodos = false;
   final Set<int> _selectedTagIds = {};
-  BackgroundSyncService? _syncService;
   Timer? _dayCheckTimer;
   DateTime? _lastCheckedDay;
 
@@ -98,18 +91,6 @@ class _HomePageState extends ConsumerState<HomePage>
             ref.read(triggerFullSyncProvider)();
           }
         }
-        if (!kIsWeb && !kDebugMode) {
-          _syncService = ref.read(backgroundSyncServiceProvider);
-          await _syncService!.init();
-          if (!mounted) return;
-          _syncService!.startForeground();
-        }
-        if (!mounted) return;
-        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-          ref.read(updateHomeWidgetProvider)();
-        }
-        // Activate connectivity-aware sync queue processor
-        ref.read(connectivitySyncQueueProcessorProvider);
         // Wire up notification action handler
         final notifService = NotificationService();
         notifService.onNotificationAction = (actionId, parentId, parentType) {
@@ -149,12 +130,9 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _syncService?.startForeground();
       _checkOverdueTodos();
       _dayCheckTimer?.cancel();
       _scheduleNextMidnightCheck();
-    } else if (state == AppLifecycleState.paused) {
-      _syncService?.stopForeground();
     }
   }
 
@@ -249,7 +227,6 @@ class _HomePageState extends ConsumerState<HomePage>
   void dispose() {
     _dayCheckTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    _syncService?.stopForeground();
     super.dispose();
   }
 

@@ -111,12 +111,6 @@
   },
   "removeAccountTitle": "Remove Account",
   "add": "Add",
-  "mcpServerError": "MCP Server error: {error}",
-  "@mcpServerError": {
-    "placeholders": {
-      "error": { "type": "String" }
-    }
-  },
   "syncFailed": "Sync failed: {error}",
   "@syncFailed": {
     "placeholders": {

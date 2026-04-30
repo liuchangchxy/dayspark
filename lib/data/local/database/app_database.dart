@@ -9,7 +9,6 @@ import 'tables/tags_table.dart';
 import 'tables/event_tags_table.dart';
 import 'tables/todo_tags_table.dart';
 import 'tables/attachments_table.dart';
-import 'tables/sync_queue_table.dart';
 import 'tables/reminders_table.dart';
 
 import 'daos/calendars_dao.dart';
@@ -28,7 +27,6 @@ part 'app_database.g.dart';
     EventTags,
     TodoTags,
     Attachments,
-    SyncQueue,
     Reminders,
   ],
   daos: [CalendarsDao, EventsDao, TodosDao],
@@ -39,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -64,6 +62,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await m.addColumn(todos, todos.sortOrder);
+      }
+      if (from < 5) {
+        await m.deleteTable('sync_queue');
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

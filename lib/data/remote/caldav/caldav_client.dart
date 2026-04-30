@@ -44,6 +44,9 @@ class CalDavClient {
   }) : _dio = Dio(
          BaseOptions(
            baseUrl: baseUrl,
+           connectTimeout: const Duration(seconds: 30),
+           receiveTimeout: const Duration(seconds: 30),
+           sendTimeout: const Duration(seconds: 30),
            headers: {
              'Authorization': 'Basic ${_encodeBasicAuth(username, password)}',
              'Content-Type': 'application/xml; charset=utf-8',
@@ -70,7 +73,9 @@ class CalDavClient {
       options: Options(method: 'PROPFIND', headers: {'Depth': '1'}),
     );
 
-    return _parseMultistatusCalendars(response.data!);
+    final data = response.data;
+    if (data == null) return <CalDavCalendarInfo>[];
+    return _parseMultistatusCalendars(data);
   }
 
   /// Get calendar metadata (ctag, syncToken) for a specific calendar.
@@ -82,7 +87,11 @@ class CalDavClient {
       options: Options(method: 'PROPFIND', headers: {'Depth': '0'}),
     );
 
-    final calendars = _parseMultistatusCalendars(response.data!);
+    final data = response.data;
+    if (data == null) {
+      throw Exception('No response data for $calendarHref');
+    }
+    final calendars = _parseMultistatusCalendars(data);
     if (calendars.isEmpty) {
       throw Exception('No calendar metadata returned for $calendarHref');
     }
@@ -119,7 +128,9 @@ class CalDavClient {
       options: Options(method: 'REPORT', headers: {'Depth': '1'}),
     );
 
-    return _parseMultistatusObjects(response.data!);
+    final data = response.data;
+    if (data == null) return <CalDavObject>[];
+    return _parseMultistatusObjects(data);
   }
 
   /// REPORT: multiget — fetch specific objects by href.
@@ -134,7 +145,9 @@ class CalDavClient {
       options: Options(method: 'REPORT', headers: {'Depth': '1'}),
     );
 
-    return _parseMultistatusObjects(response.data!);
+    final data = response.data;
+    if (data == null) return <CalDavObject>[];
+    return _parseMultistatusObjects(data);
   }
 
   // ── Create / Update / Delete ────────────────────────────────────
@@ -266,7 +279,9 @@ class CalDavClient {
       options: Options(method: 'REPORT', headers: {'Depth': '1'}),
     );
 
-    return _parseMultistatusObjects(response.data!);
+    final data = response.data;
+    if (data == null) return <CalDavObject>[];
+    return _parseMultistatusObjects(data);
   }
 
   List<CalDavCalendarInfo> _parseMultistatusCalendars(String xmlStr) {

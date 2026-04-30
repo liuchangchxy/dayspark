@@ -671,12 +671,6 @@ abstract class AppLocalizations {
   /// **'Add'**
   String get add;
 
-  /// No description provided for @mcpServerError.
-  ///
-  /// In en, this message translates to:
-  /// **'MCP Server error: {error}'**
-  String mcpServerError(String error);
-
   /// No description provided for @syncFailed.
   ///
   /// In en, this message translates to:

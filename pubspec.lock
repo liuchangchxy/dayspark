@@ -177,22 +177,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
-  connectivity_plus:
-    dependency: "direct main"
-    description:
-      name: connectivity_plus
-      sha256: b5e72753cf63becce2c61fd04dfe0f1c430cc5278b53a1342dc5ad839eab29ec
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.1.5"
-  connectivity_plus_platform_interface:
-    dependency: transitive
-    description:
-      name: connectivity_plus_platform_interface
-      sha256: "3c09627c536d22fd24691a905cdd8b14520de69da52c7a97499c8be5284a32ed"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
   convert:
     dependency: transitive
     description:
@@ -511,14 +495,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.2"
-  home_widget:
-    dependency: "direct main"
-    description:
-      name: home_widget
-      sha256: b04f99438ad6c5aad80fc9fca1e2e3471bf2a15028f614e4814d2552e13bc2a3
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.1"
   hooks:
     dependency: transitive
     description:
@@ -604,14 +580,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.9.0"
-  kalender:
-    dependency: "direct main"
-    description:
-      name: kalender
-      sha256: "3104ec9433bf5c62a48537d405def7e84f0e57a3efb56157c094812c4dddcc3d"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.17.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -636,14 +604,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
-  linked_pageview:
-    dependency: transitive
-    description:
-      name: linked_pageview
-      sha256: "795972b7d7c9b8cdf133c0328956ce32f068ebfdff7bb2012068df8fcd8a1664"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.5"
   lints:
     dependency: transitive
     description:
@@ -676,14 +636,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
-  mcp_dart:
-    dependency: "direct main"
-    description:
-      name: mcp_dart
-      sha256: "30ab03147fec3fd72e98172475cd720cd4e3aec7d5f8944ef36dbfabc75a353c"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
   meta:
     dependency: transitive
     description:
@@ -716,14 +668,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.17.6"
-  nm:
-    dependency: transitive
-    description:
-      name: nm
-      sha256: "2c9aae4127bdc8993206464fcc063611e0e36e72018696cd9631023a31b24254"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.5.0"
   objective_c:
     dependency: transitive
     description:
@@ -908,14 +852,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.28.0"
-  scrollable_positioned_list:
-    dependency: transitive
-    description:
-      name: scrollable_positioned_list
-      sha256: "1b54d5f1329a1e263269abc9e2543d90806131aa14fe7c6062a8054d57249287"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.3.8"
   share_plus:
     dependency: "direct main"
     description:
@@ -1145,14 +1081,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
-  universal_platform:
-    dependency: transitive
-    description:
-      name: universal_platform
-      sha256: "64e16458a0ea9b99260ceb5467a214c1f298d647c659af1bff6d3bf82536b1ec"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.0"
   url_launcher:
     dependency: "direct main"
     description:
@@ -1289,38 +1217,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.15.0"
-  workmanager:
-    dependency: "direct main"
-    description:
-      name: workmanager
-      sha256: "065673b2a465865183093806925419d311a9a5e0995aa74ccf8920fd695e2d10"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.0+3"
-  workmanager_android:
-    dependency: transitive
-    description:
-      name: workmanager_android
-      sha256: "9ae744db4ef891f5fcd2fb8671fccc712f4f96489a487a1411e0c8675e5e8cb7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.0+2"
-  workmanager_apple:
-    dependency: transitive
-    description:
-      name: workmanager_apple
-      sha256: "1cc12ae3cbf5535e72f7ba4fde0c12dd11b757caf493a28e22d684052701f2ca"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.1+2"
-  workmanager_platform_interface:
-    dependency: transitive
-    description:
-      name: workmanager_platform_interface
-      sha256: f40422f10b970c67abb84230b44da22b075147637532ac501729256fcea10a47
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.9.1+1"
   xdg_directories:
     dependency: transitive
     description:

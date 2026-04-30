@@ -151,6 +151,7 @@ class NotificationService {
     );
 
     final tzDateTime = tz.TZDateTime.from(scheduledTime, tz.local);
+    if (tzDateTime.isBefore(tz.TZDateTime.now(tz.local))) return;
     await _plugin.zonedSchedule(
       id: id + 100000, // Offset to avoid conflicts with original
       scheduledDate: tzDateTime,
@@ -196,6 +197,7 @@ class NotificationService {
     );
 
     final tzDateTime = tz.TZDateTime.from(scheduledTime, tz.local);
+    if (tzDateTime.isBefore(tz.TZDateTime.now(tz.local))) return;
     await _plugin.zonedSchedule(
       id: id,
       scheduledDate: tzDateTime,

@@ -16,16 +16,15 @@ void main() {
         end: DateTime(2026, 4, 17, 11),
       );
 
-      // CalendarEvent converts dates to UTC internally
       expect(adapter.drifId, 1);
       expect(adapter.title, 'Team Meeting');
-      expect(adapter.start, DateTime(2026, 4, 17, 10).toUtc());
-      expect(adapter.end, DateTime(2026, 4, 17, 11).toUtc());
+      expect(adapter.start, DateTime(2026, 4, 17, 10));
+      expect(adapter.end, DateTime(2026, 4, 17, 11));
       expect(adapter.description, 'Weekly sync');
       expect(adapter.color, const Color(0xFF2563EB));
     });
 
-    test('copyWithData preserves id', () {
+    test('copyWithData preserves drifId', () {
       final original = CalendaEventAdapter(
         drifId: 1,
         calendarId: 10,
@@ -37,8 +36,7 @@ void main() {
 
       final copied = original.copyWithData(title: 'New Title');
       expect(copied.title, 'New Title');
-      expect(copied.id, original.id);
-      expect(copied.drifId, 1);
+      expect(copied.drifId, original.drifId);
     });
 
     test('equality works for same-id events', () {
@@ -58,8 +56,6 @@ void main() {
         start: DateTime(2026, 1, 1),
         end: DateTime(2026, 1, 1, 1),
       );
-      // Give b the same id so base-class equality sees them as identical layout
-      b.id = a.id;
 
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
@@ -82,10 +78,8 @@ void main() {
       final companion = adapter.toCreateCompanion();
       expect(companion.calendarId.value, 5);
       expect(companion.summary.value, 'New Event');
-      // CalendarEvent stores UTC; companion should carry the original (non-UTC) values
-      // because toCreateCompanion reads dateTimeRange.start which is UTC-converted
-      expect(companion.startDt.value, start.toUtc());
-      expect(companion.endDt.value, end.toUtc());
+      expect(companion.startDt.value, start);
+      expect(companion.endDt.value, end);
       expect(companion.isAllDay.value, false);
     });
   });

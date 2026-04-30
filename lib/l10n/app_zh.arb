@@ -95,7 +95,6 @@
   "removeAccountConfirm": "确定移除「{name}」及其所有日历吗？",
   "removeAccountTitle": "移除账户",
   "add": "添加",
-  "mcpServerError": "MCP 服务器出错：{error}",
   "syncFailed": "同步失败：{error}",
   "exportedTo": "已导出到 {path}",
   "exportFailed": "导出失败：{error}",

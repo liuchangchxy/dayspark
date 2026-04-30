@@ -253,7 +253,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('About'), findsOneWidget);
-      expect(find.text('Calendar Todo v0.1.0'), findsOneWidget);
+      expect(find.text('DaySpark v0.13.0'), findsOneWidget);
     });
 
     testWidgets('tag management page shows empty state', (tester) async {

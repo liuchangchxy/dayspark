@@ -98,28 +98,28 @@ final triggerFullSyncProvider = Provider<Future<void> Function()>((ref) {
 
     ref.read(syncStatusProvider.notifier).state = SyncStatus.syncing;
 
+    final client = CalDavClient(
+      baseUrl: creds['serverUrl']!,
+      username: creds['username']!,
+      password: creds['password']!,
+    );
+
+    final service = SyncService(db: db, client: client);
+
+    service.onStatusChanged = (status) {
+      ref.read(syncStatusProvider.notifier).state = status;
+    };
+
     try {
-      final client = CalDavClient(
-        baseUrl: creds['serverUrl']!,
-        username: creds['username']!,
-        password: creds['password']!,
-      );
-
-      final service = SyncService(db: db, client: client);
-
-      service.onStatusChanged = (status) {
-        ref.read(syncStatusProvider.notifier).state = status;
-      };
-
       await service.fullSync();
 
       ref.read(lastSyncTimeProvider.notifier).state = service.lastSyncTime;
       ref.read(syncErrorProvider.notifier).state = service.lastError;
-
-      service.dispose();
     } catch (e) {
       ref.read(syncStatusProvider.notifier).state = SyncStatus.error;
       ref.read(syncErrorProvider.notifier).state = e.toString();
+    } finally {
+      service.dispose();
     }
   };
 });
@@ -135,31 +135,28 @@ final triggerIncrementalSyncProvider = Provider<Future<void> Function()>((ref) {
 
     ref.read(syncStatusProvider.notifier).state = SyncStatus.syncing;
 
+    final client = CalDavClient(
+      baseUrl: creds['serverUrl']!,
+      username: creds['username']!,
+      password: creds['password']!,
+    );
+
+    final service = SyncService(db: db, client: client);
+
+    service.onStatusChanged = (status) {
+      ref.read(syncStatusProvider.notifier).state = status;
+    };
+
     try {
-      final client = CalDavClient(
-        baseUrl: creds['serverUrl']!,
-        username: creds['username']!,
-        password: creds['password']!,
-      );
-
-      final service = SyncService(db: db, client: client);
-
-      service.onStatusChanged = (status) {
-        ref.read(syncStatusProvider.notifier).state = status;
-      };
-
       await service.incrementalSync();
 
       ref.read(lastSyncTimeProvider.notifier).state = service.lastSyncTime;
       ref.read(syncErrorProvider.notifier).state = service.lastError;
-
-      // After incremental sync, also process any queued offline changes
-      await service.processSyncQueue();
-
-      service.dispose();
     } catch (e) {
       ref.read(syncStatusProvider.notifier).state = SyncStatus.error;
       ref.read(syncErrorProvider.notifier).state = e.toString();
+    } finally {
+      service.dispose();
     }
   };
 });
@@ -184,23 +181,23 @@ final triggerSyncAllAccountsProvider = Provider<Future<void> Function()>((ref) {
     DateTime? latestSync;
 
     for (final account in accounts) {
+      final client = CalDavClient(
+        baseUrl: account.serverUrl,
+        username: account.username,
+        password: account.password,
+      );
+
+      final service = SyncService(db: db, client: client);
       try {
-        final client = CalDavClient(
-          baseUrl: account.serverUrl,
-          username: account.username,
-          password: account.password,
-        );
-
-        final service = SyncService(db: db, client: client);
-
         await service.fullSync();
 
         if (service.lastSyncTime != null) {
           latestSync = service.lastSyncTime!;
         }
-        service.dispose();
       } catch (e) {
         firstError ??= e.toString();
+      } finally {
+        service.dispose();
       }
     }
 

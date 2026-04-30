@@ -95,7 +95,10 @@ class IcalConverter {
       throw FormatException('No VEVENT found in iCalendar data');
     }
 
-    final start = vevent.start ?? DateTime.now();
+    final start = vevent.start;
+    if (start == null) {
+      throw FormatException('VEVENT missing DTSTART');
+    }
     final end = vevent.end ?? start.add(const Duration(hours: 1));
     final isAllDay = _isAllDay(vevent);
 
