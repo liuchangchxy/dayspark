@@ -175,10 +175,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
     await transaction(() async {
       for (var i = 0; i < ids.length; i++) {
         await (update(todos)..where((t) => t.id.equals(ids[i]))).write(
-          TodosCompanion(
-            sortOrder: Value(i),
-            updatedAt: Value(DateTime.now()),
-          ),
+          TodosCompanion(sortOrder: Value(i), updatedAt: Value(DateTime.now())),
         );
       }
     });

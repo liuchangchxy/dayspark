@@ -28,9 +28,7 @@ class BackgroundSyncService {
   /// Initialize workmanager for background sync.
   Future<void> init() async {
     try {
-      await Workmanager().initialize(
-        callbackDispatcher,
-      );
+      await Workmanager().initialize(callbackDispatcher);
       await Workmanager().registerPeriodicTask(
         'calendar-sync',
         'calendarPeriodicSync',

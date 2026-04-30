@@ -190,7 +190,11 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  void _handleNotificationAction(String actionId, int parentId, String parentType) {
+  void _handleNotificationAction(
+    String actionId,
+    int parentId,
+    String parentType,
+  ) {
     final db = ref.read(databaseProvider);
     if (actionId == NotificationActions.markComplete && parentType == 'todo') {
       db.todosDao.markComplete(parentId);
@@ -454,8 +458,7 @@ class _HomePageState extends ConsumerState<HomePage>
                   },
                 ),
               ],
-              if (completed.isNotEmpty)
-                ..._completedSliverGroups(completed),
+              if (completed.isNotEmpty) ..._completedSliverGroups(completed),
             ],
           );
         },
@@ -552,11 +555,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
               ),
               SliverToBoxAdapter(
-                child: _sectionHeader(
-                  l.completed,
-                  dateCompleted.length,
-                  null,
-                ),
+                child: _sectionHeader(l.completed, dateCompleted.length, null),
               ),
               SliverList(
                 delegate: SliverChildListDelegate(
@@ -646,7 +645,9 @@ class _HomePageState extends ConsumerState<HomePage>
             ),
             initiallyExpanded: date == today,
             tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-            children: todos.map((t) => _todoTile(t, isCompleted: true)).toList(),
+            children: todos
+                .map((t) => _todoTile(t, isCompleted: true))
+                .toList(),
           ),
         ),
       );

@@ -73,7 +73,7 @@ class NotificationService {
 
   void Function(int parentId, String parentType)? onNotificationTapped;
   void Function(String actionId, int parentId, String parentType)?
-      onNotificationAction;
+  onNotificationAction;
 
   void _onNotificationTapped(NotificationResponse response) {
     final payload = response.payload;

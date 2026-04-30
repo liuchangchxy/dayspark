@@ -144,10 +144,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       SnackBar(
         content: Text(l.deleted),
         duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: l.undo,
-          onPressed: () => restore(todoId),
-        ),
+        action: SnackBarAction(label: l.undo, onPressed: () => restore(todoId)),
       ),
     );
   }
