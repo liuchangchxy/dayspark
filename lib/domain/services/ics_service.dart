@@ -92,30 +92,7 @@ class IcsService {
             null,
             null,
           );
-          await _db
-              .into(_db.events)
-              .insertOnConflictUpdate(
-                Event(
-                  id: -1,
-                  calendarId: companion.calendarId.value,
-                  uid: companion.uid.value,
-                  summary: companion.summary.value,
-                  startDt: companion.startDt.value,
-                  endDt: companion.endDt.value,
-                  isAllDay: companion.isAllDay.value,
-                  description: companion.description.present
-                      ? companion.description.value
-                      : null,
-                  location: companion.location.present
-                      ? companion.location.value
-                      : null,
-                  rrule: companion.rrule.present ? companion.rrule.value : null,
-                  etag: companion.etag.present ? companion.etag.value : null,
-                  isDirty: true,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                ),
-              );
+          await _db.into(_db.events).insert(companion);
           events++;
         } catch (_) {}
       } else if (child is VTodo) {
@@ -129,43 +106,7 @@ class IcsService {
             null,
             null,
           );
-          await _db
-              .into(_db.todos)
-              .insertOnConflictUpdate(
-                Todo(
-                  id: -1,
-                  calendarId: companion.calendarId.value,
-                  uid: companion.uid.value,
-                  summary: companion.summary.value,
-                  sortOrder: 0,
-                  dueDate: companion.dueDate.present
-                      ? companion.dueDate.value
-                      : null,
-                  startDate: companion.startDate.present
-                      ? companion.startDate.value
-                      : null,
-                  priority: companion.priority.present
-                      ? companion.priority.value
-                      : 0,
-                  status: companion.status.present
-                      ? companion.status.value
-                      : 'NEEDS-ACTION',
-                  description: companion.description.present
-                      ? companion.description.value
-                      : null,
-                  rrule: companion.rrule.present ? companion.rrule.value : null,
-                  completedAt: companion.completedAt.present
-                      ? companion.completedAt.value
-                      : null,
-                  percentComplete: companion.percentComplete.present
-                      ? companion.percentComplete.value
-                      : 0,
-                  etag: companion.etag.present ? companion.etag.value : null,
-                  isDirty: true,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                ),
-              );
+          await _db.into(_db.todos).insert(companion);
           todos++;
         } catch (_) {}
       }

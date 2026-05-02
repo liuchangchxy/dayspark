@@ -97,11 +97,31 @@ class CalendaEventAdapter {
       identical(this, other) ||
       (other is CalendaEventAdapter &&
           other.drifId == drifId &&
+          other.calendarId == calendarId &&
+          other.uid == uid &&
           other.title == title &&
           other.description == description &&
+          other.location == location &&
           other.color == color &&
-          other.isAllDay == isAllDay);
+          other.isAllDay == isAllDay &&
+          other.rrule == rrule &&
+          other.isDirty == isDirty &&
+          other.start == start &&
+          other.end == end);
 
   @override
-  int get hashCode => Object.hash(drifId, title, description, color, isAllDay);
+  int get hashCode => Object.hash(
+        drifId,
+        calendarId,
+        uid,
+        title,
+        description,
+        location,
+        color,
+        isAllDay,
+        rrule,
+        isDirty,
+        start,
+        end,
+      );
 }

@@ -127,6 +127,7 @@ class NotificationService {
     if (await AlarmService.isEnabled()) {
       await AlarmService.scheduleAlarm(
         id: reminder.id,
+        type: reminder.parentType,
         dateTime: reminder.triggerTime,
         title: isEvent ? eventReminderTitle : todoReminderTitle,
         body: isEvent ? eventReminderBody : todoReminderBody,

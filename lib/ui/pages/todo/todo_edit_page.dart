@@ -160,7 +160,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (date != null && mounted) setState(() => _dueDate = date);
+    if (date != null && mounted) setState(() => _dueDate = DateTime(date.year, date.month, date.day));
   }
 
   Future<void> _pickStartDate() async {
@@ -170,7 +170,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (date != null && mounted) setState(() => _startDate = date);
+    if (date != null && mounted) setState(() => _startDate = DateTime(date.year, date.month, date.day));
   }
 
   @override

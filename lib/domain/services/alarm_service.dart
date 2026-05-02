@@ -26,6 +26,7 @@ class AlarmService {
 
   static Future<void> scheduleAlarm({
     required int id,
+    required String type,
     required DateTime dateTime,
     required String title,
     required String body,
@@ -33,8 +34,9 @@ class AlarmService {
     if (!Platform.isAndroid && !Platform.isIOS) return;
     if (dateTime.isBefore(DateTime.now())) return;
 
+    final alarmId = type == 'event' ? id + 500000 : id + 600000;
     final alarmSettings = AlarmSettings(
-      id: id + 500000,
+      id: alarmId,
       dateTime: dateTime,
       assetAudioPath: null,
       loopAudio: true,
@@ -50,7 +52,13 @@ class AlarmService {
     await Alarm.set(alarmSettings: alarmSettings);
   }
 
-  static Future<void> cancelAlarm(int id) async {
-    await Alarm.stop(id + 500000);
+  static Future<void> cancelAlarm(int id, {String? type}) async {
+    if (type != null) {
+      final alarmId = type == 'event' ? id + 500000 : id + 600000;
+      await Alarm.stop(alarmId);
+    } else {
+      await Alarm.stop(id + 500000);
+      await Alarm.stop(id + 600000);
+    }
   }
 }

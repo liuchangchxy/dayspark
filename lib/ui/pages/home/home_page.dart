@@ -247,6 +247,7 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void dispose() {
     _dayCheckTimer?.cancel();
+    NotificationService().onNotificationAction = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
