@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/domain/providers/search_provider.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
@@ -84,7 +85,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               ),
                               title: Text(event.summary),
                               subtitle: Text(
-                                '${event.startDt.year}-${event.startDt.month.toString().padLeft(2, '0')}-${event.startDt.day.toString().padLeft(2, '0')}',
+                                DateFormatters.formatDate(event.startDt),
                               ),
                               onTap: () {
                                 context.push(

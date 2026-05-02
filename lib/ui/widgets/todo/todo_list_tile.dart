@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
 class TodoListTile extends ConsumerWidget {
@@ -27,10 +28,22 @@ class TodoListTile extends ConsumerWidget {
     required this.onTap,
   });
 
-  Color get _priorityColor {
-    if (isCompleted) return Colors.grey;
-    if (priority == 1) return AppColors.lightError;
-    if (priority >= 2 && priority <= 4) return AppColors.lightWarning;
+  Color _priorityColor(Brightness brightness) {
+    if (isCompleted) {
+      return brightness == Brightness.dark
+          ? AppColors.darkDisabled
+          : AppColors.lightDisabled;
+    }
+    if (priority == 1) {
+      return brightness == Brightness.dark
+          ? AppColors.darkError
+          : AppColors.lightError;
+    }
+    if (priority >= 2 && priority <= 4) {
+      return brightness == Brightness.dark
+          ? AppColors.darkWarning
+          : AppColors.lightWarning;
+    }
     return Colors.transparent;
   }
 
@@ -50,11 +63,11 @@ class TodoListTile extends ConsumerWidget {
       final start = DateTime(startDate!.year, startDate!.month, startDate!.day);
       final span = due.difference(start).inDays;
       if (span > 1) {
-        return '${start.month}/${start.day} – ${due.month}/${due.day}';
+        return '${DateFormatters.formatShortDate(start)} – ${DateFormatters.formatShortDate(due)}';
       }
     }
 
-    return '${dueDate!.month}/${dueDate!.day}';
+    return DateFormatters.formatShortDate(dueDate!);
   }
 
   bool get _isOverdue {
@@ -79,12 +92,12 @@ class TodoListTile extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            if (_priorityColor != Colors.transparent)
+            if (_priorityColor(theme.brightness) != Colors.transparent)
               Container(
                 width: 4,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: _priorityColor,
+                  color: _priorityColor(theme.brightness),
                   borderRadius: BorderRadius.circular(2),
                 ),
               )
@@ -128,9 +141,9 @@ class TodoListTile extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 12,
                               color: _isOverdue
-                                  ? AppColors.lightError
+                                  ? theme.colorScheme.error
                                   : (dueDate == null
-                                        ? Colors.grey
+                                        ? theme.colorScheme.onSurfaceVariant
                                         : theme.textTheme.bodySmall?.color),
                             ),
                             overflow: TextOverflow.ellipsis,

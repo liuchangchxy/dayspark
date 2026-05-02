@@ -38,13 +38,13 @@ class TagsPage extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(CupertinoIcons.tag, size: 64, color: Colors.grey),
+                  Icon(CupertinoIcons.tag, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(height: 16),
-                  Text(l.noTags, style: const TextStyle(color: Colors.grey)),
+                  Text(l.noTags, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   const SizedBox(height: 8),
                   Text(
                     l.tapToCreate,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -147,7 +147,10 @@ class TagsPage extends ConsumerWidget {
                         color: ColorUtils.parseHex(hex),
                         shape: BoxShape.circle,
                         border: isSelected
-                            ? Border.all(color: Colors.black, width: 3)
+                            ? Border.all(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                width: 3,
+                              )
                             : null,
                       ),
                     ),
@@ -227,7 +230,10 @@ class TagsPage extends ConsumerWidget {
                         color: ColorUtils.parseHex(hex),
                         shape: BoxShape.circle,
                         border: isSelected
-                            ? Border.all(color: Colors.black, width: 3)
+                            ? Border.all(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                width: 3,
+                              )
                             : null,
                       ),
                     ),

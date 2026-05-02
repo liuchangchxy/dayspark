@@ -14,6 +14,10 @@ class DateFormatters {
   static String formatDate(DateTime dt) =>
       '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
+  /// Returns `M/D` (short locale-friendly date).
+  static String formatShortDate(DateTime dt) =>
+      '${dt.month}/${dt.day}';
+
   /// Returns a human-readable relative time string (e.g. "just now", "5m ago", "3h ago").
   /// Falls back to `M/D H:MM` for times older than 24 hours.
   static String formatRelativeTime(DateTime time) {

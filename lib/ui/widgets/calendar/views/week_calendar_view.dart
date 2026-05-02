@@ -57,7 +57,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
           newIndex,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-        ).then((_) {
+        ).whenComplete(() {
           if (mounted) _isAnimating = false;
         });
       }
@@ -91,11 +91,11 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
   }
 
   List<CalendaEventAdapter> _eventsForDate(DateTime date) {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
     return widget.events.where((e) {
       if (e.isAllDay) return false;
-      final s = DateTime(e.start.year, e.start.month, e.start.day);
-      final end = DateTime(e.end.year, e.end.month, e.end.day);
-      return !s.isAfter(date) && date.isBefore(end);
+      return e.start.isBefore(dayEnd) && e.end.isAfter(dayStart);
     }).toList();
   }
 
@@ -140,19 +140,24 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     final monday = _mondayOfWeek(widget.anchorDate);
     final weekDates = _weekDates(monday);
     final allDayEvents = <CalendaEventAdapter>[];
-    final dates = weekDates.toSet();
     for (final e in widget.events) {
       if (!e.isAllDay) continue;
       final s = DateTime(e.start.year, e.start.month, e.start.day);
-      if (dates.contains(s)) allDayEvents.add(e);
+      final end = DateTime(e.end.year, e.end.month, e.end.day);
+      if (!s.isAfter(weekDates.last) && weekDates.first.isBefore(end)) {
+        allDayEvents.add(e);
+      }
     }
+    final maxPerDay = weekDates
+        .map((d) => _allDayEventsForDate(d).length)
+        .fold(0, (a, b) => a > b ? a : b);
 
     return Column(
       children: [
         _buildDayHeaderRow(theme, locale, weekDates),
         if (allDayEvents.isNotEmpty)
           SizedBox(
-            height: allDayEvents.length * 24.0,
+            height: maxPerDay * 24.0,
             child: Row(
               children: [
                 const SizedBox(width: _timelineWidth),
@@ -392,8 +397,14 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
                   );
                 }),
                 ...events.map((e) {
-                  final startMinutes = e.start.hour * 60.0 + e.start.minute;
-                  final endMinutes = e.end.hour * 60.0 + e.end.minute;
+                  final eventStartDate = _dateOnly(e.start);
+                  final eventEndDate = _dateOnly(e.end);
+                  final startMinutes = eventStartDate.isBefore(date)
+                      ? 0.0
+                      : e.start.hour * 60.0 + e.start.minute;
+                  final endMinutes = eventEndDate.isAfter(date)
+                      ? 24.0 * 60.0
+                      : e.end.hour * 60.0 + e.end.minute;
                   final duration = (endMinutes - startMinutes).clamp(20.0, double.infinity);
                   final top = startMinutes / 60.0 * _hourHeight;
                   final height = (duration / 60.0 * _hourHeight).clamp(20.0, double.infinity);

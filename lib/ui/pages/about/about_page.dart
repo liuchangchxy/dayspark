@@ -127,12 +127,12 @@ class _AboutPageState extends State<AboutPage> {
             child: FilledButton.icon(
               onPressed: _checking ? null : _checkUpdate,
               icon: _checking
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     )
                   : const Icon(CupertinoIcons.arrow_down_circle, size: 18),
@@ -208,14 +208,14 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Icon(
                       CupertinoIcons.checkmark_circle_fill,
-                      color: Colors.green.shade600,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       l.upToDate,
                       style: TextStyle(
-                        color: Colors.green.shade600,
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

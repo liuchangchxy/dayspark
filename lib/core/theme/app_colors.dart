@@ -15,6 +15,7 @@ abstract final class AppColors {
   static const Color lightWarning = Color(0xFFEAB308);
   static const Color lightError = Color(0xFFDC2626);
   static const Color lightBorder = Color(0xFFE5E7EB);
+  static const Color lightDisabled = Color(0xFF9CA3AF);
 
   // --- Dark Mode ---
   static const Color darkBackground = Color(0xFF0F0F14);
@@ -27,4 +28,5 @@ abstract final class AppColors {
   static const Color darkWarning = Color(0xFFFACC15);
   static const Color darkError = Color(0xFFEF4444);
   static const Color darkBorder = Color(0xFF2D2D3A);
+  static const Color darkDisabled = Color(0xFF4B5563);
 }

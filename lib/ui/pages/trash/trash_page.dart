@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 
 class TrashPage extends ConsumerWidget {
   const TrashPage({super.key});
@@ -44,15 +45,15 @@ class TrashPage extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     CupertinoIcons.trash,
                     size: 64,
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     l.trashEmpty,
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -65,19 +66,19 @@ class TrashPage extends ConsumerWidget {
               return Dismissible(
                 key: ValueKey(todo.id),
                 background: Container(
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.primary,
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.only(left: 16),
-                  child: const Icon(
+                  child: Icon(
                     CupertinoIcons.arrow_uturn_left,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                 ),
                 secondaryBackground: Container(
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 16),
-                  child: const Icon(CupertinoIcons.delete, color: Colors.white),
+                  child: Icon(CupertinoIcons.delete, color: Theme.of(context).colorScheme.onError),
                 ),
                 confirmDismiss: (direction) async {
                   if (direction == DismissDirection.startToEnd) {
@@ -101,7 +102,7 @@ class TrashPage extends ConsumerWidget {
                   ),
                   subtitle: Text(
                     todo.deletedAt != null
-                        ? '${todo.deletedAt!.month}/${todo.deletedAt!.day} ${todo.deletedAt!.hour}:${todo.deletedAt!.minute.toString().padLeft(2, '0')}'
+                        ? DateFormatters.formatDateTime(todo.deletedAt!)
                         : '',
                     style: const TextStyle(fontSize: 12),
                   ),

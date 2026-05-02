@@ -596,7 +596,7 @@ class _HomePageState extends ConsumerState<HomePage>
           slivers: [
             if (overdue.isNotEmpty) ...[
               SliverToBoxAdapter(
-                child: _sectionHeader(l.overdue, overdue.length, Colors.red),
+                child: _sectionHeader(l.overdue, overdue.length, Theme.of(context).colorScheme.error),
               ),
               SliverList(
                 delegate: SliverChildListDelegate(
@@ -720,7 +720,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 const SizedBox(width: 6),
                 Text(
                   '${todos.length}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -741,20 +741,20 @@ class _HomePageState extends ConsumerState<HomePage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             CupertinoIcons.checkmark_rectangle,
             size: 64,
-            color: Colors.grey,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             l.noPendingTodos,
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
+            style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           Text(
             l.tapToCreate,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -771,13 +771,13 @@ class _HomePageState extends ConsumerState<HomePage>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: accentColor ?? Colors.grey.shade600,
+              color: accentColor ?? Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: 6),
           Text(
             '$count',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),

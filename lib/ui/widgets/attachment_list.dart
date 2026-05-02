@@ -45,7 +45,7 @@ class AttachmentList extends ConsumerWidget {
           if (attachments.isEmpty)
             Text(
               l.noAttachments,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             )
           else
             ...attachments.map(

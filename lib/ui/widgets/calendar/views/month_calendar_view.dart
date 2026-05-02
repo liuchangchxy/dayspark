@@ -52,7 +52,7 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
           newIndex,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-        ).then((_) {
+        ).whenComplete(() {
           if (mounted) _isAnimating = false;
         });
       }
@@ -105,7 +105,7 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
     final l = AppLocalizations.of(context);
     if (l != null) {
       final locale = l.localeName;
-      if (locale == 'zh') {
+      if (locale.startsWith('zh')) {
         const zh = ['一', '二', '三', '四', '五', '六', '日'];
         return zh[index];
       }

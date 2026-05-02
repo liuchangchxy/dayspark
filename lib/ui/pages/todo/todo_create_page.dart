@@ -469,11 +469,11 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               children: [
-                const Icon(CupertinoIcons.tag, size: 16, color: Colors.grey),
+                Icon(CupertinoIcons.tag, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Text(
                   l.noTags,
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                 ),
                 TextButton(
                   onPressed: () => context.push('/tags'),

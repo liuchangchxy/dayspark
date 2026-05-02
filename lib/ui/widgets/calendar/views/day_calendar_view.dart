@@ -57,7 +57,7 @@ class _DayCalendarViewState extends State<DayCalendarView> {
           newIndex,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-        ).then((_) {
+        ).whenComplete(() {
           if (mounted) _isAnimating = false;
         });
       }
@@ -81,11 +81,11 @@ class _DayCalendarViewState extends State<DayCalendarView> {
   }
 
   List<CalendaEventAdapter> _timedEvents(DateTime date) {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
     return widget.events.where((e) {
       if (e.isAllDay) return false;
-      final s = DateTime(e.start.year, e.start.month, e.start.day);
-      final end = DateTime(e.end.year, e.end.month, e.end.day);
-      return !s.isAfter(date) && date.isBefore(end);
+      return e.start.isBefore(dayEnd) && e.end.isAfter(dayStart);
     }).toList();
   }
 
@@ -351,7 +351,7 @@ class _DayCalendarViewState extends State<DayCalendarView> {
                     ),
                   );
                 }),
-                ..._layoutEvents(events).map((entry) {
+                ..._layoutEvents(events, date).map((entry) {
                   final canDrag = entry.event.rrule == null && !entry.event.isAllDay;
                   return Positioned(
                     top: entry.top,
@@ -393,7 +393,7 @@ class _DayCalendarViewState extends State<DayCalendarView> {
     );
   }
 
-  List<_EventLayout> _layoutEvents(List<CalendaEventAdapter> events) {
+  List<_EventLayout> _layoutEvents(List<CalendaEventAdapter> events, DateTime date) {
     if (events.isEmpty) return [];
 
     final sorted = List<CalendaEventAdapter>.from(events)
@@ -407,7 +407,14 @@ class _DayCalendarViewState extends State<DayCalendarView> {
     final layouts = <_EventLayout>[];
 
     for (final event in sorted) {
-      final startMinutes = event.start.hour * 60.0 + event.start.minute;
+      final eventStartDate = _dateOnly(event.start);
+      final eventEndDate = _dateOnly(event.end);
+      final startMinutes = eventStartDate.isBefore(date)
+          ? 0.0
+          : event.start.hour * 60.0 + event.start.minute;
+      final endMinutes = eventEndDate.isAfter(date)
+          ? 24.0 * 60.0
+          : event.end.hour * 60.0 + event.end.minute;
       var placed = false;
 
       for (var col = 0; col < columns.length; col++) {
@@ -417,10 +424,10 @@ class _DayCalendarViewState extends State<DayCalendarView> {
             _EventLayout(
               event: event,
               top: startMinutes / 60.0 * _hourHeight,
-              height: _eventHeight(event),
+              height: _eventHeight(event, date),
               left: 0,
               width: 0,
-              endMinutes: event.end.hour * 60.0 + event.end.minute,
+              endMinutes: endMinutes,
               column: col,
             ),
           );
@@ -434,10 +441,10 @@ class _DayCalendarViewState extends State<DayCalendarView> {
           _EventLayout(
             event: event,
             top: startMinutes / 60.0 * _hourHeight,
-            height: _eventHeight(event),
+            height: _eventHeight(event, date),
             left: 0,
             width: 0,
-            endMinutes: event.end.hour * 60.0 + event.end.minute,
+            endMinutes: endMinutes,
             column: columns.length,
           ),
         ]);
@@ -465,9 +472,16 @@ class _DayCalendarViewState extends State<DayCalendarView> {
     return layouts;
   }
 
-  double _eventHeight(CalendaEventAdapter event) {
-    final duration =
-        event.end.difference(event.start).inMinutes.clamp(20, 24 * 60);
+  double _eventHeight(CalendaEventAdapter event, DateTime date) {
+    final eventStartDate = _dateOnly(event.start);
+    final eventEndDate = _dateOnly(event.end);
+    final startMinutes = eventStartDate.isBefore(date)
+        ? 0.0
+        : event.start.hour * 60.0 + event.start.minute;
+    final endMinutes = eventEndDate.isAfter(date)
+        ? 24.0 * 60.0
+        : event.end.hour * 60.0 + event.end.minute;
+    final duration = (endMinutes - startMinutes).clamp(20, 24 * 60);
     return (duration / 60.0 * _hourHeight).clamp(20.0, double.infinity);
   }
 

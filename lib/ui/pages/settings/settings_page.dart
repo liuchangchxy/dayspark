@@ -174,7 +174,7 @@ class SettingsPage extends ConsumerWidget {
               SwitchListTile(
                 secondary: const Icon(CupertinoIcons.antenna_radiowaves_left_right),
                 title: Text(l.mcpServer),
-                subtitle: _buildMcpSubtitle(ref),
+                subtitle: _buildMcpSubtitle(context, ref),
                 value: ref.watch(mcpRunningProvider),
                 onChanged: (v) async {
                   final service = ref.read(mcpServiceProvider);
@@ -357,8 +357,8 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildMcpSubtitle(WidgetRef ref) {
-    final l = AppLocalizations.of(ref.context);
+  Widget _buildMcpSubtitle(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final running = ref.watch(mcpRunningProvider);
     if (l == null) return const SizedBox.shrink();
     return Text(
@@ -598,11 +598,21 @@ class SettingsPage extends ConsumerWidget {
                   color: color,
                   shape: BoxShape.circle,
                   border: selected
-                      ? Border.all(color: Colors.black, width: 3)
+                      ? Border.all(
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                          width: 3,
+                        )
                       : null,
                 ),
                 child: selected
-                    ? const Icon(Icons.check, color: Colors.white, size: 20)
+                    ? Icon(
+                        Icons.check,
+                        color: ThemeData.estimateBrightnessForColor(color) ==
+                                Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                        size: 20,
+                      )
                     : null,
               ),
             );
