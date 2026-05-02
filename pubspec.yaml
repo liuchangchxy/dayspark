@@ -71,7 +71,7 @@ dependencies:
   local_auth: ^2.3.0
 
   # Background tasks
-  workmanager: ^0.5.2
+  workmanager: ^0.9.0
 
   # Alarm
   alarm: ^5.1.5
