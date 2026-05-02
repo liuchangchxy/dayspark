@@ -10,12 +10,11 @@ import 'core/theme/app_theme.dart';
 import 'data/remote/caldav/background_sync_worker.dart';
 import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
 import 'domain/services/alarm_service.dart';
-import 'ui/widgets/biometric_gate.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Workmanager().initialize(callbackDispatcher);
-  AlarmService.init();
+  await AlarmService.init();
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -37,8 +36,7 @@ class DaySparkApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final seedColor = ref.watch(themeColorProvider);
-    return BiometricGate(
-      child: MaterialApp.router(
+    return MaterialApp.router(
       title: 'DaySpark',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(seedColor: seedColor),
@@ -52,7 +50,6 @@ class DaySparkApp extends ConsumerWidget {
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: AppRouter.router,
-    ),
     );
   }
 }

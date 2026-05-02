@@ -28,12 +28,12 @@ class DayCalendarView extends StatefulWidget {
 class _DayCalendarViewState extends State<DayCalendarView> {
   static const double _hourHeight = 48.0;
   static const double _timelineWidth = 48.0;
-  static const int _totalDays = 24000;
-  static const int _epochDay = 12000;
+  static const int _totalDays = 3650;
+  static const int _epochDay = 1825;
   static const Duration _scrollTarget = Duration(hours: 8);
 
   late PageController _pageController;
-  final ScrollController _scrollController = ScrollController();
+  bool _isAnimating = false;
 
   @override
   void initState() {
@@ -41,9 +41,6 @@ class _DayCalendarViewState extends State<DayCalendarView> {
     _pageController = PageController(
       initialPage: _dayToIndex(widget.anchorDate),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToTime();
-    });
   }
 
   @override
@@ -53,13 +50,16 @@ class _DayCalendarViewState extends State<DayCalendarView> {
     final newIndex = _dayToIndex(widget.anchorDate);
     if (oldIndex != newIndex && _pageController.hasClients) {
       final currentPage =
-          _pageController.page?.round() ?? _dayToIndex(oldWidget.anchorDate);
+          _pageController.page?.round() ?? oldIndex;
       if (currentPage != newIndex) {
+        _isAnimating = true;
         _pageController.animateToPage(
           newIndex,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-        );
+        ).then((_) {
+          if (mounted) _isAnimating = false;
+        });
       }
     }
   }
@@ -67,15 +67,7 @@ class _DayCalendarViewState extends State<DayCalendarView> {
   @override
   void dispose() {
     _pageController.dispose();
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _scrollToTime() {
-    if (!_scrollController.hasClients) return;
-    final pixels = _scrollTarget.inMinutes / 60.0 * _hourHeight;
-    final max = _scrollController.position.maxScrollExtent;
-    _scrollController.jumpTo(pixels.clamp(0, max));
   }
 
   static int _dayToIndex(DateTime date) {
@@ -119,7 +111,9 @@ class _DayCalendarViewState extends State<DayCalendarView> {
             itemCount: _totalDays,
             scrollDirection: Axis.horizontal,
             onPageChanged: (index) {
-              widget.onPageChanged?.call(_indexToDay(index));
+              if (!_isAnimating) {
+                widget.onPageChanged?.call(_indexToDay(index));
+              }
             },
             itemBuilder: (context, index) {
               final date = _indexToDay(index);
@@ -228,19 +222,17 @@ class _DayCalendarViewState extends State<DayCalendarView> {
 
     return Stack(
       children: [
-        SingleChildScrollView(
-          controller: _scrollController,
-          child: SizedBox(
-            height: totalHeight,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTimeline(theme, totalHeight),
-                Expanded(
-                  child: _buildEventColumn(theme, date, events, totalHeight),
-                ),
-              ],
-            ),
+        _DayScrollablePage(
+          targetOffset: _scrollTarget.inMinutes / 60.0 * _hourHeight,
+          totalHeight: totalHeight,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTimeline(theme, totalHeight),
+              Expanded(
+                child: _buildEventColumn(theme, date, events, totalHeight),
+              ),
+            ],
           ),
         ),
         _buildNowIndicator(theme, date, totalHeight),
@@ -481,6 +473,53 @@ class _DayCalendarViewState extends State<DayCalendarView> {
 
   static DateTime _dateOnly(DateTime dt) {
     return DateTime(dt.year, dt.month, dt.day);
+  }
+}
+
+class _DayScrollablePage extends StatefulWidget {
+  final double targetOffset;
+  final double totalHeight;
+  final Widget child;
+
+  const _DayScrollablePage({
+    required this.targetOffset,
+    required this.totalHeight,
+    required this.child,
+  });
+
+  @override
+  State<_DayScrollablePage> createState() => _DayScrollablePageState();
+}
+
+class _DayScrollablePageState extends State<_DayScrollablePage> {
+  final _controller = ScrollController(keepScrollOffset: false);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_controller.hasClients) {
+        final max = _controller.position.maxScrollExtent;
+        _controller.jumpTo(widget.targetOffset.clamp(0, max));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _controller,
+      child: SizedBox(
+        height: widget.totalHeight,
+        child: widget.child,
+      ),
+    );
   }
 }
 

@@ -60,3 +60,6 @@ Pods/
 
 # Generated OSS licenses (rebuild with: dart run flutter_oss_licenses:generate)
 lib/oss_licenses.dart
+
+# Screenshots (personal / not for distribution)
+screenshots/

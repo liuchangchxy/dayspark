@@ -24,10 +24,11 @@ class MonthCalendarView extends StatefulWidget {
 }
 
 class _MonthCalendarViewState extends State<MonthCalendarView> {
-  static const int _epochMonth = 12000;
-  static const int _totalMonths = 24000;
+  static const int _epochMonth = 120;
+  static const int _totalMonths = 240;
 
   late PageController _pageController;
+  bool _isAnimating = false;
 
   @override
   void initState() {
@@ -46,11 +47,14 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
       final currentPage =
           _pageController.page?.round() ?? _monthToIndex(oldWidget.anchorDate);
       if (currentPage != newIndex) {
+        _isAnimating = true;
         _pageController.animateToPage(
           newIndex,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-        );
+        ).then((_) {
+          if (mounted) _isAnimating = false;
+        });
       }
     }
   }
@@ -122,7 +126,9 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
             itemCount: _totalMonths,
             scrollDirection: Axis.horizontal,
             onPageChanged: (index) {
-              widget.onPageChanged?.call(_indexToMonth(index));
+              if (!_isAnimating) {
+                widget.onPageChanged?.call(_indexToMonth(index));
+              }
             },
             itemBuilder: (context, index) {
               final month = _indexToMonth(index);

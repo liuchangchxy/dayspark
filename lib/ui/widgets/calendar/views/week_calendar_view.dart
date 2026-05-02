@@ -28,12 +28,12 @@ class WeekCalendarView extends StatefulWidget {
 class _WeekCalendarViewState extends State<WeekCalendarView> {
   static const double _hourHeight = 48.0;
   static const double _timelineWidth = 48.0;
-  static const int _totalWeeks = 24000;
-  static const int _epochWeek = 12000;
+  static const int _totalWeeks = 1040;
+  static const int _epochWeek = 520;
   static const Duration _scrollTarget = Duration(hours: 8);
 
   late PageController _pageController;
-  final ScrollController _scrollController = ScrollController();
+  bool _isAnimating = false;
 
   @override
   void initState() {
@@ -41,9 +41,6 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     _pageController = PageController(
       initialPage: _weekToIndex(widget.anchorDate),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToTime();
-    });
   }
 
   @override
@@ -53,13 +50,16 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     final newIndex = _weekToIndex(widget.anchorDate);
     if (oldIndex != newIndex && _pageController.hasClients) {
       final currentPage =
-          _pageController.page?.round() ?? _weekToIndex(oldWidget.anchorDate);
+          _pageController.page?.round() ?? oldIndex;
       if (currentPage != newIndex) {
+        _isAnimating = true;
         _pageController.animateToPage(
           newIndex,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-        );
+        ).then((_) {
+          if (mounted) _isAnimating = false;
+        });
       }
     }
   }
@@ -67,21 +67,13 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
   @override
   void dispose() {
     _pageController.dispose();
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _scrollToTime() {
-    if (!_scrollController.hasClients) return;
-    final pixels = _scrollTarget.inMinutes / 60.0 * _hourHeight;
-    final max = _scrollController.position.maxScrollExtent;
-    _scrollController.jumpTo(pixels.clamp(0, max));
   }
 
   static int _weekToIndex(DateTime date) {
     final monday = _mondayOfWeek(date);
     final epoch = DateTime(2000, 1, 3);
-    final diff = epoch.difference(monday).inDays;
+    final diff = monday.difference(epoch).inDays;
     return diff ~/ 7 + _epochWeek;
   }
 
@@ -116,15 +108,6 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     }).toList();
   }
 
-  List<CalendaEventAdapter> _allAllDayEvents(List<DateTime> weekDates) {
-    final dates = weekDates.toSet();
-    return widget.events.where((e) {
-      if (!e.isAllDay) return false;
-      final eventDate = DateTime(e.start.year, e.start.month, e.start.day);
-      return dates.contains(eventDate);
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -139,7 +122,9 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
             itemCount: _totalWeeks,
             scrollDirection: Axis.horizontal,
             onPageChanged: (index) {
-              widget.onPageChanged?.call(_indexToWeek(index));
+              if (!_isAnimating) {
+                widget.onPageChanged?.call(_indexToWeek(index));
+              }
             },
             itemBuilder: (context, index) {
               final monday = _indexToWeek(index);
@@ -152,63 +137,64 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
   }
 
   Widget _buildAllDayBar(BuildContext context, ThemeData theme, String locale) {
-    return Builder(
-      builder: (context) {
-        final monday = _mondayOfWeek(widget.anchorDate);
-        final weekDates = _weekDates(monday);
-        final allDayEvents = _allAllDayEvents(weekDates);
-        final rowCount = allDayEvents.isEmpty ? 0 : 1;
+    final monday = _mondayOfWeek(widget.anchorDate);
+    final weekDates = _weekDates(monday);
+    final allDayEvents = <CalendaEventAdapter>[];
+    final dates = weekDates.toSet();
+    for (final e in widget.events) {
+      if (!e.isAllDay) continue;
+      final s = DateTime(e.start.year, e.start.month, e.start.day);
+      if (dates.contains(s)) allDayEvents.add(e);
+    }
 
-        return Column(
-          children: [
-            _buildDayHeaderRow(theme, locale, weekDates),
-            if (rowCount > 0)
-              SizedBox(
-                height: rowCount * 24.0,
-                child: Row(
-                  children: [
-                    const SizedBox(width: _timelineWidth),
-                    ...weekDates.map((date) {
-                      final dayEvents = _allDayEventsForDate(date);
-                      return Expanded(
-                        child: Column(
-                          children: dayEvents.take(1).map((e) {
-                            return GestureDetector(
-                              onTap: () => widget.onEventTapped?.call(e),
-                              child: Container(
-                                height: 20,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 1,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: (e.color ?? theme.colorScheme.primary)
-                                      .withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                                alignment: Alignment.centerLeft,
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: Text(
-                                  e.title,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: e.color ?? theme.colorScheme.primary,
-                                    fontSize: 10,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+    return Column(
+      children: [
+        _buildDayHeaderRow(theme, locale, weekDates),
+        if (allDayEvents.isNotEmpty)
+          SizedBox(
+            height: allDayEvents.length * 24.0,
+            child: Row(
+              children: [
+                const SizedBox(width: _timelineWidth),
+                ...weekDates.map((date) {
+                  final dayEvents = _allDayEventsForDate(date);
+                  return Expanded(
+                    child: Column(
+                      children: dayEvents.take(1).map((e) {
+                        return GestureDetector(
+                          onTap: () => widget.onEventTapped?.call(e),
+                          child: Container(
+                            height: 20,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 1,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: (e.color ?? theme.colorScheme.primary)
+                                  .withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            alignment: Alignment.centerLeft,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(
+                              e.title,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: e.color ?? theme.colorScheme.primary,
+                                fontSize: 10,
                               ),
-                            );
-                          }).toList(),
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-          ],
-        );
-      },
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -218,8 +204,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
     return Row(
       children: [
         const SizedBox(width: _timelineWidth),
-        ...weekDates.asMap().entries.map((entry) {
-          final date = entry.value;
+        ...weekDates.map((date) {
           final isToday = date == today;
           return Expanded(
             child: Column(
@@ -247,8 +232,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
                       color: isToday
                           ? theme.colorScheme.onPrimary
                           : theme.colorScheme.onSurface,
-                      fontWeight:
-                          isToday ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -271,21 +255,19 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
 
     return Stack(
       children: [
-        SingleChildScrollView(
-          controller: _scrollController,
-          child: SizedBox(
-            height: totalHeight,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTimeline(theme, totalHeight),
-                ...weekDates.map(
-                  (date) => Expanded(
-                    child: _buildDayColumn(theme, date, totalHeight),
-                  ),
+        _ScrollablePage(
+          targetOffset: _scrollTarget.inMinutes / 60.0 * _hourHeight,
+          totalHeight: totalHeight,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTimeline(theme, totalHeight),
+              ...weekDates.map(
+                (date) => Expanded(
+                  child: _buildDayColumn(theme, date, totalHeight),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         _buildNowIndicator(theme, weekDates, totalHeight),
@@ -410,8 +392,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
                   );
                 }),
                 ...events.map((e) {
-                  final startMinutes =
-                      e.start.hour * 60.0 + e.start.minute;
+                  final startMinutes = e.start.hour * 60.0 + e.start.minute;
                   final endMinutes = e.end.hour * 60.0 + e.end.minute;
                   final duration = (endMinutes - startMinutes).clamp(20.0, double.infinity);
                   final top = startMinutes / 60.0 * _hourHeight;
@@ -455,5 +436,52 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
 
   static DateTime _dateOnly(DateTime dt) {
     return DateTime(dt.year, dt.month, dt.day);
+  }
+}
+
+class _ScrollablePage extends StatefulWidget {
+  final double targetOffset;
+  final double totalHeight;
+  final Widget child;
+
+  const _ScrollablePage({
+    required this.targetOffset,
+    required this.totalHeight,
+    required this.child,
+  });
+
+  @override
+  State<_ScrollablePage> createState() => _ScrollablePageState();
+}
+
+class _ScrollablePageState extends State<_ScrollablePage> {
+  final _controller = ScrollController(keepScrollOffset: false);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_controller.hasClients) {
+        final max = _controller.position.maxScrollExtent;
+        _controller.jumpTo(widget.targetOffset.clamp(0, max));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _controller,
+      child: SizedBox(
+        height: widget.totalHeight,
+        child: widget.child,
+      ),
+    );
   }
 }

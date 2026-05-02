@@ -105,7 +105,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
         case CalendarViewMode.week:
           _anchorDate = _anchorDate.subtract(const Duration(days: 7));
         case CalendarViewMode.month:
-          _anchorDate = DateTime(_anchorDate.year, _anchorDate.month - 1, _anchorDate.day);
+          _anchorDate = DateTime(_anchorDate.year, _anchorDate.month - 1, 1);
       }
     });
   }
@@ -118,7 +118,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
         case CalendarViewMode.week:
           _anchorDate = _anchorDate.add(const Duration(days: 7));
         case CalendarViewMode.month:
-          _anchorDate = DateTime(_anchorDate.year, _anchorDate.month + 1, _anchorDate.day);
+          _anchorDate = DateTime(_anchorDate.year, _anchorDate.month + 1, 1);
       }
     });
   }
@@ -150,9 +150,12 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
             children: [
               Row(
                 children: [
-                  GestureDetector(
+                  Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
                     onTap: _pickDate,
-                    behavior: HitTestBehavior.opaque,
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -189,6 +192,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                         ],
                       ),
                     ),
+                  ),
                   ),
                   if (!_isViewingToday) ...[
                     const SizedBox(width: 6),

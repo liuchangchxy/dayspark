@@ -1,5 +1,6 @@
-# 项目状态总览
+# Project Status / 项目状态总览
 
+> **This document is archived and no longer updated.** For current project status, see [docs/ROADMAP.md](ROADMAP.md).
 > **此文档已归档，不再更新。** 当前项目状态见 [docs/ROADMAP.md](ROADMAP.md)。
 
 最后更新: 2026-04-19

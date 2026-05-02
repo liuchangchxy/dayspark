@@ -10,10 +10,10 @@ class EventTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = event.color ?? AppColors.lightAccent;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final resolvedColor = isDark ? AppColors.darkAccent : bgColor;
+    final defaultColor = isDark ? AppColors.darkAccent : AppColors.lightAccent;
+    final resolvedColor = event.color ?? defaultColor;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 48),

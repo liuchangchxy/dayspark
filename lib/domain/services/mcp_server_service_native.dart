@@ -31,7 +31,7 @@ class McpServerService {
 
   McpServer _createServer(String sessionId) {
     final server = McpServer(
-      Implementation(name: 'dayspark', version: '0.15.0'),
+      Implementation(name: 'dayspark', version: '0.17.0'),
       options: McpServerOptions(
         instructions: 'DaySpark calendar & todo MCP server. '
             'Use list_events/list_todos to read data, '

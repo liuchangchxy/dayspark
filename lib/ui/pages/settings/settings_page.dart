@@ -1,13 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,7 +14,6 @@ import 'package:workmanager/workmanager.dart';
 
 import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/accounts_provider.dart';
-import 'package:dayspark/domain/providers/biometric_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/data/remote/caldav/sync_service.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
@@ -109,56 +104,6 @@ class SettingsPage extends ConsumerWidget {
             subtitle: Text(l.calendarData),
             onTap: () => _showIcsDialog(context, ref),
           ),
-          ListTile(
-            leading: const Icon(CupertinoIcons.arrow_down_doc),
-            title: Text(l.databaseExport),
-            subtitle: Text(l.databaseImport),
-            onTap: () => _showDbDialog(context, ref),
-          ),
-
-          // ── Security ──
-          ref.watch(isBiometricAvailableProvider).when(
-                data: (available) {
-                  if (!available) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Divider(),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: Text(
-                          l.security,
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                      ),
-                      SwitchListTile(
-                        secondary: const Icon(CupertinoIcons.lock),
-                        title: Text(l.biometricLock),
-                        subtitle: Text(l.biometricLockDesc),
-                        value: ref.watch(biometricLockEnabledProvider),
-                        onChanged: (v) async {
-                          final prefs =
-                              await SharedPreferences.getInstance();
-                          await prefs.setBool(
-                            'biometric_lock_enabled',
-                            v,
-                          );
-                          ref
-                              .read(
-                                biometricLockEnabledProvider.notifier,
-                              )
-                              .state = v;
-                        },
-                      ),
-                    ],
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
 
           const Divider(),
 
@@ -676,103 +621,6 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  void _showDbDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.databaseExport),
-        content: Text(l.databaseImport),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              try {
-                final dir = await getApplicationSupportDirectory();
-                final dbPath = p.join(dir.path, 'calendar_todo');
-                final file = File(dbPath);
-                if (!await file.exists()) return;
-                if (context.mounted) {
-                  await Share.shareXFiles(
-                    [XFile(dbPath)],
-                    subject: 'DaySpark Database Export',
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(l.databaseExportFailed('$e')),
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(l.databaseExport),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              try {
-                final result = await FilePicker.platform.pickFiles(
-                  type: FileType.custom,
-                  allowedExtensions: ['db'],
-                );
-                if (result == null || result.files.isEmpty) return;
-                if (!context.mounted) return;
-
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (dCtx) => AlertDialog(
-                    title: Text(l.databaseImport),
-                    content: Text(l.databaseImportConfirm),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(dCtx).pop(false),
-                        child: Text(l.cancel),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.of(dCtx).pop(true),
-                        child: Text(l.import),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed != true) return;
-
-                final pickedFile = result.files.first;
-                final bytes = await File(pickedFile.path!).readAsBytes();
-                final dir = await getApplicationSupportDirectory();
-                final dbPath = p.join(dir.path, 'calendar_todo');
-
-                await ref.read(databaseProvider).close();
-                await File(dbPath).writeAsBytes(bytes);
-
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.databaseImportSuccess)),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(l.databaseImportFailed('$e')),
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(l.databaseImport),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showIcsDialog(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;

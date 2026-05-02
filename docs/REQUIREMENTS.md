@@ -1,5 +1,6 @@
-# 需求清单
+# Requirements / 需求清单
 
+> **This document is archived and no longer updated.** For current project status, see [docs/ROADMAP.md](ROADMAP.md).
 > **此文档已归档，不再更新。** 当前项目状态见 [docs/ROADMAP.md](ROADMAP.md)。
 >
 > 本文档严格来自用户的原始方案（`glowing-toasting-seal.md`），只记录用户明确要求的功能。
