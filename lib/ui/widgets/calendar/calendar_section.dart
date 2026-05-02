@@ -16,6 +16,7 @@ class CalendarSection extends ConsumerStatefulWidget {
   final void Function(CalendaEventAdapter event)? onEventTapped;
   final void Function(DateTimeRange range)? onTimeSlotTapped;
   final void Function(CalendaEventAdapter event)? onEventChanged;
+  final void Function(DateTime anchor)? onAnchorChanged;
 
   const CalendarSection({
     super.key,
@@ -23,6 +24,7 @@ class CalendarSection extends ConsumerStatefulWidget {
     this.onEventTapped,
     this.onTimeSlotTapped,
     this.onEventChanged,
+    this.onAnchorChanged,
   });
 
   @override
@@ -135,6 +137,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
 
   void _onPageChanged(DateTime newAnchor) {
     setState(() => _anchorDate = newAnchor);
+    widget.onAnchorChanged?.call(newAnchor);
   }
 
   @override
