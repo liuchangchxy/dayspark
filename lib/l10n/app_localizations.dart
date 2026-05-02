@@ -1324,6 +1324,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Play alarm sound for reminders'**
   String get systemAlarmDesc;
+
+  /// No description provided for @keyboardInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard input'**
+  String get keyboardInput;
+
+  /// No description provided for @timeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'HH:mm'**
+  String get timeHint;
+
+  /// No description provided for @aiParse.
+  ///
+  /// In en, this message translates to:
+  /// **'AI parse'**
+  String get aiParse;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -223,5 +223,8 @@
   "recurringDragDisabled": "重复日程无法通过拖拽移动",
   "eventMoved": "日程已移动",
   "systemAlarm": "系统闹钟",
-  "systemAlarmDesc": "提醒时播放闹钟铃声"
+  "systemAlarmDesc": "提醒时播放闹钟铃声",
+  "keyboardInput": "键盘输入",
+  "timeHint": "HH:mm",
+  "aiParse": "AI 解析"
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 /// Shows a bottom sheet with a Cupertino-style scroll wheel time picker
 /// plus an optional text input field.
@@ -62,6 +63,7 @@ class _WheelTimePickerSheetState extends State<_WheelTimePickerSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -74,12 +76,12 @@ class _WheelTimePickerSheetState extends State<_WheelTimePickerSheet> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(l.cancel),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(_selectedTime),
                   child: Text(
-                    'OK',
+                    l.ok,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.primary,
@@ -95,7 +97,7 @@ class _WheelTimePickerSheetState extends State<_WheelTimePickerSheet> {
             child: CupertinoDatePicker(
               mode: CupertinoDatePickerMode.time,
               initialDateTime: DateTime(
-                2026,
+                DateTime.now().year,
                 1,
                 1,
                 widget.initialTime.hour,
@@ -111,7 +113,7 @@ class _WheelTimePickerSheetState extends State<_WheelTimePickerSheet> {
             child: Row(
               children: [
                 Text(
-                  'Keyboard input',
+                  l.keyboardInput,
                   style: TextStyle(fontSize: 14, color: theme.hintColor),
                 ),
                 const Spacer(),
@@ -133,8 +135,8 @@ class _WheelTimePickerSheetState extends State<_WheelTimePickerSheet> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: TextField(
                 controller: _textController,
-                decoration: const InputDecoration(
-                  hintText: 'HH:mm',
+                decoration: InputDecoration(
+                  hintText: l.timeHint,
                   isDense: true,
                 ),
                 keyboardType: TextInputType.datetime,

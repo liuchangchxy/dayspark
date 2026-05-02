@@ -2,10 +2,12 @@ import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../tables/todos_table.dart';
 import '../tables/todo_tags_table.dart';
+import '../tables/attachments_table.dart';
+import '../tables/reminders_table.dart';
 
 part 'todos_dao.g.dart';
 
-@DriftAccessor(tables: [Todos, TodoTags])
+@DriftAccessor(tables: [Todos, TodoTags, Attachments, Reminders])
 class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
   TodosDao(super.db);
 
@@ -177,8 +179,18 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
         .watch();
   }
 
-  Future<void> emptyTrash() {
-    return (delete(todos)..where((t) => t.deletedAt.isNotNull())).go();
+  Future<void> emptyTrash() async {
+    final deleted = await (select(todos)..where((t) => t.deletedAt.isNotNull())).get();
+    final ids = deleted.map((t) => t.id).toList();
+    if (ids.isEmpty) return;
+    await transaction(() async {
+      for (final id in ids) {
+        await (delete(todoTags)..where((t) => t.todoId.equals(id))).go();
+      }
+      await (delete(attachments)..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
+      await (delete(reminders)..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
+      await (delete(todos)..where((t) => t.id.isIn(ids))).go();
+    });
   }
 
   /// Update the sort order for a list of todo IDs in batch.

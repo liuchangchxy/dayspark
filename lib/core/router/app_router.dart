@@ -76,10 +76,10 @@ abstract final class AppRouter {
           return _fadeTransition(
             EventCreatePage(
               initialStart: start != null
-                  ? DateTime.fromMillisecondsSinceEpoch(int.parse(start))
+                  ? DateTime.fromMillisecondsSinceEpoch(int.tryParse(start) ?? DateTime.now().millisecondsSinceEpoch)
                   : DateTime.now(),
               initialEnd: end != null
-                  ? DateTime.fromMillisecondsSinceEpoch(int.parse(end))
+                  ? DateTime.fromMillisecondsSinceEpoch(int.tryParse(end) ?? DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch)
                   : DateTime.now().add(const Duration(hours: 1)),
             ),
           );
@@ -89,6 +89,7 @@ abstract final class AppRouter {
         path: '/event/edit',
         name: 'eventEdit',
         pageBuilder: (context, state) {
+          if (state.extra is! CalendaEventAdapter) return _fadeTransition(const HomePage());
           final event = state.extra as CalendaEventAdapter;
           return _fadeTransition(EventEditPage(event: event));
         },
@@ -103,6 +104,7 @@ abstract final class AppRouter {
         path: '/todo/edit',
         name: 'todoEdit',
         pageBuilder: (context, state) {
+          if (state.extra is! Todo) return _fadeTransition(const HomePage());
           final todo = state.extra as Todo;
           return _fadeTransition(TodoEditPage(todo: todo));
         },

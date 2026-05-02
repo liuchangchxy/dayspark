@@ -8,4 +8,6 @@ mixin _$TodosDaoMixin on DatabaseAccessor<AppDatabase> {
   $TodosTable get todos => attachedDatabase.todos;
   $TagsTable get tags => attachedDatabase.tags;
   $TodoTagsTable get todoTags => attachedDatabase.todoTags;
+  $AttachmentsTable get attachments => attachedDatabase.attachments;
+  $RemindersTable get reminders => attachedDatabase.reminders;
 }

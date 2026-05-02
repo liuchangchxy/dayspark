@@ -225,7 +225,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(CupertinoIcons.sparkles),
-            tooltip: 'AI parse',
+            tooltip: AppLocalizations.of(context)!.aiParse,
           ),
           TextButton(
             onPressed: _saving ? null : _save,

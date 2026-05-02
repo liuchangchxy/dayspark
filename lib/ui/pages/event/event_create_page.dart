@@ -235,7 +235,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(CupertinoIcons.sparkles),
-            tooltip: 'AI parse',
+            tooltip: AppLocalizations.of(context)!.aiParse,
           ),
           TextButton(
             onPressed: _saving ? null : _save,

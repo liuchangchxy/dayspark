@@ -668,4 +668,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get systemAlarmDesc => 'Play alarm sound for reminders';
+
+  @override
+  String get keyboardInput => 'Keyboard input';
+
+  @override
+  String get timeHint => 'HH:mm';
+
+  @override
+  String get aiParse => 'AI parse';
 }

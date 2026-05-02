@@ -304,5 +304,8 @@
   "recurringDragDisabled": "Recurring events cannot be moved by drag",
   "eventMoved": "Event moved",
   "systemAlarm": "System Alarm",
-  "systemAlarmDesc": "Play alarm sound for reminders"
+  "systemAlarmDesc": "Play alarm sound for reminders",
+  "keyboardInput": "Keyboard input",
+  "timeHint": "HH:mm",
+  "aiParse": "AI parse"
 }

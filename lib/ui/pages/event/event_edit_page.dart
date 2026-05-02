@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
 import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
 import 'package:dayspark/core/l10n/rrule_text_delegate.dart';
-import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -127,7 +126,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.lightError),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: Text(l.delete),
           ),
         ],

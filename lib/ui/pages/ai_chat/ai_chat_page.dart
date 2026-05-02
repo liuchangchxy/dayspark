@@ -38,6 +38,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
     await ref.read(aiChatProvider.notifier).sendMessage(text);
 
+    if (!mounted) return;
     setState(() => _sending = false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {

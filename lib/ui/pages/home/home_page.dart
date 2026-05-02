@@ -227,6 +227,7 @@ class _HomePageState extends ConsumerState<HomePage>
     int parentId,
     String parentType,
   ) {
+    if (!mounted) return;
     final db = ref.read(databaseProvider);
     if (actionId == NotificationActions.markComplete && parentType == 'todo') {
       db.todosDao.markComplete(parentId);

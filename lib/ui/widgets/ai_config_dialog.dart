@@ -85,6 +85,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
   void dispose() {
     _urlController.dispose();
     _modelController.dispose();
+    widget.keyController.dispose();
     super.dispose();
   }
 

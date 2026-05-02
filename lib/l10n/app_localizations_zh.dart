@@ -668,4 +668,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get systemAlarmDesc => '提醒时播放闹钟铃声';
+
+  @override
+  String get keyboardInput => '键盘输入';
+
+  @override
+  String get timeHint => 'HH:mm';
+
+  @override
+  String get aiParse => 'AI 解析';
 }
