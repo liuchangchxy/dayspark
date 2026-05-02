@@ -3,100 +3,75 @@ import SwiftUI
 
 struct CalendarTodoEntry: TimelineEntry {
     let date: Date
-    let events: [[String: Any]]
-    let todos: [[String: Any]]
-    let todoCount: String
+    let events: [[String: String]]
+    let todos: [[String: String]]
+    let todoCount: Int
 }
 
 struct CalendarTodoProvider: TimelineProvider {
-    let appGroupId = "group.com.calendarTodoApp"
-
     func placeholder(in context: Context) -> CalendarTodoEntry {
-        CalendarTodoEntry(date: Date(), events: [], todos: [], todoCount: "0")
+        CalendarTodoEntry(date: Date(), events: [], todos: [], todoCount: 0)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (CalendarTodoEntry) -> Void) {
-        let entry = loadEntry(date: Date())
+        let entry = loadEntry()
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CalendarTodoEntry>) -> Void) {
-        let entry = loadEntry(date: Date())
+        let entry = loadEntry()
         let timeline = Timeline(entries: [entry], policy: .atEnd)
         completion(timeline)
     }
 
-    private func loadEntry(date: Date) -> CalendarTodoEntry {
-        let defaults = UserDefaults(suiteName: appGroupId)
-        var events: [[String: Any]] = []
-        var todos: [[String: Any]] = []
-        var todoCount = "0"
+    private func loadEntry() -> CalendarTodoEntry {
+        let defaults = UserDefaults(suiteName: "group.com.calendarTodoApp")
+        let eventsJson = defaults?.string(forKey: "today_events") ?? "[]"
+        let todosJson = defaults?.string(forKey: "pending_todos") ?? "[]"
+        let todoCount = Int(defaults?.string(forKey: "todo_count") ?? "0") ?? 0
 
-        if let eventsData = defaults?.string(forKey: "today_events"),
-           let data = eventsData.data(using: .utf8),
-           let decoded = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            events = decoded
+        var events: [[String: String]] = []
+        if let data = eventsJson.data(using: .utf8),
+           let list = try? JSONSerialization.jsonObject(with: data) as? [[String: String]] {
+            events = list
         }
 
-        if let todosData = defaults?.string(forKey: "pending_todos"),
-           let data = todosData.data(using: .utf8),
-           let decoded = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            todos = decoded
+        var todos: [[String: String]] = []
+        if let data = todosJson.data(using: .utf8),
+           let list = try? JSONSerialization.jsonObject(with: data) as? [[String: String]] {
+            todos = list
         }
 
-        if let count = defaults?.string(forKey: "todo_count") {
-            todoCount = count
-        }
-
-        return CalendarTodoEntry(date: date, events: events, todos: todos, todoCount: todoCount)
+        return CalendarTodoEntry(date: Date(), events: events, todos: todos, todoCount: todoCount)
     }
 }
 
 struct CalendarTodoWidgetEntryView: View {
-    var entry: CalendarTodoProvider.Entry
+    var entry: CalendarTodoEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header
-            HStack {
-                Image(systemName: "calendar")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                Text("Today's Events")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                Spacer()
-                Text(entry.date, style: .date)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
+            Text(entry.date, style: .date)
+                .font(.caption)
+                .foregroundColor(.secondary)
 
-            // Events section
             if entry.events.isEmpty {
                 Text("No events today")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundColor(.secondary)
             } else {
-                ForEach(0..<entry.events.count, id: \.self) { i in
-                    let event = entry.events[i]
+                ForEach(entry.events.prefix(3).indices, id: \.self) { i in
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(Color.blue)
                             .frame(width: 3, height: 20)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(event["summary"] as? String ?? "")
-                                .font(.caption2)
+                            Text(entry.events[i]["summary"] ?? "")
+                                .font(.caption)
                                 .lineLimit(1)
-                            if let isAllDay = event["isAllDay"] as? Bool, !isAllDay,
-                               let start = event["start"] as? String {
-                                Text(start)
-                                    .font(.system(size: 9))
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text("All Day")
-                                    .font(.system(size: 9))
-                                    .foregroundColor(.secondary)
-                            }
+                            Text(entry.events[i]["isAllDay"] == "true" ? "All Day" : (entry.events[i]["start"] ?? ""))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
                         }
                     }
                 }
@@ -104,49 +79,39 @@ struct CalendarTodoWidgetEntryView: View {
 
             Divider()
 
-            // Todos section
             HStack {
-                Image(systemName: "checklist")
+                Text("To-Do")
                     .font(.caption)
-                    .foregroundColor(.orange)
-                Text("To-Do (\(entry.todoCount))")
+                    .bold()
+                Text("(\(entry.todoCount))")
                     .font(.caption)
-                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
             }
 
             if entry.todos.isEmpty {
                 Text("All done!")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundColor(.green)
             } else {
-                ForEach(0..<entry.todos.count, id: \.self) { i in
-                    let todo = entry.todos[i]
+                ForEach(entry.todos.prefix(3).indices, id: \.self) { i in
                     HStack(spacing: 6) {
-                        Image(systemName: "circle")
-                            .font(.system(size: 10))
-                            .foregroundColor(.orange)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(todo["summary"] as? String ?? "")
+                        Circle()
+                            .stroke(Color.orange, lineWidth: 1.5)
+                            .frame(width: 12, height: 12)
+                        Text(entry.todos[i]["summary"] ?? "")
+                            .font(.caption)
+                            .lineLimit(1)
+                        Spacer()
+                        if let due = entry.todos[i]["dueDate"], !due.isEmpty {
+                            Text(due)
                                 .font(.caption2)
-                                .lineLimit(1)
-                            if let due = todo["dueDate"] as? String {
-                                Text(due)
-                                    .font(.system(size: 9))
-                                    .foregroundColor(.secondary)
-                            }
+                                .foregroundColor(.secondary)
                         }
                     }
                 }
             }
         }
         .padding()
-    }
-}
-
-@main
-struct CalendarTodoWidgetBundle: WidgetBundle {
-    var body: some Widget {
-        CalendarTodoWidget()
     }
 }
 
@@ -160,5 +125,12 @@ struct CalendarTodoWidget: Widget {
         .configurationDisplayName("Calendar & Todo")
         .description("View today's events and pending to-dos.")
         .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+@main
+struct CalendarTodoWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        CalendarTodoWidget()
     }
 }

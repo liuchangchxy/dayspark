@@ -239,6 +239,16 @@ class _AboutPageState extends State<AboutPage> {
             onTap: () => context.push('/feedback'),
             trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
           ),
+          ListTile(
+            leading: const Icon(CupertinoIcons.doc_text),
+            title: Text(l.thirdPartyLicenses),
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: 'DaySpark',
+              applicationVersion: _currentVersion,
+            ),
+            trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
+          ),
         ],
       ),
     );

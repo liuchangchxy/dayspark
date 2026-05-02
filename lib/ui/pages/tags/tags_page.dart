@@ -60,6 +60,7 @@ class TagsPage extends ConsumerWidget {
                   radius: 14,
                 ),
                 title: Text(tag.name),
+                onTap: () => _showEditDialog(context, ref, tag),
                 trailing: IconButton(
                   icon: const Icon(CupertinoIcons.delete, size: 20),
                   onPressed: () => _confirmDeleteTag(context, ref, tag),
@@ -95,6 +96,86 @@ class TagsPage extends ConsumerWidget {
             child: Text(l.delete),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, WidgetRef ref, dynamic tag) {
+    final l = AppLocalizations.of(context)!;
+    final nameController = TextEditingController(text: tag.name);
+    var selectedColor = tag.color;
+    final colors = [
+      '#EF4444',
+      '#F59E0B',
+      '#10B981',
+      '#3B82F6',
+      '#8B5CF6',
+      '#EC4899',
+      '#6B7280',
+      '#14B8A6',
+      '#F97316',
+      '#6366F1',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text(l.editTag),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: l.tagName,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: colors.map((hex) {
+                  final isSelected = hex == selectedColor;
+                  return GestureDetector(
+                    onTap: () => setState(() => selectedColor = hex),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: ColorUtils.parseHex(hex),
+                        shape: BoxShape.circle,
+                        border: isSelected
+                            ? Border.all(color: Colors.black, width: 3)
+                            : null,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                ref.read(updateTagProvider)(
+                  id: tag.id,
+                  name: name,
+                  color: selectedColor,
+                );
+                Navigator.of(ctx).pop();
+              },
+              child: Text(l.save),
+            ),
+          ],
+        ),
       ),
     );
   }

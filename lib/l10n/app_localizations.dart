@@ -293,18 +293,6 @@ abstract class AppLocalizations {
   /// **'CalDAV Account'**
   String get caldavAccount;
 
-  /// No description provided for @addCalDav.
-  ///
-  /// In en, this message translates to:
-  /// **'Add CalDAV Account'**
-  String get addCalDav;
-
-  /// No description provided for @editCalDav.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit CalDAV Account'**
-  String get editCalDav;
-
   /// No description provided for @removeAccount.
   ///
   /// In en, this message translates to:
@@ -328,12 +316,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Password'**
   String get password;
-
-  /// No description provided for @syncNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync Now'**
-  String get syncNow;
 
   /// No description provided for @syncing.
   ///
@@ -484,18 +466,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No calendar available. Add one in Settings.'**
   String get noCalendar;
-
-  /// No description provided for @eventSaved.
-  ///
-  /// In en, this message translates to:
-  /// **'Event saved'**
-  String get eventSaved;
-
-  /// No description provided for @todoSaved.
-  ///
-  /// In en, this message translates to:
-  /// **'Todo saved'**
-  String get todoSaved;
 
   /// No description provided for @confirmDelete.
   ///
@@ -833,35 +803,17 @@ abstract class AppLocalizations {
   /// **'Custom'**
   String get custom;
 
-  /// No description provided for @todayTodo.
-  ///
-  /// In en, this message translates to:
-  /// **'Today'**
-  String get todayTodo;
-
   /// No description provided for @allTasks.
   ///
   /// In en, this message translates to:
   /// **'All Tasks'**
   String get allTasks;
 
-  /// No description provided for @upcoming.
-  ///
-  /// In en, this message translates to:
-  /// **'Upcoming'**
-  String get upcoming;
-
   /// No description provided for @noDueDate.
   ///
   /// In en, this message translates to:
   /// **'No due date'**
   String get noDueDate;
-
-  /// No description provided for @overdueCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} overdue'**
-  String overdueCount(Object count);
 
   /// No description provided for @moveToToday.
   ///
@@ -887,12 +839,6 @@ abstract class AppLocalizations {
   /// **'Skip'**
   String get skip;
 
-  /// No description provided for @completedRecently.
-  ///
-  /// In en, this message translates to:
-  /// **'Recently completed'**
-  String get completedRecently;
-
   /// No description provided for @pendingTodos.
   ///
   /// In en, this message translates to:
@@ -904,12 +850,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Return to Today'**
   String get goToToday;
-
-  /// No description provided for @weekOfMonth.
-  ///
-  /// In en, this message translates to:
-  /// **'Week {week}'**
-  String weekOfMonth(int week);
 
   /// No description provided for @ok.
   ///
@@ -940,18 +880,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Todos First'**
   String get todosFirst;
-
-  /// No description provided for @lunarCalendar.
-  ///
-  /// In en, this message translates to:
-  /// **'Lunar Calendar'**
-  String get lunarCalendar;
-
-  /// No description provided for @lunarCalendarDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Show Chinese lunar dates alongside calendar'**
-  String get lunarCalendarDesc;
 
   /// No description provided for @inbox.
   ///
@@ -1133,23 +1061,11 @@ abstract class AppLocalizations {
   /// **'Deleted'**
   String get deleted;
 
-  /// No description provided for @markedComplete.
-  ///
-  /// In en, this message translates to:
-  /// **'Marked complete'**
-  String get markedComplete;
-
   /// No description provided for @snoozedFor.
   ///
   /// In en, this message translates to:
   /// **'Snoozed for {duration}'**
   String snoozedFor(String duration);
-
-  /// No description provided for @oneHour.
-  ///
-  /// In en, this message translates to:
-  /// **'1 hour'**
-  String get oneHour;
 
   /// No description provided for @markComplete.
   ///
@@ -1276,6 +1192,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Default'**
   String get defaultAccountName;
+
+  /// No description provided for @mcpServer.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP Server'**
+  String get mcpServer;
+
+  /// No description provided for @mcpServerRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running on port {port}'**
+  String mcpServerRunning(int port);
+
+  /// No description provided for @mcpServerStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get mcpServerStopped;
+
+  /// No description provided for @mcpPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get mcpPort;
+
+  /// No description provided for @editTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Tag'**
+  String get editTag;
+
+  /// No description provided for @thirdPartyLicenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Third-Party Licenses'**
+  String get thirdPartyLicenses;
+
+  /// No description provided for @databaseExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Database'**
+  String get databaseExport;
+
+  /// No description provided for @databaseImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Database'**
+  String get databaseImport;
+
+  /// No description provided for @databaseImportConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This will replace all current data. Continue?'**
+  String get databaseImportConfirm;
+
+  /// No description provided for @databaseImportSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Database imported. Please restart the app.'**
+  String get databaseImportSuccess;
+
+  /// No description provided for @databaseExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Database export failed: {error}'**
+  String databaseExportFailed(String error);
+
+  /// No description provided for @databaseImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Database import failed: {error}'**
+  String databaseImportFailed(String error);
+
+  /// No description provided for @security.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get security;
+
+  /// No description provided for @biometricLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric Lock'**
+  String get biometricLock;
+
+  /// No description provided for @biometricLockDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Require biometric authentication to open the app'**
+  String get biometricLockDesc;
+
+  /// No description provided for @biometricPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock DaySpark'**
+  String get biometricPrompt;
+
+  /// No description provided for @backgroundSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Sync'**
+  String get backgroundSync;
+
+  /// No description provided for @backgroundSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Periodically sync calendars in the background'**
+  String get backgroundSyncDesc;
+
+  /// No description provided for @recurringDragDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring events cannot be moved by drag'**
+  String get recurringDragDisabled;
+
+  /// No description provided for @eventMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Event moved'**
+  String get eventMoved;
+
+  /// No description provided for @systemAlarm.
+  ///
+  /// In en, this message translates to:
+  /// **'System Alarm'**
+  String get systemAlarm;
+
+  /// No description provided for @systemAlarmDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Play alarm sound for reminders'**
+  String get systemAlarmDesc;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

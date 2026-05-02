@@ -64,6 +64,22 @@ final deleteTagProvider = Provider<Future<void> Function(int)>((ref) {
   };
 });
 
+/// Update a tag's name and/or color.
+final updateTagProvider =
+    Provider<Future<void> Function({required int id, required String name, String? color})>(
+      (ref) {
+        final db = ref.read(databaseProvider);
+        return ({required id, required name, color}) async {
+          await (db.update(db.tags)..where((t) => t.id.equals(id))).write(
+            TagsCompanion(
+              name: Value(name),
+              color: Value(color ?? '#6B7280'),
+            ),
+          );
+        };
+      },
+    );
+
 /// Assign a tag to an event.
 final addTagToEventProvider =
     Provider<Future<void> Function({required int eventId, required int tagId})>(

@@ -189,10 +189,13 @@ final triggerSyncAllAccountsProvider = Provider<Future<void> Function()>((ref) {
     DateTime? latestSync;
 
     for (final account in accounts) {
+      const storage = FlutterSecureStorage();
+      final password = await storage.read(key: 'account_${account.id}_password') ?? account.password;
+
       final client = CalDavClient(
         baseUrl: account.serverUrl,
         username: account.username,
-        password: account.password,
+        password: password,
       );
 
       final service = SyncService(db: db, client: client);

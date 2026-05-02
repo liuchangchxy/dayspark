@@ -8,7 +8,11 @@ import 'package:dayspark/l10n/app_localizations.dart';
 Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
   final l = AppLocalizations.of(context)!;
   final config = ref.read(aiConfigProvider).value;
-  final keyController = TextEditingController(text: config?.apiKey ?? '');
+  final rawKey = config?.apiKey ?? '';
+  final maskedKey = rawKey.length > 4
+      ? '••••${rawKey.substring(rawKey.length - 4)}'
+      : rawKey;
+  final keyController = TextEditingController(text: maskedKey);
 
   // Find which preset matches the current base URL
   final currentUrl = config?.baseUrl ?? '';
@@ -26,6 +30,7 @@ Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
       initialPresetIndex: selectedPresetIndex,
       isCustom: isCustom,
       ref: ref,
+      originalKey: rawKey,
     ),
   );
 }
@@ -37,6 +42,7 @@ class _AiConfigDialog extends ConsumerStatefulWidget {
   final int initialPresetIndex;
   final bool isCustom;
   final WidgetRef ref;
+  final String originalKey;
 
   const _AiConfigDialog({
     required this.l,
@@ -45,6 +51,7 @@ class _AiConfigDialog extends ConsumerStatefulWidget {
     required this.initialPresetIndex,
     required this.isCustom,
     required this.ref,
+    required this.originalKey,
   });
 
   @override
@@ -264,7 +271,10 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
         ),
         FilledButton(
           onPressed: () async {
-            final key = widget.keyController.text.trim();
+            var key = widget.keyController.text.trim();
+            if (key.startsWith('••••') || key.isEmpty) {
+              key = widget.originalKey;
+            }
             final url = _baseUrl;
             final model = _modelController.text.trim();
             if (key.isEmpty) return;

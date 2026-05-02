@@ -1,13 +1,14 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/accounts_provider.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
   ref.onDispose(() => db.close());
 
-  // Ensure a default calendar exists for existing installs where onCreate didn't seed
   _ensureDefaultCalendar(db);
+  migratePasswordsToSecureStorage(db);
 
   return db;
 });

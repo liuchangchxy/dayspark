@@ -33,13 +33,10 @@
   "tagName": "Tag name",
   "noTags": "No tags yet",
   "caldavAccount": "CalDAV Account",
-  "addCalDav": "Add CalDAV Account",
-  "editCalDav": "Edit CalDAV Account",
   "removeAccount": "Remove Account",
   "serverUrl": "Server URL",
   "username": "Username",
   "password": "Password",
-  "syncNow": "Sync Now",
   "syncing": "Syncing...",
   "lastSync": "Last sync: {time}",
   "@lastSync": {
@@ -75,8 +72,6 @@
   "noResults": "No results",
   "enterTitle": "Please enter a title",
   "noCalendar": "No calendar available. Add one in Settings.",
-  "eventSaved": "Event saved",
-  "todoSaved": "Todo saved",
   "confirmDelete": "Are you sure you want to delete?",
   "clearChat": "Clear chat",
   "typeMessage": "Type a message...",
@@ -199,31 +194,19 @@
   "dayAfterTomorrow": "Day after",
   "nextWeek": "Next week",
   "custom": "Custom",
-  "todayTodo": "Today",
   "allTasks": "All Tasks",
-  "upcoming": "Upcoming",
   "noDueDate": "No due date",
-  "overdueCount": "{count} overdue",
   "moveToToday": "Move to today",
   "moveToTodayPrompt": "You have {count} overdue todo(s). Move due dates to today?",
   "movedToToday": "Moved {count} todo(s) to today",
   "skip": "Skip",
-  "completedRecently": "Recently completed",
   "pendingTodos": "Pending",
   "goToToday": "Return to Today",
-  "weekOfMonth": "Week {week}",
-  "@weekOfMonth": {
-    "placeholders": {
-      "week": { "type": "int" }
-    }
-  },
   "ok": "OK",
   "defaultTab": "Tab Order",
   "defaultTabDesc": "Choose the order of calendar and todos tabs",
   "calendarFirst": "Calendar First",
   "todosFirst": "Todos First",
-  "lunarCalendar": "Lunar Calendar",
-  "lunarCalendarDesc": "Show Chinese lunar dates alongside calendar",
   "inbox": "To-do Box",
   "trash": "Trash",
   "emptyTrash": "Empty Trash",
@@ -265,14 +248,12 @@
   "tutorial": "Tutorial",
   "undo": "Undo",
   "deleted": "Deleted",
-  "markedComplete": "Marked complete",
   "snoozedFor": "Snoozed for {duration}",
   "@snoozedFor": {
     "placeholders": {
       "duration": { "type": "String" }
     }
   },
-  "oneHour": "1 hour",
   "markComplete": "Mark Complete",
   "snooze": "Snooze",
   "themeColor": "Theme Color",
@@ -293,5 +274,35 @@
   "eventStartingSoon": "Event starting soon",
   "taskDueSoon": "Task due soon",
   "addAttachment": "Add attachment",
-  "defaultAccountName": "Default"
+  "defaultAccountName": "Default",
+  "mcpServer": "MCP Server",
+  "mcpServerRunning": "Running on port {port}",
+  "@mcpServerRunning": {
+    "placeholders": {
+      "port": { "type": "int" }
+    }
+  },
+  "mcpServerStopped": "Stopped",
+  "mcpPort": "Port",
+  "editTag": "Edit Tag",
+  "save": "Save",
+  "thirdPartyLicenses": "Third-Party Licenses",
+  "databaseExport": "Export Database",
+  "databaseImport": "Import Database",
+  "databaseImportConfirm": "This will replace all current data. Continue?",
+  "databaseImportSuccess": "Database imported. Please restart the app.",
+  "databaseExportFailed": "Database export failed: {error}",
+  "@databaseExportFailed": { "placeholders": { "error": { "type": "String" } } },
+  "databaseImportFailed": "Database import failed: {error}",
+  "@databaseImportFailed": { "placeholders": { "error": { "type": "String" } } },
+  "security": "Security",
+  "biometricLock": "Biometric Lock",
+  "biometricLockDesc": "Require biometric authentication to open the app",
+  "biometricPrompt": "Unlock DaySpark",
+  "backgroundSync": "Background Sync",
+  "backgroundSyncDesc": "Periodically sync calendars in the background",
+  "recurringDragDisabled": "Recurring events cannot be moved by drag",
+  "eventMoved": "Event moved",
+  "systemAlarm": "System Alarm",
+  "systemAlarmDesc": "Play alarm sound for reminders"
 }

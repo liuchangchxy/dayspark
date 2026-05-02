@@ -9,6 +9,7 @@ class WeekCalendarView extends StatefulWidget {
   final void Function(CalendaEventAdapter)? onEventTapped;
   final void Function(DateTime datetime)? onTimeSlotTapped;
   final void Function(DateTime newAnchor)? onPageChanged;
+  final void Function(CalendaEventAdapter event, DateTime newStart)? onEventChanged;
 
   const WeekCalendarView({
     super.key,
@@ -17,6 +18,7 @@ class WeekCalendarView extends StatefulWidget {
     this.onEventTapped,
     this.onTimeSlotTapped,
     this.onPageChanged,
+    this.onEventChanged,
   });
 
   @override
@@ -354,64 +356,100 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
   ) {
     final events = _eventsForDate(date);
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapUp: (details) {
-        final hour = (details.localPosition.dy / _hourHeight).floor();
-        final tappedDate = DateTime(
+    return DragTarget<CalendaEventAdapter>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (details) {
+        final offset = details.offset;
+        final renderBox = context.findRenderObject() as RenderBox;
+        final local = renderBox.globalToLocal(offset);
+        final newHour = (local.dy / _hourHeight).clamp(0.0, 23.5);
+        final newStart = DateTime(
           date.year,
           date.month,
           date.day,
-          hour.clamp(0, 23),
+          newHour.floor(),
+          ((newHour % 1) * 60).round(),
         );
-        widget.onTimeSlotTapped?.call(tappedDate);
+        widget.onEventChanged?.call(details.data, newStart);
       },
-      child: Container(
-        height: totalHeight,
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-              width: 0.5,
+      builder: (context, candidateData, rejectedData) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapUp: (details) {
+            final hour = (details.localPosition.dy / _hourHeight).floor();
+            final tappedDate = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              hour.clamp(0, 23),
+            );
+            widget.onTimeSlotTapped?.call(tappedDate);
+          },
+          child: Container(
+            height: totalHeight,
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Stack(
+              children: [
+                ...List.generate(25, (hour) {
+                  return Positioned(
+                    top: hour * _hourHeight,
+                    left: 0,
+                    right: 0,
+                    child: Divider(
+                      height: 0.5,
+                      thickness: 0.5,
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  );
+                }),
+                ...events.map((e) {
+                  final startMinutes =
+                      e.start.hour * 60.0 + e.start.minute;
+                  final endMinutes = e.end.hour * 60.0 + e.end.minute;
+                  final duration = (endMinutes - startMinutes).clamp(20.0, double.infinity);
+                  final top = startMinutes / 60.0 * _hourHeight;
+                  final height = (duration / 60.0 * _hourHeight).clamp(20.0, double.infinity);
+
+                  final canDrag = e.rrule == null && !e.isAllDay;
+                  return Positioned(
+                    top: top,
+                    left: 2,
+                    right: 2,
+                    height: height,
+                    child: canDrag
+                        ? LongPressDraggable<CalendaEventAdapter>(
+                            data: e,
+                            feedback: Opacity(
+                              opacity: 0.7,
+                              child: EventTile(event: e),
+                            ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.3,
+                              child: EventTile(event: e),
+                            ),
+                            child: GestureDetector(
+                              onTap: () => widget.onEventTapped?.call(e),
+                              child: EventTile(event: e),
+                            ),
+                          )
+                        : GestureDetector(
+                            onTap: () => widget.onEventTapped?.call(e),
+                            child: EventTile(event: e),
+                          ),
+                  );
+                }),
+              ],
             ),
           ),
-        ),
-        child: Stack(
-          children: [
-            ...List.generate(25, (hour) {
-              return Positioned(
-                top: hour * _hourHeight,
-                left: 0,
-                right: 0,
-                child: Divider(
-                  height: 0.5,
-                  thickness: 0.5,
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                ),
-              );
-            }),
-            ...events.map((e) {
-              final startMinutes =
-                  e.start.hour * 60.0 + e.start.minute;
-              final endMinutes = e.end.hour * 60.0 + e.end.minute;
-              final duration = (endMinutes - startMinutes).clamp(20.0, double.infinity);
-              final top = startMinutes / 60.0 * _hourHeight;
-              final height = (duration / 60.0 * _hourHeight).clamp(20.0, double.infinity);
-
-              return Positioned(
-                top: top,
-                left: 2,
-                right: 2,
-                height: height,
-                child: GestureDetector(
-                  onTap: () => widget.onEventTapped?.call(e),
-                  child: EventTile(event: e),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 

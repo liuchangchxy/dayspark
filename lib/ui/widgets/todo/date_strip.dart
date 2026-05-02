@@ -75,9 +75,6 @@ class DateStrip extends StatelessWidget {
               IconButton(
                 icon: const Icon(CupertinoIcons.calendar, size: 18),
                 onPressed: onCalendarTap,
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               const SizedBox(width: 4),
               _chip(
@@ -113,9 +110,6 @@ class DateStrip extends StatelessWidget {
                       .clamp(0, 6);
                   onDateSelected(newWeekStart.add(Duration(days: offset)));
                 },
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               Expanded(
                 child: Row(
@@ -201,9 +195,6 @@ class DateStrip extends StatelessWidget {
                       .clamp(0, 6);
                   onDateSelected(newWeekStart.add(Duration(days: offset)));
                 },
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
             ],
           ),

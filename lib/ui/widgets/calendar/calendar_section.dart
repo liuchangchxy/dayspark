@@ -239,6 +239,8 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
               onEventTapped: widget.onEventTapped,
               onTimeSlotTapped: (datetime) => _handleTap(datetime),
               onPageChanged: _onPageChanged,
+              onEventChanged: (event, newStart) =>
+                  _handleEventDrag(event, newStart),
             ),
             CalendarViewMode.day => DayCalendarView(
               anchorDate: _anchorDate,
@@ -246,10 +248,19 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
               onEventTapped: widget.onEventTapped,
               onTimeSlotTapped: (datetime) => _handleTap(datetime),
               onPageChanged: _onPageChanged,
+              onEventChanged: (event, newStart) =>
+                  _handleEventDrag(event, newStart),
             ),
           },
         ),
       ],
     );
+  }
+
+  void _handleEventDrag(CalendaEventAdapter event, DateTime newStart) {
+    widget.onEventChanged?.call(event.copyWithData(
+      start: newStart,
+      end: newStart.add(event.end.difference(event.start)),
+    ));
   }
 }

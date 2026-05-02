@@ -108,12 +108,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get caldavAccount => 'CalDAV Account';
 
   @override
-  String get addCalDav => 'Add CalDAV Account';
-
-  @override
-  String get editCalDav => 'Edit CalDAV Account';
-
-  @override
   String get removeAccount => 'Remove Account';
 
   @override
@@ -124,9 +118,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get password => 'Password';
-
-  @override
-  String get syncNow => 'Sync Now';
 
   @override
   String get syncing => 'Syncing...';
@@ -206,12 +197,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noCalendar => 'No calendar available. Add one in Settings.';
-
-  @override
-  String get eventSaved => 'Event saved';
-
-  @override
-  String get todoSaved => 'Todo saved';
 
   @override
   String get confirmDelete => 'Are you sure you want to delete?';
@@ -408,21 +393,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get custom => 'Custom';
 
   @override
-  String get todayTodo => 'Today';
-
-  @override
   String get allTasks => 'All Tasks';
 
   @override
-  String get upcoming => 'Upcoming';
-
-  @override
   String get noDueDate => 'No due date';
-
-  @override
-  String overdueCount(Object count) {
-    return '$count overdue';
-  }
 
   @override
   String get moveToToday => 'Move to today';
@@ -441,18 +415,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get skip => 'Skip';
 
   @override
-  String get completedRecently => 'Recently completed';
-
-  @override
   String get pendingTodos => 'Pending';
 
   @override
   String get goToToday => 'Return to Today';
-
-  @override
-  String weekOfMonth(int week) {
-    return 'Week $week';
-  }
 
   @override
   String get ok => 'OK';
@@ -468,12 +434,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todosFirst => 'Todos First';
-
-  @override
-  String get lunarCalendar => 'Lunar Calendar';
-
-  @override
-  String get lunarCalendarDesc => 'Show Chinese lunar dates alongside calendar';
 
   @override
   String get inbox => 'To-do Box';
@@ -570,15 +530,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleted => 'Deleted';
 
   @override
-  String get markedComplete => 'Marked complete';
-
-  @override
   String snoozedFor(String duration) {
     return 'Snoozed for $duration';
   }
-
-  @override
-  String get oneHour => '1 hour';
 
   @override
   String get markComplete => 'Mark Complete';
@@ -642,4 +596,76 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get defaultAccountName => 'Default';
+
+  @override
+  String get mcpServer => 'MCP Server';
+
+  @override
+  String mcpServerRunning(int port) {
+    return 'Running on port $port';
+  }
+
+  @override
+  String get mcpServerStopped => 'Stopped';
+
+  @override
+  String get mcpPort => 'Port';
+
+  @override
+  String get editTag => 'Edit Tag';
+
+  @override
+  String get thirdPartyLicenses => 'Third-Party Licenses';
+
+  @override
+  String get databaseExport => 'Export Database';
+
+  @override
+  String get databaseImport => 'Import Database';
+
+  @override
+  String get databaseImportConfirm => 'This will replace all current data. Continue?';
+
+  @override
+  String get databaseImportSuccess => 'Database imported. Please restart the app.';
+
+  @override
+  String databaseExportFailed(String error) {
+    return 'Database export failed: $error';
+  }
+
+  @override
+  String databaseImportFailed(String error) {
+    return 'Database import failed: $error';
+  }
+
+  @override
+  String get security => 'Security';
+
+  @override
+  String get biometricLock => 'Biometric Lock';
+
+  @override
+  String get biometricLockDesc => 'Require biometric authentication to open the app';
+
+  @override
+  String get biometricPrompt => 'Unlock DaySpark';
+
+  @override
+  String get backgroundSync => 'Background Sync';
+
+  @override
+  String get backgroundSyncDesc => 'Periodically sync calendars in the background';
+
+  @override
+  String get recurringDragDisabled => 'Recurring events cannot be moved by drag';
+
+  @override
+  String get eventMoved => 'Event moved';
+
+  @override
+  String get systemAlarm => 'System Alarm';
+
+  @override
+  String get systemAlarmDesc => 'Play alarm sound for reminders';
 }

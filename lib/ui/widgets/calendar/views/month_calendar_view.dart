@@ -236,13 +236,6 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
         decoration: BoxDecoration(
           color: theme.colorScheme.primary,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.3),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
         ),
         alignment: Alignment.center,
         child: Text(

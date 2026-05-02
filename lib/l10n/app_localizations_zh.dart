@@ -108,12 +108,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get caldavAccount => 'CalDAV 账户';
 
   @override
-  String get addCalDav => '添加 CalDAV 账户';
-
-  @override
-  String get editCalDav => '编辑 CalDAV 账户';
-
-  @override
   String get removeAccount => '移除账户';
 
   @override
@@ -124,9 +118,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get password => '密码';
-
-  @override
-  String get syncNow => '立即同步';
 
   @override
   String get syncing => '同步中…';
@@ -206,12 +197,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noCalendar => '没有可用的日历，请先在设置中添加。';
-
-  @override
-  String get eventSaved => '日程已保存';
-
-  @override
-  String get todoSaved => '待办已保存';
 
   @override
   String get confirmDelete => '确定要删除吗？';
@@ -408,21 +393,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get custom => '自定义';
 
   @override
-  String get todayTodo => '今日待办';
-
-  @override
   String get allTasks => '全部任务';
 
   @override
-  String get upcoming => '即将到期';
-
-  @override
   String get noDueDate => '无截止日期';
-
-  @override
-  String overdueCount(Object count) {
-    return '$count 条已逾期';
-  }
 
   @override
   String get moveToToday => '移到今天';
@@ -441,18 +415,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skip => '跳过';
 
   @override
-  String get completedRecently => '近期已完成';
-
-  @override
   String get pendingTodos => '待处理';
 
   @override
   String get goToToday => '回到今天';
-
-  @override
-  String weekOfMonth(int week) {
-    return '第$week周';
-  }
 
   @override
   String get ok => '确定';
@@ -468,12 +434,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get todosFirst => '待办在前';
-
-  @override
-  String get lunarCalendar => '农历';
-
-  @override
-  String get lunarCalendarDesc => '在日历中显示中国农历日期';
 
   @override
   String get inbox => '待办箱';
@@ -570,15 +530,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deleted => '已删除';
 
   @override
-  String get markedComplete => '已标记完成';
-
-  @override
   String snoozedFor(String duration) {
     return '已延后 $duration';
   }
-
-  @override
-  String get oneHour => '1 小时';
 
   @override
   String get markComplete => '标记完成';
@@ -642,4 +596,76 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get defaultAccountName => '默认';
+
+  @override
+  String get mcpServer => 'MCP 服务器';
+
+  @override
+  String mcpServerRunning(int port) {
+    return '运行中，端口 $port';
+  }
+
+  @override
+  String get mcpServerStopped => '已停止';
+
+  @override
+  String get mcpPort => '端口';
+
+  @override
+  String get editTag => '编辑标签';
+
+  @override
+  String get thirdPartyLicenses => '第三方开源许可';
+
+  @override
+  String get databaseExport => '导出数据库';
+
+  @override
+  String get databaseImport => '导入数据库';
+
+  @override
+  String get databaseImportConfirm => '这将替换当前所有数据，确定继续吗？';
+
+  @override
+  String get databaseImportSuccess => '数据库导入成功，请重启应用。';
+
+  @override
+  String databaseExportFailed(String error) {
+    return '数据库导出失败：$error';
+  }
+
+  @override
+  String databaseImportFailed(String error) {
+    return '数据库导入失败：$error';
+  }
+
+  @override
+  String get security => '安全';
+
+  @override
+  String get biometricLock => '生物识别锁';
+
+  @override
+  String get biometricLockDesc => '打开应用时需要生物识别验证';
+
+  @override
+  String get biometricPrompt => '解锁灵光';
+
+  @override
+  String get backgroundSync => '后台同步';
+
+  @override
+  String get backgroundSyncDesc => '在后台定期同步日历';
+
+  @override
+  String get recurringDragDisabled => '重复日程无法通过拖拽移动';
+
+  @override
+  String get eventMoved => '日程已移动';
+
+  @override
+  String get systemAlarm => '系统闹钟';
+
+  @override
+  String get systemAlarmDesc => '提醒时播放闹钟铃声';
 }

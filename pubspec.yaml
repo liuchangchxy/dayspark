@@ -1,7 +1,7 @@
 name: dayspark
 description: DaySpark / 灵光 — AI-powered cross-platform calendar & todo app with CalDAV sync.
 publish_to: 'none'
-version: 0.14.0+10
+version: 0.17.0+13
 
 environment:
   sdk: '>=3.11.0 <4.0.0'
@@ -64,6 +64,17 @@ dependencies:
 
   # Network
   connectivity_plus: ^6.0.0
+  home_widget: ^0.9.1
+  mcp_dart: ^2.1.1
+
+  # Security
+  local_auth: ^2.3.0
+
+  # Background tasks
+  workmanager: ^0.5.2
+
+  # Alarm
+  alarm: ^5.1.5
 
 dev_dependencies:
   flutter_test:
@@ -78,6 +89,9 @@ dev_dependencies:
 
   # Testing
   mocktail: ^1.0.4
+
+  # OSS licenses
+  flutter_oss_licenses: ^3.0.1
 
 flutter:
   generate: true

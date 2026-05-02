@@ -27,7 +27,7 @@ void main() {
 
     test('accent values match DESIGN.md', () {
       expect(AppColors.lightAccent, const Color(0xFF2563EB));
-      expect(AppColors.darkAccent, const Color(0xFF3B82F6));
+      expect(AppColors.darkAccent, const Color(0xFF60A5FA));
     });
 
     test('light background is #FAFAFA', () {

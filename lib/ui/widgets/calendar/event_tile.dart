@@ -11,12 +11,17 @@ class EventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bgColor = event.color ?? AppColors.lightAccent;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final resolvedColor = isDark ? AppColors.darkAccent : bgColor;
 
-    return Container(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Container(
       decoration: BoxDecoration(
-        color: bgColor.withValues(alpha: 0.15),
+        color: resolvedColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: bgColor, width: 2),
+        border: Border.all(color: resolvedColor, width: 2),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: Column(
@@ -28,7 +33,7 @@ class EventTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: bgColor,
+              color: resolvedColor,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -38,11 +43,12 @@ class EventTile extends StatelessWidget {
               DateFormatters.formatTime(event.start),
               style: TextStyle(
                 fontSize: 10,
-                color: bgColor.withValues(alpha: 0.8),
+                color: resolvedColor.withValues(alpha: 0.8),
               ),
               maxLines: 1,
             ),
         ],
+      ),
       ),
     );
   }

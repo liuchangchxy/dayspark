@@ -41,19 +41,25 @@ class CalDavClient {
     required String baseUrl,
     required String username,
     required String password,
-  }) : _dio = Dio(
-         BaseOptions(
-           baseUrl: baseUrl,
-           connectTimeout: const Duration(seconds: 30),
-           receiveTimeout: const Duration(seconds: 30),
-           sendTimeout: const Duration(seconds: 30),
-           headers: {
-             'Authorization': 'Basic ${_encodeBasicAuth(username, password)}',
-             'Content-Type': 'application/xml; charset=utf-8',
-           },
-           responseType: ResponseType.plain,
-         ),
-       );
+  }) : _dio = _createDio(baseUrl, username, password);
+
+  static Dio _createDio(String baseUrl, String username, String password) {
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 30),
+        headers: {
+          'Authorization': 'Basic ${_encodeBasicAuth(username, password)}',
+          'Content-Type': 'application/xml; charset=utf-8',
+        },
+        responseType: ResponseType.plain,
+      ),
+    );
+    dio.interceptors.add(_HttpsEnforcerInterceptor());
+    return dio;
+  }
 
   static String _encodeBasicAuth(String username, String password) {
     final credentials = '$username:$password';
@@ -342,5 +348,23 @@ class CalDavClient {
   /// Dispose the underlying Dio client.
   void dispose() {
     _dio.close();
+  }
+}
+
+class _HttpsEnforcerInterceptor extends Interceptor {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    if (options.uri.scheme == 'http') {
+      final secureUri = Uri(
+        scheme: 'https',
+        host: options.uri.host,
+        port: options.uri.port == 80 ? 443 : options.uri.port,
+        path: options.uri.path,
+        queryParameters: options.uri.queryParameters,
+        fragment: options.uri.fragment,
+      );
+      options.baseUrl = secureUri.origin;
+    }
+    handler.next(options);
   }
 }

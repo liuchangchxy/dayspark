@@ -21,8 +21,8 @@ abstract final class AppColors {
   static const Color darkSurface = Color(0xFF1A1A2E);
   static const Color darkTextPrimary = Color(0xFFE4E4E7);
   static const Color darkTextSecondary = Color(0xFF9CA3AF);
-  static const Color darkAccent = Color(0xFF3B82F6);
-  static const Color darkAccentHover = Color(0xFF2563EB);
+  static const Color darkAccent = Color(0xFF60A5FA);
+  static const Color darkAccentHover = Color(0xFF93C5FD);
   static const Color darkSuccess = Color(0xFF22C55E);
   static const Color darkWarning = Color(0xFFFACC15);
   static const Color darkError = Color(0xFFEF4444);

@@ -1,16 +1,24 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/core/utils/file_reader.dart';
+import 'package:workmanager/workmanager.dart';
+
 import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/accounts_provider.dart';
+import 'package:dayspark/domain/providers/biometric_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/data/remote/caldav/sync_service.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
@@ -18,6 +26,8 @@ import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
+import 'package:dayspark/domain/services/alarm_service.dart';
+import 'package:dayspark/domain/providers/mcp_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 
@@ -25,6 +35,25 @@ class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
   static const _repo = 'liuchangchxy/dayspark';
+
+  static final backgroundSyncProvider = StateProvider<bool>((ref) {
+    return false;
+  });
+
+  static final systemAlarmProvider = StateProvider<bool>((ref) {
+    return false;
+  });
+
+  static Future<void> loadSystemAlarmSetting(WidgetRef ref) async {
+    ref.read(systemAlarmProvider.notifier).state =
+        await AlarmService.isEnabled();
+  }
+
+  static Future<void> loadBackgroundSyncSetting(WidgetRef ref) async {
+    final prefs = await SharedPreferences.getInstance();
+    ref.read(backgroundSyncProvider.notifier).state =
+        prefs.getBool('background_sync_enabled') ?? false;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -80,6 +109,56 @@ class SettingsPage extends ConsumerWidget {
             subtitle: Text(l.calendarData),
             onTap: () => _showIcsDialog(context, ref),
           ),
+          ListTile(
+            leading: const Icon(CupertinoIcons.arrow_down_doc),
+            title: Text(l.databaseExport),
+            subtitle: Text(l.databaseImport),
+            onTap: () => _showDbDialog(context, ref),
+          ),
+
+          // ── Security ──
+          ref.watch(isBiometricAvailableProvider).when(
+                data: (available) {
+                  if (!available) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Divider(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          l.security,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                      SwitchListTile(
+                        secondary: const Icon(CupertinoIcons.lock),
+                        title: Text(l.biometricLock),
+                        subtitle: Text(l.biometricLockDesc),
+                        value: ref.watch(biometricLockEnabledProvider),
+                        onChanged: (v) async {
+                          final prefs =
+                              await SharedPreferences.getInstance();
+                          await prefs.setBool(
+                            'biometric_lock_enabled',
+                            v,
+                          );
+                          ref
+                              .read(
+                                biometricLockEnabledProvider.notifier,
+                              )
+                              .state = v;
+                        },
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
 
           const Divider(),
 
@@ -144,7 +223,40 @@ class SettingsPage extends ConsumerWidget {
                 _buildCaldavSection(context, ref),
               ],
 
+              const Divider(indent: 16, endIndent: 16),
+
+              // MCP Server
+              SwitchListTile(
+                secondary: const Icon(CupertinoIcons.antenna_radiowaves_left_right),
+                title: Text(l.mcpServer),
+                subtitle: _buildMcpSubtitle(ref),
+                value: ref.watch(mcpRunningProvider),
+                onChanged: (v) async {
+                  final service = ref.read(mcpServiceProvider);
+                  if (v) {
+                    await service.start();
+                  } else {
+                    await service.stop();
+                  }
+                  ref.read(mcpRunningProvider.notifier).state = v;
+                },
+              ),
+
             ],
+          ),
+
+          const Divider(),
+
+          // ── System Alarm ──
+          SwitchListTile(
+            secondary: const Icon(CupertinoIcons.alarm),
+            title: Text(l.systemAlarm),
+            subtitle: Text(l.systemAlarmDesc),
+            value: ref.watch(systemAlarmProvider),
+            onChanged: (v) async {
+              await AlarmService.setEnabled(v);
+              ref.read(systemAlarmProvider.notifier).state = v;
+            },
           ),
 
           const Divider(),
@@ -153,7 +265,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.14.0'),
+            subtitle: const Text('DaySpark v0.17.0'),
             onTap: () => context.push('/about'),
           ),
         ],
@@ -264,6 +376,29 @@ class SettingsPage extends ConsumerWidget {
           title: Text(l.addAccount),
           onTap: () => _showAddAccountDialog(context, ref),
         ),
+        SwitchListTile(
+          secondary: const SizedBox(width: 24),
+          title: Text(l.backgroundSync),
+          subtitle: Text(l.backgroundSyncDesc),
+          value: ref.watch(backgroundSyncProvider),
+          onChanged: (v) async {
+            ref.read(backgroundSyncProvider.notifier).state = v;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('background_sync_enabled', v);
+            if (v) {
+              Workmanager().registerPeriodicTask(
+                'caldav-sync',
+                'caldavPeriodicSync',
+                frequency: const Duration(minutes: 15),
+                constraints: Constraints(
+                  networkType: NetworkType.connected,
+                ),
+              );
+            } else {
+              Workmanager().cancelByUniqueName('caldav-sync');
+            }
+          },
+        ),
       ],
     );
   }
@@ -274,6 +409,15 @@ class SettingsPage extends ConsumerWidget {
       data: (configured) => Text(configured ? '✓' : ''),
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const Text(''),
+    );
+  }
+
+  Widget _buildMcpSubtitle(WidgetRef ref) {
+    final l = AppLocalizations.of(ref.context);
+    final running = ref.watch(mcpRunningProvider);
+    if (l == null) return const SizedBox.shrink();
+    return Text(
+      running ? l.mcpServerRunning(3000) : l.mcpServerStopped,
     );
   }
 
@@ -526,6 +670,104 @@ class SettingsPage extends ConsumerWidget {
               Navigator.of(ctx).pop();
             },
             child: Text(l.resetColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDbDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.databaseExport),
+        content: Text(l.databaseImport),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                final dir = await getApplicationSupportDirectory();
+                final dbPath = p.join(dir.path, 'calendar_todo');
+                final file = File(dbPath);
+                if (!await file.exists()) return;
+                if (context.mounted) {
+                  await Share.shareXFiles(
+                    [XFile(dbPath)],
+                    subject: 'DaySpark Database Export',
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(l.databaseExportFailed('$e')),
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text(l.databaseExport),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              try {
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: ['db'],
+                );
+                if (result == null || result.files.isEmpty) return;
+                if (!context.mounted) return;
+
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dCtx) => AlertDialog(
+                    title: Text(l.databaseImport),
+                    content: Text(l.databaseImportConfirm),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dCtx).pop(false),
+                        child: Text(l.cancel),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(dCtx).pop(true),
+                        child: Text(l.import),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) return;
+
+                final pickedFile = result.files.first;
+                final bytes = await File(pickedFile.path!).readAsBytes();
+                final dir = await getApplicationSupportDirectory();
+                final dbPath = p.join(dir.path, 'calendar_todo');
+
+                await ref.read(databaseProvider).close();
+                await File(dbPath).writeAsBytes(bytes);
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l.databaseImportSuccess)),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(l.databaseImportFailed('$e')),
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text(l.databaseImport),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.cancel),
           ),
         ],
       ),

@@ -17,6 +17,7 @@ import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dayspark/domain/providers/connectivity_provider.dart';
+import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/domain/services/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
@@ -101,6 +102,7 @@ class _HomePageState extends ConsumerState<HomePage>
         _checkOverdueTodos();
         _startDayCheckTimer();
         _checkVersionChangelog();
+        ref.read(updateHomeWidgetProvider)();
       } catch (e) {
         debugPrint('initState microtask error: $e');
       }

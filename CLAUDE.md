@@ -4,10 +4,12 @@
 **当用户明确说"记住"、"以后都这样"、"忘了没"、"写入规则"等，立即提炼写入本文件。** 不要主动存，等用户要求再存。
 
 ## Project Overview
-- Flutter + Dart | Drift (SQLite) | Riverpod | go_router
-- Open-source calendar & todo app with CalDAV sync + AI
+- Flutter + Dart | Drift (SQLite) | Riverpod | go_router | home_widget | mcp_dart | alarm | local_auth | workmanager
+- Open-source calendar & todo app with CalDAV sync + AI + MCP server
 - GitHub: https://github.com/liuchangchxy/dayspark
 - Package: `dayspark`, Android: `com.dayspark.app`
+- Account passwords stored in `FlutterSecureStorage`, not in DB plaintext
+- Current version: `0.16.0+12`
 
 ## Release & CI
 1. `flutter analyze` **must** be zero issue before any push
@@ -46,3 +48,4 @@
 - 改了 `.arb` 后必须 `flutter gen-l10n`
 - 改了 provider 结构后检查 `test/` 下对应测试
 - Fix code, don't suppress warnings
+- 项目功能状态以 `docs/ROADMAP.md` 为准

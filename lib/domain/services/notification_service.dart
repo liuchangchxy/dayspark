@@ -5,6 +5,7 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../data/local/database/app_database.dart';
+import 'alarm_service.dart';
 
 /// Action IDs for notification action buttons.
 class NotificationActions {
@@ -122,11 +123,21 @@ class NotificationService {
       scheduledTime: reminder.triggerTime,
       payload: '${reminder.parentType}:${reminder.parentId}',
     );
+
+    if (await AlarmService.isEnabled()) {
+      await AlarmService.scheduleAlarm(
+        id: reminder.id,
+        dateTime: reminder.triggerTime,
+        title: isEvent ? eventReminderTitle : todoReminderTitle,
+        body: isEvent ? eventReminderBody : todoReminderBody,
+      );
+    }
   }
 
   /// Cancel a scheduled notification by id.
   Future<void> cancel(int id) async {
     await _plugin.cancel(id: id);
+    await AlarmService.cancelAlarm(id);
   }
 
   /// Reschedule a simple reminder notification at a future time.
