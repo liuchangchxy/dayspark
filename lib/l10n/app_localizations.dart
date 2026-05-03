@@ -1342,6 +1342,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI parse'**
   String get aiParse;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @languageSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow System'**
+  String get languageSystem;
+
+  /// No description provided for @languageZh.
+  ///
+  /// In en, this message translates to:
+  /// **'Chinese'**
+  String get languageZh;
+
+  /// No description provided for @languageEn.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get languageEn;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

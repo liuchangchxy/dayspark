@@ -104,7 +104,6 @@ class _WheelTimePickerSheetState extends State<_WheelTimePickerSheet> {
                 widget.initialTime.minute,
               ),
               onDateTimeChanged: _onChanged,
-              use24hFormat: true,
             ),
           ),
           // Keyboard input toggle

@@ -677,4 +677,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiParse => 'AI 解析';
+
+  @override
+  String get language => '语言';
+
+  @override
+  String get languageSystem => '跟随系统';
+
+  @override
+  String get languageZh => '中文';
+
+  @override
+  String get languageEn => 'English';
 }

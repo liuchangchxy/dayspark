@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -19,6 +20,7 @@ import 'package:dayspark/data/remote/caldav/sync_service.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
+import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/domain/services/alarm_service.dart';
@@ -77,6 +79,18 @@ class SettingsPage extends ConsumerWidget {
             title: Text(l.themeColor),
             subtitle: _themeColorPreview(ref),
             onTap: () => _showColorPicker(context, ref),
+          ),
+          ListTile(
+            leading: const Icon(CupertinoIcons.globe),
+            title: Text(l.language),
+            subtitle: Text(
+              ref.watch(localeProvider) == null
+                  ? l.languageSystem
+                  : ref.watch(localeProvider)?.languageCode == 'zh'
+                      ? l.languageZh
+                      : l.languageEn,
+            ),
+            onTap: () => _showLanguageDialog(context, ref),
           ),
 
           // ── Tab Order ──
@@ -210,7 +224,10 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: const Text('DaySpark v0.17.0'),
+            subtitle: FutureBuilder<String>(
+              future: PackageInfo.fromPlatform().then((i) => 'DaySpark v${i.version}'),
+              builder: (_, snap) => Text(snap.data ?? ''),
+            ),
             onTap: () => context.push('/about'),
           ),
         ],
@@ -625,6 +642,61 @@ class SettingsPage extends ConsumerWidget {
               Navigator.of(ctx).pop();
             },
             child: Text(l.resetColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final current = ref.read(localeProvider);
+    showDialog(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l.language),
+        children: [
+          SimpleDialogOption(
+            onPressed: () {
+              ref.read(localeProvider.notifier).setLocale(null);
+              Navigator.of(ctx).pop();
+            },
+            child: ListTile(
+              leading: Icon(
+                current == null ? CupertinoIcons.checkmark : null,
+                size: 20,
+              ),
+              title: Text(l.languageSystem),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              ref.read(localeProvider.notifier).setLocale(const Locale('zh'));
+              Navigator.of(ctx).pop();
+            },
+            child: ListTile(
+              leading: Icon(
+                current?.languageCode == 'zh' ? CupertinoIcons.checkmark : null,
+                size: 20,
+              ),
+              title: Text(l.languageZh),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              ref.read(localeProvider.notifier).setLocale(const Locale('en'));
+              Navigator.of(ctx).pop();
+            },
+            child: ListTile(
+              leading: Icon(
+                current?.languageCode == 'en' ? CupertinoIcons.checkmark : null,
+                size: 20,
+              ),
+              title: Text(l.languageEn),
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
         ],
       ),

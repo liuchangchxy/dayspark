@@ -28,8 +28,8 @@ class DayCalendarView extends StatefulWidget {
 class _DayCalendarViewState extends State<DayCalendarView> {
   static const double _hourHeight = 48.0;
   static const double _timelineWidth = 48.0;
-  static const int _totalDays = 3650;
-  static const int _epochDay = 1825;
+  static const int _totalDays = 20000;
+  static const int _epochDay = 10000;
   static const Duration _scrollTarget = Duration(hours: 8);
 
   late PageController _pageController;

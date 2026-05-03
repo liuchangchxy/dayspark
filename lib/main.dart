@@ -9,6 +9,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'data/remote/caldav/background_sync_worker.dart';
 import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
+import 'domain/providers/locale_provider.dart';
 import 'domain/services/alarm_service.dart';
 
 void main() async {
@@ -34,14 +35,18 @@ class DaySparkApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(localeProvider);
+    ref.read(localeProvider.notifier).load();
     final themeMode = ref.watch(themeModeProvider);
     final seedColor = ref.watch(themeColorProvider);
+    final locale = ref.watch(localeProvider);
     return MaterialApp.router(
       title: 'DaySpark',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(seedColor: seedColor),
       darkTheme: AppTheme.dark(seedColor: seedColor),
       themeMode: themeMode,
+      locale: locale,
       localizationsDelegates: const [
         ...AppLocalizations.localizationsDelegates,
         GlobalMaterialLocalizations.delegate,

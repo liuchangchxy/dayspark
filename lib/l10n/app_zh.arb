@@ -226,5 +226,9 @@
   "systemAlarmDesc": "提醒时播放闹钟铃声",
   "keyboardInput": "键盘输入",
   "timeHint": "HH:mm",
-  "aiParse": "AI 解析"
+  "aiParse": "AI 解析",
+  "language": "语言",
+  "languageSystem": "跟随系统",
+  "languageZh": "中文",
+  "languageEn": "English"
 }

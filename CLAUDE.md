@@ -3,6 +3,12 @@
 ## 第一条规则
 **当用户明确说"记住"、"以后都这样"、"忘了没"、"写入规则"等，立即提炼写入本文件。** 不要主动存，等用户要求再存。
 
+## 协作规则
+1. **修改日历/数据库/provider/通知相关代码前，先读 `docs/CONSTRAINTS.md`**，确认改动不违反已有约束
+2. **每次修 bug 或做关键决策后，更新 `docs/CONSTRAINTS.md`**，记录具体约束 + 为什么
+3. **用户反馈视为产品设计意图**，不是单纯的 bug 报告。反馈中提到的"为什么没有 X"意味着用户想要 X
+4. **遇到模糊反馈先提问确认意图再动手**，不要自行假设后直接改代码
+
 ## Project Overview
 - Flutter + Dart | Drift (SQLite) | Riverpod | go_router | home_widget | mcp_dart | alarm | local_auth | workmanager
 - Open-source calendar & todo app with CalDAV sync + AI + MCP server

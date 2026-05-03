@@ -28,8 +28,8 @@ class WeekCalendarView extends StatefulWidget {
 class _WeekCalendarViewState extends State<WeekCalendarView> {
   static const double _hourHeight = 48.0;
   static const double _timelineWidth = 48.0;
-  static const int _totalWeeks = 1040;
-  static const int _epochWeek = 520;
+  static const int _totalWeeks = 4000;
+  static const int _epochWeek = 2000;
   static const Duration _scrollTarget = Duration(hours: 8);
 
   late PageController _pageController;

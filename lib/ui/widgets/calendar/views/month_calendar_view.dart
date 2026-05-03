@@ -24,8 +24,8 @@ class MonthCalendarView extends StatefulWidget {
 }
 
 class _MonthCalendarViewState extends State<MonthCalendarView> {
-  static const int _epochMonth = 120;
-  static const int _totalMonths = 240;
+  static const int _epochMonth = 400;
+  static const int _totalMonths = 800;
 
   late PageController _pageController;
   bool _isAnimating = false;
@@ -192,12 +192,13 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
     bool isCurrentMonth,
     List<CalendaEventAdapter> events,
   ) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        widget.onTimeSlotTapped?.call(date);
-      },
-      child: Padding(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          widget.onTimeSlotTapped?.call(date);
+        },
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -225,6 +226,7 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

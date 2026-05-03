@@ -43,14 +43,10 @@ class _HomePageState extends ConsumerState<HomePage>
   Timer? _dayCheckTimer;
   DateTime? _lastCheckedDay;
 
-  // Calendar view anchor — updated when user swipes/navigates in calendar.
-  DateTime _calendarAnchor = DateTime.now();
-
-  DateTimeRange _calendarRange() {
-    final anchor = _calendarAnchor;
+  static DateTimeRange _calendarRange() {
     return DateTimeRange(
-      start: DateTime(anchor.year, anchor.month - 1, 1),
-      end: DateTime(anchor.year, anchor.month + 2, 1),
+      start: DateTime(2000, 1, 1),
+      end: DateTime(2030, 12, 31),
     );
   }
 
@@ -352,9 +348,6 @@ class _HomePageState extends ConsumerState<HomePage>
         final adapters = expandRecurringEvents(events, range);
         return CalendarSection(
           events: adapters,
-          onAnchorChanged: (anchor) {
-            setState(() => _calendarAnchor = anchor);
-          },
           onEventTapped: (event) => context.push('/event/edit', extra: event),
           onTimeSlotTapped: (range) {
             context.push(

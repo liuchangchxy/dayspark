@@ -307,5 +307,9 @@
   "systemAlarmDesc": "Play alarm sound for reminders",
   "keyboardInput": "Keyboard input",
   "timeHint": "HH:mm",
-  "aiParse": "AI parse"
+  "aiParse": "AI parse",
+  "language": "Language",
+  "languageSystem": "Follow System",
+  "languageZh": "Chinese",
+  "languageEn": "English"
 }

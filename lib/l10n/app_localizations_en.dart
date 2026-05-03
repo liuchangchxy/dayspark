@@ -677,4 +677,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiParse => 'AI parse';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get languageSystem => 'Follow System';
+
+  @override
+  String get languageZh => 'Chinese';
+
+  @override
+  String get languageEn => 'English';
 }
