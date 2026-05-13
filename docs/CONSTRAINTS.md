@@ -91,6 +91,20 @@
 - **Why**: 用户多次反馈没有触摸反馈
 - **Date**: 2026-05-03
 
+## Architecture / 架构
+
+### 基础设施服务放在 lib/infrastructure/ 而非 domain/services/
+- 平台插件调用（alarm、notification、home_widget）→ `lib/infrastructure/platform/`
+- 网络/socket 服务（mcp_server）→ `lib/infrastructure/mcp/`
+- `domain/services/` 只保留纯领域逻辑（ai_scheduler、ics）
+- **Why**: 平台 API 变化不应触及领域层；基础设施可独立替换
+- **Date**: 2026-05-14
+
+### file_reader 属于 data 层
+- `lib/data/file_reader.dart` + `_native.dart` + `_web.dart`
+- 不在 `core/utils/`，因为文件 I/O 是数据访问操作
+- **Date**: 2026-05-14
+
 ## Routing / 路由
 
 ### URL query params 用 tryParse 不用 parse

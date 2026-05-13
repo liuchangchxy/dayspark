@@ -30,7 +30,7 @@ dependencies:
   shared_preferences: ^2.5.3
 
   # Calendar UI
-  intl: any
+  intl: ^0.20.0
 
   # Recurring events (RRULE RFC 5545)
   rrule: ^0.2.18
@@ -54,7 +54,7 @@ dependencies:
 
   # Notifications
   flutter_local_notifications: ^21.0.0
-  timezone: any
+  timezone: ^0.11.0
 
   # System paths
   path: ^1.9.1

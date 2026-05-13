@@ -10,7 +10,7 @@ import 'core/theme/app_theme.dart';
 import 'data/remote/caldav/background_sync_worker.dart';
 import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
 import 'domain/providers/locale_provider.dart';
-import 'domain/services/alarm_service.dart';
+import 'infrastructure/platform/alarm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

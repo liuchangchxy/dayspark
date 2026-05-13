@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dayspark/core/utils/date_formatters.dart';
-import 'package:dayspark/core/utils/file_reader.dart';
+import 'package:dayspark/data/file_reader.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'package:dayspark/domain/providers/sync_provider.dart';
@@ -23,7 +23,7 @@ import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
-import 'package:dayspark/domain/services/alarm_service.dart';
+import 'package:dayspark/infrastructure/platform/alarm_service.dart';
 import 'package:dayspark/domain/providers/mcp_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';

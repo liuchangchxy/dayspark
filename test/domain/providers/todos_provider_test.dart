@@ -5,7 +5,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
-import 'package:dayspark/domain/services/notification_service.dart';
+import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 
