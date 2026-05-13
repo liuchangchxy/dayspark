@@ -2,7 +2,7 @@
 
 ---
 
-## v0.18.0 Security & Stability Fixes / v0.18.0 安全与稳定性修复
+## v0.19.0 Security & Stability Fixes / v0.19.0 安全与稳定性修复
 
 ### Security / 安全
 - **Signing key removed from Git** — `key.properties` and `release-keystore.jks` untracked, added to `.gitignore`. Keystore rotation required on next release build. / 签名密钥从 Git 追踪中移除，加入 .gitignore。下次发版需轮换密钥。
