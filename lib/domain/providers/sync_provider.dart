@@ -190,7 +190,8 @@ final triggerSyncAllAccountsProvider = Provider<Future<void> Function()>((ref) {
 
     for (final account in accounts) {
       const storage = FlutterSecureStorage();
-      final password = await storage.read(key: 'account_${account.id}_password') ?? account.password;
+      final password = await storage.read(key: 'account_${account.id}_password');
+      if (password == null || password.isEmpty) continue;
 
       final client = CalDavClient(
         baseUrl: account.serverUrl,

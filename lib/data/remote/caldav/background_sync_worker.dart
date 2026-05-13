@@ -15,8 +15,8 @@ void callbackDispatcher() {
       final accounts = await (db.select(db.accounts)).get();
       for (final account in accounts) {
         final password =
-            await storage.read(key: 'account_${account.id}_password') ??
-            account.password;
+            await storage.read(key: 'account_${account.id}_password');
+        if (password == null || password.isEmpty) continue;
         final client = CalDavClient(
           baseUrl: account.serverUrl,
           username: account.username,

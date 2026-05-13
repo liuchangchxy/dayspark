@@ -152,10 +152,9 @@ class _HomePageState extends ConsumerState<HomePage>
       final current = info.version;
       final lastSeen = prefs.getString('last_seen_version');
       if (lastSeen != null && lastSeen != current) {
-        prefs.setString('last_seen_version', current);
         if (!mounted) return;
         final l = AppLocalizations.of(context)!;
-        showDialog(
+        await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
             title: Text(l.whatsNew),
@@ -170,6 +169,7 @@ class _HomePageState extends ConsumerState<HomePage>
             ],
           ),
         );
+        prefs.setString('last_seen_version', current);
       } else {
         prefs.setString('last_seen_version', current);
       }

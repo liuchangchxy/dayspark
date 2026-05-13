@@ -54,6 +54,8 @@ Pods/
 # Environment & secrets
 .env
 *.env.local
+android/app/key.properties
+*.jks
 
 # Claude / AI tooling
 .claude/

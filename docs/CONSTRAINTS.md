@@ -112,3 +112,31 @@
 - state.extra 使用前必须做类型检查
 - **Why**: URL 参数可能为空或格式不对，parse 会抛异常
 - **Date**: 2026-05-02
+
+## Security / 安全
+
+### 密钥文件禁止提交到 Git
+- `key.properties`、`*.jks` 必须在 `.gitignore` 中
+- **Why**: 签名密钥泄露可导致供应链攻击
+- **Date**: 2026-05-14
+
+### 密码只存 FlutterSecureStorage，不回退到数据库
+- 读取密码时 `storage.read()` 返回 null → 跳过该账户，不用 `?? account.password`
+- **Why**: 数据库中密码字段是明文，迁移完成后应为空，但不应依赖回退
+- **Date**: 2026-05-14
+
+### Release 构建必须启用 R8 混淆
+- `build.gradle.kts` release buildType 必须有 `isMinifyEnabled = true`
+- **Why**: 不混淆的 APK 类名/方法名/字符串明文可读，逆向极容易
+- **Date**: 2026-05-14
+
+### 同步层禁止空 catch 块
+- `sync_service.dart` 中所有 `catch` 必须至少 `debugPrint`
+- **Why**: 空 catch 吞掉异常导致同步失败无法排查
+- **Date**: 2026-05-14
+
+### Provider 中解析外部输入用 tryParse + fallback
+- `eventsInDateRangeProvider` 等 family provider 解析 key 时用 `int.tryParse`
+- 解析失败返回空数据而非抛异常
+- **Why**: 异常 key 会导致 Provider 级联崩溃，整个视图白屏
+- **Date**: 2026-05-14

@@ -2,6 +2,24 @@
 
 ---
 
+## v0.18.0 Security & Stability Fixes / v0.18.0 安全与稳定性修复
+
+### Security / 安全
+- **Signing key removed from Git** — `key.properties` and `release-keystore.jks` untracked, added to `.gitignore`. Keystore rotation required on next release build. / 签名密钥从 Git 追踪中移除，加入 .gitignore。下次发版需轮换密钥。
+- **Release build hardened** — Enabled R8 minification (`isMinifyEnabled`) and resource shrinking (`isShrinkResources`) with ProGuard rules. / Release 构建启用 R8 混淆和资源压缩。
+- **Password fallback removed** — CalDAV sync no longer falls back to plaintext DB password when SecureStorage read fails; skips account instead. / CalDAV 同步不再回退到数据库明文密码，SecureStorage 读取失败时跳过该账户。
+- **Android permission typo fixed** — `FOREREGROUND_SERVICE` → `FOREGROUND_SERVICE` (Android 14+ foreground service requirement). / 修复 Android 权限拼写错误。
+
+### Bug Fixes / 修复
+- **Todo soft-delete sync** — Added missing `isDirty: true` to `deleteTodoProvider` so soft-deleted todos are pushed to CalDAV server. / Todo 软删除补充 `isDirty` 标记，确保同步到服务器。
+- **Provider crash guard** — `eventsInDateRangeProvider` now uses `int.tryParse` with fallback, preventing `FormatException` cascade crash. / 事件 Provider 改用 `tryParse`，防止格式异常导致级联崩溃。
+- **Color parsing safety** — `ColorUtils.parseHex` now validates input length and uses `tryParse`, returning a default blue on invalid hex. / 颜色解析增加输入校验，非法值回退到默认蓝色。
+- **Account deletion cascade** — Deleting an account now properly removes all associated events, todos, reminders, attachments, and tag links in a transaction. / 删除账户时级联清理所有关联数据（事件、待办、提醒、附件、标签），使用事务保证原子性。
+- **Changelog read-mark timing** — Version changelog dialog now marks "read" only after user dismisses it, not before showing. / 更新日志在用户关闭对话框后才标记"已读"。
+- **Sync error visibility** — Replaced 7 empty `catch (_) {}` blocks in `sync_service.dart` with `debugPrint` logging for diagnosability. / 同步层 7 处静默异常改为 `debugPrint` 日志输出。
+
+---
+
 ## v0.9.8 Feedback (12 issues) / v0.9.8 反馈（12 个问题）
 
 ### #1 Calendar view switch date jump / 日历视图切换日期跳转

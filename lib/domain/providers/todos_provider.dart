@@ -122,6 +122,7 @@ final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
     await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
       TodosCompanion(
         deletedAt: Value(DateTime.now()),
+        isDirty: const Value(true),
         updatedAt: Value(DateTime.now()),
       ),
     );

@@ -4,9 +4,13 @@ import 'dart:ui';
 class ColorUtils {
   ColorUtils._();
 
-  /// Parse a hex colour string like `#RRGGBB` or `RRGGBB` into a [Color].
+  static const Color _fallback = Color(0xFF2563EB);
+
   static Color parseHex(String hex) {
     final code = hex.replaceAll('#', '');
-    return Color(int.parse('FF$code', radix: 16));
+    if (code.length != 6) return _fallback;
+    final value = int.tryParse('FF$code', radix: 16);
+    if (value == null) return _fallback;
+    return Color(value);
   }
 }

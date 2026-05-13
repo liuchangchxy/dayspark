@@ -11,8 +11,13 @@ final eventsInDateRangeProvider = StreamProvider.family<List<Event>, String>((
   final db = ref.watch(databaseProvider);
   // Parse range key: "startMs-endMs"
   final parts = rangeKey.split('-');
-  final start = DateTime.fromMillisecondsSinceEpoch(int.parse(parts[0]));
-  final end = DateTime.fromMillisecondsSinceEpoch(int.parse(parts[1]));
+  final startMs = int.tryParse(parts[0]);
+  final endMs = int.tryParse(parts.length > 1 ? parts[1] : '');
+  if (startMs == null || endMs == null) {
+    return Stream.value([]);
+  }
+  final start = DateTime.fromMillisecondsSinceEpoch(startMs);
+  final end = DateTime.fromMillisecondsSinceEpoch(endMs);
   final stream = db.eventsDao.watchByDateRange(start, end);
   return stream.timeout(
     const Duration(seconds: 10),

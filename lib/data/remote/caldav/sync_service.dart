@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../local/database/app_database.dart';
 import 'caldav_client.dart';
@@ -212,7 +213,9 @@ class SyncService {
       try {
         final uid = _converter.extractUid(obj.icalData);
         if (uid != null) remoteUids.add(uid);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Sync: failed to extract UID: $e');
+      }
     }
 
     // Delete local events that no longer exist on server
@@ -268,8 +271,8 @@ class SyncService {
       } else {
         await _db.into(_db.events).insert(companion);
       }
-    } catch (_) {
-      // Skip malformed iCalendar data
+    } catch (e) {
+      debugPrint('Sync: failed to upsert event from remote: $e');
     }
   }
 
@@ -284,7 +287,9 @@ class SyncService {
       try {
         final uid = _converter.extractUid(obj.icalData);
         if (uid != null) remoteUids.add(uid);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Sync: failed to extract UID: $e');
+      }
     }
 
     // Delete local todos that no longer exist on server
@@ -340,8 +345,8 @@ class SyncService {
       } else {
         await _db.into(_db.todos).insert(companion);
       }
-    } catch (_) {
-      // Skip malformed iCalendar data
+    } catch (e) {
+      debugPrint('Sync: failed to upsert todo from remote: $e');
     }
   }
 
@@ -382,8 +387,8 @@ class SyncService {
             updatedAt: Value(DateTime.now()),
           ),
         );
-      } catch (_) {
-        // Will be retried on next sync cycle (isDirty stays true)
+      } catch (e) {
+        debugPrint('Sync: failed to push dirty event ${event.uid}: $e');
       }
     }
   }
@@ -421,8 +426,8 @@ class SyncService {
             updatedAt: Value(DateTime.now()),
           ),
         );
-      } catch (_) {
-        // Will be retried on next sync cycle (isDirty stays true)
+      } catch (e) {
+        debugPrint('Sync: failed to push dirty todo ${todo.uid}: $e');
       }
     }
   }
@@ -445,7 +450,9 @@ class SyncService {
         await _client.deleteObject(href, event.etag!);
 
         await _hardDeleteEvent(event.id);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Sync: failed to push deleted event ${event.uid}: $e');
+      }
     }
   }
 
@@ -465,7 +472,9 @@ class SyncService {
         await _client.deleteObject(href, todo.etag!);
 
         await _hardDeleteTodo(todo.id);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Sync: failed to push deleted todo ${todo.uid}: $e');
+      }
     }
   }
 

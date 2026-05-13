@@ -56,11 +56,64 @@ final deleteAccountProvider = Provider<Future<void> Function(int accountId)>((
     const storage = FlutterSecureStorage();
     await storage.delete(key: 'account_${accountId}_password');
 
-    await (db.delete(
-      db.calendars,
-    )..where((t) => t.accountId.equals(accountId))).go();
+    // Cascade-delete all related data in a single transaction
+    await db.transaction(() async {
+      final calendarIds = await (db.select(
+        db.calendars,
+      )..where((t) => t.accountId.equals(accountId)))
+          .get()
+          .then((cs) => cs.map((c) => c.id).toList());
 
-    await (db.delete(db.accounts)..where((t) => t.id.equals(accountId))).go();
+      if (calendarIds.isNotEmpty) {
+        final eventIds = await (db.select(
+          db.events,
+        )..where((t) => t.calendarId.isIn(calendarIds)))
+            .get()
+            .then((es) => es.map((e) => e.id).toList());
+
+        if (eventIds.isNotEmpty) {
+          await (db.delete(db.reminders)
+                ..where((t) => t.parentType.equals('event') & t.parentId.isIn(eventIds)))
+              .go();
+          await (db.delete(db.eventTags)
+                ..where((t) => t.eventId.isIn(eventIds)))
+              .go();
+          await (db.delete(db.attachments)
+                ..where((t) => t.parentType.equals('event') & t.parentId.isIn(eventIds)))
+              .go();
+        }
+        await (db.delete(db.events)
+              ..where((t) => t.calendarId.isIn(calendarIds)))
+            .go();
+
+        final todoIds = await (db.select(
+          db.todos,
+        )..where((t) => t.calendarId.isIn(calendarIds)))
+            .get()
+            .then((ts) => ts.map((t) => t.id).toList());
+
+        if (todoIds.isNotEmpty) {
+          await (db.delete(db.reminders)
+                ..where((t) => t.parentType.equals('todo') & t.parentId.isIn(todoIds)))
+              .go();
+          await (db.delete(db.todoTags)
+                ..where((t) => t.todoId.isIn(todoIds)))
+              .go();
+          await (db.delete(db.attachments)
+                ..where((t) => t.parentType.equals('todo') & t.parentId.isIn(todoIds)))
+              .go();
+        }
+        await (db.delete(db.todos)
+              ..where((t) => t.calendarId.isIn(calendarIds)))
+            .go();
+      }
+
+      await (db.delete(
+        db.calendars,
+      )..where((t) => t.accountId.equals(accountId))).go();
+
+      await (db.delete(db.accounts)..where((t) => t.id.equals(accountId))).go();
+    });
 
     ref.invalidate(accountsProvider);
   };
