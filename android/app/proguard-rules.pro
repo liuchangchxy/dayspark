@@ -9,3 +9,8 @@
 # Drift
 -keep class drift.** { *; }
 -keep class com.dayspark.app.** { *; }
+
+# Suppress missing Google Play Core classes (not needed for APK builds)
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
