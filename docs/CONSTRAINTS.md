@@ -140,3 +140,22 @@
 - 解析失败返回空数据而非抛异常
 - **Why**: 异常 key 会导致 Provider 级联崩溃，整个视图白屏
 - **Date**: 2026-05-14
+
+## Linux Distribution / Linux 分发
+
+### Linux 构建必须在 Ubuntu 22.04 上执行
+- CI 中 Linux 构建 job 的 `runs-on` 必须是 `ubuntu-22.04`，不能用 `ubuntu-latest`
+- **Why**: Ubuntu 22.04 的 GLIBC 是 2.35，这是支持的最低目标版本。用更新系统构建会引入高版本 GLIBC 依赖，导致用户在旧系统上无法启动
+- **验证方法**: `tool/check_glibc_version.sh` 会检查产物 GLIBC 版本需求不超过 2.35
+- **Date**: 2026-05-14
+
+### Linux 分发不做 Flatpak/AppImage/Snap 双轨制
+- 只维护裸二进制 bundle 分发（`flutter build linux --release` 产物）
+- 不做 Flatpak 打包，不做双轨制
+- **Why**: 项目用户群体偏技术，Ubuntu 22.04 基线覆盖绝大多数用户。双轨制维护成本 > 收益
+- **Date**: 2026-05-14
+
+### 新增原生依赖前必须检查 GLIBC 基线
+- 引入包含 `.so` 的 Flutter 插件后，在 CI 中通过 `tool/check_glibc_version.sh` 验证
+- **Why**: 插件原生 `.so` 可能引入高版本 GLIBC 依赖，CI 未捕获会导致发布后用户无法运行
+- **Date**: 2026-05-14

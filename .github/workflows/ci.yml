@@ -87,7 +87,7 @@ jobs:
 
   build-linux:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -99,6 +99,7 @@ jobs:
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev
       - run: flutter pub get
       - run: flutter build linux --debug
+      - run: tool/check_glibc_version.sh build/linux/x64/debug/bundle/
       - uses: actions/upload-artifact@v4
         with:
           name: linux-build

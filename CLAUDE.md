@@ -4,10 +4,11 @@
 **当用户明确说"记住"、"以后都这样"、"忘了没"、"写入规则"等，立即提炼写入本文件。** 不要主动存，等用户要求再存。
 
 ## 协作规则
-1. **修改日历/数据库/provider/通知相关代码前，先读 `docs/CONSTRAINTS.md`**，确认改动不违反已有约束
+1. **修改依赖/CI/平台构建相关代码前，先读 `docs/CONSTRAINTS.md`**，确认改动不违反已有约束
 2. **每次修 bug 或做关键决策后，更新 `docs/CONSTRAINTS.md`**，记录具体约束 + 为什么
 3. **用户反馈视为产品设计意图**，不是单纯的 bug 报告。反馈中提到的"为什么没有 X"意味着用户想要 X
 4. **遇到模糊反馈先提问确认意图再动手**，不要自行假设后直接改代码
+5. **Linux 构建必须在 Ubuntu 22.04 上**，不允许用高于 GLIBC 2.35 的系统构建 Linux 分发产物。CI 中的 `runs-on` 必须显式为 `ubuntu-22.04`，新增原生依赖后要确保 `tool/check_glibc_version.sh` 通过
 
 ## Project Overview
 - Flutter + Dart | Drift (SQLite) | Riverpod | go_router | home_widget | mcp_dart | alarm | local_auth | workmanager
@@ -20,12 +21,13 @@
 ## Release & CI
 1. `flutter analyze` **must** be zero issue before any push
 2. `flutter test` **must** all pass before any push
-3. Version in `pubspec.yaml`: `0.x+N` format, **never** skip to 1.0 before ready
-4. 1.0 之前所有 release 标记为 **pre-release**
-5. Commit → **ask user to confirm** → push
-6. CI 不放 `dart format --set-exit-if-changed`，不用 `--no-fatal-infos`
-7. 新增依赖前检查 macOS Xcode SDK 兼容性
-8. 用户反馈整理后存入 `docs/changelog.md`
+3. 验证后跑 `flutter build macos --debug` + `flutter build apk --debug` + `flutter build web --debug`，确认各平台编译无报错
+4. Version in `pubspec.yaml`: `0.x+N` format, **never** skip to 1.0 before ready
+5. 1.0 之前所有 release 标记为 **pre-release**
+6. Commit → **ask user to confirm** → push
+7. CI 不放 `dart format --set-exit-if-changed`，不用 `--no-fatal-infos`
+8. 新增依赖前检查 macOS Xcode SDK 兼容性
+9. 用户反馈整理后存入 `docs/changelog.md`
 
 ## Code Style
 - Single quotes, trailing commas, explicit return types
