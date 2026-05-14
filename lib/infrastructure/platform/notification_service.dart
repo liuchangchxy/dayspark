@@ -49,17 +49,12 @@ class NotificationService {
     );
 
     if (Platform.isAndroid) {
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission();
+      final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >();
+      await android?.requestNotificationsPermission();
       // Create notification channel with action support
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.createNotificationChannel(
+      await android?.createNotificationChannel(
             const AndroidNotificationChannel(
               'calendar_todo_reminders',
               'Reminders',

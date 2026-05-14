@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
+import 'package:dayspark/ui/widgets/calendar/scrollable_page.dart';
 
 class WeekCalendarView extends StatefulWidget {
   final DateTime anchorDate;
@@ -260,7 +261,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
 
     return Stack(
       children: [
-        _ScrollablePage(
+        CalendarScrollablePage(
           targetOffset: _scrollTarget.inMinutes / 60.0 * _hourHeight,
           totalHeight: totalHeight,
           child: Row(
@@ -447,52 +448,5 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
 
   static DateTime _dateOnly(DateTime dt) {
     return DateTime(dt.year, dt.month, dt.day);
-  }
-}
-
-class _ScrollablePage extends StatefulWidget {
-  final double targetOffset;
-  final double totalHeight;
-  final Widget child;
-
-  const _ScrollablePage({
-    required this.targetOffset,
-    required this.totalHeight,
-    required this.child,
-  });
-
-  @override
-  State<_ScrollablePage> createState() => _ScrollablePageState();
-}
-
-class _ScrollablePageState extends State<_ScrollablePage> {
-  final _controller = ScrollController(keepScrollOffset: false);
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_controller.hasClients) {
-        final max = _controller.position.maxScrollExtent;
-        _controller.jumpTo(widget.targetOffset.clamp(0, max));
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: _controller,
-      child: SizedBox(
-        height: widget.totalHeight,
-        child: widget.child,
-      ),
-    );
   }
 }

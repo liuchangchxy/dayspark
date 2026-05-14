@@ -169,10 +169,8 @@ class _HomePageState extends ConsumerState<HomePage>
             ],
           ),
         );
-        prefs.setString('last_seen_version', current);
-      } else {
-        prefs.setString('last_seen_version', current);
       }
+      prefs.setString('last_seen_version', current);
     } catch (_) {}
   }
 

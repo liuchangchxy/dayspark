@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
@@ -46,9 +47,13 @@ class _NavObserver extends NavigatorObserver {
 abstract final class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/',
-    observers: [_NavObserver()],
+    observers: [
+      if (!kReleaseMode) _NavObserver(),
+    ],
     onException: (context, state, router) {
-      debugPrint('[GoRouter] EXCEPTION at ${state.matchedLocation}');
+      if (!kReleaseMode) {
+        debugPrint('[GoRouter] EXCEPTION at ${state.matchedLocation}');
+      }
       router.go('/');
     },
     routes: [

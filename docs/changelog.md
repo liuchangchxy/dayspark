@@ -36,6 +36,16 @@
 
 ---
 
+## v0.19.1+ Code Cleanup / v0.19.1+ 代码精简
+
+### Refactoring / 重构
+- **Shared scrollable page** — `_DayScrollablePage` / `_ScrollablePage` merged into shared `CalendarScrollablePage`, removing ~92 lines of duplication. / 日/周视图的滚动页合并为共享组件，去重 ~92 行。
+- **Duplicate `prefs.setString` removed** — Version changelog check fixed. / 修复版本号检查中重复的 `prefs.setString` 调用。
+- **`_NavObserver` gated by `kReleaseMode`** — Debug observer no longer registered in production builds. / 导航观察器仅在 debug 模式注册。
+- **Android notification plugin** — `resolvePlatformSpecificImplementation` result cached locally. / Android 通知插件调用结果缓存为局部变量。
+
+---
+
 ## v0.19.0 Security & Stability Fixes / v0.19.0 安全与稳定性修复
 
 ### Security / 安全
