@@ -50,6 +50,7 @@
 - 新增文本必须加 l10n key（中英双语），禁止硬编码字符串
 
 ## Workflow
+- 所有工作走完整 pipeline：理解 → 实现 → 验证 → 确认 → 文档 → 推送 → 验收（见 `.claude/skills/release-prep/SKILL.md`）
 - `build_runner` 后必须重新运行（改了 Drift table/DAO）
 - 改了 `.arb` 后必须 `flutter gen-l10n`
 - 改了 provider 结构后检查 `test/` 下对应测试

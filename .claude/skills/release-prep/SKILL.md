@@ -1,24 +1,52 @@
 ---
 name: release-prep
-description: 发版四步走 — 更新文档 → git 保存并推送 → 触发 CI → 验收版本号 + 说明 + 构建
+description: 完整 dev-to-release 流水线 — 理解 → 实现 → 验证 → 确认 → 文档 → 推送 → 验收
 argument-hint: none
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 ---
 
-# Release Prep Skill / 发版四步走
+# Dev-to-Release Pipeline / 开发到发版流水线
 
-用户说"发版"时，按以下 4 步执行：
+无论 feature 开发还是 bug fix，都按以下 7 阶段走。每阶段是卡口，不允许跳过。
 
 ---
 
-## Step 1 — 更新所有文档
+## 0 — 理解
 
-- `pubspec.yaml` version `0.x+N`（bump x 和 N）
+- 读相关文件 + `docs/CONSTRAINTS.md`（改日历/DB/provider/通知前必读）
+- 如果需求模糊，先问清楚再动手
+
+## 1 — 实现
+
+- 按 `CLAUDE.md` 的代码风格、架构、UI 规则写代码
+- 改啥补啥：
+  - 改了 Drift table/DAO → `build_runner`
+  - 改了 `.arb` → `flutter gen-l10n`
+  - 改了 provider 结构 → 检查 `test/` 下对应测试
+  - 新增依赖 → 检查 macOS Xcode SDK 兼容性
+
+## 2 — 验证
+
+```
+flutter analyze    # 必须零 issue
+flutter test       # 必须全绿
+```
+
+如果失败：Fix code，不要 suppress。通过后再继续。
+
+## 3 — 确认
+
+用户确认。没确认不推。
+
+## 4 — 文档
+
+- `pubspec.yaml` — version `0.x+N`（bump x 和 N）
 - `docs/ROADMAP.md` — 补齐当前版本条目 + 更新 Pending Items
-- `docs/changelog.md` — 顶部追加当前版本双语日志
+- `docs/changelog.md` — 顶部追加双语日志（feature 写新功能，bug 写问题+修复）
+- `docs/CONSTRAINTS.md` — 修 bug 或关键决策后有新约束就加
 - `CLAUDE.md` — Current version 行
 
-## Step 2 — git 保存并推送到远程
+## 5 — 推送
 
 ```bash
 git add -A
@@ -28,18 +56,22 @@ git push origin main
 git push origin v<version>
 ```
 
-## Step 3 — 触发 GitHub CI
+## 6 — CI
 
-tag push 会自动触发 `release.yml` workflow。
+tag push 自动触发 `release.yml`。
 
 验证：
 ```bash
 gh run list --limit 2
 ```
 
-## Step 4 — 验收
+## 7 — 验收
 
-确认三样东西都没问题：
-1. **GitHub Release 版本号** — `gh release view v<version>` 确认 tag name、prerelease 标记
-2. **Release 说明** — 自动生成或手动改 body
-3. **CI 构建产物** — `gh run watch <run-id> --exit-status` 等全部通过，确认 5 平台构件都在
+```bash
+gh release view v<version> --json name,tagName,isPrerelease,assets
+```
+
+确认三点：
+1. **版本号 + prerelease 标记** — `isPrerelease: true`
+2. **Release 说明** — 自动生成或手动补充
+3. **构建产物** — 5 平台都在（android / macos / windows / linux / web）
