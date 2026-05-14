@@ -2,6 +2,21 @@
 
 ---
 
+## v0.19.2 Linux CI Baseline & macOS Fix / v0.19.2 Linux 构建基线 + macOS 修复
+
+### Infrastructure / 基础设施
+- **Linux CI baseline locked to Ubuntu 22.04** — CI runs-on changed from `ubuntu-latest` to `ubuntu-22.04`, ensuring GLIBC ≤ 2.35 for all Linux builds. / Linux CI 基线锁定到 Ubuntu 22.04，确保 GLIBC 不超过 2.35。
+- **GLIBC version check** — `tool/check_glibc_version.sh` added, runs in CI to verify no `.so` file requires GLIBC > 2.35. / 新增 GLIBC 版本校验脚本，CI 中自动检查。
+- **macOS Flutter version pinned to 3.41.7** — Prevents transient SDK download failures on ARM64 runners. / macOS Flutter 版本锁定，防止 ARM64 运行器偶发下载失败。
+
+### Docs / 文档
+- **CONSTRAINTS.md** — Added Linux Distribution section with build baseline / no dual-track / plugin check rules. / 新增 Linux 分发约束章节。
+- **CLAUDE.md** — Collaboration rules expanded to cover CI/platform changes, Linux build rule added. / 协作规则扩展覆盖 CI/平台构建，新增 Linux 构建硬约束。
+
+---
+
+
+
 ## v0.18.0 Calendar Navigation Fix + Open Source Prep / v0.18.0 日历导航修复 + 开源准备
 
 ### Fixes / 修复

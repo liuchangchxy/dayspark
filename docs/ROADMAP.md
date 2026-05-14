@@ -1,6 +1,6 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.19.1 | 2026-05-14
+> Last updated / 最后更新: v0.19.2 | 2026-05-14
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
@@ -221,6 +221,16 @@
 | changelog added v0.18.0 section / changelog 补充 v0.18.0 | [Engineering / 工程] |
 | CLAUDE.md version synced / CLAUDE.md 版本同步 | [Engineering / 工程] |
 
+### v0.19.2 | 2026-05-14 | Linux CI Baseline & macOS Flutter Version Pin / Linux 构建基线 + macOS 版本锁定
+
+| Feature / 功能 | Source / 来源 |
+|------|------|
+| **Linux CI baseline locked to Ubuntu 22.04** (GLIBC 2.35) / **Linux CI 基线锁定到 Ubuntu 22.04** | [Fix / 修复] |
+| **`tool/check_glibc_version.sh`** — CI checks no .so exceeds GLIBC 2.35 / **GLIBC 版本校验脚本** | [Fix / 修复] |
+| **macOS Flutter version pinned to 3.41.7** — solves ARM64 SDK download flakiness / **macOS Flutter 版本锁定 3.41.7** | [Fix / 修复] |
+| CONSTRAINTS.md: Linux distribution constraints documented / Linux 分发约束入库 | [Docs / 文档] |
+| CLAUDE.md: build rules expanded, version synced / 构建规则扩展，版本同步 | [Docs / 文档] |
+
 ---
 
 ## 二、Requirement Changes / 需求变更记录
@@ -430,4 +440,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 107+ |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 4 (Web, macOS, Android, iOS) |
-| Version / 版本 | v0.19.1+16 |
+| Version / 版本 | v0.19.2+17 |
