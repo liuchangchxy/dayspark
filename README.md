@@ -103,6 +103,11 @@ Issues and pull requests are welcome. See [Contributing Guide](CONTRIBUTING.md) 
 See [GitHub Releases](https://github.com/liuchangchxy/dayspark/releases) for all release notes.
 查看 [GitHub Releases](https://github.com/liuchangchxy/dayspark/releases) 获取所有版本的更新说明。
 
+## 致谢 / Acknowledgments
+
+- [OpenCode](https://github.com/opencode-ai/opencode) — AI 编码助手，用于本项目大部分开发工作 / AI coding assistant used for most of this project's development
+- AI 模型 / Models: DeepSeek, GLM (智谱), 小米 MiMo — 开发过程中使用的 AI 模型 / AI models used in development
+
 ## 许可证 / License
 
 [GPLv3](LICENSE)
