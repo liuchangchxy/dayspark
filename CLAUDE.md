@@ -15,7 +15,7 @@
 - GitHub: https://github.com/liuchangchxy/dayspark
 - Package: `dayspark`, Android: `com.dayspark.app`
 - Account passwords stored in `FlutterSecureStorage`, not in DB plaintext
-- Current version: `0.16.0+12`
+- Current version: `0.19.1+16`
 
 ## Release & CI
 1. `flutter analyze` **must** be zero issue before any push

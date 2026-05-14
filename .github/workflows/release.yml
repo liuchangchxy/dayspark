@@ -6,21 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          cache: true
-      - run: flutter pub get
-      - run: flutter gen-l10n
-      - run: flutter analyze
-      - run: flutter test
-
   build-web:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +23,6 @@ jobs:
           path: dayspark-web.zip
 
   build-android:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +38,6 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
 
   build-macos:
-    needs: test
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,7 +58,6 @@ jobs:
           path: dayspark-macos.dmg
 
   build-windows:
-    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +73,6 @@ jobs:
           path: build/windows/x64/runner/Release/
 
   build-linux:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

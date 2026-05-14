@@ -2,6 +2,40 @@
 
 ---
 
+## v0.18.0 Calendar Navigation Fix + Open Source Prep / v0.18.0 日历导航修复 + 开源准备
+
+### Fixes / 修复
+- **Calendar page range** — Restored Day 20000/Week 4000/Month 800 constants, fixing 2004 date issue. / 日历滑动范围常量恢复，修复显示 2004 年日期问题。
+- **Calendar static range** — `_calendarRange` fixed to prevent CalendarSection rebuild on swipe. / 日历 range 改为静态，防止滑动时 CalendarSection 重建。
+- **Multi-day event rendering** — Cross-day events no longer hidden after first day. / 多日事件不再只在第一天显示。
+- **Dark mode contrast** — Accent #3B82F6 → #60A5FA (WCAG AA). / 暗色 accent 对比度修复。
+- **Page swipe deadlock** — `_isAnimating` guard prevents infinite loop. / 防止 `onPageChanged` → `animateToPage` 循环。
+- **Event equality** — `==` now covers all 12 fields. / 事件 equality 覆盖全部字段。
+- **ICS import duplicates** — Fixed `insertOnConflictConflictUpdate` → `insert`. / ICS 导入修复。
+- **Alarm ID conflict** — Event +500000, Todo +600000 offset. / 闹钟 ID 偏移防冲突。
+- **Time picker locale** — No longer forces 24h, follows system. / 时间选择器跟随系统 locale 不再强制 24h。
+- **Month touch feedback** — InkWell ripple added. / 月视图触摸反馈。
+- **Version dynamic read** — `package_info_plus` replaces hardcoded. / 版本号动态读取。
+
+### New Features / 新功能
+- **Settings page locale switch** — Chinese/English/Follow System. / 设置页语言切换。
+- **Open source community files** — CODE_OF_CONDUCT, CONTRIBUTING, SECURITY. / 开源社区文件。
+
+---
+
+## v0.19.1 CI Cleanup & Docs Sync / v0.19.1 CI 清理与文档同步
+
+### Infrastructure / 基础设施
+- **release.yml test job removed** — Duplicate test job removed from release workflow, build jobs run in parallel. / 发版 workflow 移除重复 test job，构建 job 改为并行。
+- **release-prep skill rewritten** — Simplified to 4-step flow matching actual process. / 发版 skill 简化为 4 步流程。
+
+### Docs / 文档
+- **ROADMAP.md updated** — Added v0.18.0/v0.19.0 entries, updated Pending Items, synced to v0.19.1. / ROADMAP 补充 v0.18.0/v0.19.0 条目，更新待完成项。
+- **changelog.md updated** — Added v0.18.0 section. / 补充 v0.18.0 记录。
+- **CLAUDE.md version** — Synced to current version. / 版本号同步。
+
+---
+
 ## v0.19.0 Security & Stability Fixes / v0.19.0 安全与稳定性修复
 
 ### Security / 安全

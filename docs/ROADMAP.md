@@ -1,6 +1,6 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.17.0 | 2026-05-02
+> Last updated / 最后更新: v0.19.1 | 2026-05-14
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
@@ -171,6 +171,56 @@
 | Docs bilingual (Chinese + English) / 文档中英双语 | [Feedback / 反馈] |
 | Removed personal screenshot / 移除个人截图 | [Feedback / 反馈] |
 
+### v0.18.0 | 2026-05-03 | Calendar Polish & Open Source Prep / 日历打磨 + 开源准备
+
+| Feature / 功能 | Source / 来源 |
+|------|------|
+| Calendar page range fix (20000/4000/800 → restore constants) / 日历页面范围修复 | [Fix / 修复] |
+| Calendar static range (prevent CalendarSection rebuild on swipe) / 日历静态 range 防重建 | [Fix / 修复] |
+| Multi-day event rendering fix / 多日事件渲染修复 | [Fix / 修复] |
+| Dark mode + accent color WCAG AA fix / 暗色模式 + accent 对比度修复 | [Fix / 修复] |
+| _isAnimating deadlock fix (page swipe loop) / _isAnimating 死锁修复 | [Fix / 修复] |
+| Event equality (== all 12 fields) / 事件 equality 覆盖全部字段 | [Fix / 修复] |
+| ICS import duplicate fix / ICS 导入重复修复 | [Fix / 修复] |
+| Alarm ID offset (500000/600000) conflict fix / 闹钟 ID 偏移防冲突 | [Fix / 修复] |
+| Wheel time picker follow system locale / 时间选择器跟随系统 locale | [Fix / 修复] |
+| Month view touch feedback (InkWell ripple) / 月视图触摸反馈 | [Fix / 修复] |
+| Dynamic version read (package_info_plus) / 版本号动态读取 | [Fix / 修复] |
+| **Settings page locale switch** (中文/English/System) / **设置页语言切换** | [Feature / 功能] |
+| Open source community files (CODE_OF_CONDUCT, CONTRIBUTING, SECURITY) / 开源社区文件 | [Engineering / 工程] |
+| Bilingual docs (README, docs/) / 双语文档 | [Engineering / 工程] |
+| RESTRUCTURED.md removed, ROADMAP as single living doc / 废弃文档清理 | [Engineering / 工程] |
+| -11037 lines (oss_licenses.dart removed from git) / 移除大文件 | [Engineering / 工程] |
+| docs/CONSTRAINTS.md created / 技术约束文档 | [Engineering / 工程] |
+
+### v0.19.0 | 2026-05-14 | Security Hardening + Data Integrity / 安全加固 + 数据完整性
+
+| Feature / 功能 | Source / 来源 |
+|------|------|
+| **Signing key rotation** (remove from git → restore for private repo) / **签名密钥治理** | [Security / 安全] |
+| **R8 minification** + ProGuard rules / **R8 混淆 + ProGuard 规则** | [Security / 安全] |
+| **Password fallback removed** (no DB plaintext fallback) / **密码不回退数据库明文** | [Security / 安全] |
+| **Android permission typo** FOREREGROUND→FOREGROUND / **Android 权限拼写修复** | [Fix / 修复] |
+| Architecture cleanup (infrastructure layer → lib/infrastructure/) / 架构清理（基础设施层剥离） | [Refactor / 重构] |
+| file_reader moved to lib/data/ / file_reader 移到 data 层 | [Refactor / 重构] |
+| Sync exception logging (7 empty catch → debugPrint) / 同步层异常日志化 | [Fix / 修复] |
+| Color parsing safety (tryParse + fallback) / 颜色解析安全性 | [Fix / 修复] |
+| Provider crash guard (tryParse for family keys) / Provider 级联崩溃防护 | [Fix / 修复] |
+| Account cascade deletion (transactional) / 账户级联删除 | [Fix / 修复] |
+| Todo soft-delete sync (isDirty flag) / 待办软删除同步标记 | [Fix / 修复] |
+| Changelog read-mark timing fix / 更新日志已读标记时机修复 | [Fix / 修复] |
+| release-prep skill / 发版技能 | [Engineering / 工程] |
+
+### v0.19.1 | 2026-05-14 | CI Cleanup & Docs Sync / CI 清理与文档同步
+
+| Feature / 功能 | Source / 来源 |
+|------|------|
+| release.yml duplicate test removed / release.yml 移除重复 test | [Engineering / 工程] |
+| release-prep skill simplified to 4-step / 发版 skill 简化为 4 步 | [Feedback / 反馈] |
+| ROADMAP updated to v0.19.1 / ROADMAP 同步到 v0.19.1 | [Engineering / 工程] |
+| changelog added v0.18.0 section / changelog 补充 v0.18.0 | [Engineering / 工程] |
+| CLAUDE.md version synced / CLAUDE.md 版本同步 | [Engineering / 工程] |
+
 ---
 
 ## 二、Requirement Changes / 需求变更记录
@@ -324,11 +374,11 @@
 
 ### P0 — Must Do Before Release / 发布前必须做
 
-| # | Feature / 功能 | Note / 说明 |
-|---|------|------|
-| 1 | CI/CD fix / CI/CD 修复 | `ci.yml` add `flutter gen-l10n`; `release.yml` remove duplicate test |
-| 2 | DB migration support / 数据库迁移支持 | Drift schemaVersion upgrade strategy / Drift schemaVersion 升级策略 |
-| 3 | v0.15.0 + v0.16.0 commit + tag | Both versions not committed yet / 两个版本都没提交 |
+| # | Feature / 功能 | Note / 说明 | Status / 状态 |
+|---|------|------|------|
+| 1 | CI/CD fix / CI/CD 修复 | `ci.yml` add `flutter gen-l10n` ✅; `release.yml` remove duplicate test | ✅ ci.yml done / ⏳ release.yml |
+| 2 | DB migration support / 数据库迁移支持 | Drift schemaVersion upgrade strategy / Drift schemaVersion 升级策略 | ⏳ |
+| 3 | v0.15.0 + v0.16.0 commit + tag | Both versions not committed yet / 两个版本都没提交 | ✅ Done (merged into v0.17.0–v0.19.0) |
 
 ### P1 — Should Do / 应该做
 
@@ -355,23 +405,17 @@
 
 ## 五、Engineering Recommendations / 工程师建议
 
-### 1. Commit v0.15.0 + v0.16.0 first / 先把 v0.15.0 + v0.16.0 提交了
-Both versions' code is local, not committed. / 两个版本的代码都在本地，没有 commit。不要继续堆新功能。现有代码需要先固化。
+### 1. DB migration before real users / 数据库迁移要在有用户之前做好
+DB schema v6, every table change modifies schemaVersion + rebuilds. Once real users exist, migrations are required. / DB schema 现在是 v6，每次改表都是直接改 schemaVersion + 重建。一旦有真实用户，改表就必须走 migration。
 
-### 2. Open source compliance is top priority / 开源合规是第一优先级
-LICENSE + NOTICE already done in v0.17.0. / LICENSE + NOTICE 已在 v0.17.0 完成。
-
-### 3. DB migration before real users / 数据库迁移要在有用户之前做好
-Currently DB schema v6, every table change modifies schemaVersion + rebuilds. Once real users exist, migrations are required. / 现在 DB schema 是 v6，每次改表都是直接改 schemaVersion + 重建。一旦有真实用户，改表就必须走 migration。
-
-### 4. Do a full end-to-end test on real devices / 做一次真机端到端测试
+### 2. Do a full end-to-end test on real devices / 做一次真机端到端测试
 Emulator/desktop differs significantly from real devices. / 在模拟器/桌面上测和真机差异很大。
 
-### 5. Fix CI/CD before open-sourcing / CI/CD 先修好再开源
-Broken CI means PRs can't be verified. / CI 挂着就开源，别人 PR 也没法验证。
+### 3. CI/CD is now functional / CI/CD 已经可用
+Release workflow builds all 5 platforms with artifacts. Keep maintaining. / 发版工作流已验证，5 平台构建产物均可用。持续维护即可。
 
-### 6. Next version should only do P0 / 下一版本建议只做 P0
-v0.18.0 scope: CI fix + DB migration + commit archive. All engineering infrastructure, no new UI, low risk. / v0.18.0 范围：CI 修复 + DB 迁移 + commit 归档。全部是工程基础设施，不涉及新 UI，风险低。
+### 4. Next version scope / 下一版本范围建议
+Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁移）+ P1 项。
 
 ---
 
@@ -386,4 +430,4 @@ v0.18.0 scope: CI fix + DB migration + commit archive. All engineering infrastru
 | i18n keys / i18n key | 107+ |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 4 (Web, macOS, Android, iOS) |
-| Version / 版本 | v0.17.0+13 |
+| Version / 版本 | v0.19.1+16 |
