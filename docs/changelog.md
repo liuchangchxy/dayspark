@@ -2,8 +2,26 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.20.2** — CI Hardening + Code Review Skill / CI 加固 + 代码审查 Skill
+- 最新版本 / Latest: **v0.20.3+21** — Windows AOT 崩溃修复 + 补丁包完整性修复
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.20.3+21 Windows AOT Fix — gen_snapshot Patch + 补丁包完整性修复
+
+### Infrastructure / 基础设施
+
+- **Windows release AOT 崩溃修复** — `flutter_local_notifications_windows` 3.0.0 的 FFI 绑定中 5 个 `final class extends ffi.Struct/Opaque` 改为 `base class`，绕过 Dart VM `gen_snapshot` 的 AOT 序列化 bug（"Class with illegal cid" → STATUS_STACK_BUFFER_OVERRUN）。通过 `dependency_overrides` 使用本地补丁包。
+- **补丁包完整性修复** — 补丁包 `patches/flutter_local_notifications_windows/` 在创建时缺失 `msix/` 和 `details/xml/` 子目录，导致所有平台编译失败。从 pub 缓存恢复 11 个缺失文件。
+- **release.yml 清理** — 移除诊断用 `flutter clean` 和 `--verbose` 参数。
+
+### Root Cause / 根因总结
+
+| 层 | 问题 | 修复 |
+|----|------|------|
+| gen_snapshot: | `final class` FFI struct 序列化 bug in Dart 3.11.x | `final class` → `base class` |
+| 补丁包: | 缺失 `msix/` 和 `details/xml/` 目录 | 从 pub 缓存恢复 11 文件 |
+| release.yml: | 残留诊断代码 | 移除 `clean` + `--verbose` |
 
 ---
 
