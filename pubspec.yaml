@@ -91,6 +91,15 @@ dev_dependencies:
   # OSS licenses
   flutter_oss_licenses: ^3.0.1
 
+  # App icons
+  flutter_launcher_icons: ^0.14.3
+
 flutter:
   generate: true
   uses-material-design: true
+
+flutter_launcher_icons:
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 256
