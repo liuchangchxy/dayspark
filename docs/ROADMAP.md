@@ -1,14 +1,14 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.20.1 | 2026-05-15
+> Last updated / 最后更新: v0.20.2 | 2026-05-15
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.20.1+19** | 5 平台构建 (Android/iOS/Web/macOS/Linux/Windows)
+- 当前版本 / Current: **v0.20.2+20** | 5 平台构建 (Android/iOS/Web/macOS/Linux/Windows)
 - 核心功能：日历日程管理 + 待办清单 + CalDAV 同步 + AI 助手 + MCP 服务器
-- 最新变化：子任务功能、Terminal CLI、Headless MCP、13 项 bug 修复（详见 `docs/changelog.md`）
-- v0.20.1：大规模 UI 修复 — 无障碍/桌面体验/触摸目标/国际化/性能（详见 `docs/changelog.md`）
+- 最新变化：dayspark-code-review skill、CI 加固、代码审查自动化（详见 `docs/changelog.md`）
+- v0.20.2：CI 加固 + 代码审查 Skill — Windows/Web 构建修复、l10n ARB 补齐、全量代码审查
 - 待完成：DB 迁移支持、日期格式跟随系统 locale、集成测试
 
 ---
@@ -260,6 +260,19 @@
 | AI model detection URL hint + timeout / AI 探测增加提示和超时 | [Fix / 修复] |
 | Sync refresh shows success feedback / 同步刷新增加成功提示 | [Fix / 修复] |
 | NotificationService Linux init support / 通知服务 Linux 初始化 | [Fix / 修复] |
+
+### v0.20.2 | 2026-05-15 | CI Hardening + Code Review Skill / CI 加固 + 代码审查 Skill
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **dayspark-code-review skill** (60 domain-specific rules, embedded in release-prep) / **代码审查 skill** | [Engineering / 工程] |
+| **Fix: Windows release build** (Flutter 3.41.9 MSB8066 → pin to 3.41.7) / **修复 Windows release 构建** | [Fix / 修复] |
+| **Fix: 6 missing l10n ARB keys** (caused gen-l10n compile failure on CI) / **修复 6 个缺失的 ARB key** | [Fix / 修复] |
+| **Fix: Web build dart:ffi** (split NativeDatabase into separate file) / **修复 Web 构建 dart:ffi 问题** | [Fix / 修复] |
+| **26 empty catch blocks → debugPrint** across sync, UI, infra layers / **26 处空 catch 日志化** | [Review / 审查] |
+| **22 non-standard border radii → unified 6/8/12** / **22 处圆角统一** | [Review / 审查] |
+| **2 dart:io imports → defaultTargetPlatform** / **2 处 dart:io 平台检测替换** | [Review / 审查] |
+| **3 GestureDetector → InkWell** in month view + subtask page / **3 处手势组件替换** | [Review / 审查] |
 
 ### v0.20.1 | 2026-05-15 | Comprehensive UI Fixes / 大规模 UI 修复
 

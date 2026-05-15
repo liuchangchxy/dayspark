@@ -184,6 +184,14 @@
 - **Why**: CLI 和 GUI 共享同一个 SQLite 数据库文件，路径不一致会导致数据隔离
 - **Date**: 2026-05-15
 
+## Web / 网页
+
+### app_database.dart 不能导入 drift/native.dart
+- `lib/data/local/database/app_database.dart` 不 import `package:drift/native.dart`
+- CLI 专用的 `NativeDatabase` 调用在 `lib/data/local/database/app_database_file.dart`
+- **Why**: `drift/native.dart` 依赖 `dart:ffi`，而 `dart:ffi` 在 web 上不可用。web 构建使用 `drift_flutter` 的 WASM 后端（`DriftWebOptions` + `sqlite3.wasm`），不需要 native SQLite
+- **Date**: 2026-05-15
+
 ### CLI 复用 Drift DAOs，不手写 SQL
 - `bin/dayspark.dart` 使用 `AppDatabase.forFile()` + `NativeDatabase`（纯 Dart，不依赖 Flutter）
 - 全部表定义、迁移、类型安全查询共享 Flutter 项目同一套 Drift 注解

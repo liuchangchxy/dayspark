@@ -2,10 +2,29 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.20.1** — Comprehensive UI Fixes / 大规模 UI 修复
+- 最新版本 / Latest: **v0.20.2** — CI Hardening + Code Review Skill / CI 加固 + 代码审查 Skill
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
 
 ---
+
+## v0.20.2 CI Hardening + Code Review Skill / v0.20.2 CI 加固 + 代码审查 Skill
+
+### Features / 新功能
+
+- **dayspark-code-review skill** — 60 条领域特定审查规则，嵌入 release-prep 流程。
+- **代码审查自动化** — release-prep 阶段 2.5 自动加载，BLOCKER 不修完不能发版。
+
+### Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | Windows release build fails with MSB8066 / Windows release 构建失败 | Flutter 3.41.9 release 模式 MSB8066 → 锁定到 3.41.7（与 macOS 一致） |
+| 2 | CI gen-l10n causes undefined_method errors / CI 上 gen-l10n 后 analyze 报 undefined_method | 补齐 6 个缺失的 ARB key（subtaskHint/reminderLabel/rateLimited/connectionTimedOut/updateCheckFailed/gitHub）中英双语 |
+| 3 | Web build crashes: dart:ffi not available / Web 构建 dart:ffi 不可用 | 将 CLI 专用的 NativeDatabase 调用从 app_database.dart 拆到 app_database_file.dart |
+| 4 | 26 empty catch blocks across codebase / 26 处空 catch | 全部改为 `catch (e) { debugPrint(...) }` |
+| 5 | Border radius inconsistency / 圆角不一致 | 22 处非标值统一到 6/8/12 |
+| 6 | dart:io Platform imports in UI files / UI 文件 dart:io 残留 | 替换为 `defaultTargetPlatform` |
+| 7 | GestureDetector remnants / GestureDetector 残留 | 月视图 + 子任务页 3 处 → InkWell |
 
 ## v0.20.1 Comprehensive UI Fixes / v0.20.1 大规模 UI 修复
 
