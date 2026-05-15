@@ -55,6 +55,7 @@ final createTodoProvider =
         DateTime? startDate,
         String? description,
         String? rrule,
+        int? parentId,
       })
     >((ref) {
       final db = ref.read(databaseProvider);
@@ -68,6 +69,7 @@ final createTodoProvider =
         startDate,
         description,
         rrule,
+        parentId,
       }) async {
         return db
             .into(db.todos)
@@ -88,6 +90,9 @@ final createTodoProvider =
                     ? Value(description)
                     : const Value.absent(),
                 rrule: rrule != null ? Value(rrule) : const Value.absent(),
+                parentId: parentId != null
+                    ? Value(parentId)
+                    : const Value.absent(),
               ),
             );
       };
@@ -163,4 +168,16 @@ final emptyTrashProvider = Provider<Future<void> Function()>((ref) {
 final reorderTodosProvider = Provider<Future<void> Function(List<int>)>((ref) {
   final db = ref.read(databaseProvider);
   return (List<int> ids) => db.todosDao.updateSortOrders(ids);
+});
+
+/// Subtasks for a given parent todo.
+final subtasksProvider = StreamProvider.family<List<Todo>, int>((ref, parentId) {
+  final db = ref.watch(databaseProvider);
+  return db.todosDao.watchSubtasks(parentId);
+});
+
+/// Set parent for a todo (null to remove parent).
+final setParentProvider = Provider<Future<void> Function(int todoId, int? parentId)>((ref) {
+  final db = ref.read(databaseProvider);
+  return (int todoId, int? parentId) => db.todosDao.setParent(todoId, parentId);
 });

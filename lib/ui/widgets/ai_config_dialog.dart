@@ -178,6 +178,14 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
               enabled: _isCustom,
               onChanged: (_) => setState(() => _detectedModels = []),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Format: http://host:port/v1 (e.g., http://192.168.1.100:11434/v1)',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 11,
+              ),
+            ),
             const SizedBox(height: 12),
 
             // API Key

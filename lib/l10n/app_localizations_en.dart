@@ -351,7 +351,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get noSubtasks => 'No subtask suggestions available';
+  String get noSubtasks => 'No subtasks';
 
   @override
   String get taskBreakdown => 'Task Breakdown';
@@ -609,6 +609,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpServerStopped => 'Stopped';
 
   @override
+  String get mcpAutoStart => 'Auto-start on launch';
+
+  @override
+  String get mcpAutoStartDesc => 'Start MCP server when app launches';
+
+  @override
   String get mcpPort => 'Port';
 
   @override
@@ -689,4 +695,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageEn => 'English';
+
+  @override
+  String get reminder => 'Reminder';
+
+  @override
+  String get noReminder => 'No reminder';
+
+  @override
+  String get syncComplete => 'Sync complete';
+
+  @override
+  String get subtasks => 'Subtasks';
+
+  @override
+  String get addSubtask => 'Add subtask';
 }

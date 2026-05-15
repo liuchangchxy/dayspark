@@ -95,7 +95,7 @@ class _DayCalendarViewState extends State<DayCalendarView> {
       if (!e.isAllDay) return false;
       final s = DateTime(e.start.year, e.start.month, e.start.day);
       final end = DateTime(e.end.year, e.end.month, e.end.day);
-      return !s.isAfter(date) && date.isBefore(end);
+      return !s.isAfter(date) && !end.isBefore(date);
     }).toList();
   }
 

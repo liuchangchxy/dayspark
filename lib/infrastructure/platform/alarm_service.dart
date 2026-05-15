@@ -19,7 +19,7 @@ class AlarmService {
   static Future<void> setEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefKey, value);
-    if (!value) {
+    if (!value && (Platform.isAndroid || Platform.isIOS)) {
       await Alarm.stopAll();
     }
   }
@@ -53,6 +53,7 @@ class AlarmService {
   }
 
   static Future<void> cancelAlarm(int id, {String? type}) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     if (type != null) {
       final alarmId = type == 'event' ? id + 500000 : id + 600000;
       await Alarm.stop(alarmId);

@@ -17,6 +17,7 @@ import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dayspark/domain/providers/connectivity_provider.dart';
+import 'package:dayspark/domain/providers/mcp_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
@@ -75,6 +76,18 @@ class _HomePageState extends ConsumerState<HomePage>
     }
     Future.microtask(() async {
       try {
+        // Auto-start MCP if configured
+        final prefs = await SharedPreferences.getInstance();
+        final autoStartMCP = prefs.getBool('mcp_auto_start') ?? false;
+        if (autoStartMCP) {
+          final mcpService = ref.read(mcpServiceProvider);
+          if (!mcpService.isRunning) {
+            final port = prefs.getInt('mcp_port') ?? 3000;
+            await mcpService.start(port: port);
+            ref.read(mcpRunningProvider.notifier).state = true;
+          }
+        }
+
         final configured = ref.read(isCalDavConfiguredProvider).valueOrNull;
         if (configured == true) {
           final hasSynced = ref.read(lastSyncTimeProvider) != null;
@@ -483,10 +496,18 @@ class _HomePageState extends ConsumerState<HomePage>
                 SliverToBoxAdapter(
                   child: _sectionHeader(l.allTasks, pending.length, null),
                 ),
-                SliverList(
-                  delegate: SliverChildListDelegate(
-                    pending.map((t) => _todoTile(t)).toList(),
-                  ),
+                SliverReorderableList(
+                  itemCount: pending.length,
+                  onReorder: (oldIndex, newIndex) =>
+                      _onReorder(pending, oldIndex, newIndex),
+                  itemBuilder: (context, index) {
+                    final t = pending[index];
+                    return _reorderableTodoTile(
+                      t,
+                      Key('all-${t.id}'),
+                      index: index,
+                    );
+                  },
                 ),
               ],
               if (completed.isNotEmpty) ..._completedSliverGroups(completed),
@@ -590,7 +611,9 @@ class _HomePageState extends ConsumerState<HomePage>
               ),
               SliverList(
                 delegate: SliverChildListDelegate(
-                  overdue.map((t) => _todoTile(t)).toList(),
+                  overdue.asMap().entries.map(
+                    (e) => _todoTile(e.value, index: e.key),
+                  ).toList(),
                 ),
               ),
             ],
@@ -654,7 +677,7 @@ class _HomePageState extends ConsumerState<HomePage>
     return ReorderableDelayedDragStartListener(
       key: key,
       index: index,
-      child: _todoTile(todo),
+      child: _todoTile(todo, index: index),
     );
   }
 
@@ -774,8 +797,9 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  Widget _todoTile(Todo todo, {bool isCompleted = false}) {
+  Widget _todoTile(Todo todo, {bool isCompleted = false, int? index}) {
     return TodoListTile(
+      index: index,
       summary: todo.summary,
       isCompleted: isCompleted,
       priority: todo.priority,

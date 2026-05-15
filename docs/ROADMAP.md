@@ -1,6 +1,6 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.19.2 | 2026-05-14
+> Last updated / 最后更新: v0.20.0 | 2026-05-15
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
@@ -231,6 +231,29 @@
 | CONSTRAINTS.md: Linux distribution constraints documented / Linux 分发约束入库 | [Docs / 文档] |
 | CLAUDE.md: build rules expanded, version synced / 构建规则扩展，版本同步 | [Docs / 文档] |
 
+### v0.20.0 | 2026-05-15 | Bug Fixes + Subtask + Terminal CLI + Headless MCP / Bug 修复 + 子任务 + 命令行 + Headless MCP
+
+| Feature / 功能 | Source / 来源 |
+|------|------|
+| **Subtask support** (DB schema v6→v7, parentId column, edit page UI) / **子任务功能** | [Feedback / 反馈] |
+| **Terminal CLI** (`bin/dayspark.dart` — todo/event/search CRUD via command line) / **终端命令行** | [Feedback / 反馈] |
+| **Headless MCP auto-start** (persistent setting, auto-start on app launch) / **Headless MCP 自动启动** | [Feedback / 反馈] |
+| **Windows installer** (Inno Setup, `DaySpark-*-Setup.exe`) / **Windows 安装包** | [Feedback / 反馈] |
+| **Linux Impeller rendering** (`--enable-impeller` for GPU-backed performance) / **Linux Impeller 渲染** | [Fix / 修复] |
+| Todo checklist index number / 待办 checkbox 序号 | [Fix / 修复] |
+| Todo All-view drag reorder / 待办全视图拖拽排序 | [Fix / 修复] |
+| Todo edit page reminder UI / 待办编辑页闹钟提醒设置 | [Fix / 修复] |
+| RRULE text locale-aware (not hardcoded Chinese) / RRULE 重复文本跟随语言 | [Fix / 修复] |
+| MCP port configurable / MCP 端口可自定义 | [Fix / 修复] |
+| Event date filter fix (same-day events not showing) / 新建日程显示修复 | [Fix / 修复] |
+| Linux date picker mouse wheel fix / Linux 日期选择器鼠标滚轮兼容 | [Fix / 修复] |
+| Linux alarm fallback + settings lag fix / Linux 闹钟 + 设置卡顿修复 | [Fix / 修复] |
+| GitHub API 403 fix (User-Agent + timeout + friendly error) / 更新检查 403 修复 | [Fix / 修复] |
+| Export Linux unimplemented fallback / Linux 导出降级 | [Fix / 修复] |
+| AI model detection URL hint + timeout / AI 探测增加提示和超时 | [Fix / 修复] |
+| Sync refresh shows success feedback / 同步刷新增加成功提示 | [Fix / 修复] |
+| NotificationService Linux init support / 通知服务 Linux 初始化 | [Fix / 修复] |
+
 ---
 
 ## 二、Requirement Changes / 需求变更记录
@@ -440,4 +463,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 107+ |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 4 (Web, macOS, Android, iOS) |
-| Version / 版本 | v0.19.2+17 |
+| Version / 版本 | v0.20.0+18 |

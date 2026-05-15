@@ -13,6 +13,7 @@ class TodoListTile extends ConsumerWidget {
   final int todoId;
   final DateTime? dueDate;
   final DateTime? startDate;
+  final int? index;
   final VoidCallback onToggle;
   final VoidCallback onTap;
 
@@ -24,6 +25,7 @@ class TodoListTile extends ConsumerWidget {
     required this.todoId,
     this.dueDate,
     this.startDate,
+    this.index,
     required this.onToggle,
     required this.onTap,
   });
@@ -107,12 +109,45 @@ class TodoListTile extends ConsumerWidget {
             SizedBox(
               width: 24,
               height: 24,
-              child: Checkbox(
-                value: isCompleted,
-                onChanged: (_) => onToggle(),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
+              child: isCompleted
+                  ? Checkbox(
+                      value: true,
+                      onChanged: (_) => onToggle(),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    )
+                  : (index != null
+                      ? Center(
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              border: Border.all(
+                                color: theme.colorScheme.outline,
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${index! + 1}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Checkbox(
+                          value: false,
+                          onChanged: (_) => onToggle(),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        )),
             ),
             const SizedBox(width: 12),
             Expanded(

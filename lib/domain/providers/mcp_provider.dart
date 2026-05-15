@@ -10,3 +10,5 @@ final mcpServiceProvider = Provider<McpServerService>((ref) {
 });
 
 final mcpRunningProvider = StateProvider<bool>((ref) => false);
+
+final mcpAutoStartProvider = StateProvider<bool>((ref) => false);

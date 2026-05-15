@@ -193,6 +193,30 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
     });
   }
 
+  /// Watch subtasks (non-deleted) for a given parent todo.
+  Stream<List<Todo>> watchSubtasks(int parentId) {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.parentId.equals(parentId) & t.deletedAt.isNull(),
+          )
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.sortOrder),
+            (t) => OrderingTerm.asc(t.priority),
+          ]))
+        .watch();
+  }
+
+  /// Set parent for a todo (null to remove parent).
+  Future<void> setParent(int todoId, int? parentId) {
+    return (update(todos)..where((t) => t.id.equals(todoId))).write(
+      TodosCompanion(
+        parentId: Value(parentId),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   /// Update the sort order for a list of todo IDs in batch.
   Future<void> updateSortOrders(List<int> ids) async {
     await transaction(() async {

@@ -37,10 +37,15 @@ class NotificationService {
       requestSoundPermission: true,
     );
 
+    const linuxSettings = LinuxInitializationSettings(
+      defaultActionName: 'Open',
+    );
+
     final settings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
       macOS: iosSettings,
+      linux: linuxSettings,
     );
 
     await _plugin.initialize(

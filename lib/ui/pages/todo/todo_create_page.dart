@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
-import 'package:dayspark/core/l10n/rrule_text_delegate.dart';
+import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -14,7 +14,9 @@ import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 
 class TodoCreatePage extends ConsumerStatefulWidget {
-  const TodoCreatePage({super.key});
+  final int? parentId;
+
+  const TodoCreatePage({super.key, this.parentId});
 
   @override
   ConsumerState<TodoCreatePage> createState() => _TodoCreatePageState();
@@ -33,6 +35,8 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   final Set<int> _selectedTagIds = {};
 
   static const _priorityValues = [0, 9, 5, 1];
+  static const List<int> _reminderOptions = [0, 15, 30, 60, 120, 1440];
+  final List<int> _selectedReminderMinutes = [];
 
   @override
   void dispose() {
@@ -91,6 +95,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                 ? _descriptionController.text.trim()
                 : null,
             rrule: _rrule,
+            parentId: widget.parentId,
           );
 
       // Assign selected tags
@@ -100,13 +105,22 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
         } catch (_) {}
       }
 
-      // Add default reminders
-      try {
-        await ref.read(addDefaultTodoRemindersProvider)(
-          todoId: todoId,
-          dueDate: _dueDate,
-        );
-      } catch (_) {}
+      // Add reminders based on user selection
+      if (_selectedReminderMinutes.isNotEmpty && _dueDate != null) {
+        final createReminder = ref.read(createReminderProvider);
+        for (final minutes in _selectedReminderMinutes) {
+          final triggerTime = _dueDate!.subtract(Duration(minutes: minutes));
+          if (triggerTime.isAfter(DateTime.now())) {
+            try {
+              await createReminder(
+                parentType: 'todo',
+                parentId: todoId,
+                triggerTime: triggerTime,
+              );
+            } catch (_) {}
+          }
+        }
+      }
 
       if (mounted) context.pop();
     } catch (e) {
@@ -346,9 +360,13 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           _buildTagSelector(l),
           const SizedBox(height: 16),
 
+          // Reminder
+          _buildReminderSection(l),
+          const SizedBox(height: 16),
+
           // Recurrence rule
           RRuleGenerator(
-            localeBuilder: (_) => const CorrectChineseTextDelegate(),
+            localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
             config: RRuleGeneratorConfig(),
             initialRRule: _rrule ?? '',
             withExcludeDates: false,
@@ -417,6 +435,52 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  String _reminderLabel(AppLocalizations l, int minutes) {
+    if (minutes == 0) return l.noReminder;
+    if (minutes < 60) return '${minutes}min';
+    if (minutes == 60) return '1h';
+    if (minutes == 120) return '2h';
+    return '24h';
+  }
+
+  Widget _buildReminderSection(AppLocalizations l) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l.reminder,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: _reminderOptions.map((minutes) {
+            final isSelected = minutes == 0
+                ? _selectedReminderMinutes.isEmpty
+                : _selectedReminderMinutes.contains(minutes);
+            return ChoiceChip(
+              label: Text(_reminderLabel(l, minutes)),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  if (minutes == 0) {
+                    _selectedReminderMinutes.clear();
+                  } else if (selected) {
+                    _selectedReminderMinutes.add(minutes);
+                    _selectedReminderMinutes.remove(0);
+                  } else {
+                    _selectedReminderMinutes.remove(minutes);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

@@ -105,7 +105,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
       if (!e.isAllDay) return false;
       final s = DateTime(e.start.year, e.start.month, e.start.day);
       final end = DateTime(e.end.year, e.end.month, e.end.day);
-      return !s.isAfter(date) && date.isBefore(end);
+      return !s.isAfter(date) && !end.isBefore(date);
     }).toList();
   }
 
@@ -145,7 +145,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
       if (!e.isAllDay) continue;
       final s = DateTime(e.start.year, e.start.month, e.start.day);
       final end = DateTime(e.end.year, e.end.month, e.end.day);
-      if (!s.isAfter(weekDates.last) && weekDates.first.isBefore(end)) {
+      if (!s.isAfter(weekDates.last) && !end.isBefore(weekDates.first)) {
         allDayEvents.add(e);
       }
     }

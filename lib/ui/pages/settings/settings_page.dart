@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +43,10 @@ class SettingsPage extends ConsumerWidget {
     return false;
   });
 
+  static final mcpPortProvider = StateProvider<int>((ref) {
+    return 3000;
+  });
+
   static Future<void> loadSystemAlarmSetting(WidgetRef ref) async {
     ref.read(systemAlarmProvider.notifier).state =
         await AlarmService.isEnabled();
@@ -52,8 +58,26 @@ class SettingsPage extends ConsumerWidget {
         prefs.getBool('background_sync_enabled') ?? false;
   }
 
+  static Future<void> loadMcpPortSetting(WidgetRef ref) async {
+    final prefs = await SharedPreferences.getInstance();
+    ref.read(mcpPortProvider.notifier).state =
+        prefs.getInt('mcp_port') ?? 3000;
+  }
+
+  static Future<void> loadMcpAutoStartSetting(WidgetRef ref) async {
+    final prefs = await SharedPreferences.getInstance();
+    ref.read(mcpAutoStartProvider.notifier).state =
+        prefs.getBool('mcp_auto_start') ?? false;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Load persisted settings once on first build
+    Future.microtask(() => loadSystemAlarmSetting(ref));
+    Future.microtask(() => loadBackgroundSyncSetting(ref));
+    Future.microtask(() => loadMcpPortSetting(ref));
+    Future.microtask(() => loadMcpAutoStartSetting(ref));
+
     final l = AppLocalizations.of(context)!;
     final flagsAsync = ref.watch(featureFlagsProvider);
 
@@ -193,32 +217,50 @@ class SettingsPage extends ConsumerWidget {
                 onChanged: (v) async {
                   final service = ref.read(mcpServiceProvider);
                   if (v) {
-                    await service.start();
+                    final port = ref.read(mcpPortProvider);
+                    await service.start(port: port);
                   } else {
                     await service.stop();
                   }
                   ref.read(mcpRunningProvider.notifier).state = v;
                 },
               ),
+              CheckboxListTile(
+                secondary: const SizedBox(width: 24),
+                title: Text(l.mcpAutoStart),
+                subtitle: Text(l.mcpAutoStartDesc),
+                value: ref.watch(mcpAutoStartProvider),
+                onChanged: (v) async {
+                  ref.read(mcpAutoStartProvider.notifier).state = v ?? false;
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('mcp_auto_start', v ?? false);
+                },
+              ),
+              ListTile(
+                title: Text(l.mcpPort),
+                subtitle: Text('${ref.watch(mcpPortProvider)}'),
+                trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
+                onTap: () => _showMcpPortDialog(context, ref),
+              ),
 
             ],
           ),
 
-          const Divider(),
-
           // ── System Alarm ──
-          SwitchListTile(
-            secondary: const Icon(CupertinoIcons.alarm),
-            title: Text(l.systemAlarm),
-            subtitle: Text(l.systemAlarmDesc),
-            value: ref.watch(systemAlarmProvider),
-            onChanged: (v) async {
-              await AlarmService.setEnabled(v);
-              ref.read(systemAlarmProvider.notifier).state = v;
-            },
-          ),
-
-          const Divider(),
+          if (Platform.isAndroid || Platform.isIOS) ...[
+            const Divider(),
+            SwitchListTile(
+              secondary: const Icon(CupertinoIcons.alarm),
+              title: Text(l.systemAlarm),
+              subtitle: Text(l.systemAlarmDesc),
+              value: ref.watch(systemAlarmProvider),
+              onChanged: (v) async {
+                await AlarmService.setEnabled(v);
+                ref.read(systemAlarmProvider.notifier).state = v;
+              },
+            ),
+            const Divider(),
+          ],
 
           // ── About ──
           ListTile(
@@ -378,8 +420,9 @@ class SettingsPage extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final running = ref.watch(mcpRunningProvider);
     if (l == null) return const SizedBox.shrink();
+    final port = ref.watch(mcpPortProvider);
     return Text(
-      running ? l.mcpServerRunning(3000) : l.mcpServerStopped,
+      running ? l.mcpServerRunning(port) : l.mcpServerStopped,
     );
   }
 
@@ -387,6 +430,11 @@ class SettingsPage extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     try {
       await ref.read(triggerSyncAllAccountsProvider)();
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.syncComplete)));
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(
@@ -726,9 +774,18 @@ class SettingsPage extends ConsumerWidget {
                   'calendar_export_${DateTime.now().millisecondsSinceEpoch}.ics',
                 );
                 if (context.mounted) {
-                  await Share.shareXFiles([
-                    XFile(path),
-                  ], subject: 'DaySpark Calendar Export');
+                  try {
+                    await Share.shareXFiles(
+                      [XFile(path)],
+                      subject: 'DaySpark Calendar Export',
+                    );
+                  } on UnimplementedError {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l.exportedTo(path))),
+                      );
+                    }
+                  }
                 }
               } catch (e) {
                 if (context.mounted) {
@@ -796,6 +853,42 @@ class SettingsPage extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(l.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMcpPortDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final controller = TextEditingController(text: '${ref.read(mcpPortProvider)}');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.mcpPort),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: l.mcpPort,
+            hintText: '3000',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final port = int.tryParse(controller.text.trim()) ?? 3000;
+              ref.read(mcpPortProvider.notifier).state = port;
+              SharedPreferences.getInstance().then((prefs) {
+                prefs.setInt('mcp_port', port);
+              });
+              Navigator.of(ctx).pop();
+            },
+            child: Text(l.save),
           ),
         ],
       ),

@@ -102,8 +102,11 @@ abstract final class AppRouter {
       GoRoute(
         path: '/todo/new',
         name: 'todoCreate',
-        pageBuilder: (context, state) =>
-            _fadeTransition(const TodoCreatePage()),
+        pageBuilder: (context, state) {
+          final parentIdParam = state.uri.queryParameters['parentId'];
+          final parentId = parentIdParam != null ? int.tryParse(parentIdParam) : null;
+          return _fadeTransition(TodoCreatePage(parentId: parentId));
+        },
       ),
       GoRoute(
         path: '/todo/edit',

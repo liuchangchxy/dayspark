@@ -38,7 +38,7 @@ const kAiPresets = <AiProviderPreset>[
 
 /// Fetch available models from an OpenAI-compatible /models endpoint.
 Future<List<String>> fetchModels(String baseUrl, String apiKey) async {
-  final dio = Dio();
+  final dio = Dio()..options.connectTimeout = const Duration(seconds: 5);
   final resp = await dio.get<List<dynamic>>(
     '$baseUrl/models',
     options: Options(

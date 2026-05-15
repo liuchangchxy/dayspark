@@ -39,10 +39,15 @@ class _AboutPageState extends State<AboutPage> {
       _latestRelease = null;
     });
     try {
-      final dio = Dio();
+      final dio = Dio()..options.connectTimeout = const Duration(seconds: 10);
       final resp = await dio.get(
         'https://api.github.com/repos/$_repo/releases?per_page=1',
-        options: Options(headers: {'Accept': 'application/vnd.github+json'}),
+        options: Options(
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'User-Agent': 'DaySpark/0.19',
+          },
+        ),
       );
       if (mounted) {
         final list = resp.data as List;
@@ -54,7 +59,7 @@ class _AboutPageState extends State<AboutPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = _friendlyError(e);
           _checking = false;
         });
       }
@@ -77,6 +82,18 @@ class _AboutPageState extends State<AboutPage> {
       if (va != vb) return va - vb;
     }
     return 0;
+  }
+
+  String _friendlyError(dynamic e) {
+    if (e is DioException) {
+      if (e.response?.statusCode == 403) {
+        return 'Rate limited. Visit github.com/$_repo/releases to check manually.';
+      }
+      if (e.type == DioExceptionType.connectionTimeout) {
+        return 'Connection timed out. Check your network.';
+      }
+    }
+    return 'Update check failed. Visit github.com/$_repo/releases.';
   }
 
   Future<void> _openUrl(String url) async {

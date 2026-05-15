@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -8,6 +10,9 @@ Future<TimeOfDay?> showWheelTimePicker(
   BuildContext context, {
   required TimeOfDay initialTime,
 }) {
+  if (Platform.isLinux) {
+    return showTimePicker(context: context, initialTime: initialTime);
+  }
   return showModalBottomSheet<TimeOfDay>(
     context: context,
     builder: (ctx) => _WheelTimePickerSheet(initialTime: initialTime),

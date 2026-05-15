@@ -159,3 +159,28 @@
 - 引入包含 `.so` 的 Flutter 插件后，在 CI 中通过 `tool/check_glibc_version.sh` 验证
 - **Why**: 插件原生 `.so` 可能引入高版本 GLIBC 依赖，CI 未捕获会导致发布后用户无法运行
 - **Date**: 2026-05-14
+
+## Database / 数据库 (continued)
+
+### subtask parentId 不加外键约束
+- `todos.parentId` 定义为 `IntColumn get parentId => integer().nullable()()`，不设置 `REFERENCES todos(id)`
+- 删除父待办时使用软删除（`deletedAt`），子待办的 `parentId` 保留
+- **Why**: 子任务删除后父任务可能还存在，不需要级联删除；自引用 FK 在迁移中容易引发循环依赖
+- **Date**: 2026-05-15
+
+## CLI / 命令行
+
+### CLI 数据库路径必须匹配 Flutter 应用
+- `bin/dayspark.dart` 中的路径生成逻辑：
+  - Linux: `$XDG_DATA_HOME/com.dayspark.app/calendar_todo.db` (fallback `~/.local/share`)
+  - macOS: `~/Library/Application Support/com.dayspark.app/calendar_todo.db`
+  - Windows: `$APPDATA/com.dayspark.app/calendar_todo.db`
+- 如果 Flutter 应用更改了数据库路径，CLI 必须同步更新
+- **Why**: CLI 和 GUI 共享同一个 SQLite 数据库文件，路径不一致会导致数据隔离
+- **Date**: 2026-05-15
+
+### CLI 用 raw SQL，不用 drift 代码生成
+- `bin/dayspark.dart` 使用 `package:sqlite3` 直接执行 SQL 语句
+- 表定义和迁移规则不共享 Flutter 项目的 Drift 注解，两份定义必须手动保持同步
+- **Why**: `bin/` 目录无法使用 build_runner 代码生成；raw SQL 避免了 Flutter 依赖
+- **Date**: 2026-05-15

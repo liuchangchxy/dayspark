@@ -283,6 +283,8 @@
     }
   },
   "mcpServerStopped": "Stopped",
+  "mcpAutoStart": "Auto-start on launch",
+  "mcpAutoStartDesc": "Start MCP server when app launches",
   "mcpPort": "Port",
   "editTag": "Edit Tag",
   "save": "Save",
@@ -311,5 +313,11 @@
   "language": "Language",
   "languageSystem": "Follow System",
   "languageZh": "Chinese",
-  "languageEn": "English"
+  "languageEn": "English",
+  "reminder": "Reminder",
+  "noReminder": "No reminder",
+  "syncComplete": "Sync complete",
+  "subtasks": "Subtasks",
+  "addSubtask": "Add subtask",
+  "noSubtasks": "No subtasks"
 }

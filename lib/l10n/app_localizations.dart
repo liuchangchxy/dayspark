@@ -734,7 +734,7 @@ abstract class AppLocalizations {
   /// No description provided for @noSubtasks.
   ///
   /// In en, this message translates to:
-  /// **'No subtask suggestions available'**
+  /// **'No subtasks'**
   String get noSubtasks;
 
   /// No description provided for @taskBreakdown.
@@ -1211,6 +1211,18 @@ abstract class AppLocalizations {
   /// **'Stopped'**
   String get mcpServerStopped;
 
+  /// No description provided for @mcpAutoStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-start on launch'**
+  String get mcpAutoStart;
+
+  /// No description provided for @mcpAutoStartDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Start MCP server when app launches'**
+  String get mcpAutoStartDesc;
+
   /// No description provided for @mcpPort.
   ///
   /// In en, this message translates to:
@@ -1366,6 +1378,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'English'**
   String get languageEn;
+
+  /// No description provided for @reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder'**
+  String get reminder;
+
+  /// No description provided for @noReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminder'**
+  String get noReminder;
+
+  /// No description provided for @syncComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete'**
+  String get syncComplete;
+
+  /// No description provided for @subtasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtasks'**
+  String get subtasks;
+
+  /// No description provided for @addSubtask.
+  ///
+  /// In en, this message translates to:
+  /// **'Add subtask'**
+  String get addSubtask;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

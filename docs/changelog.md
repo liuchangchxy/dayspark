@@ -2,6 +2,45 @@
 
 ---
 
+## v0.20.0 Bug Fixes + Subtask + Terminal CLI + Headless MCP / v0.20.0 修复 + 子任务 + 命令行 + Headless MCP
+
+### Breaking Changes / 不兼容变更
+- **DB schema v6→v7** — Added `parentId` column to todos table for subtask support. Automatic migration on upgrade. / 数据库 schema 升级到 v7，待办表新增 `parentId` 列。
+
+### New Features / 新功能
+- **Subtask support** — Todo edit page shows subtask list with "Add subtask" button. Subtasks navigate to their own edit page. / 子任务功能，待办编辑页可添加和管理子任务。
+- **Terminal CLI** (`bin/dayspark.dart`) — Full CRUD from the command line: `todo add/list/complete/delete`, `event add/list`, `search`. Shares the same SQLite database as the GUI app. / 全新命令行界面，不启动图形界面即可管理待办和日程。
+- **Headless MCP auto-start** — Settings toggle to auto-start MCP server on app launch. Enable once, always available for external tools (opencode, etc.). / MCP 服务器可设置为"启动时自动开启"。
+- **Windows Inno Setup installer** — Release now produces `DaySpark-*-Setup.exe` instead of a raw zip. / Windows 发版打包为正规安装包。
+
+### Bug Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|------|
+| 1 | Linux alarm / notification doesn't work | Added Linux init to NotificationService; hide system alarm switch on non-Android/iOS |
+| 2 | Settings switches (system alarm, sync) lag / 设置开关卡顿 | Fixed provider never loading from SharedPreferences; platform-gate alarm switch |
+| 3 | Check update returns 403 / 检查更新 403 | Added User-Agent header, 10s timeout, friendly error messages for rate-limit / timeout |
+| 4 | Export fails on Linux (`Share.shareXFiles`) / Linux 导出失败 | Fallback to SnackBar with saved file path when sharing not supported |
+| 5 | New events not showing in calendar / 新建日程不显示 | Fixed date filter: `date.isBefore(end)` → `!end.isBefore(date)` in month/week/day views |
+| 6 | Todo checklist no sequence number / 待办无序号 | Added `index` parameter; uncompleted items show number badge instead of blank checkbox |
+| 7 | Todo All-view can't drag reorder / 全视图不能拖拽 | Changed `SliverList` → `SliverReorderableList` |
+| 8 | Todo alarm reminder UI missing / 待办闹钟提示缺失 | Added reminder section (15min/30min/1h/2h/24h + None) to both create and edit pages |
+| 9 | RRULE text always Chinese / 重复文本硬编码中文 | Created `LocaleAwareRRuleTextDelegate` — switches between Chinese/English based on app locale |
+| 10 | MCP port not configurable / MCP 端口不能自定义 | Added port configuration dialog + SharedPreferences persistence |
+| 11 | Linux date picker mouse wheel doesn't work / Linux 滚轮不兼容 | Use Material `showTimePicker` on Linux instead of CupertinoDatePicker |
+| 12 | AI model detection has no URL format hint / 无格式提示 | Added hint text "Format: http://host:port/v1"; added 5s connect timeout on Dio |
+| 13 | Sync refresh button gives no feedback / 同步刷新无反馈 | Show "Sync complete" SnackBar on success |
+
+### Infrastructure / 基础设施
+- **Linux builds now use Impeller** (`--enable-impeller`) — Vulkan/GLES-backed rendering for smoother UI, fixes laggy switches and scrolling. / Linux 构建启用 Impeller 渲染引擎，大幅提升界面流畅度。
+- **Windows installer** — InnoSetup-based `.exe` installer replaces raw zip in release assets. / Windows 发版从 raw zip 改为正式安装包。
+
+### Architecture / 架构
+- **Subtask DB** — `todos.parentId` (nullable int, self-reference). No FK constraint for simplicity. / 子任务通过 `parentId` 自引用实现。
+- **CLI architecture** — Standalone `bin/dayspark.dart` using `package:sqlite3` directly, no Flutter dependency. Accessor methods use raw SQL matching Drift schema. / CLI 独立于 Flutter，直接操作 SQLite。
+
+---
+
 ## v0.19.2 Linux CI Baseline & macOS Fix / v0.19.2 Linux 构建基线 + macOS 修复
 
 ### Infrastructure / 基础设施

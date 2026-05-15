@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
 import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
-import 'package:dayspark/core/l10n/rrule_text_delegate.dart';
+import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
@@ -312,7 +312,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
           const SizedBox(height: 16),
           // Recurrence rule
           RRuleGenerator(
-            localeBuilder: (_) => const CorrectChineseTextDelegate(),
+            localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
             config: RRuleGeneratorConfig(),
             initialRRule: _rrule ?? '',
             withExcludeDates: false,

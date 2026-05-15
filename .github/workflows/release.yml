@@ -68,10 +68,20 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build windows --release
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress
+      - name: Extract version for installer
+        shell: pwsh
+        run: |
+          $version = Select-String -Path pubspec.yaml -Pattern 'version: (.+)' | % { $_.Matches.Groups[1].Value }
+          echo "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build installer
+        run: |
+          iscc windows/app_installer.iss /DMyAppVersion=$env:APP_VERSION
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: build/windows/x64/runner/Release/
+          name: windows-installer
+          path: build/installer/DaySpark-*-Setup.exe
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -85,7 +95,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev
       - run: flutter pub get
-      - run: flutter build linux --release
+      - run: flutter build linux --release --enable-impeller
       - run: tool/check_glibc_version.sh build/linux/x64/release/bundle/
       - uses: actions/upload-artifact@v4
         with:
@@ -108,7 +118,7 @@ jobs:
           cp artifacts/android-apk/app-release.apk release-assets/dayspark-android.apk
           cp artifacts/macos-dmg/dayspark-macos.dmg release-assets/
           cp artifacts/web-build/dayspark-web.zip release-assets/
-          cd artifacts/windows-build && zip -r $GITHUB_WORKSPACE/release-assets/dayspark-windows.zip . && cd $GITHUB_WORKSPACE
+          cp artifacts/windows-installer/*.exe release-assets/
           cd artifacts/linux-build && zip -r $GITHUB_WORKSPACE/release-assets/dayspark-linux.zip . && cd $GITHUB_WORKSPACE
       - name: Create release
         uses: softprops/action-gh-release@v2

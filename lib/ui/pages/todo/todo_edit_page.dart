@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:rrule_generator/rrule_generator.dart';
-import 'package:dayspark/core/l10n/rrule_text_delegate.dart';
+import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
@@ -36,6 +36,8 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   String? _rrule;
 
   static const _priorityValues = [0, 9, 5, 1];
+  static const List<int> _reminderOptions = [0, 15, 30, 60, 120, 1440];
+  final List<int> _selectedReminderMinutes = [];
 
   @override
   void initState() {
@@ -47,6 +49,26 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     _dueDate = _todo.dueDate;
     _startDate = _todo.startDate;
     _rrule = _todo.rrule;
+
+    // Load existing reminders and populate selection
+    Future.microtask(() async {
+      final db = ref.read(databaseProvider);
+      final reminders = await (db.select(db.reminders)
+            ..where(
+              (t) => t.parentType.equals('todo') & t.parentId.equals(_todo.id),
+            ))
+          .get();
+      if (mounted && _dueDate != null) {
+        setState(() {
+          for (final r in reminders) {
+            final minutes = _dueDate!.difference(r.triggerTime).inMinutes;
+            if (minutes > 0 && _reminderOptions.contains(minutes)) {
+              _selectedReminderMinutes.add(minutes);
+            }
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -85,20 +107,34 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
         ),
       );
 
-      // Reschedule reminders if due date changed
-      final oldDue = widget.todo.dueDate;
-      if (oldDue != _dueDate) {
-        try {
-          if (oldDue != null) {
-            await ref.read(rescheduleRemindersProvider)(
-              parentType: 'todo',
-              parentId: _todo.id,
-              oldReferenceTime: oldDue,
-              newReferenceTime: _dueDate ?? DateTime.now(),
-            );
+      // Replace all reminders based on user selection
+      try {
+        final db = ref.read(databaseProvider);
+        final existing = await (db.select(db.reminders)
+              ..where(
+                (t) =>
+                    t.parentType.equals('todo') &
+                    t.parentId.equals(_todo.id),
+              ))
+            .get();
+        for (final r in existing) {
+          await ref.read(deleteReminderProvider)(r.id);
+        }
+
+        if (_selectedReminderMinutes.isNotEmpty && _dueDate != null) {
+          final createReminder = ref.read(createReminderProvider);
+          for (final minutes in _selectedReminderMinutes) {
+            final triggerTime = _dueDate!.subtract(Duration(minutes: minutes));
+            if (triggerTime.isAfter(DateTime.now())) {
+              await createReminder(
+                parentType: 'todo',
+                parentId: _todo.id,
+                triggerTime: triggerTime,
+              );
+            }
           }
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
 
       if (mounted) context.pop();
     } catch (e) {
@@ -331,9 +367,17 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           AttachmentList(parentType: 'todo', parentId: _todo.id),
           const SizedBox(height: 16),
 
+          // Subtasks
+          _buildSubtasksSection(l),
+          const SizedBox(height: 16),
+
+          // Reminder
+          _buildReminderSection(l),
+          const SizedBox(height: 16),
+
           // Recurrence rule
           RRuleGenerator(
-            localeBuilder: (_) => const CorrectChineseTextDelegate(),
+            localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
             config: RRuleGeneratorConfig(),
             initialRRule: _rrule ?? '',
             withExcludeDates: false,
@@ -385,6 +429,129 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => _setQuickDueDate(date),
+    );
+  }
+
+  Widget _buildSubtasksSection(AppLocalizations l) {
+    final subtasksAsync = ref.watch(subtasksProvider(_todo.id));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              l.subtasks,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              icon: const Icon(CupertinoIcons.add, size: 14),
+              label: Text(l.addSubtask),
+              onPressed: () => context.push(
+                '/todo/new?parentId=${_todo.id}',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        subtasksAsync.when(
+          data: (subtasks) {
+            if (subtasks.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  l.noSubtasks,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
+                ),
+              );
+            }
+            return Column(
+              children: subtasks.map((sub) {
+                return InkWell(
+                  onTap: () => context.push('/todo/edit', extra: sub),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.square,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            sub.summary,
+                            style: const TextStyle(fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(
+                          CupertinoIcons.right_chevron,
+                          size: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  String _reminderLabel(AppLocalizations l, int minutes) {
+    if (minutes == 0) return l.noReminder;
+    if (minutes < 60) return '${minutes}min';
+    if (minutes == 60) return '1h';
+    if (minutes == 120) return '2h';
+    return '24h';
+  }
+
+  Widget _buildReminderSection(AppLocalizations l) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l.reminder,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: _reminderOptions.map((minutes) {
+            final isSelected = minutes == 0
+                ? _selectedReminderMinutes.isEmpty
+                : _selectedReminderMinutes.contains(minutes);
+            return ChoiceChip(
+              label: Text(_reminderLabel(l, minutes)),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  if (minutes == 0) {
+                    _selectedReminderMinutes.clear();
+                  } else if (selected) {
+                    _selectedReminderMinutes.add(minutes);
+                    _selectedReminderMinutes.remove(0);
+                  } else {
+                    _selectedReminderMinutes.remove(minutes);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }

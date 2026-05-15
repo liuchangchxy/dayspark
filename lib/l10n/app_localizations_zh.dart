@@ -351,7 +351,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get noSubtasks => '暂无子任务建议';
+  String get noSubtasks => '无子任务';
 
   @override
   String get taskBreakdown => '任务拆分';
@@ -609,6 +609,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mcpServerStopped => '已停止';
 
   @override
+  String get mcpAutoStart => '启动时自动开启';
+
+  @override
+  String get mcpAutoStartDesc => '应用启动时自动开启 MCP 服务器';
+
+  @override
   String get mcpPort => '端口';
 
   @override
@@ -689,4 +695,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get languageEn => 'English';
+
+  @override
+  String get reminder => '提醒';
+
+  @override
+  String get noReminder => '不提醒';
+
+  @override
+  String get syncComplete => '同步完成';
+
+  @override
+  String get subtasks => '子任务';
+
+  @override
+  String get addSubtask => '添加子任务';
 }

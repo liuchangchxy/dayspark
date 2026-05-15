@@ -202,6 +202,8 @@
     }
   },
   "mcpServerStopped": "已停止",
+  "mcpAutoStart": "启动时自动开启",
+  "mcpAutoStartDesc": "应用启动时自动开启 MCP 服务器",
   "mcpPort": "端口",
   "editTag": "编辑标签",
   "save": "保存",
@@ -230,5 +232,11 @@
   "language": "语言",
   "languageSystem": "跟随系统",
   "languageZh": "中文",
-  "languageEn": "English"
+  "languageEn": "English",
+  "reminder": "提醒",
+  "noReminder": "不提醒",
+  "syncComplete": "同步完成",
+  "subtasks": "子任务",
+  "addSubtask": "添加子任务",
+  "noSubtasks": "无子任务"
 }
