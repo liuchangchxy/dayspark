@@ -184,8 +184,9 @@
 - **Why**: CLI 和 GUI 共享同一个 SQLite 数据库文件，路径不一致会导致数据隔离
 - **Date**: 2026-05-15
 
-### CLI 用 raw SQL，不用 drift 代码生成
-- `bin/dayspark.dart` 使用 `package:sqlite3` 直接执行 SQL 语句
-- 表定义和迁移规则不共享 Flutter 项目的 Drift 注解，两份定义必须手动保持同步
-- **Why**: `bin/` 目录无法使用 build_runner 代码生成；raw SQL 避免了 Flutter 依赖
+### CLI 复用 Drift DAOs，不手写 SQL
+- `bin/dayspark.dart` 使用 `AppDatabase.forFile()` + `NativeDatabase`（纯 Dart，不依赖 Flutter）
+- 全部表定义、迁移、类型安全查询共享 Flutter 项目同一套 Drift 注解
+- `lib/data/local/database/connect_flutter.dart` 隔离了 Flutter 的 `driftDatabase()` 调用，CLI 不导入该文件
+- **Why**: 消除两份 Schema 维护成本；CLI 自动获得全部 9 表 + 迁移支持；`NativeDatabase` 来自 `package:drift/native.dart`，无需 Flutter
 - **Date**: 2026-05-15

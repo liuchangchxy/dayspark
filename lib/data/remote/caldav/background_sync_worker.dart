@@ -2,13 +2,14 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/data/local/database/connect_flutter.dart';
 import 'package:dayspark/data/remote/caldav/caldav_client.dart';
 import 'package:dayspark/data/remote/caldav/sync_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    final db = AppDatabase();
+    final db = AppDatabase.forExecutor(openFlutterDatabase());
     try {
       const storage = FlutterSecureStorage();
 

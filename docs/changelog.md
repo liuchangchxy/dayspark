@@ -152,7 +152,7 @@
 
 ### Architecture / 架构
 - **Subtask DB** — `todos.parentId` (nullable int, self-reference). No FK constraint for simplicity. / 子任务通过 `parentId` 自引用实现。
-- **CLI architecture** — Standalone `bin/dayspark.dart` using `package:sqlite3` directly, no Flutter dependency. Accessor methods use raw SQL matching Drift schema. / CLI 独立于 Flutter，直接操作 SQLite。
+- **CLI architecture** — Initial version used raw `package:sqlite3` with hand-written SQL. Refactored in v0.20.1+ to reuse Drift DAOs via `AppDatabase.forFile()` + `NativeDatabase` (`package:drift/native.dart`), eliminating schema drift and adding full migration support. See `docs/CONSTRAINTS.md` for details. / CLI 初始版本手写 SQL，后重构为复用 Drift DAOs，消除 Schema 漂移并支持完整迁移。
 
 ---
 

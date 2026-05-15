@@ -243,7 +243,7 @@
 | Feature / 功能 | Source / 来源 |
 |------|------|
 | **Subtask support** (DB schema v6→v7, parentId column, edit page UI) / **子任务功能** | [Feedback / 反馈] |
-| **Terminal CLI** (`bin/dayspark.dart` — todo/event/search CRUD via command line) / **终端命令行** | [Feedback / 反馈] |
+| **Terminal CLI** (`bin/dayspark.dart` — todo/event/search CRUD via command line, Drift DAOs, full schema+ migration support) / **终端命令行**（复用 Drift DAOs，全表+全迁移支持） | [Feedback / 反馈] |
 | **Headless MCP auto-start** (persistent setting, auto-start on app launch) / **Headless MCP 自动启动** | [Feedback / 反馈] |
 | **Windows installer** (Inno Setup, `DaySpark-*-Setup.exe`) / **Windows 安装包** | [Feedback / 反馈] |
 | **Linux Impeller rendering** (`--enable-impeller` for GPU-backed performance) / **Linux Impeller 渲染** | [Fix / 修复] |
