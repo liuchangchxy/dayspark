@@ -1,15 +1,14 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.20.2 | 2026-05-15
+> Last updated / 最后更新: v0.20.4 | 2026-05-15
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.20.2+20** | 5 平台构建 (Android/iOS/Web/macOS/Linux/Windows)
+- 当前版本 / Current: **v0.20.4+22** | 5 平台构建 (Android/iOS/Web/macOS/Linux)，Windows ⚠️ release 构建修复中
 - 核心功能：日历日程管理 + 待办清单 + CalDAV 同步 + AI 助手 + MCP 服务器
-- 最新变化：dayspark-code-review skill、CI 加固、代码审查自动化（详见 `docs/changelog.md`）
-- v0.20.2：CI 加固 + 代码审查 Skill — Windows/Web 构建修复、l10n ARB 补齐、全量代码审查
-- 待完成：DB 迁移支持、日期格式跟随系统 locale、集成测试
+- 最新变化：Windows AOT 崩溃修复尝试中——gen_snapshot 在 flutter_local_notifications_windows NativeLaunchDetails 上崩溃
+- 待完成：DB 迁移支持、Windows release 构建修复、日期格式跟随系统 locale、集成测试
 
 ---
 
@@ -266,13 +265,15 @@
 | Change / 变更 | Source / 来源 |
 |------|------|
 | **dayspark-code-review skill** (60 domain-specific rules, embedded in release-prep) / **代码审查 skill** | [Engineering / 工程] |
-| **Fix: Windows release build** (Flutter 3.41.9 MSB8066 → pin to 3.41.7) / **修复 Windows release 构建** | [Fix / 修复] |
+| **Fix: Windows release build (Flutter 3.41.9 MSB8066 → pin to 3.41.7)** / **修复 Windows release 旧问题** | [Fix / 修复] |
 | **Fix: 6 missing l10n ARB keys** (caused gen-l10n compile failure on CI) / **修复 6 个缺失的 ARB key** | [Fix / 修复] |
 | **Fix: Web build dart:ffi** (split NativeDatabase into separate file) / **修复 Web 构建 dart:ffi 问题** | [Fix / 修复] |
 | **26 empty catch blocks → debugPrint** across sync, UI, infra layers / **26 处空 catch 日志化** | [Review / 审查] |
 | **22 non-standard border radii → unified 6/8/12** / **22 处圆角统一** | [Review / 审查] |
 | **2 dart:io imports → defaultTargetPlatform** / **2 处 dart:io 平台检测替换** | [Review / 审查] |
 | **3 GestureDetector → InkWell** in month view + subtask page / **3 处手势组件替换** | [Review / 审查] |
+
+> ⚠️ v0.20.3 / v0.20.4: Windows release 构建仍然失败，新根因 `gen_snapshot` AOT serialization bug on `NativeLaunchDetails`。`final class → base class` 假设已验证无效，根因待确认。
 
 ### v0.20.1 | 2026-05-15 | Comprehensive UI Fixes / 大规模 UI 修复
 
@@ -453,9 +454,9 @@
 
 | # | Feature / 功能 | Note / 说明 | Status / 状态 |
 |---|------|------|------|
-| 1 | CI/CD fix / CI/CD 修复 | `ci.yml` add `flutter gen-l10n` ✅; `release.yml` remove duplicate test | ✅ ci.yml done / ⏳ release.yml |
+| 1 | **Windows release build fix / Windows release 构建修复** | `gen_snapshot` crashes on `NativeLaunchDetails` from `flutter_local_notifications_windows 3.0.0` (STATUS_STACK_BUFFER_OVERRUN) | ❌ 根因未确认 |
 | 2 | DB migration support / 数据库迁移支持 | Drift schemaVersion upgrade strategy / Drift schemaVersion 升级策略 | ⏳ |
-| 3 | v0.15.0 + v0.16.0 commit + tag | Both versions not committed yet / 两个版本都没提交 | ✅ Done (merged into v0.17.0–v0.19.0) |
+| 3 | CI/CD cleanup / CI/CD 清理 | `release.yml` 仍有 `--verbose` 诊断标记 | ⏳ |
 
 ### P1 — Should Do / 应该做
 
@@ -506,5 +507,5 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | Analysis issues / 分析问题 | 0 |
 | i18n keys / i18n key | 113+ |
 | Dependencies / 依赖包 | 25+ |
-| Built platforms / 已构建平台 | 4 (Web, macOS, Android, iOS) |
-| Version / 版本 | v0.20.1+19 |
+| Built platforms / 已构建平台 | 3 (Web, macOS, Linux) + Android in CI / Windows ⚠️ broken |
+| Version / 版本 | v0.20.4+22 |
