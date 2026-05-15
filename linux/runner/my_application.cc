@@ -54,6 +54,9 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1280, 720);
 
+  // Enable Impeller rendering engine for GPU-backed performance on Linux.
+  g_setenv("FLUTTER_ENABLE_IMPELLER", "1", TRUE);
+
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
