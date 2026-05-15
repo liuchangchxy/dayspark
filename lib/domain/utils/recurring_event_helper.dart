@@ -66,7 +66,8 @@ List<CalendaEventAdapter> expandRecurringEvents(
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('recurring_helper: RRULE error: $e');
       // If RRULE parsing fails, fall back to showing the original event.
       result.add(CalendaEventAdapter.fromDrift(event, calendarColor: color));
     }

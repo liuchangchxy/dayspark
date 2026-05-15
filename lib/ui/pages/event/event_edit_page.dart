@@ -97,7 +97,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             oldReferenceTime: oldStart,
             newReferenceTime: newStart,
           );
-        } catch (_) {}
+        } catch (e) { debugPrint('event_edit: error: $e'); }
       }
 
       if (mounted) context.pop();

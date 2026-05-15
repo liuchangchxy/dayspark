@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 
@@ -62,6 +63,6 @@ class HomeWidgetService {
       await HomeWidget.updateWidget(
         qualifiedAndroidName: 'com.dayspark.app.CalendarTodoWidgetProvider',
       );
-    } catch (_) {}
+    } catch (e) { debugPrint('home_widget: update error: $e'); }
   }
 }

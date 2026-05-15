@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/data/local/database/connect_flutter.dart';
@@ -30,6 +31,6 @@ void _ensureDefaultCalendar(AppDatabase db) {
               ),
             );
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('database_provider: seed error: $e'); }
   })();
 }

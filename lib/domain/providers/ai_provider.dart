@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -81,7 +82,8 @@ final aiConfigProvider = FutureProvider<AiConfig?>((ref) async {
       baseUrl: baseUrl ?? 'https://api.openai.com/v1',
       model: model ?? 'gpt-4o-mini',
     );
-  } catch (_) {
+  } catch (e) {
+    debugPrint('ai: readConfig error: $e');
     return null;
   }
 });
@@ -107,7 +109,7 @@ final saveAiConfigProvider =
           await storage.write(key: _keyAiApiKey, value: apiKey);
           await storage.write(key: _keyAiBaseUrl, value: baseUrl);
           await storage.write(key: _keyAiModel, value: model);
-        } catch (_) {}
+        } catch (e) { debugPrint('ai: saveConfig error: $e'); }
         ref.invalidate(aiConfigProvider);
       };
     });
@@ -120,7 +122,7 @@ final deleteAiConfigProvider = Provider<Future<void> Function()>((ref) {
       await storage.delete(key: _keyAiApiKey);
       await storage.delete(key: _keyAiBaseUrl);
       await storage.delete(key: _keyAiModel);
-    } catch (_) {}
+    } catch (e) { debugPrint('ai: deleteConfig error: $e'); }
     ref.invalidate(aiConfigProvider);
   };
 });

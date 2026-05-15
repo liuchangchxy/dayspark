@@ -215,8 +215,9 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
             const SizedBox(height: 2),
             if (events.isNotEmpty) ...[
               ...events.take(2).map(
-                (e) => GestureDetector(
+                (e) => InkWell(
                   onTap: () => widget.onEventTapped?.call(e),
+                  borderRadius: BorderRadius.circular(6),
                   child: EventTile(event: e),
                 ),
               ),

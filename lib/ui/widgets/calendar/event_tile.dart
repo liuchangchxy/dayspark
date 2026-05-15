@@ -21,7 +21,7 @@ class EventTile extends StatelessWidget {
       child: Container(
       decoration: BoxDecoration(
         color: resolvedColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: resolvedColor, width: 2),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -62,10 +62,10 @@ class EventTile extends StatelessWidget {
         hint: 'Open event details',
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(6),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
             child: tile,
           ),
         ),

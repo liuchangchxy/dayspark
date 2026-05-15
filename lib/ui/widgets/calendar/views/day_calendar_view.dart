@@ -156,7 +156,7 @@ class _DayCalendarViewState extends State<DayCalendarView> {
                   decoration: BoxDecoration(
                     color: (e.color ?? theme.colorScheme.primary)
                         .withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(3),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 6),

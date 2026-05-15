@@ -131,12 +131,12 @@ class DateStrip extends StatelessWidget {
                     return Expanded(
                       child: Material(
                         color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                         child: InkWell(
                           onTap: () => onDateSelected(
                             DateTime(date.year, date.month, date.day),
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
@@ -147,7 +147,7 @@ class DateStrip extends StatelessWidget {
                                     alpha: 0.3,
                                   )
                                 : null,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                             border: isToday && !isSelected
                                 ? Border.all(
                                     color: theme.colorScheme.primary,
@@ -219,15 +219,15 @@ class DateStrip extends StatelessWidget {
       label: label,
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: selected ? accentColor : null,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(8),
               border: !selected
                   ? Border.all(color: theme.dividerColor, width: 1)
                   : null,

@@ -111,7 +111,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       for (final tagId in _selectedTagIds) {
         try {
           await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
-        } catch (_) {}
+        } catch (e) { debugPrint('todo_create: addTag error: $e'); }
       }
 
       // Add reminders based on user selection
@@ -126,7 +126,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                 parentId: todoId,
                 triggerTime: triggerTime,
               );
-            } catch (_) {}
+            } catch (e) { debugPrint('todo_create: createReminder error: $e'); }
           }
         }
       }

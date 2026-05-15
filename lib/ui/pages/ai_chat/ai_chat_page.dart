@@ -216,7 +216,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                             decoration: InputDecoration(
                               hintText: l.typeMessage,
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -399,7 +399,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           todoId: todoId,
                           dueDate: null,
                         );
-                      } catch (_) {}
+                      } catch (e) { debugPrint('ai_chat: addReminders error: $e'); }
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(l.todoCreatedShort)),
@@ -481,7 +481,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             eventId: eventId,
             startDt: start,
           );
-        } catch (_) {}
+        } catch (e) { debugPrint('ai_chat: addEventReminders error: $e'); }
       } else {
         final dueDate = result['due_date'] != null
             ? DateTime.parse(result['due_date'] as String)
@@ -502,7 +502,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             todoId: todoId,
             dueDate: dueDate,
           );
-        } catch (_) {}
+        } catch (e) { debugPrint('ai_chat: addTodoReminders error: $e'); }
       }
 
       if (mounted) {

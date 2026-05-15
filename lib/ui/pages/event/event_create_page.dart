@@ -110,7 +110,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
                 parentId: eventId,
                 triggerTime: triggerTime,
               );
-            } catch (_) {}
+            } catch (e) { debugPrint('event_create: error: $e'); }
           }
         }
       }

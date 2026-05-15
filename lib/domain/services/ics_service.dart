@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:enough_icalendar/enough_icalendar.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/local/database/app_database.dart';
@@ -94,7 +95,7 @@ class IcsService {
           );
           await _db.into(_db.events).insert(companion);
           events++;
-        } catch (_) {}
+        } catch (e) { debugPrint('ics: VEVENT insert error: $e'); }
       } else if (child is VTodo) {
         try {
           final childCal = VCalendar();
@@ -108,7 +109,7 @@ class IcsService {
           );
           await _db.into(_db.todos).insert(companion);
           todos++;
-        } catch (_) {}
+        } catch (e) { debugPrint('ics: VTODO insert error: $e'); }
       }
     }
 

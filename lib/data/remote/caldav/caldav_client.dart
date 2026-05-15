@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
 /// A single calendar discovered from the CalDAV server.
@@ -340,7 +341,8 @@ class CalDavClient {
       );
       if (elements.isEmpty) return null;
       return elements.first.innerText.trim();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('caldav_client: _findText error: $e');
       return null;
     }
   }

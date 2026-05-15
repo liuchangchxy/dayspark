@@ -1,7 +1,6 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -259,7 +258,7 @@ class SettingsPage extends ConsumerWidget {
           ),
 
           // ── System Alarm ──
-          if (Platform.isAndroid || Platform.isIOS || Platform.isWindows) ...[
+          if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.windows) ...[
             const Divider(),
             SwitchListTile(
               secondary: const Icon(CupertinoIcons.alarm),
@@ -673,7 +672,7 @@ class SettingsPage extends ConsumerWidget {
                   ref.read(themeColorProvider.notifier).setColor(color);
                   Navigator.of(ctx).pop();
                 },
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(8),
                 child: Container(
                   width: 40,
                   height: 40,

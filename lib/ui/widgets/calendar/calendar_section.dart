@@ -155,7 +155,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                 children: [
                   Material(
                     color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(8),
                     child: Semantics(
                       button: true,
                       label: (switch (_viewMode) {
@@ -165,14 +165,14 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                       }),
                       child: InkWell(
                     onTap: _pickDate,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(8),
                         color: theme.colorScheme.primary.withValues(alpha: 0.08),
                       ),
                       child: Row(

@@ -107,7 +107,7 @@ class TodoListTile extends ConsumerWidget {
                   height: 32,
                   decoration: BoxDecoration(
                     color: _priorityColor(theme.brightness),
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                 ),
               )
@@ -139,7 +139,7 @@ class TodoListTile extends ConsumerWidget {
                                 color: theme.colorScheme.outline,
                                 width: 1.5,
                               ),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Center(
                               child: Text(

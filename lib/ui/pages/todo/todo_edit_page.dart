@@ -147,7 +147,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
             }
           }
         }
-      } catch (_) {}
+      } catch (e) { debugPrint('todo_edit: createReminder error: $e'); }
 
       if (mounted) context.pop();
     } catch (e) {
@@ -497,18 +497,22 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
                     children: [
-                      GestureDetector(
+                      InkWell(
                         onTap: () => ref.read(toggleTodoProvider)(
                           id: sub.id, isCompleted: !done,
                         ),
-                        child: Icon(
-                          done
-                              ? CupertinoIcons.checkmark_circle_fill
-                              : CupertinoIcons.circle,
-                          size: 18,
-                          color: done
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            done
+                                ? CupertinoIcons.checkmark_circle_fill
+                                : CupertinoIcons.circle,
+                            size: 18,
+                            color: done
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -525,8 +529,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                           ),
                         ),
                       ),
-                      GestureDetector(
+                      InkWell(
                         onTap: () => _deleteSubtask(sub.id),
+                        borderRadius: BorderRadius.circular(12),
                         child: Padding(
                           padding: const EdgeInsets.all(4),
                           child: Icon(

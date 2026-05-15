@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:enough_icalendar/enough_icalendar.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../local/database/app_database.dart';
 
@@ -162,7 +163,8 @@ class IcalConverter {
       if (component.event != null) return 'VEVENT';
       if (component.todo != null) return 'VTODO';
       return null;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('ical: detectType error: $e');
       return null;
     }
   }
@@ -175,7 +177,9 @@ class IcalConverter {
       if (component is VCalendar) {
         return component.event?.uid ?? component.todo?.uid;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('ical: extractUid error: $e');
+    }
     return null;
   }
 

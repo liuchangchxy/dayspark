@@ -34,6 +34,14 @@ flutter test       # 必须全绿
 
 如果失败：Fix code，不要 suppress。通过后再继续。
 
+## 2.5 — 代码审查
+
+加载 `dayspark-code-review` skill，对本次所有改动逐项检查。
+
+- **BLOCKER** 项必须修复才能继续
+- **WARNING** 项建议修复，至少确认已知悉
+- 修复后重新跑 `flutter analyze` + `flutter test`
+
 ## 3 — 确认
 
 用户确认。没确认不推。

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +23,8 @@ final isCalDavConfiguredProvider = FutureProvider<bool>((ref) async {
     const storage = FlutterSecureStorage();
     final url = await storage.read(key: _keyServerUrl);
     return url != null && url.isNotEmpty;
-  } catch (_) {
+  } catch (e) {
+    debugPrint('sync: isConfigured error: $e');
     return false;
   }
 });
@@ -55,7 +57,7 @@ final saveCalDavCredentialsProvider =
           await storage.write(key: _keyServerUrl, value: serverUrl);
           await storage.write(key: _keyUsername, value: username);
           await storage.write(key: _keyPassword, value: password);
-        } catch (_) {}
+        } catch (e) { debugPrint('sync: saveCredentials error: $e'); }
         ref.invalidate(isCalDavConfiguredProvider);
       };
     });
@@ -72,7 +74,8 @@ final calDavCredentialsProvider = FutureProvider<Map<String, String>?>((
 
     if (url == null || username == null || password == null) return null;
     return {'serverUrl': url, 'username': username, 'password': password};
-  } catch (_) {
+  } catch (e) {
+    debugPrint('sync: readCredentials error: $e');
     return null;
   }
 });
@@ -87,7 +90,7 @@ final deleteCalDavCredentialsProvider = Provider<Future<void> Function()>((
       await storage.delete(key: _keyServerUrl);
       await storage.delete(key: _keyUsername);
       await storage.delete(key: _keyPassword);
-    } catch (_) {}
+    } catch (e) { debugPrint('sync: deleteCredentials error: $e'); }
     ref.invalidate(isCalDavConfiguredProvider);
     ref.invalidate(calDavCredentialsProvider);
   };

@@ -184,7 +184,7 @@ class _WeekCalendarViewState extends State<WeekCalendarView> {
                             decoration: BoxDecoration(
                               color: (e.color ?? theme.colorScheme.primary)
                                   .withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(3),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             alignment: Alignment.centerLeft,
                             padding: const EdgeInsets.symmetric(horizontal: 4),

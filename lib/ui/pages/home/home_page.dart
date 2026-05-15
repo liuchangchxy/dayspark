@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -168,7 +168,7 @@ class _HomePageState extends ConsumerState<HomePage>
       if (now - lastSyncMs > 5 * 60 * 1000) {
         ref.read(triggerIncrementalSyncProvider)();
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('home: autoSyncOnResume error: $e'); }
   }
 
   Future<void> _checkVersionChangelog() async {
@@ -197,7 +197,7 @@ class _HomePageState extends ConsumerState<HomePage>
         );
       }
       prefs.setString('last_seen_version', current);
-    } catch (_) {}
+    } catch (e) { debugPrint('home: checkVersionChangelog error: $e'); }
   }
 
   Future<void> _checkOverdueTodos() async {
@@ -717,7 +717,7 @@ class _HomePageState extends ConsumerState<HomePage>
       cursor: SystemMouseCursors.click,
       child: _todoTile(todo, index: index),
     );
-    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+    if (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.windows) {
       return ReorderableDragStartListener(
         key: key,
         index: index,

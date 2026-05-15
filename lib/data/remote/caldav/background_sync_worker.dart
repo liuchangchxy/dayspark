@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/data/local/database/connect_flutter.dart';
@@ -26,7 +27,8 @@ void callbackDispatcher() {
         final service = SyncService(db: db, client: client);
         try {
           await service.incrementalSync();
-        } catch (_) {
+        } catch (e) {
+          debugPrint('background_sync: incrementalSync error: $e');
         } finally {
           service.dispose();
         }
@@ -45,7 +47,8 @@ void callbackDispatcher() {
           final service = SyncService(db: db, client: client);
           try {
             await service.incrementalSync();
-          } catch (_) {
+          } catch (e) {
+            debugPrint('background_sync: incrementalSync error: $e');
           } finally {
             service.dispose();
           }
@@ -53,7 +56,8 @@ void callbackDispatcher() {
       }
 
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('background_sync: outer error: $e');
       return false;
     } finally {
       await db.close();
