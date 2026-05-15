@@ -65,10 +65,10 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.41.5"
+          flutter-version: "3.41.7"
           cache: true
       - run: flutter pub get
-      - run: flutter build windows --release --verbose
+      - run: flutter build windows --release
       - name: Install Inno Setup
         run: choco install innosetup --no-progress
       - name: Extract version for installer

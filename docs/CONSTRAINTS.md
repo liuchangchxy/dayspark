@@ -209,8 +209,8 @@
   - ❌ 不是 runner image 问题（windows-2022 和 windows-2025 都崩溃）
   - ❌ 不是 tree-shaking 问题（添加 WindowsNotificationDetails 引用未修复）
   - ❌ 不是 `final class` vs `base class` 问题（两者都崩溃）
-- **当前状态**: 根因未确定，构建持续失败。可能方向：
-  - 将 Windows Flutter 版本从 3.41.5 升级到 3.41.7（macOS 已用此版本）
-  - 深入调查 Dart VM `gen_snapshot` 对 FFI struct 的 AOT 序列化 bug
+- **根因**: `NativeLaunchDetails` struct 中的 `launchType` getter（非 external 成员）导致 gen_snapshot AOT 序列化崩溃
+- **修复方案**: 将 `launchType` getter 移出 struct，改为顶层函数 `getLaunchType(NativeLaunchDetails)`。FFI struct 必须只包含 `external` 字段，任何计算属性/方法都会触发 AOT 崩溃
+- **Flutter 版本**: release.yml 统一使用 3.41.7（与 CI debug 和 macOS release 一致）
 - **补丁包注意事项**: `patches/flutter_local_notifications_windows/` 必须包含完整目录结构（`msix/`、`details/xml/`、`windows/`、`src/`），缺失任一目录都会导致编译失败
 - **Date**: 2026-05-15

@@ -357,15 +357,17 @@ base class NativeLaunchDetails extends ffi.Struct {
   @ffi.UnsignedInt()
   external int launchTypeAsInt;
 
-  NativeLaunchType get launchType =>
-      NativeLaunchType.fromValue(launchTypeAsInt);
-
   /// The payload sent to the app by the notification. Usually the action that was pressed.
   external ffi.Pointer<pkg_ffi.Utf8> payload;
 
   /// The IDs and values of any text inputs in the notification.
   external NativeStringMap data;
 }
+
+/// Helper to convert the raw int field to NativeLaunchType.
+/// Kept outside the struct to avoid gen_snapshot AOT crash on Windows.
+NativeLaunchType getLaunchType(NativeLaunchDetails details) =>
+    NativeLaunchType.fromValue(details.launchTypeAsInt);
 
 typedef NativeNotificationCallbackFunction =
     ffi.Void Function(NativeLaunchDetails details);
