@@ -202,8 +202,15 @@
 ## Windows Build / Windows 构建
 
 ### Windows release AOT 崩溃 (MSB8066 / gen_snapshot exit code -1073740791)
-- **现象**: `flutter build windows --release` 在 `gen_snapshot --snapshot_kind=app-aot-elf` 步骤崩溃，报错 `Unexpected object (Class with illegal cid, full-aot): NativeLaunchDetails`
-- **Root cause**: `flutter_local_notifications_windows 3.0.0` 的 FFI 绑定中，多个 `final class extends ffi.Struct` / `ffi.Opaque` 的类触发 Dart VM `gen_snapshot` 的 AOT 序列化 bug（`final class` 的 class ID 分配与 AOT 快照不兼容）
-- **Fix**: 将绑定中 5 个 FFI 结构体类 (`NativePlugin`, `StringMapEntry`, `NativeStringMap`, `NativeNotificationDetails`, `NativeLaunchDetails`) 从 `final class` 改为 `base class`，并使用 `dependency_overrides` 指向本地补丁包
-- **补丁包注意事项**: 补丁包必须包含完整的目录结构（`msix/`、`details/xml/` 等所有子目录），缺失任何文件都会导致所有平台编译失败
+- **现象**: `flutter build windows --release` 在 `gen_snapshot --snapshot_kind=app-aot-elf` 步骤崩溃，报错 `Unexpected object (Class with illegal cid, full-aot): NativeLaunchDetails`，然后 AOT snapshotter crashed with exit code -1073740791
+- **影响版本**: Flutter 3.41.5 / Dart 3.11.x
+- **触发类**: `package:flutter_local_notifications_windows/src/ffi/bindings.dart` 中的 `NativeLaunchDetails`（唯一包含非 external 成员的 FFI struct，有 getter `launchType`）
+- **已排除的假设**:
+  - ❌ 不是 runner image 问题（windows-2022 和 windows-2025 都崩溃）
+  - ❌ 不是 tree-shaking 问题（添加 WindowsNotificationDetails 引用未修复）
+  - ❌ 不是 `final class` vs `base class` 问题（两者都崩溃）
+- **当前状态**: 根因未确定，构建持续失败。可能方向：
+  - 将 Windows Flutter 版本从 3.41.5 升级到 3.41.7（macOS 已用此版本）
+  - 深入调查 Dart VM `gen_snapshot` 对 FFI struct 的 AOT 序列化 bug
+- **补丁包注意事项**: `patches/flutter_local_notifications_windows/` 必须包含完整目录结构（`msix/`、`details/xml/`、`windows/`、`src/`），缺失任一目录都会导致编译失败
 - **Date**: 2026-05-15
