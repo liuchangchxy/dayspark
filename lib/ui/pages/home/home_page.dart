@@ -64,6 +64,17 @@ class _HomePageState extends ConsumerState<HomePage>
         ? widget.initialTab.clamp(0, 1)
         : (ref.read(defaultTabProvider) == AppTab.todos ? 1 : 0);
     WidgetsBinding.instance.addObserver(this);
+    // Listen for network recovery → trigger sync (once, via listenManual)
+    ref.listenManual(connectivityProvider, (prev, next) {
+      final wasOffline = ref.read(wasOfflineProvider);
+      final isOnline = next.valueOrNull?.any(
+        (r) => r != ConnectivityResult.none,
+      ) ?? false;
+      if (wasOffline && isOnline) {
+        ref.read(triggerIncrementalSyncProvider)();
+      }
+      ref.read(wasOfflineProvider.notifier).state = !isOnline;
+    });
     if (widget.initialTab < 0) {
       Future.microtask(() {
         if (!mounted) return;
@@ -263,22 +274,11 @@ class _HomePageState extends ConsumerState<HomePage>
     final todosFirst = _todosFirst;
     final isCalendarTab = todosFirst ? _currentTab == 1 : _currentTab == 0;
 
-    // Listen for network recovery → trigger sync
-    ref.listen(connectivityProvider, (prev, next) {
-      final wasOffline = ref.read(wasOfflineProvider);
-      final isOnline = next.valueOrNull?.any(
-        (r) => r != ConnectivityResult.none,
-      ) ?? false;
-      if (wasOffline && isOnline) {
-        ref.read(triggerIncrementalSyncProvider)();
-      }
-      ref.read(wasOfflineProvider.notifier).state = !isOnline;
-    });
-
     // Refresh events stream when switching to calendar tab
     if (isCalendarTab && !_calendarTabWasActive) {
       _calendarTabWasActive = true;
-      Future.microtask(() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         final r = _calendarRange();
         final k = '${r.start.millisecondsSinceEpoch}-${r.end.millisecondsSinceEpoch}';
         ref.invalidate(eventsInDateRangeProvider(k));
@@ -295,38 +295,54 @@ class _HomePageState extends ConsumerState<HomePage>
                   .valueOrNull
                   ?.isEnabled(FeatureFlag.aiAssistant) ??
               true)
-            IconButton(
-              icon: const Icon(CupertinoIcons.sparkles),
-              tooltip: l.aiAssistant,
-              onPressed: () => context.push('/ai-chat'),
+            Semantics(
+              button: true,
+              label: l.aiAssistant,
+              child: IconButton(
+                icon: const Icon(CupertinoIcons.sparkles),
+                tooltip: l.aiAssistant,
+                onPressed: () => context.push('/ai-chat'),
+              ),
             ),
-          IconButton(
-            icon: const Icon(CupertinoIcons.search),
-            tooltip: l.search,
-            onPressed: () => context.push('/search'),
+          Semantics(
+            button: true,
+            label: l.search,
+            child: IconButton(
+              icon: const Icon(CupertinoIcons.search),
+              tooltip: l.search,
+              onPressed: () => context.push('/search'),
+            ),
           ),
-          IconButton(
-            icon: const Icon(CupertinoIcons.settings),
-            tooltip: l.settings,
-            onPressed: () => context.push('/settings'),
+          Semantics(
+            button: true,
+            label: l.settings,
+            child: IconButton(
+              icon: const Icon(CupertinoIcons.settings),
+              tooltip: l.settings,
+              onPressed: () => context.push('/settings'),
+            ),
           ),
         ],
       ),
       body: isCalendarTab ? _buildCalendarTab() : _buildTodoTab(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (isCalendarTab) {
-            final now = DateTime.now();
-            context.push(
-              '/event/new?start=${now.millisecondsSinceEpoch}'
-              '&end=${now.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
-            );
-          } else {
-            context.push('/todo/new');
-          }
-        },
-        tooltip: isCalendarTab ? l.newEvent : l.newTodo,
-        child: const Icon(CupertinoIcons.add),
+      floatingActionButton: Semantics(
+        button: true,
+        label: isCalendarTab ? l.newEvent : l.newTodo,
+        child: FloatingActionButton(
+          onPressed: () {
+            if (isCalendarTab) {
+              final now = DateTime.now();
+              context.push(
+                '/event/new?start=${now.millisecondsSinceEpoch}'
+                '&end=${now.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
+              );
+            } else {
+              context.push('/todo/new');
+            }
+          },
+          tooltip: isCalendarTab ? l.newEvent : l.newTodo,
+          child: const Icon(CupertinoIcons.add),
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentTab,
@@ -462,17 +478,25 @@ class _HomePageState extends ConsumerState<HomePage>
                             }).toList(),
                           ),
                   ),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.tag, size: 18),
-                    tooltip: l.manageTags,
-                    onPressed: () => context.push('/tags'),
-                    visualDensity: VisualDensity.compact,
+                  Semantics(
+                    button: true,
+                    label: l.manageTags,
+                    child: IconButton(
+                      icon: const Icon(CupertinoIcons.tag, size: 18),
+                      tooltip: l.manageTags,
+                      onPressed: () => context.push('/tags'),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.trash, size: 18),
-                    tooltip: l.trash,
-                    onPressed: () => context.push('/trash'),
-                    visualDensity: VisualDensity.compact,
+                  Semantics(
+                    button: true,
+                    label: l.trash,
+                    child: IconButton(
+                      icon: const Icon(CupertinoIcons.trash, size: 18),
+                      tooltip: l.trash,
+                      onPressed: () => context.push('/trash'),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ],
               ),
@@ -689,17 +713,21 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _reorderableTodoTile(Todo todo, Key key, {required int index}) {
+    final tile = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: _todoTile(todo, index: index),
+    );
     if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
       return ReorderableDragStartListener(
         key: key,
         index: index,
-        child: _todoTile(todo, index: index),
+        child: tile,
       );
     }
     return ReorderableDelayedDragStartListener(
       key: key,
       index: index,
-      child: _todoTile(todo, index: index),
+      child: tile,
     );
   }
 
@@ -776,10 +804,12 @@ class _HomePageState extends ConsumerState<HomePage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            CupertinoIcons.checkmark_rectangle,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ExcludeSemantics(
+            child: Icon(
+              CupertinoIcons.checkmark_rectangle,
+              size: 64,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -820,7 +850,9 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _todoTile(Todo todo, {bool isCompleted = false, int? index}) {
-    return TodoListTile(
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: TodoListTile(
       index: index,
       summary: todo.summary,
       isCompleted: isCompleted,
@@ -831,6 +863,7 @@ class _HomePageState extends ConsumerState<HomePage>
       onToggle: () =>
           ref.read(toggleTodoProvider)(id: todo.id, isCompleted: !isCompleted),
       onTap: () => context.push('/todo/edit', extra: todo),
+      ),
     );
   }
 }

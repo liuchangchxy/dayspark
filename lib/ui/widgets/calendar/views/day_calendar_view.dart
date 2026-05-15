@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
@@ -35,6 +36,11 @@ class _DayCalendarViewState extends State<DayCalendarView> {
 
   late PageController _pageController;
   bool _isAnimating = false;
+  final _columnKey = GlobalKey();
+
+  bool get _isDesktop => defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.windows;
 
   @override
   void initState() {
@@ -293,6 +299,28 @@ class _DayCalendarViewState extends State<DayCalendarView> {
     );
   }
 
+  Widget _buildDraggableEvent({
+    required CalendaEventAdapter event,
+    required Widget feedback,
+    required Widget childWhenDragging,
+    required Widget child,
+  }) {
+    if (_isDesktop) {
+      return Draggable<CalendaEventAdapter>(
+        data: event,
+        feedback: feedback,
+        childWhenDragging: childWhenDragging,
+        child: child,
+      );
+    }
+    return LongPressDraggable<CalendaEventAdapter>(
+      data: event,
+      feedback: feedback,
+      childWhenDragging: childWhenDragging,
+      child: child,
+    );
+  }
+
   Widget _buildEventColumn(
     ThemeData theme,
     DateTime date,
@@ -303,7 +331,9 @@ class _DayCalendarViewState extends State<DayCalendarView> {
       onWillAcceptWithDetails: (_) => true,
       onAcceptWithDetails: (details) {
         final offset = details.offset;
-        final renderBox = context.findRenderObject() as RenderBox;
+        final renderBox =
+            _columnKey.currentContext?.findRenderObject() as RenderBox?;
+        if (renderBox == null) return;
         final local = renderBox.globalToLocal(offset);
         final newHour = (local.dy / _hourHeight).clamp(0.0, 23.5);
         final newStart = DateTime(
@@ -329,6 +359,7 @@ class _DayCalendarViewState extends State<DayCalendarView> {
             widget.onTimeSlotTapped?.call(tappedDate);
           },
           child: Container(
+            key: _columnKey,
             height: totalHeight,
             decoration: BoxDecoration(
               border: Border(
@@ -359,31 +390,34 @@ class _DayCalendarViewState extends State<DayCalendarView> {
                     left: entry.left,
                     width: entry.width,
                     height: entry.height,
-                    child: canDrag
-                        ? LongPressDraggable<CalendaEventAdapter>(
-                            data: entry.event,
-                            feedback: Opacity(
-                              opacity: 0.7,
-                              child: SizedBox(
-                                width: entry.width,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: canDrag
+                          ? _buildDraggableEvent(
+                              event: entry.event,
+                              feedback: Opacity(
+                                opacity: 0.7,
+                                child: SizedBox(
+                                  width: entry.width,
+                                  child: EventTile(event: entry.event),
+                                ),
+                              ),
+                              childWhenDragging: Opacity(
+                                opacity: 0.3,
                                 child: EventTile(event: entry.event),
                               ),
-                            ),
-                            childWhenDragging: Opacity(
-                              opacity: 0.3,
-                              child: EventTile(event: entry.event),
-                            ),
-                            child: GestureDetector(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    widget.onEventTapped?.call(entry.event),
+                                child: EventTile(event: entry.event),
+                              ),
+                            )
+                          : GestureDetector(
                               onTap: () =>
                                   widget.onEventTapped?.call(entry.event),
                               child: EventTile(event: entry.event),
                             ),
-                          )
-                        : GestureDetector(
-                            onTap: () =>
-                                widget.onEventTapped?.call(entry.event),
-                            child: EventTile(event: entry.event),
-                          ),
+                    ),
                   );
                 }),
               ],

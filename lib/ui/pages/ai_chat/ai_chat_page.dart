@@ -123,8 +123,14 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                   vertical: 10,
                                 ),
                                 constraints: BoxConstraints(
-                                  maxWidth:
-                                      MediaQuery.of(context).size.width * 0.75,
+                                  maxWidth: (() {
+                                    final maxBubbleWidth =
+                                        MediaQuery.of(context).size.width *
+                                            0.75;
+                                    return maxBubbleWidth > 600
+                                        ? 600.0
+                                        : maxBubbleWidth;
+                                  })(),
                                 ),
                                 decoration: BoxDecoration(
                                   color: isUser
@@ -133,7 +139,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                       : Theme.of(
                                           context,
                                         ).colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

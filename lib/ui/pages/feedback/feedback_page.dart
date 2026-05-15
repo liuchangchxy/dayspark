@@ -77,7 +77,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
               );
             },
             icon: const Icon(CupertinoIcons.link, size: 18),
-            label: const Text('GitHub'),
+            label: Text(l.gitHub),
           ),
         ],
       ),

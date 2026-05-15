@@ -239,5 +239,11 @@
   "syncComplete": "同步完成",
   "subtasks": "子任务",
   "addSubtask": "添加子任务",
-  "noSubtasks": "无子任务"
+  "noSubtasks": "无子任务",
+  "nMore": "+{count}",
+  "@nMore": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

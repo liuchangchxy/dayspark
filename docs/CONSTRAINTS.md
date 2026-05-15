@@ -3,6 +3,11 @@
 > 防止上下文压缩后遗忘已踩过的坑，导致回归 bug。
 > 每次修 bug 或做关键决策后必须更新此文件。
 
+**TL;DR / 快速了解**
+- 本文件记录所有技术约束，按领域分组（Calendar / Database / UI / Security / Platform）
+- 核心约束：PageView 范围不能缩小、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
+- 修改日历/DB/Provider/通知相关代码前**必须先读**对应章节
+
 ---
 
 ## Calendar / 日历

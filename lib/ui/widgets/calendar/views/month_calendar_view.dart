@@ -166,6 +166,13 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
     final dates = _buildGridDates(month);
     final today = _dateOnly(DateTime.now());
 
+    final eventsByDate = <int, List<CalendaEventAdapter>>{};
+    for (var i = 0; i < 42; i++) {
+      final date = dates[i];
+      final key = date.millisecondsSinceEpoch ~/ 86400000;
+      eventsByDate[key] = _eventsForDate(date);
+    }
+
     return GridView.builder(
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
@@ -178,7 +185,8 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
         final date = dates[index];
         final isCurrentMonth = date.month == month.month;
         final isToday = date == today;
-        final events = _eventsForDate(date);
+        final key = date.millisecondsSinceEpoch ~/ 86400000;
+        final events = eventsByDate[key] ?? [];
         return _buildDayCell(context, theme, date, isToday, isCurrentMonth, events);
       },
     );

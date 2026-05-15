@@ -61,6 +61,7 @@ class AttachmentList extends ConsumerWidget {
                     : null,
                 trailing: IconButton(
                   icon: const Icon(CupertinoIcons.xmark, size: 16),
+                  tooltip: l.delete,
                   onPressed: () => ref.read(deleteAttachmentProvider)(a.id),
                 ),
                 contentPadding: EdgeInsets.zero,

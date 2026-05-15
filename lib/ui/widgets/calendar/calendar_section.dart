@@ -156,7 +156,14 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                   Material(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
-                    child: InkWell(
+                    child: Semantics(
+                      button: true,
+                      label: (switch (_viewMode) {
+                        CalendarViewMode.day => _formatDayHeader(),
+                        CalendarViewMode.week => _formatWeekHeader(),
+                        CalendarViewMode.month => _formatMonthHeader(),
+                      }),
+                      child: InkWell(
                     onTap: _pickDate,
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
@@ -197,28 +204,45 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                     ),
                   ),
                   ),
+                  ),
                   if (!_isViewingToday) ...[
                     const SizedBox(width: 6),
-                    TextButton(
-                      onPressed: _goToToday,
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: Size.zero,
+                    Semantics(
+                      button: true,
+                      label: l.goToToday,
+                      child: TextButton(
+                        onPressed: _goToToday,
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                        ),
+                        child: Text(l.goToToday),
                       ),
-                      child: Text(l.goToToday),
                     ),
                   ],
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.chevron_left, size: 20),
-                    onPressed: _navigateBack,
-                    visualDensity: VisualDensity.compact,
+                  Semantics(
+                    button: true,
+                    label: 'Previous',
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: IconButton(
+                        icon: const Icon(CupertinoIcons.chevron_left, size: 20),
+                        onPressed: _navigateBack,
+                      ),
+                    ),
                   ),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.chevron_right, size: 20),
-                    onPressed: _navigateForward,
-                    visualDensity: VisualDensity.compact,
+                  Semantics(
+                    button: true,
+                    label: 'Next',
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: IconButton(
+                        icon: const Icon(CupertinoIcons.chevron_right, size: 20),
+                        onPressed: _navigateForward,
+                      ),
+                    ),
                   ),
                 ],
               ),

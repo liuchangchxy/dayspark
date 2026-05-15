@@ -713,4 +713,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addSubtask => 'Add subtask';
+
+  @override
+  String nMore(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String get subtaskHint => 'Subtask text';
+
+  @override
+  String reminderLabel(int minutes) {
+    if (minutes == 0) return noReminder;
+    if (minutes < 60) return '${minutes}min';
+    if (minutes == 60) return '1h';
+    if (minutes == 120) return '2h';
+    return '24h';
+  }
+
+  @override
+  String rateLimited(String repo) {
+    return 'Rate limited. Visit github.com/$repo/releases to check manually.';
+  }
+
+  @override
+  String get connectionTimedOut => 'Connection timed out. Check your network.';
+
+  @override
+  String updateCheckFailed(String repo) {
+    return 'Update check failed. Visit github.com/$repo/releases.';
+  }
+
+  @override
+  String get gitHub => 'GitHub';
 }

@@ -38,7 +38,11 @@ class TagChips extends ConsumerWidget {
               label: Text(tag.name),
               avatar: CircleAvatar(radius: 6, backgroundColor: tagColor),
               selected: isAssigned,
-              selectedColor: tagColor.withValues(alpha: 0.3),
+              selectedColor: tagColor.withValues(
+                alpha: Theme.of(context).brightness == Brightness.light
+                    ? 0.4
+                    : 0.3,
+              ),
               checkmarkColor: tagColor,
               onSelected: (selected) {
                 if (parentType == 'event') {

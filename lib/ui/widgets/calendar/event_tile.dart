@@ -5,8 +5,9 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 
 class EventTile extends StatelessWidget {
   final CalendaEventAdapter event;
+  final VoidCallback? onTap;
 
-  const EventTile({super.key, required this.event});
+  const EventTile({super.key, required this.event, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -15,15 +16,15 @@ class EventTile extends StatelessWidget {
     final defaultColor = isDark ? AppColors.darkAccent : AppColors.lightAccent;
     final resolvedColor = event.color ?? defaultColor;
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48),
+    final tile = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 44),
       child: Container(
       decoration: BoxDecoration(
         color: resolvedColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: resolvedColor, width: 2),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -51,5 +52,25 @@ class EventTile extends StatelessWidget {
       ),
       ),
     );
+
+    if (onTap != null) {
+      final timeStr = event.isAllDay
+          ? ''
+          : ' ${DateFormatters.formatTime(event.start)} – ${DateFormatters.formatTime(event.end)}';
+      return Semantics(
+        label: '${event.title}$timeStr',
+        hint: 'Open event details',
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(4),
+            child: tile,
+          ),
+        ),
+      );
+    }
+    return tile;
   }
 }

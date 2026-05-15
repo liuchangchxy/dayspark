@@ -61,8 +61,7 @@ class DateStrip extends StatelessWidget {
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+
                   ),
                   child: Text(
                     l.today,
@@ -130,18 +129,22 @@ class DateStrip extends StatelessWidget {
                     ).format(date).characters.take(2).toString();
 
                     return Expanded(
-                      child: GestureDetector(
-                        onTap: () => onDateSelected(
-                          DateTime(date.year, date.month, date.day),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          decoration: BoxDecoration(
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () => onDateSelected(
+                            DateTime(date.year, date.month, date.day),
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
                             color: isSelected
                                 ? theme.colorScheme.primary
                                 : isToday
                                 ? theme.colorScheme.primary.withValues(
-                                    alpha: 0.12,
+                                    alpha: 0.3,
                                   )
                                 : null,
                             borderRadius: BorderRadius.circular(12),
@@ -181,6 +184,7 @@ class DateStrip extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ),
                     );
                   }),
                 ),
@@ -211,25 +215,33 @@ class DateStrip extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected ? accentColor : null,
+    return Semantics(
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          border: !selected
-              ? Border.all(color: theme.dividerColor, width: 1)
-              : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: selected
-                ? theme.colorScheme.onTertiary
-                : theme.textTheme.bodySmall?.color,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? accentColor : null,
+              borderRadius: BorderRadius.circular(16),
+              border: !selected
+                  ? Border.all(color: theme.dividerColor, width: 1)
+                  : null,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: selected
+                    ? theme.colorScheme.onTertiary
+                    : theme.textTheme.bodySmall?.color,
+              ),
+            ),
           ),
         ),
       ),

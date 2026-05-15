@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:workmanager/workmanager.dart';
@@ -7,6 +8,7 @@ import 'package:workmanager/workmanager.dart';
 import 'l10n/app_localizations.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/platform_scroll_behavior.dart';
 import 'data/remote/caldav/background_sync_worker.dart';
 import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
 import 'domain/providers/locale_provider.dart';
@@ -40,21 +42,35 @@ class DaySparkApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final seedColor = ref.watch(themeColorProvider);
     final locale = ref.watch(localeProvider);
-    return MaterialApp.router(
-      title: 'DaySpark',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(seedColor: seedColor),
-      darkTheme: AppTheme.dark(seedColor: seedColor),
-      themeMode: themeMode,
-      locale: locale,
-      localizationsDelegates: const [
-        ...AppLocalizations.localizationsDelegates,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      routerConfig: AppRouter.router,
+    return ScrollConfiguration(
+      behavior: AppScrollBehavior(),
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            final router = AppRouter.router;
+            if (router.canPop()) router.pop();
+          },
+        },
+        child: Focus(
+          autofocus: true,
+          child: MaterialApp.router(
+            title: 'DaySpark',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(seedColor: seedColor),
+            darkTheme: AppTheme.dark(seedColor: seedColor),
+            themeMode: themeMode,
+            locale: locale,
+            localizationsDelegates: const [
+              ...AppLocalizations.localizationsDelegates,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            routerConfig: AppRouter.router,
+          ),
+        ),
+      ),
     );
   }
 }

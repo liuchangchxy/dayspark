@@ -45,7 +45,7 @@ class _AboutPageState extends State<AboutPage> {
         options: Options(
           headers: {
             'Accept': 'application/vnd.github+json',
-            'User-Agent': 'DaySpark/0.19',
+            'User-Agent': 'DaySpark/$_currentVersion',
           },
         ),
       );
@@ -85,15 +85,16 @@ class _AboutPageState extends State<AboutPage> {
   }
 
   String _friendlyError(dynamic e) {
+    final l = AppLocalizations.of(context)!;
     if (e is DioException) {
       if (e.response?.statusCode == 403) {
-        return 'Rate limited. Visit github.com/$_repo/releases to check manually.';
+        return l.rateLimited(_repo);
       }
       if (e.type == DioExceptionType.connectionTimeout) {
-        return 'Connection timed out. Check your network.';
+        return l.connectionTimedOut;
       }
     }
-    return 'Update check failed. Visit github.com/$_repo/releases.';
+    return l.updateCheckFailed(_repo);
   }
 
   Future<void> _openUrl(String url) async {
@@ -170,7 +171,7 @@ class _AboutPageState extends State<AboutPage> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

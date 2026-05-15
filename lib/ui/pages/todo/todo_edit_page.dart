@@ -558,7 +558,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Subtask text'),
+          decoration: InputDecoration(hintText: l.subtaskHint),
           onSubmitted: (_) {
             if (controller.text.trim().isNotEmpty) {
               _createSubtask(controller.text.trim());
@@ -611,11 +611,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   }
 
   String _reminderLabel(AppLocalizations l, int minutes) {
-    if (minutes == 0) return l.noReminder;
-    if (minutes < 60) return '${minutes}min';
-    if (minutes == 60) return '1h';
-    if (minutes == 120) return '2h';
-    return '24h';
+    return l.reminderLabel(minutes);
   }
 
   Widget _buildReminderSection(AppLocalizations l) {

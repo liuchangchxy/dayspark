@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,14 +21,17 @@ class SearchPage extends ConsumerStatefulWidget {
 class _SearchPageState extends ConsumerState<SearchPage> {
   final _searchController = TextEditingController();
   String _query = '';
+  Timer? _debounceTimer;
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   void _submitSearch(String query) {
+    _debounceTimer?.cancel();
     setState(() => _query = query.trim());
   }
 
@@ -49,7 +54,21 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           textInputAction: TextInputAction.search,
           onSubmitted: _submitSearch,
           onChanged: (v) {
-            if (v.trim().isEmpty) setState(() => _query = '');
+            if (v.trim().isEmpty) {
+              _debounceTimer?.cancel();
+              setState(() => _query = '');
+              return;
+            }
+            _debounceTimer?.cancel();
+            _debounceTimer = Timer(
+              const Duration(milliseconds: 300),
+              () {
+                final text = _searchController.text.trim();
+                if (text.isNotEmpty) {
+                  setState(() => _query = text);
+                }
+              },
+            );
           },
         ),
       ),

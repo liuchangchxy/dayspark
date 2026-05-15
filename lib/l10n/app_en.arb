@@ -320,5 +320,11 @@
   "syncComplete": "Sync complete",
   "subtasks": "Subtasks",
   "addSubtask": "Add subtask",
-  "noSubtasks": "No subtasks"
+  "noSubtasks": "No subtasks",
+  "nMore": "+{count} more",
+  "@nMore": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

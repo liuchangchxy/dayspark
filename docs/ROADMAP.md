@@ -1,12 +1,19 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.20.0 | 2026-05-15
+> Last updated / 最后更新: v0.20.1 | 2026-05-15
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
+**TL;DR / 快速了解**
+- 当前版本 / Current: **v0.20.1+19** | 5 平台构建 (Android/iOS/Web/macOS/Linux/Windows)
+- 核心功能：日历日程管理 + 待办清单 + CalDAV 同步 + AI 助手 + MCP 服务器
+- 最新变化：子任务功能、Terminal CLI、Headless MCP、13 项 bug 修复（详见 `docs/changelog.md`）
+- v0.20.1：大规模 UI 修复 — 无障碍/桌面体验/触摸目标/国际化/性能（详见 `docs/changelog.md`）
+- 待完成：DB 迁移支持、日期格式跟随系统 locale、集成测试
+
 ---
 
-## 一、Feature Timeline / 功能时间线
+## 一、Current Features / 当前功能清单
 
 ### v0.1 — v0.7 | 2026-04-16 ~ 04-28 | Project Skeleton / 项目骨架
 
@@ -254,6 +261,30 @@
 | Sync refresh shows success feedback / 同步刷新增加成功提示 | [Fix / 修复] |
 | NotificationService Linux init support / 通知服务 Linux 初始化 | [Fix / 修复] |
 
+### v0.20.1 | 2026-05-15 | Comprehensive UI Fixes / 大规模 UI 修复
+
+| Fix / 修复 | Source / 来源 |
+|------|------|
+| **Accessibility (Semantics)** on all interactive elements / 全交互元素无障碍标签 | [Review / 审查] |
+| **Desktop keyboard shortcuts** (Escape→back, framework for Ctrl+S/N) / 桌面键盘快捷键 | [Review / 审查] |
+| **Platform-adaptive scroll physics** (Bouncing iOS/macOS vs Clamping others) / 平台感知滚动动效 | [Review / 审查] |
+| **Desktop cursor + hover states** on 17+ interactive elements / 桌面指针光标+悬停效果 | [Review / 审查] |
+| **Platform-aware drag** (Draggable on desktop, LongPressDraggable on mobile) / 拖拽平台自适应 | [Review / 审查] |
+| **Fixed `dart:io` import for Web** (wheel_time_picker Web crash) / 修复 Web 构建崩溃 | [Review / 审查] |
+| **Fixed `build()` side effects** in home_page + settings_page / 修复 build 方法内副作用 | [Review / 审查] |
+| **Fixed GestureDetector/InkWell nesting** in month calendar / 修复月视图手势冲突 | [Review / 审查] |
+| **i18n: 6 new l10n keys** (nMore, subtaskHint, reminderLabel, etc.) / 新增 6 个国际化 key | [Review / 审查] |
+| **Hardcoded weekday labels** → `DateFormat.E()` for all locales / 硬编码星期→全 locale 适配 | [Review / 审查] |
+| **Fixed 12+ small touch targets** (<44px) across the app / 修复 12+ 处过小触摸目标 | [Review / 审查] |
+| **GestureDetector→InkWell** in date picker, color picker, tag chips / 批量替换 InkWell | [Review / 审查] |
+| **Search debounce** (300ms) to reduce query spam / 搜索去抖 | [Review / 审查] |
+| **Event filtering memoization** in month view (O(n×42)→O(n)) / 月视图事件过滤缓存 | [Review / 审查] |
+| **Chat bubble max-width** capped at 600px on desktop / 聊天气泡最大宽度限制 | [Review / 审查] |
+| **Visual consistency**: border radius unified (16→8), tag chip alpha adjusted / 视觉一致性统一 | [Review / 审查] |
+| **DRY**: color list extracted to top-level constant in tags_page / 标签页颜色列表去重 | [Review / 审查] |
+| **PackageInfo caching** removes FutureBuilder per-rebuild overhead / PackageInfo 缓存 | [Review / 审查] |
+| **Hardcoded User-Agent version** → dynamic PackageInfo / User-Agent 版本号动态化 | [Review / 审查] |
+
 ---
 
 ## 二、Requirement Changes / 需求变更记录
@@ -302,7 +333,7 @@
 
 ---
 
-## 三、Current Features / 当前功能清单
+## 一、Current Features / 当前功能清单
 
 ### Calendar / 日历
 - Day/week/month view switching (self-built, not third-party) / 日/周/月视图切换（自建）
@@ -403,7 +434,7 @@
 
 ---
 
-## 四、Pending Items / 待完成项
+## 二、Pending Items / 待完成项
 
 ### P0 — Must Do Before Release / 发布前必须做
 
@@ -460,7 +491,7 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | Test files (test/) / 测试文件 | ~25 |
 | Test cases / 测试用例 | 83 (all passing / 全通过) |
 | Analysis issues / 分析问题 | 0 |
-| i18n keys / i18n key | 107+ |
+| i18n keys / i18n key | 113+ |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 4 (Web, macOS, Android, iOS) |
-| Version / 版本 | v0.20.0+18 |
+| Version / 版本 | v0.20.1+19 |

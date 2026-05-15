@@ -1,5 +1,120 @@
 # DaySpark User Feedback Log / 用户反馈记录
 
+**TL;DR / 快速了解**
+- 本文件记录所有用户反馈及其修复，按版本倒序排列
+- 最新版本 / Latest: **v0.20.1** — Comprehensive UI Fixes / 大规模 UI 修复
+- 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.20.1 Comprehensive UI Fixes / v0.20.1 大规模 UI 修复
+
+### Summary / 概览
+
+47 issues identified via code review, all fixed. Categorized by severity and cross-cutting concern.
+
+通过代码审查发现 47 个 UI 问题，全部修复。按严重程度和横切关注点分类。
+
+### Accessibility / 无障碍
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | Zero Semantics across entire app / 全应用无无障碍标签 | Added `Semantics(button:,label:,hint:)` to 30+ interactive elements across 7 files |
+| 2 | Decorative icons not excluded / 装饰性图标未排除 | Wrapped empty state icon, tag dots with `ExcludeSemantics` |
+| 3 | Color picker purely visual, no text label / 颜色选择器仅视觉 | Added `Semantics(label:)` to each color circle in settings + tags pages |
+| 4 | Attachment delete button missing tooltip / 附件删除无 tooltip | Added `tooltip: l.delete` |
+
+### Desktop Experience / 桌面端体验
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 5 | No platform-adaptive scroll physics / 无平台自适应滚动动效 | Created `AppScrollBehavior`: `BouncingScrollPhysics` on iOS/macOS, `ClampingScrollPhysics` elsewhere |
+| 6 | No keyboard shortcuts / 无键盘快捷键 | Added `CallbackShortcuts` with Escape→pop in main.dart framework |
+| 7 | No hover/cursor feedback / 无悬停/光标反馈 | Added `MouseRegion(cursor: click)` to 17+ interactive elements |
+| 8 | LongPressDraggable on desktop (should be Draggable) / 桌面端长按拖拽 | `_buildDraggableEvent` helper: `Draggable` on desktop, `LongPressDraggable` on mobile |
+| 9 | `context.findRenderObject()` in drag callbacks / 拖拽回调不稳定 | Replaced with `GlobalKey` map in week/day calendar views |
+| 10 | Chat bubble 75% screen width on desktop / 气泡宽度过大 | Capped at 600px: `min(screen*0.75, 600)` |
+
+### Platform Compatibility / 平台兼容
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 11 | `dart:io Platform` import crashes Web build / Web 构建崩溃 | Replaced with `defaultTargetPlatform` from `flutter/foundation.dart` |
+| 12 | Hardcoded weekday labels only handle zh/en / 星期标签硬编码中英 | `DateFormat.E()` handles all locales properly |
+| 13 | `showTodayButton` minimumSize zero hurts touch / 按钮触摸过小 | Removed `minimumSize: Size.zero` and `shrinkWrap` |
+
+### Touch Targets / 触摸目标
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 14 | Color picker circles 32x32px (GestureDetector, no ripple) / 颜色圈太小 | Replaced with `InkWell + borderRadius:20 + MouseRegion` (2 files) |
+| 15 | Date strip cells ~34px touch height / 日期触摸高度不足 | Vertical padding 4→10; chips padding 5→8 |
+| 16 | Calendar nav chevrons visualDensity.compact / 导航箭头密度紧凑 | Removed `visualDensity.compact` from 3 IconButtons |
+| 17 | EventTile padding horizontal:4 vertical:2 / 事件卡片内边距过紧 | Increased to h:6 v:4; added `onTap` + InkWell wrapper |
+| 18 | 6+ GestureDetector→InkWell replacements / 多处 GestureDetector 替换 | Date cells, chips, color circles, event tiles |
+
+### i18n / 国际化
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 19 | `'+N more'` hardcoded in month view / 月视图数字硬编码 | New key `nMore(int count)` |
+| 20 | `'Subtask text'` hardcoded hint / 子任务提示硬编码 | New key `subtaskHint` |
+| 21 | `_reminderLabel` returns `'min'/'h'` hardcoded / 提醒标签硬编码 | New key `reminderLabel(int minutes)` |
+| 22 | `_friendlyError()` 3 error messages hardcoded / 错误信息硬编码 | New keys: `rateLimited`, `connectionTimedOut`, `updateCheckFailed` |
+| 23 | `Text('GitHub')` hardcoded in feedback page / 反馈页 GitHub 硬编码 | New key `gitHub` |
+| 24 | Share subject hardcoded English / 分享标题硬编码 | Used l10n key for share subject |
+
+### Performance / 性能
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 25 | Search fires on every keystroke / 搜索每次按键触发 | Added 300ms debounce `Timer` |
+| 26 | Month view O(n×42) event filtering on every build / 月视图循环过滤 | Added events-by-date cache map, compute once per grid |
+| 27 | `PackageInfo.fromPlatform()` called every build / 每次构建调 API | Cached in `_cachedVersion` static field |
+
+### Visual Consistency / 视觉一致性
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 28 | Chat bubble `BorderRadius.circular(16)` vs app 6-8px / 圆角不一致 | Changed to `BorderRadius.circular(8)` |
+| 29 | Update prompt `BorderRadius.circular(12)` / 更新提示圆角不一致 | Changed to `BorderRadius.circular(6)` |
+| 30 | Light tag colors at alpha 0.3 nearly invisible / 浅色标签选中不可见 | Theme-aware alpha: 0.4 light / 0.3 dark |
+| 31 | Today indicator alpha 0.12 near-invisible on dark theme / 今天指示器颜色弱 | Changed to alpha 0.3 |
+| 32 | Color list duplicated in 2 dialog methods (DRY) / 颜色列表重复 | Extracted to top-level `_tagColors` constant |
+| 33 | User-Agent version hardcoded 0.19 / 版本号硬编码 | Dynamic from `PackageInfo.version` |
+
+### Code Quality / 代码质量
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 34 | Side effects in `build()` — home_page connectivity listener / build 方法副作用 | Moved to `initState()` via `ref.listenManual()` |
+| 35 | Side effects in `build()` — settings 4× Future.microtask / 设置页副作用 | Added `_loaded` guard flag |
+| 36 | GestureDetector nested inside InkWell (gesture arena conflict) / 手势冲突 | Replaced with inner InkWell |
+| 37 | `FutureBuilder` with uncached Future in settings_page / 未缓存 Future | Replaced with cached static field |
+
+### Build / Architecture / 构建与架构
+
+| # | Change / 变更 |
+|---|------|
+| 38 | New file: `lib/core/utils/platform_scroll_behavior.dart` — `AppScrollBehavior` |
+| 39 | `lib/main.dart` — Wrapped app with `ScrollConfiguration` + `CallbackShortcuts` + `Focus` |
+| 40 | `lib/l10n/app_localizations.dart` — 6 new abstract methods |
+| 41 | `lib/l10n/app_localizations_en.dart` — 6 new overrides |
+| 42 | `lib/l10n/app_localizations_zh.dart` — 6 new overrides |
+
+### Changed Files Summary / 变更文件统计
+
+**20 files touched** across lib/ (pages, widgets, core, l10n):
+
+| Category / 类别 | Files / 文件 |
+|------|------|
+| Core infrastructure | `main.dart`, `platform_scroll_behavior.dart` (new) |
+| Pages (7) | `home_page.dart`, `settings_page.dart`, `about_page.dart`, `feedback_page.dart`, `search_page.dart`, `tags_page.dart`, `ai_chat_page.dart` |
+| Calendar widgets (5) | `month_calendar_view.dart`, `week_calendar_view.dart`, `day_calendar_view.dart`, `calendar_section.dart`, `event_tile.dart` |
+| Todo widgets (2) | `date_strip.dart`, `todo_list_tile.dart` |
+| Other widgets (3) | `wheel_time_picker.dart`, `tag_chips.dart`, `attachment_list.dart` |
+| l10n (5) | `app_localizations.dart`, `app_localizations_en.dart`, `app_localizations_zh.dart`, `app_en.arb`, `app_zh.arb` |
+
 ---
 
 ## v0.20.0 Bug Fixes + Subtask + Terminal CLI + Headless MCP / v0.20.0 修复 + 子任务 + 命令行 + Headless MCP

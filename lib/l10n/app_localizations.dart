@@ -1414,6 +1414,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add subtask'**
   String get addSubtask;
+
+  /// No description provided for @nMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String nMore(int count);
+
+  /// No description provided for @subtaskHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtask text'**
+  String get subtaskHint;
+
+  /// No description provided for @reminderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder label for {minutes} minutes'**
+  String reminderLabel(int minutes);
+
+  /// No description provided for @rateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate limited. Visit github.com/{repo}/releases to check manually.'**
+  String rateLimited(String repo);
+
+  /// No description provided for @connectionTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out. Check your network.'**
+  String get connectionTimedOut;
+
+  /// No description provided for @updateCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update check failed. Visit github.com/{repo}/releases.'**
+  String updateCheckFailed(String repo);
+
+  /// No description provided for @gitHub.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub'**
+  String get gitHub;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

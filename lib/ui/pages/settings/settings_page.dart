@@ -47,6 +47,9 @@ class SettingsPage extends ConsumerWidget {
     return 3000;
   });
 
+  static bool _loaded = false;
+  static String? _cachedVersion;
+
   static Future<void> loadSystemAlarmSetting(WidgetRef ref) async {
     ref.read(systemAlarmProvider.notifier).state =
         await AlarmService.isEnabled();
@@ -73,10 +76,16 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Load persisted settings once on first build
-    Future.microtask(() => loadSystemAlarmSetting(ref));
-    Future.microtask(() => loadBackgroundSyncSetting(ref));
-    Future.microtask(() => loadMcpPortSetting(ref));
-    Future.microtask(() => loadMcpAutoStartSetting(ref));
+    if (!_loaded) {
+      _loaded = true;
+      Future.microtask(() => loadSystemAlarmSetting(ref));
+      Future.microtask(() => loadBackgroundSyncSetting(ref));
+      Future.microtask(() => loadMcpPortSetting(ref));
+      Future.microtask(() => loadMcpAutoStartSetting(ref));
+      PackageInfo.fromPlatform().then(
+        (i) => _cachedVersion = 'DaySpark v${i.version}',
+      );
+    }
 
     final l = AppLocalizations.of(context)!;
     final flagsAsync = ref.watch(featureFlagsProvider);
@@ -269,10 +278,7 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(CupertinoIcons.info),
             title: Text(l.about),
-            subtitle: FutureBuilder<String>(
-              future: PackageInfo.fromPlatform().then((i) => 'DaySpark v${i.version}'),
-              builder: (_, snap) => Text(snap.data ?? ''),
-            ),
+            subtitle: Text(_cachedVersion ?? ''),
             onTap: () => context.push('/about'),
           ),
         ],
@@ -340,6 +346,7 @@ class SettingsPage extends ConsumerWidget {
                           else
                             IconButton(
                               icon: const Icon(CupertinoIcons.refresh),
+                              tooltip: 'Sync',
                               onPressed: () => _triggerSync(context, ref),
                             ),
                           IconButton(
@@ -347,6 +354,7 @@ class SettingsPage extends ConsumerWidget {
                               CupertinoIcons.delete,
                               color: Theme.of(context).colorScheme.error,
                             ),
+                            tooltip: l.removeAccount,
                             onPressed: () =>
                                 _confirmRemoveAccount(context, ref, account),
                           ),
@@ -652,36 +660,45 @@ class SettingsPage extends ConsumerWidget {
         content: Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: _presetColors.map((color) {
+          children: _presetColors.asMap().entries.map((entry) {
+            final i = entry.key;
+            final color = entry.value;
             final selected = (current ?? const Color(0xFF2563EB)) == color;
-            return GestureDetector(
-              onTap: () {
-                ref.read(themeColorProvider.notifier).setColor(color);
-                Navigator.of(ctx).pop();
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: selected
-                      ? Border.all(
-                          color: Theme.of(ctx).colorScheme.onSurface,
-                          width: 3,
+            return Semantics(
+              label: 'Color ${i + 1}',
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: InkWell(
+                onTap: () {
+                  ref.read(themeColorProvider.notifier).setColor(color);
+                  Navigator.of(ctx).pop();
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: selected
+                        ? Border.all(
+                            color: Theme.of(ctx).colorScheme.onSurface,
+                            width: 3,
+                          )
+                        : null,
+                  ),
+                  child: selected
+                      ? Icon(
+                          Icons.check,
+                          color: ThemeData.estimateBrightnessForColor(color) ==
+                                  Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                          size: 20,
                         )
                       : null,
                 ),
-                child: selected
-                    ? Icon(
-                        Icons.check,
-                        color: ThemeData.estimateBrightnessForColor(color) ==
-                                Brightness.dark
-                            ? Colors.white
-                            : Colors.black,
-                        size: 20,
-                      )
-                    : null,
+              ),
               ),
             );
           }).toList(),

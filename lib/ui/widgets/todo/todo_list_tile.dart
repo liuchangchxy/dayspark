@@ -88,19 +88,27 @@ class TodoListTile extends ConsumerWidget {
         : theme.textTheme.bodyMedium?.color;
     final tagsAsync = ref.watch(todoTagsProvider(todoId));
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
+    return Semantics(
+      button: true,
+      hint: 'Open todo details',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: InkWell(
+        onTap: onTap,
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
             if (_priorityColor(theme.brightness) != Colors.transparent)
-              Container(
-                width: 4,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: _priorityColor(theme.brightness),
-                  borderRadius: BorderRadius.circular(2),
+              Semantics(
+                label: priority == 1 ? 'High priority' : 'Medium priority',
+                child: Container(
+                  width: 4,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: _priorityColor(theme.brightness),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               )
             else
@@ -110,11 +118,15 @@ class TodoListTile extends ConsumerWidget {
               width: 24,
               height: 24,
               child: isCompleted
-                  ? Checkbox(
-                      value: true,
-                      onChanged: (_) => onToggle(),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
+                  ? Semantics(
+                      button: true,
+                      label: 'Mark incomplete',
+                      child: Checkbox(
+                        value: true,
+                        onChanged: (_) => onToggle(),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
                     )
                   : (index != null
                       ? Center(
@@ -141,12 +153,16 @@ class TodoListTile extends ConsumerWidget {
                             ),
                           ),
                         )
-                      : Checkbox(
-                          value: false,
-                          onChanged: (_) => onToggle(),
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
+                      : Semantics(
+                          button: true,
+                          label: 'Mark complete',
+                          child: Checkbox(
+                            value: false,
+                            onChanged: (_) => onToggle(),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
                         )),
             ),
             const SizedBox(width: 12),
@@ -198,6 +214,8 @@ class TodoListTile extends ConsumerWidget {
           ],
         ),
       ),
+    ),
+    ),
     );
   }
 
@@ -209,12 +227,15 @@ class TodoListTile extends ConsumerWidget {
         final color = ColorUtils.parseHex(tag.color);
         return Padding(
           padding: const EdgeInsets.only(right: 4),
-          child: Tooltip(
-            message: tag.name,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: Semantics(
+            label: 'Tag: ${tag.name}',
+            child: Tooltip(
+              message: tag.name,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
             ),
           ),
         );

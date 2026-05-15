@@ -7,6 +7,19 @@ import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
+const _tagColors = [
+  '#EF4444',
+  '#F59E0B',
+  '#10B981',
+  '#3B82F6',
+  '#8B5CF6',
+  '#EC4899',
+  '#6B7280',
+  '#14B8A6',
+  '#F97316',
+  '#6366F1',
+];
+
 class TagsPage extends ConsumerWidget {
   const TagsPage({super.key});
 
@@ -104,18 +117,7 @@ class TagsPage extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final nameController = TextEditingController(text: tag.name);
     var selectedColor = tag.color;
-    final colors = [
-      '#EF4444',
-      '#F59E0B',
-      '#10B981',
-      '#3B82F6',
-      '#8B5CF6',
-      '#EC4899',
-      '#6B7280',
-      '#14B8A6',
-      '#F97316',
-      '#6366F1',
-    ];
+    final colors = _tagColors;
 
     showDialog(
       context: context,
@@ -138,8 +140,9 @@ class TagsPage extends ConsumerWidget {
                 runSpacing: 8,
                 children: colors.map((hex) {
                   final isSelected = hex == selectedColor;
-                  return GestureDetector(
+                  return InkWell(
                     onTap: () => setState(() => selectedColor = hex),
+                    borderRadius: BorderRadius.circular(16),
                     child: Container(
                       width: 32,
                       height: 32,
@@ -187,18 +190,7 @@ class TagsPage extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final nameController = TextEditingController();
     var selectedColor = '#6B7280';
-    final colors = [
-      '#EF4444',
-      '#F59E0B',
-      '#10B981',
-      '#3B82F6',
-      '#8B5CF6',
-      '#EC4899',
-      '#6B7280',
-      '#14B8A6',
-      '#F97316',
-      '#6366F1',
-    ];
+    final colors = _tagColors;
 
     showDialog(
       context: context,
@@ -221,8 +213,9 @@ class TagsPage extends ConsumerWidget {
                 runSpacing: 8,
                 children: colors.map((hex) {
                   final isSelected = hex == selectedColor;
-                  return GestureDetector(
+                  return InkWell(
                     onTap: () => setState(() => selectedColor = hex),
+                    borderRadius: BorderRadius.circular(16),
                     child: Container(
                       width: 32,
                       height: 32,
