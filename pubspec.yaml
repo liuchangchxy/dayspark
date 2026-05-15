@@ -103,3 +103,7 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/icon/icon.png"
     icon_size: 256
+
+dependency_overrides:
+  flutter_local_notifications_windows:
+    path: patches/flutter_local_notifications_windows

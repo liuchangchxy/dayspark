@@ -59,11 +59,7 @@ jobs:
           path: dayspark-macos.dmg
 
   build-windows:
-    strategy:
-      matrix:
-        os: [windows-2022, windows-2025]
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -73,45 +69,20 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter clean
-      - name: Build Windows release
-        id: build_windows
-        continue-on-error: true
-        run: flutter build windows --release --verbose
-      - name: Capture gen_snapshot error
-        if: steps.build_windows.outcome == 'failure'
-        shell: pwsh
-        run: |
-          Write-Host "=== app.so check ==="
-          if (Test-Path "build/windows/app.so") {
-            Write-Host "app.so FOUND"
-          } else {
-            Write-Host "app.so NOT FOUND — AOT crashed"
-          }
-          Write-Host "=== Last 50 lines of build log ==="
-          Get-ChildItem "build/windows/x64" -Recurse -Filter "*.log" -ErrorAction SilentlyContinue | % {
-            Write-Host "--- $($_.FullName) ---"
-            Get-Content $_.FullName -Tail 50
-          }
-      - name: Fail if build failed
-        if: steps.build_windows.outcome == 'failure'
-        run: exit 1
+      - run: flutter build windows --release --verbose
       - name: Install Inno Setup
-        if: steps.build_windows.outcome == 'success'
         run: choco install innosetup --no-progress
       - name: Extract version for installer
-        if: steps.build_windows.outcome == 'success'
         shell: pwsh
         run: |
           $version = Select-String -Path pubspec.yaml -Pattern 'version: (.+)' | % { $_.Matches.Groups[1].Value }
           echo "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build installer
-        if: steps.build_windows.outcome == 'success'
         run: |
           iscc windows/app_installer.iss /DMyAppVersion=$env:APP_VERSION
       - uses: actions/upload-artifact@v4
-        if: steps.build_windows.outcome == 'success'
         with:
-          name: windows-installer-${{ matrix.os }}
+          name: windows-installer
           path: build/installer/DaySpark-*-Setup.exe
 
   build-linux:
