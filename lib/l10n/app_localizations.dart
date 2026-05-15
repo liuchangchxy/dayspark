@@ -1430,7 +1430,7 @@ abstract class AppLocalizations {
   /// No description provided for @reminderLabel.
   ///
   /// In en, this message translates to:
-  /// **'Reminder label for {minutes} minutes'**
+  /// **'{minutes}min'**
   String reminderLabel(int minutes);
 
   /// No description provided for @rateLimited.

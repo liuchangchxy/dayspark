@@ -245,5 +245,26 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+  "subtaskHint": "子任务文本",
+  "reminderLabel": "{minutes}分钟前",
+  "@reminderLabel": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "rateLimited": "请求频繁。请访问 github.com/{repo}/releases 手动检查。",
+  "@rateLimited": {
+    "placeholders": {
+      "repo": { "type": "String" }
+    }
+  },
+  "connectionTimedOut": "连接超时，请检查网络。",
+  "updateCheckFailed": "检查更新失败。请访问 github.com/{repo}/releases。",
+  "@updateCheckFailed": {
+    "placeholders": {
+      "repo": { "type": "String" }
+    }
+  },
+  "gitHub": "GitHub"
 }

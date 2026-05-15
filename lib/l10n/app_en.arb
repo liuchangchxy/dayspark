@@ -326,5 +326,26 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+  "subtaskHint": "Subtask text",
+  "reminderLabel": "{minutes}min",
+  "@reminderLabel": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "rateLimited": "Rate limited. Visit github.com/{repo}/releases to check manually.",
+  "@rateLimited": {
+    "placeholders": {
+      "repo": { "type": "String" }
+    }
+  },
+  "connectionTimedOut": "Connection timed out. Check your network.",
+  "updateCheckFailed": "Update check failed. Visit github.com/{repo}/releases.",
+  "@updateCheckFailed": {
+    "placeholders": {
+      "repo": { "type": "String" }
+    }
+  },
+  "gitHub": "GitHub"
 }

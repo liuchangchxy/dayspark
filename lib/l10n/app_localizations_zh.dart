@@ -720,28 +720,28 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get subtaskHint => '子任务描述';
+  String get subtaskHint => '子任务文本';
 
   @override
   String reminderLabel(int minutes) {
     if (minutes == 0) return noReminder;
-    if (minutes < 60) return '${minutes}分钟';
-    if (minutes == 60) return '1小时';
-    if (minutes == 120) return '2小时';
-    return '24小时';
+    if (minutes < 60) return '$minutes分钟前';
+    if (minutes == 60) return '1小时前';
+    if (minutes == 120) return '2小时前';
+    return '24小时前';
   }
 
   @override
   String rateLimited(String repo) {
-    return '访问受限。请前往 github.com/$repo/releases 手动检查更新。';
+    return '请求频繁。请访问 github.com/$repo/releases 手动检查。';
   }
 
   @override
-  String get connectionTimedOut => '连接超时。请检查网络。';
+  String get connectionTimedOut => '连接超时，请检查网络。';
 
   @override
   String updateCheckFailed(String repo) {
-    return '检查更新失败。请前往 github.com/$repo/releases。';
+    return '检查更新失败。请访问 github.com/$repo/releases。';
   }
 
   @override
