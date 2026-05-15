@@ -165,10 +165,17 @@ class NotificationService {
       priority: Priority.high,
     );
     const iosDetails = DarwinNotificationDetails();
+    const windowsDetails = WindowsNotificationDetails(
+      actions: [
+        WindowsAction(content: 'Mark Complete', arguments: 'mark_complete'),
+        WindowsAction(content: 'Snooze 1h', arguments: 'snooze'),
+      ],
+    );
     const details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
       macOS: iosDetails,
+      windows: windowsDetails,
     );
 
     final tzDateTime = tz.TZDateTime.from(scheduledTime, tz.local);
@@ -211,10 +218,17 @@ class NotificationService {
       ],
     );
     const iosDetails = DarwinNotificationDetails();
+    const windowsDetails = WindowsNotificationDetails(
+      actions: [
+        WindowsAction(content: 'Mark Complete', arguments: 'mark_complete'),
+        WindowsAction(content: 'Snooze 1h', arguments: 'snooze'),
+      ],
+    );
     final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
       macOS: iosDetails,
+      windows: windowsDetails,
     );
 
     final tzDateTime = tz.TZDateTime.from(scheduledTime, tz.local);

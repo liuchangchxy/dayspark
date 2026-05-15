@@ -198,3 +198,13 @@
 - `lib/data/local/database/connect_flutter.dart` 隔离了 Flutter 的 `driftDatabase()` 调用，CLI 不导入该文件
 - **Why**: 消除两份 Schema 维护成本；CLI 自动获得全部 9 表 + 迁移支持；`NativeDatabase` 来自 `package:drift/native.dart`，无需 Flutter
 - **Date**: 2026-05-15
+
+## Windows Build / Windows 构建
+
+### Windows release AOT 必须在 NotificationDetails 中指定 windows 参数
+- `_scheduleNotification` 和 `snooze` 方法中 `NotificationDetails` 必须包含 `windows: WindowsNotificationDetails(...)` 且至少含一个 action
+- 不能省略 `windows` 参数或留空 `WindowsNotificationDetails()`
+- **Why**: `flutter_local_notifications_windows` 3.0.0 的 FFI 绑定中 `NativeLaunchDetails` 类在无引用时会被 tree-shaker 删除，导致 Dart `gen_snapshot` full-AOT 编译崩溃（exit code -1073740791, "Class with illegal cid"），报错 MSB8066
+- **Root cause**: Dart VM `gen_snapshot` 的 tree-shaking 与 AOT 序列化之间的兼容性 bug。FFI 类被 tree-shaker 优化掉后，序列化器找不到类定义
+- **Diagnosis**: 添加 `--verbose` 发现 `aot_elf_release` 步骤中 `gen_snapshot` crashed with `Unexpected object (Class with illegal cid, full-aot): flutter_local_notifications_windows NativeLaunchDetails`
+- **Date**: 2026-05-15
