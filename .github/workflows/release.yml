@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    # Manual trigger for debugging Windows release build
 
 jobs:
   build-web:
@@ -68,21 +70,102 @@ jobs:
           flutter-version: "3.41.5"
           cache: true
       - run: flutter pub get
-      - run: flutter build windows --release
+      - name: Build Windows release (investigating MSB8066)
+        id: build_windows
+        continue-on-error: true
+        run: flutter build windows --release --verbose
+      - name: Diagnostics — check build output and logs
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "=== 1. Check app.so (AOT snapshot) ==="
+          if (Test-Path "build/windows/app.so") {
+            Write-Host "app.so: FOUND (size: $((Get-Item "build/windows/app.so").Length) bytes)"
+          } else {
+            Write-Host "app.so: NOT FOUND — AOT compilation likely failed"
+          }
+
+          Write-Host "=== 2. Check Release output dir ==="
+          $releaseDir = "build/windows/x64/runner/Release"
+          if (Test-Path $releaseDir) {
+            Get-ChildItem $releaseDir | ForEach-Object { Write-Host "  $($_.Name) ($($_.Length) bytes)" }
+          } else {
+            Write-Host "Release dir: NOT FOUND"
+          }
+
+          Write-Host "=== 3. CMake error logs ==="
+          Get-ChildItem "build/windows/x64/CMakeFiles" -Recurse -Filter "*.log" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "--- $($_.FullName) ---"
+            Get-Content $_.FullName
+          }
+
+          Write-Host "=== 4. flutter_assemble build logs ==="
+          $flutterBuildDir = "build/windows/x64/flutter"
+          if (Test-Path $flutterBuildDir) {
+            Get-ChildItem $flutterBuildDir -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+              Write-Host "  $($_.FullName)"
+            }
+          }
+
+          Write-Host "=== 5. MSBuild log ==="
+          Get-ChildItem "build/windows/x64" -Filter "*.log" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "--- $($_.FullName) ---"
+            Get-Content $_.FullName
+          }
+
+          Write-Host "=== 6. Native assets ==="
+          Get-ChildItem "build/native_assets/windows" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "  $($_.Name)"
+          }
+
+          Write-Host "=== 7. Flutter plugin build dirs ==="
+          $pluginBuilds = "build/windows/x64/plugins"
+          if (Test-Path $pluginBuilds) {
+            Get-ChildItem $pluginBuilds -Recurse -Filter "*.log" -ErrorAction SilentlyContinue | ForEach-Object {
+              Write-Host "--- $($_.FullName) ---"
+              Get-Content $_.FullName
+            }
+          }
+      - name: Fail job if build failed
+        if: steps.build_windows.outcome == 'failure'
+        run: exit 1
       - name: Install Inno Setup
+        if: steps.build_windows.outcome == 'success'
         run: choco install innosetup --no-progress
       - name: Extract version for installer
+        if: steps.build_windows.outcome == 'success'
         shell: pwsh
         run: |
           $version = Select-String -Path pubspec.yaml -Pattern 'version: (.+)' | % { $_.Matches.Groups[1].Value }
           echo "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build installer
+        if: steps.build_windows.outcome == 'success'
         run: |
           iscc windows/app_installer.iss /DMyAppVersion=$env:APP_VERSION
       - uses: actions/upload-artifact@v4
+        if: steps.build_windows.outcome == 'success'
         with:
           name: windows-installer
           path: build/installer/DaySpark-*-Setup.exe
+
+  build-windows-2019:
+    runs-on: windows-2019
+    # Diagnostic: does the same build work on windows-2019?
+    # If yes → runner image regression; if same MSB8066 → toolchain/Flutter issue
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.41.5"
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release --verbose
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-2019
+          path: build/windows/x64/runner/Release/
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -105,6 +188,7 @@ jobs:
 
   release:
     needs: [build-web, build-android, build-macos, build-windows, build-linux]
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write
