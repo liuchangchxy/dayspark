@@ -20,6 +20,7 @@
   "startDate": "开始日期",
   "endDate": "结束日期",
   "dueDate": "截止日期",
+  "dueTime": "具体时间",
   "allDay": "全天",
   "priority": "优先级",
   "priorityNone": "无",

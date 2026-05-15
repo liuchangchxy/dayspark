@@ -225,29 +225,32 @@ class SettingsPage extends ConsumerWidget {
                   ref.read(mcpRunningProvider.notifier).state = v;
                 },
               ),
-              CheckboxListTile(
-                secondary: const SizedBox(width: 24),
-                title: Text(l.mcpAutoStart),
-                subtitle: Text(l.mcpAutoStartDesc),
-                value: ref.watch(mcpAutoStartProvider),
-                onChanged: (v) async {
-                  ref.read(mcpAutoStartProvider.notifier).state = v ?? false;
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('mcp_auto_start', v ?? false);
-                },
-              ),
-              ListTile(
-                title: Text(l.mcpPort),
-                subtitle: Text('${ref.watch(mcpPortProvider)}'),
-                trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
-                onTap: () => _showMcpPortDialog(context, ref),
-              ),
+              if (ref.watch(mcpRunningProvider)) ...[
+                CheckboxListTile(
+                  secondary: const SizedBox(width: 24),
+                  title: Text(l.mcpAutoStart),
+                  subtitle: Text(l.mcpAutoStartDesc),
+                  value: ref.watch(mcpAutoStartProvider),
+                  onChanged: (v) async {
+                    ref.read(mcpAutoStartProvider.notifier).state = v ?? false;
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('mcp_auto_start', v ?? false);
+                  },
+                ),
+                ListTile(
+                  leading: const SizedBox(width: 24),
+                  title: Text(l.mcpPort),
+                  subtitle: Text('${ref.watch(mcpPortProvider)}'),
+                  trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
+                  onTap: () => _showMcpPortDialog(context, ref),
+                ),
+              ],
 
             ],
           ),
 
           // ── System Alarm ──
-          if (Platform.isAndroid || Platform.isIOS) ...[
+          if (Platform.isAndroid || Platform.isIOS || Platform.isWindows) ...[
             const Divider(),
             SwitchListTile(
               secondary: const Icon(CupertinoIcons.alarm),

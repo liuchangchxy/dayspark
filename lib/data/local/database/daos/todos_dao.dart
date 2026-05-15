@@ -16,7 +16,8 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
           ..where(
             (t) =>
                 t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
-                t.deletedAt.isNull(),
+                t.deletedAt.isNull() &
+                t.parentId.isNull(),
           )
           ..orderBy([
             (t) => OrderingTerm.asc(t.sortOrder),
@@ -50,7 +51,12 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
 
   Stream<List<Todo>> watchCompleted() {
     return (select(todos)
-          ..where((t) => t.status.equals('COMPLETED') & t.deletedAt.isNull())
+          ..where(
+            (t) =>
+                t.status.equals('COMPLETED') &
+                t.deletedAt.isNull() &
+                t.parentId.isNull(),
+          )
           ..orderBy([(t) => OrderingTerm.desc(t.completedAt)]))
         .watch();
   }
@@ -135,7 +141,8 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
           ).join([innerJoin(todoTags, todoTags.todoId.equalsExp(todos.id))])
           ..where(
             todos.deletedAt.isNull() &
-                todos.status.isNotIn(const ['COMPLETED', 'CANCELLED']),
+                todos.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                todos.parentId.isNull(),
           )
           ..where(todoTags.tagId.isIn(tagIds))
           ..groupBy([todos.id])
@@ -152,7 +159,8 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
             (t) =>
                 t.deletedAt.isNull() &
                 t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
-                t.dueDate.isNull(),
+                t.dueDate.isNull() &
+                t.parentId.isNull(),
           )
           ..orderBy([
             (t) => OrderingTerm.asc(t.sortOrder),
@@ -170,7 +178,9 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
 
   Stream<List<Todo>> watchAllNotDeleted() {
     return (select(todos)
-          ..where((t) => t.deletedAt.isNull())
+          ..where(
+            (t) => t.deletedAt.isNull() & t.parentId.isNull(),
+          )
           ..orderBy([
             (t) => OrderingTerm.asc(t.status),
             (t) => OrderingTerm.asc(t.sortOrder),

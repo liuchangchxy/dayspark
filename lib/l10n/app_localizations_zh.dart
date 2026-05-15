@@ -69,6 +69,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dueDate => '截止日期';
 
   @override
+  String get dueTime => '具体时间';
+
+  @override
   String get allDay => '全天';
 
   @override

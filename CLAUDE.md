@@ -53,6 +53,9 @@
 
 ## Workflow
 - 所有工作走完整 pipeline：理解 → 实现 → 验证 → 确认 → 文档 → 推送 → 验收（见 `.claude/skills/release-prep/SKILL.md`）
+- ⚠️ **完成所有改动后，必须逐条对照用户原始反馈清单验证**，不能只看自己的 todo 列表。遗漏一条也算未完成。
+- ⚠️ **UI 改动必须考虑全部目标平台**（桌面和移动端），不能只适配一种。桌面端（Linux/Windows/macOS）的鼠标交互和移动端不同。
+- ⚠️ **"修完了"必须经用户确认**，不要自己替用户宣布完成。
 - `build_runner` 后必须重新运行（改了 Drift table/DAO）
 - 改了 `.arb` 后必须 `flutter gen-l10n`
 - 改了 provider 结构后检查 `test/` 下对应测试

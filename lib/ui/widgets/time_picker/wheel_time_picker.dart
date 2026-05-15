@@ -10,7 +10,7 @@ Future<TimeOfDay?> showWheelTimePicker(
   BuildContext context, {
   required TimeOfDay initialTime,
 }) {
-  if (Platform.isLinux) {
+  if (!Platform.isAndroid && !Platform.isIOS) {
     return showTimePicker(context: context, initialTime: initialTime);
   }
   return showModalBottomSheet<TimeOfDay>(

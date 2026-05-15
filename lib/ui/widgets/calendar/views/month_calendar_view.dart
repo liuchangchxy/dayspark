@@ -171,7 +171,7 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
       padding: EdgeInsets.zero,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
-        childAspectRatio: 0.75,
+        childAspectRatio: 0.85,
       ),
       itemCount: 42,
       itemBuilder: (context, index) {

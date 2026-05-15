@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,7 @@ class _HomePageState extends ConsumerState<HomePage>
   DateTime? _selectedDate = DateTime.now();
   bool _showAllTodos = false;
   final Set<int> _selectedTagIds = {};
+  bool _calendarTabWasActive = false;
   Timer? _dayCheckTimer;
   DateTime? _lastCheckedDay;
 
@@ -273,6 +275,18 @@ class _HomePageState extends ConsumerState<HomePage>
       ref.read(wasOfflineProvider.notifier).state = !isOnline;
     });
 
+    // Refresh events stream when switching to calendar tab
+    if (isCalendarTab && !_calendarTabWasActive) {
+      _calendarTabWasActive = true;
+      Future.microtask(() {
+        final r = _calendarRange();
+        final k = '${r.start.millisecondsSinceEpoch}-${r.end.millisecondsSinceEpoch}';
+        ref.invalidate(eventsInDateRangeProvider(k));
+      });
+    } else if (!isCalendarTab) {
+      _calendarTabWasActive = false;
+    }
+
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -358,6 +372,7 @@ class _HomePageState extends ConsumerState<HomePage>
       data: (events) {
         final adapters = expandRecurringEvents(events, range);
         return CalendarSection(
+          key: ValueKey(adapters.length),
           events: adapters,
           onEventTapped: (event) => context.push('/event/edit', extra: event),
           onTimeSlotTapped: (range) {
@@ -674,6 +689,13 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _reorderableTodoTile(Todo todo, Key key, {required int index}) {
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+      return ReorderableDragStartListener(
+        key: key,
+        index: index,
+        child: _todoTile(todo, index: index),
+      );
+    }
     return ReorderableDelayedDragStartListener(
       key: key,
       index: index,

@@ -35,6 +35,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
   bool _saving = false;
   bool _aiLoading = false;
   String? _rrule;
+  final List<int> _selectedReminderMinutes = [5, 15];
 
   @override
   void initState() {
@@ -97,14 +98,21 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
         rrule: _rrule,
       );
 
-      // Add default reminders
-      if (!_isAllDay) {
-        try {
-          await ref.read(addDefaultEventRemindersProvider)(
-            eventId: eventId,
-            startDt: _start,
-          );
-        } catch (_) {}
+      // Add reminders based on user selection
+      if (_selectedReminderMinutes.isNotEmpty && !_isAllDay) {
+        final createReminder = ref.read(createReminderProvider);
+        for (final minutes in _selectedReminderMinutes) {
+          final triggerTime = _start.subtract(Duration(minutes: minutes));
+          if (triggerTime.isAfter(DateTime.now())) {
+            try {
+              await createReminder(
+                parentType: 'event',
+                parentId: eventId,
+                triggerTime: triggerTime,
+              );
+            } catch (_) {}
+          }
+        }
       }
 
       if (mounted) context.pop();
@@ -215,6 +223,53 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
     }
   }
 
+  String _reminderLabel(AppLocalizations l, int minutes) {
+    if (minutes == 0) return l.noReminder;
+    if (minutes < 60) return '${minutes}min';
+    return '${minutes ~/ 60}h';
+  }
+
+  Widget _buildReminderSection(AppLocalizations l) {
+    const options = [0, 5, 15, 30, 60];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l.reminder,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: options.map((minutes) {
+            final isSelected = minutes == 0
+                ? _selectedReminderMinutes.isEmpty
+                : _selectedReminderMinutes.contains(minutes);
+            return ChoiceChip(
+              label: Text(_reminderLabel(l, minutes)),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  if (minutes == 0) {
+                    _selectedReminderMinutes.clear();
+                  } else if (selected) {
+                    _selectedReminderMinutes.add(minutes);
+                    _selectedReminderMinutes.remove(0);
+                  } else {
+                    _selectedReminderMinutes.remove(minutes);
+                  }
+                });
+              },
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -310,6 +365,10 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
             ),
           ),
           const SizedBox(height: 16),
+
+          _buildReminderSection(l),
+          const SizedBox(height: 16),
+
           // Recurrence rule
           RRuleGenerator(
             localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),

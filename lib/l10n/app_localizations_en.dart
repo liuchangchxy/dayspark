@@ -69,6 +69,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dueDate => 'Due date';
 
   @override
+  String get dueTime => 'Time';
+
+  @override
   String get allDay => 'All day';
 
   @override

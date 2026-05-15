@@ -26,6 +26,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   final _summaryController = TextEditingController();
   final _descriptionController = TextEditingController();
   late DateTime? _dueDate;
+  TimeOfDay? _dueTime;
   DateTime? _startDate;
   int _priority = 5;
   bool _saving = false;
@@ -70,6 +71,14 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
 
     setState(() => _saving = true);
     try {
+      // Combine dueDate and dueTime
+      if (_dueDate != null && _dueTime != null) {
+        _dueDate = DateTime(
+          _dueDate!.year, _dueDate!.month, _dueDate!.day,
+          _dueTime!.hour, _dueTime!.minute,
+        );
+      }
+
       final calendars = await ref.read(calendarsProvider.future);
       if (calendars.isEmpty) {
         if (mounted) {
@@ -310,6 +319,31 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
 
           // Quick date chips
           _buildQuickDateChips(l, now),
+          const SizedBox(height: 8),
+
+          // Due time
+          ListTile(
+            leading: const Icon(CupertinoIcons.clock),
+            title: Text(l.dueTime),
+            subtitle: _dueTime != null
+                ? Text(
+                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}')
+                : Text(l.notSet),
+            onTap: () async {
+              final time = await showTimePicker(
+                context: context,
+                initialTime: _dueTime ?? TimeOfDay.now(),
+              );
+              if (time != null) setState(() => _dueTime = time);
+            },
+            trailing: _dueTime != null
+                ? IconButton(
+                    icon: const Icon(CupertinoIcons.clear, size: 18),
+                    onPressed: () => setState(() => _dueTime = null),
+                  )
+                : null,
+            contentPadding: EdgeInsets.zero,
+          ),
           const SizedBox(height: 16),
 
           // Priority
@@ -318,29 +352,15 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
-          SizedBox(
-            width: double.infinity,
-            child: FittedBox(
-              child: SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: _priorityValues
-                    .map(
-                      (v) => ButtonSegment(
-                        value: v,
-                        label: Text(priorityLabels[v]!),
-                      ),
-                    )
-                    .toList(),
-                selected: {_priority},
-                onSelectionChanged: (s) => setState(() => _priority = s.first),
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  textStyle: WidgetStatePropertyAll(
-                    Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
-              ),
-            ),
+          Wrap(
+            spacing: 6,
+            children: _priorityValues.map((v) => ChoiceChip(
+              label: Text(priorityLabels[v]!, style: const TextStyle(fontSize: 12)),
+              selected: _priority == v,
+              onSelected: (_) => setState(() => _priority = v),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            )).toList(),
           ),
           const SizedBox(height: 16),
 

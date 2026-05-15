@@ -20,6 +20,7 @@
   "startDate": "Starts at",
   "endDate": "Ends at",
   "dueDate": "Due date",
+  "dueTime": "Time",
   "allDay": "All day",
   "priority": "Priority",
   "priorityNone": "None",

@@ -10,6 +10,7 @@ import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
@@ -31,6 +32,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   final _descriptionController = TextEditingController();
   int _priority = 5;
   DateTime? _dueDate;
+  TimeOfDay? _dueTime;
   DateTime? _startDate;
   bool _saving = false;
   String? _rrule;
@@ -47,6 +49,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     _descriptionController.text = _todo.description ?? '';
     _priority = _todo.priority;
     _dueDate = _todo.dueDate;
+    if (_dueDate != null && (_dueDate!.hour != 0 || _dueDate!.minute != 0)) {
+      _dueTime = TimeOfDay.fromDateTime(_dueDate!);
+    }
     _startDate = _todo.startDate;
     _rrule = _todo.rrule;
 
@@ -89,6 +94,14 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
 
     setState(() => _saving = true);
     try {
+      // Combine dueDate and dueTime
+      if (_dueDate != null && _dueTime != null) {
+        _dueDate = DateTime(
+          _dueDate!.year, _dueDate!.month, _dueDate!.day,
+          _dueTime!.hour, _dueTime!.minute,
+        );
+      }
+
       final db = ref.read(databaseProvider);
       await (db.update(db.todos)..where((t) => t.id.equals(_todo.id))).write(
         TodosCompanion(
@@ -296,6 +309,31 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
 
           // Quick date chips
           _buildQuickDateChips(l, now),
+          const SizedBox(height: 8),
+
+          // Due time
+          ListTile(
+            leading: const Icon(CupertinoIcons.clock),
+            title: Text(l.dueTime),
+            subtitle: _dueTime != null
+                ? Text(
+                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}')
+                : Text(l.notSet),
+            onTap: () async {
+              final time = await showTimePicker(
+                context: context,
+                initialTime: _dueTime ?? TimeOfDay.now(),
+              );
+              if (time != null) setState(() => _dueTime = time);
+            },
+            trailing: _dueTime != null
+                ? IconButton(
+                    icon: const Icon(CupertinoIcons.clear, size: 18),
+                    onPressed: () => setState(() => _dueTime = null),
+                  )
+                : null,
+            contentPadding: EdgeInsets.zero,
+          ),
           const SizedBox(height: 16),
 
           // Priority
@@ -304,29 +342,15 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
-          SizedBox(
-            width: double.infinity,
-            child: FittedBox(
-              child: SegmentedButton<int>(
-                showSelectedIcon: false,
-                segments: _priorityValues
-                    .map(
-                      (v) => ButtonSegment(
-                        value: v,
-                        label: Text(priorityLabels[v]!),
-                      ),
-                    )
-                    .toList(),
-                selected: {_priority},
-                onSelectionChanged: (s) => setState(() => _priority = s.first),
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  textStyle: WidgetStatePropertyAll(
-                    Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
-              ),
-            ),
+          Wrap(
+            spacing: 6,
+            children: _priorityValues.map((v) => ChoiceChip(
+              label: Text(priorityLabels[v]!, style: const TextStyle(fontSize: 12)),
+              selected: _priority == v,
+              onSelected: (_) => setState(() => _priority = v),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            )).toList(),
           ),
           const SizedBox(height: 16),
 
@@ -447,9 +471,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
             TextButton.icon(
               icon: const Icon(CupertinoIcons.add, size: 14),
               label: Text(l.addSubtask),
-              onPressed: () => context.push(
-                '/todo/new?parentId=${_todo.id}',
-              ),
+              onPressed: () => _showAddSubtaskDialog(l),
             ),
           ],
         ),
@@ -470,33 +492,51 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
             }
             return Column(
               children: subtasks.map((sub) {
-                return InkWell(
-                  onTap: () => context.push('/todo/edit', extra: sub),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Icon(
-                          CupertinoIcons.square,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                final done = sub.status == 'COMPLETED';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => ref.read(toggleTodoProvider)(
+                          id: sub.id, isCompleted: !done,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            sub.summary,
-                            style: const TextStyle(fontSize: 13),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        child: Icon(
+                          done
+                              ? CupertinoIcons.checkmark_circle_fill
+                              : CupertinoIcons.circle,
+                          size: 18,
+                          color: done
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          sub.summary,
+                          style: TextStyle(
+                            fontSize: 13,
+                            decoration:
+                                done ? TextDecoration.lineThrough : null,
+                            color: done
+                                ? Theme.of(context).disabledColor
+                                : null,
                           ),
                         ),
-                        Icon(
-                          CupertinoIcons.right_chevron,
-                          size: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      GestureDetector(
+                        onTap: () => _deleteSubtask(sub.id),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            CupertinoIcons.delete,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
               }).toList(),
@@ -507,6 +547,67 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
         ),
       ],
     );
+  }
+
+  void _showAddSubtaskDialog(AppLocalizations l) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.addSubtask),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Subtask text'),
+          onSubmitted: (_) {
+            if (controller.text.trim().isNotEmpty) {
+              _createSubtask(controller.text.trim());
+              Navigator.of(ctx).pop();
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                _createSubtask(controller.text.trim());
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: Text(l.add),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createSubtask(String text) async {
+    try {
+      final calendars = await ref.read(calendarsProvider.future);
+      if (calendars.isEmpty) return;
+      await ref.read(createTodoProvider)(
+        calendarId: calendars.first.id,
+        uid: 'subtask-${DateTime.now().millisecondsSinceEpoch}',
+        summary: text,
+        priority: 0,
+        status: 'NEEDS-ACTION',
+        parentId: _todo.id,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSubtask(int id) async {
+    await ref.read(deleteTodoProvider)(id);
   }
 
   String _reminderLabel(AppLocalizations l, int minutes) {

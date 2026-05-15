@@ -215,6 +215,12 @@ abstract class AppLocalizations {
   /// **'Due date'**
   String get dueDate;
 
+  /// No description provided for @dueTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get dueTime;
+
   /// No description provided for @allDay.
   ///
   /// In en, this message translates to:
