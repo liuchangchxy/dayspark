@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
 
 import 'tables/accounts_table.dart';
 import 'tables/calendars_table.dart';
@@ -36,20 +33,11 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   /// Creates a database with a given [executor]. Used by:
   ///   - Flutter app via [openFlutterDatabase] from `connect_flutter.dart`
-  ///   - CLI via [AppDatabase.forFile]
+  ///   - CLI via [AppDatabase.forFile] from `app_database_file.dart`
   ///   - Tests via [AppDatabase.forTesting]
   AppDatabase.forExecutor(super.executor);
 
   AppDatabase.forTesting(super.executor);
-
-  /// Opens a database at [dbPath] using a pure-Dart SQLite connection (no
-  /// Flutter dependency). Used by the CLI (`bin/dayspark.dart`).
-  ///
-  /// The directory must already exist. WAL and foreign keys are enabled.
-  factory AppDatabase.forFile(String dbPath) {
-    final db = NativeDatabase(File(dbPath));
-    return AppDatabase.forExecutor(db);
-  }
 
   @override
   int get schemaVersion => 7;

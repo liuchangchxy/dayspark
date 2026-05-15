@@ -19,6 +19,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:drift/drift.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/data/local/database/app_database_file.dart';
 
 String _getDbPath() {
   final home = Platform.environment['HOME'] ?? '/tmp';
@@ -46,7 +47,7 @@ Future<void> main(List<String> args) async {
   final dir = Directory(p.dirname(dbPath));
   if (!dir.existsSync()) dir.createSync(recursive: true);
 
-  final appDb = AppDatabase.forFile(dbPath);
+  final appDb = openDatabaseFile(dbPath);
   try {
     final cmd = args.first;
     final rest = args.skip(1).toList();
