@@ -417,7 +417,7 @@ packages:
       path: "patches/flutter_local_notifications_windows"
       relative: true
     source: path
-    version: "3.0.0"
+    version: "3.0.0-stub"
   flutter_localizations:
     dependency: "direct main"
     description: flutter
