@@ -122,8 +122,11 @@
 
 ### 密钥文件禁止提交到 Git
 - `key.properties`、`*.jks` 必须在 `.gitignore` 中
+- CI 中从 **GitHub Secrets** 注入：`ANDROID_KEYSTORE` (base64)、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`
+- `release.yml` 的 `build-android` job 在 `flutter build` 前通过 `echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d` 还原 keystore 文件
+- `build.gradle.kts` 有 `if (keystorePropertiesFile.exists())` 守卫，无 keystore 时跳过签名（CI 验证构建走 unsigned 路径）
 - **Why**: 签名密钥泄露可导致供应链攻击
-- **Date**: 2026-05-14
+- **Date**: 2026-05-14 (updated 2026-05-17)
 
 ### 密码只存 FlutterSecureStorage，不回退到数据库
 - 读取密码时 `storage.read()` 返回 null → 跳过该账户，不用 `?? account.password`

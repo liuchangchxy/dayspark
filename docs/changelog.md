@@ -2,9 +2,25 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.20.5+23** — Windows Release Fix + CI Fix / Windows 发版修复 + CI 修复
-- 最新流程改进 / Pipeline: **CI→release build + draft release** — 2026-05-16
+- 最新版本 / Latest: **v0.20.5+24** — Security: remove signing keys from repo + clean 8GB build cache / 安全修复：从仓库移除签名密钥 + 清理 8GB 构建缓存
+- 最新流程改进 / Pipeline: **Keystore injected via GitHub Secrets** — 2026-05-17
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.20.5+24 — Security: Remove Signing Keys from Repo / 从仓库移除签名密钥
+
+### Fix / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | **Android signing keys exposed in git repo / Android 签名密钥暴露在仓库中** — `android/app/release-keystore.jks` and `key.properties` (with plaintext passwords) were tracked by git and pushed to GitHub. Anyone with access could sign fake APKs. / `android/app/release-keystore.jks` 和 `key.properties`（含明文密码）被 git 追踪并已推送到 GitHub，可用于伪造签名 APK | Generated **new keystore** with random password. Removed both files from git tracking. Added to `.android/.gitignore`. CI now injects keystore from **GitHub Secrets** (`ANDROID_KEYSTORE`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`) at build time. / 生成新 keystore + 新密码，移出 git 追踪，加入 gitignore；CI 改为从 GitHub Secrets 还原签名 |
+
+### Cleanup / 清理
+
+| # | Action / 操作 | Size / 大小 |
+|---|------|------|
+| 1 | Removed local build artifacts / 清理本地构建缓存 | `build/` (6.3 GB) + `.dart_tool/` (1.7 GB) + `.opencode/node_modules/` (57 MB) = **~8 GB** |
 
 ---
 

@@ -1,13 +1,13 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.20.5+23 | 2026-05-16 | CI→release build + draft release
+> Last updated / 最后更新: v0.20.5+24 | 2026-05-17 | Security: remove signing keys from repo, inject via CI secrets
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.20.5+23** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.20.5+24** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理 + 待办清单 + CalDAV 同步 + AI 助手 + MCP 服务器
-- 最新变化：Windows release 构建修复 + **CI 全部平台改用 release 构建 + release 默认为 draft 人工验收**
+- 最新变化：**Android 签名密钥移出仓库，改为 CI Secrets 注入** + 清理 ~8GB 本地构建缓存
 - 待完成：Windows 通知功能恢复、日期格式跟随系统 locale、集成测试
 
 ---
@@ -283,6 +283,14 @@
 | **CI flutter analyze fixed** — `analysis_options.yaml` excludes `patches/**` to avoid pre-existing lint warnings from third-party override. / **CI analyze 修复** | [Fix / 修复] |
 | **Flutter version unified to 3.41.7** — release.yml Windows build uses same version as CI debug and macOS release. / **Flutter 版本统一** | [Engineering / 工程] |
 
+### v0.20.5+24 | 2026-05-17 | Security: Remove Signing Keys from Repo / 安全修复：移除签名密钥
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **Android signing keys removed from git tracking** — new random-password keystore generated, `key.properties` + `release-keystore.jks` added to `.gitignore`, old files `git rm`'d. / **Android 签名密钥移出 git 追踪** | [Security / 安全] |
+| **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
+| **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
+
 ### v0.20.1 | 2026-05-15 | Comprehensive UI Fixes / 大规模 UI 修复
 
 | Fix / 修复 | Source / 来源 |
@@ -466,6 +474,7 @@
 | 1 | ~~**Windows release build fix / Windows release 构建修复**~~ | `gen_snapshot` crashes on `NativeLaunchDetails` — fixed by replacing with pure-Dart stub | ✅ 已修复 (v0.20.5) |
 | 2 | ~~**DB migration support / 数据库迁移支持**~~ | Drift schema snapshots + `build.yaml` + migration test (v1→v7 数据完整性验证全通过) | ✅ 已完成 (2026-05-16) |
 | 3 | ~~**CI/CD cleanup / CI/CD 清理**~~ | `release.yml` 移除 `--verbose` 诊断标记（Windows AOT 排查用，问题已修） | ✅ 已修复 (2026-05-16) |
+| 4 | ~~**Remove signing keys from repo / 签名密钥移出仓库**~~ | `key.properties` + `release-keystore.jks` removed from git, injected via GitHub Secrets | ✅ 已修复 (2026-05-17) |
 
 ### P1 — Should Do / 应该做
 
@@ -514,9 +523,9 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 |------|------|
 | Source files (lib/) / 源代码文件 | ~70 |
 | Test files (test/) / 测试文件 | ~25 |
-| Test cases / 测试用例 | 83 (all passing / 全通过) |
+| Test cases / 测试用例 | 86 (all passing / 全通过) |
 | Analysis issues / 分析问题 | 0 |
 | i18n keys / i18n key | 113+ |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.20.5+23 |
+| Version / 版本 | v0.20.5+24 |
