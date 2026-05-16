@@ -7,7 +7,8 @@ gradle-wrapper.jar
 GeneratedPluginRegistrant.java
 .cxx/
 
-# Keystore files are tracked for consistent CI signing
-# key.properties
-# **/*.keystore
-# **/*.jks
+# Keystore — CI injects via secrets, never commit signing keys
+key.properties
+**/*.keystore
+**/*.jks
+**/*.keystore.old

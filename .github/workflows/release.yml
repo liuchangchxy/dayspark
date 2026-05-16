@@ -30,6 +30,16 @@ jobs:
         with:
           channel: "stable"
           cache: true
+      - name: Setup Android signing
+        if: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > android/app/release-keystore.jks
+          cat > android/app/key.properties << EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=release-keystore.jks
+          EOF
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
