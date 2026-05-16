@@ -1,13 +1,13 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.20.5+23 | 2026-05-16
+> Last updated / 最后更新: v0.20.5+23 | 2026-05-16 | CI→release build + draft release
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
 - 当前版本 / Current: **v0.20.5+23** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理 + 待办清单 + CalDAV 同步 + AI 助手 + MCP 服务器
-- 最新变化：Windows release 构建修复——替换 flutter_local_notifications_windows 为纯 Dart stub，绕过 gen_snapshot AOT 崩溃
+- 最新变化：Windows release 构建修复 + **CI 全部平台改用 release 构建 + release 默认为 draft 人工验收**
 - 待完成：DB 迁移支持、Windows 通知功能恢复、日期格式跟随系统 locale、集成测试
 
 ---
@@ -499,7 +499,9 @@ DB schema v6, every table change modifies schemaVersion + rebuilds. Once real us
 Emulator/desktop differs significantly from real devices. / 在模拟器/桌面上测和真机差异很大。
 
 ### 3. CI/CD is now functional / CI/CD 已经可用
-Release workflow builds all 5 platforms with artifacts. Keep maintaining. / 发版工作流已验证，5 平台构建产物均可用。持续维护即可。
+- CI（ci.yml）全平台已改为 `--release` 构建，release-only bug 在 CI 阶段即暴露 / CI now builds all platforms in release mode, catching release-only bugs early
+- Release（release.yml）默认为 Draft，人工验收后再 Publish / Releases are draft by default, requiring manual review before publishing
+- Keep maintaining. / 持续维护即可。
 
 ### 4. Next version scope / 下一版本范围建议
 Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁移）+ P1 项。

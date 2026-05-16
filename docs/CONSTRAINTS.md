@@ -215,3 +215,19 @@
 - **Flutter 版本**: release.yml 统一使用 3.41.7（与 CI debug 和 macOS release 一致）
 - **CI lint**: `analysis_options.yaml` 排除 `patches/**` 目录，避免第三方补丁包的 pre-existing lint 警告导致 CI 失败
 - **Date**: 2026-05-16
+
+## CI/CD / 持续集成与发布
+
+### CI 必须构建 release 模式
+- `ci.yml` 中所有平台的 `flutter build` 命令使用 `--release` 而非 `--debug`
+- Web/macOS/Linux/Windows/Android 全部走 release 构建
+- **Why**: `--debug` 不会触发 AOT 编译、tree-shaking、R8 混淆等 release-only 阶段， 只测 debug 就放行会导致发版时才暴露构建崩溃
+- **验证方法**: CI 绿了等于 release 构建通过了
+- **Date**: 2026-05-16
+
+### Release 必须从 Draft 发布
+- `release.yml` 使用 `draft: true`，tag 推了只创建草稿 release
+- 人工验收产物后，去 GitHub 上手动点 "Publish release"
+- **Why**: 防止 bug 通过未经验证的 release 直接暴露给用户；给"打磨"留一道质检关卡
+- **例外**: 不影响已有 prerelease 标记（`isPrerelease` 仍然为 true，v0.x 全部是 prerelease）
+- **Date**: 2026-05-16

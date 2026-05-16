@@ -62,12 +62,13 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | home_widget | mcp_dart 
 ### 前置检查（每次 push 前）
 1. `flutter analyze` — **零 issue**
 2. `flutter test` — **全绿**
-3. 验证后跑 `flutter build macos --debug` + `flutter build apk --debug` + `flutter build web --debug`
+3. 验证后跑 `flutter build macos --release` + `flutter build apk --release` + `flutter build web --release`
 
 ### 版本规则
 4. `pubspec.yaml`: `0.x+N` 格式，**1.0 之前不跳版**
 5. 所有 release 标记为 **pre-release**（`release.yml` 已自动处理）
 6. 1.0 之前所有 release 标记为 **pre-release**
+7. release 默认为 **draft**，人工验收后再 publish（`release.yml` `draft: true`）
 
 ### 操作流程
 7. Commit → **ask user to confirm** → push
@@ -77,7 +78,7 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | home_widget | mcp_dart 
 11. Linux 构建锁 `runs-on: ubuntu-22.04`（GLIBC 2.35），新增原生依赖后跑 `tool/check_glibc_version.sh`
 
 ### 完整工作流
-所有工作走：理解 → 实现 → 验证 → 确认 → 文档 → 推送 → 验收
+所有工作走：理解 → 实现 → 验证 → 确认 → 文档 → 推送 → CI 构建 → 人工验收 → 公开
 
 详见 `.claude/skills/release-prep/SKILL.md`
 

@@ -66,20 +66,41 @@ git push origin v<version>
 
 ## 6 — CI
 
-tag push 自动触发 `release.yml`。
+tag push 自动触发 `release.yml`，构建所有 5 平台 release 产物，上传到 **Draft Release**（不公开）。
 
 验证：
 ```bash
 gh run list --limit 2
 ```
 
-## 7 — 验收
+## 7 — 验收 + 发布
+
+### 先下载 Draft Release 产物
 
 ```bash
-gh release view v<version> --json name,tagName,isPrerelease,assets
+gh release view v<version>
+# 确认是 Draft 状态
+# 去 GitHub Releases 页面下载产物
 ```
 
-确认三点：
+### 本地验证（至少跑得起来）
+
+- **Android**: APK 安装到手机/模拟器
+- **macOS**: DMG 挂载后打开
+- **Windows/Linux/Web**: 能启动即可
+- 重点测：本次改动涉及的功能 + 各平台 launch 不崩溃
+
+### 发布
+
+确认没问题后，在 GitHub Release 页面点击 **Publish release**。
+
+```bash
+# 发布后验证
+gh release view v<version> --json name,tagName,isDraft,isPrerelease,assets
+```
+
+确认四点：
 1. **版本号 + prerelease 标记** — `isPrerelease: true`
-2. **Release 说明** — 自动生成或手动补充
-3. **构建产物** — 5 平台都在（android / macos / windows / linux / web）
+2. **isDraft** — `false`（已发布）
+3. **Release 说明** — 自动生成或手动补充
+4. **构建产物** — 5 平台都在（android / macos / windows / linux / web）
