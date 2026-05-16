@@ -174,12 +174,12 @@ File _createV1Database() {
   );
 
   raw.execute(
-    "INSERT INTO attachments (parent_type, parent_id, file_path, file_name, created_at) "
+    'INSERT INTO attachments (parent_type, parent_id, file_path, file_name, created_at) '
     "VALUES ('todo', 1, '/tmp/receipt.pdf', 'receipt.pdf', $now)",
   );
 
   raw.execute(
-    "INSERT INTO sync_queue (action, table_name, row_id, payload, created_at) "
+    'INSERT INTO sync_queue (action, table_name, row_id, payload, created_at) '
     "VALUES ('create', 'todos', 1, '{\"uid\":\"td-001\"}', $now)",
   );
 
