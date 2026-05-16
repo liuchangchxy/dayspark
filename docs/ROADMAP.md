@@ -8,7 +8,7 @@
 - 当前版本 / Current: **v0.20.5+23** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理 + 待办清单 + CalDAV 同步 + AI 助手 + MCP 服务器
 - 最新变化：Windows release 构建修复 + **CI 全部平台改用 release 构建 + release 默认为 draft 人工验收**
-- 待完成：DB 迁移支持、Windows 通知功能恢复、日期格式跟随系统 locale、集成测试
+- 待完成：Windows 通知功能恢复、日期格式跟随系统 locale、集成测试
 
 ---
 
@@ -464,7 +464,7 @@
 | # | Feature / 功能 | Note / 说明 | Status / 状态 |
 |---|------|------|------|
 | 1 | ~~**Windows release build fix / Windows release 构建修复**~~ | `gen_snapshot` crashes on `NativeLaunchDetails` — fixed by replacing with pure-Dart stub | ✅ 已修复 (v0.20.5) |
-| 2 | DB migration support / 数据库迁移支持 | Drift schemaVersion upgrade strategy / Drift schemaVersion 升级策略 | ⏳ |
+| 2 | ~~**DB migration support / 数据库迁移支持**~~ | Drift schema snapshots + `build.yaml` + migration test (v1→v7 数据完整性验证全通过) | ✅ 已完成 (2026-05-16) |
 | 3 | ~~**CI/CD cleanup / CI/CD 清理**~~ | `release.yml` 移除 `--verbose` 诊断标记（Windows AOT 排查用，问题已修） | ✅ 已修复 (2026-05-16) |
 
 ### P1 — Should Do / 应该做
