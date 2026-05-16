@@ -1,14 +1,14 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.20.4 | 2026-05-15
+> Last updated / 最后更新: v0.20.5+23 | 2026-05-16
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.20.4+22** | 5 平台构建 (Android/iOS/Web/macOS/Linux)，Windows ⚠️ release 构建修复中
+- 当前版本 / Current: **v0.20.5+23** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理 + 待办清单 + CalDAV 同步 + AI 助手 + MCP 服务器
-- 最新变化：Windows AOT 崩溃修复尝试中——gen_snapshot 在 flutter_local_notifications_windows NativeLaunchDetails 上崩溃
-- 待完成：DB 迁移支持、Windows release 构建修复、日期格式跟随系统 locale、集成测试
+- 最新变化：Windows release 构建修复——替换 flutter_local_notifications_windows 为纯 Dart stub，绕过 gen_snapshot AOT 崩溃
+- 待完成：DB 迁移支持、Windows 通知功能恢复、日期格式跟随系统 locale、集成测试
 
 ---
 
@@ -275,6 +275,14 @@
 
 > ⚠️ v0.20.3 / v0.20.4: Windows release 构建仍然失败，新根因 `gen_snapshot` AOT serialization bug on `NativeLaunchDetails`。`final class → base class` 假设已验证无效，根因待确认。
 
+### v0.20.5 | 2026-05-16 | Windows Release Fix + CI Fix / Windows 发版修复 + CI 修复
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **Windows release build fixed** — `flutter_local_notifications_windows` replaced with pure-Dart stub (no FFI, no native DLL). Windows notifications temporarily disabled but release builds succeed. / **Windows release 构建修复** | [Fix / 修复] |
+| **CI flutter analyze fixed** — `analysis_options.yaml` excludes `patches/**` to avoid pre-existing lint warnings from third-party override. / **CI analyze 修复** | [Fix / 修复] |
+| **Flutter version unified to 3.41.7** — release.yml Windows build uses same version as CI debug and macOS release. / **Flutter 版本统一** | [Engineering / 工程] |
+
 ### v0.20.1 | 2026-05-15 | Comprehensive UI Fixes / 大规模 UI 修复
 
 | Fix / 修复 | Source / 来源 |
@@ -398,6 +406,7 @@
 - Notification action buttons (Mark Done / Snooze 1h) / 通知操作按钮
 - System alarm (alarm plugin, optional toggle) / 系统闹钟（可选开关）
 - Home widget (Android home_widget + iOS WidgetKit) / 桌面小组件
+- ⚠️ Windows notifications temporarily disabled (pure-Dart stub to bypass gen_snapshot AOT crash) / Windows 通知暂时禁用
 
 ### AI
 - AI config (API Key / Base URL / Model) / AI 配置
@@ -454,7 +463,7 @@
 
 | # | Feature / 功能 | Note / 说明 | Status / 状态 |
 |---|------|------|------|
-| 1 | **Windows release build fix / Windows release 构建修复** | `gen_snapshot` crashes on `NativeLaunchDetails` from `flutter_local_notifications_windows 3.0.0` (STATUS_STACK_BUFFER_OVERRUN) | ❌ 根因未确认 |
+| 1 | ~~**Windows release build fix / Windows release 构建修复**~~ | `gen_snapshot` crashes on `NativeLaunchDetails` — fixed by replacing with pure-Dart stub | ✅ 已修复 (v0.20.5) |
 | 2 | DB migration support / 数据库迁移支持 | Drift schemaVersion upgrade strategy / Drift schemaVersion 升级策略 | ⏳ |
 | 3 | CI/CD cleanup / CI/CD 清理 | `release.yml` 仍有 `--verbose` 诊断标记 | ⏳ |
 
@@ -507,5 +516,5 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | Analysis issues / 分析问题 | 0 |
 | i18n keys / i18n key | 113+ |
 | Dependencies / 依赖包 | 25+ |
-| Built platforms / 已构建平台 | 3 (Web, macOS, Linux) + Android in CI / Windows ⚠️ broken |
-| Version / 版本 | v0.20.4+22 |
+| Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
+| Version / 版本 | v0.20.5+23 |

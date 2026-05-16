@@ -17,7 +17,7 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | home_widget | mcp_dart 
 - 开源日历待办 App，支持 CalDAV 同步 + AI + MCP server
 - GitHub: https://github.com/liuchangchxy/dayspark
 - Package: `dayspark`, Android: `com.dayspark.app`
-- Current version: `0.20.4+22`
+- Current version: `0.20.5+23`
 - 项目功能状态：`docs/ROADMAP.md`
 - 技术约束记录：`docs/CONSTRAINTS.md`
 

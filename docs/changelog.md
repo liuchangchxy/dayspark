@@ -2,8 +2,25 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.20.2** — CI Hardening + Code Review Skill / CI 加固 + 代码审查 Skill
+- 最新版本 / Latest: **v0.20.5** — Windows Release Fix + CI Fix / Windows 发版修复 + CI 修复
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.20.5 Windows Release Fix + CI Fix / v0.20.5 Windows 发版修复 + CI 修复
+
+### Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | **Windows release build crashes** — `gen_snapshot` AOT crash on `NativeLaunchDetails` FFI struct (exit code -1073740791, "Class with illegal cid"). Tried: `base class → final class`, removing getter, Flutter 3.41.5→3.41.7. All failed. Root cause: Dart VM bug in AOT serialization of FFI structs passed by value in callbacks. / **Windows release 构建崩溃** | Replaced `flutter_local_notifications_windows` with pure-Dart stub (no FFI, no native DLL). Windows notifications temporarily disabled but release builds succeed. / 替换为纯 Dart stub 实现 |
+| 2 | **CI flutter analyze fails** — 48 info-level lint warnings from patched plugin cause exit code 1. / **CI analyze 失败** | `analysis_options.yaml` excludes `patches/**` directory. / 排除补丁包目录 |
+| 3 | **Flutter version inconsistency** — release.yml Windows used 3.41.5, CI used latest, macOS used 3.41.7. / **Flutter 版本不一致** | Unified all Windows builds to 3.41.7. / 统一到 3.41.7 |
+
+### Trade-off / 权衡
+- Windows 平台暂时不支持本地通知（stub 实现所有方法为空操作）
+- 其他 4 平台（Android/macOS/Linux/Web）通知功能不受影响
+- 等 Dart VM 修复 FFI AOT bug 后可恢复完整功能
 
 ---
 
