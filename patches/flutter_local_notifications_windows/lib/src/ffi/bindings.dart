@@ -314,20 +314,20 @@ class NotificationsPluginBindings {
       .asFunction<void Function(NativeLaunchDetails)>();
 }
 
-base class NativePlugin extends ffi.Opaque {}
+final class NativePlugin extends ffi.Opaque {}
 
-base class StringMapEntry extends ffi.Struct {
+final class StringMapEntry extends ffi.Struct {
   external ffi.Pointer<pkg_ffi.Utf8> key;
   external ffi.Pointer<pkg_ffi.Utf8> value;
 }
 
-base class NativeStringMap extends ffi.Struct {
+final class NativeStringMap extends ffi.Struct {
   external ffi.Pointer<StringMapEntry> entries;
   @ffi.Int()
   external int size;
 }
 
-base class NativeNotificationDetails extends ffi.Struct {
+final class NativeNotificationDetails extends ffi.Struct {
   @ffi.Int()
   external int id;
 }
@@ -348,7 +348,7 @@ enum NativeLaunchType {
 }
 
 /// Details about how the app was launched.
-base class NativeLaunchDetails extends ffi.Struct {
+final class NativeLaunchDetails extends ffi.Struct {
   /// Whether the app was launched by a notification
   @ffi.Bool()
   external bool didLaunch;
