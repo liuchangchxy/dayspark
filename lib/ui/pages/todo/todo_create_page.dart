@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
+import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
 import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
@@ -11,7 +12,6 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
-import 'package:dayspark/domain/providers/reminders_provider.dart';
 
 class TodoCreatePage extends ConsumerStatefulWidget {
   final int? parentId;
@@ -36,8 +36,6 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   final Set<int> _selectedTagIds = {};
 
   static const _priorityValues = [0, 9, 5, 1];
-  static const List<int> _reminderOptions = [0, 15, 30, 60, 120, 1440];
-  final List<int> _selectedReminderMinutes = [];
 
   @override
   void dispose() {
@@ -112,23 +110,6 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
         try {
           await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
         } catch (e) { debugPrint('todo_create: addTag error: $e'); }
-      }
-
-      // Add reminders based on user selection
-      if (_selectedReminderMinutes.isNotEmpty && _dueDate != null) {
-        final createReminder = ref.read(createReminderProvider);
-        for (final minutes in _selectedReminderMinutes) {
-          final triggerTime = _dueDate!.subtract(Duration(minutes: minutes));
-          if (triggerTime.isAfter(DateTime.now())) {
-            try {
-              await createReminder(
-                parentType: 'todo',
-                parentId: todoId,
-                triggerTime: triggerTime,
-              );
-            } catch (e) { debugPrint('todo_create: createReminder error: $e'); }
-          }
-        }
       }
 
       if (mounted) context.pop();
@@ -330,8 +311,8 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                     '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}')
                 : Text(l.notSet),
             onTap: () async {
-              final time = await showTimePicker(
-                context: context,
+              final time = await showWheelTimePicker(
+                context,
                 initialTime: _dueTime ?? TimeOfDay.now(),
               );
               if (time != null) setState(() => _dueTime = time);
@@ -378,10 +359,6 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
 
           // Tags
           _buildTagSelector(l),
-          const SizedBox(height: 16),
-
-          // Reminder
-          _buildReminderSection(l),
           const SizedBox(height: 16),
 
           // Recurrence rule
@@ -455,48 +432,6 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  String _reminderLabel(AppLocalizations l, int minutes) {
-    return l.reminderLabel(minutes);
-  }
-
-  Widget _buildReminderSection(AppLocalizations l) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l.reminder,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: _reminderOptions.map((minutes) {
-            final isSelected = minutes == 0
-                ? _selectedReminderMinutes.isEmpty
-                : _selectedReminderMinutes.contains(minutes);
-            return ChoiceChip(
-              label: Text(_reminderLabel(l, minutes)),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (minutes == 0) {
-                    _selectedReminderMinutes.clear();
-                  } else if (selected) {
-                    _selectedReminderMinutes.add(minutes);
-                    _selectedReminderMinutes.remove(0);
-                  } else {
-                    _selectedReminderMinutes.remove(minutes);
-                  }
-                });
-              },
-            );
-          }).toList(),
-        ),
-      ],
     );
   }
 

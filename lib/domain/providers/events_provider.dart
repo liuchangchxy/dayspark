@@ -19,10 +19,7 @@ final eventsInDateRangeProvider = StreamProvider.family<List<Event>, String>((
   final start = DateTime.fromMillisecondsSinceEpoch(startMs);
   final end = DateTime.fromMillisecondsSinceEpoch(endMs);
   final stream = db.eventsDao.watchByDateRange(start, end);
-  return stream.timeout(
-    const Duration(seconds: 10),
-    onTimeout: (sink) => sink.add([]),
-  );
+  return stream;
 });
 
 final calendarsProvider = StreamProvider<List<Calendar>>((ref) {

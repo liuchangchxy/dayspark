@@ -42,11 +42,11 @@ Widget _createTestApp() => ProviderScope(
 );
 
 Future<void> _settle(WidgetTester tester) async {
-  for (var i = 0; i < 20; i++) {
+  // Pump enough frames for initial async operations to complete.
+  // Avoid pumpAndSettle since Drift broadcast streams never complete.
+  for (var i = 0; i < 30; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
-  // Drain any pending timers (e.g. stream timeouts).
-  await tester.pumpAndSettle(const Duration(milliseconds: 100));
 }
 
 Future<void> _openSettings(WidgetTester tester) async {

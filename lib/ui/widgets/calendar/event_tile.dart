@@ -17,7 +17,7 @@ class EventTile extends StatelessWidget {
     final resolvedColor = event.color ?? defaultColor;
 
     final tile = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 44),
+      constraints: const BoxConstraints(minHeight: 20),
       child: Container(
       decoration: BoxDecoration(
         color: resolvedColor.withValues(alpha: 0.15),

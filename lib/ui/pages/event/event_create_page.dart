@@ -8,7 +8,6 @@ import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
-import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
 class EventCreatePage extends ConsumerStatefulWidget {
@@ -35,7 +34,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
   bool _saving = false;
   bool _aiLoading = false;
   String? _rrule;
-  final List<int> _selectedReminderMinutes = [5, 15];
 
   @override
   void initState() {
@@ -82,7 +80,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       }
 
       final createEvent = ref.read(createEventProvider);
-      final eventId = await createEvent(
+      await createEvent(
         calendarId: calendars.first.id,
         uid: 'local-${DateTime.now().millisecondsSinceEpoch}',
         summary: _titleController.text.trim(),
@@ -97,23 +95,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
             : null,
         rrule: _rrule,
       );
-
-      // Add reminders based on user selection
-      if (_selectedReminderMinutes.isNotEmpty && !_isAllDay) {
-        final createReminder = ref.read(createReminderProvider);
-        for (final minutes in _selectedReminderMinutes) {
-          final triggerTime = _start.subtract(Duration(minutes: minutes));
-          if (triggerTime.isAfter(DateTime.now())) {
-            try {
-              await createReminder(
-                parentType: 'event',
-                parentId: eventId,
-                triggerTime: triggerTime,
-              );
-            } catch (e) { debugPrint('event_create: error: $e'); }
-          }
-        }
-      }
 
       if (mounted) context.pop();
     } catch (e) {
@@ -223,53 +204,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
     }
   }
 
-  String _reminderLabel(AppLocalizations l, int minutes) {
-    if (minutes == 0) return l.noReminder;
-    if (minutes < 60) return '${minutes}min';
-    return '${minutes ~/ 60}h';
-  }
-
-  Widget _buildReminderSection(AppLocalizations l) {
-    const options = [0, 5, 15, 30, 60];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l.reminder,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: options.map((minutes) {
-            final isSelected = minutes == 0
-                ? _selectedReminderMinutes.isEmpty
-                : _selectedReminderMinutes.contains(minutes);
-            return ChoiceChip(
-              label: Text(_reminderLabel(l, minutes)),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (minutes == 0) {
-                    _selectedReminderMinutes.clear();
-                  } else if (selected) {
-                    _selectedReminderMinutes.add(minutes);
-                    _selectedReminderMinutes.remove(0);
-                  } else {
-                    _selectedReminderMinutes.remove(minutes);
-                  }
-                });
-              },
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -364,9 +298,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
               prefixIcon: const Icon(CupertinoIcons.location),
             ),
           ),
-          const SizedBox(height: 16),
-
-          _buildReminderSection(l),
           const SizedBox(height: 16),
 
           // Recurrence rule

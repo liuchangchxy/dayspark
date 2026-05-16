@@ -173,21 +173,29 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
       eventsByDate[key] = _eventsForDate(date);
     }
 
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: 42,
-      itemBuilder: (context, index) {
-        final date = dates[index];
-        final isCurrentMonth = date.month == month.month;
-        final isToday = date == today;
-        final key = date.millisecondsSinceEpoch ~/ 86400000;
-        final events = eventsByDate[key] ?? [];
-        return _buildDayCell(context, theme, date, isToday, isCurrentMonth, events);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cellWidth = constraints.maxWidth / 7;
+        final cellHeight = constraints.maxHeight / 6;
+        final aspectRatio = cellWidth / cellHeight;
+
+        return GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            childAspectRatio: aspectRatio,
+          ),
+          itemCount: 42,
+          itemBuilder: (context, index) {
+            final date = dates[index];
+            final isCurrentMonth = date.month == month.month;
+            final isToday = date == today;
+            final key = date.millisecondsSinceEpoch ~/ 86400000;
+            final events = eventsByDate[key] ?? [];
+            return _buildDayCell(context, theme, date, isToday, isCurrentMonth, events);
+          },
+        );
       },
     );
   }
@@ -210,29 +218,38 @@ class _MonthCalendarViewState extends State<MonthCalendarView> {
         padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Center(child: _buildDateNumber(theme, date.day, isToday, isCurrentMonth)),
             const SizedBox(height: 2),
-            if (events.isNotEmpty) ...[
-              ...events.take(2).map(
-                (e) => InkWell(
-                  onTap: () => widget.onEventTapped?.call(e),
-                  borderRadius: BorderRadius.circular(6),
-                  child: EventTile(event: e),
-                ),
-              ),
-              if (events.length > 2)
-                Padding(
-                  padding: const EdgeInsets.only(top: 1),
-                  child: Text(
-                    '+${events.length - 2}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 10,
-                    ),
+            if (events.isNotEmpty)
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ...events.take(2).map(
+                        (e) => InkWell(
+                          onTap: () => widget.onEventTapped?.call(e),
+                          borderRadius: BorderRadius.circular(6),
+                          child: EventTile(event: e),
+                        ),
+                      ),
+                      if (events.length > 2)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Text(
+                            '+${events.length - 2}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-            ],
+              ),
           ],
         ),
       ),

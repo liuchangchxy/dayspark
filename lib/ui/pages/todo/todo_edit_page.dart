@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:rrule_generator/rrule_generator.dart';
+import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
 import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
@@ -13,7 +14,6 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
-import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 
@@ -38,8 +38,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   String? _rrule;
 
   static const _priorityValues = [0, 9, 5, 1];
-  static const List<int> _reminderOptions = [0, 15, 30, 60, 120, 1440];
-  final List<int> _selectedReminderMinutes = [];
 
   @override
   void initState() {
@@ -54,26 +52,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     }
     _startDate = _todo.startDate;
     _rrule = _todo.rrule;
-
-    // Load existing reminders and populate selection
-    Future.microtask(() async {
-      final db = ref.read(databaseProvider);
-      final reminders = await (db.select(db.reminders)
-            ..where(
-              (t) => t.parentType.equals('todo') & t.parentId.equals(_todo.id),
-            ))
-          .get();
-      if (mounted && _dueDate != null) {
-        setState(() {
-          for (final r in reminders) {
-            final minutes = _dueDate!.difference(r.triggerTime).inMinutes;
-            if (minutes > 0 && _reminderOptions.contains(minutes)) {
-              _selectedReminderMinutes.add(minutes);
-            }
-          }
-        });
-      }
-    });
   }
 
   @override
@@ -119,35 +97,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           updatedAt: Value(DateTime.now()),
         ),
       );
-
-      // Replace all reminders based on user selection
-      try {
-        final db = ref.read(databaseProvider);
-        final existing = await (db.select(db.reminders)
-              ..where(
-                (t) =>
-                    t.parentType.equals('todo') &
-                    t.parentId.equals(_todo.id),
-              ))
-            .get();
-        for (final r in existing) {
-          await ref.read(deleteReminderProvider)(r.id);
-        }
-
-        if (_selectedReminderMinutes.isNotEmpty && _dueDate != null) {
-          final createReminder = ref.read(createReminderProvider);
-          for (final minutes in _selectedReminderMinutes) {
-            final triggerTime = _dueDate!.subtract(Duration(minutes: minutes));
-            if (triggerTime.isAfter(DateTime.now())) {
-              await createReminder(
-                parentType: 'todo',
-                parentId: _todo.id,
-                triggerTime: triggerTime,
-              );
-            }
-          }
-        }
-      } catch (e) { debugPrint('todo_edit: createReminder error: $e'); }
 
       if (mounted) context.pop();
     } catch (e) {
@@ -320,8 +269,8 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                     '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}')
                 : Text(l.notSet),
             onTap: () async {
-              final time = await showTimePicker(
-                context: context,
+              final time = await showWheelTimePicker(
+                context,
                 initialTime: _dueTime ?? TimeOfDay.now(),
               );
               if (time != null) setState(() => _dueTime = time);
@@ -393,10 +342,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
 
           // Subtasks
           _buildSubtasksSection(l),
-          const SizedBox(height: 16),
-
-          // Reminder
-          _buildReminderSection(l),
           const SizedBox(height: 16),
 
           // Recurrence rule
@@ -613,47 +558,5 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
 
   Future<void> _deleteSubtask(int id) async {
     await ref.read(deleteTodoProvider)(id);
-  }
-
-  String _reminderLabel(AppLocalizations l, int minutes) {
-    return l.reminderLabel(minutes);
-  }
-
-  Widget _buildReminderSection(AppLocalizations l) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l.reminder,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: _reminderOptions.map((minutes) {
-            final isSelected = minutes == 0
-                ? _selectedReminderMinutes.isEmpty
-                : _selectedReminderMinutes.contains(minutes);
-            return ChoiceChip(
-              label: Text(_reminderLabel(l, minutes)),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (minutes == 0) {
-                    _selectedReminderMinutes.clear();
-                  } else if (selected) {
-                    _selectedReminderMinutes.add(minutes);
-                    _selectedReminderMinutes.remove(0);
-                  } else {
-                    _selectedReminderMinutes.remove(minutes);
-                  }
-                });
-              },
-            );
-          }).toList(),
-        ),
-      ],
-    );
   }
 }
