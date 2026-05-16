@@ -203,14 +203,15 @@
 
 ### Windows release AOT 崩溃 (MSB8066 / gen_snapshot exit code -1073740791)
 - **现象**: `flutter build windows --release` 在 `gen_snapshot --snapshot_kind=app-aot-elf` 步骤崩溃，报错 `Unexpected object (Class with illegal cid, full-aot): NativeLaunchDetails`，然后 AOT snapshotter crashed with exit code -1073740791
-- **影响版本**: Flutter 3.41.5 / Dart 3.11.x
-- **触发类**: `package:flutter_local_notifications_windows/src/ffi/bindings.dart` 中的 `NativeLaunchDetails`（唯一包含非 external 成员的 FFI struct，有 getter `launchType`）
+- **影响版本**: Flutter 3.41.5 / 3.41.7 / Dart 3.11.x
+- **触发类**: `package:flutter_local_notifications_windows/src/ffi/bindings.dart` 中的 `NativeLaunchDetails` FFI struct
 - **已排除的假设**:
   - ❌ 不是 runner image 问题（windows-2022 和 windows-2025 都崩溃）
-  - ❌ 不是 tree-shaking 问题（添加 WindowsNotificationDetails 引用未修复）
+  - ❌ 不是 tree-shaking 问题
   - ❌ 不是 `final class` vs `base class` 问题（两者都崩溃）
-- **根因**: `NativeLaunchDetails` struct 中的 `launchType` getter（非 external 成员）导致 gen_snapshot AOT 序列化崩溃
-- **修复方案**: 将 `launchType` getter 移出 struct，改为顶层函数 `getLaunchType(NativeLaunchDetails)`。FFI struct 必须只包含 `external` 字段，任何计算属性/方法都会触发 AOT 崩溃
+  - ❌ 不是 struct 内的 getter 问题（移除 getter 后仍然崩溃）
+- **根因**: Dart VM `gen_snapshot` 对 `NativeLaunchDetails` FFI struct 的 AOT 序列化 bug。该 struct 在回调中按值传递（`ffi.Void Function(NativeLaunchDetails details)`），包含嵌套 struct 和 `Pointer<Utf8>` 字段，触发 VM 内部 class ID 错误
+- **最终方案**: 将 `patches/flutter_local_notifications_windows/` 替换为纯 Dart stub 实现，不依赖 FFI、不编译原生 DLL。Windows 通知功能暂时禁用，但 Windows release 构建可以成功
 - **Flutter 版本**: release.yml 统一使用 3.41.7（与 CI debug 和 macOS release 一致）
-- **补丁包注意事项**: `patches/flutter_local_notifications_windows/` 必须包含完整目录结构（`msix/`、`details/xml/`、`windows/`、`src/`），缺失任一目录都会导致编译失败
-- **Date**: 2026-05-15
+- **CI lint**: `analysis_options.yaml` 排除 `patches/**` 目录，避免第三方补丁包的 pre-existing lint 警告导致 CI 失败
+- **Date**: 2026-05-16
