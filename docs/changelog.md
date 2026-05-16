@@ -18,6 +18,7 @@
 | 2 | **Release 默认为 Draft** — `release.yml` 添加 `draft: true`，打 tag 后自动上传产物到 Draft Release，人工下载验收后点 Publish 才公开 / Releases are draft by default — build artifacts are uploaded to a draft release, requiring manual review before publishing |
 | 3 | **`v1.0.0` tag 删除** — 违反"1.0 之前不跳版"规则，本地 + 远程均已清除 / `v1.0.0` tag deleted from local and remote (violated "no 1.0 before ready" rule) |
 | 4 | **`v0.20.1` tag 补打** — 该版本有完整 release commit 但遗漏了 tag，现已补上 / `v0.20.1` tag added for existing release commit (was missing) |
+| 5 | **release.yml 移除 `--verbose`** — Windows AOT 排查添加的诊断标志，问题已修，清理回 clean 状态 / Removed `--verbose` diagnostic flag from Windows build (AOT issue fixed) |
 
 ### Motivation / 动机
 - 之前 release-only bug 只在打 tag 发版时暴露，导致 prerelease 版本经常有构建崩溃，缺乏打磨感 / Release-only bugs only surfaced on tag push, making pre-releases feel unpolished

@@ -465,7 +465,7 @@
 |---|------|------|------|
 | 1 | ~~**Windows release build fix / Windows release 构建修复**~~ | `gen_snapshot` crashes on `NativeLaunchDetails` — fixed by replacing with pure-Dart stub | ✅ 已修复 (v0.20.5) |
 | 2 | DB migration support / 数据库迁移支持 | Drift schemaVersion upgrade strategy / Drift schemaVersion 升级策略 | ⏳ |
-| 3 | CI/CD cleanup / CI/CD 清理 | `release.yml` 仍有 `--verbose` 诊断标记 | ⏳ |
+| 3 | ~~**CI/CD cleanup / CI/CD 清理**~~ | `release.yml` 移除 `--verbose` 诊断标记（Windows AOT 排查用，问题已修） | ✅ 已修复 (2026-05-16) |
 
 ### P1 — Should Do / 应该做
 
