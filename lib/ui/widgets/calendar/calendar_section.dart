@@ -95,7 +95,8 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
     final signature = events
         .map(
           (e) =>
-              '${e.id}|${e.start.microsecondsSinceEpoch}|${e.end.microsecondsSinceEpoch}',
+              '${e.id}|${e.start.microsecondsSinceEpoch}|${e.end.microsecondsSinceEpoch}'
+              '|${e.adapter.title}|${e.adapter.color}|${e.adapter.isAllDay}|${e.adapter.rrule}',
         )
         .join(',');
     if (signature == _eventsSignature) return;
@@ -199,15 +200,23 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
     unawaited(_calendarController.animateToNextPage());
   }
 
+  // kalender's tap details carry wall-clock components marked isUtc (not a
+  // real instant). Rebuild as local so the router's
+  // millisecondsSinceEpoch → fromMillisecondsSinceEpoch round-trip doesn't
+  // shift the prefill by the UTC offset.
+  DateTime _asLocalWallClock(DateTime d) =>
+      d.isUtc ? DateTime(d.year, d.month, d.day, d.hour, d.minute) : d;
+
   void _handleTapDetail(TapDetail details) {
-    final DateTime start;
+    final DateTime raw;
     if (details is DayDetail) {
-      start = details.date;
+      raw = details.date;
     } else if (details is MultiDayDetail) {
-      start = details.dateTimeRange.start;
+      raw = details.dateTimeRange.start;
     } else {
       return;
     }
+    final start = _asLocalWallClock(raw);
     widget.onTimeSlotTapped?.call(
       DateTimeRange(
         start: start,

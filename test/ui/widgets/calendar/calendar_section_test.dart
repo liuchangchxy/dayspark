@@ -125,5 +125,54 @@ void main() {
       tapped!.end.difference(tapped!.start),
       const Duration(hours: 1),
     );
+    // Regression (C1): wall-clock, not fake-UTC — the router encodes
+    // millisecondsSinceEpoch and decodes as local; a shifted value would
+    // land hours off (or next day) in the create prefill.
+    expect(start.isUtc, isFalse);
+    expect(
+      DateTime.fromMillisecondsSinceEpoch(start.millisecondsSinceEpoch),
+      start,
+    );
+  });
+
+  testWidgets('title-only event update refreshes rendered tiles',
+      (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    CalendaEventAdapter build(String title) => CalendaEventAdapter(
+          drifId: 7,
+          calendarId: 10,
+          title: title,
+          start: today.add(const Duration(hours: 9)),
+          end: today.add(const Duration(hours: 10)),
+        );
+
+    await _pumpCalendar(tester, events: [build('First title')]);
+    expect(find.text('First title'), findsWidgets);
+
+    await _pumpCalendar(tester, events: [build('Second title')]);
+    expect(find.text('Second title'), findsWidgets);
+    expect(find.text('First title'), findsNothing);
+  });
+
+  testWidgets('zero-hour all-day event renders in the all-day area',
+      (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    await _pumpCalendar(
+      tester,
+      events: [
+        CalendaEventAdapter(
+          drifId: 8,
+          calendarId: 10,
+          title: 'Zero hour day',
+          start: today,
+          end: today,
+          isAllDay: true,
+        ),
+      ],
+    );
+
+    expect(find.text('Zero hour day'), findsWidgets);
   });
 }

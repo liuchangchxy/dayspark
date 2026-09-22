@@ -45,6 +45,36 @@ void main() {
       expect(event.interaction.allowEndResize, isFalse);
     });
 
+    test('isAllDay drives multi-day classification regardless of duration',
+        () {
+      final zeroHour = KalenderCalendarEvent.fromAdapter(
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 10,
+          title: 'Zero',
+          start: DateTime(2026, 5, 1),
+          end: DateTime(2026, 5, 1),
+          isAllDay: true,
+        ),
+      );
+      expect(zeroHour.isMultiDayEvent, isTrue);
+
+      final oneHourNoDtend = KalenderCalendarEvent.fromAdapter(
+        CalendaEventAdapter(
+          drifId: 2,
+          calendarId: 10,
+          title: 'No DTEND',
+          start: DateTime(2026, 5, 1),
+          end: DateTime(2026, 5, 1, 1),
+          isAllDay: true,
+        ),
+      );
+      expect(oneHourNoDtend.isMultiDayEvent, isTrue);
+
+      final timed = KalenderCalendarEvent.fromAdapter(_adapter());
+      expect(timed.isMultiDayEvent, isFalse);
+    });
+
     test('copyWith preserves adapter and id', () {
       final original = KalenderCalendarEvent.fromAdapter(_adapter());
       final updated = original.copyWith(
