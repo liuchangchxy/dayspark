@@ -183,6 +183,8 @@
   "eventMoved": "日程已移动",
   "systemAlarm": "系统闹钟",
   "systemAlarmDesc": "提醒时播放闹钟铃声",
+  "exactAlarmTitle": "精确定时权限",
+  "exactAlarmDesc": "授予后提醒才能准点响",
   "keyboardInput": "键盘输入",
   "timeHint": "HH:mm",
   "aiParse": "AI 解析",

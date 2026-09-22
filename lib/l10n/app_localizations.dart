@@ -1127,6 +1127,18 @@ abstract class AppLocalizations {
   /// **'Play alarm sound for reminders'**
   String get systemAlarmDesc;
 
+  /// No description provided for @exactAlarmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact alarm permission'**
+  String get exactAlarmTitle;
+
+  /// No description provided for @exactAlarmDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant it so reminders fire at the exact time'**
+  String get exactAlarmDesc;
+
   /// No description provided for @keyboardInput.
   ///
   /// In en, this message translates to:

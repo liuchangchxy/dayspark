@@ -107,11 +107,42 @@ final restoreEventProvider = Provider<Future<void> Function(int)>((ref) {
 final hardDeleteEventWithChildrenProvider =
     Provider<Future<void> Function(int)>((ref) {
       final db = ref.read(databaseProvider);
-      // OS notification cancellation is Task 5's job; this only cascades DB rows.
-      return (int id) => db.eventsDao.hardDeleteEventWithChildren(id);
+      final notifService = ref.read(notificationServiceProvider);
+      return (int id) async {
+        // DAO deletes reminder rows only; cancel OS notifications first so
+        // nothing fires after the rows are gone.
+        final reminders =
+            await (db.select(db.reminders)..where(
+                  (t) =>
+                      t.parentType.equals('event') & t.parentId.equals(id),
+                ))
+                .get();
+        for (final r in reminders) {
+          await notifService.cancel(r.id);
+        }
+        await db.eventsDao.hardDeleteEventWithChildren(id);
+      };
     });
 
 final emptyEventTrashProvider = Provider<Future<void> Function()>((ref) {
   final db = ref.read(databaseProvider);
-  return () => db.eventsDao.emptyEventTrash();
+  final notifService = ref.read(notificationServiceProvider);
+  return () async {
+    final deleted =
+        await (db.select(db.events)..where((t) => t.deletedAt.isNotNull()))
+            .get();
+    final ids = deleted.map((e) => e.id).toList();
+    if (ids.isNotEmpty) {
+      final reminders =
+          await (db.select(db.reminders)..where(
+                (t) =>
+                    t.parentType.equals('event') & t.parentId.isIn(ids),
+              ))
+              .get();
+      for (final r in reminders) {
+        await notifService.cancel(r.id);
+      }
+    }
+    await db.eventsDao.emptyEventTrash();
+  };
 });

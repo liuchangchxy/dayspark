@@ -557,6 +557,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get systemAlarmDesc => '提醒时播放闹钟铃声';
 
   @override
+  String get exactAlarmTitle => '精确定时权限';
+
+  @override
+  String get exactAlarmDesc => '授予后提醒才能准点响';
+
+  @override
   String get keyboardInput => '键盘输入';
 
   @override

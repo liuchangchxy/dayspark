@@ -19,6 +19,7 @@ import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/infrastructure/platform/alarm_service.dart';
+import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 
@@ -29,6 +30,14 @@ class SettingsPage extends ConsumerWidget {
 
   static final systemAlarmProvider = StateProvider<bool>((ref) {
     return false;
+  });
+
+  // Android 12+ gate for exact alarms; hidden when granted (USE_EXACT_ALARM
+  // in the manifest means it normally is, so this tile is a fallback).
+  static final canScheduleExactProvider = FutureProvider.autoDispose<bool>((
+    ref,
+  ) async {
+    return NotificationService().canScheduleExactAlarms();
   });
 
   static bool _loaded = false;
@@ -167,6 +176,21 @@ class SettingsPage extends ConsumerWidget {
               onChanged: (v) async {
                 await AlarmService.setEnabled(v);
                 ref.read(systemAlarmProvider.notifier).state = v;
+              },
+            ),
+            const Divider(),
+          ],
+
+          if (defaultTargetPlatform == TargetPlatform.android &&
+              ref.watch(canScheduleExactProvider).valueOrNull == false) ...[
+            const Divider(),
+            ListTile(
+              leading: const Icon(CupertinoIcons.timer),
+              title: Text(l.exactAlarmTitle),
+              subtitle: Text(l.exactAlarmDesc),
+              onTap: () async {
+                await NotificationService().requestExactAlarmsPermission();
+                ref.invalidate(canScheduleExactProvider);
               },
             ),
             const Divider(),

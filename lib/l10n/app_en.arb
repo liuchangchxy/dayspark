@@ -254,6 +254,8 @@
   "eventMoved": "Event moved",
   "systemAlarm": "System Alarm",
   "systemAlarmDesc": "Play alarm sound for reminders",
+  "exactAlarmTitle": "Exact alarm permission",
+  "exactAlarmDesc": "Grant it so reminders fire at the exact time",
   "keyboardInput": "Keyboard input",
   "timeHint": "HH:mm",
   "aiParse": "AI parse",

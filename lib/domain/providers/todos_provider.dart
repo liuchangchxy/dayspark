@@ -98,10 +98,24 @@ final toggleTodoProvider =
       Future<void> Function({required int id, required bool isCompleted})
     >((ref) {
       final db = ref.read(databaseProvider);
-      return ({required int id, required bool isCompleted}) {
+      final notifService = ref.read(notificationServiceProvider);
+      final scheduleReminder = ref.read(scheduleReminderProvider);
+      return ({required int id, required bool isCompleted}) async {
+        final reminders =
+            await (db.select(db.reminders)..where(
+                  (t) =>
+                      t.parentType.equals('todo') & t.parentId.equals(id),
+                ))
+                .get();
         if (isCompleted) {
+          for (final r in reminders) {
+            await notifService.cancel(r.id);
+          }
           return db.todosDao.markComplete(id);
         } else {
+          for (final r in reminders) {
+            await scheduleReminder(r);
+          }
           return db.todosDao.markIncomplete(id);
         }
       };
@@ -111,10 +125,20 @@ final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   final notifService = ref.read(notificationServiceProvider);
   return (int id) async {
-    // Cancel scheduled notifications (keep reminder rows for restore)
-    final reminders = await (db.select(
-      db.reminders,
-    )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).get();
+    // Cancel scheduled notifications for the parent AND cascade-deleted
+    // children (keep reminder rows for restore).
+    final children =
+        await (db.select(db.todos)..where(
+              (t) => t.parentId.equals(id) & t.deletedAt.isNull(),
+            ))
+            .get();
+    final ids = [id, ...children.map((c) => c.id)];
+    final reminders =
+        await (db.select(db.reminders)..where(
+              (t) =>
+                  t.parentType.equals('todo') & t.parentId.isIn(ids),
+            ))
+            .get();
     for (final r in reminders) {
       await notifService.cancel(r.id);
     }
@@ -140,6 +164,7 @@ final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
 
 final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
+  final scheduleReminder = ref.read(scheduleReminderProvider);
   return (int id) async {
     final now = DateTime.now();
     // Mirror cascade-delete: restoring a parent must also pull its direct
@@ -160,12 +185,39 @@ final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
         updatedAt: Value(now),
       ),
     );
+    // Reschedule the reminder rows of the restored parent and children;
+    // scheduleReminder skips triggers already in the past.
+    final ids = [
+      id,
+      ...(await (db.select(db.todos)..where((t) => t.parentId.equals(id)))
+          .get())
+          .map((t) => t.id),
+    ];
+    final reminders =
+        await (db.select(db.reminders)..where(
+              (t) =>
+                  t.parentType.equals('todo') & t.parentId.isIn(ids),
+            ))
+            .get();
+    for (final r in reminders) {
+      await scheduleReminder(r);
+    }
   };
 });
 
 final permanentDeleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
+  final notifService = ref.read(notificationServiceProvider);
   return (int id) async {
+    final reminders =
+        await (db.select(db.reminders)..where(
+              (t) =>
+                  t.parentType.equals('todo') & t.parentId.equals(id),
+            ))
+            .get();
+    for (final r in reminders) {
+      await notifService.cancel(r.id);
+    }
     await (db.delete(
       db.reminders,
     )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).go();
@@ -179,7 +231,27 @@ final permanentDeleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
 
 final emptyTrashProvider = Provider<Future<void> Function()>((ref) {
   final db = ref.read(databaseProvider);
-  return () => db.todosDao.emptyTrash();
+  final notifService = ref.read(notificationServiceProvider);
+  return () async {
+    // DAO only drops rows; notifications must be cancelled first or they
+    // fire with no row left to cancel against.
+    final deleted =
+        await (db.select(db.todos)..where((t) => t.deletedAt.isNotNull()))
+            .get();
+    final ids = deleted.map((t) => t.id).toList();
+    if (ids.isNotEmpty) {
+      final reminders =
+          await (db.select(db.reminders)..where(
+                (t) =>
+                    t.parentType.equals('todo') & t.parentId.isIn(ids),
+              ))
+              .get();
+      for (final r in reminders) {
+        await notifService.cancel(r.id);
+      }
+    }
+    await db.todosDao.emptyTrash();
+  };
 });
 
 final reorderTodosProvider = Provider<Future<void> Function(List<int>)>((ref) {

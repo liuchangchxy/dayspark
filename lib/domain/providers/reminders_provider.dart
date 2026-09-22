@@ -1,9 +1,13 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 /// NotificationService singleton provider.
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -11,6 +15,42 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
   service.init().catchError((_) {});
   return service;
 });
+
+/// Title/body strings for scheduled notifications, resolved without a
+/// BuildContext (scheduling runs outside the widget tree).
+class NotificationStrings {
+  const NotificationStrings({
+    required this.eventReminderTitle,
+    required this.todoReminderTitle,
+    required this.eventReminderBody,
+    required this.todoReminderBody,
+  });
+
+  final String eventReminderTitle;
+  final String todoReminderTitle;
+  final String eventReminderBody;
+  final String todoReminderBody;
+}
+
+/// Resolves notification strings for [locale], or the persisted app locale,
+/// or the platform locale — in that order.
+Future<NotificationStrings> loadNotificationStrings({Locale? locale}) async {
+  var resolved = locale ?? const Locale('en');
+  if (locale == null) {
+    final prefs = await SharedPreferences.getInstance();
+    final code = prefs.getString(appLocalePrefKey);
+    resolved = code != null
+        ? Locale(code)
+        : WidgetsBinding.instance.platformDispatcher.locale;
+  }
+  final l = await AppLocalizations.delegate.load(resolved);
+  return NotificationStrings(
+    eventReminderTitle: l.eventReminder,
+    todoReminderTitle: l.todoReminder,
+    eventReminderBody: l.eventStartingSoon,
+    todoReminderBody: l.taskDueSoon,
+  );
+}
 
 /// Reminders for a specific event.
 final eventRemindersProvider = StreamProvider.family<List<Reminder>, int>((
@@ -45,7 +85,7 @@ final createReminderProvider =
       })
     >((ref) {
       final db = ref.read(databaseProvider);
-      final notifService = ref.read(notificationServiceProvider);
+      final scheduleReminder = ref.read(scheduleReminderProvider);
       return ({
         required parentType,
         required parentId,
@@ -64,15 +104,49 @@ final createReminderProvider =
         final reminder = await (db.select(
           db.reminders,
         )..where((t) => t.id.equals(id))).getSingle();
-        await notifService.scheduleFromReminder(
-          reminder,
-          eventReminderTitle: 'Event Reminder',
-          todoReminderTitle: 'Todo Reminder',
-          eventReminderBody: 'Event starting soon',
-          todoReminderBody: 'Task due soon',
-        );
+        await scheduleReminder(reminder);
 
         return id;
+      };
+    });
+
+/// Schedules an existing reminder row with locale-resolved strings.
+final scheduleReminderProvider =
+    Provider<Future<void> Function(Reminder)>((ref) {
+      final notifService = ref.read(notificationServiceProvider);
+      return (Reminder reminder) async {
+        final strings = await loadNotificationStrings();
+        await notifService.scheduleFromReminder(
+          reminder,
+          eventReminderTitle: strings.eventReminderTitle,
+          todoReminderTitle: strings.todoReminderTitle,
+          eventReminderBody: strings.eventReminderBody,
+          todoReminderBody: strings.todoReminderBody,
+        );
+      };
+    });
+
+/// Cancels notifications and deletes reminder rows for a parent.
+final clearRemindersProvider =
+    Provider<Future<void> Function(String, int)>((ref) {
+      final db = ref.read(databaseProvider);
+      final notifService = ref.read(notificationServiceProvider);
+      return (String parentType, int parentId) async {
+        final reminders =
+            await (db.select(db.reminders)..where(
+                  (t) =>
+                      t.parentType.equals(parentType) &
+                      t.parentId.equals(parentId),
+                ))
+                .get();
+        for (final r in reminders) {
+          await notifService.cancel(r.id);
+        }
+        await (db.delete(db.reminders)..where(
+              (t) =>
+                  t.parentType.equals(parentType) & t.parentId.equals(parentId),
+            ))
+            .go();
       };
     });
 

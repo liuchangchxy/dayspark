@@ -557,6 +557,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get systemAlarmDesc => 'Play alarm sound for reminders';
 
   @override
+  String get exactAlarmTitle => 'Exact alarm permission';
+
+  @override
+  String get exactAlarmDesc => 'Grant it so reminders fire at the exact time';
+
+  @override
   String get keyboardInput => 'Keyboard input';
 
   @override
