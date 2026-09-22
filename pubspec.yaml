@@ -63,7 +63,7 @@ dependencies:
   package_info_plus: ^9.0.1
 
   # Network
-  home_widget: ^0.9.1
+  home_widget: ^0.9.2
 
   # Alarm
   alarm: ^5.1.5

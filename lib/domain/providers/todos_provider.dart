@@ -167,6 +167,20 @@ final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final scheduleReminder = ref.read(scheduleReminderProvider);
   return (int id) async {
     final now = DateTime.now();
+    final row =
+        await (db.select(db.todos)..where((t) => t.id.equals(id))).getSingleOrNull();
+    // Restoring a child under a still-trashed parent would hide it in the
+    // active lists — untrash the parent too. Single level: no recursion up.
+    int? trashedParentId;
+    final parentRefId = row?.parentId;
+    if (parentRefId != null) {
+      final parent =
+          await (db.select(db.todos)..where((t) => t.id.equals(parentRefId)))
+              .getSingleOrNull();
+      if (parent != null && parent.deletedAt != null) {
+        trashedParentId = parent.id;
+      }
+    }
     // Mirror cascade-delete: restoring a parent must also pull its direct
     // children out of the trash, or they stay orphaned there.
     await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
@@ -177,6 +191,16 @@ final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
         updatedAt: Value(now),
       ),
     );
+    if (trashedParentId != null) {
+      final untrashParentId = trashedParentId;
+      await (db.update(db.todos)..where((t) => t.id.equals(untrashParentId)))
+          .write(
+        TodosCompanion(
+          deletedAt: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+    }
     await (db.update(db.todos)
           ..where((t) => t.parentId.equals(id) & t.deletedAt.isNotNull()))
         .write(
@@ -189,6 +213,7 @@ final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
     // scheduleReminder skips triggers already in the past.
     final ids = [
       id,
+      if (trashedParentId != null) trashedParentId,
       ...(await (db.select(db.todos)..where((t) => t.parentId.equals(id)))
           .get())
           .map((t) => t.id),
@@ -209,23 +234,32 @@ final permanentDeleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   final notifService = ref.read(notificationServiceProvider);
   return (int id) async {
+    final children =
+        await (db.select(db.todos)..where((t) => t.parentId.equals(id))).get();
+    final ids = [id, ...children.map((c) => c.id)];
     final reminders =
         await (db.select(db.reminders)..where(
               (t) =>
-                  t.parentType.equals('todo') & t.parentId.equals(id),
+                  t.parentType.equals('todo') & t.parentId.isIn(ids),
             ))
             .get();
     for (final r in reminders) {
       await notifService.cancel(r.id);
     }
-    await (db.delete(
-      db.reminders,
-    )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).go();
-    await (db.delete(db.todoTags)..where((t) => t.todoId.equals(id))).go();
-    await (db.delete(
-      db.attachments,
-    )..where((t) => t.parentType.equals('todo') & t.parentId.equals(id))).go();
-    await (db.delete(db.todos)..where((t) => t.id.equals(id))).go();
+    // FK-safe delete order (mirrors emptyTrash): child-rows first, todo rows
+    // last, all in one transaction; notifications cancelled above.
+    await db.transaction(() async {
+      for (final tid in ids) {
+        await (db.delete(db.todoTags)..where((t) => t.todoId.equals(tid))).go();
+      }
+      await (db.delete(
+        db.attachments,
+      )..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
+      await (db.delete(
+        db.reminders,
+      )..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
+      await (db.delete(db.todos)..where((t) => t.id.isIn(ids))).go();
+    });
   };
 });
 
@@ -260,7 +294,10 @@ final reorderTodosProvider = Provider<Future<void> Function(List<int>)>((ref) {
 });
 
 /// Subtasks for a given parent todo.
-final subtasksProvider = StreamProvider.family<List<Todo>, int>((ref, parentId) {
+final subtasksProvider = StreamProvider.autoDispose.family<List<Todo>, int>((
+  ref,
+  parentId,
+) {
   final db = ref.watch(databaseProvider);
   return db.todosDao.watchSubtasks(parentId);
 });

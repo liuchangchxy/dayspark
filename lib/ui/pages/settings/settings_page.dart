@@ -11,23 +11,35 @@ import 'settings_sections/appearance_section.dart';
 import 'settings_sections/import_export_section.dart';
 import 'settings_sections/notifications_section.dart';
 
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
+  @override
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   static bool _loaded = false;
   static String? _cachedVersion;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
     // Load persisted settings once on first build
     if (!_loaded) {
       _loaded = true;
-      Future.microtask(() => NotificationsSection.loadSystemAlarmSetting(ref));
-      PackageInfo.fromPlatform().then(
-        (i) => _cachedVersion = 'DaySpark v${i.version}',
+      Future.microtask(
+        () => NotificationsSection.loadSystemAlarmSetting(ref),
       );
+      PackageInfo.fromPlatform().then((i) {
+        _cachedVersion = 'DaySpark v${i.version}';
+        if (mounted) setState(() {});
+      });
     }
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
 
     return Scaffold(

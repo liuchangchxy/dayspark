@@ -78,7 +78,7 @@ flowchart LR
   - 规则 3：`list_events` 范围默认 now→+7d，上限 366 天
   - 规则 4：错误以工具结果 `{isError, {code, message, hint}}` 返回，不是 JSON-RPC error
   - 规则 5：不提供 `delete_task`（archive 姿态），与回收站语义对齐
-  - 规则 6：传输双形态：`POST /mcp` Streamable HTTP + OAuth 2.1（DCR + PKXE-S256 + token 轮换）；stdio wrapper 喂本地 Agent
+  - 规则 6：传输双形态：`POST /mcp` Streamable HTTP + OAuth 2.1（DCR + PKCE-S256 + token 轮换）；stdio wrapper 喂本地 Agent
 
 ### 3.4 P1–P4 功能矩阵
 

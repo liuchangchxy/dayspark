@@ -261,7 +261,7 @@
 
 ### home_widget 必须 ≥0.9.2（钉住浮动 Android 依赖）
 - home_widget 0.9.1 的 `android/build.gradle` 用 `glance-appwidget:1.+` / `work-runtime-ktx:2.+` / `kotlinx-coroutines-android:1.+` 动态坐标，构建日漂移：`glance 1.3.0-alpha02` 要求 compileSdk 37（本项目 AGP 8.11.1 上限 36）、`work-runtime` 新版 JVM-11 字节码与插件 `jvmTarget 1.8` 内联冲突
-- 上游 0.9.2 修复（#418 pin deps）；当前 lock 为 **0.9.4**（`^0.9.1` 范围内），升级依赖时禁止回退到 0.9.1
+- 上游 0.9.2 修复（#418 pin deps）；当前 lock 为 **0.9.4**（`^0.9.2` 范围内），升级依赖时禁止回退到 0.9.1
 - **Why**: 5 月能过的 APK 构建突然失败，根因是上游浮动坐标，不在本仓库代码
 - **Date**: 2026-09-22
 

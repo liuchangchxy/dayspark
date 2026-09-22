@@ -291,6 +291,136 @@ void main() {
       expect(trashed.map((t) => t.id), isNot(contains(parentId)));
       expect(trashed.map((t) => t.id), isNot(contains(childId)));
       expect(trashed.map((t) => t.id), contains(otherId));
+
+      final activeRoots = await testDb.todosDao.watchAllNotDeleted().first;
+      expect(activeRoots.map((t) => t.id), contains(parentId));
+      final visibleChildren =
+          await testDb.todosDao.watchSubtasks(parentId).first;
+      expect(visibleChildren.map((t) => t.id), contains(childId));
+    });
+
+    test('restoreTodoProvider restores a trashed parent of the restored child',
+        () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      // Hierarchy 1: root parent + child, both trashed (after cascade delete).
+      final parentId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Trashed root parent',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final childId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Trashed child',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              parentId: Value(parentId),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final otherId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Unrelated trashed',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final parentReminder = RemindersCompanion(
+        parentType: const Value('todo'),
+        parentId: Value(parentId),
+        triggerTime: Value(DateTime.now().add(const Duration(hours: 4))),
+      );
+      final parentReminderId = await testDb
+          .into(testDb.reminders)
+          .insert(parentReminder);
+      final parentReminderRow = await (testDb.select(testDb.reminders)
+            ..where((r) => r.id.equals(parentReminderId)))
+          .getSingle();
+
+      await container.read(restoreTodoProvider).call(childId);
+
+      final rows = await testDb.select(testDb.todos).get();
+      final parent = rows.firstWhere((t) => t.id == parentId);
+      final child = rows.firstWhere((t) => t.id == childId);
+      final other = rows.firstWhere((t) => t.id == otherId);
+      expect(parent.deletedAt == null, true);
+      expect(child.deletedAt == null, true);
+      expect(other.deletedAt != null, true);
+      final activeRoots = await testDb.todosDao.watchAllNotDeleted().first;
+      expect(activeRoots.map((t) => t.id), containsAll([parentId]));
+      final visibleChildren =
+          await testDb.todosDao.watchSubtasks(parentId).first;
+      expect(visibleChildren.map((t) => t.id), contains(childId));
+      verify(
+        () => notifMock.scheduleFromReminder(
+          parentReminderRow,
+          eventReminderTitle: any(named: 'eventReminderTitle'),
+          todoReminderTitle: any(named: 'todoReminderTitle'),
+          eventReminderBody: any(named: 'eventReminderBody'),
+          todoReminderBody: any(named: 'todoReminderBody'),
+        ),
+      ).called(1);
+
+      // Hierarchy 2: restore stops at one level — grandparent stays trashed.
+      final grandparentId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Trashed grandparent',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final middleId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Trashed middle parent',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              parentId: Value(grandparentId),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final leafId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Trashed leaf',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              parentId: Value(middleId),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+
+      await container.read(restoreTodoProvider).call(leafId);
+
+      final rows2 = await testDb.select(testDb.todos).get();
+      final grandparent = rows2.firstWhere((t) => t.id == grandparentId);
+      final middle = rows2.firstWhere((t) => t.id == middleId);
+      final leaf = rows2.firstWhere((t) => t.id == leafId);
+      expect(middle.deletedAt == null, true);
+      expect(leaf.deletedAt == null, true);
+      expect(grandparent.deletedAt != null, true);
     });
 
     test('deleteTodoProvider cancels notifications for parent and children',
@@ -534,6 +664,87 @@ void main() {
       verify(() => notifMock.cancel(reminderId)).called(1);
       final reminders = await testDb.select(testDb.reminders).get();
       expect(reminders, isEmpty);
+    });
+
+    test(
+        'permanentDeleteTodoProvider cascades to direct children and their rows',
+        () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final tagId = await testDb
+          .into(testDb.tags)
+          .insert(TagsCompanion.insert(name: 'Tag'));
+      final parentId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Doomed parent',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final childId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Doomed child',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              parentId: Value(parentId),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final otherId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Survivor',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+      await testDb
+          .into(testDb.todoTags)
+          .insert(TodoTagsCompanion.insert(todoId: childId, tagId: tagId));
+      await testDb.into(testDb.attachments).insert(
+            AttachmentsCompanion.insert(
+              parentType: 'todo',
+              parentId: childId,
+              filePath: '/tmp/child.txt',
+              fileName: 'child.txt',
+            ),
+          );
+      Future<int> addReminder(int todoId) => testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: todoId,
+              triggerTime: DateTime.now().add(const Duration(hours: 2)),
+            ),
+          );
+      final parentReminderId = await addReminder(parentId);
+      final childReminderId = await addReminder(childId);
+      final otherReminderId = await addReminder(otherId);
+
+      await container.read(permanentDeleteTodoProvider).call(parentId);
+
+      final todos = await testDb.select(testDb.todos).get();
+      expect(todos.map((t) => t.id), [otherId]);
+      final todoTags = await testDb.select(testDb.todoTags).get();
+      expect(todoTags, isEmpty);
+      final attachments = await testDb.select(testDb.attachments).get();
+      expect(attachments, isEmpty);
+      final reminders = await testDb.select(testDb.reminders).get();
+      expect(reminders.map((r) => r.id), [otherReminderId]);
+      verify(() => notifMock.cancel(parentReminderId)).called(1);
+      verify(() => notifMock.cancel(childReminderId)).called(1);
+      verifyNever(() => notifMock.cancel(otherReminderId));
     });
 
     test('emptyTrashProvider cancels reminders of trashed todos', () async {

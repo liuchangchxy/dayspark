@@ -526,7 +526,7 @@
 ## 五、Engineering Recommendations / 工程师建议
 
 ### 1. DB migration before real users / 数据库迁移要在有用户之前做好
-DB schema v6, every table change modifies schemaVersion + rebuilds. Once real users exist, migrations are required. / DB schema 现在是 v6，每次改表都是直接改 schemaVersion + 重建。一旦有真实用户，改表就必须走 migration。
+DB schema v8, every table change modifies schemaVersion + rebuilds. Once real users exist, migrations are required. / DB schema 现在是 v8，每次改表都是直接改 schemaVersion + 重建。一旦有真实用户，改表就必须走 migration。
 
 ### 2. Do a full end-to-end test on real devices / 做一次真机端到端测试
 Emulator/desktop differs significantly from real devices. / 在模拟器/桌面上测和真机差异很大。

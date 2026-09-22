@@ -13,7 +13,10 @@ final tagsProvider = StreamProvider<List<Tag>>((ref) {
 });
 
 /// Tags for a specific event.
-final eventTagsProvider = StreamProvider.family<List<Tag>, int>((ref, eventId) {
+final eventTagsProvider = StreamProvider.autoDispose.family<List<Tag>, int>((
+  ref,
+  eventId,
+) {
   final db = ref.watch(databaseProvider);
   final query = db.select(db.tags).join([
     innerJoin(db.eventTags, db.eventTags.tagId.equalsExp(db.tags.id)),
@@ -25,7 +28,10 @@ final eventTagsProvider = StreamProvider.family<List<Tag>, int>((ref, eventId) {
 });
 
 /// Tags for a specific todo.
-final todoTagsProvider = StreamProvider.family<List<Tag>, int>((ref, todoId) {
+final todoTagsProvider = StreamProvider.autoDispose.family<List<Tag>, int>((
+  ref,
+  todoId,
+) {
   final db = ref.watch(databaseProvider);
   final query = db.select(db.tags).join([
     innerJoin(db.todoTags, db.todoTags.tagId.equalsExp(db.tags.id)),
