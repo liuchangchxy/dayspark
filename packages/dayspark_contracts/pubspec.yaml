@@ -1,0 +1,10 @@
+name: dayspark_contracts
+description: Shared sync protocol contract types for the DaySpark client and server.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+
+dev_dependencies:
+  test: ^1.26.0

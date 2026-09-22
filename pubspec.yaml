@@ -71,6 +71,10 @@ dependencies:
   kalender: ^0.17.0
   flutter_timezone: ^5.1.0
 
+  # Sync protocol contracts (shared with server)
+  dayspark_contracts:
+    path: packages/dayspark_contracts
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
