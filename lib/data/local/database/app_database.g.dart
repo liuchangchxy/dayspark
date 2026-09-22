@@ -3,399 +3,6 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
-class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $AccountsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('Default'),
-  );
-  static const VerificationMeta _serverUrlMeta = const VerificationMeta(
-    'serverUrl',
-  );
-  @override
-  late final GeneratedColumn<String> serverUrl = GeneratedColumn<String>(
-    'server_url',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _usernameMeta = const VerificationMeta(
-    'username',
-  );
-  @override
-  late final GeneratedColumn<String> username = GeneratedColumn<String>(
-    'username',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _passwordMeta = const VerificationMeta(
-    'password',
-  );
-  @override
-  late final GeneratedColumn<String> password = GeneratedColumn<String>(
-    'password',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    name,
-    serverUrl,
-    username,
-    password,
-    createdAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'accounts';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<Account> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    }
-    if (data.containsKey('server_url')) {
-      context.handle(
-        _serverUrlMeta,
-        serverUrl.isAcceptableOrUnknown(data['server_url']!, _serverUrlMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_serverUrlMeta);
-    }
-    if (data.containsKey('username')) {
-      context.handle(
-        _usernameMeta,
-        username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_usernameMeta);
-    }
-    if (data.containsKey('password')) {
-      context.handle(
-        _passwordMeta,
-        password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_passwordMeta);
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  Account map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return Account(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      serverUrl: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}server_url'],
-      )!,
-      username: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}username'],
-      )!,
-      password: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}password'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-    );
-  }
-
-  @override
-  $AccountsTable createAlias(String alias) {
-    return $AccountsTable(attachedDatabase, alias);
-  }
-}
-
-class Account extends DataClass implements Insertable<Account> {
-  final int id;
-  final String name;
-  final String serverUrl;
-  final String username;
-  final String password;
-  final DateTime createdAt;
-  const Account({
-    required this.id,
-    required this.name,
-    required this.serverUrl,
-    required this.username,
-    required this.password,
-    required this.createdAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['name'] = Variable<String>(name);
-    map['server_url'] = Variable<String>(serverUrl);
-    map['username'] = Variable<String>(username);
-    map['password'] = Variable<String>(password);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    return map;
-  }
-
-  AccountsCompanion toCompanion(bool nullToAbsent) {
-    return AccountsCompanion(
-      id: Value(id),
-      name: Value(name),
-      serverUrl: Value(serverUrl),
-      username: Value(username),
-      password: Value(password),
-      createdAt: Value(createdAt),
-    );
-  }
-
-  factory Account.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Account(
-      id: serializer.fromJson<int>(json['id']),
-      name: serializer.fromJson<String>(json['name']),
-      serverUrl: serializer.fromJson<String>(json['serverUrl']),
-      username: serializer.fromJson<String>(json['username']),
-      password: serializer.fromJson<String>(json['password']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'name': serializer.toJson<String>(name),
-      'serverUrl': serializer.toJson<String>(serverUrl),
-      'username': serializer.toJson<String>(username),
-      'password': serializer.toJson<String>(password),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-    };
-  }
-
-  Account copyWith({
-    int? id,
-    String? name,
-    String? serverUrl,
-    String? username,
-    String? password,
-    DateTime? createdAt,
-  }) => Account(
-    id: id ?? this.id,
-    name: name ?? this.name,
-    serverUrl: serverUrl ?? this.serverUrl,
-    username: username ?? this.username,
-    password: password ?? this.password,
-    createdAt: createdAt ?? this.createdAt,
-  );
-  Account copyWithCompanion(AccountsCompanion data) {
-    return Account(
-      id: data.id.present ? data.id.value : this.id,
-      name: data.name.present ? data.name.value : this.name,
-      serverUrl: data.serverUrl.present ? data.serverUrl.value : this.serverUrl,
-      username: data.username.present ? data.username.value : this.username,
-      password: data.password.present ? data.password.value : this.password,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('Account(')
-          ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('serverUrl: $serverUrl, ')
-          ..write('username: $username, ')
-          ..write('password: $password, ')
-          ..write('createdAt: $createdAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode =>
-      Object.hash(id, name, serverUrl, username, password, createdAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is Account &&
-          other.id == this.id &&
-          other.name == this.name &&
-          other.serverUrl == this.serverUrl &&
-          other.username == this.username &&
-          other.password == this.password &&
-          other.createdAt == this.createdAt);
-}
-
-class AccountsCompanion extends UpdateCompanion<Account> {
-  final Value<int> id;
-  final Value<String> name;
-  final Value<String> serverUrl;
-  final Value<String> username;
-  final Value<String> password;
-  final Value<DateTime> createdAt;
-  const AccountsCompanion({
-    this.id = const Value.absent(),
-    this.name = const Value.absent(),
-    this.serverUrl = const Value.absent(),
-    this.username = const Value.absent(),
-    this.password = const Value.absent(),
-    this.createdAt = const Value.absent(),
-  });
-  AccountsCompanion.insert({
-    this.id = const Value.absent(),
-    this.name = const Value.absent(),
-    required String serverUrl,
-    required String username,
-    required String password,
-    this.createdAt = const Value.absent(),
-  }) : serverUrl = Value(serverUrl),
-       username = Value(username),
-       password = Value(password);
-  static Insertable<Account> custom({
-    Expression<int>? id,
-    Expression<String>? name,
-    Expression<String>? serverUrl,
-    Expression<String>? username,
-    Expression<String>? password,
-    Expression<DateTime>? createdAt,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (name != null) 'name': name,
-      if (serverUrl != null) 'server_url': serverUrl,
-      if (username != null) 'username': username,
-      if (password != null) 'password': password,
-      if (createdAt != null) 'created_at': createdAt,
-    });
-  }
-
-  AccountsCompanion copyWith({
-    Value<int>? id,
-    Value<String>? name,
-    Value<String>? serverUrl,
-    Value<String>? username,
-    Value<String>? password,
-    Value<DateTime>? createdAt,
-  }) {
-    return AccountsCompanion(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      serverUrl: serverUrl ?? this.serverUrl,
-      username: username ?? this.username,
-      password: password ?? this.password,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (serverUrl.present) {
-      map['server_url'] = Variable<String>(serverUrl.value);
-    }
-    if (username.present) {
-      map['username'] = Variable<String>(username.value);
-    }
-    if (password.present) {
-      map['password'] = Variable<String>(password.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AccountsCompanion(')
-          ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('serverUrl: $serverUrl, ')
-          ..write('username: $username, ')
-          ..write('password: $password, ')
-          ..write('createdAt: $createdAt')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $CalendarsTable extends Calendars
     with TableInfo<$CalendarsTable, Calendar> {
   @override
@@ -414,28 +21,6 @@ class $CalendarsTable extends Calendars
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
-  );
-  static const VerificationMeta _accountIdMeta = const VerificationMeta(
-    'accountId',
-  );
-  @override
-  late final GeneratedColumn<int> accountId = GeneratedColumn<int>(
-    'account_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _caldavHrefMeta = const VerificationMeta(
-    'caldavHref',
-  );
-  @override
-  late final GeneratedColumn<String> caldavHref = GeneratedColumn<String>(
-    'caldav_href',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
   );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
@@ -467,26 +52,6 @@ class $CalendarsTable extends Calendars
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('UTC'),
-  );
-  static const VerificationMeta _syncTokenMeta = const VerificationMeta(
-    'syncToken',
-  );
-  @override
-  late final GeneratedColumn<String> syncToken = GeneratedColumn<String>(
-    'sync_token',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _etagMeta = const VerificationMeta('etag');
-  @override
-  late final GeneratedColumn<String> etag = GeneratedColumn<String>(
-    'etag',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
   );
   static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
     'lastSyncedAt',
@@ -529,13 +94,9 @@ class $CalendarsTable extends Calendars
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    accountId,
-    caldavHref,
     name,
     color,
     timezone,
-    syncToken,
-    etag,
     lastSyncedAt,
     isActive,
     sortOrder,
@@ -555,20 +116,6 @@ class $CalendarsTable extends Calendars
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('account_id')) {
-      context.handle(
-        _accountIdMeta,
-        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
-      );
-    }
-    if (data.containsKey('caldav_href')) {
-      context.handle(
-        _caldavHrefMeta,
-        caldavHref.isAcceptableOrUnknown(data['caldav_href']!, _caldavHrefMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_caldavHrefMeta);
-    }
     if (data.containsKey('name')) {
       context.handle(
         _nameMeta,
@@ -587,18 +134,6 @@ class $CalendarsTable extends Calendars
       context.handle(
         _timezoneMeta,
         timezone.isAcceptableOrUnknown(data['timezone']!, _timezoneMeta),
-      );
-    }
-    if (data.containsKey('sync_token')) {
-      context.handle(
-        _syncTokenMeta,
-        syncToken.isAcceptableOrUnknown(data['sync_token']!, _syncTokenMeta),
-      );
-    }
-    if (data.containsKey('etag')) {
-      context.handle(
-        _etagMeta,
-        etag.isAcceptableOrUnknown(data['etag']!, _etagMeta),
       );
     }
     if (data.containsKey('last_synced_at')) {
@@ -635,14 +170,6 @@ class $CalendarsTable extends Calendars
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      accountId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}account_id'],
-      ),
-      caldavHref: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}caldav_href'],
-      )!,
       name: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}name'],
@@ -655,14 +182,6 @@ class $CalendarsTable extends Calendars
         DriftSqlType.string,
         data['${effectivePrefix}timezone'],
       )!,
-      syncToken: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}sync_token'],
-      ),
-      etag: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}etag'],
-      ),
       lastSyncedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_synced_at'],
@@ -686,25 +205,17 @@ class $CalendarsTable extends Calendars
 
 class Calendar extends DataClass implements Insertable<Calendar> {
   final int id;
-  final int? accountId;
-  final String caldavHref;
   final String name;
   final String color;
   final String timezone;
-  final String? syncToken;
-  final String? etag;
   final DateTime? lastSyncedAt;
   final bool isActive;
   final int sortOrder;
   const Calendar({
     required this.id,
-    this.accountId,
-    required this.caldavHref,
     required this.name,
     required this.color,
     required this.timezone,
-    this.syncToken,
-    this.etag,
     this.lastSyncedAt,
     required this.isActive,
     required this.sortOrder,
@@ -713,19 +224,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    if (!nullToAbsent || accountId != null) {
-      map['account_id'] = Variable<int>(accountId);
-    }
-    map['caldav_href'] = Variable<String>(caldavHref);
     map['name'] = Variable<String>(name);
     map['color'] = Variable<String>(color);
     map['timezone'] = Variable<String>(timezone);
-    if (!nullToAbsent || syncToken != null) {
-      map['sync_token'] = Variable<String>(syncToken);
-    }
-    if (!nullToAbsent || etag != null) {
-      map['etag'] = Variable<String>(etag);
-    }
     if (!nullToAbsent || lastSyncedAt != null) {
       map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
     }
@@ -737,17 +238,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   CalendarsCompanion toCompanion(bool nullToAbsent) {
     return CalendarsCompanion(
       id: Value(id),
-      accountId: accountId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(accountId),
-      caldavHref: Value(caldavHref),
       name: Value(name),
       color: Value(color),
       timezone: Value(timezone),
-      syncToken: syncToken == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncToken),
-      etag: etag == null && nullToAbsent ? const Value.absent() : Value(etag),
       lastSyncedAt: lastSyncedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastSyncedAt),
@@ -763,13 +256,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Calendar(
       id: serializer.fromJson<int>(json['id']),
-      accountId: serializer.fromJson<int?>(json['accountId']),
-      caldavHref: serializer.fromJson<String>(json['caldavHref']),
       name: serializer.fromJson<String>(json['name']),
       color: serializer.fromJson<String>(json['color']),
       timezone: serializer.fromJson<String>(json['timezone']),
-      syncToken: serializer.fromJson<String?>(json['syncToken']),
-      etag: serializer.fromJson<String?>(json['etag']),
       lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
@@ -780,13 +269,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'accountId': serializer.toJson<int?>(accountId),
-      'caldavHref': serializer.toJson<String>(caldavHref),
       'name': serializer.toJson<String>(name),
       'color': serializer.toJson<String>(color),
       'timezone': serializer.toJson<String>(timezone),
-      'syncToken': serializer.toJson<String?>(syncToken),
-      'etag': serializer.toJson<String?>(etag),
       'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
       'isActive': serializer.toJson<bool>(isActive),
       'sortOrder': serializer.toJson<int>(sortOrder),
@@ -795,25 +280,17 @@ class Calendar extends DataClass implements Insertable<Calendar> {
 
   Calendar copyWith({
     int? id,
-    Value<int?> accountId = const Value.absent(),
-    String? caldavHref,
     String? name,
     String? color,
     String? timezone,
-    Value<String?> syncToken = const Value.absent(),
-    Value<String?> etag = const Value.absent(),
     Value<DateTime?> lastSyncedAt = const Value.absent(),
     bool? isActive,
     int? sortOrder,
   }) => Calendar(
     id: id ?? this.id,
-    accountId: accountId.present ? accountId.value : this.accountId,
-    caldavHref: caldavHref ?? this.caldavHref,
     name: name ?? this.name,
     color: color ?? this.color,
     timezone: timezone ?? this.timezone,
-    syncToken: syncToken.present ? syncToken.value : this.syncToken,
-    etag: etag.present ? etag.value : this.etag,
     lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
     isActive: isActive ?? this.isActive,
     sortOrder: sortOrder ?? this.sortOrder,
@@ -821,15 +298,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   Calendar copyWithCompanion(CalendarsCompanion data) {
     return Calendar(
       id: data.id.present ? data.id.value : this.id,
-      accountId: data.accountId.present ? data.accountId.value : this.accountId,
-      caldavHref: data.caldavHref.present
-          ? data.caldavHref.value
-          : this.caldavHref,
       name: data.name.present ? data.name.value : this.name,
       color: data.color.present ? data.color.value : this.color,
       timezone: data.timezone.present ? data.timezone.value : this.timezone,
-      syncToken: data.syncToken.present ? data.syncToken.value : this.syncToken,
-      etag: data.etag.present ? data.etag.value : this.etag,
       lastSyncedAt: data.lastSyncedAt.present
           ? data.lastSyncedAt.value
           : this.lastSyncedAt,
@@ -842,13 +313,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   String toString() {
     return (StringBuffer('Calendar(')
           ..write('id: $id, ')
-          ..write('accountId: $accountId, ')
-          ..write('caldavHref: $caldavHref, ')
           ..write('name: $name, ')
           ..write('color: $color, ')
           ..write('timezone: $timezone, ')
-          ..write('syncToken: $syncToken, ')
-          ..write('etag: $etag, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('isActive: $isActive, ')
           ..write('sortOrder: $sortOrder')
@@ -857,31 +324,16 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    accountId,
-    caldavHref,
-    name,
-    color,
-    timezone,
-    syncToken,
-    etag,
-    lastSyncedAt,
-    isActive,
-    sortOrder,
-  );
+  int get hashCode =>
+      Object.hash(id, name, color, timezone, lastSyncedAt, isActive, sortOrder);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Calendar &&
           other.id == this.id &&
-          other.accountId == this.accountId &&
-          other.caldavHref == this.caldavHref &&
           other.name == this.name &&
           other.color == this.color &&
           other.timezone == this.timezone &&
-          other.syncToken == this.syncToken &&
-          other.etag == this.etag &&
           other.lastSyncedAt == this.lastSyncedAt &&
           other.isActive == this.isActive &&
           other.sortOrder == this.sortOrder);
@@ -889,65 +341,44 @@ class Calendar extends DataClass implements Insertable<Calendar> {
 
 class CalendarsCompanion extends UpdateCompanion<Calendar> {
   final Value<int> id;
-  final Value<int?> accountId;
-  final Value<String> caldavHref;
   final Value<String> name;
   final Value<String> color;
   final Value<String> timezone;
-  final Value<String?> syncToken;
-  final Value<String?> etag;
   final Value<DateTime?> lastSyncedAt;
   final Value<bool> isActive;
   final Value<int> sortOrder;
   const CalendarsCompanion({
     this.id = const Value.absent(),
-    this.accountId = const Value.absent(),
-    this.caldavHref = const Value.absent(),
     this.name = const Value.absent(),
     this.color = const Value.absent(),
     this.timezone = const Value.absent(),
-    this.syncToken = const Value.absent(),
-    this.etag = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
     this.isActive = const Value.absent(),
     this.sortOrder = const Value.absent(),
   });
   CalendarsCompanion.insert({
     this.id = const Value.absent(),
-    this.accountId = const Value.absent(),
-    required String caldavHref,
     required String name,
     this.color = const Value.absent(),
     this.timezone = const Value.absent(),
-    this.syncToken = const Value.absent(),
-    this.etag = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
     this.isActive = const Value.absent(),
     this.sortOrder = const Value.absent(),
-  }) : caldavHref = Value(caldavHref),
-       name = Value(name);
+  }) : name = Value(name);
   static Insertable<Calendar> custom({
     Expression<int>? id,
-    Expression<int>? accountId,
-    Expression<String>? caldavHref,
     Expression<String>? name,
     Expression<String>? color,
     Expression<String>? timezone,
-    Expression<String>? syncToken,
-    Expression<String>? etag,
     Expression<DateTime>? lastSyncedAt,
     Expression<bool>? isActive,
     Expression<int>? sortOrder,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (accountId != null) 'account_id': accountId,
-      if (caldavHref != null) 'caldav_href': caldavHref,
       if (name != null) 'name': name,
       if (color != null) 'color': color,
       if (timezone != null) 'timezone': timezone,
-      if (syncToken != null) 'sync_token': syncToken,
-      if (etag != null) 'etag': etag,
       if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
       if (isActive != null) 'is_active': isActive,
       if (sortOrder != null) 'sort_order': sortOrder,
@@ -956,26 +387,18 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
 
   CalendarsCompanion copyWith({
     Value<int>? id,
-    Value<int?>? accountId,
-    Value<String>? caldavHref,
     Value<String>? name,
     Value<String>? color,
     Value<String>? timezone,
-    Value<String?>? syncToken,
-    Value<String?>? etag,
     Value<DateTime?>? lastSyncedAt,
     Value<bool>? isActive,
     Value<int>? sortOrder,
   }) {
     return CalendarsCompanion(
       id: id ?? this.id,
-      accountId: accountId ?? this.accountId,
-      caldavHref: caldavHref ?? this.caldavHref,
       name: name ?? this.name,
       color: color ?? this.color,
       timezone: timezone ?? this.timezone,
-      syncToken: syncToken ?? this.syncToken,
-      etag: etag ?? this.etag,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       isActive: isActive ?? this.isActive,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -988,12 +411,6 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (accountId.present) {
-      map['account_id'] = Variable<int>(accountId.value);
-    }
-    if (caldavHref.present) {
-      map['caldav_href'] = Variable<String>(caldavHref.value);
-    }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
@@ -1002,12 +419,6 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     }
     if (timezone.present) {
       map['timezone'] = Variable<String>(timezone.value);
-    }
-    if (syncToken.present) {
-      map['sync_token'] = Variable<String>(syncToken.value);
-    }
-    if (etag.present) {
-      map['etag'] = Variable<String>(etag.value);
     }
     if (lastSyncedAt.present) {
       map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
@@ -1025,13 +436,9 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
   String toString() {
     return (StringBuffer('CalendarsCompanion(')
           ..write('id: $id, ')
-          ..write('accountId: $accountId, ')
-          ..write('caldavHref: $caldavHref, ')
           ..write('name: $name, ')
           ..write('color: $color, ')
           ..write('timezone: $timezone, ')
-          ..write('syncToken: $syncToken, ')
-          ..write('etag: $etag, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('isActive: $isActive, ')
           ..write('sortOrder: $sortOrder')
@@ -1071,15 +478,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES calendars (id)',
     ),
-  );
-  static const VerificationMeta _uidMeta = const VerificationMeta('uid');
-  @override
-  late final GeneratedColumn<String> uid = GeneratedColumn<String>(
-    'uid',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
   );
   static const VerificationMeta _summaryMeta = const VerificationMeta(
     'summary',
@@ -1158,30 +556,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _etagMeta = const VerificationMeta('etag');
-  @override
-  late final GeneratedColumn<String> etag = GeneratedColumn<String>(
-    'etag',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _isDirtyMeta = const VerificationMeta(
-    'isDirty',
-  );
-  @override
-  late final GeneratedColumn<bool> isDirty = GeneratedColumn<bool>(
-    'is_dirty',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_dirty" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
   static const VerificationMeta _deletedAtMeta = const VerificationMeta(
     'deletedAt',
   );
@@ -1221,7 +595,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
   List<GeneratedColumn> get $columns => [
     id,
     calendarId,
-    uid,
     summary,
     startDt,
     endDt,
@@ -1229,8 +602,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     description,
     location,
     rrule,
-    etag,
-    isDirty,
     deletedAt,
     createdAt,
     updatedAt,
@@ -1257,14 +628,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
       );
     } else if (isInserting) {
       context.missing(_calendarIdMeta);
-    }
-    if (data.containsKey('uid')) {
-      context.handle(
-        _uidMeta,
-        uid.isAcceptableOrUnknown(data['uid']!, _uidMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_uidMeta);
     }
     if (data.containsKey('summary')) {
       context.handle(
@@ -1317,18 +680,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         rrule.isAcceptableOrUnknown(data['rrule']!, _rruleMeta),
       );
     }
-    if (data.containsKey('etag')) {
-      context.handle(
-        _etagMeta,
-        etag.isAcceptableOrUnknown(data['etag']!, _etagMeta),
-      );
-    }
-    if (data.containsKey('is_dirty')) {
-      context.handle(
-        _isDirtyMeta,
-        isDirty.isAcceptableOrUnknown(data['is_dirty']!, _isDirtyMeta),
-      );
-    }
     if (data.containsKey('deleted_at')) {
       context.handle(
         _deletedAtMeta,
@@ -1364,10 +715,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         DriftSqlType.int,
         data['${effectivePrefix}calendar_id'],
       )!,
-      uid: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}uid'],
-      )!,
       summary: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}summary'],
@@ -1396,14 +743,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         DriftSqlType.string,
         data['${effectivePrefix}rrule'],
       ),
-      etag: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}etag'],
-      ),
-      isDirty: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_dirty'],
-      )!,
       deletedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
@@ -1428,7 +767,6 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
 class Event extends DataClass implements Insertable<Event> {
   final int id;
   final int calendarId;
-  final String uid;
   final String summary;
   final DateTime startDt;
   final DateTime endDt;
@@ -1436,15 +774,12 @@ class Event extends DataClass implements Insertable<Event> {
   final String? description;
   final String? location;
   final String? rrule;
-  final String? etag;
-  final bool isDirty;
   final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Event({
     required this.id,
     required this.calendarId,
-    required this.uid,
     required this.summary,
     required this.startDt,
     required this.endDt,
@@ -1452,8 +787,6 @@ class Event extends DataClass implements Insertable<Event> {
     this.description,
     this.location,
     this.rrule,
-    this.etag,
-    required this.isDirty,
     this.deletedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -1463,7 +796,6 @@ class Event extends DataClass implements Insertable<Event> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['calendar_id'] = Variable<int>(calendarId);
-    map['uid'] = Variable<String>(uid);
     map['summary'] = Variable<String>(summary);
     map['start_dt'] = Variable<DateTime>(startDt);
     map['end_dt'] = Variable<DateTime>(endDt);
@@ -1477,10 +809,6 @@ class Event extends DataClass implements Insertable<Event> {
     if (!nullToAbsent || rrule != null) {
       map['rrule'] = Variable<String>(rrule);
     }
-    if (!nullToAbsent || etag != null) {
-      map['etag'] = Variable<String>(etag);
-    }
-    map['is_dirty'] = Variable<bool>(isDirty);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
@@ -1493,7 +821,6 @@ class Event extends DataClass implements Insertable<Event> {
     return EventsCompanion(
       id: Value(id),
       calendarId: Value(calendarId),
-      uid: Value(uid),
       summary: Value(summary),
       startDt: Value(startDt),
       endDt: Value(endDt),
@@ -1507,8 +834,6 @@ class Event extends DataClass implements Insertable<Event> {
       rrule: rrule == null && nullToAbsent
           ? const Value.absent()
           : Value(rrule),
-      etag: etag == null && nullToAbsent ? const Value.absent() : Value(etag),
-      isDirty: Value(isDirty),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
@@ -1525,7 +850,6 @@ class Event extends DataClass implements Insertable<Event> {
     return Event(
       id: serializer.fromJson<int>(json['id']),
       calendarId: serializer.fromJson<int>(json['calendarId']),
-      uid: serializer.fromJson<String>(json['uid']),
       summary: serializer.fromJson<String>(json['summary']),
       startDt: serializer.fromJson<DateTime>(json['startDt']),
       endDt: serializer.fromJson<DateTime>(json['endDt']),
@@ -1533,8 +857,6 @@ class Event extends DataClass implements Insertable<Event> {
       description: serializer.fromJson<String?>(json['description']),
       location: serializer.fromJson<String?>(json['location']),
       rrule: serializer.fromJson<String?>(json['rrule']),
-      etag: serializer.fromJson<String?>(json['etag']),
-      isDirty: serializer.fromJson<bool>(json['isDirty']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1546,7 +868,6 @@ class Event extends DataClass implements Insertable<Event> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'calendarId': serializer.toJson<int>(calendarId),
-      'uid': serializer.toJson<String>(uid),
       'summary': serializer.toJson<String>(summary),
       'startDt': serializer.toJson<DateTime>(startDt),
       'endDt': serializer.toJson<DateTime>(endDt),
@@ -1554,8 +875,6 @@ class Event extends DataClass implements Insertable<Event> {
       'description': serializer.toJson<String?>(description),
       'location': serializer.toJson<String?>(location),
       'rrule': serializer.toJson<String?>(rrule),
-      'etag': serializer.toJson<String?>(etag),
-      'isDirty': serializer.toJson<bool>(isDirty),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1565,7 +884,6 @@ class Event extends DataClass implements Insertable<Event> {
   Event copyWith({
     int? id,
     int? calendarId,
-    String? uid,
     String? summary,
     DateTime? startDt,
     DateTime? endDt,
@@ -1573,15 +891,12 @@ class Event extends DataClass implements Insertable<Event> {
     Value<String?> description = const Value.absent(),
     Value<String?> location = const Value.absent(),
     Value<String?> rrule = const Value.absent(),
-    Value<String?> etag = const Value.absent(),
-    bool? isDirty,
     Value<DateTime?> deletedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Event(
     id: id ?? this.id,
     calendarId: calendarId ?? this.calendarId,
-    uid: uid ?? this.uid,
     summary: summary ?? this.summary,
     startDt: startDt ?? this.startDt,
     endDt: endDt ?? this.endDt,
@@ -1589,8 +904,6 @@ class Event extends DataClass implements Insertable<Event> {
     description: description.present ? description.value : this.description,
     location: location.present ? location.value : this.location,
     rrule: rrule.present ? rrule.value : this.rrule,
-    etag: etag.present ? etag.value : this.etag,
-    isDirty: isDirty ?? this.isDirty,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1601,7 +914,6 @@ class Event extends DataClass implements Insertable<Event> {
       calendarId: data.calendarId.present
           ? data.calendarId.value
           : this.calendarId,
-      uid: data.uid.present ? data.uid.value : this.uid,
       summary: data.summary.present ? data.summary.value : this.summary,
       startDt: data.startDt.present ? data.startDt.value : this.startDt,
       endDt: data.endDt.present ? data.endDt.value : this.endDt,
@@ -1611,8 +923,6 @@ class Event extends DataClass implements Insertable<Event> {
           : this.description,
       location: data.location.present ? data.location.value : this.location,
       rrule: data.rrule.present ? data.rrule.value : this.rrule,
-      etag: data.etag.present ? data.etag.value : this.etag,
-      isDirty: data.isDirty.present ? data.isDirty.value : this.isDirty,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1624,7 +934,6 @@ class Event extends DataClass implements Insertable<Event> {
     return (StringBuffer('Event(')
           ..write('id: $id, ')
           ..write('calendarId: $calendarId, ')
-          ..write('uid: $uid, ')
           ..write('summary: $summary, ')
           ..write('startDt: $startDt, ')
           ..write('endDt: $endDt, ')
@@ -1632,8 +941,6 @@ class Event extends DataClass implements Insertable<Event> {
           ..write('description: $description, ')
           ..write('location: $location, ')
           ..write('rrule: $rrule, ')
-          ..write('etag: $etag, ')
-          ..write('isDirty: $isDirty, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1645,7 +952,6 @@ class Event extends DataClass implements Insertable<Event> {
   int get hashCode => Object.hash(
     id,
     calendarId,
-    uid,
     summary,
     startDt,
     endDt,
@@ -1653,8 +959,6 @@ class Event extends DataClass implements Insertable<Event> {
     description,
     location,
     rrule,
-    etag,
-    isDirty,
     deletedAt,
     createdAt,
     updatedAt,
@@ -1665,7 +969,6 @@ class Event extends DataClass implements Insertable<Event> {
       (other is Event &&
           other.id == this.id &&
           other.calendarId == this.calendarId &&
-          other.uid == this.uid &&
           other.summary == this.summary &&
           other.startDt == this.startDt &&
           other.endDt == this.endDt &&
@@ -1673,8 +976,6 @@ class Event extends DataClass implements Insertable<Event> {
           other.description == this.description &&
           other.location == this.location &&
           other.rrule == this.rrule &&
-          other.etag == this.etag &&
-          other.isDirty == this.isDirty &&
           other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1683,7 +984,6 @@ class Event extends DataClass implements Insertable<Event> {
 class EventsCompanion extends UpdateCompanion<Event> {
   final Value<int> id;
   final Value<int> calendarId;
-  final Value<String> uid;
   final Value<String> summary;
   final Value<DateTime> startDt;
   final Value<DateTime> endDt;
@@ -1691,15 +991,12 @@ class EventsCompanion extends UpdateCompanion<Event> {
   final Value<String?> description;
   final Value<String?> location;
   final Value<String?> rrule;
-  final Value<String?> etag;
-  final Value<bool> isDirty;
   final Value<DateTime?> deletedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const EventsCompanion({
     this.id = const Value.absent(),
     this.calendarId = const Value.absent(),
-    this.uid = const Value.absent(),
     this.summary = const Value.absent(),
     this.startDt = const Value.absent(),
     this.endDt = const Value.absent(),
@@ -1707,8 +1004,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.description = const Value.absent(),
     this.location = const Value.absent(),
     this.rrule = const Value.absent(),
-    this.etag = const Value.absent(),
-    this.isDirty = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1716,7 +1011,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
   EventsCompanion.insert({
     this.id = const Value.absent(),
     required int calendarId,
-    required String uid,
     required String summary,
     required DateTime startDt,
     required DateTime endDt,
@@ -1724,20 +1018,16 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.description = const Value.absent(),
     this.location = const Value.absent(),
     this.rrule = const Value.absent(),
-    this.etag = const Value.absent(),
-    this.isDirty = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : calendarId = Value(calendarId),
-       uid = Value(uid),
        summary = Value(summary),
        startDt = Value(startDt),
        endDt = Value(endDt);
   static Insertable<Event> custom({
     Expression<int>? id,
     Expression<int>? calendarId,
-    Expression<String>? uid,
     Expression<String>? summary,
     Expression<DateTime>? startDt,
     Expression<DateTime>? endDt,
@@ -1745,8 +1035,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Expression<String>? description,
     Expression<String>? location,
     Expression<String>? rrule,
-    Expression<String>? etag,
-    Expression<bool>? isDirty,
     Expression<DateTime>? deletedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1754,7 +1042,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (calendarId != null) 'calendar_id': calendarId,
-      if (uid != null) 'uid': uid,
       if (summary != null) 'summary': summary,
       if (startDt != null) 'start_dt': startDt,
       if (endDt != null) 'end_dt': endDt,
@@ -1762,8 +1049,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
       if (description != null) 'description': description,
       if (location != null) 'location': location,
       if (rrule != null) 'rrule': rrule,
-      if (etag != null) 'etag': etag,
-      if (isDirty != null) 'is_dirty': isDirty,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1773,7 +1058,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
   EventsCompanion copyWith({
     Value<int>? id,
     Value<int>? calendarId,
-    Value<String>? uid,
     Value<String>? summary,
     Value<DateTime>? startDt,
     Value<DateTime>? endDt,
@@ -1781,8 +1065,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Value<String?>? description,
     Value<String?>? location,
     Value<String?>? rrule,
-    Value<String?>? etag,
-    Value<bool>? isDirty,
     Value<DateTime?>? deletedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1790,7 +1072,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
     return EventsCompanion(
       id: id ?? this.id,
       calendarId: calendarId ?? this.calendarId,
-      uid: uid ?? this.uid,
       summary: summary ?? this.summary,
       startDt: startDt ?? this.startDt,
       endDt: endDt ?? this.endDt,
@@ -1798,8 +1079,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
       description: description ?? this.description,
       location: location ?? this.location,
       rrule: rrule ?? this.rrule,
-      etag: etag ?? this.etag,
-      isDirty: isDirty ?? this.isDirty,
       deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1814,9 +1093,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
     }
     if (calendarId.present) {
       map['calendar_id'] = Variable<int>(calendarId.value);
-    }
-    if (uid.present) {
-      map['uid'] = Variable<String>(uid.value);
     }
     if (summary.present) {
       map['summary'] = Variable<String>(summary.value);
@@ -1839,12 +1115,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
     if (rrule.present) {
       map['rrule'] = Variable<String>(rrule.value);
     }
-    if (etag.present) {
-      map['etag'] = Variable<String>(etag.value);
-    }
-    if (isDirty.present) {
-      map['is_dirty'] = Variable<bool>(isDirty.value);
-    }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
@@ -1862,7 +1132,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
     return (StringBuffer('EventsCompanion(')
           ..write('id: $id, ')
           ..write('calendarId: $calendarId, ')
-          ..write('uid: $uid, ')
           ..write('summary: $summary, ')
           ..write('startDt: $startDt, ')
           ..write('endDt: $endDt, ')
@@ -1870,8 +1139,6 @@ class EventsCompanion extends UpdateCompanion<Event> {
           ..write('description: $description, ')
           ..write('location: $location, ')
           ..write('rrule: $rrule, ')
-          ..write('etag: $etag, ')
-          ..write('isDirty: $isDirty, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1911,15 +1178,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES calendars (id)',
     ),
-  );
-  static const VerificationMeta _uidMeta = const VerificationMeta('uid');
-  @override
-  late final GeneratedColumn<String> uid = GeneratedColumn<String>(
-    'uid',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
   );
   static const VerificationMeta _summaryMeta = const VerificationMeta(
     'summary',
@@ -2019,30 +1277,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
-  static const VerificationMeta _etagMeta = const VerificationMeta('etag');
-  @override
-  late final GeneratedColumn<String> etag = GeneratedColumn<String>(
-    'etag',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _isDirtyMeta = const VerificationMeta(
-    'isDirty',
-  );
-  @override
-  late final GeneratedColumn<bool> isDirty = GeneratedColumn<bool>(
-    'is_dirty',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_dirty" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2105,7 +1339,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
   List<GeneratedColumn> get $columns => [
     id,
     calendarId,
-    uid,
     summary,
     dueDate,
     startDate,
@@ -2115,8 +1348,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     rrule,
     completedAt,
     percentComplete,
-    etag,
-    isDirty,
     createdAt,
     updatedAt,
     deletedAt,
@@ -2145,14 +1376,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
       );
     } else if (isInserting) {
       context.missing(_calendarIdMeta);
-    }
-    if (data.containsKey('uid')) {
-      context.handle(
-        _uidMeta,
-        uid.isAcceptableOrUnknown(data['uid']!, _uidMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_uidMeta);
     }
     if (data.containsKey('summary')) {
       context.handle(
@@ -2219,18 +1442,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         ),
       );
     }
-    if (data.containsKey('etag')) {
-      context.handle(
-        _etagMeta,
-        etag.isAcceptableOrUnknown(data['etag']!, _etagMeta),
-      );
-    }
-    if (data.containsKey('is_dirty')) {
-      context.handle(
-        _isDirtyMeta,
-        isDirty.isAcceptableOrUnknown(data['is_dirty']!, _isDirtyMeta),
-      );
-    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2278,10 +1489,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.int,
         data['${effectivePrefix}calendar_id'],
       )!,
-      uid: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}uid'],
-      )!,
       summary: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}summary'],
@@ -2318,14 +1525,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.int,
         data['${effectivePrefix}percent_complete'],
       )!,
-      etag: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}etag'],
-      ),
-      isDirty: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_dirty'],
-      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2358,7 +1557,6 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
 class Todo extends DataClass implements Insertable<Todo> {
   final int id;
   final int calendarId;
-  final String uid;
   final String summary;
   final DateTime? dueDate;
   final DateTime? startDate;
@@ -2368,8 +1566,6 @@ class Todo extends DataClass implements Insertable<Todo> {
   final String? rrule;
   final DateTime? completedAt;
   final int percentComplete;
-  final String? etag;
-  final bool isDirty;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -2378,7 +1574,6 @@ class Todo extends DataClass implements Insertable<Todo> {
   const Todo({
     required this.id,
     required this.calendarId,
-    required this.uid,
     required this.summary,
     this.dueDate,
     this.startDate,
@@ -2388,8 +1583,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     this.rrule,
     this.completedAt,
     required this.percentComplete,
-    this.etag,
-    required this.isDirty,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -2401,7 +1594,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['calendar_id'] = Variable<int>(calendarId);
-    map['uid'] = Variable<String>(uid);
     map['summary'] = Variable<String>(summary);
     if (!nullToAbsent || dueDate != null) {
       map['due_date'] = Variable<DateTime>(dueDate);
@@ -2421,10 +1613,6 @@ class Todo extends DataClass implements Insertable<Todo> {
       map['completed_at'] = Variable<DateTime>(completedAt);
     }
     map['percent_complete'] = Variable<int>(percentComplete);
-    if (!nullToAbsent || etag != null) {
-      map['etag'] = Variable<String>(etag);
-    }
-    map['is_dirty'] = Variable<bool>(isDirty);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -2441,7 +1629,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     return TodosCompanion(
       id: Value(id),
       calendarId: Value(calendarId),
-      uid: Value(uid),
       summary: Value(summary),
       dueDate: dueDate == null && nullToAbsent
           ? const Value.absent()
@@ -2461,8 +1648,6 @@ class Todo extends DataClass implements Insertable<Todo> {
           ? const Value.absent()
           : Value(completedAt),
       percentComplete: Value(percentComplete),
-      etag: etag == null && nullToAbsent ? const Value.absent() : Value(etag),
-      isDirty: Value(isDirty),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -2483,7 +1668,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     return Todo(
       id: serializer.fromJson<int>(json['id']),
       calendarId: serializer.fromJson<int>(json['calendarId']),
-      uid: serializer.fromJson<String>(json['uid']),
       summary: serializer.fromJson<String>(json['summary']),
       dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
       startDate: serializer.fromJson<DateTime?>(json['startDate']),
@@ -2493,8 +1677,6 @@ class Todo extends DataClass implements Insertable<Todo> {
       rrule: serializer.fromJson<String?>(json['rrule']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       percentComplete: serializer.fromJson<int>(json['percentComplete']),
-      etag: serializer.fromJson<String?>(json['etag']),
-      isDirty: serializer.fromJson<bool>(json['isDirty']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -2508,7 +1690,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'calendarId': serializer.toJson<int>(calendarId),
-      'uid': serializer.toJson<String>(uid),
       'summary': serializer.toJson<String>(summary),
       'dueDate': serializer.toJson<DateTime?>(dueDate),
       'startDate': serializer.toJson<DateTime?>(startDate),
@@ -2518,8 +1699,6 @@ class Todo extends DataClass implements Insertable<Todo> {
       'rrule': serializer.toJson<String?>(rrule),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'percentComplete': serializer.toJson<int>(percentComplete),
-      'etag': serializer.toJson<String?>(etag),
-      'isDirty': serializer.toJson<bool>(isDirty),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -2531,7 +1710,6 @@ class Todo extends DataClass implements Insertable<Todo> {
   Todo copyWith({
     int? id,
     int? calendarId,
-    String? uid,
     String? summary,
     Value<DateTime?> dueDate = const Value.absent(),
     Value<DateTime?> startDate = const Value.absent(),
@@ -2541,8 +1719,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     Value<String?> rrule = const Value.absent(),
     Value<DateTime?> completedAt = const Value.absent(),
     int? percentComplete,
-    Value<String?> etag = const Value.absent(),
-    bool? isDirty,
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -2551,7 +1727,6 @@ class Todo extends DataClass implements Insertable<Todo> {
   }) => Todo(
     id: id ?? this.id,
     calendarId: calendarId ?? this.calendarId,
-    uid: uid ?? this.uid,
     summary: summary ?? this.summary,
     dueDate: dueDate.present ? dueDate.value : this.dueDate,
     startDate: startDate.present ? startDate.value : this.startDate,
@@ -2561,8 +1736,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     rrule: rrule.present ? rrule.value : this.rrule,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     percentComplete: percentComplete ?? this.percentComplete,
-    etag: etag.present ? etag.value : this.etag,
-    isDirty: isDirty ?? this.isDirty,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -2575,7 +1748,6 @@ class Todo extends DataClass implements Insertable<Todo> {
       calendarId: data.calendarId.present
           ? data.calendarId.value
           : this.calendarId,
-      uid: data.uid.present ? data.uid.value : this.uid,
       summary: data.summary.present ? data.summary.value : this.summary,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
@@ -2591,8 +1763,6 @@ class Todo extends DataClass implements Insertable<Todo> {
       percentComplete: data.percentComplete.present
           ? data.percentComplete.value
           : this.percentComplete,
-      etag: data.etag.present ? data.etag.value : this.etag,
-      isDirty: data.isDirty.present ? data.isDirty.value : this.isDirty,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -2606,7 +1776,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     return (StringBuffer('Todo(')
           ..write('id: $id, ')
           ..write('calendarId: $calendarId, ')
-          ..write('uid: $uid, ')
           ..write('summary: $summary, ')
           ..write('dueDate: $dueDate, ')
           ..write('startDate: $startDate, ')
@@ -2616,8 +1785,6 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('rrule: $rrule, ')
           ..write('completedAt: $completedAt, ')
           ..write('percentComplete: $percentComplete, ')
-          ..write('etag: $etag, ')
-          ..write('isDirty: $isDirty, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -2631,7 +1798,6 @@ class Todo extends DataClass implements Insertable<Todo> {
   int get hashCode => Object.hash(
     id,
     calendarId,
-    uid,
     summary,
     dueDate,
     startDate,
@@ -2641,8 +1807,6 @@ class Todo extends DataClass implements Insertable<Todo> {
     rrule,
     completedAt,
     percentComplete,
-    etag,
-    isDirty,
     createdAt,
     updatedAt,
     deletedAt,
@@ -2655,7 +1819,6 @@ class Todo extends DataClass implements Insertable<Todo> {
       (other is Todo &&
           other.id == this.id &&
           other.calendarId == this.calendarId &&
-          other.uid == this.uid &&
           other.summary == this.summary &&
           other.dueDate == this.dueDate &&
           other.startDate == this.startDate &&
@@ -2665,8 +1828,6 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.rrule == this.rrule &&
           other.completedAt == this.completedAt &&
           other.percentComplete == this.percentComplete &&
-          other.etag == this.etag &&
-          other.isDirty == this.isDirty &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
@@ -2677,7 +1838,6 @@ class Todo extends DataClass implements Insertable<Todo> {
 class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<int> id;
   final Value<int> calendarId;
-  final Value<String> uid;
   final Value<String> summary;
   final Value<DateTime?> dueDate;
   final Value<DateTime?> startDate;
@@ -2687,8 +1847,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<String?> rrule;
   final Value<DateTime?> completedAt;
   final Value<int> percentComplete;
-  final Value<String?> etag;
-  final Value<bool> isDirty;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -2697,7 +1855,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   const TodosCompanion({
     this.id = const Value.absent(),
     this.calendarId = const Value.absent(),
-    this.uid = const Value.absent(),
     this.summary = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.startDate = const Value.absent(),
@@ -2707,8 +1864,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.rrule = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.percentComplete = const Value.absent(),
-    this.etag = const Value.absent(),
-    this.isDirty = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -2718,7 +1873,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   TodosCompanion.insert({
     this.id = const Value.absent(),
     required int calendarId,
-    required String uid,
     required String summary,
     this.dueDate = const Value.absent(),
     this.startDate = const Value.absent(),
@@ -2728,20 +1882,16 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.rrule = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.percentComplete = const Value.absent(),
-    this.etag = const Value.absent(),
-    this.isDirty = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.parentId = const Value.absent(),
   }) : calendarId = Value(calendarId),
-       uid = Value(uid),
        summary = Value(summary);
   static Insertable<Todo> custom({
     Expression<int>? id,
     Expression<int>? calendarId,
-    Expression<String>? uid,
     Expression<String>? summary,
     Expression<DateTime>? dueDate,
     Expression<DateTime>? startDate,
@@ -2751,8 +1901,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<String>? rrule,
     Expression<DateTime>? completedAt,
     Expression<int>? percentComplete,
-    Expression<String>? etag,
-    Expression<bool>? isDirty,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -2762,7 +1910,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (calendarId != null) 'calendar_id': calendarId,
-      if (uid != null) 'uid': uid,
       if (summary != null) 'summary': summary,
       if (dueDate != null) 'due_date': dueDate,
       if (startDate != null) 'start_date': startDate,
@@ -2772,8 +1919,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (rrule != null) 'rrule': rrule,
       if (completedAt != null) 'completed_at': completedAt,
       if (percentComplete != null) 'percent_complete': percentComplete,
-      if (etag != null) 'etag': etag,
-      if (isDirty != null) 'is_dirty': isDirty,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -2785,7 +1930,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   TodosCompanion copyWith({
     Value<int>? id,
     Value<int>? calendarId,
-    Value<String>? uid,
     Value<String>? summary,
     Value<DateTime?>? dueDate,
     Value<DateTime?>? startDate,
@@ -2795,8 +1939,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<String?>? rrule,
     Value<DateTime?>? completedAt,
     Value<int>? percentComplete,
-    Value<String?>? etag,
-    Value<bool>? isDirty,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -2806,7 +1948,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     return TodosCompanion(
       id: id ?? this.id,
       calendarId: calendarId ?? this.calendarId,
-      uid: uid ?? this.uid,
       summary: summary ?? this.summary,
       dueDate: dueDate ?? this.dueDate,
       startDate: startDate ?? this.startDate,
@@ -2816,8 +1957,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       rrule: rrule ?? this.rrule,
       completedAt: completedAt ?? this.completedAt,
       percentComplete: percentComplete ?? this.percentComplete,
-      etag: etag ?? this.etag,
-      isDirty: isDirty ?? this.isDirty,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -2834,9 +1973,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     }
     if (calendarId.present) {
       map['calendar_id'] = Variable<int>(calendarId.value);
-    }
-    if (uid.present) {
-      map['uid'] = Variable<String>(uid.value);
     }
     if (summary.present) {
       map['summary'] = Variable<String>(summary.value);
@@ -2865,12 +2001,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     if (percentComplete.present) {
       map['percent_complete'] = Variable<int>(percentComplete.value);
     }
-    if (etag.present) {
-      map['etag'] = Variable<String>(etag.value);
-    }
-    if (isDirty.present) {
-      map['is_dirty'] = Variable<bool>(isDirty.value);
-    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2894,7 +2024,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     return (StringBuffer('TodosCompanion(')
           ..write('id: $id, ')
           ..write('calendarId: $calendarId, ')
-          ..write('uid: $uid, ')
           ..write('summary: $summary, ')
           ..write('dueDate: $dueDate, ')
           ..write('startDate: $startDate, ')
@@ -2904,8 +2033,6 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('rrule: $rrule, ')
           ..write('completedAt: $completedAt, ')
           ..write('percentComplete: $percentComplete, ')
-          ..write('etag: $etag, ')
-          ..write('isDirty: $isDirty, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -4454,7 +3581,6 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
-  late final $AccountsTable accounts = $AccountsTable(this);
   late final $CalendarsTable calendars = $CalendarsTable(this);
   late final $EventsTable events = $EventsTable(this);
   late final $TodosTable todos = $TodosTable(this);
@@ -4471,7 +3597,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
-    accounts,
     calendars,
     events,
     todos,
@@ -4483,223 +3608,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ];
 }
 
-typedef $$AccountsTableCreateCompanionBuilder =
-    AccountsCompanion Function({
-      Value<int> id,
-      Value<String> name,
-      required String serverUrl,
-      required String username,
-      required String password,
-      Value<DateTime> createdAt,
-    });
-typedef $$AccountsTableUpdateCompanionBuilder =
-    AccountsCompanion Function({
-      Value<int> id,
-      Value<String> name,
-      Value<String> serverUrl,
-      Value<String> username,
-      Value<String> password,
-      Value<DateTime> createdAt,
-    });
-
-class $$AccountsTableFilterComposer
-    extends Composer<_$AppDatabase, $AccountsTable> {
-  $$AccountsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get serverUrl => $composableBuilder(
-    column: $table.serverUrl,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get username => $composableBuilder(
-    column: $table.username,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get password => $composableBuilder(
-    column: $table.password,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$AccountsTableOrderingComposer
-    extends Composer<_$AppDatabase, $AccountsTable> {
-  $$AccountsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get serverUrl => $composableBuilder(
-    column: $table.serverUrl,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get username => $composableBuilder(
-    column: $table.username,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get password => $composableBuilder(
-    column: $table.password,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$AccountsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AccountsTable> {
-  $$AccountsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get serverUrl =>
-      $composableBuilder(column: $table.serverUrl, builder: (column) => column);
-
-  GeneratedColumn<String> get username =>
-      $composableBuilder(column: $table.username, builder: (column) => column);
-
-  GeneratedColumn<String> get password =>
-      $composableBuilder(column: $table.password, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-}
-
-class $$AccountsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $AccountsTable,
-          Account,
-          $$AccountsTableFilterComposer,
-          $$AccountsTableOrderingComposer,
-          $$AccountsTableAnnotationComposer,
-          $$AccountsTableCreateCompanionBuilder,
-          $$AccountsTableUpdateCompanionBuilder,
-          (Account, BaseReferences<_$AppDatabase, $AccountsTable, Account>),
-          Account,
-          PrefetchHooks Function()
-        > {
-  $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$AccountsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$AccountsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$AccountsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> serverUrl = const Value.absent(),
-                Value<String> username = const Value.absent(),
-                Value<String> password = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-              }) => AccountsCompanion(
-                id: id,
-                name: name,
-                serverUrl: serverUrl,
-                username: username,
-                password: password,
-                createdAt: createdAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                required String serverUrl,
-                required String username,
-                required String password,
-                Value<DateTime> createdAt = const Value.absent(),
-              }) => AccountsCompanion.insert(
-                id: id,
-                name: name,
-                serverUrl: serverUrl,
-                username: username,
-                password: password,
-                createdAt: createdAt,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$AccountsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $AccountsTable,
-      Account,
-      $$AccountsTableFilterComposer,
-      $$AccountsTableOrderingComposer,
-      $$AccountsTableAnnotationComposer,
-      $$AccountsTableCreateCompanionBuilder,
-      $$AccountsTableUpdateCompanionBuilder,
-      (Account, BaseReferences<_$AppDatabase, $AccountsTable, Account>),
-      Account,
-      PrefetchHooks Function()
-    >;
 typedef $$CalendarsTableCreateCompanionBuilder =
     CalendarsCompanion Function({
       Value<int> id,
-      Value<int?> accountId,
-      required String caldavHref,
       required String name,
       Value<String> color,
       Value<String> timezone,
-      Value<String?> syncToken,
-      Value<String?> etag,
       Value<DateTime?> lastSyncedAt,
       Value<bool> isActive,
       Value<int> sortOrder,
@@ -4707,13 +3621,9 @@ typedef $$CalendarsTableCreateCompanionBuilder =
 typedef $$CalendarsTableUpdateCompanionBuilder =
     CalendarsCompanion Function({
       Value<int> id,
-      Value<int?> accountId,
-      Value<String> caldavHref,
       Value<String> name,
       Value<String> color,
       Value<String> timezone,
-      Value<String?> syncToken,
-      Value<String?> etag,
       Value<DateTime?> lastSyncedAt,
       Value<bool> isActive,
       Value<int> sortOrder,
@@ -4776,16 +3686,6 @@ class $$CalendarsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get accountId => $composableBuilder(
-    column: $table.accountId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get caldavHref => $composableBuilder(
-    column: $table.caldavHref,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
     builder: (column) => ColumnFilters(column),
@@ -4798,16 +3698,6 @@ class $$CalendarsTableFilterComposer
 
   ColumnFilters<String> get timezone => $composableBuilder(
     column: $table.timezone,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get syncToken => $composableBuilder(
-    column: $table.syncToken,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get etag => $composableBuilder(
-    column: $table.etag,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4891,16 +3781,6 @@ class $$CalendarsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get accountId => $composableBuilder(
-    column: $table.accountId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get caldavHref => $composableBuilder(
-    column: $table.caldavHref,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get name => $composableBuilder(
     column: $table.name,
     builder: (column) => ColumnOrderings(column),
@@ -4913,16 +3793,6 @@ class $$CalendarsTableOrderingComposer
 
   ColumnOrderings<String> get timezone => $composableBuilder(
     column: $table.timezone,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get syncToken => $composableBuilder(
-    column: $table.syncToken,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get etag => $composableBuilder(
-    column: $table.etag,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4954,14 +3824,6 @@ class $$CalendarsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<int> get accountId =>
-      $composableBuilder(column: $table.accountId, builder: (column) => column);
-
-  GeneratedColumn<String> get caldavHref => $composableBuilder(
-    column: $table.caldavHref,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
@@ -4970,12 +3832,6 @@ class $$CalendarsTableAnnotationComposer
 
   GeneratedColumn<String> get timezone =>
       $composableBuilder(column: $table.timezone, builder: (column) => column);
-
-  GeneratedColumn<String> get syncToken =>
-      $composableBuilder(column: $table.syncToken, builder: (column) => column);
-
-  GeneratedColumn<String> get etag =>
-      $composableBuilder(column: $table.etag, builder: (column) => column);
 
   GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
     column: $table.lastSyncedAt,
@@ -5068,25 +3924,17 @@ class $$CalendarsTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int?> accountId = const Value.absent(),
-                Value<String> caldavHref = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> color = const Value.absent(),
                 Value<String> timezone = const Value.absent(),
-                Value<String?> syncToken = const Value.absent(),
-                Value<String?> etag = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
               }) => CalendarsCompanion(
                 id: id,
-                accountId: accountId,
-                caldavHref: caldavHref,
                 name: name,
                 color: color,
                 timezone: timezone,
-                syncToken: syncToken,
-                etag: etag,
                 lastSyncedAt: lastSyncedAt,
                 isActive: isActive,
                 sortOrder: sortOrder,
@@ -5094,25 +3942,17 @@ class $$CalendarsTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int?> accountId = const Value.absent(),
-                required String caldavHref,
                 required String name,
                 Value<String> color = const Value.absent(),
                 Value<String> timezone = const Value.absent(),
-                Value<String?> syncToken = const Value.absent(),
-                Value<String?> etag = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
               }) => CalendarsCompanion.insert(
                 id: id,
-                accountId: accountId,
-                caldavHref: caldavHref,
                 name: name,
                 color: color,
                 timezone: timezone,
-                syncToken: syncToken,
-                etag: etag,
                 lastSyncedAt: lastSyncedAt,
                 isActive: isActive,
                 sortOrder: sortOrder,
@@ -5183,7 +4023,6 @@ typedef $$EventsTableCreateCompanionBuilder =
     EventsCompanion Function({
       Value<int> id,
       required int calendarId,
-      required String uid,
       required String summary,
       required DateTime startDt,
       required DateTime endDt,
@@ -5191,8 +4030,6 @@ typedef $$EventsTableCreateCompanionBuilder =
       Value<String?> description,
       Value<String?> location,
       Value<String?> rrule,
-      Value<String?> etag,
-      Value<bool> isDirty,
       Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -5201,7 +4038,6 @@ typedef $$EventsTableUpdateCompanionBuilder =
     EventsCompanion Function({
       Value<int> id,
       Value<int> calendarId,
-      Value<String> uid,
       Value<String> summary,
       Value<DateTime> startDt,
       Value<DateTime> endDt,
@@ -5209,8 +4045,6 @@ typedef $$EventsTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<String?> location,
       Value<String?> rrule,
-      Value<String?> etag,
-      Value<bool> isDirty,
       Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -5270,11 +4104,6 @@ class $$EventsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get uid => $composableBuilder(
-    column: $table.uid,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get summary => $composableBuilder(
     column: $table.summary,
     builder: (column) => ColumnFilters(column),
@@ -5307,16 +4136,6 @@ class $$EventsTableFilterComposer
 
   ColumnFilters<String> get rrule => $composableBuilder(
     column: $table.rrule,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get etag => $composableBuilder(
-    column: $table.etag,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isDirty => $composableBuilder(
-    column: $table.isDirty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5398,11 +4217,6 @@ class $$EventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get uid => $composableBuilder(
-    column: $table.uid,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get summary => $composableBuilder(
     column: $table.summary,
     builder: (column) => ColumnOrderings(column),
@@ -5435,16 +4249,6 @@ class $$EventsTableOrderingComposer
 
   ColumnOrderings<String> get rrule => $composableBuilder(
     column: $table.rrule,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get etag => $composableBuilder(
-    column: $table.etag,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isDirty => $composableBuilder(
-    column: $table.isDirty,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5499,9 +4303,6 @@ class $$EventsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get uid =>
-      $composableBuilder(column: $table.uid, builder: (column) => column);
-
   GeneratedColumn<String> get summary =>
       $composableBuilder(column: $table.summary, builder: (column) => column);
 
@@ -5524,12 +4325,6 @@ class $$EventsTableAnnotationComposer
 
   GeneratedColumn<String> get rrule =>
       $composableBuilder(column: $table.rrule, builder: (column) => column);
-
-  GeneratedColumn<String> get etag =>
-      $composableBuilder(column: $table.etag, builder: (column) => column);
-
-  GeneratedColumn<bool> get isDirty =>
-      $composableBuilder(column: $table.isDirty, builder: (column) => column);
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
@@ -5619,7 +4414,6 @@ class $$EventsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<int> calendarId = const Value.absent(),
-                Value<String> uid = const Value.absent(),
                 Value<String> summary = const Value.absent(),
                 Value<DateTime> startDt = const Value.absent(),
                 Value<DateTime> endDt = const Value.absent(),
@@ -5627,15 +4421,12 @@ class $$EventsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> location = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
-                Value<String?> etag = const Value.absent(),
-                Value<bool> isDirty = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => EventsCompanion(
                 id: id,
                 calendarId: calendarId,
-                uid: uid,
                 summary: summary,
                 startDt: startDt,
                 endDt: endDt,
@@ -5643,8 +4434,6 @@ class $$EventsTableTableManager
                 description: description,
                 location: location,
                 rrule: rrule,
-                etag: etag,
-                isDirty: isDirty,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -5653,7 +4442,6 @@ class $$EventsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required int calendarId,
-                required String uid,
                 required String summary,
                 required DateTime startDt,
                 required DateTime endDt,
@@ -5661,15 +4449,12 @@ class $$EventsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> location = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
-                Value<String?> etag = const Value.absent(),
-                Value<bool> isDirty = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => EventsCompanion.insert(
                 id: id,
                 calendarId: calendarId,
-                uid: uid,
                 summary: summary,
                 startDt: startDt,
                 endDt: endDt,
@@ -5677,8 +4462,6 @@ class $$EventsTableTableManager
                 description: description,
                 location: location,
                 rrule: rrule,
-                etag: etag,
-                isDirty: isDirty,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -5764,7 +4547,6 @@ typedef $$TodosTableCreateCompanionBuilder =
     TodosCompanion Function({
       Value<int> id,
       required int calendarId,
-      required String uid,
       required String summary,
       Value<DateTime?> dueDate,
       Value<DateTime?> startDate,
@@ -5774,8 +4556,6 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<String?> rrule,
       Value<DateTime?> completedAt,
       Value<int> percentComplete,
-      Value<String?> etag,
-      Value<bool> isDirty,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
@@ -5786,7 +4566,6 @@ typedef $$TodosTableUpdateCompanionBuilder =
     TodosCompanion Function({
       Value<int> id,
       Value<int> calendarId,
-      Value<String> uid,
       Value<String> summary,
       Value<DateTime?> dueDate,
       Value<DateTime?> startDate,
@@ -5796,8 +4575,6 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<String?> rrule,
       Value<DateTime?> completedAt,
       Value<int> percentComplete,
-      Value<String?> etag,
-      Value<bool> isDirty,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<DateTime?> deletedAt,
@@ -5859,11 +4636,6 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get uid => $composableBuilder(
-    column: $table.uid,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get summary => $composableBuilder(
     column: $table.summary,
     builder: (column) => ColumnFilters(column),
@@ -5906,16 +4678,6 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
 
   ColumnFilters<int> get percentComplete => $composableBuilder(
     column: $table.percentComplete,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get etag => $composableBuilder(
-    column: $table.etag,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isDirty => $composableBuilder(
-    column: $table.isDirty,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6007,11 +4769,6 @@ class $$TodosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get uid => $composableBuilder(
-    column: $table.uid,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get summary => $composableBuilder(
     column: $table.summary,
     builder: (column) => ColumnOrderings(column),
@@ -6054,16 +4811,6 @@ class $$TodosTableOrderingComposer
 
   ColumnOrderings<int> get percentComplete => $composableBuilder(
     column: $table.percentComplete,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get etag => $composableBuilder(
-    column: $table.etag,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isDirty => $composableBuilder(
-    column: $table.isDirty,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6128,9 +4875,6 @@ class $$TodosTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get uid =>
-      $composableBuilder(column: $table.uid, builder: (column) => column);
-
   GeneratedColumn<String> get summary =>
       $composableBuilder(column: $table.summary, builder: (column) => column);
 
@@ -6163,12 +4907,6 @@ class $$TodosTableAnnotationComposer
     column: $table.percentComplete,
     builder: (column) => column,
   );
-
-  GeneratedColumn<String> get etag =>
-      $composableBuilder(column: $table.etag, builder: (column) => column);
-
-  GeneratedColumn<bool> get isDirty =>
-      $composableBuilder(column: $table.isDirty, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -6264,7 +5002,6 @@ class $$TodosTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<int> calendarId = const Value.absent(),
-                Value<String> uid = const Value.absent(),
                 Value<String> summary = const Value.absent(),
                 Value<DateTime?> dueDate = const Value.absent(),
                 Value<DateTime?> startDate = const Value.absent(),
@@ -6274,8 +5011,6 @@ class $$TodosTableTableManager
                 Value<String?> rrule = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int> percentComplete = const Value.absent(),
-                Value<String?> etag = const Value.absent(),
-                Value<bool> isDirty = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -6284,7 +5019,6 @@ class $$TodosTableTableManager
               }) => TodosCompanion(
                 id: id,
                 calendarId: calendarId,
-                uid: uid,
                 summary: summary,
                 dueDate: dueDate,
                 startDate: startDate,
@@ -6294,8 +5028,6 @@ class $$TodosTableTableManager
                 rrule: rrule,
                 completedAt: completedAt,
                 percentComplete: percentComplete,
-                etag: etag,
-                isDirty: isDirty,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -6306,7 +5038,6 @@ class $$TodosTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required int calendarId,
-                required String uid,
                 required String summary,
                 Value<DateTime?> dueDate = const Value.absent(),
                 Value<DateTime?> startDate = const Value.absent(),
@@ -6316,8 +5047,6 @@ class $$TodosTableTableManager
                 Value<String?> rrule = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int> percentComplete = const Value.absent(),
-                Value<String?> etag = const Value.absent(),
-                Value<bool> isDirty = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -6326,7 +5055,6 @@ class $$TodosTableTableManager
               }) => TodosCompanion.insert(
                 id: id,
                 calendarId: calendarId,
-                uid: uid,
                 summary: summary,
                 dueDate: dueDate,
                 startDate: startDate,
@@ -6336,8 +5064,6 @@ class $$TodosTableTableManager
                 rrule: rrule,
                 completedAt: completedAt,
                 percentComplete: percentComplete,
-                etag: etag,
-                isDirty: isDirty,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -7891,8 +6617,6 @@ typedef $$RemindersTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
-  $$AccountsTableTableManager get accounts =>
-      $$AccountsTableTableManager(_db, _db.accounts);
   $$CalendarsTableTableManager get calendars =>
       $$CalendarsTableTableManager(_db, _db.calendars);
   $$EventsTableTableManager get events =>

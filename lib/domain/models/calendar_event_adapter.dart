@@ -5,21 +5,18 @@ import 'package:dayspark/data/local/database/app_database.dart' as drift;
 class CalendaEventAdapter {
   final int drifId;
   final int calendarId;
-  final String uid;
   final String title;
   final String? description;
   final String? location;
   final Color? color;
   final bool isAllDay;
   final String? rrule;
-  final bool isDirty;
   final DateTime start;
   final DateTime end;
 
   CalendaEventAdapter({
     required this.drifId,
     required this.calendarId,
-    required this.uid,
     required this.title,
     required this.start,
     required this.end,
@@ -28,14 +25,12 @@ class CalendaEventAdapter {
     this.color,
     this.isAllDay = false,
     this.rrule,
-    this.isDirty = false,
   });
 
   factory CalendaEventAdapter.fromDrift(drift.Event e, {Color? calendarColor}) {
     return CalendaEventAdapter(
       drifId: e.id,
       calendarId: e.calendarId,
-      uid: e.uid,
       title: e.summary,
       start: e.startDt,
       end: e.endDt,
@@ -44,7 +39,6 @@ class CalendaEventAdapter {
       color: calendarColor,
       isAllDay: e.isAllDay,
       rrule: e.rrule,
-      isDirty: e.isDirty,
     );
   }
 
@@ -57,12 +51,10 @@ class CalendaEventAdapter {
     Color? color,
     bool? isAllDay,
     String? rrule,
-    bool? isDirty,
   }) {
     return CalendaEventAdapter(
       drifId: drifId,
       calendarId: calendarId,
-      uid: uid,
       title: title ?? this.title,
       start: start ?? this.start,
       end: end ?? this.end,
@@ -71,7 +63,6 @@ class CalendaEventAdapter {
       color: color ?? this.color,
       isAllDay: isAllDay ?? this.isAllDay,
       rrule: rrule ?? this.rrule,
-      isDirty: isDirty ?? this.isDirty,
     );
   }
 
@@ -79,7 +70,6 @@ class CalendaEventAdapter {
     return drift.EventsCompanion(
       id: Value(drifId),
       calendarId: Value(calendarId),
-      uid: Value(uid),
       summary: Value(title),
       startDt: Value(start),
       endDt: Value(end),
@@ -87,7 +77,6 @@ class CalendaEventAdapter {
       description: Value(description),
       location: Value(location),
       rrule: Value(rrule),
-      isDirty: Value(true),
       updatedAt: Value(DateTime.now()),
     );
   }
@@ -98,14 +87,12 @@ class CalendaEventAdapter {
       (other is CalendaEventAdapter &&
           other.drifId == drifId &&
           other.calendarId == calendarId &&
-          other.uid == uid &&
           other.title == title &&
           other.description == description &&
           other.location == location &&
           other.color == color &&
           other.isAllDay == isAllDay &&
           other.rrule == rrule &&
-          other.isDirty == isDirty &&
           other.start == start &&
           other.end == end);
 
@@ -113,14 +100,12 @@ class CalendaEventAdapter {
   int get hashCode => Object.hash(
         drifId,
         calendarId,
-        uid,
         title,
         description,
         location,
         color,
         isAllDay,
         rrule,
-        isDirty,
         start,
         end,
       );

@@ -82,7 +82,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       final createEvent = ref.read(createEventProvider);
       await createEvent(
         calendarId: calendars.first.id,
-        uid: 'local-${DateTime.now().millisecondsSinceEpoch}',
         summary: _titleController.text.trim(),
         startDt: _start,
         endDt: _end,

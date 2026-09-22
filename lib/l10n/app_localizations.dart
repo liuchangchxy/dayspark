@@ -293,59 +293,11 @@ abstract class AppLocalizations {
   /// **'No tags yet'**
   String get noTags;
 
-  /// No description provided for @caldavAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'CalDAV Account'**
-  String get caldavAccount;
-
-  /// No description provided for @removeAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove Account'**
-  String get removeAccount;
-
-  /// No description provided for @serverUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Server URL'**
-  String get serverUrl;
-
-  /// No description provided for @username.
-  ///
-  /// In en, this message translates to:
-  /// **'Username'**
-  String get username;
-
-  /// No description provided for @password.
-  ///
-  /// In en, this message translates to:
-  /// **'Password'**
-  String get password;
-
-  /// No description provided for @syncing.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncing...'**
-  String get syncing;
-
-  /// No description provided for @lastSync.
-  ///
-  /// In en, this message translates to:
-  /// **'Last sync: {time}'**
-  String lastSync(String time);
-
   /// No description provided for @notConfigured.
   ///
   /// In en, this message translates to:
   /// **'Not configured'**
   String get notConfigured;
-
-  /// No description provided for @connected.
-  ///
-  /// In en, this message translates to:
-  /// **'Connected as {user}'**
-  String connected(String user);
 
   /// No description provided for @aiConfig.
   ///
@@ -593,59 +545,11 @@ abstract class AppLocalizations {
   /// **'Calendar data'**
   String get calendarData;
 
-  /// No description provided for @caldavAccounts.
-  ///
-  /// In en, this message translates to:
-  /// **'CalDAV Accounts'**
-  String get caldavAccounts;
-
-  /// No description provided for @noAccounts.
-  ///
-  /// In en, this message translates to:
-  /// **'No accounts configured yet.'**
-  String get noAccounts;
-
-  /// No description provided for @addAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Add CalDAV Account'**
-  String get addAccount;
-
-  /// No description provided for @accountName.
-  ///
-  /// In en, this message translates to:
-  /// **'Account Name'**
-  String get accountName;
-
-  /// No description provided for @accountNameHint.
-  ///
-  /// In en, this message translates to:
-  /// **'e.g. Work, Personal'**
-  String get accountNameHint;
-
-  /// No description provided for @removeAccountConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove \"{name}\" and all its calendars?'**
-  String removeAccountConfirm(String name);
-
-  /// No description provided for @removeAccountTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove Account'**
-  String get removeAccountTitle;
-
   /// No description provided for @add.
   ///
   /// In en, this message translates to:
   /// **'Add'**
   String get add;
-
-  /// No description provided for @syncFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync failed: {error}'**
-  String syncFailed(String error);
 
   /// No description provided for @exportedTo.
   ///
@@ -995,12 +899,6 @@ abstract class AppLocalizations {
   /// **'Report an Issue'**
   String get reportIssue;
 
-  /// No description provided for @setupGuide.
-  ///
-  /// In en, this message translates to:
-  /// **'Setup Guide'**
-  String get setupGuide;
-
   /// No description provided for @aiProvider.
   ///
   /// In en, this message translates to:
@@ -1187,48 +1085,6 @@ abstract class AppLocalizations {
   /// **'Add attachment'**
   String get addAttachment;
 
-  /// No description provided for @defaultAccountName.
-  ///
-  /// In en, this message translates to:
-  /// **'Default'**
-  String get defaultAccountName;
-
-  /// No description provided for @mcpServer.
-  ///
-  /// In en, this message translates to:
-  /// **'MCP Server'**
-  String get mcpServer;
-
-  /// No description provided for @mcpServerRunning.
-  ///
-  /// In en, this message translates to:
-  /// **'Running on port {port}'**
-  String mcpServerRunning(int port);
-
-  /// No description provided for @mcpServerStopped.
-  ///
-  /// In en, this message translates to:
-  /// **'Stopped'**
-  String get mcpServerStopped;
-
-  /// No description provided for @mcpAutoStart.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-start on launch'**
-  String get mcpAutoStart;
-
-  /// No description provided for @mcpAutoStartDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Start MCP server when app launches'**
-  String get mcpAutoStartDesc;
-
-  /// No description provided for @mcpPort.
-  ///
-  /// In en, this message translates to:
-  /// **'Port'**
-  String get mcpPort;
-
   /// No description provided for @editTag.
   ///
   /// In en, this message translates to:
@@ -1246,18 +1102,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Security'**
   String get security;
-
-  /// No description provided for @backgroundSync.
-  ///
-  /// In en, this message translates to:
-  /// **'Background Sync'**
-  String get backgroundSync;
-
-  /// No description provided for @backgroundSyncDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Periodically sync calendars in the background'**
-  String get backgroundSyncDesc;
 
   /// No description provided for @recurringDragDisabled.
   ///
@@ -1331,12 +1175,6 @@ abstract class AppLocalizations {
   /// **'Reminder'**
   String get reminder;
 
-  /// No description provided for @syncComplete.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync complete'**
-  String get syncComplete;
-
   /// No description provided for @subtasks.
   ///
   /// In en, this message translates to:
@@ -1390,30 +1228,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'GitHub'**
   String get gitHub;
-
-  /// No description provided for @syncTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync'**
-  String get syncTooltip;
-
-  /// No description provided for @justNow.
-  ///
-  /// In en, this message translates to:
-  /// **'just now'**
-  String get justNow;
-
-  /// No description provided for @minutesAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{minutes}m ago'**
-  String minutesAgo(int minutes);
-
-  /// No description provided for @hoursAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{hours}h ago'**
-  String hoursAgo(int hours);
 
   /// No description provided for @openTodoDetails.
   ///

@@ -7,17 +7,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/file_reader.dart';
-import 'package:workmanager/workmanager.dart';
 
-import 'package:dayspark/domain/providers/sync_provider.dart';
-import 'package:dayspark/domain/providers/accounts_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
-import 'package:dayspark/data/remote/caldav/sync_service.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
@@ -25,7 +19,6 @@ import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/infrastructure/platform/alarm_service.dart';
-import 'package:dayspark/domain/providers/mcp_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 
@@ -34,16 +27,8 @@ class SettingsPage extends ConsumerWidget {
 
   static const _repo = 'liuchangchxy/dayspark';
 
-  static final backgroundSyncProvider = StateProvider<bool>((ref) {
-    return false;
-  });
-
   static final systemAlarmProvider = StateProvider<bool>((ref) {
     return false;
-  });
-
-  static final mcpPortProvider = StateProvider<int>((ref) {
-    return 3000;
   });
 
   static bool _loaded = false;
@@ -54,33 +39,12 @@ class SettingsPage extends ConsumerWidget {
         await AlarmService.isEnabled();
   }
 
-  static Future<void> loadBackgroundSyncSetting(WidgetRef ref) async {
-    final prefs = await SharedPreferences.getInstance();
-    ref.read(backgroundSyncProvider.notifier).state =
-        prefs.getBool('background_sync_enabled') ?? false;
-  }
-
-  static Future<void> loadMcpPortSetting(WidgetRef ref) async {
-    final prefs = await SharedPreferences.getInstance();
-    ref.read(mcpPortProvider.notifier).state =
-        prefs.getInt('mcp_port') ?? 3000;
-  }
-
-  static Future<void> loadMcpAutoStartSetting(WidgetRef ref) async {
-    final prefs = await SharedPreferences.getInstance();
-    ref.read(mcpAutoStartProvider.notifier).state =
-        prefs.getBool('mcp_auto_start') ?? false;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Load persisted settings once on first build
     if (!_loaded) {
       _loaded = true;
       Future.microtask(() => loadSystemAlarmSetting(ref));
-      Future.microtask(() => loadBackgroundSyncSetting(ref));
-      Future.microtask(() => loadMcpPortSetting(ref));
-      Future.microtask(() => loadMcpAutoStartSetting(ref));
       PackageInfo.fromPlatform().then(
         (i) => _cachedVersion = 'DaySpark v${i.version}',
       );
@@ -159,8 +123,6 @@ class SettingsPage extends ConsumerWidget {
             title: Text(l.advancedFeatures),
             initiallyExpanded:
                 flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ==
-                    true ||
-                flagsAsync.valueOrNull?.isEnabled(FeatureFlag.caldavSync) ==
                     true,
             children: [
               // AI Assistant
@@ -191,69 +153,6 @@ class SettingsPage extends ConsumerWidget {
                   trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
                   onTap: () => showAiConfigDialog(context, ref),
                 ),
-
-              const Divider(indent: 16, endIndent: 16),
-
-              // CalDAV Sync
-              SwitchListTile(
-                secondary: const Icon(CupertinoIcons.cloud),
-                title: Row(
-                  children: [
-                    Expanded(child: Text(l.caldavAccount)),
-                    _tutorialLink(context, 'caldav-setup'),
-                  ],
-                ),
-                value:
-                    flagsAsync.valueOrNull?.isEnabled(FeatureFlag.caldavSync) ??
-                    false,
-                onChanged: (v) =>
-                    ref.read(setFeatureFlagProvider)(FeatureFlag.caldavSync, v),
-              ),
-              if (flagsAsync.valueOrNull?.isEnabled(FeatureFlag.caldavSync) ??
-                  false) ...[
-                _buildCaldavSection(context, ref),
-              ],
-
-              const Divider(indent: 16, endIndent: 16),
-
-              // MCP Server
-              SwitchListTile(
-                secondary: const Icon(CupertinoIcons.antenna_radiowaves_left_right),
-                title: Text(l.mcpServer),
-                subtitle: _buildMcpSubtitle(context, ref),
-                value: ref.watch(mcpRunningProvider),
-                onChanged: (v) async {
-                  final service = ref.read(mcpServiceProvider);
-                  if (v) {
-                    final port = ref.read(mcpPortProvider);
-                    await service.start(port: port);
-                  } else {
-                    await service.stop();
-                  }
-                  ref.read(mcpRunningProvider.notifier).state = v;
-                },
-              ),
-              if (ref.watch(mcpRunningProvider)) ...[
-                CheckboxListTile(
-                  secondary: const SizedBox(width: 24),
-                  title: Text(l.mcpAutoStart),
-                  subtitle: Text(l.mcpAutoStartDesc),
-                  value: ref.watch(mcpAutoStartProvider),
-                  onChanged: (v) async {
-                    ref.read(mcpAutoStartProvider.notifier).state = v ?? false;
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('mcp_auto_start', v ?? false);
-                  },
-                ),
-                ListTile(
-                  leading: const SizedBox(width: 24),
-                  title: Text(l.mcpPort),
-                  subtitle: Text('${ref.watch(mcpPortProvider)}'),
-                  trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
-                  onTap: () => _showMcpPortDialog(context, ref),
-                ),
-              ],
-
             ],
           ),
 
@@ -300,273 +199,12 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildCaldavSection(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final syncStatus = ref.watch(syncStatusProvider);
-    final lastSync = ref.watch(lastSyncTimeProvider);
-    final syncError = ref.watch(syncErrorProvider);
-    final isSyncing = syncStatus == SyncStatus.syncing;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ref
-            .watch(accountsProvider)
-            .when(
-              data: (accounts) {
-                if (accounts.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      l.noAccounts,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  );
-                }
-                return Column(
-                  children: accounts.map((account) {
-                    return ListTile(
-                      leading: const SizedBox(width: 24),
-                      title: Text(account.name),
-                      subtitle: Text(
-                        '${account.username}@${account.serverUrl}',
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isSyncing)
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          else
-                            IconButton(
-                              icon: const Icon(CupertinoIcons.refresh),
-                              tooltip: l.syncTooltip,
-                              onPressed: () => _triggerSync(context, ref),
-                            ),
-                          IconButton(
-                            icon: Icon(
-                              CupertinoIcons.delete,
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                            tooltip: l.removeAccount,
-                            onPressed: () =>
-                                _confirmRemoveAccount(context, ref, account),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-        if (syncError != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              syncError,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        if (lastSync != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              l.lastSync(_formatRelativeTime(lastSync, l)),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ListTile(
-          contentPadding: const EdgeInsets.only(left: 24, right: 16),
-          title: Text(l.addAccount),
-          onTap: () => _showAddAccountDialog(context, ref),
-        ),
-        SwitchListTile(
-          secondary: const SizedBox(width: 24),
-          title: Text(l.backgroundSync),
-          subtitle: Text(l.backgroundSyncDesc),
-          value: ref.watch(backgroundSyncProvider),
-          onChanged: (v) async {
-            ref.read(backgroundSyncProvider.notifier).state = v;
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setBool('background_sync_enabled', v);
-            if (v) {
-              Workmanager().registerPeriodicTask(
-                'caldav-sync',
-                'caldavPeriodicSync',
-                frequency: const Duration(minutes: 15),
-                constraints: Constraints(
-                  networkType: NetworkType.connected,
-                ),
-              );
-            } else {
-              Workmanager().cancelByUniqueName('caldav-sync');
-            }
-          },
-        ),
-      ],
-    );
-  }
-
   Widget _buildAiSubtitle(WidgetRef ref) {
     final aiConfigured = ref.watch(isAiConfiguredProvider);
     return aiConfigured.when(
       data: (configured) => Text(configured ? '✓' : ''),
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const Text(''),
-    );
-  }
-
-  Widget _buildMcpSubtitle(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context);
-    final running = ref.watch(mcpRunningProvider);
-    if (l == null) return const SizedBox.shrink();
-    final port = ref.watch(mcpPortProvider);
-    return Text(
-      running ? l.mcpServerRunning(port) : l.mcpServerStopped,
-    );
-  }
-
-  Future<void> _triggerSync(BuildContext context, WidgetRef ref) async {
-    final l = AppLocalizations.of(context)!;
-    try {
-      await ref.read(triggerSyncAllAccountsProvider)();
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.syncComplete)));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.syncFailed('$e'))));
-      }
-    }
-  }
-
-  void _showAddAccountDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final nameController = TextEditingController(text: '');
-    final urlController = TextEditingController();
-    final userController = TextEditingController();
-    final passController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.addAccount),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: l.accountName,
-                  hintText: l.accountNameHint,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlController,
-                decoration: InputDecoration(
-                  labelText: l.serverUrl,
-                  hintText: 'https://caldav.example.com/',
-                ),
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: userController,
-                decoration: InputDecoration(labelText: l.username),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passController,
-                decoration: InputDecoration(labelText: l.password),
-                obscureText: true,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              launchUrl(
-                Uri.parse(
-                  'https://github.com/liuchangchxy/dayspark/blob/main/docs/caldav-setup.md',
-                ),
-                mode: LaunchMode.externalApplication,
-              );
-            },
-            child: Text(l.setupGuide),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              final url = urlController.text.trim();
-              final user = userController.text.trim();
-              final pass = passController.text;
-              if (url.isEmpty || user.isEmpty || pass.isEmpty) return;
-
-              await ref.read(addAccountProvider)(
-                name: name.isEmpty ? l.defaultAccountName : name,
-                serverUrl: url,
-                username: user,
-                password: pass,
-              );
-
-              if (ctx.mounted) Navigator.of(ctx).pop();
-            },
-            child: Text(l.add),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmRemoveAccount(
-    BuildContext context,
-    WidgetRef ref,
-    dynamic account,
-  ) {
-    final l = AppLocalizations.of(context)!;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.removeAccountTitle),
-        content: Text(l.removeAccountConfirm(account.name)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await ref.read(deleteAccountProvider)(account.id);
-              if (ctx.mounted) Navigator.of(ctx).pop();
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l.remove),
-          ),
-        ],
-      ),
     );
   }
 
@@ -878,42 +516,6 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  void _showMcpPortDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final controller = TextEditingController(text: '${ref.read(mcpPortProvider)}');
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.mcpPort),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: l.mcpPort,
-            hintText: '3000',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              final port = int.tryParse(controller.text.trim()) ?? 3000;
-              ref.read(mcpPortProvider.notifier).state = port;
-              SharedPreferences.getInstance().then((prefs) {
-                prefs.setInt('mcp_port', port);
-              });
-              Navigator.of(ctx).pop();
-            },
-            child: Text(l.save),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showDefaultTabDialog(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     showDialog(
@@ -949,12 +551,4 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
   }
-}
-
-String _formatRelativeTime(DateTime time, AppLocalizations l) {
-  final diff = DateTime.now().difference(time);
-  if (diff.inMinutes < 1) return l.justNow;
-  if (diff.inMinutes < 60) return l.minutesAgo(diff.inMinutes);
-  if (diff.inHours < 24) return l.hoursAgo(diff.inHours);
-  return '${time.month}/${time.day} ${DateFormatters.formatTime(time)}';
 }

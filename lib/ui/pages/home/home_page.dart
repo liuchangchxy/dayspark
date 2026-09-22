@@ -14,11 +14,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
-import 'package:dayspark/domain/providers/sync_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dayspark/domain/providers/connectivity_provider.dart';
-import 'package:dayspark/domain/providers/mcp_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
@@ -64,17 +60,6 @@ class _HomePageState extends ConsumerState<HomePage>
         ? widget.initialTab.clamp(0, 1)
         : (ref.read(defaultTabProvider) == AppTab.todos ? 1 : 0);
     WidgetsBinding.instance.addObserver(this);
-    // Listen for network recovery → trigger sync (once, via listenManual)
-    ref.listenManual(connectivityProvider, (prev, next) {
-      final wasOffline = ref.read(wasOfflineProvider);
-      final isOnline = next.valueOrNull?.any(
-        (r) => r != ConnectivityResult.none,
-      ) ?? false;
-      if (wasOffline && isOnline) {
-        ref.read(triggerIncrementalSyncProvider)();
-      }
-      ref.read(wasOfflineProvider.notifier).state = !isOnline;
-    });
     if (widget.initialTab < 0) {
       Future.microtask(() {
         if (!mounted) return;
@@ -89,27 +74,6 @@ class _HomePageState extends ConsumerState<HomePage>
     }
     Future.microtask(() async {
       try {
-        // Auto-start MCP if configured
-        final prefs = await SharedPreferences.getInstance();
-        final autoStartMCP = prefs.getBool('mcp_auto_start') ?? false;
-        if (autoStartMCP) {
-          final mcpService = ref.read(mcpServiceProvider);
-          if (!mcpService.isRunning) {
-            final port = prefs.getInt('mcp_port') ?? 3000;
-            await mcpService.start(port: port);
-            ref.read(mcpRunningProvider.notifier).state = true;
-          }
-        }
-
-        final configured = ref.read(isCalDavConfiguredProvider).valueOrNull;
-        if (configured == true) {
-          final hasSynced = ref.read(lastSyncTimeProvider) != null;
-          if (hasSynced) {
-            ref.read(triggerIncrementalSyncProvider)();
-          } else {
-            ref.read(triggerFullSyncProvider)();
-          }
-        }
         // Wire up notification action handler
         final notifService = NotificationService();
         notifService.onNotificationAction = (actionId, parentId, parentType) {
@@ -153,22 +117,7 @@ class _HomePageState extends ConsumerState<HomePage>
       _checkOverdueTodos();
       _dayCheckTimer?.cancel();
       _scheduleNextMidnightCheck();
-      _autoSyncOnResume();
     }
-  }
-
-  Future<void> _autoSyncOnResume() async {
-    try {
-      final configured = ref.read(isCalDavConfiguredProvider).valueOrNull;
-      if (configured != true) return;
-
-      final prefs = await SharedPreferences.getInstance();
-      final lastSyncMs = prefs.getInt('last_sync_time_ms') ?? 0;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      if (now - lastSyncMs > 5 * 60 * 1000) {
-        ref.read(triggerIncrementalSyncProvider)();
-      }
-    } catch (e) { debugPrint('home: autoSyncOnResume error: $e'); }
   }
 
   Future<void> _checkVersionChangelog() async {

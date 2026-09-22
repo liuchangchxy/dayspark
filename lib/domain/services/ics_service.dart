@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/local/database/app_database.dart';
-import '../../data/remote/caldav/ical_converter.dart';
+import 'ical/ical_converter.dart';
 
 /// Import/export .ics files.
 class IcsService {
@@ -29,7 +29,8 @@ class IcsService {
 
     for (final event in events) {
       final vevent = VEvent();
-      vevent.uid = event.uid;
+      // Events have no uid column since schema v8; synthesize a stable UID for export.
+      vevent.uid = 'dayspark-event-${event.id}@dayspark';
       vevent.summary = event.summary;
       vevent.start = event.startDt;
       vevent.end = event.endDt;
@@ -44,7 +45,8 @@ class IcsService {
 
     for (final todo in todos) {
       final vtodo = VTodo();
-      vtodo.uid = todo.uid;
+      // Todos have no uid column since schema v8; synthesize a stable UID for export.
+      vtodo.uid = 'dayspark-todo-${todo.id}@dayspark';
       vtodo.summary = todo.summary;
       vtodo.timeStamp = todo.updatedAt;
       if (todo.dueDate != null) vtodo.due = todo.dueDate;
@@ -90,8 +92,6 @@ class IcsService {
           final companion = _converter.icalToEventCompanion(
             childCal.toString(),
             calendarId,
-            null,
-            null,
           );
           await _db.into(_db.events).insert(companion);
           events++;
@@ -104,8 +104,6 @@ class IcsService {
           final companion = _converter.icalToTodoCompanion(
             childCal.toString(),
             calendarId,
-            null,
-            null,
           );
           await _db.into(_db.todos).insert(companion);
           todos++;

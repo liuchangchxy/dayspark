@@ -6,7 +6,6 @@ import 'calendars_table.dart';
 class Events extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get calendarId => integer().references(Calendars, #id)();
-  TextColumn get uid => text()();
   TextColumn get summary => text()();
   DateTimeColumn get startDt => dateTime()();
   DateTimeColumn get endDt => dateTime()();
@@ -14,8 +13,6 @@ class Events extends Table {
   TextColumn get description => text().nullable()();
   TextColumn get location => text().nullable()();
   TextColumn get rrule => text().nullable()();
-  TextColumn get etag => text().nullable()();
-  BoolColumn get isDirty => boolean().withDefault(const Constant(false))();
   DateTimeColumn get deletedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();

@@ -10,4 +10,22 @@ mixin _$TodosDaoMixin on DatabaseAccessor<AppDatabase> {
   $TodoTagsTable get todoTags => attachedDatabase.todoTags;
   $AttachmentsTable get attachments => attachedDatabase.attachments;
   $RemindersTable get reminders => attachedDatabase.reminders;
+  TodosDaoManager get managers => TodosDaoManager(this);
+}
+
+class TodosDaoManager {
+  final _$TodosDaoMixin _db;
+  TodosDaoManager(this._db);
+  $$CalendarsTableTableManager get calendars =>
+      $$CalendarsTableTableManager(_db.attachedDatabase, _db.calendars);
+  $$TodosTableTableManager get todos =>
+      $$TodosTableTableManager(_db.attachedDatabase, _db.todos);
+  $$TagsTableTableManager get tags =>
+      $$TagsTableTableManager(_db.attachedDatabase, _db.tags);
+  $$TodoTagsTableTableManager get todoTags =>
+      $$TodoTagsTableTableManager(_db.attachedDatabase, _db.todoTags);
+  $$AttachmentsTableTableManager get attachments =>
+      $$AttachmentsTableTableManager(_db.attachedDatabase, _db.attachments);
+  $$RemindersTableTableManager get reminders =>
+      $$RemindersTableTableManager(_db.attachedDatabase, _db.reminders);
 }

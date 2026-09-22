@@ -31,7 +31,6 @@ final createEventProvider =
     Provider<
       Future<int> Function({
         required int calendarId,
-        required String uid,
         required String summary,
         required DateTime startDt,
         required DateTime endDt,
@@ -44,7 +43,6 @@ final createEventProvider =
       final db = ref.read(databaseProvider);
       return ({
         required calendarId,
-        required uid,
         required summary,
         required startDt,
         required endDt,
@@ -58,7 +56,6 @@ final createEventProvider =
             .insert(
               EventsCompanion.insert(
                 calendarId: calendarId,
-                uid: uid,
                 summary: summary,
                 startDt: startDt,
                 endDt: endDt,
@@ -87,11 +84,10 @@ final deleteEventProvider = Provider<Future<void> Function(int)>((ref) {
     await (db.delete(
       db.reminders,
     )..where((t) => t.parentType.equals('event') & t.parentId.equals(id))).go();
-    // Soft delete — mark for CalDAV deletion sync
+    // Soft delete
     await (db.update(db.events)..where((t) => t.id.equals(id))).write(
       EventsCompanion(
         deletedAt: Value(DateTime.now()),
-        isDirty: const Value(true),
         updatedAt: Value(DateTime.now()),
       ),
     );

@@ -9,7 +9,6 @@ void main() {
       final event = CalendaEventAdapter(
         drifId: 1,
         calendarId: 10,
-        uid: 'test',
         title: 'Team Meeting',
         start: DateTime(2026, 4, 17, 10, 0),
         end: DateTime(2026, 4, 17, 11, 0),
@@ -29,7 +28,6 @@ void main() {
       final event = CalendaEventAdapter(
         drifId: 2,
         calendarId: 10,
-        uid: 'allday',
         title: 'Birthday',
         start: DateTime(2026, 4, 17),
         end: DateTime(2026, 4, 18),
@@ -51,7 +49,6 @@ void main() {
       final event = CalendaEventAdapter(
         drifId: 3,
         calendarId: 10,
-        uid: 'timed',
         title: 'Sync',
         start: start,
         end: DateTime.utc(2026, 4, 17, 10, 0),
@@ -75,7 +72,6 @@ void main() {
       final event = CalendaEventAdapter(
         drifId: 4,
         calendarId: 10,
-        uid: 'allday2',
         title: 'Holiday',
         start: DateTime(2026, 4, 17),
         end: DateTime(2026, 4, 18),

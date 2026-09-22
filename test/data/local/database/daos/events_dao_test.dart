@@ -10,7 +10,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     calId = await db
         .into(db.calendars)
-        .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+        .insert(CalendarsCompanion.insert(name: 'Test'));
   });
 
   tearDown(() async {
@@ -24,7 +24,6 @@ void main() {
           .insert(
             EventsCompanion.insert(
               calendarId: calId,
-              uid: 'e1',
               summary: 'Meeting',
               startDt: DateTime(2026, 4, 17, 10),
               endDt: DateTime(2026, 4, 17, 11),
@@ -35,7 +34,6 @@ void main() {
           .insert(
             EventsCompanion.insert(
               calendarId: calId,
-              uid: 'e2',
               summary: 'Other',
               startDt: DateTime(2026, 5, 1),
               endDt: DateTime(2026, 5, 1, 1),

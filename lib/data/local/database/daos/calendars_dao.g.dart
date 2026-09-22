@@ -5,4 +5,12 @@ part of 'calendars_dao.dart';
 // ignore_for_file: type=lint
 mixin _$CalendarsDaoMixin on DatabaseAccessor<AppDatabase> {
   $CalendarsTable get calendars => attachedDatabase.calendars;
+  CalendarsDaoManager get managers => CalendarsDaoManager(this);
+}
+
+class CalendarsDaoManager {
+  final _$CalendarsDaoMixin _db;
+  CalendarsDaoManager(this._db);
+  $$CalendarsTableTableManager get calendars =>
+      $$CalendarsTableTableManager(_db.attachedDatabase, _db.calendars);
 }

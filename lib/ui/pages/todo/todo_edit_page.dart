@@ -93,7 +93,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           dueDate: Value(_dueDate),
           startDate: Value(_startDate),
           rrule: Value(_rrule),
-          isDirty: const Value(true),
           updatedAt: Value(DateTime.now()),
         ),
       );
@@ -541,7 +540,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       if (calendars.isEmpty) return;
       await ref.read(createTodoProvider)(
         calendarId: calendars.first.id,
-        uid: 'subtask-${DateTime.now().millisecondsSinceEpoch}',
         summary: text,
         priority: 0,
         status: 'NEEDS-ACTION',

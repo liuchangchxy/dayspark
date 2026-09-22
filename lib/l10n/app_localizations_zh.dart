@@ -108,35 +108,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noTags => '暂无标签';
 
   @override
-  String get caldavAccount => 'CalDAV 账户';
-
-  @override
-  String get removeAccount => '移除账户';
-
-  @override
-  String get serverUrl => '服务器地址';
-
-  @override
-  String get username => '用户名';
-
-  @override
-  String get password => '密码';
-
-  @override
-  String get syncing => '同步中…';
-
-  @override
-  String lastSync(String time) {
-    return '上次同步：$time';
-  }
-
-  @override
   String get notConfigured => '未配置';
-
-  @override
-  String connected(String user) {
-    return '已连接为 $user';
-  }
 
   @override
   String get aiConfig => 'AI 配置';
@@ -262,35 +234,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get calendarData => '日历数据';
 
   @override
-  String get caldavAccounts => 'CalDAV 账户';
-
-  @override
-  String get noAccounts => '暂无已配置的账户';
-
-  @override
-  String get addAccount => '添加 CalDAV 账户';
-
-  @override
-  String get accountName => '账户名称';
-
-  @override
-  String get accountNameHint => '比如：工作、个人';
-
-  @override
-  String removeAccountConfirm(String name) {
-    return '确定移除「$name」及其所有日历吗？';
-  }
-
-  @override
-  String get removeAccountTitle => '移除账户';
-
-  @override
   String get add => '添加';
-
-  @override
-  String syncFailed(String error) {
-    return '同步失败：$error';
-  }
 
   @override
   String exportedTo(String path) {
@@ -497,9 +441,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reportIssue => '反馈问题';
 
   @override
-  String get setupGuide => '配置教程';
-
-  @override
   String get aiProvider => '服务商';
 
   @override
@@ -595,29 +536,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addAttachment => '添加附件';
 
   @override
-  String get defaultAccountName => '默认';
-
-  @override
-  String get mcpServer => 'MCP 服务器';
-
-  @override
-  String mcpServerRunning(int port) {
-    return '运行中，端口 $port';
-  }
-
-  @override
-  String get mcpServerStopped => '已停止';
-
-  @override
-  String get mcpAutoStart => '启动时自动开启';
-
-  @override
-  String get mcpAutoStartDesc => '应用启动时自动开启 MCP 服务器';
-
-  @override
-  String get mcpPort => '端口';
-
-  @override
   String get editTag => '编辑标签';
 
   @override
@@ -625,12 +543,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get security => '安全';
-
-  @override
-  String get backgroundSync => '后台同步';
-
-  @override
-  String get backgroundSyncDesc => '在后台定期同步日历';
 
   @override
   String get recurringDragDisabled => '重复日程无法通过拖拽移动';
@@ -669,9 +581,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reminder => '提醒';
 
   @override
-  String get syncComplete => '同步完成';
-
-  @override
   String get subtasks => '子任务';
 
   @override
@@ -703,22 +612,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get gitHub => 'GitHub';
-
-  @override
-  String get syncTooltip => '同步';
-
-  @override
-  String get justNow => '刚刚';
-
-  @override
-  String minutesAgo(int minutes) {
-    return '$minutes分钟前';
-  }
-
-  @override
-  String hoursAgo(int hours) {
-    return '$hours小时前';
-  }
 
   @override
   String get openTodoDetails => '打开待办详情';

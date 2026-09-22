@@ -11,7 +11,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     calId = await db
         .into(db.calendars)
-        .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+        .insert(CalendarsCompanion.insert(name: 'Test'));
   });
 
   tearDown(() async {
@@ -25,7 +25,6 @@ void main() {
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't1',
               summary: 'Pending task',
               priority: const Value(1),
               status: const Value('NEEDS-ACTION'),
@@ -36,7 +35,6 @@ void main() {
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't2',
               summary: 'Done task',
               priority: const Value(5),
               status: const Value('COMPLETED'),
@@ -54,7 +52,6 @@ void main() {
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't3',
               summary: 'To complete',
               priority: const Value(5),
               status: const Value('NEEDS-ACTION'),
@@ -75,7 +72,6 @@ void main() {
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't4',
               summary: 'Due today',
               priority: const Value(5),
               status: const Value('NEEDS-ACTION'),

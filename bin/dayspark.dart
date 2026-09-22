@@ -130,8 +130,6 @@ Future<void> todoAdd(AppDatabase appDb, List<String> args) async {
   final summary = args.first;
   final flags = parseFlags(args.skip(1).toList());
   final calId = await _getCalendarId(appDb);
-  final now = DateTime.now().toUtc();
-  final uid = 'cli-${now.millisecondsSinceEpoch}';
 
   DateTime? dueDate;
   final dueStr = flags['due'];
@@ -144,12 +142,10 @@ Future<void> todoAdd(AppDatabase appDb, List<String> args) async {
 
   await appDb.into(appDb.todos).insert(TodosCompanion(
     calendarId: Value(calId),
-    uid: Value(uid),
     summary: Value(summary),
     dueDate: dueDate != null ? Value(dueDate) : const Value.absent(),
     priority: Value(priority),
     description: desc.isNotEmpty ? Value(desc) : const Value.absent(),
-    isDirty: const Value(true),
   ));
   print('Todo created: $summary');
 }
@@ -262,21 +258,17 @@ Future<void> eventAdd(AppDatabase appDb, List<String> args) async {
   final desc = flags['desc'] ?? '';
   final loc = flags['loc'] ?? '';
   final calId = await _getCalendarId(appDb);
-  final now = DateTime.now().toUtc();
-  final uid = 'cli-${now.millisecondsSinceEpoch}';
   final startDt = isAllDay ? DateTime(start.year, start.month, start.day) : start;
   final endDt = isAllDay ? DateTime(start.year, start.month, start.day).add(const Duration(days: 1)) : end;
 
   await appDb.into(appDb.events).insert(EventsCompanion(
     calendarId: Value(calId),
-    uid: Value(uid),
     summary: Value(summary),
     startDt: Value(startDt),
     endDt: Value(endDt),
     isAllDay: Value(isAllDay),
     description: desc.isNotEmpty ? Value(desc) : const Value.absent(),
     location: loc.isNotEmpty ? Value(loc) : const Value.absent(),
-    isDirty: const Value(true),
   ));
   print('Event created: $summary');
 }

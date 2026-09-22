@@ -33,25 +33,7 @@
   "deleteTag": "Delete Tag",
   "tagName": "Tag name",
   "noTags": "No tags yet",
-  "caldavAccount": "CalDAV Account",
-  "removeAccount": "Remove Account",
-  "serverUrl": "Server URL",
-  "username": "Username",
-  "password": "Password",
-  "syncing": "Syncing...",
-  "lastSync": "Last sync: {time}",
-  "@lastSync": {
-    "placeholders": {
-      "time": { "type": "String" }
-    }
-  },
   "notConfigured": "Not configured",
-  "connected": "Connected as {user}",
-  "@connected": {
-    "placeholders": {
-      "user": { "type": "String" }
-    }
-  },
   "aiConfig": "AI Configuration",
   "aiAssistant": "AI Assistant",
   "apiKey": "API Key",
@@ -93,25 +75,7 @@
   "advancedFeatures": "Advanced Features",
   "attachments": "Attachments",
   "calendarData": "Calendar data",
-  "caldavAccounts": "CalDAV Accounts",
-  "noAccounts": "No accounts configured yet.",
-  "addAccount": "Add CalDAV Account",
-  "accountName": "Account Name",
-  "accountNameHint": "e.g. Work, Personal",
-  "removeAccountConfirm": "Remove \"{name}\" and all its calendars?",
-  "@removeAccountConfirm": {
-    "placeholders": {
-      "name": { "type": "String" }
-    }
-  },
-  "removeAccountTitle": "Remove Account",
   "add": "Add",
-  "syncFailed": "Sync failed: {error}",
-  "@syncFailed": {
-    "placeholders": {
-      "error": { "type": "String" }
-    }
-  },
   "exportedTo": "Exported to {path}",
   "@exportedTo": {
     "placeholders": {
@@ -247,7 +211,6 @@
   "downloadUpdate": "Download Update",
   "starOnGithub": "Star on GitHub",
   "reportIssue": "Report an Issue",
-  "setupGuide": "Setup Guide",
   "aiProvider": "Provider",
   "customProvider": "Custom",
   "detectModels": "Detect Models",
@@ -284,23 +247,9 @@
   "eventStartingSoon": "Event starting soon",
   "taskDueSoon": "Task due soon",
   "addAttachment": "Add attachment",
-  "defaultAccountName": "Default",
-  "mcpServer": "MCP Server",
-  "mcpServerRunning": "Running on port {port}",
-  "@mcpServerRunning": {
-    "placeholders": {
-      "port": { "type": "int" }
-    }
-  },
-  "mcpServerStopped": "Stopped",
-  "mcpAutoStart": "Auto-start on launch",
-  "mcpAutoStartDesc": "Start MCP server when app launches",
-  "mcpPort": "Port",
   "editTag": "Edit Tag",
   "thirdPartyLicenses": "Third-Party Licenses",
   "security": "Security",
-  "backgroundSync": "Background Sync",
-  "backgroundSyncDesc": "Periodically sync calendars in the background",
   "recurringDragDisabled": "Recurring events cannot be moved by drag",
   "eventMoved": "Event moved",
   "systemAlarm": "System Alarm",
@@ -313,7 +262,6 @@
   "languageZh": "Chinese",
   "languageEn": "English",
   "reminder": "Reminder",
-  "syncComplete": "Sync complete",
   "subtasks": "Subtasks",
   "addSubtask": "Add subtask",
   "noSubtasks": "No subtasks",
@@ -338,20 +286,6 @@
     }
   },
   "gitHub": "GitHub",
-  "syncTooltip": "Sync",
-  "justNow": "just now",
-  "minutesAgo": "{minutes}m ago",
-  "@minutesAgo": {
-    "placeholders": {
-      "minutes": { "type": "int" }
-    }
-  },
-  "hoursAgo": "{hours}h ago",
-  "@hoursAgo": {
-    "placeholders": {
-      "hours": { "type": "int" }
-    }
-  },
   "openTodoDetails": "Open todo details",
   "highPriority": "High priority",
   "mediumPriority": "Medium priority",

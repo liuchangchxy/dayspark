@@ -47,7 +47,6 @@ final createTodoProvider =
     Provider<
       Future<int> Function({
         required int calendarId,
-        required String uid,
         required String summary,
         required int priority,
         required String status,
@@ -61,7 +60,6 @@ final createTodoProvider =
       final db = ref.read(databaseProvider);
       return ({
         required calendarId,
-        required uid,
         required summary,
         required priority,
         required status,
@@ -76,7 +74,6 @@ final createTodoProvider =
             .insert(
               TodosCompanion.insert(
                 calendarId: calendarId,
-                uid: uid,
                 summary: summary,
                 priority: Value(priority),
                 status: Value(status),
@@ -127,7 +124,6 @@ final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
     await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
       TodosCompanion(
         deletedAt: Value(DateTime.now()),
-        isDirty: const Value(true),
         updatedAt: Value(DateTime.now()),
       ),
     );

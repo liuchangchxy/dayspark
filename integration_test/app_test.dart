@@ -42,7 +42,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Settings'), findsOneWidget);
-      expect(find.text('CalDAV Account'), findsOneWidget);
       expect(find.text('Manage Tags'), findsOneWidget);
       expect(find.text('About'), findsOneWidget);
     });
@@ -223,17 +222,6 @@ void main() {
   });
 
   group('Settings', () {
-    testWidgets('shows CalDAV account section', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
-
-      expect(find.text('CalDAV Account'), findsOneWidget);
-      expect(find.text('Add CalDAV Account'), findsOneWidget);
-    });
-
     testWidgets('shows appearance section', (tester) async {
       app.main();
       await tester.pumpAndSettle();
@@ -327,31 +315,6 @@ void main() {
 
       // Should show empty state
       expect(find.text('No tags yet'), findsOneWidget);
-    });
-  });
-
-  group('CalDAV Dialog', () {
-    testWidgets('open and cancel CalDAV config dialog', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Add CalDAV Account'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Add CalDAV Account'), findsOneWidget);
-      expect(find.text('Server URL'), findsOneWidget);
-      expect(find.text('Username'), findsOneWidget);
-      expect(find.text('Password'), findsOneWidget);
-
-      // Cancel
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-
-      // Should be back on settings
-      expect(find.text('Settings'), findsOneWidget);
     });
   });
 }

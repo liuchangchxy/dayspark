@@ -108,35 +108,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noTags => 'No tags yet';
 
   @override
-  String get caldavAccount => 'CalDAV Account';
-
-  @override
-  String get removeAccount => 'Remove Account';
-
-  @override
-  String get serverUrl => 'Server URL';
-
-  @override
-  String get username => 'Username';
-
-  @override
-  String get password => 'Password';
-
-  @override
-  String get syncing => 'Syncing...';
-
-  @override
-  String lastSync(String time) {
-    return 'Last sync: $time';
-  }
-
-  @override
   String get notConfigured => 'Not configured';
-
-  @override
-  String connected(String user) {
-    return 'Connected as $user';
-  }
 
   @override
   String get aiConfig => 'AI Configuration';
@@ -262,35 +234,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calendarData => 'Calendar data';
 
   @override
-  String get caldavAccounts => 'CalDAV Accounts';
-
-  @override
-  String get noAccounts => 'No accounts configured yet.';
-
-  @override
-  String get addAccount => 'Add CalDAV Account';
-
-  @override
-  String get accountName => 'Account Name';
-
-  @override
-  String get accountNameHint => 'e.g. Work, Personal';
-
-  @override
-  String removeAccountConfirm(String name) {
-    return 'Remove \"$name\" and all its calendars?';
-  }
-
-  @override
-  String get removeAccountTitle => 'Remove Account';
-
-  @override
   String get add => 'Add';
-
-  @override
-  String syncFailed(String error) {
-    return 'Sync failed: $error';
-  }
 
   @override
   String exportedTo(String path) {
@@ -497,9 +441,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportIssue => 'Report an Issue';
 
   @override
-  String get setupGuide => 'Setup Guide';
-
-  @override
   String get aiProvider => 'Provider';
 
   @override
@@ -595,29 +536,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addAttachment => 'Add attachment';
 
   @override
-  String get defaultAccountName => 'Default';
-
-  @override
-  String get mcpServer => 'MCP Server';
-
-  @override
-  String mcpServerRunning(int port) {
-    return 'Running on port $port';
-  }
-
-  @override
-  String get mcpServerStopped => 'Stopped';
-
-  @override
-  String get mcpAutoStart => 'Auto-start on launch';
-
-  @override
-  String get mcpAutoStartDesc => 'Start MCP server when app launches';
-
-  @override
-  String get mcpPort => 'Port';
-
-  @override
   String get editTag => 'Edit Tag';
 
   @override
@@ -625,12 +543,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get security => 'Security';
-
-  @override
-  String get backgroundSync => 'Background Sync';
-
-  @override
-  String get backgroundSyncDesc => 'Periodically sync calendars in the background';
 
   @override
   String get recurringDragDisabled => 'Recurring events cannot be moved by drag';
@@ -669,9 +581,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reminder => 'Reminder';
 
   @override
-  String get syncComplete => 'Sync complete';
-
-  @override
   String get subtasks => 'Subtasks';
 
   @override
@@ -703,22 +612,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gitHub => 'GitHub';
-
-  @override
-  String get syncTooltip => 'Sync';
-
-  @override
-  String get justNow => 'just now';
-
-  @override
-  String minutesAgo(int minutes) {
-    return '${minutes}m ago';
-  }
-
-  @override
-  String hoursAgo(int hours) {
-    return '${hours}h ago';
-  }
 
   @override
   String get openTodoDetails => 'Open todo details';

@@ -112,7 +112,6 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
       TodosCompanion(
         dueDate: Value(today),
         updatedAt: Value(now),
-        isDirty: const Value(true),
       ),
     );
   }

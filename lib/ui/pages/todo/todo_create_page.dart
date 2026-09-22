@@ -92,7 +92,6 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           .read(createTodoProvider)
           .call(
             calendarId: calendarId,
-            uid: 'local-todo-${DateTime.now().millisecondsSinceEpoch}',
             summary: _summaryController.text.trim(),
             priority: _priority,
             status: 'NEEDS-ACTION',

@@ -389,8 +389,6 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           .read(createTodoProvider)
                           .call(
                             calendarId: calId,
-                            uid:
-                                'ai-todo-${DateTime.now().millisecondsSinceEpoch}',
                             summary: s,
                             priority: 5,
                             status: 'NEEDS-ACTION',
@@ -474,7 +472,6 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             : start.add(const Duration(hours: 1));
         final eventId = await ref.read(createEventProvider)(
           calendarId: calId,
-          uid: 'ai-${DateTime.now().millisecondsSinceEpoch}',
           summary: result['summary'] as String? ?? defaultEventTitle,
           startDt: start,
           endDt: end,
@@ -496,7 +493,6 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             .read(createTodoProvider)
             .call(
               calendarId: calId,
-              uid: 'ai-todo-${DateTime.now().millisecondsSinceEpoch}',
               summary: result['summary'] as String? ?? defaultTodoTitle,
               priority: result['priority'] as int? ?? 5,
               status: 'NEEDS-ACTION',

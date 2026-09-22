@@ -49,9 +49,8 @@ dependencies:
   # URL launcher
   url_launcher: ^6.3.0
 
-  # CalDAV sync
+  # ICS import/export
   enough_icalendar: ^0.17.0
-  xml: ^6.5.0
 
   # Notifications
   flutter_local_notifications: ^21.0.0
@@ -64,12 +63,7 @@ dependencies:
   package_info_plus: ^9.0.1
 
   # Network
-  connectivity_plus: ^6.0.0
   home_widget: ^0.9.1
-  mcp_dart: ^2.1.1
-
-  # Background tasks
-  workmanager: ^0.9.0
 
   # Alarm
   alarm: ^5.1.5

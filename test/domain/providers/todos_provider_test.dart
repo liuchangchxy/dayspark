@@ -36,14 +36,13 @@ void main() {
     test('allTodosProvider returns non-deleted todos', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
 
       await testDb
           .into(testDb.todos)
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't1',
               summary: 'Pending task',
               priority: const Value(1),
               status: const Value('NEEDS-ACTION'),
@@ -54,7 +53,6 @@ void main() {
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't2',
               summary: 'Done task',
               priority: const Value(5),
               status: const Value('COMPLETED'),
@@ -68,13 +66,12 @@ void main() {
     test('createTodoProvider inserts a new todo', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
 
       final id = await container
           .read(createTodoProvider)
           .call(
             calendarId: calId,
-            uid: 'new-uid',
             summary: 'New Todo',
             priority: 3,
             status: 'NEEDS-ACTION',
@@ -91,14 +88,13 @@ void main() {
     test('completeTodoProvider marks a todo as completed', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
 
       final todoId = await testDb
           .into(testDb.todos)
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't3',
               summary: 'To complete',
               priority: const Value(5),
               status: const Value('NEEDS-ACTION'),
@@ -118,14 +114,13 @@ void main() {
     test('deleteTodoProvider soft-deletes a todo', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
 
       final todoId = await testDb
           .into(testDb.todos)
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't-del',
               summary: 'To delete',
               priority: const Value(5),
               status: const Value('NEEDS-ACTION'),

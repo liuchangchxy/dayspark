@@ -8,7 +8,6 @@ void main() {
       final adapter = CalendaEventAdapter(
         drifId: 1,
         calendarId: 10,
-        uid: 'test-uid',
         title: 'Team Meeting',
         description: 'Weekly sync',
         color: const Color(0xFF2563EB),
@@ -28,7 +27,6 @@ void main() {
       final original = CalendaEventAdapter(
         drifId: 1,
         calendarId: 10,
-        uid: 'uid',
         title: 'Old Title',
         start: DateTime(2026, 1, 1),
         end: DateTime(2026, 1, 1, 1),
@@ -43,7 +41,6 @@ void main() {
       final a = CalendaEventAdapter(
         drifId: 1,
         calendarId: 10,
-        uid: 'uid',
         title: 'Event',
         start: DateTime(2026, 1, 1),
         end: DateTime(2026, 1, 1, 1),
@@ -51,7 +48,6 @@ void main() {
       final b = CalendaEventAdapter(
         drifId: 1,
         calendarId: 10,
-        uid: 'uid',
         title: 'Event',
         start: DateTime(2026, 1, 1),
         end: DateTime(2026, 1, 1, 1),

@@ -37,7 +37,7 @@ void main() {
     test('delete tag cascades to event_tags and todo_tags', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
       final tagId = await testDb
           .into(testDb.tags)
           .insert(TagsCompanion.insert(name: 'Tag1'));
@@ -46,7 +46,6 @@ void main() {
           .insert(
             EventsCompanion.insert(
               calendarId: calId,
-              uid: 'e1',
               summary: 'Event',
               startDt: DateTime(2026, 5, 1),
               endDt: DateTime(2026, 5, 2),
@@ -77,7 +76,7 @@ void main() {
     test('assign tag to todo', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
       final tagId = await testDb
           .into(testDb.tags)
           .insert(TagsCompanion.insert(name: 'Urgent'));
@@ -86,7 +85,6 @@ void main() {
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't1',
               summary: 'Task',
             ),
           );

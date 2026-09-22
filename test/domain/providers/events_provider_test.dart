@@ -25,14 +25,13 @@ void main() {
     test('eventsInDateRangeProvider returns events in range', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
 
       await testDb
           .into(testDb.events)
           .insert(
             EventsCompanion.insert(
               calendarId: calId,
-              uid: 'e1',
               summary: 'April Event',
               startDt: DateTime(2026, 4, 15, 10),
               endDt: DateTime(2026, 4, 15, 11),
@@ -43,7 +42,6 @@ void main() {
           .insert(
             EventsCompanion.insert(
               calendarId: calId,
-              uid: 'e2',
               summary: 'May Event',
               startDt: DateTime(2026, 5, 1),
               endDt: DateTime(2026, 5, 1, 1),
@@ -63,13 +61,12 @@ void main() {
     test('createEvent inserts event', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
 
       final id = await container
           .read(createEventProvider)
           .call(
             calendarId: calId,
-            uid: 'new-uid',
             summary: 'New Event',
             startDt: DateTime(2026, 6, 1),
             endDt: DateTime(2026, 6, 1, 1),

@@ -2,19 +2,16 @@ import 'package:drift/drift.dart';
 import 'package:enough_icalendar/enough_icalendar.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../local/database/app_database.dart';
+import '../../../data/local/database/app_database.dart';
 
-/// Converts between Drift database models and iCalendar format.
 class IcalConverter {
-  // ── Event → iCalendar String ──────────────────────────────────
-
-  /// Convert a Drift [Event] to a VCALENDAR string with a VEVENT.
   String eventToIcal(Event event) {
     final cal = VCalendar();
     cal.productId = '-//CalendarTodoApp//EN';
 
     final vevent = VEvent();
-    vevent.uid = event.uid;
+    // Events have no uid column since schema v8; synthesize a stable UID for export.
+    vevent.uid = 'dayspark-event-${event.id}@dayspark';
     vevent.summary = event.summary;
     vevent.start = event.startDt;
     vevent.end = event.endDt;
@@ -35,15 +32,13 @@ class IcalConverter {
     return cal.toString();
   }
 
-  // ── Todo → iCalendar String ───────────────────────────────────
-
-  /// Convert a Drift [Todo] to a VCALENDAR string with a VTODO.
   String todoToIcal(Todo todo) {
     final cal = VCalendar();
     cal.productId = '-//CalendarTodoApp//EN';
 
     final vtodo = VTodo();
-    vtodo.uid = todo.uid;
+    // Todos have no uid column since schema v8; synthesize a stable UID for export.
+    vtodo.uid = 'dayspark-todo-${todo.id}@dayspark';
     vtodo.summary = todo.summary;
     vtodo.timeStamp = DateTime.now();
 
@@ -77,15 +72,7 @@ class IcalConverter {
     return cal.toString();
   }
 
-  // ── iCalendar String → EventsCompanion ────────────────────────
-
-  /// Parse a VCALENDAR string and extract a VEVENT as [EventsCompanion].
-  EventsCompanion icalToEventCompanion(
-    String icalData,
-    int calendarId,
-    String? href,
-    String? etag,
-  ) {
+  EventsCompanion icalToEventCompanion(String icalData, int calendarId) {
     final component = VComponent.parse(icalData);
     if (component is! VCalendar) {
       throw FormatException('Expected VCALENDAR, got ${component.name}');
@@ -105,7 +92,6 @@ class IcalConverter {
 
     return EventsCompanion.insert(
       calendarId: calendarId,
-      uid: vevent.uid,
       summary: vevent.summary ?? '',
       startDt: start,
       endDt: end,
@@ -113,19 +99,10 @@ class IcalConverter {
       description: Value(vevent.description),
       location: Value(vevent.location),
       rrule: Value(vevent.recurrenceRule?.toString()),
-      etag: Value(etag),
     );
   }
 
-  // ── iCalendar String → TodosCompanion ─────────────────────────
-
-  /// Parse a VCALENDAR string and extract a VTODO as [TodosCompanion].
-  TodosCompanion icalToTodoCompanion(
-    String icalData,
-    int calendarId,
-    String? href,
-    String? etag,
-  ) {
+  TodosCompanion icalToTodoCompanion(String icalData, int calendarId) {
     final component = VComponent.parse(icalData);
     if (component is! VCalendar) {
       throw FormatException('Expected VCALENDAR, got ${component.name}');
@@ -138,7 +115,6 @@ class IcalConverter {
 
     return TodosCompanion.insert(
       calendarId: calendarId,
-      uid: vtodo.uid,
       summary: vtodo.summary ?? '',
       priority: Value(vtodo.priorityInt ?? 0),
       status: Value(_todoStatusToString(vtodo.status)),
@@ -148,13 +124,9 @@ class IcalConverter {
       startDate: Value(vtodo.start),
       completedAt: Value(vtodo.completed),
       percentComplete: Value(vtodo.percentComplete ?? 0),
-      etag: Value(etag),
     );
   }
 
-  // ── Detect component type ─────────────────────────────────────
-
-  /// Returns 'VEVENT' or 'VTODO' depending on what the iCalendar contains.
   String? detectComponentType(String icalData) {
     try {
       final component = VComponent.parse(icalData);
@@ -167,20 +139,6 @@ class IcalConverter {
       debugPrint('ical: detectType error: $e');
       return null;
     }
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────
-
-  String? extractUid(String icalData) {
-    try {
-      final component = VComponent.parse(icalData);
-      if (component is VCalendar) {
-        return component.event?.uid ?? component.todo?.uid;
-      }
-    } catch (e) {
-      debugPrint('ical: extractUid error: $e');
-    }
-    return null;
   }
 
   bool _isAllDay(VEvent event) {

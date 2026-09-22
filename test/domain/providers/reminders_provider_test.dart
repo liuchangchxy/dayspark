@@ -19,13 +19,12 @@ void main() {
     test('insert and read reminder', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
       final eventId = await testDb
           .into(testDb.events)
           .insert(
             EventsCompanion.insert(
               calendarId: calId,
-              uid: 'e1',
               summary: 'Event',
               startDt: DateTime(2026, 5, 1),
               endDt: DateTime(2026, 5, 2),
@@ -53,13 +52,12 @@ void main() {
     test('query reminders by parent', () async {
       final calId = await testDb
           .into(testDb.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
       final eventId = await testDb
           .into(testDb.events)
           .insert(
             EventsCompanion.insert(
               calendarId: calId,
-              uid: 'e1',
               summary: 'Event',
               startDt: DateTime(2026, 5, 1),
               endDt: DateTime(2026, 5, 2),
@@ -70,7 +68,6 @@ void main() {
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 't1',
               summary: 'Task',
             ),
           );

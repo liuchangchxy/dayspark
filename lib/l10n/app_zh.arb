@@ -33,15 +33,7 @@
   "deleteTag": "删除标签",
   "tagName": "标签名称",
   "noTags": "暂无标签",
-  "caldavAccount": "CalDAV 账户",
-  "removeAccount": "移除账户",
-  "serverUrl": "服务器地址",
-  "username": "用户名",
-  "password": "密码",
-  "syncing": "同步中…",
-  "lastSync": "上次同步：{time}",
   "notConfigured": "未配置",
-  "connected": "已连接为 {user}",
   "aiConfig": "AI 配置",
   "aiAssistant": "AI 助手",
   "apiKey": "API 密钥",
@@ -82,15 +74,7 @@
   "import": "导入",
   "advancedFeatures": "高级功能",
   "attachments": "附件",
-  "caldavAccounts": "CalDAV 账户",
-  "noAccounts": "暂无已配置的账户",
-  "addAccount": "添加 CalDAV 账户",
-  "accountName": "账户名称",
-  "accountNameHint": "比如：工作、个人",
-  "removeAccountConfirm": "确定移除「{name}」及其所有日历吗？",
-  "removeAccountTitle": "移除账户",
   "add": "添加",
-  "syncFailed": "同步失败：{error}",
   "exportedTo": "已导出到 {path}",
   "exportFailed": "导出失败：{error}",
   "noCalendarToImport": "没有可用的日历来导入数据",
@@ -161,7 +145,6 @@
   "downloadUpdate": "下载更新",
   "starOnGithub": "在 GitHub 上 Star",
   "reportIssue": "反馈问题",
-  "setupGuide": "配置教程",
   "aiProvider": "服务商",
   "customProvider": "自定义",
   "detectModels": "探测模型",
@@ -193,23 +176,9 @@
   "eventStartingSoon": "日程即将开始",
   "taskDueSoon": "待办即将到期",
   "addAttachment": "添加附件",
-  "defaultAccountName": "默认",
-  "mcpServer": "MCP 服务器",
-  "mcpServerRunning": "运行中，端口 {port}",
-  "@mcpServerRunning": {
-    "placeholders": {
-      "port": { "type": "int" }
-    }
-  },
-  "mcpServerStopped": "已停止",
-  "mcpAutoStart": "启动时自动开启",
-  "mcpAutoStartDesc": "应用启动时自动开启 MCP 服务器",
-  "mcpPort": "端口",
   "editTag": "编辑标签",
   "thirdPartyLicenses": "第三方开源许可",
   "security": "安全",
-  "backgroundSync": "后台同步",
-  "backgroundSyncDesc": "在后台定期同步日历",
   "recurringDragDisabled": "重复日程无法通过拖拽移动",
   "eventMoved": "日程已移动",
   "systemAlarm": "系统闹钟",
@@ -222,7 +191,6 @@
   "languageZh": "中文",
   "languageEn": "English",
   "reminder": "提醒",
-  "syncComplete": "同步完成",
   "subtasks": "子任务",
   "addSubtask": "添加子任务",
   "noSubtasks": "无子任务",
@@ -247,20 +215,6 @@
     }
   },
   "gitHub": "GitHub",
-  "syncTooltip": "同步",
-  "justNow": "刚刚",
-  "minutesAgo": "{minutes}分钟前",
-  "@minutesAgo": {
-    "placeholders": {
-      "minutes": { "type": "int" }
-    }
-  },
-  "hoursAgo": "{hours}小时前",
-  "@hoursAgo": {
-    "placeholders": {
-      "hours": { "type": "int" }
-    }
-  },
   "openTodoDetails": "打开待办详情",
   "highPriority": "高优先级",
   "mediumPriority": "中优先级",

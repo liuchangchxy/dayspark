@@ -205,38 +205,70 @@ Future<void> _runAndVerify(File file) async {
     expect((await (db.select(db.reminders)).get()).length, 1);
     expect((await (db.select(db.attachments)).get()).length, 1);
 
-    // sync_queue dropped in v5 migration (no DAO, can't query — that's ok)
+    Future<Set<String>> columnsOf(String table) async {
+      final rows = await db.customSelect('PRAGMA table_info($table)').get();
+      return rows.map((r) => r.data['name'] as String).toSet();
+    }
 
-    // New columns from v2–v7 migrations exist with correct defaults
-    final calendars = await (db.select(db.calendars)).get();
-    expect(calendars.first.accountId, isNull); // v2: add account_id
+    Future<bool> tableExists(String table) async {
+      final row = await db
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$table'",
+          )
+          .getSingleOrNull();
+      return row != null;
+    }
 
+    // v8: CalDAV sync columns dropped
+    final calendarCols = await columnsOf('calendars');
+    expect(calendarCols, isNot(contains('caldav_href')));
+    expect(calendarCols, isNot(contains('sync_token')));
+    expect(calendarCols, isNot(contains('etag')));
+    expect(calendarCols, isNot(contains('account_id')));
+    expect(calendarCols, contains('name'));
+
+    final eventCols = await columnsOf('events');
+    expect(eventCols, isNot(contains('uid')));
+    expect(eventCols, isNot(contains('etag')));
+    expect(eventCols, isNot(contains('is_dirty')));
+    expect(eventCols, contains('summary'));
+
+    final todoCols = await columnsOf('todos');
+    expect(todoCols, isNot(contains('uid')));
+    expect(todoCols, isNot(contains('etag')));
+    expect(todoCols, isNot(contains('is_dirty')));
+    expect(todoCols, contains('summary'));
+
+    // v8: accounts table gone; v5: sync_queue gone
+    expect(await tableExists('accounts'), false);
+    expect(await tableExists('sync_queue'), false);
+
+    // Columns added by v3/v4/v6/v7 migrations exist with correct defaults
     final todos = await (db.select(db.todos)).get();
-    expect(todos.first.deletedAt, isNull);  // v3: add deleted_at
-    expect(todos.first.sortOrder, 0);       // v4: add sort_order
-    expect(todos.first.parentId, isNull);   // v7: add parent_id
+    expect(todos.first.deletedAt, isNull); // v3: add deleted_at
+    expect(todos.first.sortOrder, 0);      // v4: add sort_order
+    expect(todos.first.parentId, isNull);  // v7: add parent_id
 
     final events = await (db.select(db.events)).get();
     expect(events.first.deletedAt, isNull); // v6: add deleted_at
 
-    // v5: sync_queue dropped — not queryable, no crash = success
-
-    // Original data values intact
-    expect(calendars.first.caldavHref, 'local://default');
-    expect(events.first.uid, 'evt-001');
-    expect(todos.first.uid, 'td-001');
+    // Original data values intact on surviving columns
+    final calendars = await (db.select(db.calendars)).get();
     expect(calendars.first.name, 'Personal');
+    expect(events.first.summary, 'Meeting');
+    expect(events.first.startDt, DateTime(2026, 5, 1, 10));
+    expect(events.first.endDt, DateTime(2026, 5, 1, 11));
+    expect(todos.first.summary, 'Buy milk');
 
     // New rows work with current schema
     final newCalId = await db.into(db.calendars).insert(
-      CalendarsCompanion.insert(caldavHref: '/cal/work/', name: 'Work'),
+      CalendarsCompanion.insert(name: 'Work'),
     );
     expect(newCalId, greaterThan(0));
 
     await db.into(db.events).insert(
       EventsCompanion.insert(
         calendarId: newCalId,
-        uid: 'evt-new',
         summary: 'New event',
         startDt: DateTime(2026, 6, 1),
         endDt: DateTime(2026, 6, 1),
@@ -244,7 +276,7 @@ Future<void> _runAndVerify(File file) async {
     );
 
     await db.into(db.todos).insert(
-      TodosCompanion.insert(calendarId: newCalId, uid: 'td-new', summary: 'New todo'),
+      TodosCompanion.insert(calendarId: newCalId, summary: 'New todo'),
     );
   } finally {
     await db.close();
@@ -253,7 +285,7 @@ Future<void> _runAndVerify(File file) async {
 
 void main() {
   group('Database migration', () {
-    test('v1 → v7 full migration preserves data integrity', () async {
+    test('v1 → v8 full migration preserves data integrity', () async {
       final file = _createV1Database();
       try {
         await _runAndVerify(file);
@@ -262,23 +294,23 @@ void main() {
       }
     });
 
-    test('fresh database at v7 initializes correctly', () async {
+    test('fresh database at v8 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 7);
+        expect(db.schemaVersion, 8);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
         final calendars = await (db.select(db.calendars)).get();
         expect(calendars.length, 1);
-        expect(calendars.first.caldavHref, 'local://default');
+        expect(calendars.first.name, 'Personal');
       } finally {
         await db.close();
       }
     });
 
-    test('schema snapshot exists for v7', () async {
-      final schemaFile = File('drift_schemas/app_database/drift_schema_v7.json');
+    test('schema snapshot exists for v8', () async {
+      final schemaFile = File('drift_schemas/app_database/drift_schema_v8.json');
       expect(await schemaFile.exists(), true,
           reason: 'Run `dart run drift_dev make-migrations` to generate');
     });

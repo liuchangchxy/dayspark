@@ -53,7 +53,6 @@ List<CalendaEventAdapter> expandRecurringEvents(
           CalendaEventAdapter(
             drifId: event.id,
             calendarId: event.calendarId,
-            uid: event.uid,
             title: event.summary,
             start: instance.copyWith(isUtc: false),
             end: instance.add(duration).copyWith(isUtc: false),
@@ -62,7 +61,6 @@ List<CalendaEventAdapter> expandRecurringEvents(
             color: color,
             isAllDay: event.isAllDay,
             rrule: event.rrule,
-            isDirty: event.isDirty,
           ),
         );
       }

@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 
-import 'tables/accounts_table.dart';
 import 'tables/calendars_table.dart';
 import 'tables/events_table.dart';
 import 'tables/todos_table.dart';
@@ -18,7 +17,6 @@ part 'app_database.g.dart';
 
 @DriftDatabase(
   tables: [
-    Accounts,
     Calendars,
     Events,
     Todos,
@@ -35,31 +33,31 @@ class AppDatabase extends _$AppDatabase {
   ///   - Flutter app via [openFlutterDatabase] from `connect_flutter.dart`
   ///   - CLI via [AppDatabase.forFile] from `app_database_file.dart`
   ///   - Tests via [AppDatabase.forTesting]
+  AppDatabase(super.executor);
+
   AppDatabase.forExecutor(super.executor);
 
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
-      // Seed a default local calendar so the app works without CalDAV
+      // Seed a default local calendar so the app has one from the start
       await into(calendars).insert(
         CalendarsCompanion.insert(
-          caldavHref: 'local://default',
           name: 'Personal',
           color: const Value('#2563EB'),
         ),
       );
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      if (from < 2) {
-        await m.createTable(accounts);
-        await m.addColumn(calendars, calendars.accountId);
-      }
+      // The former `from < 2` step (create accounts table + add
+      // calendars.account_id) is intentionally gone: schema v8 removed both,
+      // so recreating them mid-migration would only be dropped again below.
       if (from < 3) {
         await m.addColumn(todos, todos.deletedAt);
       }
@@ -75,13 +73,31 @@ class AppDatabase extends _$AppDatabase {
       if (from < 7) {
         await m.addColumn(todos, todos.parentId);
       }
+      if (from < 8) {
+        // v8: drop the CalDAV sync columns and the accounts table.
+        // dropColumn takes raw SQL names (no camelCase→snake_case conversion).
+        // account_id only exists on installs that reached v2+, so guard its
+        // drop: a v1 database would otherwise fail with "no such column".
+        if (from >= 2) {
+          await m.dropColumn(calendars, 'account_id');
+        }
+        await m.dropColumn(calendars, 'caldav_href');
+        await m.dropColumn(calendars, 'sync_token');
+        await m.dropColumn(calendars, 'etag');
+        await m.dropColumn(events, 'uid');
+        await m.dropColumn(events, 'etag');
+        await m.dropColumn(events, 'is_dirty');
+        await m.dropColumn(todos, 'uid');
+        await m.dropColumn(todos, 'etag');
+        await m.dropColumn(todos, 'is_dirty');
+        await m.deleteTable('accounts');
+      }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {
         final existing = await (select(calendars)).get();
         if (existing.isEmpty) {
           await into(calendars).insert(
             CalendarsCompanion.insert(
-              caldavHref: 'local://default',
               name: 'Personal',
               color: const Value('#2563EB'),
             ),

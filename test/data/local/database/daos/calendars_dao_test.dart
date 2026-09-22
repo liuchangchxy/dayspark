@@ -20,7 +20,6 @@ void main() {
           .into(db.calendars)
           .insert(
             CalendarsCompanion.insert(
-              caldavHref: '/cal/1',
               name: 'Work',
               color: const Value('#2563EB'),
               timezone: const Value('Asia/Shanghai'),
@@ -30,7 +29,6 @@ void main() {
           .into(db.calendars)
           .insert(
             CalendarsCompanion.insert(
-              caldavHref: '/cal/2',
               name: 'Personal',
               color: const Value('#16A34A'),
               timezone: const Value('UTC'),

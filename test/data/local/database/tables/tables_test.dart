@@ -20,7 +20,6 @@ void main() {
           .into(db.calendars)
           .insert(
             CalendarsCompanion.insert(
-              caldavHref: '/calendars/user/main/',
               name: 'My Calendar',
             ),
           );
@@ -30,7 +29,6 @@ void main() {
       expect(calendar.name, 'My Calendar');
       expect(calendar.color, '#2563EB'); // default color
       expect(calendar.timezone, 'UTC'); // default timezone
-      expect(calendar.caldavHref, '/calendars/user/main/');
     });
 
     test('insert calendar with explicit color and timezone', () async {
@@ -38,7 +36,6 @@ void main() {
           .into(db.calendars)
           .insert(
             CalendarsCompanion.insert(
-              caldavHref: '/cal/',
               name: 'Work',
               color: const Value('#FF0000'),
               timezone: const Value('Asia/Shanghai'),
@@ -56,13 +53,12 @@ void main() {
     test('insert and read an event', () async {
       final calId = await db
           .into(db.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
       final eventId = await db
           .into(db.events)
           .insert(
             EventsCompanion.insert(
               calendarId: calId,
-              uid: 'uid-123',
               summary: 'Team Meeting',
               startDt: DateTime(2026, 4, 17, 15, 0),
               endDt: DateTime(2026, 4, 17, 16, 0),
@@ -72,7 +68,6 @@ void main() {
         db.events,
       )..where((t) => t.id.equals(eventId))).getSingle();
       expect(event.summary, 'Team Meeting');
-      expect(event.uid, 'uid-123');
       expect(event.isAllDay, false); // default
     });
   });
@@ -81,13 +76,12 @@ void main() {
     test('insert and read a todo', () async {
       final calId = await db
           .into(db.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
       final todoId = await db
           .into(db.todos)
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 'todo-456',
               summary: 'Buy groceries',
             ),
           );
@@ -102,13 +96,12 @@ void main() {
     test('insert todo with explicit priority and status', () async {
       final calId = await db
           .into(db.calendars)
-          .insert(CalendarsCompanion.insert(caldavHref: '/cal/', name: 'Test'));
+          .insert(CalendarsCompanion.insert(name: 'Test'));
       final todoId = await db
           .into(db.todos)
           .insert(
             TodosCompanion.insert(
               calendarId: calId,
-              uid: 'todo-789',
               summary: 'Urgent task',
               priority: const Value(5),
               status: const Value('IN-PROCESS'),
