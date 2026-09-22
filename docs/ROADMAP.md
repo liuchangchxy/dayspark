@@ -1,14 +1,14 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.20.5+24 | 2026-05-17 | Security: remove signing keys from repo, inject via CI secrets
+> Last updated / 最后更新: v0.21.0+24 | 2026-09-22 | Phase 1 refactor: kalender views, CalDAV/MCP removal (schema v8), notification chain repair, widget data path
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.20.5+24** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
-- 核心功能：日历日程管理 + 待办清单 + CalDAV 同步 + AI 助手 + MCP 服务器
-- 最新变化：**Android 签名密钥移出仓库，改为 CI Secrets 注入** + 清理 ~8GB 本地构建缓存
-- 待完成：Windows 通知功能恢复、日期格式跟随系统 locale、集成测试
+- 当前版本 / Current: **v0.21.0+24** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）
+- 最新变化：**Phase 1 基础重构** — kalender 替换手写视图、移除 CalDAV/客户端 MCP（schema v8）、通知链修复、小组件数据通路修复
+- 待完成：Windows 通知恢复、日期格式跟随系统 locale、小组件 v2（quick-add/月视图点阵）、集成测试；下一步 P2 同步后端、P3 服务端 MCP
 
 ---
 
@@ -291,6 +291,19 @@
 | **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
 | **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
 
+### v0.21.0 | 2026-09-22 | Phase 1 Foundation Refactor / Phase 1 基础重构
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **kalender calendar views** — day/week/month views rebuilt on `kalender ^0.17.0` (pinned minor), replacing hand-rolled views; fixes DST drift, GlobalKey collisions, overlap layout, all-day series bugs. / **kalender 日历视图** — 基于 kalender 重建日/周/月视图，修复 DST/GlobalKey/重叠/全天系列 bug | [Engineering / 工程] Decision A revisited / 决策 A 重开后拍板 |
+| **Removed CalDAV sync layer + client MCP, schema v8** — accounts/sync_queue dropped, CalDAV columns removed; migration test v1→v8. / **移除 CalDAV 同步层与客户端 MCP，schema v8** | [Engineering / 工程] Replaced by P2 sync backend / P3 server MCP |
+| **Notification chain repair** — 3 Android receivers, local timezone init, snooze on `reminder.id`, cancel/reschedule wiring on complete/edit/delete/trash, exact-alarm guidance tile, notification text l10n. / **通知链修复** | [Fix / 修复] |
+| **Widget data path repair** — App Group wiring (`setAppGroupId` + macOS Runner entitlements), write-driven refresh, versioned snapshot dual-write, NULL-due sinking, subtask filtering. / **小组件数据通路修复** | [Fix / 修复] |
+| **Bug batch** — event trash sections + cascade restore, child soft-delete cascade, `restore` no-op fix (`Value.absent()`), FAB prefills browsed date, drag reschedule reminders, ICS skips soft-deleted, family providers → autoDispose, version compare `tryParse`. / **bug 批** | [Fix / 修复] |
+| **l10n cleanup** — dead keys removed, placeholders + Semantics fixed. / **l10n 清理** | [Engineering / 工程] |
+| **Settings/home slimming** — settings split into `settings_sections/*`, home initState side effects extracted (zero behavior change). / **设置页与首页瘦身** | [Engineering / 工程] |
+| **Governance baseline** — `SPEC.md` / `DECISIONS.md` / `AGENTS.md` + pre-commit `dart analyze` gate. / **治理基线** | [Engineering / 工程] |
+
 ### v0.20.1 | 2026-05-15 | Comprehensive UI Fixes / 大规模 UI 修复
 
 | Fix / 修复 | Source / 来源 |
@@ -395,7 +408,8 @@
 - Combined search results / 搜索结果合并显示
 - Tap to jump to edit page / 点击跳转编辑页
 
-### CalDAV Sync / CalDAV 同步
+### CalDAV Sync / CalDAV 同步 — Removed in v0.21.0 / 已于 v0.21.0 移除
+> Replaced by the planned self-hosted sync backend (P2: `dayspark_contracts` + push/pull/SSE). History below is archival. / 由 P2 自托管同步后端替代，以下为历史存档。
 - Multi-account management (add/delete) / 多账户管理
 - Calendar list discovery (PROPFIND) / 日历列表发现
 - Full sync + incremental sync (sync-token / ctag) / 全量同步 + 增量同步
@@ -425,11 +439,12 @@
 - AI auto-scheduling (analyze free time → recommend) / AI 自动排程
 - AI task decomposition / AI 任务分解
 
-### MCP Server
-- mcp_dart v2.1.1 + StreamableMcpServer
-- 6 tools (list_events, list_todos, create_event, create_todo, complete_todo, search) / 6 个工具
-- 2 resources (today events, pending todos) / 2 个资源
-- LAN access (0.0.0.0) / 局域网访问
+### MCP Server — Client-side removed in v0.21.0 / 客户端 MCP 已于 v0.21.0 移除
+> Rebuilt in P3 as server-side MCP (22 tools + OAuth 2.1 + stdio wrapper). History below is archival. / P3 以服务端 MCP 重建，以下为历史存档。
+- mcp_dart v2.1.1 + StreamableMcpServer (archived / 历史)
+- 6 tools (list_events, list_todos, create_event, create_todo, complete_todo, search) (archived / 历史)
+- 2 resources (today events, pending todos) (archived / 历史)
+- LAN access (0.0.0.0) (archived / 历史)
 
 ### UI/UX
 - Material 3 + CupertinoIcons (iOS style) / Material 3 + CupertinoIcons（iOS 风格）
@@ -446,13 +461,13 @@
 - Minimal shadows (BoxShadow → border) / 最小阴影（BoxShadow → border）
 
 ### Security / 安全
-- Credential SecureStorage / 凭证 SecureStorage
-- Biometric lock (Face ID / Touch ID) / 生物识别锁
-- Enforce HTTPS / 强制 HTTPS
-- Password migration from DB plaintext to SecureStorage / 密码从 DB 明文迁移到 SecureStorage
+- Credential SecureStorage (AI API key) / 凭证 SecureStorage（AI API key）
+- ~~Biometric lock (Face ID / Touch ID) / 生物识别锁~~ — removed; `local_auth` no longer a dependency / 已移除
+- ~~Enforce HTTPS / 强制 HTTPS~~ — CalDAV-era Dio interceptor removed with sync layer / 随 CalDAV 同步层移除
+- ~~Password migration from DB plaintext to SecureStorage / 密码从 DB 明文迁移~~ — accounts table dropped in schema v8 / accounts 表已随 schema v8 移除
 
 ### Data / 数据
-- 9 Drift tables + reactive queries / 9 张 Drift 表 + 响应式查询
+- 8 Drift tables + reactive queries (schema v8) / 8 张 Drift 表 + 响应式查询（schema v8）
 - ICS export + import / ICS 导出 + 导入
 - DB export + import / DB 导出 + 导入
 - Tag system (name + color, CRUD + many-to-many) / 标签系统
@@ -483,7 +498,7 @@
 | 4 | Date/time format follows system locale / 日期/时间格式跟随系统 Locale | DateFormat with locale parameter / DateFormat 用 locale 参数 |
 | 5 | macOS/Windows desktop widgets / macOS/Windows 桌面小组件 | Requires native platform development / 需原生平台开发 |
 | 6 | Cloud backup (optional) / 云备份（可选） | Users may need cross-device restore / 用户可能需要跨设备恢复 |
-| 7 | Integration tests (CalDAV end-to-end) / 集成测试 | Verify full sync flow / 验证完整同步流程 |
+| 7 | ~~Integration tests (CalDAV end-to-end) / 集成测试~~ | CalDAV removed in v0.21.0 → superseded by P2 dual-device sync matrix / CalDAV 已移除，由 P2 双设备同步矩阵替代 |
 | 8 | Real device build verification / 各平台真机构建验证 | At least Android + iOS / 至少 Android + iOS 真机跑一遍 |
 | 9 | Animation standardization / 动画规范化 | State switches use AnimatedSwitcher 0.2s ease / 状态切换统一 AnimatedSwitcher |
 
@@ -496,6 +511,15 @@
 | 12 | GitHub open-source release / GitHub 开源发布 | Public repo + README / 公开仓库 + README |
 | 13 | Platform release packages / 各平台发布包 | APK / .app / Web |
 | 14 | HarmonyOS adaptation / 鸿蒙适配 | Flutter-OH or ArkTS |
+
+### Phase Plan (v0.21.0 onward) / 阶段规划（详见 SPEC.md P1–P4 矩阵）
+
+| Phase | Scope / 范围 | Status / 状态 |
+|------|------|------|
+| P1 — Foundation / 基础 | kalender views, CalDAV/MCP removal (schema v8), notification chain, widget data path, governance docs | ✅ 完成 (v0.21.0) |
+| P2 — Sync backend / 同步后端 | `dayspark_contracts`, shelf server (auth/JWT, push/pull/SSE, LWW/idempotency/tombstone), client outbox + pull applier, Docker on NAS, dual-device e2e / 自托管同步后端 + 客户端 outbox | **Planned next / 下一步** |
+| P3 — Server MCP + CLI / 服务端 MCP | 22 tools + resources + OAuth 2.1 (DCR + PKCE), `tool/mcp_stdio_wrapper`, `tool/dayspark_cli`, MCP Inspector + 3-client CRUD / 服务端 MCP + CLI | Planned / 规划中 |
+| P4 — Platform parity / 平台补齐 | iOS bundle/App Group family + TestFlight; widget v2 (quick-add deep link, month-dot widget, l10n/dark); notification UX sweep; todo UX batch; Windows notification stub revisit / 小组件 quick-add 与月视图点阵仍在 P4 待做 | Pending / 待做 |
 
 ---
 
@@ -521,11 +545,11 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 
 | Metric / 指标 | Value / 数值 |
 |------|------|
-| Source files (lib/) / 源代码文件 | ~70 |
+| Source files (lib/) / 源代码文件 | ~75 |
 | Test files (test/) / 测试文件 | ~25 |
-| Test cases / 测试用例 | 86 (all passing / 全通过) |
+| Test cases / 测试用例 | 127 (all passing / 全通过) |
 | Analysis issues / 分析问题 | 0 |
 | i18n keys / i18n key | 113+ |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.20.5+24 |
+| Version / 版本 | v0.21.0+24 |

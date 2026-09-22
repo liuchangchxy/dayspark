@@ -5,8 +5,8 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有技术约束，按领域分组（Calendar / Database / UI / Security / Platform）
-- 核心约束：kalender 钉 0.17.x、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
-- 修改日历/DB/Provider/通知相关代码前**必须先读**对应章节
+- 核心约束：kalender 钉 0.17.x、小组件 App Group `group.com.calendarTodoApp` 双写、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
+- 修改日历/DB/Provider/通知/小组件相关代码前**必须先读**对应章节
 
 ---
 
@@ -106,10 +106,9 @@
 
 ### 基础设施服务放在 lib/infrastructure/ 而非 domain/services/
 - 平台插件调用（alarm、notification、home_widget）→ `lib/infrastructure/platform/`
-- 网络/socket 服务（mcp_server）→ `lib/infrastructure/mcp/`
 - `domain/services/` 只保留纯领域逻辑（ai_scheduler、ics）
 - **Why**: 平台 API 变化不应触及领域层；基础设施可独立替换
-- **Date**: 2026-05-14
+- **Date**: 2026-05-14 (updated 2026-09-22: CalDAV sync 与客户端 MCP 已移除)
 
 ### file_reader 属于 data 层
 - `lib/data/file_reader.dart` + `_native.dart` + `_web.dart`
@@ -134,19 +133,9 @@
 - **Why**: 签名密钥泄露可导致供应链攻击
 - **Date**: 2026-05-14 (updated 2026-05-17)
 
-### 密码只存 FlutterSecureStorage，不回退到数据库
-- 读取密码时 `storage.read()` 返回 null → 跳过该账户，不用 `?? account.password`
-- **Why**: 数据库中密码字段是明文，迁移完成后应为空，但不应依赖回退
-- **Date**: 2026-05-14
-
 ### Release 构建必须启用 R8 混淆
 - `build.gradle.kts` release buildType 必须有 `isMinifyEnabled = true`
 - **Why**: 不混淆的 APK 类名/方法名/字符串明文可读，逆向极容易
-- **Date**: 2026-05-14
-
-### 同步层禁止空 catch 块
-- `sync_service.dart` 中所有 `catch` 必须至少 `debugPrint`
-- **Why**: 空 catch 吞掉异常导致同步失败无法排查
 - **Date**: 2026-05-14
 
 ### Provider 中解析外部输入用 tryParse + fallback
@@ -154,6 +143,33 @@
 - 解析失败返回空数据而非抛异常
 - **Why**: 异常 key 会导致 Provider 级联崩溃，整个视图白屏
 - **Date**: 2026-05-14
+
+## Home Widget / 小组件
+
+### App Group 固定 `group.com.calendarTodoApp`，宿主与组件必须同组
+- iOS/macOS 宿主与 widget extension 的 entitlements `application-groups` 都必须含 `group.com.calendarTodoApp`（**macOS Runner 的 DebugProfile/Release 曾整段缺失**，沙盒宿主写不进组件读的 suite）
+- `lib/main.dart` 在 `WidgetsFlutterBinding.ensureInitialized()` 后立即 `HomeWidget.setAppGroupId('group.com.calendarTodoApp')`（仅 iOS/macOS，`!kIsWeb` 守卫），必须在任何 `saveWidgetData` 之前
+- **Why**: 不同组 = 静默写入失败，组件永远显示旧数据；改组名需同时改 5 个 entitlements + Swift/Kotlin 读取端，禁止单边改
+- **Date**: 2026-09-22
+
+### 小组件刷新是写驱动的，刷新逻辑只能挂在 tableUpdates 单点
+- `homeWidgetAutoRefreshProvider` 订阅 `db.tableUpdates`（todos + events 两表），合并去重后调 `HomeWidgetService.updateWidget`（同一时刻最多一个 in-flight，写入期间只补一次 trailing run）
+- 禁止改为逐 provider 手动调刷新：`todo_edit_page._save`、`event_edit_page._save`、`home_page` 拖拽都绕过 provider 直接 `db.update(...).write(...)`，挂 provider 会全部漏掉
+- 冷启动读不触发（`tableUpdates` 只在写时发）；冷启动刷新保留在 `home_page` initState
+- **Why**: Drift 的表更新通知是唯一能覆盖所有写入点的 choke point
+- **Date**: 2026-09-22
+
+### 小组件键双写：legacy 三键 + versioned `widget_snapshot` 同时写
+- legacy：`today_events` / `pending_todos` / `todo_count` — 现有 Kotlin/Swift 读取端只认这三个
+- versioned：`widget_snapshot`（`{version:1, generatedAt, todayEvents, pendingTodos, todoCount}`）— P4 迁移读取端的唯一契约，item 形状与 legacy 刻意一致
+- 删除/改名任何一侧前必须先迁移全部三个原生读取端（Android SharedPreferences + iOS/macOS UserDefaults suite）
+- **Why**: 单写新键会让现网组件立刻空白；单写旧键则 P4 无迁移目标
+- **Date**: 2026-09-22
+
+### pending_todos 查询：NULL 到期沉底 + 过滤子任务
+- `ORDER BY (due_date IS NULL) ASC, due_date ASC` + `parentId.isNull()`
+- **Why**: 普通 `ASC` 在 SQLite 中 NULL 排最前，组件三个槽位会被无日期/子任务占满
+- **Date**: 2026-09-22
 
 ## Linux Distribution / Linux 分发
 
@@ -240,6 +256,21 @@
 - **Why**: 防止 bug 通过未经验证的 release 直接暴露给用户；给"打磨"留一道质检关卡
 - **例外**: 不影响已有 prerelease 标记（`isPrerelease` 仍然为 true，v0.x 全部是 prerelease）
 - **Date**: 2026-05-16
+
+## Android Build / Android 构建
+
+### home_widget 必须 ≥0.9.2（钉住浮动 Android 依赖）
+- home_widget 0.9.1 的 `android/build.gradle` 用 `glance-appwidget:1.+` / `work-runtime-ktx:2.+` / `kotlinx-coroutines-android:1.+` 动态坐标，构建日漂移：`glance 1.3.0-alpha02` 要求 compileSdk 37（本项目 AGP 8.11.1 上限 36）、`work-runtime` 新版 JVM-11 字节码与插件 `jvmTarget 1.8` 内联冲突
+- 上游 0.9.2 修复（#418 pin deps）；当前 lock 为 **0.9.4**（`^0.9.1` 范围内），升级依赖时禁止回退到 0.9.1
+- **Why**: 5 月能过的 APK 构建突然失败，根因是上游浮动坐标，不在本仓库代码
+- **Date**: 2026-09-22
+
+### 本地构建 Java：Flutter 必须指向 JDK 17，不能用 Android Studio JBR 25
+- `flutter config --jdk-dir=/opt/homebrew/Cellar/openjdk@17/17.0.20.1/libexec/openjdk.jdk/Contents/Home`
+- Flutter JDK 探测顺序是 Android Studio JBR → JAVA_HOME → PATH；本机 JBR 为 **25.0.3**，与 Gradle 8.14 不兼容（Gradle 8.14 支持 ≤24），设 `JAVA_HOME` 无效
+- `android/gradle.properties` 中 `android.builtInKotlin=false` / `android.newDsl=false` 是 Flutter 3.47 migrator 自动写入，勿删
+- **Why**: 不设 jdk-dir 每次本地 APK 构建都在第一步炸，报错指向 Gradle 而非真正原因
+- **Date**: 2026-09-22
 
 ## Toolchain / 工具链
 

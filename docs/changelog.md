@@ -2,9 +2,64 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.20.5+24** — Security: remove signing keys from repo + clean 8GB build cache / 安全修复：从仓库移除签名密钥 + 清理 8GB 构建缓存
-- 最新流程改进 / Pipeline: **Keystore injected via GitHub Secrets** — 2026-05-17
+- 最新版本 / Latest: **v0.21.0+24** — Phase 1 foundation refactor: kalender views, CalDAV/MCP removal (schema v8), notification chain repair, widget data path fix / Phase 1 基础重构：kalender 日历视图、移除 CalDAV/MCP（schema v8）、通知链修复、小组件数据通路修复
+- 最新流程改进 / Pipeline: **SPEC/DECISIONS/AGENTS + pre-commit analyze gate** — 2026-09-22
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.21.0+24 — Phase 1 Foundation Refactor / Phase 1 基础重构
+
+### Breaking Changes / 不兼容变更
+
+| # | Change / 变更 |
+|---|------|
+| 1 | **DB schema v7→v8** — CalDAV sync columns (`caldav_*`, `sync_token`) and `accounts` table dropped with the sync-layer removal; automatic migration on upgrade, migration test covers v1→v8. / **数据库 schema v7→v8** — CalDAV 同步列与 accounts 表随同步层移除，升级自动迁移，迁移测试覆盖 v1→v8 |
+
+### Features / 新功能
+
+| # | Feature / 功能 |
+|---|------|
+| 1 | **kalender calendar views** — day/week/month views rebuilt on `kalender ^0.17.0` (pinned minor), replacing hand-rolled views; fixes DST wall-clock drift, GlobalKey collisions, overlapping layout, all-day series classification. / **kalender 日历视图** — 日/周/月视图基于 kalender（钉 0.17.x）重建，修复 DST 漂移、GlobalKey 冲突、重叠布局、全天系列分类问题 |
+| 2 | **Event trash bin** — soft-deleted events get their own trash section with restore / permanent delete / empty-all (parity with todos). / **事件回收站** — 事件软删除后可恢复/永久删除/清空，与待办对齐 |
+| 3 | **Android exact-alarm guidance tile** — shown in settings when exact alarm permission is missing (fallback; `USE_EXACT_ALARM` normally grants it). / **精确定时权限引导** — 权限缺失时设置页显示引导入口（兜底） |
+| 4 | **Widget data path repair** — App Group wiring (`setAppGroupId` + macOS Runner entitlements), write-driven refresh, versioned snapshot dual-write; widget reflects todo/event edits without restart. / **小组件数据通路修复** — App Group 接通、写驱动刷新、版本化快照双写，编辑后组件即时更新 |
+| 5 | **Settings/home slimming** — settings page split into `settings_sections/{appearance,import_export,ai,notifications,about}`, home page initState side effects extracted to named methods (zero behavior change). / **设置页与首页瘦身** — 设置页拆分为 sections、首页 initState 副作用抽为命名方法，零行为变更 |
+| 6 | **Governance baseline** — `SPEC.md` / `DECISIONS.md` / `AGENTS.md` as cross-tool truth sources + pre-commit `dart analyze` gate. / **治理基线** — SPEC/DECISIONS/AGENTS 真理源文档 + pre-commit analyze 卡口 |
+
+### Removals / 移除
+
+| # | Removed / 移除 | Reason / 原因 |
+|---|------|------|
+| 1 | **CalDAV sync layer** (accounts, sync queue, providers, settings UI, client sync service) / **CalDAV 同步层** | Replaced by planned self-hosted sync backend (Phase 2, contracts-first: push/pull/SSE + LWW) / 由 Phase 2 自托管同步后端替代 |
+| 2 | **Client-side MCP server** / **客户端 MCP** | Rebuilt as server-side MCP with OAuth 2.1 + 22 tools in Phase 3 / Phase 3 以服务端 MCP + OAuth 2.1 重建 |
+
+### Bug Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|------|
+| 1 | Reminders never fired on device (missing Android receivers, UTC timezone scheduling, hardcoded English notification text) / 真机提醒不响、文案硬编码 | Added 3 Android receivers (ScheduledNotification / Boot / Action), local-timezone init before `runApp`, notification text routed through l10n / 补 3 个 receiver + 本地时区初始化 + 文案接 l10n |
+| 2 | Snoozed notification could not be cancelled / 延后的通知取消不到 | Snooze schedules on `reminder.id` with payload `parentType:parentId:reminderId` (same id space as `cancel()`); legacy 2-segment payload still parsed / snooze 改用 reminder.id、payload 三段式，旧格式兼容 |
+| 3 | Completing a todo from a notification left remaining reminders firing; due-date edits and deletes didn't reschedule/cancel / 通知上完成后提醒仍响、改期/删除不重排 | Mark Complete routes through `toggleTodoProvider` (cancel chain); due-date change reschedules, cleared due date clears reminders; delete/empty-trash/hard-delete cancel first / 动作改走 toggle provider，改期重排、清空到期清提醒、删除先 cancel |
+| 4 | Restore from trash was a no-op / 回收站恢复无效 | `restoreTodoProvider` wrote `Value.absent()` (Drift skips absent columns) → explicit `Value(null)`; restore cascades to child todos / 改为显式写 null + 子任务级联恢复 |
+| 5 | Deleting a parent todo left children alive; event trash missing / 删父任务子任务残留、事件无回收站 | Soft-delete cascades to direct children; `events_dao` gains watch/restore/hardDelete/empty with FK-order child cleanup / 级联软删直接子任务；events_dao 补回收站全套（FK 顺序清子表） |
+| 6 | Soft-deleted events/todos still exported to ICS / 回收站内容仍被导出 | Export queries filter `deletedAt.isNull()` / 导出过滤软删 |
+| 7 | New-event FAB created at midnight, not the browsed date / 新建日程不落在浏览日期 | FAB prefills `viewedDateProvider` (week-view Monday anchor) / FAB 预填当前浏览日期 |
+| 8 | Dragging/resizing an event left notifications at the old time / 拖拽事件后旧提醒不挪 | `onEventChanged` reads old start from DB, calls `rescheduleRemindersProvider` after write / 落库后按新时间重排提醒 |
+| 9 | Family providers leaked instances (search, event range, tag lists) / family 泄漏 | Converted to `autoDispose.family` (static range-key contract kept) / 改 autoDispose，静态 range key 契约保留 |
+| 10 | About-page update check crashed on odd version strings / 版本比较崩溃 | `int.tryParse` with fallback → treat as no-update / tryParse 兜底，失败视为无更新 |
+| 11 | Widget showed stale/empty data (macOS host app lacked App Group entitlement, refresh write paths bypassed) / 小组件数据不更新 | macOS Runner entitlements gained `application-groups`; single `tableUpdates` choke point drives coalesced refresh; cold-start refresh kept in home initState / macOS Runner 补 App Group、tableUpdates 单点写驱动刷新 |
+| 12 | Widget todo slots showed subtasks first and NULL due dates on top; iOS legacy payload mismatch / 小组件待办排序错、iOS 解码不匹配 | NULL due dates sink, subtasks filtered, legacy payload keys aligned with iOS Swift decoder, versioned `widget_snapshot` dual-written / NULL 沉底、子任务过滤、legacy 键对齐 Swift 解码器、双写 versioned 快照 |
+| 13 | Child restore/delete asymmetry, cascade trash gaps, drag `onReorderItem` migration debt (batch from prior-version bug backlog) / 恢复删除不对称、级联回收站缺口、拖拽 API 迁移欠账 | `onReorderItem` migrated (manual `newIndex-1` removed), child cascade delete/restore symmetric / 三处 onReorderItem 迁移，级联删/恢复对称 |
+| 14 | Local APK release build broken — Java 25 incompatible with Gradle 8.14; then `home_widget 0.9.1` floating Android deps drifted (`glance-appwidget:1.+` resolved to 1.3.0-alpha02 requiring compileSdk 37 vs AGP cap 36; `work-runtime-ktx:2.+` JVM-11 bytecode vs plugin jvmTarget 1.8) / 本地 APK 构建失败——Java 25 与 Gradle 8.14 不兼容，home_widget 浮动依赖漂移 | Pointed Flutter at local JDK 17 (`flutter config --jdk-dir`); upgraded `home_widget` → **0.9.4** (upstream 0.9.2 #418 pins dep versions, within existing `^0.9.1`); kept Flutter migrator flags in `android/gradle.properties` / 指向 JDK 17、升级 home_widget 0.9.4、保留 migrator flags |
+
+### Infrastructure / 基础设施
+
+| # | Change / 变更 |
+|---|------|
+| 1 | **l10n cleanup** — dead keys removed, placeholders fixed, Semantics labels added, `flutter gen-l10n` regenerated. / **l10n 清理** — 死 key 删除、placeholder 补齐、Semantics 补充 |
+| 2 | **Toolchain baseline** — local Flutter 3.47.3 vs CI pin 3.41.7 drift documented in `docs/CONSTRAINTS.md`; setup-hooks install script. / **工具链基线** — 本地/CI 版本漂移记录入 CONSTRAINTS，setup-hooks 安装脚本 |
+| 3 | **Full verification** — `dart analyze .` 0 issues, `flutter test` 127/127, web + APK release build smoke. / **全量验证** — analyze 0、测试 127 全绿、web+APK release 构建冒烟 |
 
 ---
 
