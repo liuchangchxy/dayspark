@@ -89,6 +89,41 @@ void main() {
     expect(_errorCode(await familyRevoked.readAsString()), errUnauthorized);
   });
 
+  test(
+    'concurrent refresh with same token: one 200, one 401, single successor',
+    () async {
+      final register = await _postJson(app.handler, '/auth/register', {
+        'email': 'race@example.com',
+        'password': 'password123',
+      });
+      expect(register.statusCode, 201);
+      final registered =
+          jsonDecode(await register.readAsString()) as Map<String, dynamic>;
+      final firstRefresh = registered['refreshToken'] as String;
+
+      final responses = await Future.wait([
+        _postJson(app.handler, '/auth/refresh', {'refreshToken': firstRefresh}),
+        _postJson(app.handler, '/auth/refresh', {'refreshToken': firstRefresh}),
+      ]);
+      final statuses = responses.map((r) => r.statusCode).toList()..sort();
+      expect(statuses, [200, 401]);
+
+      final tokenHash = app.auth.hashRefreshToken(firstRefresh);
+      final original = await (app.db.select(
+        app.db.refreshTokens,
+      )..where((t) => t.tokenHash.equals(tokenHash))).getSingle();
+      final familyRows = await (app.db.select(
+        app.db.refreshTokens,
+      )..where((t) => t.familyId.equals(original.familyId))).get();
+      // The loser of the rotation race must not commit a second successor.
+      final successors = familyRows.where((r) => r.id != original.id).toList();
+      expect(successors, hasLength(1));
+      // Its fall-through executed the family-revoke replay path, so no token
+      // in the chain stays live (theft defense holds even under the race).
+      expect(familyRows.where((r) => r.revokedAt == null), isEmpty);
+    },
+  );
+
   test('login with wrong password returns 401 unauthorized', () async {
     final register = await _postJson(app.handler, '/auth/register', {
       'email': 'bob@example.com',

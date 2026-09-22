@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:shelf/shelf.dart';
 
 Response jsonResponse(int status, Map<String, Object?> body) {
@@ -27,7 +28,15 @@ class ApiException implements Exception {
 Middleware catchApiErrors() {
   return (inner) => (request) async {
     try {
-      return await inner(request);
+      final response = await inner(request);
+      // Shelf's router-miss 404 is plain text; wrap it in the envelope.
+      // Contracts has no not-found code, so errValidation is the closest
+      // existing constant (adding a 404 code would be a contracts change).
+      if (response.statusCode == 404 &&
+          !(response.headers['content-type'] ?? '').contains('json')) {
+        return jsonError(404, errValidation, 'not found');
+      }
+      return response;
     } on ApiException catch (e) {
       return jsonError(e.status, e.code, e.message);
     }

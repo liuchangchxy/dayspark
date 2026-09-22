@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -94,12 +94,7 @@ void registerAuthRoutes(
       throw ApiException(401, errUnauthorized, 'invalid refresh token');
     }
     if (row.revokedAt != null) {
-      // Replaying an already-rotated token signals theft: revoke the whole
-      // family so the legitimate successor chain dies with the stolen copy.
-      await (db.update(db.refreshTokens)
-            ..where((t) => t.familyId.equals(row.familyId)))
-          .write(RefreshTokensCompanion(revokedAt: Value(now)));
-      throw ApiException(401, errUnauthorized, 'invalid refresh token');
+      await _revokeFamilyAndReject(db, row.familyId, now);
     }
     if (row.expiresAt.isBefore(now)) {
       await (db.update(db.refreshTokens)..where((t) => t.id.equals(row.id)))
@@ -115,10 +110,24 @@ void registerAuthRoutes(
       throw ApiException(401, errUnauthorized, 'invalid refresh token');
     }
     final tokens = await db.transaction(() async {
-      await (db.update(db.refreshTokens)..where((t) => t.id.equals(row.id)))
-          .write(RefreshTokensCompanion(revokedAt: Value(now)));
+      // TOCTOU guard: revoked_at IS NULL makes this UPDATE the arbiter of the
+      // rotation race — SQLite's single writer lets exactly one concurrent
+      // refresh flip the flag, so at most one caller can commit a successor.
+      final affected =
+          await (db.update(db.refreshTokens)
+                ..where((t) => t.id.equals(row.id) & t.revokedAt.isNull()))
+              .write(RefreshTokensCompanion(revokedAt: Value(now)));
+      if (affected == 0) {
+        // Lost the race to another refresh of the same token. Report without
+        // revoking here: throwing inside the transaction would roll the
+        // family revoke back with it — the caller revokes after commit.
+        return null;
+      }
       return auth.issueTokens(row.userId, familyId: row.familyId);
     });
+    if (tokens == null) {
+      await _revokeFamilyAndReject(db, row.familyId, now);
+    }
     return jsonResponse(200, {
       'accessToken': tokens.accessToken,
       'refreshToken': tokens.refreshToken,
@@ -136,6 +145,19 @@ void registerAuthRoutes(
       });
     }),
   );
+}
+
+Future<Never> _revokeFamilyAndReject(
+  AppDatabase db,
+  String familyId,
+  DateTime now,
+) async {
+  // Reuse of a rotated token — sequential replay or lost rotation race —
+  // signals theft: revoke the whole family so the successor chain dies with
+  // the stolen copy.
+  await (db.update(db.refreshTokens)..where((t) => t.familyId.equals(familyId)))
+      .write(RefreshTokensCompanion(revokedAt: Value(now)));
+  throw ApiException(401, errUnauthorized, 'invalid refresh token');
 }
 
 Future<Map<String, dynamic>> _readJsonObject(Request request) async {
