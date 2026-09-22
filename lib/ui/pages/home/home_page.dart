@@ -16,6 +16,7 @@ import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
@@ -281,10 +282,12 @@ class _HomePageState extends ConsumerState<HomePage>
         child: FloatingActionButton(
           onPressed: () {
             if (isCalendarTab) {
-              final now = DateTime.now();
+              // Prefill with the date the calendar is showing (week view:
+              // Monday anchor) so creation lands on the browsed week, not today.
+              final viewed = ref.read(viewedDateProvider);
               context.push(
-                '/event/new?start=${now.millisecondsSinceEpoch}'
-                '&end=${now.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
+                '/event/new?start=${viewed.millisecondsSinceEpoch}'
+                '&end=${viewed.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
               );
             } else {
               context.push('/todo/new');
@@ -355,9 +358,27 @@ class _HomePageState extends ConsumerState<HomePage>
           },
           onEventChanged: (event) async {
             final db = ref.read(databaseProvider);
+            final previous = await (db.select(
+                  db.events,
+                )..where((t) => t.id.equals(event.drifId)))
+                .getSingleOrNull();
             await (db.update(db.events)
                   ..where((t) => t.id.equals(event.drifId)))
                 .write(event.toUpdateCompanion());
+            // Without this, dragged events keep notifications at the old time.
+            final oldStart = previous?.startDt;
+            if (oldStart != null && oldStart != event.start) {
+              try {
+                await ref.read(rescheduleRemindersProvider)(
+                  parentType: 'event',
+                  parentId: event.drifId,
+                  oldReferenceTime: oldStart,
+                  newReferenceTime: event.start,
+                );
+              } catch (e) {
+                debugPrint('home: rescheduleReminders error: $e');
+              }
+            }
           },
         );
       },
@@ -493,8 +514,8 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
                 SliverReorderableList(
                   itemCount: pending.length,
-                  onReorder: (oldIndex, newIndex) =>
-                      _onReorder(pending, oldIndex, newIndex),
+                  onReorderItem: (oldIndex, newIndex) =>
+                      _onReorderItem(pending, oldIndex, newIndex),
                   itemBuilder: (context, index) {
                     final t = pending[index];
                     return _reorderableTodoTile(
@@ -533,8 +554,8 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
                 SliverReorderableList(
                   itemCount: inboxTodos.length,
-                  onReorder: (oldIndex, newIndex) =>
-                      _onReorder(inboxTodos, oldIndex, newIndex),
+                  onReorderItem: (oldIndex, newIndex) =>
+                      _onReorderItem(inboxTodos, oldIndex, newIndex),
                   itemBuilder: (context, index) {
                     final t = inboxTodos[index];
                     return _reorderableTodoTile(
@@ -624,8 +645,8 @@ class _HomePageState extends ConsumerState<HomePage>
               ),
               SliverReorderableList(
                 itemCount: dateTodos.length,
-                onReorder: (oldIndex, newIndex) =>
-                    _onReorder(dateTodos, oldIndex, newIndex),
+                onReorderItem: (oldIndex, newIndex) =>
+                    _onReorderItem(dateTodos, oldIndex, newIndex),
                 itemBuilder: (context, index) {
                   final t = dateTodos[index];
                   return _reorderableTodoTile(
@@ -660,11 +681,11 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  void _onReorder(List<Todo> todos, int oldIndex, int newIndex) {
+  void _onReorderItem(List<Todo> todos, int oldIndex, int newIndex) {
     final list = [...todos];
+    // onReorderItem already reports newIndex adjusted for the removed item.
     final item = list.removeAt(oldIndex);
-    final insertAt = newIndex > oldIndex ? newIndex - 1 : newIndex;
-    list.insert(insertAt, item);
+    list.insert(newIndex, item);
     ref.read(reorderTodosProvider)(list.map((t) => t.id).toList());
   }
 
