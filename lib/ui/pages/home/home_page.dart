@@ -18,6 +18,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
+import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
@@ -330,14 +331,20 @@ class _HomePageState extends ConsumerState<HomePage>
     final rangeKey =
         '${range.start.millisecondsSinceEpoch}-${range.end.millisecondsSinceEpoch}';
     final eventsAsync = ref.watch(eventsInDateRangeProvider(rangeKey));
+    final viewed = ref.watch(viewedDateProvider);
 
     return eventsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text(l.error('$e'))),
       data: (events) {
-        final adapters = expandRecurringEvents(events, range);
+        // Visible-window expansion: month grid reaches ~6 weeks around the
+        // anchor ([-7, +34] days); ±45d covers it with margin.
+        final adapters = expandRecurringEvents(
+          events,
+          before: viewed.subtract(const Duration(days: 45)),
+          after: viewed.add(const Duration(days: 45)),
+        );
         return CalendarSection(
-          key: ValueKey(adapters.length),
           events: adapters,
           onEventTapped: (event) => context.push('/event/edit', extra: event),
           onTimeSlotTapped: (range) {

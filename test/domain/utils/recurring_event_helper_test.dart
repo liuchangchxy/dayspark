@@ -33,12 +33,11 @@ void main() {
           );
 
       final events = await testDb.select(testDb.events).get();
-      final range = DateTimeRange(
-        start: DateTime(2026, 4, 1),
-        end: DateTime(2026, 6, 1),
+      final result = expandRecurringEvents(
+        events,
+        before: DateTime(2026, 4, 1),
+        after: DateTime(2026, 6, 1),
       );
-
-      final result = expandRecurringEvents(events, range);
 
       expect(result.length, 1);
       expect(result.first.title, 'One-time event');
@@ -61,12 +60,11 @@ void main() {
           );
 
       final events = await testDb.select(testDb.events).get();
-      final range = DateTimeRange(
-        start: DateTime(2026, 4, 1),
-        end: DateTime(2026, 6, 1),
+      final result = expandRecurringEvents(
+        events,
+        before: DateTime(2026, 4, 1),
+        after: DateTime(2026, 6, 1),
       );
-
-      final result = expandRecurringEvents(events, range);
 
       expect(result.length, 5);
       // Each instance should have the same title and duration
@@ -79,7 +77,7 @@ void main() {
       }
     });
 
-    test('only returns instances within the given range', () async {
+    test('only returns instances within the given window', () async {
       final calId = await testDb
           .into(testDb.calendars)
           .insert(CalendarsCompanion.insert(name: 'Test'));
@@ -97,12 +95,11 @@ void main() {
 
       final events = await testDb.select(testDb.events).get();
       // Only look at February
-      final range = DateTimeRange(
-        start: DateTime(2026, 2, 1),
-        end: DateTime(2026, 2, 28),
+      final result = expandRecurringEvents(
+        events,
+        before: DateTime(2026, 2, 1),
+        after: DateTime(2026, 2, 28),
       );
-
-      final result = expandRecurringEvents(events, range);
 
       // Weekly from Jan 1 for 10 weeks: Jan 1,8,15,22,29, Feb 5,12,19,26, Mar 5
       // Within Feb range: Feb 5,12,19,26 = 4 instances
@@ -129,12 +126,11 @@ void main() {
           );
 
       final events = await testDb.select(testDb.events).get();
-      final range = DateTimeRange(
-        start: DateTime(2026, 4, 1),
-        end: DateTime(2026, 6, 1),
+      final result = expandRecurringEvents(
+        events,
+        before: DateTime(2026, 4, 1),
+        after: DateTime(2026, 6, 1),
       );
-
-      final result = expandRecurringEvents(events, range);
 
       // Should fall back gracefully
       expect(result.length, 1);
@@ -157,14 +153,10 @@ void main() {
           );
 
       final events = await testDb.select(testDb.events).get();
-      final range = DateTimeRange(
-        start: DateTime(2026, 4, 1),
-        end: DateTime(2026, 6, 1),
-      );
-
       final result = expandRecurringEvents(
         events,
-        range,
+        before: DateTime(2026, 4, 1),
+        after: DateTime(2026, 6, 1),
         colorForCalendar: (id) => Colors.red,
       );
 

@@ -5,43 +5,33 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有技术约束，按领域分组（Calendar / Database / UI / Security / Platform）
-- 核心约束：PageView 范围不能缩小、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
+- 核心约束：kalender 钉 0.17.x、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
 - 修改日历/DB/Provider/通知相关代码前**必须先读**对应章节
 
 ---
 
 ## Calendar / 日历
 
-### PageView 页面范围不能缩小
-- Day: `_totalDays = 20000`, `_epochDay = 10000`
-- Week: `_totalWeeks = 4000`, `_epochWeek = 2000`
-- Month: `_totalMonths = 800`, `_epochMonth = 400`
-- **Why**: 2026-05-03 的 day index = 9619 + 10000 = 19619。如果范围不够大，PageController 会 clamp 到最后一页，显示 ~2004 年的日期。
-- **Root cause**: v0.17.0 把范围从 24000 缩小到 3650/1040/240，没验证当前日期的 index 是否在范围内。
-- **Date**: 2026-05-03
+### kalender 钉 0.17.x minor
+- `pubspec.yaml` 只允许 `kalender: ^0.17.x`，禁止跨 minor 升级
+- **Why**: pre-1.0 破坏性变更落在 minor；跨 minor 必须先读上游 migration guide 并回归日历测试
+- **Date**: 2026-09-22
+
+### 重复事件只按可见窗口展开
+- `expandRecurringEvents` 用 `before/after` 窗口参数（`home_page` 传 viewedDate ±45 天），禁止回到 2000–2030 全量展开
+- **Why**: 全量展开是性能 bug；±45 天覆盖月视图 6 周网格（anchor 前 7 天、后 34 天）
+- **Date**: 2026-09-22
+
+### 重复/全天事件禁止拖拽（S1 系列损坏守卫）
+- `KalenderCalendarEvent.fromAdapter` 对 `rrule != null || isAllDay` 设 `EventInteraction.allowNone()`；`onEventChanged` 回调层再拦一次
+- **Why**: 拖单次实例会把新时间写回共享 drifId，改坏整个系列
+- **Date**: 2026-09-22
 
 ### _calendarRange 必须是静态的
 - `home_page.dart` 中的 `_calendarRange()` 返回固定的 `DateTime(2000,1,1)` 到 `DateTime(2030,12,31)`
 - 不能跟 `_calendarAnchor` 联动
 - **Why**: 动态 range 会改变 provider key → `eventsInDateRangeProvider(rangeKey)` 重新加载 → CalendarSection 被销毁重建 → 滑动状态丢失
 - **Date**: 2026-05-03
-
-### _isAnimating 防止循环反馈
-- week/day/month 视图的 `onPageChanged` 里必须检查 `if (!_isAnimating)`
-- `didUpdateWidget` 里 `animateToPage` 前后设置 `_isAnimating = true/false`
-- **Why**: 不加这个会形成 onPageChanged → setState → didUpdateWidget → animateToPage → onPageChanged 的循环
-- **Date**: 2026-05-02
-
-### 每个 PageView 页面需要独立的 ScrollController
-- 用单独的 StatefulWidget（`_DayScrollablePage` / `_ScrollablePage`）持有各自的 ScrollController
-- 不能共享一个 ScrollController
-- **Why**: PageView 多个页面共享一个 ScrollController，只有一个能 attach
-- **Date**: 2026-05-02
-
-### 月导航日期必须规范化
-- `_navigateForward` month case 用 `DateTime(year, month+1, 1)`，day 固定为 1
-- **Why**: 如果 anchorDate.day = 31，`DateTime(year, month+1, 31)` 会跳月（如 1月31日 + 1月 = 3月3日）
-- **Date**: 2026-05-02
 
 ### CalendaEventAdapter == 必须包含所有字段
 - equality 和 hashCode 必须覆盖全部 12 个字段
@@ -90,11 +80,6 @@
 - `SizedBox(child: CircularProgressIndicator(color: Theme.of(context)...))` 不能加 const
 - **Why**: Theme.of(context) 是运行时值，const 构造函数要求编译期常量
 - **Date**: 2026-05-02
-
-### 日历日期格子用 InkWell 提供触摸反馈
-- 月视图的 `_buildDayCell` 用 `Material` + `InkWell` 替代 `GestureDetector`
-- **Why**: 用户多次反馈没有触摸反馈
-- **Date**: 2026-05-03
 
 ## Architecture / 架构
 

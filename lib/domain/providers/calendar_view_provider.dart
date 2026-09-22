@@ -4,6 +4,14 @@ import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
 const _keyCalendarViewMode = 'calendar_view_mode';
 
+// Date the calendar is currently showing (day view day / week-view week start
+// / displayed month anchor). Task 4's FAB must create events on this date
+// instead of DateTime.now().
+final viewedDateProvider = StateProvider<DateTime>((ref) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day);
+});
+
 final calendarViewModeProvider =
     StateNotifierProvider<CalendarViewModeNotifier, CalendarViewMode>(
   (ref) => CalendarViewModeNotifier(),

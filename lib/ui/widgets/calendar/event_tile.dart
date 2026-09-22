@@ -26,7 +26,12 @@ class EventTile extends StatelessWidget {
         border: Border.all(color: resolvedColor, width: 2),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Column(
+      // kalender gives tiles tight, sometimes very short constraints
+      // (e.g. 1h slots, all-day bar); scale content instead of overflowing.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.topLeft,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -50,6 +55,7 @@ class EventTile extends StatelessWidget {
               maxLines: 1,
             ),
         ],
+        ),
       ),
       ),
     );

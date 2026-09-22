@@ -1,15 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:kalender/kalender.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-
+import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
+import 'package:dayspark/ui/widgets/calendar/kalender_calendar_event.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
-import 'package:dayspark/ui/widgets/calendar/views/month_calendar_view.dart';
-import 'package:dayspark/ui/widgets/calendar/views/week_calendar_view.dart';
-import 'package:dayspark/ui/widgets/calendar/views/day_calendar_view.dart';
 
 class CalendarSection extends ConsumerStatefulWidget {
   final List<CalendaEventAdapter> events;
@@ -32,17 +34,45 @@ class CalendarSection extends ConsumerStatefulWidget {
 }
 
 class _CalendarSectionState extends ConsumerState<CalendarSection> {
+  late final CalendarController _calendarController;
+  late final DefaultEventsController _eventsController;
+  late final CalendarInteraction _interaction;
+  late final TileComponents _tileComponents;
   DateTime _anchorDate = DateTime.now();
+  String _eventsSignature = '';
+  CalendarViewMode? _configMode;
+  ViewConfiguration? _viewConfiguration;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _anchorDate = DateTime(now.year, now.month, now.day);
+    _calendarController = CalendarController();
+    _eventsController = DefaultEventsController();
+    // Creation goes through tap → onTimeSlotTapped → route push, so kalender's
+    // drag-to-create gesture must stay off.
+    _interaction = CalendarInteraction(allowEventCreation: false);
+    _tileComponents = TileComponents(tileBuilder: _buildTile);
+    _calendarController.visibleDateTimeRange.addListener(_onVisibleRange);
+    _syncEvents();
   }
 
-  CalendarViewMode get _viewMode =>
-      ref.watch(calendarViewModeProvider);
+  @override
+  void didUpdateWidget(covariant CalendarSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncEvents();
+  }
+
+  @override
+  void dispose() {
+    _calendarController.visibleDateTimeRange.removeListener(_onVisibleRange);
+    _calendarController.dispose();
+    _eventsController.dispose();
+    super.dispose();
+  }
+
+  CalendarViewMode get _viewMode => ref.watch(calendarViewModeProvider);
 
   bool get _isViewingToday {
     final now = DateTime.now();
@@ -58,6 +88,66 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
       case CalendarViewMode.month:
         return _anchorDate.year == now.year && _anchorDate.month == now.month;
     }
+  }
+
+  void _syncEvents() {
+    final events = widget.events.map(KalenderCalendarEvent.fromAdapter).toList();
+    final signature = events
+        .map(
+          (e) =>
+              '${e.id}|${e.start.microsecondsSinceEpoch}|${e.end.microsecondsSinceEpoch}',
+        )
+        .join(',');
+    if (signature == _eventsSignature) return;
+    _eventsSignature = signature;
+    _eventsController
+      ..clearEvents()
+      ..addEvents(events);
+  }
+
+  DateTime _anchorFromRange(DateTimeRange range, CalendarViewMode mode) {
+    switch (mode) {
+      case CalendarViewMode.month:
+        // The month grid starts up to 6 days before the displayed month;
+        // +7d always lands inside that month.
+        final d = range.start.add(const Duration(days: 7));
+        return DateTime(d.year, d.month, d.day);
+      case CalendarViewMode.day:
+      case CalendarViewMode.week:
+        final s = range.start;
+        return DateTime(s.year, s.month, s.day);
+    }
+  }
+
+  void _onVisibleRange() {
+    final range = _calendarController.visibleDateTimeRange.value;
+    if (range == null) return;
+    _applyVisibleRange(range);
+  }
+
+  void _applyVisibleRange(DateTimeRange range) {
+    final mode = ref.read(calendarViewModeProvider);
+    final anchor = _anchorFromRange(range, mode);
+    void apply() {
+      if (!mounted || anchor == _anchorDate) return;
+      setState(() => _anchorDate = anchor);
+      widget.onAnchorChanged?.call(anchor);
+      ref.read(viewedDateProvider.notifier).state = anchor;
+    }
+
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => apply());
+    } else {
+      apply();
+    }
+  }
+
+  void _setAnchor(DateTime anchor) {
+    if (anchor == _anchorDate) return;
+    setState(() => _anchorDate = anchor);
+    widget.onAnchorChanged?.call(anchor);
+    ref.read(viewedDateProvider.notifier).state = anchor;
   }
 
   String _formatDayHeader() {
@@ -89,55 +179,89 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
     );
     if (picked != null) {
       final d = DateTime(picked.year, picked.month, picked.day);
-      setState(() => _anchorDate = d);
+      _calendarController.jumpToDate(d);
+      _setAnchor(d);
     }
   }
 
   void _goToToday() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    setState(() => _anchorDate = today);
+    _calendarController.jumpToDate(today);
+    _setAnchor(today);
   }
 
   void _navigateBack() {
-    setState(() {
-      switch (_viewMode) {
-        case CalendarViewMode.day:
-          _anchorDate = _anchorDate.subtract(const Duration(days: 1));
-        case CalendarViewMode.week:
-          _anchorDate = _anchorDate.subtract(const Duration(days: 7));
-        case CalendarViewMode.month:
-          _anchorDate = DateTime(_anchorDate.year, _anchorDate.month - 1, 1);
-      }
-    });
+    unawaited(_calendarController.animateToPreviousPage());
   }
 
   void _navigateForward() {
-    setState(() {
-      switch (_viewMode) {
-        case CalendarViewMode.day:
-          _anchorDate = _anchorDate.add(const Duration(days: 1));
-        case CalendarViewMode.week:
-          _anchorDate = _anchorDate.add(const Duration(days: 7));
-        case CalendarViewMode.month:
-          _anchorDate = DateTime(_anchorDate.year, _anchorDate.month + 1, 1);
-      }
-    });
+    unawaited(_calendarController.animateToNextPage());
   }
 
-  void _handleTap(DateTime datetime) {
-    if (widget.onTimeSlotTapped == null) return;
-    widget.onTimeSlotTapped!(
+  void _handleTapDetail(TapDetail details) {
+    final DateTime start;
+    if (details is DayDetail) {
+      start = details.date;
+    } else if (details is MultiDayDetail) {
+      start = details.dateTimeRange.start;
+    } else {
+      return;
+    }
+    widget.onTimeSlotTapped?.call(
       DateTimeRange(
-        start: datetime,
-        end: datetime.add(const Duration(hours: 1)),
+        start: start,
+        end: start.add(const Duration(hours: 1)),
       ),
     );
   }
 
-  void _onPageChanged(DateTime newAnchor) {
-    setState(() => _anchorDate = newAnchor);
-    widget.onAnchorChanged?.call(newAnchor);
+  Widget _buildTile(CalendarEvent event, DateTimeRange tileRange) {
+    if (event is KalenderCalendarEvent) {
+      return EventTile(
+        event: event.adapter,
+        onTap: () => widget.onEventTapped?.call(event.adapter),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  CalendarCallbacks _buildCallbacks() {
+    return CalendarCallbacks(
+      onEventChanged: (event, updatedEvent) {
+        if (event is! KalenderCalendarEvent) return;
+        final adapter = event.adapter;
+        // S1 guard: never persist drags onto recurring/all-day events.
+        if (adapter.rrule != null || adapter.isAllDay) return;
+        widget.onEventChanged?.call(
+          adapter.copyWithData(
+            start: updatedEvent.dateTimeRange.start.toLocal(),
+            end: updatedEvent.dateTimeRange.end.toLocal(),
+          ),
+        );
+      },
+      onPageChanged: _applyVisibleRange,
+      onTappedWithDetail: _handleTapDetail,
+    );
+  }
+
+  ViewConfiguration _resolveViewConfiguration() {
+    final mode = _viewMode;
+    if (_viewConfiguration == null || _configMode != mode) {
+      _configMode = mode;
+      _viewConfiguration = switch (mode) {
+        CalendarViewMode.day => MultiDayViewConfiguration.singleDay(
+            initialDateTime: _anchorDate,
+          ),
+        CalendarViewMode.week => MultiDayViewConfiguration.week(
+            initialDateTime: _anchorDate,
+          ),
+        CalendarViewMode.month => MonthViewConfiguration.singleMonth(
+            initialDateTime: _anchorDate,
+          ),
+      };
+    }
+    return _viewConfiguration!;
   }
 
   @override
@@ -256,42 +380,28 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
           ),
         ),
         Expanded(
-          child: switch (_viewMode) {
-            CalendarViewMode.month => MonthCalendarView(
-              anchorDate: _anchorDate,
-              events: widget.events,
-              onEventTapped: widget.onEventTapped,
-              onTimeSlotTapped: (date) => _handleTap(date),
-              onPageChanged: _onPageChanged,
+          child: CalendarView(
+            eventsController: _eventsController,
+            calendarController: _calendarController,
+            viewConfiguration: _resolveViewConfiguration(),
+            callbacks: _buildCallbacks(),
+            header: CalendarHeader(
+              callbacks: _buildCallbacks(),
+              interaction: _interaction,
+              multiDayTileComponents: _tileComponents,
             ),
-            CalendarViewMode.week => WeekCalendarView(
-              anchorDate: _anchorDate,
-              events: widget.events,
-              onEventTapped: widget.onEventTapped,
-              onTimeSlotTapped: (datetime) => _handleTap(datetime),
-              onPageChanged: _onPageChanged,
-              onEventChanged: (event, newStart) =>
-                  _handleEventDrag(event, newStart),
+            body: CalendarBody(
+              callbacks: _buildCallbacks(),
+              interaction: _interaction,
+              multiDayTileComponents: _tileComponents,
+              monthTileComponents: _tileComponents,
+              multiDayBodyConfiguration: MultiDayBodyConfiguration(
+                eventLayoutStrategy: sideBySideLayoutStrategy,
+              ),
             ),
-            CalendarViewMode.day => DayCalendarView(
-              anchorDate: _anchorDate,
-              events: widget.events,
-              onEventTapped: widget.onEventTapped,
-              onTimeSlotTapped: (datetime) => _handleTap(datetime),
-              onPageChanged: _onPageChanged,
-              onEventChanged: (event, newStart) =>
-                  _handleEventDrag(event, newStart),
-            ),
-          },
+          ),
         ),
       ],
     );
-  }
-
-  void _handleEventDrag(CalendaEventAdapter event, DateTime newStart) {
-    widget.onEventChanged?.call(event.copyWithData(
-      start: newStart,
-      end: newStart.add(event.end.difference(event.start)),
-    ));
   }
 }

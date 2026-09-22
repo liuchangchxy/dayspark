@@ -6,11 +6,12 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 /// Expands a list of Drift [Event] records into [CalendaEventAdapter] instances.
 ///
 /// Events without an RRULE produce a single adapter. Events with an RRULE
-/// are expanded into virtual instances within [range], each sharing the
-/// same [drifId] but with shifted [DateTimeRange]s.
+/// are expanded into virtual instances inside the [before, after] visible
+/// window, each sharing the same [drifId] but with shifted [DateTimeRange]s.
 List<CalendaEventAdapter> expandRecurringEvents(
-  List<Event> events,
-  DateTimeRange range, {
+  List<Event> events, {
+  required DateTime before,
+  required DateTime after,
   Color? Function(int calendarId)? colorForCalendar,
 }) {
   final result = <CalendaEventAdapter>[];
@@ -23,7 +24,7 @@ List<CalendaEventAdapter> expandRecurringEvents(
       continue;
     }
 
-    // Parse the RRULE and generate instances within range.
+    // Parse the RRULE and generate instances within the visible window only.
     try {
       final rrule = RecurrenceRule.fromString(event.rrule!);
       final duration = event.endDt.difference(event.startDt);
@@ -31,23 +32,23 @@ List<CalendaEventAdapter> expandRecurringEvents(
         start: event.startDt.copyWith(isUtc: true),
       );
 
-      final rangeStartUtc = DateTime.utc(
-        range.start.year,
-        range.start.month,
-        range.start.day,
+      final windowStartUtc = DateTime.utc(
+        before.year,
+        before.month,
+        before.day,
       );
-      final rangeEndUtc = DateTime.utc(
-        range.end.year,
-        range.end.month,
-        range.end.day,
+      final windowEndUtc = DateTime.utc(
+        after.year,
+        after.month,
+        after.day,
         23,
         59,
         59,
       );
 
       for (final instance in instances) {
-        if (instance.isAfter(rangeEndUtc)) break;
-        if (instance.isBefore(rangeStartUtc)) continue;
+        if (instance.isAfter(windowEndUtc)) break;
+        if (instance.isBefore(windowStartUtc)) continue;
 
         result.add(
           CalendaEventAdapter(

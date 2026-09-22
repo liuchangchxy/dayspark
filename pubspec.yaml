@@ -67,6 +67,8 @@ dependencies:
 
   # Alarm
   alarm: ^5.1.5
+  # pinned minor: pre-1.0 breaking changes land in minors — do not cross minor without reading migration guide
+  kalender: ^0.17.0
 
 dev_dependencies:
   flutter_test:
