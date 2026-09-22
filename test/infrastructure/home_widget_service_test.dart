@@ -198,16 +198,29 @@ void main() {
           jsonDecode(HomeWidgetService.encodeTodayEvents(events))
               as List<dynamic>;
       expect(eventsJson, hasLength(1));
-      expect((eventsJson.first as Map)['summary'], 'Standup');
-      expect((eventsJson.first as Map)['start'], '09:30');
-      expect((eventsJson.first as Map)['isAllDay'], isA<bool>());
+      final legacyEvent = (eventsJson.first as Map).cast<String, dynamic>();
+      expect(legacyEvent.keys.toSet(), {'summary', 'start', 'isAllDay'});
+      expect(legacyEvent['summary'], 'Standup');
+      expect(legacyEvent['start'], '09:30');
+      // iOS casts today_events as [[String: String]] — every value must be
+      // a String or the whole array cast fails and the widget renders empty.
+      expect(legacyEvent['isAllDay'], isA<String>());
+      expect(legacyEvent['isAllDay'], 'false');
+      for (final item in eventsJson.cast<Map<String, dynamic>>()) {
+        expect(item.values.every((v) => v is String), isTrue);
+      }
 
       final todosJson =
           jsonDecode(HomeWidgetService.encodePendingTodos(todos))
               as List<dynamic>;
       expect(todosJson, hasLength(1));
-      expect((todosJson.first as Map)['summary'], 'Legacy todo');
-      expect((todosJson.first as Map)['dueDate'], '9/30');
+      final legacyTodo = (todosJson.first as Map).cast<String, dynamic>();
+      expect(legacyTodo.keys.toSet(), {'summary', 'dueDate'});
+      expect(legacyTodo['summary'], 'Legacy todo');
+      expect(legacyTodo['dueDate'], '9/30');
+      for (final item in todosJson.cast<Map<String, dynamic>>()) {
+        expect(item.values.every((v) => v is String), isTrue);
+      }
     });
   });
 }

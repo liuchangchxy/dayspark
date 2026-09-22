@@ -101,10 +101,10 @@ class HomeWidgetService {
   }
 
   static String encodeTodayEvents(List<Event> events) =>
-      jsonEncode(events.map(eventItem).toList());
+      jsonEncode(events.map(legacyEventItem).toList());
 
   static String encodePendingTodos(List<Todo> todos) =>
-      jsonEncode(todos.map(todoItem).toList());
+      jsonEncode(todos.map(legacyTodoItem).toList());
 
   static Map<String, Object?> eventItem(Event e) => {
         'summary': e.summary,
@@ -114,6 +114,25 @@ class HomeWidgetService {
       };
 
   static Map<String, Object?> todoItem(Todo t) => {
+        'summary': t.summary,
+        'dueDate':
+            t.dueDate != null ? '${t.dueDate!.month}/${t.dueDate!.day}' : '',
+      };
+
+  // Legacy payloads must be [[String: String]]: iOS CalendarTodoWidget.swift
+  // casts today_events/pending_todos with `as? [[String: String]]`, and one
+  // non-string value (the bool isAllDay) fails the whole array cast, leaving
+  // the widget empty. macOS Swift reads isAllDay as `as? Bool` — it cannot
+  // coexist with the iOS all-string contract, so legacy degrades macOS to
+  // "All Day" labels until P4 retargets the Swift readers at widget_snapshot.
+  static Map<String, String> legacyEventItem(Event e) => {
+        'summary': e.summary,
+        'start':
+            '${e.startDt.hour.toString().padLeft(2, '0')}:${e.startDt.minute.toString().padLeft(2, '0')}',
+        'isAllDay': '${e.isAllDay}',
+      };
+
+  static Map<String, String> legacyTodoItem(Todo t) => {
         'summary': t.summary,
         'dueDate':
             t.dueDate != null ? '${t.dueDate!.month}/${t.dueDate!.day}' : '',
