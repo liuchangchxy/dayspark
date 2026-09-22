@@ -31,7 +31,6 @@ jobs:
           channel: "stable"
           cache: true
       - name: Setup Android signing
-        if: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > android/app/release-keystore.jks
           cat > android/app/key.properties << EOF
