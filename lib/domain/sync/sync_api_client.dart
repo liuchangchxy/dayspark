@@ -126,10 +126,34 @@ abstract class SyncApiClient {
   Stream<int> openCursorStream();
 }
 
+class AuthSession {
+  const AuthSession({
+    required this.userId,
+    required this.accessToken,
+    required this.refreshToken,
+  });
+
+  final String userId;
+  final String accessToken;
+  final String refreshToken;
+}
+
+/// Credential endpoints (T6 UI codes against this so tests fake auth
+/// without dio). Both server responses carry the full token pair —
+/// register issues tokens itself, so a successful register is logged in.
+abstract class AuthApi {
+  Future<AuthSession> login({required String email, required String password});
+
+  Future<AuthSession> register({
+    required String email,
+    required String password,
+  });
+}
+
 /// Bearer-token auth with single-flight refresh: on 401 the original
 /// request is retried exactly once after POST /auth/refresh rotates the
 /// token pair (T2 contract).
-class AuthSyncApiClient implements SyncApiClient {
+class AuthSyncApiClient implements SyncApiClient, AuthApi {
   AuthSyncApiClient({required this.transport, required this.tokens});
 
   final SyncTransport transport;
@@ -219,6 +243,63 @@ class AuthSyncApiClient implements SyncApiClient {
   T _decode<T>(SyncHttpResponse response, T Function(Map<String, dynamic>) parse) {
     if (response.statusCode != 200) throw _toException(response);
     return parse(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  @override
+  Future<AuthSession> login({
+    required String email,
+    required String password,
+  }) =>
+      _authCall(
+        path: '/auth/login',
+        email: email,
+        password: password,
+        okStatuses: const [200],
+      );
+
+  @override
+  Future<AuthSession> register({
+    required String email,
+    required String password,
+  }) =>
+      _authCall(
+        path: '/auth/register',
+        email: email,
+        password: password,
+        okStatuses: const [200, 201],
+      );
+
+  Future<AuthSession> _authCall({
+    required String path,
+    required String email,
+    required String password,
+    required List<int> okStatuses,
+  }) async {
+    final response = await transport.send(
+      method: 'POST',
+      path: path,
+      headers: {'content-type': 'application/json'},
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+    if (!okStatuses.contains(response.statusCode)) {
+      throw _toException(response);
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final userId = json['userId'];
+    final access = json['accessToken'];
+    final refresh = json['refreshToken'];
+    if (userId is! String || access is! String || refresh is! String) {
+      throw SyncApiException(
+        response.statusCode,
+        'validation',
+        'malformed auth response',
+      );
+    }
+    return AuthSession(
+      userId: userId,
+      accessToken: access,
+      refreshToken: refresh,
+    );
   }
 
   @override

@@ -224,5 +224,44 @@
   "tagWith": "标签：{name}",
   "openEventDetails": "打开日程详情",
   "previousPeriod": "上一页",
-  "nextPeriod": "下一页"
+  "nextPeriod": "下一页",
+  "account": "账号",
+  "serverUrl": "服务器地址",
+  "serverUrlInvalid": "请输入有效的 http(s) 地址",
+  "email": "邮箱",
+  "emailInvalid": "请输入有效的邮箱",
+  "password": "密码",
+  "passwordRequired": "请输入密码",
+  "passwordTooShort": "密码至少 8 位",
+  "login": "登录",
+  "register": "注册",
+  "logout": "退出登录",
+  "emailAlreadyRegistered": "该邮箱已注册",
+  "invalidCredentials": "邮箱或密码错误",
+  "authFailed": "登录失败，请检查服务器地址后重试",
+  "syncNow": "立即同步",
+  "syncTooltip": "同步",
+  "syncing": "同步中…",
+  "syncPulling": "拉取中…",
+  "syncPhaseIdle": "空闲",
+  "syncPhaseError": "同步错误",
+  "lastSync": "上次同步：{time}",
+  "@lastSync": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "justNow": "刚刚",
+  "minutesAgo": "{minutes} 分钟前",
+  "@minutesAgo": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "hoursAgo": "{hours} 小时前",
+  "@hoursAgo": {
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  }
 }

@@ -1,0 +1,221 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:dayspark/domain/providers/account_provider.dart';
+import 'package:dayspark/domain/providers/feature_flags_provider.dart';
+import 'package:dayspark/domain/providers/sync_client_provider.dart';
+import 'package:dayspark/domain/sync/sync_api_client.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/pages/settings/settings_sections/account_section.dart';
+
+import '../../../domain/sync/sync_test_support.dart';
+
+class _FakeAuthApi implements AuthApi {
+  _FakeAuthApi({this.session, this.error});
+
+  AuthSession? session;
+  Object? error;
+  var loginCalls = 0;
+  var registerCalls = 0;
+  final List<String> emails = [];
+
+  @override
+  Future<AuthSession> login({
+    required String email,
+    required String password,
+  }) async {
+    loginCalls++;
+    emails.add(email);
+    if (error != null) throw error!;
+    return session!;
+  }
+
+  @override
+  Future<AuthSession> register({
+    required String email,
+    required String password,
+  }) async {
+    registerCalls++;
+    emails.add(email);
+    if (error != null) throw error!;
+    return session!;
+  }
+}
+
+AuthSession _session() => const AuthSession(
+  userId: 'user-1',
+  accessToken: 'access-1',
+  refreshToken: 'refresh-1',
+);
+
+Future<void> _pumpSection(WidgetTester tester) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [syncTokenStoreProvider.overrideWithValue(MemoryTokenStore())],
+      child: const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: Locale('en'),
+        home: Scaffold(body: SingleChildScrollView(child: AccountSection())),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets(
+    'logged-out state renders server URL, email, password and both actions',
+    (tester) async {
+      await _pumpSection(tester);
+
+      expect(find.text('Account'), findsOneWidget);
+      expect(find.text('Server URL'), findsOneWidget);
+      expect(find.text('Email'), findsOneWidget);
+      expect(find.text('Password'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Login'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Register'), findsOneWidget);
+      expect(find.byIcon(CupertinoIcons.person_crop_circle), findsNothing);
+    },
+  );
+
+  test('login success persists config, flips sync flag ON, restarts engine',
+      () async {
+    final tokens = MemoryTokenStore();
+    final fake = _FakeAuthApi(session: _session());
+    var engineBuilds = 0;
+    final container = ProviderContainer(
+      overrides: [
+        syncTokenStoreProvider.overrideWithValue(tokens),
+        accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
+        syncEngineProvider.overrideWith((ref) {
+          engineBuilds++;
+          return null;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(accountAuthProvider.future);
+    await container
+        .read(accountAuthProvider.notifier)
+        .login(
+          serverUrl: 'https://sync.example.com/',
+          email: ' user@example.com ',
+          password: 'secret123',
+        );
+
+    final state = container.read(accountAuthProvider).valueOrNull!;
+    expect(state.error, isNull);
+    expect(state.email, 'user@example.com');
+    expect(fake.loginCalls, 1);
+    expect(fake.emails, ['user@example.com']);
+    expect(tokens.refresh, 'refresh-1');
+
+    final settings = await container.read(syncSettingsProvider.future);
+    expect(settings.baseUrl, 'https://sync.example.com',
+        reason: 'trailing slash trimmed');
+
+    final flags = await container.read(featureFlagsProvider.future);
+    expect(flags.isEnabled(FeatureFlag.sync), isTrue);
+
+    expect(engineBuilds, greaterThan(0),
+        reason: 'engine provider invalidated to restart with new config');
+  });
+
+  test('logout clears tokens, flips sync flag OFF, resets account state',
+      () async {
+    final tokens = MemoryTokenStore(
+      access: 'access-1',
+      refresh: 'refresh-1',
+    );
+    SharedPreferences.setMockInitialValues({'account_email': 'a@b.co'});
+    final fake = _FakeAuthApi(session: _session());
+    final container = ProviderContainer(
+      overrides: [
+        syncTokenStoreProvider.overrideWithValue(tokens),
+        accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final before = await container.read(accountAuthProvider.future);
+    expect(before.email, 'a@b.co');
+
+    await container.read(accountAuthProvider.notifier).logout();
+
+    final state = container.read(accountAuthProvider).valueOrNull!;
+    expect(state.email, isNull);
+    expect(state.busy, isFalse);
+    expect(tokens.refresh, isNull);
+    expect(tokens.access, isNull);
+
+    final flags = await container.read(featureFlagsProvider.future);
+    expect(flags.isEnabled(FeatureFlag.sync), isFalse);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('account_email'), isNull);
+  });
+
+  test('non-http server URL is rejected locally without calling the API',
+      () async {
+    final fake = _FakeAuthApi(session: _session());
+    final container = ProviderContainer(
+      overrides: [
+        syncTokenStoreProvider.overrideWithValue(MemoryTokenStore()),
+        accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(accountAuthProvider.future);
+    await container
+        .read(accountAuthProvider.notifier)
+        .login(
+          serverUrl: 'ftp://sync.example.com',
+          email: 'user@example.com',
+          password: 'secret123',
+        );
+
+    final state = container.read(accountAuthProvider).valueOrNull!;
+    expect(state.error, AccountAuthError.invalidUrl);
+    expect(fake.loginCalls, 0);
+
+    final flags = await container.read(featureFlagsProvider.future);
+    expect(flags.isEnabled(FeatureFlag.sync), isFalse);
+  });
+
+  test('register 409 maps to emailAlreadyRegistered', () async {
+    final fake = _FakeAuthApi(
+      error: SyncApiException(409, 'conflict', 'email already registered'),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        syncTokenStoreProvider.overrideWithValue(MemoryTokenStore()),
+        accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(accountAuthProvider.future);
+    await container
+        .read(accountAuthProvider.notifier)
+        .register(
+          serverUrl: 'https://sync.example.com',
+          email: 'user@example.com',
+          password: 'secret123',
+        );
+
+    final state = container.read(accountAuthProvider).valueOrNull!;
+    expect(state.error, AccountAuthError.emailExists);
+    expect(state.email, isNull);
+    expect(fake.registerCalls, 1);
+  });
+}

@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'settings_sections/about_section.dart';
+import 'settings_sections/account_section.dart';
 import 'settings_sections/ai_section.dart';
 import 'settings_sections/appearance_section.dart';
 import 'settings_sections/import_export_section.dart';
@@ -55,6 +56,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           const AppearanceSection(),
           const Divider(),
           const ImportExportSection(),
+          const Divider(),
+          const AccountSection(),
           const Divider(),
           const AiSection(),
           const NotificationsSection(),

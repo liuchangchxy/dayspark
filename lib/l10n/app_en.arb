@@ -300,5 +300,44 @@
   },
   "openEventDetails": "Open event details",
   "previousPeriod": "Previous",
-  "nextPeriod": "Next"
+  "nextPeriod": "Next",
+  "account": "Account",
+  "serverUrl": "Server URL",
+  "serverUrlInvalid": "Please enter a valid http(s) URL",
+  "email": "Email",
+  "emailInvalid": "Please enter a valid email",
+  "password": "Password",
+  "passwordRequired": "Please enter a password",
+  "passwordTooShort": "Password must be at least 8 characters",
+  "login": "Login",
+  "register": "Register",
+  "logout": "Logout",
+  "emailAlreadyRegistered": "Email already registered",
+  "invalidCredentials": "Invalid email or password",
+  "authFailed": "Sign-in failed. Check the server address and try again.",
+  "syncNow": "Sync now",
+  "syncTooltip": "Sync",
+  "syncing": "Syncing...",
+  "syncPulling": "Pulling...",
+  "syncPhaseIdle": "Idle",
+  "syncPhaseError": "Sync error",
+  "lastSync": "Last sync: {time}",
+  "@lastSync": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "justNow": "just now",
+  "minutesAgo": "{minutes}m ago",
+  "@minutesAgo": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "hoursAgo": "{hours}h ago",
+  "@hoursAgo": {
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  }
 }

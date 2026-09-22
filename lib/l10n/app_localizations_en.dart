@@ -644,4 +644,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nextPeriod => 'Next';
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get serverUrl => 'Server URL';
+
+  @override
+  String get serverUrlInvalid => 'Please enter a valid http(s) URL';
+
+  @override
+  String get email => 'Email';
+
+  @override
+  String get emailInvalid => 'Please enter a valid email';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get passwordRequired => 'Please enter a password';
+
+  @override
+  String get passwordTooShort => 'Password must be at least 8 characters';
+
+  @override
+  String get login => 'Login';
+
+  @override
+  String get register => 'Register';
+
+  @override
+  String get logout => 'Logout';
+
+  @override
+  String get emailAlreadyRegistered => 'Email already registered';
+
+  @override
+  String get invalidCredentials => 'Invalid email or password';
+
+  @override
+  String get authFailed => 'Sign-in failed. Check the server address and try again.';
+
+  @override
+  String get syncNow => 'Sync now';
+
+  @override
+  String get syncTooltip => 'Sync';
+
+  @override
+  String get syncing => 'Syncing...';
+
+  @override
+  String get syncPulling => 'Pulling...';
+
+  @override
+  String get syncPhaseIdle => 'Idle';
+
+  @override
+  String get syncPhaseError => 'Sync error';
+
+  @override
+  String lastSync(String time) {
+    return 'Last sync: $time';
+  }
+
+  @override
+  String get justNow => 'just now';
+
+  @override
+  String minutesAgo(int minutes) {
+    return '${minutes}m ago';
+  }
+
+  @override
+  String hoursAgo(int hours) {
+    return '${hours}h ago';
+  }
 }

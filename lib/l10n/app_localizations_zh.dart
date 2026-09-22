@@ -644,4 +644,82 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get nextPeriod => '下一页';
+
+  @override
+  String get account => '账号';
+
+  @override
+  String get serverUrl => '服务器地址';
+
+  @override
+  String get serverUrlInvalid => '请输入有效的 http(s) 地址';
+
+  @override
+  String get email => '邮箱';
+
+  @override
+  String get emailInvalid => '请输入有效的邮箱';
+
+  @override
+  String get password => '密码';
+
+  @override
+  String get passwordRequired => '请输入密码';
+
+  @override
+  String get passwordTooShort => '密码至少 8 位';
+
+  @override
+  String get login => '登录';
+
+  @override
+  String get register => '注册';
+
+  @override
+  String get logout => '退出登录';
+
+  @override
+  String get emailAlreadyRegistered => '该邮箱已注册';
+
+  @override
+  String get invalidCredentials => '邮箱或密码错误';
+
+  @override
+  String get authFailed => '登录失败，请检查服务器地址后重试';
+
+  @override
+  String get syncNow => '立即同步';
+
+  @override
+  String get syncTooltip => '同步';
+
+  @override
+  String get syncing => '同步中…';
+
+  @override
+  String get syncPulling => '拉取中…';
+
+  @override
+  String get syncPhaseIdle => '空闲';
+
+  @override
+  String get syncPhaseError => '同步错误';
+
+  @override
+  String lastSync(String time) {
+    return '上次同步：$time';
+  }
+
+  @override
+  String get justNow => '刚刚';
+
+  @override
+  String minutesAgo(int minutes) {
+    return '$minutes 分钟前';
+  }
+
+  @override
+  String hoursAgo(int hours) {
+    return '$hours 小时前';
+  }
 }
