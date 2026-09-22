@@ -57,6 +57,7 @@ class _AboutPageState extends State<AboutPage> {
         });
       }
     } catch (e) {
+      debugPrint('about: checkUpdate error: $e');
       if (mounted) {
         setState(() {
           _error = _friendlyError(e);

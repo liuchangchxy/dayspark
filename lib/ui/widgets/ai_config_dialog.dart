@@ -113,6 +113,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
         });
       }
     } catch (e) {
+      debugPrint('ai_config: detectModels error: $e');
       if (mounted) {
         setState(() {
           _detectError = e.toString();

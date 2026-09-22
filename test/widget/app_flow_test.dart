@@ -6,10 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/pages/about/about_page.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/event/event_create_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_create_page.dart';
+import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
 GoRouter _createRouter() => GoRouter(
   initialLocation: '/',
@@ -24,6 +27,9 @@ GoRouter _createRouter() => GoRouter(
       ),
     ),
     GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+    GoRoute(path: '/about', builder: (_, __) => const AboutPage()),
+    GoRoute(path: '/trash', builder: (_, __) => const TrashPage()),
+    GoRoute(path: '/todo/new', builder: (_, __) => const TodoCreatePage()),
   ],
 );
 
@@ -139,5 +145,42 @@ void main() {
     await _settle(tester);
 
     expect(find.byType(TextField), findsWidgets);
+  });
+
+  testWidgets('about page renders', (tester) async {
+    await tester.pumpWidget(_createTestApp());
+    await _settle(tester);
+
+    final router = GoRouter.of(tester.element(find.byType(HomePage)));
+    router.go('/about');
+    await _settle(tester);
+
+    expect(find.byType(AboutPage), findsOneWidget);
+    expect(find.text('About'), findsOneWidget);
+  });
+
+  testWidgets('trash page renders', (tester) async {
+    await tester.pumpWidget(_createTestApp());
+    await _settle(tester);
+
+    final router = GoRouter.of(tester.element(find.byType(HomePage)));
+    router.go('/trash');
+    await _settle(tester);
+
+    expect(find.byType(TrashPage), findsOneWidget);
+    expect(find.text('Trash'), findsOneWidget);
+  });
+
+  testWidgets('todo create page renders', (tester) async {
+    await tester.pumpWidget(_createTestApp());
+    await _settle(tester);
+
+    final router = GoRouter.of(tester.element(find.byType(HomePage)));
+    router.go('/todo/new');
+    await _settle(tester);
+
+    expect(find.byType(TodoCreatePage), findsOneWidget);
+    expect(find.text('New Todo'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
   });
 }

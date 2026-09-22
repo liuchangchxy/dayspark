@@ -724,11 +724,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String reminderLabel(int minutes) {
-    if (minutes == 0) return noReminder;
-    if (minutes < 60) return '$minutes分钟前';
-    if (minutes == 60) return '1小时前';
-    if (minutes == 120) return '2小时前';
-    return '24小时前';
+    return '$minutes分钟前';
   }
 
   @override
@@ -746,4 +742,20 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get gitHub => 'GitHub';
+
+  @override
+  String get syncTooltip => '同步';
+
+  @override
+  String get justNow => '刚刚';
+
+  @override
+  String minutesAgo(int minutes) {
+    return '$minutes分钟前';
+  }
+
+  @override
+  String hoursAgo(int hours) {
+    return '$hours小时前';
+  }
 }

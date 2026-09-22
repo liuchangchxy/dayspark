@@ -338,6 +338,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ),
       );
     } catch (e) {
+      debugPrint('ai_chat: scheduleTask error: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -406,6 +407,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                         );
                       }
                     } catch (e) {
+                      debugPrint('ai_chat: createTodoFromAction error: $e');
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(l.failedCreateTodo('$e'))),
@@ -426,6 +428,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ),
       );
     } catch (e) {
+      debugPrint('ai_chat: breakDownTask error: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -441,6 +444,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   ) async {
     final config = ref.read(aiConfigProvider).value;
     if (config == null) return;
+
+    final defaultEventTitle = AppLocalizations.of(context)!.newEvent;
+    final defaultTodoTitle = AppLocalizations.of(context)!.newTodo;
 
     // Find the user message that prompted this response
     final messages = ref.read(aiChatProvider);
@@ -469,7 +475,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         final eventId = await ref.read(createEventProvider)(
           calendarId: calId,
           uid: 'ai-${DateTime.now().millisecondsSinceEpoch}',
-          summary: result['summary'] as String? ?? 'New Event',
+          summary: result['summary'] as String? ?? defaultEventTitle,
           startDt: start,
           endDt: end,
           isAllDay: result['is_all_day'] == true,
@@ -491,7 +497,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             .call(
               calendarId: calId,
               uid: 'ai-todo-${DateTime.now().millisecondsSinceEpoch}',
-              summary: result['summary'] as String? ?? 'New Todo',
+              summary: result['summary'] as String? ?? defaultTodoTitle,
               priority: result['priority'] as int? ?? 5,
               status: 'NEEDS-ACTION',
               dueDate: dueDate,
@@ -516,6 +522,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         );
       }
     } catch (e) {
+      debugPrint('ai_chat: createFromAI error: $e');
       if (mounted) {
         final l = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(

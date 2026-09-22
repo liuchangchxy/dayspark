@@ -266,5 +266,19 @@
       "repo": { "type": "String" }
     }
   },
-  "gitHub": "GitHub"
+  "gitHub": "GitHub",
+  "syncTooltip": "同步",
+  "justNow": "刚刚",
+  "minutesAgo": "{minutes}分钟前",
+  "@minutesAgo": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "hoursAgo": "{hours}小时前",
+  "@hoursAgo": {
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  }
 }

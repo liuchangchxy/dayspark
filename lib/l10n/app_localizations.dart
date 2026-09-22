@@ -1456,6 +1456,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'GitHub'**
   String get gitHub;
+
+  /// No description provided for @syncTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get syncTooltip;
+
+  /// No description provided for @justNow.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get justNow;
+
+  /// No description provided for @minutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m ago'**
+  String minutesAgo(int minutes);
+
+  /// No description provided for @hoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h ago'**
+  String hoursAgo(int hours);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

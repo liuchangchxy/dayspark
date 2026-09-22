@@ -91,6 +91,7 @@ class SyncService {
       _lastSyncTime = DateTime.now();
       _setStatus(SyncStatus.success);
     } catch (e) {
+      debugPrint('sync: fullSync error: $e');
       _lastError = e.toString();
       _setStatus(SyncStatus.error);
     }
@@ -146,6 +147,7 @@ class SyncService {
             ),
           );
         } catch (e) {
+          debugPrint('sync: incrementalSync calendar error: $e, trying full sync');
           // If incremental fails for one calendar, try full sync
           await _fullSyncCalendar(cal);
         }
@@ -159,6 +161,7 @@ class SyncService {
       _lastSyncTime = DateTime.now();
       _setStatus(SyncStatus.success);
     } catch (e) {
+      debugPrint('sync: incrementalSync error: $e');
       _lastError = e.toString();
       _setStatus(SyncStatus.error);
     }

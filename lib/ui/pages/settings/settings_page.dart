@@ -345,7 +345,7 @@ class SettingsPage extends ConsumerWidget {
                           else
                             IconButton(
                               icon: const Icon(CupertinoIcons.refresh),
-                              tooltip: 'Sync',
+                              tooltip: l.syncTooltip,
                               onPressed: () => _triggerSync(context, ref),
                             ),
                           IconButton(
@@ -381,7 +381,7 @@ class SettingsPage extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              l.lastSync(DateFormatters.formatRelativeTime(lastSync)),
+              l.lastSync(_formatRelativeTime(lastSync, l)),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -688,7 +688,7 @@ class SettingsPage extends ConsumerWidget {
                   ),
                   child: selected
                       ? Icon(
-                          Icons.check,
+                          CupertinoIcons.checkmark,
                           color: ThemeData.estimateBrightnessForColor(color) ==
                                   Brightness.dark
                               ? Colors.white
@@ -949,4 +949,12 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _formatRelativeTime(DateTime time, AppLocalizations l) {
+  final diff = DateTime.now().difference(time);
+  if (diff.inMinutes < 1) return l.justNow;
+  if (diff.inMinutes < 60) return l.minutesAgo(diff.inMinutes);
+  if (diff.inHours < 24) return l.hoursAgo(diff.inHours);
+  return '${time.month}/${time.day} ${DateFormatters.formatTime(time)}';
 }

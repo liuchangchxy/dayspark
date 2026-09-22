@@ -347,5 +347,19 @@
       "repo": { "type": "String" }
     }
   },
-  "gitHub": "GitHub"
+  "gitHub": "GitHub",
+  "syncTooltip": "Sync",
+  "justNow": "just now",
+  "minutesAgo": "{minutes}m ago",
+  "@minutesAgo": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "hoursAgo": "{hours}h ago",
+  "@hoursAgo": {
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  }
 }

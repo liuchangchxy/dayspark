@@ -724,11 +724,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String reminderLabel(int minutes) {
-    if (minutes == 0) return noReminder;
-    if (minutes < 60) return '${minutes}min';
-    if (minutes == 60) return '1h';
-    if (minutes == 120) return '2h';
-    return '24h';
+    return '${minutes}min';
   }
 
   @override
@@ -746,4 +742,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gitHub => 'GitHub';
+
+  @override
+  String get syncTooltip => 'Sync';
+
+  @override
+  String get justNow => 'just now';
+
+  @override
+  String minutesAgo(int minutes) {
+    return '${minutes}m ago';
+  }
+
+  @override
+  String hoursAgo(int hours) {
+    return '${hours}h ago';
+  }
 }

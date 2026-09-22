@@ -222,3 +222,19 @@ gh release view v<version> --json name,tagName,isDraft,isPrerelease,assets
 | `docs/ROADMAP.md` | 功能演进全景 | 版本更新时 |
 | `docs/CONSTRAINTS.md` | 技术约束 | 修 bug/关键决策后 |
 | `CLAUDE.md` | 项目规则 | 用户要求时 / 流程改进时 |
+
+---
+
+## 文档地图 / Documentation Map
+
+各文档分工明确、互相引用、不重复维护同一内容：
+
+| 文档 | 一句话定位 |
+|------|-----------|
+| `SPEC.md` | **业务**真理源：做什么、规则契约、P1–P4 功能矩阵（改业务先改它） |
+| `DECISIONS.md` | **为什么**：重大决策的轻量 ADR 时间线 |
+| `docs/CONSTRAINTS.md` | **坑**：技术约束与避坑清单（用户纠错也追加到这里） |
+| `docs/changelog.md` | **反馈**：用户反馈日志（原文→todo→代码 溯源） |
+| `docs/ROADMAP.md` | **功能**：功能演进全景与状态 |
+
+跨工具 AI 入口见 `AGENTS.md`（三大底线 + 指向本文件与 SPEC.md）。

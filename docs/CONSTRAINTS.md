@@ -234,3 +234,16 @@
 - **Why**: 防止 bug 通过未经验证的 release 直接暴露给用户；给"打磨"留一道质检关卡
 - **例外**: 不影响已有 prerelease 标记（`isPrerelease` 仍然为 true，v0.x 全部是 prerelease）
 - **Date**: 2026-05-16
+
+## Toolchain / 工具链
+
+### 本地 Flutter 版本与 CI pin 不一致（2026-09-22）
+- 本地 `flutter --version`（2026-09-22）：
+  - **Flutter 3.47.3** • channel stable • https://github.com/flutter/flutter.git
+  - Framework • revision e8113bf456 (2 weeks ago) • 2026-09-04 13:20:08 -0700
+  - Engine • hash 0e228ec8c8d2abc9fcf1d053e8a40665bb859ec7 (revision 06a2e2a110) (19 days ago) • 2026-09-03 16:07:13.000Z
+  - Tools • Dart 3.13.3 • DevTools 2.60.0
+- 修复方式：brew cask 卡在 `3.41.7.upgrading`（实际内容为 3.47.3），`brew upgrade flutter --cleanup` 无效（无 `--cleanup` 选项），`brew reinstall --cask flutter` 下载 3.47.5 过慢（>1 小时）放弃；fallback 为 symlink：`/opt/homebrew/bin/{flutter,dart}` → `/opt/homebrew/Caskroom/flutter/3.41.7.upgrading/flutter/bin/{flutter,dart}`
+- **CI 对照**：`ci.yml`/`release.yml` 在 macOS/Windows job 固定 `flutter-version: "3.41.7"`，其余 job 用 `channel: stable`（浮动最新）→ **本地 3.47.3 与 CI pin 3.41.7 不一致**，存在版本漂移风险；本任务不改 CI 文件
+- **Why**: 记录实际可用工具链版本与 CI 差异，防止后续任务误以为本地=CI
+- **Date**: 2026-09-22

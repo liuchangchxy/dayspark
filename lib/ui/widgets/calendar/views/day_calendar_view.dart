@@ -145,29 +145,33 @@ class _DayCalendarViewState extends State<DayCalendarView> {
           height: allDay.length * 24.0,
           child: Column(
             children: allDay.map((e) {
-              return GestureDetector(
-                onTap: () => widget.onEventTapped?.call(e),
-                child: Container(
-                  height: 20,
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (e.color ?? theme.colorScheme.primary)
-                        .withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(
-                    e.title,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: e.color ?? theme.colorScheme.primary,
-                      fontSize: 11,
+              return Semantics(
+                button: true,
+                label: e.title,
+                child: GestureDetector(
+                  onTap: () => widget.onEventTapped?.call(e),
+                  child: Container(
+                    height: 20,
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 1,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    decoration: BoxDecoration(
+                      color: (e.color ?? theme.colorScheme.primary)
+                          .withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      e.title,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: e.color ?? theme.colorScheme.primary,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               );
@@ -346,81 +350,92 @@ class _DayCalendarViewState extends State<DayCalendarView> {
         widget.onEventChanged?.call(details.data, newStart);
       },
       builder: (context, candidateData, rejectedData) {
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapUp: (details) {
-            final hour = (details.localPosition.dy / _hourHeight).floor();
-            final tappedDate = DateTime(
-              date.year,
-              date.month,
-              date.day,
-              hour.clamp(0, 23),
-            );
-            widget.onTimeSlotTapped?.call(tappedDate);
-          },
-          child: Container(
-            key: _columnKey,
-            height: totalHeight,
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  width: 0.5,
+        return Semantics(
+          button: true,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (details) {
+              final hour = (details.localPosition.dy / _hourHeight).floor();
+              final tappedDate = DateTime(
+                date.year,
+                date.month,
+                date.day,
+                hour.clamp(0, 23),
+              );
+              widget.onTimeSlotTapped?.call(tappedDate);
+            },
+            child: Container(
+              key: _columnKey,
+              height: totalHeight,
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    width: 0.5,
+                  ),
                 ),
               ),
-            ),
-            child: Stack(
-              children: [
-                ...List.generate(25, (hour) {
-                  return Positioned(
-                    top: hour * _hourHeight,
-                    left: 0,
-                    right: 0,
-                    child: Divider(
-                      height: 0.5,
-                      thickness: 0.5,
-                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                  );
-                }),
-                ..._layoutEvents(events, date).map((entry) {
-                  final canDrag = entry.event.rrule == null && !entry.event.isAllDay;
-                  return Positioned(
-                    top: entry.top,
-                    left: entry.left,
-                    width: entry.width,
-                    height: entry.height,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: canDrag
-                          ? _buildDraggableEvent(
-                              event: entry.event,
-                              feedback: Opacity(
-                                opacity: 0.7,
-                                child: SizedBox(
-                                  width: entry.width,
+              child: Stack(
+                children: [
+                  ...List.generate(25, (hour) {
+                    return Positioned(
+                      top: hour * _hourHeight,
+                      left: 0,
+                      right: 0,
+                      child: Divider(
+                        height: 0.5,
+                        thickness: 0.5,
+                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      ),
+                    );
+                  }),
+                  ..._layoutEvents(events, date).map((entry) {
+                    final canDrag = entry.event.rrule == null && !entry.event.isAllDay;
+                    return Positioned(
+                      top: entry.top,
+                      left: entry.left,
+                      width: entry.width,
+                      height: entry.height,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: canDrag
+                            ? _buildDraggableEvent(
+                                event: entry.event,
+                                feedback: Opacity(
+                                  opacity: 0.7,
+                                  child: SizedBox(
+                                    width: entry.width,
+                                    child: EventTile(event: entry.event),
+                                  ),
+                                ),
+                                childWhenDragging: Opacity(
+                                  opacity: 0.3,
+                                  child: EventTile(event: entry.event),
+                                ),
+                              child: Semantics(
+                                button: true,
+                                label: entry.event.title,
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      widget.onEventTapped?.call(entry.event),
                                   child: EventTile(event: entry.event),
                                 ),
                               ),
-                              childWhenDragging: Opacity(
-                                opacity: 0.3,
-                                child: EventTile(event: entry.event),
-                              ),
+                            )
+                          : Semantics(
+                              button: true,
+                              label: entry.event.title,
                               child: GestureDetector(
                                 onTap: () =>
                                     widget.onEventTapped?.call(entry.event),
                                 child: EventTile(event: entry.event),
                               ),
-                            )
-                          : GestureDetector(
-                              onTap: () =>
-                                  widget.onEventTapped?.call(entry.event),
-                              child: EventTile(event: entry.event),
                             ),
-                    ),
-                  );
-                }),
-              ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
         );
