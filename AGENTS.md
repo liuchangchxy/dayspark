@@ -9,7 +9,7 @@
 
 1. **SPEC 先行**：任何业务改动的最终标准以 [SPEC.md](SPEC.md) 为准。改需求 / 新功能 / 行为变更，必须**先修订 SPEC.md 对应章节**，再改测试，最后改实现；代码只是 Spec 的具象化体现。禁止只改代码不落文档。
 2. **非破坏性操作**：严禁未经用户明确许可物理删除已有数据或覆盖受保护的配置（数据库、用户配置、签名密钥、git 历史等）。删除/覆盖前必须获得用户确认。
-3. **交付全绿**：改动代码后必须跑 `dart analyze .`（零 issue）与 `flutter test`（全绿）并以输出为证，杜绝"带病提交"。pre-commit 钩子会物理拦截非零 analyze 退出码；测试全量靠流程卡口（钩子不跑全量测试）。
+3. **交付全绿**：改动代码后必须跑 `dart analyze .`（零 issue）与 `flutter test`（全绿）并以输出为证，杜绝"带病提交"。pre-commit 钩子会物理拦截非零 analyze 退出码；测试全量靠流程卡口（钩子不跑全量测试）。`.git/hooks` 不随仓库版本化——**fresh clone 后必须跑 [`scripts/setup-hooks.sh`](scripts/setup-hooks.sh)** 安装（可重复执行重装）。
 
 ---
 
