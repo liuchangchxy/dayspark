@@ -141,12 +141,23 @@ final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
 final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   return (int id) async {
+    final now = DateTime.now();
+    // Mirror cascade-delete: restoring a parent must also pull its direct
+    // children out of the trash, or they stay orphaned there.
     await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
       TodosCompanion(
         // Value(null) is required: absent columns are skipped on update, and
         // Value.absent() previously left deletedAt untouched (restore no-op).
         deletedAt: const Value(null),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(now),
+      ),
+    );
+    await (db.update(db.todos)
+          ..where((t) => t.parentId.equals(id) & t.deletedAt.isNotNull()))
+        .write(
+      TodosCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(now),
       ),
     );
   };
