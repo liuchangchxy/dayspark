@@ -1154,6 +1154,28 @@ class $RecordsTable extends Records with TableInfo<$RecordsTable, RecordRow> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _seqMeta = const VerificationMeta('seq');
+  @override
+  late final GeneratedColumn<int> seq = GeneratedColumn<int>(
+    'seq',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: Constant(0),
+  );
+  static const VerificationMeta _lastOpIdMeta = const VerificationMeta(
+    'lastOpId',
+  );
+  @override
+  late final GeneratedColumn<String> lastOpId = GeneratedColumn<String>(
+    'last_op_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     userId,
@@ -1163,6 +1185,8 @@ class $RecordsTable extends Records with TableInfo<$RecordsTable, RecordRow> {
     rev,
     deleted,
     serverTs,
+    seq,
+    lastOpId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1232,6 +1256,18 @@ class $RecordsTable extends Records with TableInfo<$RecordsTable, RecordRow> {
     } else if (isInserting) {
       context.missing(_serverTsMeta);
     }
+    if (data.containsKey('seq')) {
+      context.handle(
+        _seqMeta,
+        seq.isAcceptableOrUnknown(data['seq']!, _seqMeta),
+      );
+    }
+    if (data.containsKey('last_op_id')) {
+      context.handle(
+        _lastOpIdMeta,
+        lastOpId.isAcceptableOrUnknown(data['last_op_id']!, _lastOpIdMeta),
+      );
+    }
     return context;
   }
 
@@ -1269,6 +1305,14 @@ class $RecordsTable extends Records with TableInfo<$RecordsTable, RecordRow> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}server_ts'],
       )!,
+      seq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}seq'],
+      )!,
+      lastOpId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_op_id'],
+      )!,
     );
   }
 
@@ -1286,6 +1330,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
   final int rev;
   final bool deleted;
   final DateTime serverTs;
+  final int seq;
+  final String lastOpId;
   const RecordRow({
     required this.userId,
     required this.id,
@@ -1294,6 +1340,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
     required this.rev,
     required this.deleted,
     required this.serverTs,
+    required this.seq,
+    required this.lastOpId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1305,6 +1353,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
     map['rev'] = Variable<int>(rev);
     map['deleted'] = Variable<bool>(deleted);
     map['server_ts'] = Variable<DateTime>(serverTs);
+    map['seq'] = Variable<int>(seq);
+    map['last_op_id'] = Variable<String>(lastOpId);
     return map;
   }
 
@@ -1317,6 +1367,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
       rev: Value(rev),
       deleted: Value(deleted),
       serverTs: Value(serverTs),
+      seq: Value(seq),
+      lastOpId: Value(lastOpId),
     );
   }
 
@@ -1333,6 +1385,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
       rev: serializer.fromJson<int>(json['rev']),
       deleted: serializer.fromJson<bool>(json['deleted']),
       serverTs: serializer.fromJson<DateTime>(json['serverTs']),
+      seq: serializer.fromJson<int>(json['seq']),
+      lastOpId: serializer.fromJson<String>(json['lastOpId']),
     );
   }
   @override
@@ -1346,6 +1400,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
       'rev': serializer.toJson<int>(rev),
       'deleted': serializer.toJson<bool>(deleted),
       'serverTs': serializer.toJson<DateTime>(serverTs),
+      'seq': serializer.toJson<int>(seq),
+      'lastOpId': serializer.toJson<String>(lastOpId),
     };
   }
 
@@ -1357,6 +1413,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
     int? rev,
     bool? deleted,
     DateTime? serverTs,
+    int? seq,
+    String? lastOpId,
   }) => RecordRow(
     userId: userId ?? this.userId,
     id: id ?? this.id,
@@ -1365,6 +1423,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
     rev: rev ?? this.rev,
     deleted: deleted ?? this.deleted,
     serverTs: serverTs ?? this.serverTs,
+    seq: seq ?? this.seq,
+    lastOpId: lastOpId ?? this.lastOpId,
   );
   RecordRow copyWithCompanion(RecordsCompanion data) {
     return RecordRow(
@@ -1377,6 +1437,8 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
       rev: data.rev.present ? data.rev.value : this.rev,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
       serverTs: data.serverTs.present ? data.serverTs.value : this.serverTs,
+      seq: data.seq.present ? data.seq.value : this.seq,
+      lastOpId: data.lastOpId.present ? data.lastOpId.value : this.lastOpId,
     );
   }
 
@@ -1389,14 +1451,25 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
           ..write('payloadJson: $payloadJson, ')
           ..write('rev: $rev, ')
           ..write('deleted: $deleted, ')
-          ..write('serverTs: $serverTs')
+          ..write('serverTs: $serverTs, ')
+          ..write('seq: $seq, ')
+          ..write('lastOpId: $lastOpId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(userId, id, type, payloadJson, rev, deleted, serverTs);
+  int get hashCode => Object.hash(
+    userId,
+    id,
+    type,
+    payloadJson,
+    rev,
+    deleted,
+    serverTs,
+    seq,
+    lastOpId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1407,7 +1480,9 @@ class RecordRow extends DataClass implements Insertable<RecordRow> {
           other.payloadJson == this.payloadJson &&
           other.rev == this.rev &&
           other.deleted == this.deleted &&
-          other.serverTs == this.serverTs);
+          other.serverTs == this.serverTs &&
+          other.seq == this.seq &&
+          other.lastOpId == this.lastOpId);
 }
 
 class RecordsCompanion extends UpdateCompanion<RecordRow> {
@@ -1418,6 +1493,8 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
   final Value<int> rev;
   final Value<bool> deleted;
   final Value<DateTime> serverTs;
+  final Value<int> seq;
+  final Value<String> lastOpId;
   final Value<int> rowid;
   const RecordsCompanion({
     this.userId = const Value.absent(),
@@ -1427,6 +1504,8 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
     this.rev = const Value.absent(),
     this.deleted = const Value.absent(),
     this.serverTs = const Value.absent(),
+    this.seq = const Value.absent(),
+    this.lastOpId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RecordsCompanion.insert({
@@ -1437,6 +1516,8 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
     required int rev,
     required bool deleted,
     required DateTime serverTs,
+    this.seq = const Value.absent(),
+    this.lastOpId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userId = Value(userId),
        id = Value(id),
@@ -1453,6 +1534,8 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
     Expression<int>? rev,
     Expression<bool>? deleted,
     Expression<DateTime>? serverTs,
+    Expression<int>? seq,
+    Expression<String>? lastOpId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1463,6 +1546,8 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
       if (rev != null) 'rev': rev,
       if (deleted != null) 'deleted': deleted,
       if (serverTs != null) 'server_ts': serverTs,
+      if (seq != null) 'seq': seq,
+      if (lastOpId != null) 'last_op_id': lastOpId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1475,6 +1560,8 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
     Value<int>? rev,
     Value<bool>? deleted,
     Value<DateTime>? serverTs,
+    Value<int>? seq,
+    Value<String>? lastOpId,
     Value<int>? rowid,
   }) {
     return RecordsCompanion(
@@ -1485,6 +1572,8 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
       rev: rev ?? this.rev,
       deleted: deleted ?? this.deleted,
       serverTs: serverTs ?? this.serverTs,
+      seq: seq ?? this.seq,
+      lastOpId: lastOpId ?? this.lastOpId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1513,6 +1602,12 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
     if (serverTs.present) {
       map['server_ts'] = Variable<DateTime>(serverTs.value);
     }
+    if (seq.present) {
+      map['seq'] = Variable<int>(seq.value);
+    }
+    if (lastOpId.present) {
+      map['last_op_id'] = Variable<String>(lastOpId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1529,6 +1624,8 @@ class RecordsCompanion extends UpdateCompanion<RecordRow> {
           ..write('rev: $rev, ')
           ..write('deleted: $deleted, ')
           ..write('serverTs: $serverTs, ')
+          ..write('seq: $seq, ')
+          ..write('lastOpId: $lastOpId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2676,6 +2773,8 @@ typedef $$RecordsTableCreateCompanionBuilder =
       required int rev,
       required bool deleted,
       required DateTime serverTs,
+      Value<int> seq,
+      Value<String> lastOpId,
       Value<int> rowid,
     });
 typedef $$RecordsTableUpdateCompanionBuilder =
@@ -2687,6 +2786,8 @@ typedef $$RecordsTableUpdateCompanionBuilder =
       Value<int> rev,
       Value<bool> deleted,
       Value<DateTime> serverTs,
+      Value<int> seq,
+      Value<String> lastOpId,
       Value<int> rowid,
     });
 
@@ -2731,6 +2832,16 @@ class $$RecordsTableFilterComposer
 
   ColumnFilters<DateTime> get serverTs => $composableBuilder(
     column: $table.serverTs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastOpId => $composableBuilder(
+    column: $table.lastOpId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2778,6 +2889,16 @@ class $$RecordsTableOrderingComposer
     column: $table.serverTs,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastOpId => $composableBuilder(
+    column: $table.lastOpId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$RecordsTableAnnotationComposer
@@ -2811,6 +2932,12 @@ class $$RecordsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get serverTs =>
       $composableBuilder(column: $table.serverTs, builder: (column) => column);
+
+  GeneratedColumn<int> get seq =>
+      $composableBuilder(column: $table.seq, builder: (column) => column);
+
+  GeneratedColumn<String> get lastOpId =>
+      $composableBuilder(column: $table.lastOpId, builder: (column) => column);
 }
 
 class $$RecordsTableTableManager
@@ -2848,6 +2975,8 @@ class $$RecordsTableTableManager
                 Value<int> rev = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
                 Value<DateTime> serverTs = const Value.absent(),
+                Value<int> seq = const Value.absent(),
+                Value<String> lastOpId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RecordsCompanion(
                 userId: userId,
@@ -2857,6 +2986,8 @@ class $$RecordsTableTableManager
                 rev: rev,
                 deleted: deleted,
                 serverTs: serverTs,
+                seq: seq,
+                lastOpId: lastOpId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2868,6 +2999,8 @@ class $$RecordsTableTableManager
                 required int rev,
                 required bool deleted,
                 required DateTime serverTs,
+                Value<int> seq = const Value.absent(),
+                Value<String> lastOpId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RecordsCompanion.insert(
                 userId: userId,
@@ -2877,6 +3010,8 @@ class $$RecordsTableTableManager
                 rev: rev,
                 deleted: deleted,
                 serverTs: serverTs,
+                seq: seq,
+                lastOpId: lastOpId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

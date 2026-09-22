@@ -47,6 +47,12 @@ class Records extends Table {
   IntColumn get rev => integer()();
   BoolColumn get deleted => boolean()();
   DateTimeColumn get serverTs => dateTime()();
+  // Per-write sequence in the user's monotonic change feed; pull and
+  // piggyback both page on seq > cursor.
+  IntColumn get seq => integer().withDefault(Constant(0))();
+  // Op that last wrote this record — the tombstone side of the same-second
+  // opId lexicographic tie-break in LWW.
+  TextColumn get lastOpId => text().withDefault(Constant(''))();
 
   @override
   Set<Column> get primaryKey => {userId, id};

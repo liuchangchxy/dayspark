@@ -25,14 +25,26 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(records, records.seq);
+        await m.addColumn(records, records.lastOpId);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      await _createSeqIndex();
     },
+  );
+
+  Future<void> _createSeqIndex() => customStatement(
+    'CREATE INDEX IF NOT EXISTS records_user_seq_idx '
+    'ON records (user_id, seq)',
   );
 
   // WHY takes an explicit [tx]: Task 3 must bump seq inside its push

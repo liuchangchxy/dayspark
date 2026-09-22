@@ -10,6 +10,7 @@ import 'src/db.dart';
 import 'src/http.dart';
 import 'src/routes/auth.dart';
 import 'src/routes/health.dart';
+import 'src/routes/sync.dart';
 
 export 'package:shelf/shelf.dart' show Handler, Request, Response;
 
@@ -17,6 +18,7 @@ export 'src/auth.dart';
 export 'src/config.dart';
 export 'src/db.dart';
 export 'src/http.dart';
+export 'src/sync/lww.dart';
 
 class AppServer {
   AppServer(this.config, {AppDatabase? database})
@@ -38,6 +40,12 @@ class AppServer {
     final router = Router();
     registerHealthRoutes(router);
     registerAuthRoutes(router, db: db, auth: auth);
+    registerSyncRoutes(
+      router,
+      db: db,
+      auth: auth,
+      notifySeq: (userId, seq) => onSeqAdvanced?.call(userId, seq),
+    );
     return const Pipeline()
         .addMiddleware(logRequests())
         .addMiddleware(catchApiErrors())

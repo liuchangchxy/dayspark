@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
@@ -160,19 +158,8 @@ Future<Never> _revokeFamilyAndReject(
   throw ApiException(401, errUnauthorized, 'invalid refresh token');
 }
 
-Future<Map<String, dynamic>> _readJsonObject(Request request) async {
-  try {
-    final decoded = jsonDecode(await request.readAsString());
-    if (decoded is! Map<String, dynamic>) {
-      throw ApiException(400, errValidation, 'body must be a JSON object');
-    }
-    return decoded;
-  } on ApiException {
-    rethrow;
-  } on FormatException {
-    throw ApiException(400, errValidation, 'invalid JSON body');
-  }
-}
+Future<Map<String, dynamic>> _readJsonObject(Request request) =>
+    readJsonObject(request);
 
 String? _normalizeEmail(Object? raw) {
   if (raw is! String) {
