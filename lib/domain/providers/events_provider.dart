@@ -4,23 +4,23 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 
-final eventsInDateRangeProvider = StreamProvider.family<List<Event>, String>((
-  ref,
-  rangeKey,
-) {
-  final db = ref.watch(databaseProvider);
-  // Parse range key: "startMs-endMs"
-  final parts = rangeKey.split('-');
-  final startMs = int.tryParse(parts[0]);
-  final endMs = int.tryParse(parts.length > 1 ? parts[1] : '');
-  if (startMs == null || endMs == null) {
-    return Stream.value([]);
-  }
-  final start = DateTime.fromMillisecondsSinceEpoch(startMs);
-  final end = DateTime.fromMillisecondsSinceEpoch(endMs);
-  final stream = db.eventsDao.watchByDateRange(start, end);
-  return stream;
-});
+// Static range key ("startMs-endMs") is part of the provider contract
+// (docs/CONSTRAINTS.md); autoDispose only releases unused instances.
+final eventsInDateRangeProvider =
+    StreamProvider.autoDispose.family<List<Event>, String>((ref, rangeKey) {
+      final db = ref.watch(databaseProvider);
+      // Parse range key: "startMs-endMs"
+      final parts = rangeKey.split('-');
+      final startMs = int.tryParse(parts[0]);
+      final endMs = int.tryParse(parts.length > 1 ? parts[1] : '');
+      if (startMs == null || endMs == null) {
+        return Stream.value([]);
+      }
+      final start = DateTime.fromMillisecondsSinceEpoch(startMs);
+      final end = DateTime.fromMillisecondsSinceEpoch(endMs);
+      final stream = db.eventsDao.watchByDateRange(start, end);
+      return stream;
+    });
 
 final calendarsProvider = StreamProvider<List<Calendar>>((ref) {
   final db = ref.watch(databaseProvider);
@@ -92,4 +92,26 @@ final deleteEventProvider = Provider<Future<void> Function(int)>((ref) {
       ),
     );
   };
+});
+
+final deletedEventsProvider = StreamProvider<List<Event>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.eventsDao.watchDeletedEvents();
+});
+
+final restoreEventProvider = Provider<Future<void> Function(int)>((ref) {
+  final db = ref.read(databaseProvider);
+  return (int id) => db.eventsDao.restoreEvent(id);
+});
+
+final hardDeleteEventWithChildrenProvider =
+    Provider<Future<void> Function(int)>((ref) {
+      final db = ref.read(databaseProvider);
+      // OS notification cancellation is Task 5's job; this only cascades DB rows.
+      return (int id) => db.eventsDao.hardDeleteEventWithChildren(id);
+    });
+
+final emptyEventTrashProvider = Provider<Future<void> Function()>((ref) {
+  final db = ref.read(databaseProvider);
+  return () => db.eventsDao.emptyEventTrash();
 });
