@@ -162,6 +162,7 @@ class PushResponse {
 
   final List<OpResult> results;
   final List<SyncRecord> piggyback;
+  // Watermark: every change <= cursor is included in this response.
   final int cursor;
 
   Map<String, dynamic> toJson() => <String, dynamic>{

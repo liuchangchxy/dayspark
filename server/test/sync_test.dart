@@ -364,7 +364,9 @@ void main() {
     expect(piggyIds, {'rec-pig-2', 'rec-pig-3'});
     expect(push['cursor'], 3);
 
-    // Piggyback is capped at 100 changes while cursor still jumps to head.
+    // Piggyback is capped at 100 changes; cursor is the watermark of what
+    // THIS response delivered (seq 100), never the head — adopting the head
+    // here would silently skip seqs 101-104.
     final bulk = List.generate(
       100,
       (i) => _upsertOp(
@@ -383,7 +385,38 @@ void main() {
       ],
     );
     expect((capped['piggyback'] as List<dynamic>), hasLength(100));
-    expect(capped['cursor'], 104);
+    expect(capped['cursor'], 100);
+
+    // Lossless continuation: resuming from the delivered watermark brings
+    // exactly the undelivered tail (seqs 101-104).
+    final tail = await _pull(app, token, cursor: capped['cursor'] as int);
+    final tailChanges = tail['changes'] as List<dynamic>;
+    expect(tailChanges, hasLength(4));
+    expect(
+      tailChanges.map((c) => (c as Map<String, dynamic>)['id']).toSet(),
+      {'rec-bulk-97', 'rec-bulk-98', 'rec-bulk-99', 'rec-tail'},
+    );
+    expect(tail['hasMore'], isFalse);
+  });
+
+  test('push cursor edge: empty piggyback keeps request cursor or returns head',
+      () async {
+    final token = (await _register(app, 'watermark@example.com'))['token']!;
+
+    // Empty + omitted: fresh account, head is 0.
+    final fresh = await _push(app, token, ops: []);
+    expect(fresh['piggyback'], isEmpty);
+    expect(fresh['cursor'], 0);
+
+    await _push(app, token, ops: [
+      _upsertOp(opId: 'op-wm-1', recordId: 'rec-wm-1', fields: {'title': '1'}),
+    ]);
+
+    // Empty + provided: no changes above the (ahead) request cursor — the
+    // watermark stays where the client put it, never rewinds to head.
+    final ahead = await _push(app, token, ops: [], cursor: 99);
+    expect(ahead['piggyback'], isEmpty);
+    expect(ahead['cursor'], 99);
   });
 
   test('pull paginates with hasMore and advances cursor', () async {
@@ -606,6 +639,41 @@ void main() {
 
     final pull = await _pull(app, token, cursor: 0);
     expect(pull['changes'], isEmpty);
+  });
+
+  test('upsert with mismatched type is rejected and record unchanged',
+      () async {
+    final token = (await _register(app, 'retag@example.com'))['token']!;
+
+    await _push(app, token, ops: [
+      _upsertOp(
+        opId: 'op-type-create',
+        recordId: 'rec-type',
+        fields: {'title': 'event title'},
+        type: 'event',
+      ),
+    ]);
+
+    final retag = await _push(app, token, ops: [
+      _upsertOp(
+        opId: 'op-type-retag',
+        recordId: 'rec-type',
+        fields: {'title': 'sneaky todo'},
+        baseRev: 1,
+        type: 'todo',
+      ),
+    ]);
+    final result = _results(retag).single as Map<String, dynamic>;
+    expect(result['status'], 'rejected');
+    expect(result['code'], errValidation);
+    expect(retag['cursor'], 1);
+
+    final pull = await _pull(app, token, cursor: 0);
+    final record = (pull['changes'] as List<dynamic>).single as Map<String, dynamic>;
+    expect(record['type'], 'event');
+    expect(record['payload'], {'title': 'event title'});
+    expect(record['rev'], 1);
+    expect(record['deleted'], false);
   });
 
   test('sync routes are auth-gated and reject malformed envelope', () async {

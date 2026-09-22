@@ -42,23 +42,30 @@ void registerSyncRoutes(
       results.add(await db.transaction(() => _applyOp(db, userId, op)));
     }
     final seqAfter = await _currentSeq(db, userId);
-    // T2 seam: fire only after commits and only when the feed advanced.
+    // Task-4 SSE consumer seam: fire only after commits and only when the
+    // feed advanced.
     if (seqAfter > seqBefore) {
       notifySeq(userId, seqAfter);
     }
 
-    final piggyback = await _changesSince(
+    final piggybackRows = await _changesSince(
       db,
       userId,
       afterSeq: push.cursor ?? 0,
       limit: _piggybackLimit,
     );
+    // Watermark: every change <= cursor is included in this response — on a
+    // capped piggyback the cursor must be the LAST DELIVERED seq, or a client
+    // adopting the head would silently skip the undelivered tail.
+    final outCursor = piggybackRows.isNotEmpty
+        ? piggybackRows.last.seq
+        : (push.cursor ?? seqAfter);
     return jsonResponse(
       200,
       PushResponse(
         results: results,
-        piggyback: piggyback,
-        cursor: seqAfter,
+        piggyback: piggybackRows.map(_toSyncRecord).toList(),
+        cursor: outCursor,
       ).toJson(),
     );
   }));
@@ -137,6 +144,12 @@ Future<OpResult> _processUpsert(
     );
   }
 
+  // Type is part of the record's identity: an upsert must not silently
+  // retag an event as a todo (or vice versa) on update or resurrect.
+  if (row.type != op.type.name) {
+    return OpResult(opId: op.opId, status: OpStatus.rejected, code: errValidation);
+  }
+
   if (row.deleted) {
     final decision = decideTombstoneVsUpsert(
       recordServerTs: row.serverTs,
@@ -166,7 +179,6 @@ Future<OpResult> _processUpsert(
     userId,
     op.recordId,
     row.copyWith(
-      type: op.type.name,
       payloadJson: jsonEncode(merged),
       rev: row.rev + 1,
       deleted: false,
@@ -281,18 +293,17 @@ Future<int> _currentSeq(AppDatabase db, String userId) async {
   return row?.seq ?? 0;
 }
 
-Future<List<SyncRecord>> _changesSince(
+Future<List<RecordRow>> _changesSince(
   AppDatabase db,
   String userId, {
   required int afterSeq,
   required int limit,
-}) async {
-  final rows = await (db.select(db.records)
+}) {
+  return (db.select(db.records)
         ..where((t) => t.userId.equals(userId) & t.seq.isBiggerThanValue(afterSeq))
         ..orderBy([(t) => OrderingTerm.asc(t.seq)])
         ..limit(limit))
       .get();
-  return rows.map(_toSyncRecord).toList();
 }
 
 SyncRecord _toSyncRecord(RecordRow row) => SyncRecord(
