@@ -3,6 +3,8 @@ import 'package:drift/drift.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/domain/sync/sync_outbox.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 final completedTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);
@@ -38,7 +40,12 @@ final moveOverdueToTodayProvider = Provider<Future<void> Function(List<int>)>((
   ref,
 ) {
   final db = ref.read(databaseProvider);
-  return (List<int> ids) => db.todosDao.moveOverdueToToday(ids);
+  return (List<int> ids) => db.transaction(() async {
+    await db.todosDao.moveOverdueToToday(ids);
+    for (final id in ids) {
+      await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
+    }
+  });
 });
 
 final createTodoProvider =
@@ -66,31 +73,44 @@ final createTodoProvider =
         description,
         rrule,
         parentId,
-      }) async {
-        return db
-            .into(db.todos)
-            .insert(
-              TodosCompanion.insert(
-                calendarId: calendarId,
-                summary: summary,
-                priority: Value(priority),
-                status: Value(status),
-                dueDate: dueDate != null
-                    ? Value(dueDate)
-                    : const Value.absent(),
-                startDate: startDate != null
-                    ? Value(startDate)
-                    : const Value.absent(),
-                description: description != null
-                    ? Value(description)
-                    : const Value.absent(),
-                rrule: rrule != null ? Value(rrule) : const Value.absent(),
-                parentId: parentId != null
-                    ? Value(parentId)
-                    : const Value.absent(),
-              ),
-            );
+      }) {
+        return db.transaction(() async {
+          final id = await db
+              .into(db.todos)
+              .insert(
+                TodosCompanion.insert(
+                  calendarId: calendarId,
+                  summary: summary,
+                  priority: Value(priority),
+                  status: Value(status),
+                  dueDate: dueDate != null
+                      ? Value(dueDate)
+                      : const Value.absent(),
+                  startDate: startDate != null
+                      ? Value(startDate)
+                      : const Value.absent(),
+                  description: description != null
+                      ? Value(description)
+                      : const Value.absent(),
+                  rrule: rrule != null ? Value(rrule) : const Value.absent(),
+                  parentId: parentId != null
+                      ? Value(parentId)
+                      : const Value.absent(),
+                ),
+              );
+          await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
+          return id;
+        });
       };
+    });
+
+final updateTodoProvider =
+    Provider<Future<void> Function(int id, TodosCompanion data)>((ref) {
+      final db = ref.read(databaseProvider);
+      return (int id, TodosCompanion data) => db.transaction(() async {
+        await (db.update(db.todos)..where((t) => t.id.equals(id))).write(data);
+        await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
+      });
     });
 
 final toggleTodoProvider =
@@ -111,12 +131,18 @@ final toggleTodoProvider =
           for (final r in reminders) {
             await notifService.cancel(r.id);
           }
-          return db.todosDao.markComplete(id);
+          return db.transaction(() async {
+            await db.todosDao.markComplete(id);
+            await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
+          });
         } else {
           for (final r in reminders) {
             await scheduleReminder(r);
           }
-          return db.todosDao.markIncomplete(id);
+          return db.transaction(() async {
+            await db.todosDao.markIncomplete(id);
+            await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
+          });
         }
       };
     });
@@ -142,23 +168,27 @@ final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
     for (final r in reminders) {
       await notifService.cancel(r.id);
     }
-    final now = DateTime.now();
-    // Soft delete parent and direct children with the same timestamp so no
-    // orphan rows keep showing up in lists or as ghost reminders.
-    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
-      TodosCompanion(
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-      ),
-    );
-    await (db.update(db.todos)
-          ..where((t) => t.parentId.equals(id) & t.deletedAt.isNull()))
-        .write(
-      TodosCompanion(
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-      ),
-    );
+    await db.transaction(() async {
+      final targets = await SyncOutbox.captureDeletes(db, RecordType.todo, ids);
+      final now = DateTime.now();
+      // Soft delete parent and direct children with the same timestamp so no
+      // orphan rows keep showing up in lists or as ghost reminders.
+      await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
+        TodosCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+      await (db.update(db.todos)
+            ..where((t) => t.parentId.equals(id) & t.deletedAt.isNull()))
+          .write(
+        TodosCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+        ),
+      );
+      await SyncOutbox.enqueueDeletes(db, targets);
+    });
   };
 });
 
@@ -166,7 +196,6 @@ final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   final scheduleReminder = ref.read(scheduleReminderProvider);
   return (int id) async {
-    final now = DateTime.now();
     final row =
         await (db.select(db.todos)..where((t) => t.id.equals(id))).getSingleOrNull();
     // Restoring a child under a still-trashed parent would hide it in the
@@ -181,47 +210,55 @@ final restoreTodoProvider = Provider<Future<void> Function(int)>((ref) {
         trashedParentId = parent.id;
       }
     }
-    // Mirror cascade-delete: restoring a parent must also pull its direct
-    // children out of the trash, or they stay orphaned there.
-    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
-      TodosCompanion(
-        // Value(null) is required: absent columns are skipped on update, and
-        // Value.absent() previously left deletedAt untouched (restore no-op).
-        deletedAt: const Value(null),
-        updatedAt: Value(now),
-      ),
-    );
-    if (trashedParentId != null) {
-      final untrashParentId = trashedParentId;
-      await (db.update(db.todos)..where((t) => t.id.equals(untrashParentId)))
+    final restoredIds = await db.transaction(() async {
+      final now = DateTime.now();
+      // Mirror cascade-delete: restoring a parent must also pull its direct
+      // children out of the trash, or they stay orphaned there.
+      await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
+        TodosCompanion(
+          // Value(null) is required: absent columns are skipped on update, and
+          // Value.absent() previously left deletedAt untouched (restore no-op).
+          deletedAt: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+      if (trashedParentId != null) {
+        final untrashParentId = trashedParentId;
+        await (db.update(db.todos)..where((t) => t.id.equals(untrashParentId)))
+            .write(
+          TodosCompanion(
+            deletedAt: const Value(null),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+      await (db.update(db.todos)
+            ..where((t) => t.parentId.equals(id) & t.deletedAt.isNotNull()))
           .write(
         TodosCompanion(
           deletedAt: const Value(null),
           updatedAt: Value(now),
         ),
       );
-    }
-    await (db.update(db.todos)
-          ..where((t) => t.parentId.equals(id) & t.deletedAt.isNotNull()))
-        .write(
-      TodosCompanion(
-        deletedAt: const Value(null),
-        updatedAt: Value(now),
-      ),
-    );
+      final restoredChildren =
+          await (db.select(db.todos)..where((t) => t.parentId.equals(id)))
+              .get();
+      final restored = <int>[
+        id,
+        if (trashedParentId != null) trashedParentId,
+        ...restoredChildren.map((t) => t.id),
+      ];
+      for (final tid in restored) {
+        await SyncOutbox.enqueueUpsert(db, RecordType.todo, tid);
+      }
+      return restored;
+    });
     // Reschedule the reminder rows of the restored parent and children;
     // scheduleReminder skips triggers already in the past.
-    final ids = [
-      id,
-      if (trashedParentId != null) trashedParentId,
-      ...(await (db.select(db.todos)..where((t) => t.parentId.equals(id)))
-          .get())
-          .map((t) => t.id),
-    ];
     final reminders =
         await (db.select(db.reminders)..where(
               (t) =>
-                  t.parentType.equals('todo') & t.parentId.isIn(ids),
+                  t.parentType.equals('todo') & t.parentId.isIn(restoredIds),
             ))
             .get();
     for (final r in reminders) {
@@ -249,6 +286,7 @@ final permanentDeleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
     // FK-safe delete order (mirrors emptyTrash): child-rows first, todo rows
     // last, all in one transaction; notifications cancelled above.
     await db.transaction(() async {
+      final targets = await SyncOutbox.captureDeletes(db, RecordType.todo, ids);
       for (final tid in ids) {
         await (db.delete(db.todoTags)..where((t) => t.todoId.equals(tid))).go();
       }
@@ -259,6 +297,7 @@ final permanentDeleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
         db.reminders,
       )..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
       await (db.delete(db.todos)..where((t) => t.id.isIn(ids))).go();
+      await SyncOutbox.enqueueDeletes(db, targets);
     });
   };
 });
@@ -267,8 +306,6 @@ final emptyTrashProvider = Provider<Future<void> Function()>((ref) {
   final db = ref.read(databaseProvider);
   final notifService = ref.read(notificationServiceProvider);
   return () async {
-    // DAO only drops rows; notifications must be cancelled first or they
-    // fire with no row left to cancel against.
     final deleted =
         await (db.select(db.todos)..where((t) => t.deletedAt.isNotNull()))
             .get();
@@ -276,21 +313,29 @@ final emptyTrashProvider = Provider<Future<void> Function()>((ref) {
     if (ids.isNotEmpty) {
       final reminders =
           await (db.select(db.reminders)..where(
-                (t) =>
-                    t.parentType.equals('todo') & t.parentId.isIn(ids),
+                (t) => t.parentType.equals('todo') & t.parentId.isIn(ids),
               ))
               .get();
       for (final r in reminders) {
         await notifService.cancel(r.id);
       }
     }
-    await db.todosDao.emptyTrash();
+    await db.transaction(() async {
+      final targets = await SyncOutbox.captureDeletes(db, RecordType.todo, ids);
+      await db.todosDao.emptyTrash();
+      await SyncOutbox.enqueueDeletes(db, targets);
+    });
   };
 });
 
 final reorderTodosProvider = Provider<Future<void> Function(List<int>)>((ref) {
   final db = ref.read(databaseProvider);
-  return (List<int> ids) => db.todosDao.updateSortOrders(ids);
+  return (List<int> ids) => db.transaction(() async {
+    await db.todosDao.updateSortOrders(ids);
+    for (final id in ids) {
+      await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
+    }
+  });
 });
 
 /// Subtasks for a given parent todo.
@@ -305,5 +350,8 @@ final subtasksProvider = StreamProvider.autoDispose.family<List<Todo>, int>((
 /// Set parent for a todo (null to remove parent).
 final setParentProvider = Provider<Future<void> Function(int todoId, int? parentId)>((ref) {
   final db = ref.read(databaseProvider);
-  return (int todoId, int? parentId) => db.todosDao.setParent(todoId, parentId);
+  return (int todoId, int? parentId) => db.transaction(() async {
+    await db.todosDao.setParent(todoId, parentId);
+    await SyncOutbox.enqueueUpsert(db, RecordType.todo, todoId);
+  });
 });

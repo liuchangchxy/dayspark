@@ -8,6 +8,7 @@ import 'tables/event_tags_table.dart';
 import 'tables/todo_tags_table.dart';
 import 'tables/attachments_table.dart';
 import 'tables/reminders_table.dart';
+import 'tables/sync_outbox_table.dart';
 
 import 'daos/calendars_dao.dart';
 import 'daos/events_dao.dart';
@@ -25,6 +26,7 @@ part 'app_database.g.dart';
     TodoTags,
     Attachments,
     Reminders,
+    SyncOutbox,
   ],
   daos: [CalendarsDao, EventsDao, TodosDao],
 )
@@ -40,7 +42,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -91,6 +93,16 @@ class AppDatabase extends _$AppDatabase {
         await m.dropColumn(todos, 'etag');
         await m.dropColumn(todos, 'is_dirty');
         await m.deleteTable('accounts');
+      }
+      if (from < 9) {
+        // v9: sync outbox + per-record sync identity/rev. Additive only —
+        // existing rows keep their data; sync_id stays NULL until the row
+        // is first enqueued (NULL means "never pushed").
+        await m.addColumn(events, events.syncId);
+        await m.addColumn(events, events.serverRev);
+        await m.addColumn(todos, todos.syncId);
+        await m.addColumn(todos, todos.serverRev);
+        await m.createTable(syncOutbox);
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

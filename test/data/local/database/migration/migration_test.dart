@@ -243,14 +243,27 @@ Future<void> _runAndVerify(File file) async {
     expect(await tableExists('accounts'), false);
     expect(await tableExists('sync_queue'), false);
 
+    // v9: sync columns exist with correct defaults
+    final eventSyncCols = await columnsOf('events');
+    expect(eventSyncCols, contains('sync_id'));
+    expect(eventSyncCols, contains('server_rev'));
+    final todoSyncCols = await columnsOf('todos');
+    expect(todoSyncCols, contains('sync_id'));
+    expect(todoSyncCols, contains('server_rev'));
+    expect(await tableExists('sync_outbox'), true);
+
     // Columns added by v3/v4/v6/v7 migrations exist with correct defaults
     final todos = await (db.select(db.todos)).get();
     expect(todos.first.deletedAt, isNull); // v3: add deleted_at
     expect(todos.first.sortOrder, 0);      // v4: add sort_order
     expect(todos.first.parentId, isNull);  // v7: add parent_id
+    expect(todos.first.syncId, isNull);    // v9: never enqueued yet
+    expect(todos.first.serverRev, 0);      // v9: default rev
 
     final events = await (db.select(db.events)).get();
     expect(events.first.deletedAt, isNull); // v6: add deleted_at
+    expect(events.first.syncId, isNull);    // v9: never enqueued yet
+    expect(events.first.serverRev, 0);      // v9: default rev
 
     // Original data values intact on surviving columns
     final calendars = await (db.select(db.calendars)).get();
@@ -285,7 +298,7 @@ Future<void> _runAndVerify(File file) async {
 
 void main() {
   group('Database migration', () {
-    test('v1 → v8 full migration preserves data integrity', () async {
+    test('v1 → v9 full migration preserves data integrity', () async {
       final file = _createV1Database();
       try {
         await _runAndVerify(file);
@@ -294,10 +307,10 @@ void main() {
       }
     });
 
-    test('fresh database at v8 initializes correctly', () async {
+    test('fresh database at v9 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 8);
+        expect(db.schemaVersion, 9);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
@@ -309,8 +322,8 @@ void main() {
       }
     });
 
-    test('schema snapshot exists for v8', () async {
-      final schemaFile = File('drift_schemas/app_database/drift_schema_v8.json');
+    test('schema snapshot exists for v9', () async {
+      final schemaFile = File('drift_schemas/app_database/drift_schema_v9.json');
       expect(await schemaFile.exists(), true,
           reason: 'Run `dart run drift_dev make-migrations` to generate');
     });

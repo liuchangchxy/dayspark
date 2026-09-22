@@ -74,6 +74,8 @@ dependencies:
   # Sync protocol contracts (shared with server)
   dayspark_contracts:
     path: packages/dayspark_contracts
+  uuid: ^4.5.3
+  connectivity_plus: ^7.3.1
 
 dev_dependencies:
   flutter_test:

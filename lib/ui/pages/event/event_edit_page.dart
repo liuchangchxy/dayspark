@@ -8,7 +8,6 @@ import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
-import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
@@ -71,7 +70,6 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
 
     setState(() => _saving = true);
     try {
-      final db = ref.read(databaseProvider);
       final updated = _event.copyWithData(
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim().isNotEmpty
@@ -83,8 +81,10 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
         rrule: _rrule,
         isAllDay: _isAllDay,
       );
-      await (db.update(db.events)..where((t) => t.id.equals(_event.drifId)))
-          .write(updated.toUpdateCompanion());
+      await ref.read(updateEventProvider)(
+        _event.drifId,
+        updated.toUpdateCompanion(),
+      );
 
       // Reschedule reminders if start time changed
       final oldStart = widget.event.start;

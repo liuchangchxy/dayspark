@@ -1,0 +1,335 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:drift/drift.dart' hide Column;
+import 'package:flutter/foundation.dart';
+
+import 'sync_api_client.dart';
+import 'sync_applier.dart';
+import 'sync_config.dart';
+import 'sync_outbox.dart';
+
+enum SyncPhase { idle, pushing, pulling, error }
+
+class SyncStatus {
+  const SyncStatus({
+    this.phase = SyncPhase.idle,
+    this.lastError,
+    this.lastSyncAt,
+    this.lastRejected = const [],
+  });
+
+  final SyncPhase phase;
+  final String? lastError;
+  final DateTime? lastSyncAt;
+
+  /// Op verdict codes from the most recent push — `rejected` ops are
+  /// dropped (and surfaced here) instead of failing the round.
+  final List<String> lastRejected;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncStatus &&
+          other.phase == phase &&
+          other.lastError == lastError &&
+          other.lastSyncAt == lastSyncAt &&
+          _listEq(other.lastRejected, lastRejected));
+
+  @override
+  int get hashCode => Object.hash(phase, lastError, lastSyncAt, Object.hashAll(lastRejected));
+
+  static bool _listEq(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+}
+
+/// Serialized sync rounds: drain outbox → push → adopt watermark → pull
+/// until hasMore. Errors back off 1s → 60s and retry; triggers (outbox
+/// writes, remote cursor signals, connectivity regain) coalesce into one
+/// queued round.
+class SyncEngine {
+  SyncEngine({
+    required this.db,
+    required this.api,
+    required this.cursorStore,
+    required this.tokenStore,
+    required this.deviceId,
+    SyncApplier? applier,
+  }) : _applier = applier ?? SyncApplier(db) {
+    _statusController = StreamController<SyncStatus>.broadcast(
+      onListen: () => _statusController.add(_status),
+    );
+  }
+
+  final AppDatabase db;
+  final SyncApiClient api;
+  final SyncCursorStore cursorStore;
+  final SyncTokenStore tokenStore;
+  final String deviceId;
+  final SyncApplier _applier;
+
+  SyncStatus _status = const SyncStatus();
+  late final StreamController<SyncStatus> _statusController;
+  StreamSubscription? _outboxSub;
+  Timer? _retryTimer;
+  Timer? _outboxKickTimer;
+  bool _started = false;
+  bool _stopped = false;
+  bool _roundRunning = false;
+  bool _roundQueued = false;
+  int _backoffSeconds = 1;
+
+  SyncStatus get status => _status;
+
+  Stream<SyncStatus> get statusStream => _statusController.stream;
+
+  /// Wires the outbox trigger and runs the first round. No-ops until
+  /// tokens exist ("engine runs only when configured"): T6 login writes
+  /// the token pair and invalidates the engine provider to (re)start.
+  Future<void> start() async {
+    if (_started || _stopped) return;
+    if (!await tokenStore.isConfigured()) return;
+    if (_stopped) return;
+    _started = true;
+    _outboxSub = db
+        .tableUpdates(TableUpdateQuery.onTable(db.syncOutbox))
+        .listen((_) => _onOutboxEvent());
+    await requestRound();
+  }
+
+  Future<void> stop() async {
+    _stopped = true;
+    _retryTimer?.cancel();
+    _outboxKickTimer?.cancel();
+    await _outboxSub?.cancel();
+    if (!_statusController.isClosed) await _statusController.close();
+  }
+
+  /// SSE / connectivity seam: run a round when the remote head moved past
+  /// our stored watermark.
+  Future<void> notifyRemoteCursor(int cursor) async {
+    final stored = await cursorStore.read() ?? 0;
+    if (cursor > stored) await requestRound();
+  }
+
+  /// Coalesces concurrent triggers: one round runs, at most one follow-up
+  /// is queued behind it.
+  Future<void> requestRound() async {
+    if (!_started || _stopped) return;
+    if (_roundRunning) {
+      _roundQueued = true;
+      return;
+    }
+    _roundRunning = true;
+    try {
+      do {
+        _roundQueued = false;
+        final ok = await _runRound();
+        if (!ok) break;
+      } while (_roundQueued && !_stopped);
+    } finally {
+      _roundRunning = false;
+    }
+  }
+
+  void _onOutboxEvent() {
+    // Debounced so the round's own drain writes (baseline enqueue, op
+    // drops) settle first: re-kick only when ops are still pending once
+    // the burst goes quiet — fresh mid-round enqueues queue the next round.
+    _outboxKickTimer?.cancel();
+    _outboxKickTimer = Timer(const Duration(milliseconds: 50), () async {
+      if (_stopped || !_started) return;
+      final pending = await (db.select(db.syncOutbox)).get();
+      if (pending.isNotEmpty) await requestRound();
+    });
+  }
+
+  Future<bool> _runRound() async {
+    try {
+      _emit(SyncStatus(
+        phase: SyncPhase.pushing,
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: _status.lastRejected,
+      ));
+
+      final storedCursor = await cursorStore.read();
+      if (storedCursor == null) {
+        // First configure: give pre-existing rows an identity + op so
+        // local history reaches the server at least once.
+        await _baselineSweep();
+      }
+      final cursor = storedCursor ?? 0;
+
+      // --- push ---
+      final entries = await (db.select(db.syncOutbox)
+            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+          .get();
+      final ops = await _buildOps(entries);
+      final push = await api.push(PushRequest(
+        deviceId: deviceId,
+        ops: ops,
+        cursor: cursor,
+      ));
+
+      final rejected = <String>[];
+      await db.transaction(() async {
+        final recordIdByOp = {for (final e in entries) e.opId: e.recordId};
+        for (final result in push.results) {
+          switch (result.status) {
+            case OpStatus.applied:
+            case OpStatus.duplicate:
+              if (result.serverRecord != null) {
+                await _applier.apply(result.serverRecord!);
+              }
+              await _dropOps([result.opId]);
+            case OpStatus.conflict:
+              // Server wins: overwrite local with serverRecord and drop
+              // this record's pending ops from the push snapshot. Ops
+              // enqueued after the snapshot (in-flight race) survive and
+              // push their newer payload next round.
+              if (result.serverRecord != null) {
+                await _applier.apply(result.serverRecord!);
+              }
+              final recordId = recordIdByOp[result.opId] ??
+                  result.serverRecord?.id;
+              final snapshotIds = [
+                if (recordId != null)
+                  for (final e in entries)
+                    if (e.recordId == recordId) e.opId,
+              ];
+              await _dropOps(snapshotIds.isNotEmpty
+                  ? snapshotIds
+                  : [result.opId]);
+            case OpStatus.rejected:
+              await _dropOps([result.opId]);
+              rejected.add(result.code ?? 'rejected');
+          }
+        }
+        // Watermark rule: piggyback covers everything (oldCursor, push.cursor];
+        // applying it and adopting push.cursor together keeps no gap.
+        for (final record in push.piggyback) {
+          await _applier.apply(record);
+        }
+        await cursorStore.write(push.cursor);
+      });
+
+      // --- pull ---
+      _emit(SyncStatus(
+        phase: SyncPhase.pulling,
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: rejected,
+      ));
+      while (true) {
+        final before = await cursorStore.read() ?? 0;
+        final pull = await api.pull(before);
+        await db.transaction(() async {
+          for (final change in pull.changes) {
+            await _applier.apply(change);
+          }
+          await cursorStore.write(pull.nextCursor);
+        });
+        if (!pull.hasMore) break;
+        if (pull.nextCursor <= before) {
+          debugPrint('sync: pull cursor did not advance, stopping');
+          break;
+        }
+      }
+
+      _backoffSeconds = 1;
+      _emit(SyncStatus(
+        phase: SyncPhase.idle,
+        lastSyncAt: DateTime.now(),
+        lastRejected: rejected,
+      ));
+      return true;
+    } catch (e) {
+      _emit(SyncStatus(
+        phase: SyncPhase.error,
+        lastError: '$e',
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: _status.lastRejected,
+      ));
+      _scheduleRetry();
+      return false;
+    }
+  }
+
+  Future<List<PushOp>> _buildOps(List<SyncOutboxEntry> entries) async {
+    final ops = <PushOp>[];
+    for (final entry in entries) {
+      final type = RecordType.values.byName(entry.type);
+      var baseRev = entry.baseRev;
+      if (entry.op == OpType.upsert.name) {
+        // baseRev is the record's CURRENT last-known server rev — the
+        // applier may have advanced it after this op was enqueued.
+        baseRev = await _liveServerRev(type, entry.recordId) ?? baseRev;
+      }
+      ops.add(PushOp(
+        opId: entry.opId,
+        op: OpType.values.byName(entry.op),
+        recordId: entry.recordId,
+        type: type,
+        fields: entry.payloadJson == null
+            ? null
+            : jsonDecode(entry.payloadJson!) as Map<String, dynamic>,
+        baseRev: baseRev,
+      ));
+    }
+    return ops;
+  }
+
+  Future<int?> _liveServerRev(RecordType type, String recordId) async {
+    if (type == RecordType.event) {
+      final row = await (db.select(db.events)
+            ..where((t) => t.syncId.equals(recordId)))
+          .getSingleOrNull();
+      return row?.serverRev;
+    }
+    final row = await (db.select(db.todos)
+          ..where((t) => t.syncId.equals(recordId)))
+        .getSingleOrNull();
+    return row?.serverRev;
+  }
+
+  Future<void> _dropOps(List<String> opIds) async {
+    if (opIds.isEmpty) return;
+    await (db.delete(db.syncOutbox)..where((t) => t.opId.isIn(opIds))).go();
+  }
+
+  Future<void> _baselineSweep() => db.transaction(() async {
+        final events = await (db.select(db.events)
+              ..where((t) => t.syncId.isNull() & t.deletedAt.isNull()))
+            .get();
+        for (final row in events) {
+          await SyncOutbox.enqueueUpsert(db, RecordType.event, row.id);
+        }
+        final todos = await (db.select(db.todos)
+              ..where((t) => t.syncId.isNull() & t.deletedAt.isNull()))
+            .get();
+        for (final row in todos) {
+          await SyncOutbox.enqueueUpsert(db, RecordType.todo, row.id);
+        }
+      });
+
+  void _scheduleRetry() {
+    _retryTimer?.cancel();
+    final delay = _backoffSeconds;
+    _backoffSeconds = min(_backoffSeconds * 2, 60);
+    _retryTimer = Timer(Duration(seconds: delay), () {
+      if (!_stopped) unawaited(requestRound());
+    });
+  }
+
+  void _emit(SyncStatus next) {
+    _status = next;
+    if (!_statusController.isClosed) _statusController.add(next);
+  }
+}

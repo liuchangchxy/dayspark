@@ -390,9 +390,10 @@ class _HomePageState extends ConsumerState<HomePage>
                   db.events,
                 )..where((t) => t.id.equals(event.drifId)))
                 .getSingleOrNull();
-            await (db.update(db.events)
-                  ..where((t) => t.id.equals(event.drifId)))
-                .write(event.toUpdateCompanion());
+            await ref.read(updateEventProvider)(
+              event.drifId,
+              event.toUpdateCompanion(),
+            );
             // Without this, dragged events keep notifications at the old time.
             final oldStart = previous?.startDt;
             if (oldStart != null && oldStart != event.start) {

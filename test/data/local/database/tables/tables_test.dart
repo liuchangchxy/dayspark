@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -91,6 +91,8 @@ void main() {
       expect(todo.summary, 'Buy groceries');
       expect(todo.priority, 0); // default
       expect(todo.status, 'NEEDS-ACTION'); // default
+      expect(todo.syncId, isNull); // v9: assigned on first outbox enqueue
+      expect(todo.serverRev, 0); // v9: unknown to server until pushed
     });
 
     test('insert todo with explicit priority and status', () async {
@@ -146,6 +148,61 @@ void main() {
       expect(reminder.parentType, 'event');
       expect(reminder.parentId, 1);
       expect(reminder.isTriggered, false); // default
+    });
+  });
+
+  group('SyncOutboxTable', () {
+    test('insert and read an outbox op', () async {
+      final id = await db
+          .into(db.syncOutbox)
+          .insert(
+            SyncOutboxCompanion.insert(
+              opId: 'op-1',
+              recordId: 'rec-1',
+              type: 'event',
+              op: 'upsert',
+              payloadJson: const Value('{"summary":"Hi"}'),
+              baseRev: const Value(3),
+              createdAt: DateTime(2026, 9, 23, 12),
+            ),
+          );
+      expect(id, 1);
+      final entry = await (db.select(db.syncOutbox)).getSingle();
+      expect(entry.opId, 'op-1');
+      expect(entry.recordId, 'rec-1');
+      expect(entry.type, 'event');
+      expect(entry.op, 'upsert');
+      expect(entry.payloadJson, '{"summary":"Hi"}');
+      expect(entry.baseRev, 3);
+      expect(entry.createdAt, DateTime(2026, 9, 23, 12));
+    });
+
+    test('opId is the primary key', () async {
+      await db
+          .into(db.syncOutbox)
+          .insert(
+            SyncOutboxCompanion.insert(
+              opId: 'dup',
+              recordId: 'rec-1',
+              type: 'todo',
+              op: 'delete',
+              createdAt: DateTime(2026, 9, 23),
+            ),
+          );
+      expect(
+        db
+            .into(db.syncOutbox)
+            .insert(
+              SyncOutboxCompanion.insert(
+                opId: 'dup',
+                recordId: 'rec-2',
+                type: 'todo',
+                op: 'delete',
+                createdAt: DateTime(2026, 9, 23),
+              ),
+            ),
+        throwsA(anything),
+      );
     });
   });
 }

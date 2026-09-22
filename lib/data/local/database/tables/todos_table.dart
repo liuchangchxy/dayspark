@@ -20,4 +20,6 @@ class Todos extends Table {
   DateTimeColumn get deletedAt => dateTime().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   IntColumn get parentId => integer().nullable()();
+  TextColumn get syncId => text().nullable()();
+  IntColumn get serverRev => integer().withDefault(const Constant(0))();
 }
