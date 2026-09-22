@@ -78,9 +78,15 @@ class _HomePageState extends ConsumerState<HomePage>
       try {
         // Wire up notification action handler
         final notifService = NotificationService();
-        notifService.onNotificationAction = (actionId, parentId, parentType) {
-          _handleNotificationAction(actionId, parentId, parentType);
-        };
+        notifService.onNotificationAction =
+            (actionId, parentId, parentType, reminderId) {
+              _handleNotificationAction(
+                actionId,
+                parentId,
+                parentType,
+                reminderId,
+              );
+            };
         _checkOverdueTodos();
         _startDayCheckTimer();
         _checkVersionChangelog();
@@ -191,20 +197,29 @@ class _HomePageState extends ConsumerState<HomePage>
     String actionId,
     int parentId,
     String parentType,
+    int? reminderId,
   ) {
     if (!mounted) return;
-    final db = ref.read(databaseProvider);
     if (actionId == NotificationActions.markComplete && parentType == 'todo') {
-      db.todosDao.markComplete(parentId);
+      // Route through the toggle provider so completing from a notification
+      // also cancels the todo's remaining reminder notifications.
+      ref.read(toggleTodoProvider)(id: parentId, isCompleted: true);
     } else if (actionId == NotificationActions.snooze) {
+      if (reminderId == null) return;
       final l = AppLocalizations.of(context)!;
       final newTime = DateTime.now().add(const Duration(hours: 1));
+      // Snooze addresses the reminder row id, not the parent id, so it
+      // lands in the same notification id space cancel() can reach.
       NotificationService().snooze(
-        id: parentId,
+        id: reminderId,
         title: parentType == 'event' ? l.eventReminder : l.todoReminder,
         body: l.snoozedReminder,
         scheduledTime: newTime,
-        payload: '$parentType:$parentId',
+        payload: NotificationPayload(
+          parentType: parentType,
+          parentId: parentId,
+          reminderId: reminderId,
+        ).encode(),
       );
     }
   }

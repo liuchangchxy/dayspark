@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -13,11 +15,62 @@ class NotificationActions {
   static const String snooze = 'snooze';
 }
 
+/// Notification payload: 'parentType:parentId[:reminderId]'.
+/// reminderId lets snooze/cancel address the flutter_local_notifications id
+/// space without colliding with parent row ids.
+class NotificationPayload {
+  const NotificationPayload({
+    required this.parentType,
+    required this.parentId,
+    this.reminderId,
+  });
+
+  final String parentType;
+  final int parentId;
+  final int? reminderId;
+
+  static NotificationPayload? tryParse(String payload) {
+    final parts = payload.split(':');
+    if (parts.length < 2) return null;
+    final parentId = int.tryParse(parts[1]);
+    if (parentId == null) return null;
+    final reminderId = parts.length > 2 ? int.tryParse(parts[2]) : null;
+    return NotificationPayload(
+      parentType: parts[0],
+      parentId: parentId,
+      reminderId: reminderId,
+    );
+  }
+
+  String encode() {
+    if (reminderId == null) return '$parentType:$parentId';
+    return '$parentType:$parentId:$reminderId';
+  }
+}
+
 /// Schedules local notifications for event/todo reminders.
 class NotificationService {
   static final NotificationService _instance = NotificationService._();
   factory NotificationService() => _instance;
   NotificationService._();
+
+  static bool _tzReady = false;
+
+  /// Initializes the timezone database and pins tz.local to the device
+  /// location. initializeDatabase resets local to UTC, so this must run once
+  /// after database load and before any zonedSchedule call.
+  static Future<void> ensureTimeZoneInitialized() async {
+    if (_tzReady) return;
+    tz.initializeTimeZones();
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(info.identifier));
+    } catch (e) {
+      // Missing/unknown IANA id: UTC still keeps absolute instants correct.
+      debugPrint('notification: timezone resolve failed: $e');
+    }
+    _tzReady = true;
+  }
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -26,7 +79,7 @@ class NotificationService {
   Future<void> init() async {
     if (_initialized) return;
 
-    tz.initializeTimeZones();
+    await ensureTimeZoneInitialized();
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -80,35 +133,51 @@ class NotificationService {
   }
 
   void Function(int parentId, String parentType)? onNotificationTapped;
-  void Function(String actionId, int parentId, String parentType)?
+  void Function(String actionId, int parentId, String parentType, int? reminderId)?
   onNotificationAction;
 
   void _onNotificationTapped(NotificationResponse response) {
     final payload = response.payload;
     if (payload == null) return;
 
-    final parts = payload.split(':');
-    if (parts.length < 2) return;
-
-    final parentType = parts[0];
-    final parentId = int.tryParse(parts[1]);
-    if (parentId == null) return;
+    final parsed = NotificationPayload.tryParse(payload);
+    if (parsed == null) return;
 
     if (response.actionId == NotificationActions.markComplete) {
       onNotificationAction?.call(
         NotificationActions.markComplete,
-        parentId,
-        parentType,
+        parsed.parentId,
+        parsed.parentType,
+        parsed.reminderId,
       );
     } else if (response.actionId == NotificationActions.snooze) {
       onNotificationAction?.call(
         NotificationActions.snooze,
-        parentId,
-        parentType,
+        parsed.parentId,
+        parsed.parentType,
+        parsed.reminderId,
       );
     } else {
-      onNotificationTapped?.call(parentId, parentType);
+      onNotificationTapped?.call(parsed.parentId, parsed.parentType);
     }
+  }
+
+  /// Whether exact alarms may currently be scheduled (Android 12+ gate).
+  Future<bool> canScheduleExactAlarms() async {
+    if (kIsWeb || !Platform.isAndroid) return true;
+    final android = _plugin.resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin
+    >();
+    return await android?.canScheduleExactNotifications() ?? false;
+  }
+
+  /// Opens the system screen that grants the exact-alarm permission.
+  Future<void> requestExactAlarmsPermission() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    final android = _plugin.resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin
+    >();
+    await android?.requestExactAlarmsPermission();
   }
 
   /// Schedule a reminder from the Reminders table.
@@ -128,7 +197,11 @@ class NotificationService {
       title: isEvent ? eventReminderTitle : todoReminderTitle,
       body: isEvent ? eventReminderBody : todoReminderBody,
       scheduledTime: reminder.triggerTime,
-      payload: '${reminder.parentType}:${reminder.parentId}',
+      payload: NotificationPayload(
+        parentType: reminder.parentType,
+        parentId: reminder.parentId,
+        reminderId: reminder.id,
+      ).encode(),
     );
 
     if (await AlarmService.isEnabled()) {
@@ -180,15 +253,25 @@ class NotificationService {
 
     final tzDateTime = tz.TZDateTime.from(scheduledTime, tz.local);
     if (tzDateTime.isBefore(tz.TZDateTime.now(tz.local))) return;
+    // Schedules at the reminder's own id (not an offset): the original
+    // notification already fired, and reusing the id keeps cancel(id) able
+    // to reach the snoozed copy.
     await _plugin.zonedSchedule(
-      id: id + 100000, // Offset to avoid conflicts with original
+      id: id,
       scheduledDate: tzDateTime,
       notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: await _scheduleMode(),
       title: title,
       body: body,
       payload: payload,
     );
+  }
+
+  Future<AndroidScheduleMode> _scheduleMode() async {
+    final canExact = await canScheduleExactAlarms();
+    return canExact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
   }
 
   Future<void> _scheduleNotification({
@@ -237,7 +320,7 @@ class NotificationService {
       id: id,
       scheduledDate: tzDateTime,
       notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: await _scheduleMode(),
       title: title,
       body: body,
       payload: payload,

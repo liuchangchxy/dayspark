@@ -11,10 +11,14 @@ import 'core/utils/platform_scroll_behavior.dart';
 import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
 import 'domain/providers/locale_provider.dart';
 import 'infrastructure/platform/alarm_service.dart';
+import 'infrastructure/platform/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AlarmService.init();
+  // tz database + local location must be ready before any reminder can
+  // schedule (initializeDatabase resets tz.local to UTC if run later).
+  await NotificationService.ensureTimeZoneInitialized();
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
