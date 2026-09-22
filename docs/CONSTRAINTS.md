@@ -67,6 +67,27 @@
 - **Why**: 同一个 todo/event 的 notification 和 alarm ID 不能冲突
 - **Date**: 2026-05-02
 
+### 通知 payload 带 reminderId，snooze 用 reminder.id
+- Payload 格式：`parentType:parentId:reminderId`（旧两段格式仍可解析）
+- Snooze 以 reminder.id 调度（不再用 parentId+100000 偏移）
+- **Why**: parentId 会撞 notification id 空间，且 cancel 够不到 snooze 后的通知
+- **Date**: 2026-09-22
+
+### 通知链手工验证清单（真机/模拟器，每次改通知相关代码后过一遍）
+- [ ] 创建带提醒的待办 → 到点响
+- [ ] 通知上点 Snooze 1h → 1 小时后再次响
+- [ ] 通知上点 Mark Complete → 待办完成且剩余提醒不响
+- [ ] 完成待办 → 其提醒不再响；取消完成 → 提醒恢复
+- [ ] 修改 due date → 提醒按新时间响
+- [ ] 待办进回收站 → 提醒不响；恢复 → 未来提醒恢复调度
+- [ ] 父待办删除（级联子任务）→ 父子提醒都不响
+- [ ] 清空回收站 / 永久删除 → 无残留通知
+- [ ] 事件删除/清空事件回收站 → 提醒不响
+- [ ] 重启设备 → 提醒仍会响（ScheduledNotificationBootReceiver）
+- [ ] 语言切中文后新建提醒 → 通知文案为中文
+- [ ] Android 14+：系统设置→精确定时权限已授予（设置页有引导入口兜底）
+- **Date**: 2026-09-22
+
 ## Time Picker / 时间选择器
 
 ### CupertinoDatePicker 不强制 24h

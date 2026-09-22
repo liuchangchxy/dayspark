@@ -1,10 +1,15 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/locale_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late AppDatabase testDb;
 
   setUp(() {
@@ -132,6 +137,34 @@ void main() {
       )..where((t) => t.id.equals(id))).go();
       final reminders = await testDb.select(testDb.reminders).get();
       expect(reminders.length, 0);
+    });
+  });
+
+  group('loadNotificationStrings', () {
+    test('returns zh strings for zh locale', () async {
+      final strings = await loadNotificationStrings(
+        locale: const Locale('zh'),
+      );
+      expect(strings.eventReminderTitle, '日程提醒');
+      expect(strings.todoReminderTitle, '待办提醒');
+      expect(strings.eventReminderBody, '日程即将开始');
+      expect(strings.todoReminderBody, '待办即将到期');
+    });
+
+    test('returns en strings for en locale', () async {
+      final strings = await loadNotificationStrings(
+        locale: const Locale('en'),
+      );
+      expect(strings.eventReminderTitle, 'Event Reminder');
+      expect(strings.todoReminderTitle, 'Todo Reminder');
+      expect(strings.eventReminderBody, 'Event starting soon');
+      expect(strings.todoReminderBody, 'Task due soon');
+    });
+
+    test('reads persisted locale from SharedPreferences', () async {
+      SharedPreferences.setMockInitialValues({appLocalePrefKey: 'zh'});
+      final strings = await loadNotificationStrings();
+      expect(strings.eventReminderTitle, '日程提醒');
     });
   });
 }

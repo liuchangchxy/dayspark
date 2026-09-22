@@ -8,21 +8,46 @@ import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockNotificationService extends Mock implements NotificationService {}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late ProviderContainer container;
   late AppDatabase testDb;
+  late _MockNotificationService notifMock;
+
+  setUpAll(() {
+    registerFallbackValue(
+      Reminder(
+        id: 0,
+        parentType: 'todo',
+        parentId: 0,
+        triggerTime: DateTime(2020),
+        isTriggered: false,
+      ),
+    );
+  });
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({'app_locale': 'en'});
+    notifMock = _MockNotificationService();
+    when(() => notifMock.cancel(any())).thenAnswer((_) async {});
+    when(
+      () => notifMock.scheduleFromReminder(
+        any(),
+        eventReminderTitle: any(named: 'eventReminderTitle'),
+        todoReminderTitle: any(named: 'todoReminderTitle'),
+        eventReminderBody: any(named: 'eventReminderBody'),
+        todoReminderBody: any(named: 'todoReminderBody'),
+      ),
+    ).thenAnswer((_) async {});
     testDb = AppDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(testDb),
-        notificationServiceProvider.overrideWithValue(
-          _MockNotificationService(),
-        ),
+        notificationServiceProvider.overrideWithValue(notifMock),
       ],
     );
   });
@@ -266,6 +291,301 @@ void main() {
       expect(trashed.map((t) => t.id), isNot(contains(parentId)));
       expect(trashed.map((t) => t.id), isNot(contains(childId)));
       expect(trashed.map((t) => t.id), contains(otherId));
+    });
+
+    test('deleteTodoProvider cancels notifications for parent and children',
+        () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final parentId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Parent',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+      final childId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Child',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              parentId: Value(parentId),
+            ),
+          );
+      final otherId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Unrelated',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+      Future<int> addReminder(int todoId) => testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: todoId,
+              triggerTime: DateTime.now().add(const Duration(hours: 2)),
+            ),
+          );
+      final parentReminderId = await addReminder(parentId);
+      final childReminderId = await addReminder(childId);
+      final otherReminderId = await addReminder(otherId);
+
+      await container.read(deleteTodoProvider).call(parentId);
+
+      verify(() => notifMock.cancel(parentReminderId)).called(1);
+      verify(() => notifMock.cancel(childReminderId)).called(1);
+      verifyNever(() => notifMock.cancel(otherReminderId));
+    });
+
+    test('toggleTodoProvider complete cancels reminder notifications',
+        () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final todoId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'To complete',
+              priority: const Value(5),
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+      final reminderId = await testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: todoId,
+              triggerTime: DateTime.now().add(const Duration(hours: 1)),
+            ),
+          );
+
+      await container
+          .read(toggleTodoProvider)
+          .call(id: todoId, isCompleted: true);
+
+      verify(() => notifMock.cancel(reminderId)).called(1);
+      final todo = await (testDb.select(
+        testDb.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
+      expect(todo.status, 'COMPLETED');
+    });
+
+    test('toggleTodoProvider incomplete reschedules reminder notifications',
+        () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final todoId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'To reopen',
+              priority: const Value(5),
+              status: const Value('COMPLETED'),
+            ),
+          );
+      final triggerTime = DateTime.now().add(const Duration(hours: 3));
+      final reminderId = await testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: todoId,
+              triggerTime: triggerTime,
+            ),
+          );
+      final reminder = await (testDb.select(
+        testDb.reminders,
+      )..where((t) => t.id.equals(reminderId))).getSingle();
+
+      await container
+          .read(toggleTodoProvider)
+          .call(id: todoId, isCompleted: false);
+
+      verify(
+        () => notifMock.scheduleFromReminder(
+          reminder,
+          eventReminderTitle: any(named: 'eventReminderTitle'),
+          todoReminderTitle: any(named: 'todoReminderTitle'),
+          eventReminderBody: any(named: 'eventReminderBody'),
+          todoReminderBody: any(named: 'todoReminderBody'),
+        ),
+      ).called(1);
+      verifyNever(() => notifMock.cancel(reminderId));
+      final todo = await (testDb.select(
+        testDb.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
+      expect(todo.status, 'NEEDS-ACTION');
+    });
+
+    test('restoreTodoProvider reschedules reminders of restored todos',
+        () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final parentId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Trashed parent',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final childId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Trashed child',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              parentId: Value(parentId),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final triggerTime = DateTime.now().add(const Duration(hours: 5));
+      Future<int> addReminder(int todoId) => testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: todoId,
+              triggerTime: triggerTime,
+            ),
+          );
+      final parentReminderId = await addReminder(parentId);
+      final childReminderId = await addReminder(childId);
+      final parentReminder = await (testDb.select(
+        testDb.reminders,
+      )..where((t) => t.id.equals(parentReminderId))).getSingle();
+      final childReminder = await (testDb.select(
+        testDb.reminders,
+      )..where((t) => t.id.equals(childReminderId))).getSingle();
+
+      await container.read(restoreTodoProvider).call(parentId);
+
+      verify(
+        () => notifMock.scheduleFromReminder(
+          parentReminder,
+          eventReminderTitle: any(named: 'eventReminderTitle'),
+          todoReminderTitle: any(named: 'todoReminderTitle'),
+          eventReminderBody: any(named: 'eventReminderBody'),
+          todoReminderBody: any(named: 'todoReminderBody'),
+        ),
+      ).called(1);
+      verify(
+        () => notifMock.scheduleFromReminder(
+          childReminder,
+          eventReminderTitle: any(named: 'eventReminderTitle'),
+          todoReminderTitle: any(named: 'todoReminderTitle'),
+          eventReminderBody: any(named: 'eventReminderBody'),
+          todoReminderBody: any(named: 'todoReminderBody'),
+        ),
+      ).called(1);
+    });
+
+    test('permanentDeleteTodoProvider cancels reminder notifications',
+        () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final todoId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Forever gone',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final reminderId = await testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: todoId,
+              triggerTime: DateTime.now().add(const Duration(hours: 1)),
+            ),
+          );
+
+      await container.read(permanentDeleteTodoProvider).call(todoId);
+
+      verify(() => notifMock.cancel(reminderId)).called(1);
+      final reminders = await testDb.select(testDb.reminders).get();
+      expect(reminders, isEmpty);
+    });
+
+    test('emptyTrashProvider cancels reminders of trashed todos', () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final trashedId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'In trash',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+      final activeId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Active',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+      final trashedReminderId = await testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: trashedId,
+              triggerTime: DateTime.now().add(const Duration(hours: 1)),
+            ),
+          );
+      final activeReminderId = await testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: activeId,
+              triggerTime: DateTime.now().add(const Duration(hours: 1)),
+            ),
+          );
+
+      await container.read(emptyTrashProvider).call();
+
+      verify(() => notifMock.cancel(trashedReminderId)).called(1);
+      verifyNever(() => notifMock.cancel(activeReminderId));
+      final todos = await testDb.select(testDb.todos).get();
+      expect(todos.map((t) => t.id), [activeId]);
     });
   });
 }
