@@ -63,3 +63,9 @@
 - **核心决策**：番茄钟+数据复盘、CalDAV 导出层、E2EE 一律标记为 P5+ 以后，不进本计划执行。
 - **对应 SPEC 章节**：SPEC.md 第 3.4 节（明确出范围行）
 - **影响范围**：排期与需求边界。
+
+### [2026-09-22] CI Flutter 版本钉子移除，统一 channel stable
+- **触发背景**：P1 首推 CI 失败——macOS/Windows job 钉 3.41.7 缺少 `onReorderItem` 参数（本地与其余 job 均为 3.47+/stable），编译报错 No named parameter。
+- **核心决策**：移除 ci.yml 与 release.yml 中全部 `flutter-version: 3.41.7`，五平台统一 `channel: stable`；推翻 2026-05-16「统一到 3.41.7」的决定（其动因 Windows AOT/MSB8066 已由通知 stub 方案解决）。
+- **对应 SPEC 章节**：SPEC.md 3.4 P1 行（全平台构建验证）。
+- **影响范围**：.github/workflows/ci.yml、release.yml；Windows/macOS 构建将在新 stable 上首次验证。
