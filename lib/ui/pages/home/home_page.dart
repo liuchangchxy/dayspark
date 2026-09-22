@@ -54,47 +54,60 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void initState() {
     super.initState();
-    // Default to today for the selected date
+    _initSelectedDate();
+    _initCurrentTab();
+    WidgetsBinding.instance.addObserver(this);
+    _listenForDefaultTabChanges();
+    Future.microtask(_runStartupSideEffects);
+  }
+
+  void _initSelectedDate() {
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
+  }
 
+  void _initCurrentTab() {
     _currentTab = widget.initialTab >= 0
         ? widget.initialTab.clamp(0, 1)
         : (ref.read(defaultTabProvider) == AppTab.todos ? 1 : 0);
-    WidgetsBinding.instance.addObserver(this);
-    if (widget.initialTab < 0) {
-      Future.microtask(() {
-        if (!mounted) return;
-        ref.listenManual(defaultTabProvider, (prev, next) {
-          if (!_userChangedTab && prev != null && mounted) {
-            setState(() {
-              _currentTab = next == AppTab.todos ? 1 : 0;
-            });
-          }
-        });
+  }
+
+  void _listenForDefaultTabChanges() {
+    if (widget.initialTab >= 0) return;
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.listenManual(defaultTabProvider, (prev, next) {
+        if (!_userChangedTab && prev != null && mounted) {
+          setState(() {
+            _currentTab = next == AppTab.todos ? 1 : 0;
+          });
+        }
       });
-    }
-    Future.microtask(() async {
-      try {
-        // Wire up notification action handler
-        final notifService = NotificationService();
-        notifService.onNotificationAction =
-            (actionId, parentId, parentType, reminderId) {
-              _handleNotificationAction(
-                actionId,
-                parentId,
-                parentType,
-                reminderId,
-              );
-            };
-        _checkOverdueTodos();
-        _startDayCheckTimer();
-        _checkVersionChangelog();
-        ref.read(updateHomeWidgetProvider)();
-      } catch (e) {
-        debugPrint('initState microtask error: $e');
-      }
     });
+  }
+
+  // Side effects run once after first frame: notification wiring, overdue
+  // prompt, midnight day rollover check, changelog popup, cold-start widget
+  // snapshot (ongoing refresh is write-driven via homeWidgetAutoRefreshProvider).
+  Future<void> _runStartupSideEffects() async {
+    try {
+      final notifService = NotificationService();
+      notifService.onNotificationAction =
+          (actionId, parentId, parentType, reminderId) {
+            _handleNotificationAction(
+              actionId,
+              parentId,
+              parentType,
+              reminderId,
+            );
+          };
+      _checkOverdueTodos();
+      _startDayCheckTimer();
+      _checkVersionChangelog();
+      ref.read(updateHomeWidgetProvider)();
+    } catch (e) {
+      debugPrint('initState microtask error: $e');
+    }
   }
 
   void _startDayCheckTimer() {
