@@ -9,6 +9,7 @@ class Config {
     required this.jwtSecret,
     this.accessTtl = const Duration(minutes: 15),
     this.refreshTtl = const Duration(days: 30),
+    this.sseHeartbeat = const Duration(seconds: 25),
   });
 
   factory Config.fromEnv([Map<String, String>? environ]) {
@@ -27,4 +28,5 @@ class Config {
   final String jwtSecret;
   final Duration accessTtl;
   final Duration refreshTtl;
+  final Duration sseHeartbeat;
 }

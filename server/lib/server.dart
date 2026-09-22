@@ -10,6 +10,7 @@ import 'src/db.dart';
 import 'src/http.dart';
 import 'src/routes/auth.dart';
 import 'src/routes/health.dart';
+import 'src/routes/stream.dart';
 import 'src/routes/sync.dart';
 
 export 'package:shelf/shelf.dart' show Handler, Request, Response;
@@ -30,8 +31,11 @@ class AppServer {
   final AppDatabase db;
   late final Auth auth;
 
-  // Notify seam for SSE (Task 4): Task 3 must call this after a push
-  // transaction commits and has advanced the per-user seq. Null = inert.
+  // Per-user registry of open GET /sync/stream connections (SSE invalidation).
+  final StreamHub streamHub = StreamHub();
+
+  // Optional external observer seam for seq advances; the SSE streamHub is
+  // always wired regardless of whether this is set.
   void Function(String userId, int seq)? onSeqAdvanced;
 
   late final Handler handler = _buildHandler();
@@ -44,7 +48,17 @@ class AppServer {
       router,
       db: db,
       auth: auth,
-      notifySeq: (userId, seq) => onSeqAdvanced?.call(userId, seq),
+      notifySeq: (userId, seq) {
+        streamHub.broadcast(userId, seq);
+        onSeqAdvanced?.call(userId, seq);
+      },
+    );
+    registerStreamRoutes(
+      router,
+      db: db,
+      auth: auth,
+      hub: streamHub,
+      heartbeat: config.sseHeartbeat,
     );
     return const Pipeline()
         .addMiddleware(logRequests())
@@ -64,5 +78,8 @@ class AppServer {
     return server;
   }
 
-  Future<void> close() => db.close();
+  Future<void> close() {
+    streamHub.closeAll();
+    return db.close();
+  }
 }
