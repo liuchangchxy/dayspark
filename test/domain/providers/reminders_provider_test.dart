@@ -1,22 +1,39 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/infrastructure/platform/notification_service.dart';
+
+class _MockNotificationService extends Mock implements NotificationService {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late AppDatabase testDb;
+  late ProviderContainer container;
+  late _MockNotificationService notifMock;
 
   setUp(() {
+    notifMock = _MockNotificationService();
+    when(() => notifMock.cancel(any())).thenAnswer((_) async {});
     testDb = AppDatabase.forTesting(NativeDatabase.memory());
+    container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(testDb),
+        notificationServiceProvider.overrideWithValue(notifMock),
+      ],
+    );
   });
 
   tearDown(() async {
+    container.dispose();
     await testDb.close();
   });
 
@@ -165,6 +182,46 @@ void main() {
       SharedPreferences.setMockInitialValues({appLocalePrefKey: 'zh'});
       final strings = await loadNotificationStrings();
       expect(strings.eventReminderTitle, '日程提醒');
+    });
+  });
+
+  group('clearRemindersProvider', () {
+    test('cancels and deletes only the target parent reminders', () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      Future<int> addTodo(String summary) => testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: summary,
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+      Future<int> addReminder(int todoId) => testDb
+          .into(testDb.reminders)
+          .insert(
+            RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: todoId,
+              triggerTime: DateTime.now().add(const Duration(hours: 2)),
+            ),
+          );
+      final todoA = await addTodo('Target');
+      final todoB = await addTodo('Other');
+      final reminderA1 = await addReminder(todoA);
+      final reminderA2 = await addReminder(todoA);
+      final reminderB = await addReminder(todoB);
+
+      await container.read(clearRemindersProvider).call('todo', todoA);
+
+      verify(() => notifMock.cancel(reminderA1)).called(1);
+      verify(() => notifMock.cancel(reminderA2)).called(1);
+      verifyNever(() => notifMock.cancel(reminderB));
+      final remaining = await testDb.select(testDb.reminders).get();
+      expect(remaining.map((r) => r.id), [reminderB]);
     });
   });
 }
