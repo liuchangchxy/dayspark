@@ -75,11 +75,14 @@ class _AboutPageState extends State<AboutPage> {
   }
 
   int _compareVersions(String a, String b) {
-    final pa = a.split('.').map(int.parse).toList();
-    final pb = b.split('.').map(int.parse).toList();
+    final pa = a.split('.').map(int.tryParse).toList();
+    final pb = b.split('.').map(int.tryParse).toList();
+    // Unparseable tag (e.g. "0.20.5-beta") → report no update instead of
+    // throwing during build.
+    if (pa.any((v) => v == null) || pb.any((v) => v == null)) return 0;
     for (var i = 0; i < pa.length || i < pb.length; i++) {
-      final va = i < pa.length ? pa[i] : 0;
-      final vb = i < pb.length ? pb[i] : 0;
+      final va = i < pa.length ? pa[i]! : 0;
+      final vb = i < pb.length ? pb[i]! : 0;
       if (va != vb) return va - vb;
     }
     return 0;

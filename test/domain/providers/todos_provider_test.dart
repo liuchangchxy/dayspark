@@ -134,5 +134,81 @@ void main() {
       )..where((t) => t.id.equals(todoId))).getSingle();
       expect(todo.deletedAt != null, true);
     });
+
+    test('deleteTodoProvider cascades soft-delete to children', () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+
+      final parentId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Parent',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+      final childId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Child',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              parentId: Value(parentId),
+            ),
+          );
+      final otherId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Unrelated',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+
+      await container.read(deleteTodoProvider).call(parentId);
+
+      final rows = await testDb.select(testDb.todos).get();
+      final parent = rows.firstWhere((t) => t.id == parentId);
+      final child = rows.firstWhere((t) => t.id == childId);
+      final other = rows.firstWhere((t) => t.id == otherId);
+      expect(parent.deletedAt != null, true);
+      expect(child.deletedAt != null, true);
+      expect(child.deletedAt, parent.deletedAt);
+      expect(other.deletedAt == null, true);
+
+      final trashed = await testDb.todosDao.watchDeleted().first;
+      expect(trashed.map((t) => t.id), containsAll([parentId, childId]));
+    });
+
+    test('restoreTodoProvider clears deletedAt', () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final todoId = await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Trashed',
+              priority: const Value(1),
+              status: const Value('NEEDS-ACTION'),
+              deletedAt: Value(DateTime.now()),
+            ),
+          );
+
+      await container.read(restoreTodoProvider).call(todoId);
+
+      final todo = await (testDb.select(
+        testDb.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
+      expect(todo.deletedAt == null, true);
+    });
   });
 }

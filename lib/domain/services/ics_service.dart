@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show BooleanExpressionOperators;
 import 'package:enough_icalendar/enough_icalendar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,10 +19,16 @@ class IcsService {
   Future<String> exportCalendar(int calendarId) async {
     final events = await (_db.select(
       _db.events,
-    )..where((t) => t.calendarId.equals(calendarId))).get();
+    )..where(
+          (t) => t.calendarId.equals(calendarId) & t.deletedAt.isNull(),
+        ))
+        .get();
     final todos = await (_db.select(
       _db.todos,
-    )..where((t) => t.calendarId.equals(calendarId))).get();
+    )..where(
+          (t) => t.calendarId.equals(calendarId) & t.deletedAt.isNull(),
+        ))
+        .get();
 
     final cal = VCalendar();
     cal.productId = '-//CalendarTodoApp//EN';
