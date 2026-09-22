@@ -224,7 +224,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                   const Spacer(),
                   Semantics(
                     button: true,
-                    label: 'Previous',
+                    label: l.previousPeriod,
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: IconButton(
@@ -235,7 +235,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                   ),
                   Semantics(
                     button: true,
-                    label: 'Next',
+                    label: l.nextPeriod,
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: IconButton(

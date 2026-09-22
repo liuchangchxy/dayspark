@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 class EventTile extends StatelessWidget {
   final CalendaEventAdapter event;
@@ -59,7 +60,7 @@ class EventTile extends StatelessWidget {
           : ' ${DateFormatters.formatTime(event.start)} – ${DateFormatters.formatTime(event.end)}';
       return Semantics(
         label: '${event.title}$timeStr',
-        hint: 'Open event details',
+        hint: AppLocalizations.of(context)!.openEventDetails,
         child: Material(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(6),

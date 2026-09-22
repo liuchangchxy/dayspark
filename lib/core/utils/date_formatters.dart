@@ -17,15 +17,4 @@ class DateFormatters {
   /// Returns `M/D` (short locale-friendly date).
   static String formatShortDate(DateTime dt) =>
       '${dt.month}/${dt.day}';
-
-  /// Returns a human-readable relative time string (e.g. "just now", "5m ago", "3h ago").
-  /// Falls back to `M/D H:MM` for times older than 24 hours.
-  static String formatRelativeTime(DateTime time) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${time.month}/${time.day} ${formatTime(time)}';
-  }
 }

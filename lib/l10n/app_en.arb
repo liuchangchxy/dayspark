@@ -90,7 +90,6 @@
   "importExport": "Import / Export",
   "export": "Export",
   "import": "Import",
-  "defaultReminderTimes": "Default reminder times",
   "advancedFeatures": "Advanced Features",
   "attachments": "Attachments",
   "calendarData": "Calendar data",
@@ -168,7 +167,7 @@
       "error": { "type": "String" }
     }
   },
-  "noSubtasks": "No subtask suggestions available",
+  "noSubtaskSuggestions": "No subtask suggestions available",
   "taskBreakdown": "Task Breakdown",
   "todoCreatedShort": "Todo created",
   "failedCreateTodo": "Failed to create todo: {error}",
@@ -199,7 +198,17 @@
   "noDueDate": "No due date",
   "moveToToday": "Move to today",
   "moveToTodayPrompt": "You have {count} overdue todo(s). Move due dates to today?",
+  "@moveToTodayPrompt": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "movedToToday": "Moved {count} todo(s) to today",
+  "@movedToToday": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "skip": "Skip",
   "pendingTodos": "Pending",
   "goToToday": "Return to Today",
@@ -288,20 +297,8 @@
   "mcpAutoStartDesc": "Start MCP server when app launches",
   "mcpPort": "Port",
   "editTag": "Edit Tag",
-  "save": "Save",
   "thirdPartyLicenses": "Third-Party Licenses",
-  "databaseExport": "Export Database",
-  "databaseImport": "Import Database",
-  "databaseImportConfirm": "This will replace all current data. Continue?",
-  "databaseImportSuccess": "Database imported. Please restart the app.",
-  "databaseExportFailed": "Database export failed: {error}",
-  "@databaseExportFailed": { "placeholders": { "error": { "type": "String" } } },
-  "databaseImportFailed": "Database import failed: {error}",
-  "@databaseImportFailed": { "placeholders": { "error": { "type": "String" } } },
   "security": "Security",
-  "biometricLock": "Biometric Lock",
-  "biometricLockDesc": "Require biometric authentication to open the app",
-  "biometricPrompt": "Unlock DaySpark",
   "backgroundSync": "Background Sync",
   "backgroundSyncDesc": "Periodically sync calendars in the background",
   "recurringDragDisabled": "Recurring events cannot be moved by drag",
@@ -316,7 +313,6 @@
   "languageZh": "Chinese",
   "languageEn": "English",
   "reminder": "Reminder",
-  "noReminder": "No reminder",
   "syncComplete": "Sync complete",
   "subtasks": "Subtasks",
   "addSubtask": "Add subtask",
@@ -328,12 +324,6 @@
     }
   },
   "subtaskHint": "Subtask text",
-  "reminderLabel": "{minutes}min",
-  "@reminderLabel": {
-    "placeholders": {
-      "minutes": { "type": "int" }
-    }
-  },
   "rateLimited": "Rate limited. Visit github.com/{repo}/releases to check manually.",
   "@rateLimited": {
     "placeholders": {
@@ -361,5 +351,18 @@
     "placeholders": {
       "hours": { "type": "int" }
     }
-  }
+  },
+  "openTodoDetails": "Open todo details",
+  "highPriority": "High priority",
+  "mediumPriority": "Medium priority",
+  "markIncomplete": "Mark incomplete",
+  "tagWith": "Tag: {name}",
+  "@tagWith": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "openEventDetails": "Open event details",
+  "previousPeriod": "Previous",
+  "nextPeriod": "Next"
 }

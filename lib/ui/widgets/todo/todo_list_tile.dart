@@ -82,6 +82,7 @@ class TodoListTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final textColor = isCompleted
         ? theme.disabledColor
@@ -90,7 +91,7 @@ class TodoListTile extends ConsumerWidget {
 
     return Semantics(
       button: true,
-      hint: 'Open todo details',
+      hint: l.openTodoDetails,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: InkWell(
@@ -101,7 +102,7 @@ class TodoListTile extends ConsumerWidget {
           children: [
             if (_priorityColor(theme.brightness) != Colors.transparent)
               Semantics(
-                label: priority == 1 ? 'High priority' : 'Medium priority',
+                label: priority == 1 ? l.highPriority : l.mediumPriority,
                 child: Container(
                   width: 4,
                   height: 32,
@@ -120,7 +121,7 @@ class TodoListTile extends ConsumerWidget {
               child: isCompleted
                   ? Semantics(
                       button: true,
-                      label: 'Mark incomplete',
+                      label: l.markIncomplete,
                       child: Checkbox(
                         value: true,
                         onChanged: (_) => onToggle(),
@@ -155,7 +156,7 @@ class TodoListTile extends ConsumerWidget {
                         )
                       : Semantics(
                           button: true,
-                          label: 'Mark complete',
+                          label: l.markComplete,
                           child: Checkbox(
                             value: false,
                             onChanged: (_) => onToggle(),
@@ -202,7 +203,7 @@ class TodoListTile extends ConsumerWidget {
                         ),
                       ),
                       tagsAsync.when(
-                        data: (tags) => _tagDots(tags),
+                        data: (tags) => _tagDots(context, tags),
                         loading: () => const SizedBox.shrink(),
                         error: (_, __) => const SizedBox.shrink(),
                       ),
@@ -219,7 +220,7 @@ class TodoListTile extends ConsumerWidget {
     );
   }
 
-  Widget _tagDots(List tags) {
+  Widget _tagDots(BuildContext context, List tags) {
     if (tags.isEmpty) return const SizedBox.shrink();
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -228,7 +229,7 @@ class TodoListTile extends ConsumerWidget {
         return Padding(
           padding: const EdgeInsets.only(right: 4),
           child: Semantics(
-            label: 'Tag: ${tag.name}',
+            label: AppLocalizations.of(context)!.tagWith(tag.name),
             child: Tooltip(
               message: tag.name,
               child: Container(

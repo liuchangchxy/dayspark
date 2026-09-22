@@ -80,7 +80,6 @@
   "importExport": "导入/导出",
   "export": "导出",
   "import": "导入",
-  "defaultReminderTimes": "默认提醒时间",
   "advancedFeatures": "高级功能",
   "attachments": "附件",
   "caldavAccounts": "CalDAV 账户",
@@ -106,7 +105,7 @@
   "noTimeSlots": "暂无可用的时间建议",
   "suggestedTimeSlots": "推荐时间段",
   "schedulingFailed": "排程失败：{error}",
-  "noSubtasks": "暂无子任务建议",
+  "noSubtaskSuggestions": "暂无子任务建议",
   "taskBreakdown": "任务拆分",
   "todoCreatedShort": "待办已创建",
   "failedCreateTodo": "创建待办失败：{error}",
@@ -207,20 +206,8 @@
   "mcpAutoStartDesc": "应用启动时自动开启 MCP 服务器",
   "mcpPort": "端口",
   "editTag": "编辑标签",
-  "save": "保存",
   "thirdPartyLicenses": "第三方开源许可",
-  "databaseExport": "导出数据库",
-  "databaseImport": "导入数据库",
-  "databaseImportConfirm": "这将替换当前所有数据，确定继续吗？",
-  "databaseImportSuccess": "数据库导入成功，请重启应用。",
-  "databaseExportFailed": "数据库导出失败：{error}",
-  "@databaseExportFailed": { "placeholders": { "error": { "type": "String" } } },
-  "databaseImportFailed": "数据库导入失败：{error}",
-  "@databaseImportFailed": { "placeholders": { "error": { "type": "String" } } },
   "security": "安全",
-  "biometricLock": "生物识别锁",
-  "biometricLockDesc": "打开应用时需要生物识别验证",
-  "biometricPrompt": "解锁灵光",
   "backgroundSync": "后台同步",
   "backgroundSyncDesc": "在后台定期同步日历",
   "recurringDragDisabled": "重复日程无法通过拖拽移动",
@@ -235,7 +222,6 @@
   "languageZh": "中文",
   "languageEn": "English",
   "reminder": "提醒",
-  "noReminder": "不提醒",
   "syncComplete": "同步完成",
   "subtasks": "子任务",
   "addSubtask": "添加子任务",
@@ -247,12 +233,6 @@
     }
   },
   "subtaskHint": "子任务文本",
-  "reminderLabel": "{minutes}分钟前",
-  "@reminderLabel": {
-    "placeholders": {
-      "minutes": { "type": "int" }
-    }
-  },
   "rateLimited": "请求频繁。请访问 github.com/{repo}/releases 手动检查。",
   "@rateLimited": {
     "placeholders": {
@@ -280,5 +260,13 @@
     "placeholders": {
       "hours": { "type": "int" }
     }
-  }
+  },
+  "openTodoDetails": "打开待办详情",
+  "highPriority": "高优先级",
+  "mediumPriority": "中优先级",
+  "markIncomplete": "标记为未完成",
+  "tagWith": "标签：{name}",
+  "openEventDetails": "打开日程详情",
+  "previousPeriod": "上一页",
+  "nextPeriod": "下一页"
 }

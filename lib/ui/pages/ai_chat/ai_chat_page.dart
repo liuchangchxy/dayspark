@@ -359,7 +359,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       if (subtasks.isEmpty) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l.noSubtasks)));
+        ).showSnackBar(SnackBar(content: Text(l.noSubtaskSuggestions)));
         return;
       }
       showDialog(

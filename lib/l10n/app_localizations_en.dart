@@ -253,9 +253,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get import => 'Import';
 
   @override
-  String get defaultReminderTimes => 'Default reminder times';
-
-  @override
   String get advancedFeatures => 'Advanced Features';
 
   @override
@@ -354,7 +351,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get noSubtasks => 'No subtasks';
+  String get noSubtaskSuggestions => 'No subtask suggestions available';
 
   @override
   String get taskBreakdown => 'Task Breakdown';
@@ -405,12 +402,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moveToToday => 'Move to today';
 
   @override
-  String moveToTodayPrompt(Object count) {
+  String moveToTodayPrompt(int count) {
     return 'You have $count overdue todo(s). Move due dates to today?';
   }
 
   @override
-  String movedToToday(Object count) {
+  String movedToToday(int count) {
     return 'Moved $count todo(s) to today';
   }
 
@@ -627,38 +624,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get thirdPartyLicenses => 'Third-Party Licenses';
 
   @override
-  String get databaseExport => 'Export Database';
-
-  @override
-  String get databaseImport => 'Import Database';
-
-  @override
-  String get databaseImportConfirm => 'This will replace all current data. Continue?';
-
-  @override
-  String get databaseImportSuccess => 'Database imported. Please restart the app.';
-
-  @override
-  String databaseExportFailed(String error) {
-    return 'Database export failed: $error';
-  }
-
-  @override
-  String databaseImportFailed(String error) {
-    return 'Database import failed: $error';
-  }
-
-  @override
   String get security => 'Security';
-
-  @override
-  String get biometricLock => 'Biometric Lock';
-
-  @override
-  String get biometricLockDesc => 'Require biometric authentication to open the app';
-
-  @override
-  String get biometricPrompt => 'Unlock DaySpark';
 
   @override
   String get backgroundSync => 'Background Sync';
@@ -703,9 +669,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reminder => 'Reminder';
 
   @override
-  String get noReminder => 'No reminder';
-
-  @override
   String get syncComplete => 'Sync complete';
 
   @override
@@ -715,17 +678,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addSubtask => 'Add subtask';
 
   @override
+  String get noSubtasks => 'No subtasks';
+
+  @override
   String nMore(int count) {
     return '+$count more';
   }
 
   @override
   String get subtaskHint => 'Subtask text';
-
-  @override
-  String reminderLabel(int minutes) {
-    return '${minutes}min';
-  }
 
   @override
   String rateLimited(String repo) {
@@ -758,4 +719,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String hoursAgo(int hours) {
     return '${hours}h ago';
   }
+
+  @override
+  String get openTodoDetails => 'Open todo details';
+
+  @override
+  String get highPriority => 'High priority';
+
+  @override
+  String get mediumPriority => 'Medium priority';
+
+  @override
+  String get markIncomplete => 'Mark incomplete';
+
+  @override
+  String tagWith(String name) {
+    return 'Tag: $name';
+  }
+
+  @override
+  String get openEventDetails => 'Open event details';
+
+  @override
+  String get previousPeriod => 'Previous';
+
+  @override
+  String get nextPeriod => 'Next';
 }

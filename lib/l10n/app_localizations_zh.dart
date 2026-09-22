@@ -253,9 +253,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get import => '导入';
 
   @override
-  String get defaultReminderTimes => '默认提醒时间';
-
-  @override
   String get advancedFeatures => '高级功能';
 
   @override
@@ -354,7 +351,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get noSubtasks => '无子任务';
+  String get noSubtaskSuggestions => '暂无子任务建议';
 
   @override
   String get taskBreakdown => '任务拆分';
@@ -405,12 +402,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get moveToToday => '移到今天';
 
   @override
-  String moveToTodayPrompt(Object count) {
+  String moveToTodayPrompt(int count) {
     return '有 $count 条待办已逾期，是否将截止日期移到今天？';
   }
 
   @override
-  String movedToToday(Object count) {
+  String movedToToday(int count) {
     return '已将 $count 条待办移到今天';
   }
 
@@ -627,38 +624,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get thirdPartyLicenses => '第三方开源许可';
 
   @override
-  String get databaseExport => '导出数据库';
-
-  @override
-  String get databaseImport => '导入数据库';
-
-  @override
-  String get databaseImportConfirm => '这将替换当前所有数据，确定继续吗？';
-
-  @override
-  String get databaseImportSuccess => '数据库导入成功，请重启应用。';
-
-  @override
-  String databaseExportFailed(String error) {
-    return '数据库导出失败：$error';
-  }
-
-  @override
-  String databaseImportFailed(String error) {
-    return '数据库导入失败：$error';
-  }
-
-  @override
   String get security => '安全';
-
-  @override
-  String get biometricLock => '生物识别锁';
-
-  @override
-  String get biometricLockDesc => '打开应用时需要生物识别验证';
-
-  @override
-  String get biometricPrompt => '解锁灵光';
 
   @override
   String get backgroundSync => '后台同步';
@@ -703,9 +669,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reminder => '提醒';
 
   @override
-  String get noReminder => '不提醒';
-
-  @override
   String get syncComplete => '同步完成';
 
   @override
@@ -715,17 +678,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addSubtask => '添加子任务';
 
   @override
+  String get noSubtasks => '无子任务';
+
+  @override
   String nMore(int count) {
     return '+$count';
   }
 
   @override
   String get subtaskHint => '子任务文本';
-
-  @override
-  String reminderLabel(int minutes) {
-    return '$minutes分钟前';
-  }
 
   @override
   String rateLimited(String repo) {
@@ -758,4 +719,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String hoursAgo(int hours) {
     return '$hours小时前';
   }
+
+  @override
+  String get openTodoDetails => '打开待办详情';
+
+  @override
+  String get highPriority => '高优先级';
+
+  @override
+  String get mediumPriority => '中优先级';
+
+  @override
+  String get markIncomplete => '标记为未完成';
+
+  @override
+  String tagWith(String name) {
+    return '标签：$name';
+  }
+
+  @override
+  String get openEventDetails => '打开日程详情';
+
+  @override
+  String get previousPeriod => '上一页';
+
+  @override
+  String get nextPeriod => '下一页';
 }

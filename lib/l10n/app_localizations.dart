@@ -575,12 +575,6 @@ abstract class AppLocalizations {
   /// **'Import'**
   String get import;
 
-  /// No description provided for @defaultReminderTimes.
-  ///
-  /// In en, this message translates to:
-  /// **'Default reminder times'**
-  String get defaultReminderTimes;
-
   /// No description provided for @advancedFeatures.
   ///
   /// In en, this message translates to:
@@ -737,11 +731,11 @@ abstract class AppLocalizations {
   /// **'Scheduling failed: {error}'**
   String schedulingFailed(String error);
 
-  /// No description provided for @noSubtasks.
+  /// No description provided for @noSubtaskSuggestions.
   ///
   /// In en, this message translates to:
-  /// **'No subtasks'**
-  String get noSubtasks;
+  /// **'No subtask suggestions available'**
+  String get noSubtaskSuggestions;
 
   /// No description provided for @taskBreakdown.
   ///
@@ -831,13 +825,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'You have {count} overdue todo(s). Move due dates to today?'**
-  String moveToTodayPrompt(Object count);
+  String moveToTodayPrompt(int count);
 
   /// No description provided for @movedToToday.
   ///
   /// In en, this message translates to:
   /// **'Moved {count} todo(s) to today'**
-  String movedToToday(Object count);
+  String movedToToday(int count);
 
   /// No description provided for @skip.
   ///
@@ -1247,65 +1241,11 @@ abstract class AppLocalizations {
   /// **'Third-Party Licenses'**
   String get thirdPartyLicenses;
 
-  /// No description provided for @databaseExport.
-  ///
-  /// In en, this message translates to:
-  /// **'Export Database'**
-  String get databaseExport;
-
-  /// No description provided for @databaseImport.
-  ///
-  /// In en, this message translates to:
-  /// **'Import Database'**
-  String get databaseImport;
-
-  /// No description provided for @databaseImportConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'This will replace all current data. Continue?'**
-  String get databaseImportConfirm;
-
-  /// No description provided for @databaseImportSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Database imported. Please restart the app.'**
-  String get databaseImportSuccess;
-
-  /// No description provided for @databaseExportFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Database export failed: {error}'**
-  String databaseExportFailed(String error);
-
-  /// No description provided for @databaseImportFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Database import failed: {error}'**
-  String databaseImportFailed(String error);
-
   /// No description provided for @security.
   ///
   /// In en, this message translates to:
   /// **'Security'**
   String get security;
-
-  /// No description provided for @biometricLock.
-  ///
-  /// In en, this message translates to:
-  /// **'Biometric Lock'**
-  String get biometricLock;
-
-  /// No description provided for @biometricLockDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Require biometric authentication to open the app'**
-  String get biometricLockDesc;
-
-  /// No description provided for @biometricPrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Unlock DaySpark'**
-  String get biometricPrompt;
 
   /// No description provided for @backgroundSync.
   ///
@@ -1391,12 +1331,6 @@ abstract class AppLocalizations {
   /// **'Reminder'**
   String get reminder;
 
-  /// No description provided for @noReminder.
-  ///
-  /// In en, this message translates to:
-  /// **'No reminder'**
-  String get noReminder;
-
   /// No description provided for @syncComplete.
   ///
   /// In en, this message translates to:
@@ -1415,6 +1349,12 @@ abstract class AppLocalizations {
   /// **'Add subtask'**
   String get addSubtask;
 
+  /// No description provided for @noSubtasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No subtasks'**
+  String get noSubtasks;
+
   /// No description provided for @nMore.
   ///
   /// In en, this message translates to:
@@ -1426,12 +1366,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Subtask text'**
   String get subtaskHint;
-
-  /// No description provided for @reminderLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'{minutes}min'**
-  String reminderLabel(int minutes);
 
   /// No description provided for @rateLimited.
   ///
@@ -1480,6 +1414,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours}h ago'**
   String hoursAgo(int hours);
+
+  /// No description provided for @openTodoDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Open todo details'**
+  String get openTodoDetails;
+
+  /// No description provided for @highPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'High priority'**
+  String get highPriority;
+
+  /// No description provided for @mediumPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium priority'**
+  String get mediumPriority;
+
+  /// No description provided for @markIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark incomplete'**
+  String get markIncomplete;
+
+  /// No description provided for @tagWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag: {name}'**
+  String tagWith(String name);
+
+  /// No description provided for @openEventDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Open event details'**
+  String get openEventDetails;
+
+  /// No description provided for @previousPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previousPeriod;
+
+  /// No description provided for @nextPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextPeriod;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
