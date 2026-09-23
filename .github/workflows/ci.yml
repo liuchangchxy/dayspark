@@ -19,6 +19,9 @@ jobs:
       - name: Resolve contracts package (root analyze scans its tests)
         working-directory: packages/dayspark_contracts
         run: dart pub get
+      - name: Resolve server package (root analyze scans its tests)
+        working-directory: server
+        run: dart pub get
       - run: flutter gen-l10n
       - run: flutter analyze
       - run: flutter test
