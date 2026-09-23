@@ -7,6 +7,7 @@ import 'package:argon2_web/argon2_web.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:shelf/shelf.dart';
 
 import 'config.dart';
@@ -35,6 +36,14 @@ class TokenPair {
 
   final String accessToken;
   final String refreshToken;
+}
+
+class AccessClaims {
+  const AccessClaims({required this.userId, this.scope, this.track});
+
+  final String userId;
+  final String? scope;
+  final String? track;
 }
 
 class Auth {
@@ -110,12 +119,20 @@ class Auth {
     verifyPassword(password, _dummyHash!);
   }
 
-  String issueAccessToken(String userId) {
-    final jwt = JWT({'sub': userId});
+  String issueAccessToken(
+    String userId, {
+    String? scope,
+    String? track,
+  }) {
+    final jwt = JWT({
+      'sub': userId,
+      if (scope != null) 'scope': scope,
+      if (track != null) 'track': track,
+    });
     return jwt.sign(SecretKey(config.jwtSecret), expiresIn: config.accessTtl);
   }
 
-  String? verifyAccessToken(String token) {
+  AccessClaims? verifyAccessTokenClaims(String token) {
     try {
       final jwt = JWT.verify(token, SecretKey(config.jwtSecret));
       final payload = jwt.payload;
@@ -126,17 +143,39 @@ class Auth {
       if (sub is! String || sub.isEmpty) {
         return null;
       }
-      return sub;
+      final scope = payload['scope'];
+      final track = payload['track'];
+      return AccessClaims(
+        userId: sub,
+        scope: scope is String ? scope : null,
+        track: track is String ? track : null,
+      );
     } on JWTException {
       return null;
     }
   }
 
+  String? verifyAccessToken(String token) =>
+      verifyAccessTokenClaims(token)?.userId;
+
   String hashRefreshToken(String token) =>
       sha256.convert(utf8.encode(token)).toString();
 
-  Future<TokenPair> issueTokens(String userId, {String? familyId}) async {
-    final accessToken = issueAccessToken(userId);
+  // Every issued token carries a scope claim: /auth login rows mint the
+  // full MCP scope (CLI/device session track), OAuth rows mint exactly the
+  // consented subset. `track` derives from the client binding so a token
+  // can never claim the wrong track.
+  Future<TokenPair> issueTokens(
+    String userId, {
+    required String scope,
+    String? familyId,
+    String? clientId,
+  }) async {
+    final accessToken = issueAccessToken(
+      userId,
+      scope: scope,
+      track: clientId != null ? 'oauth' : 'cli',
+    );
     final refreshToken = newId(32);
     await db
         .into(db.refreshTokens)
@@ -146,6 +185,8 @@ class Auth {
             userId: userId,
             tokenHash: hashRefreshToken(refreshToken),
             familyId: familyId ?? newId(),
+            clientId: Value(clientId),
+            scope: Value(scope),
             expiresAt: DateTime.now().toUtc().add(config.refreshTtl),
           ),
         );
@@ -160,17 +201,31 @@ class Auth {
       if (header == null || !header.startsWith('Bearer ')) {
         return jsonError(401, errUnauthorized, 'missing bearer token');
       }
-      final userId = verifyAccessToken(header.substring(7));
-      if (userId == null) {
+      final claims = verifyAccessTokenClaims(header.substring(7));
+      if (claims == null) {
         return jsonError(
           401,
           errUnauthorized,
           'invalid or expired access token',
         );
       }
+      // Two-track separation: OAuth tokens are scoped MCP credentials and
+      // must not reach the sync API (an mcp:read grant would otherwise be a
+      // full write credential via /sync/push). Login tokens own the account.
+      if (claims.track == 'oauth') {
+        return jsonError(
+          401,
+          errUnauthorized,
+          'OAuth access tokens are valid on /mcp only — '
+              'sign in via /auth/login for the sync API',
+        );
+      }
       // deviceId stays unbound until device register (Task 5) issues it.
       final deviceId = request.headers['x-device-id'];
-      return inner(request, AuthContext(userId: userId, deviceId: deviceId));
+      return inner(
+        request,
+        AuthContext(userId: claims.userId, deviceId: deviceId),
+      );
     };
   }
 
@@ -209,4 +264,27 @@ class Auth {
     }
     return diff == 0;
   }
+}
+
+// Shared by the CLI refresh route and the OAuth refresh grant: one rotation
+// family dies together so a replayed token can never leave a live successor.
+Future<void> revokeRefreshFamily(
+  AppDatabase db,
+  String familyId,
+  DateTime now,
+) {
+  return (db.update(db.refreshTokens)..where((t) => t.familyId.equals(familyId)))
+      .write(RefreshTokensCompanion(revokedAt: Value(now)));
+}
+
+String? normalizeEmail(Object? raw) {
+  if (raw is! String) {
+    return null;
+  }
+  // Lowercase so the unique index is case-insensitive for real-world emails.
+  final email = raw.trim().toLowerCase();
+  if (email.isEmpty || email.length > 254 || !email.contains('@')) {
+    return null;
+  }
+  return email;
 }

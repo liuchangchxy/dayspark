@@ -6,6 +6,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../auth.dart';
 import '../db.dart';
 import '../http.dart';
+import '../mcp/schemas.dart';
 
 void registerAuthRoutes(
   Router router, {
@@ -14,7 +15,7 @@ void registerAuthRoutes(
 }) {
   router.post('/auth/register', (Request request) async {
     final body = await _readJsonObject(request);
-    final email = _normalizeEmail(body['email']);
+    final email = normalizeEmail(body['email']);
     final password = body['password'];
     if (email == null || password is! String || password.length < 8) {
       throw ApiException(
@@ -40,7 +41,7 @@ void registerAuthRoutes(
             createdAt: DateTime.now().toUtc(),
           ),
         );
-    final tokens = await auth.issueTokens(userId);
+    final tokens = await auth.issueTokens(userId, scope: mcpScopeFull);
     return jsonResponse(201, {
       'userId': userId,
       'accessToken': tokens.accessToken,
@@ -52,7 +53,7 @@ void registerAuthRoutes(
 
   router.post('/auth/login', (Request request) async {
     final body = await _readJsonObject(request);
-    final email = _normalizeEmail(body['email']);
+    final email = normalizeEmail(body['email']);
     final password = body['password'];
     if (email == null || password is! String) {
       throw ApiException(400, errValidation, 'email or password missing');
@@ -67,7 +68,7 @@ void registerAuthRoutes(
     if (!auth.verifyPassword(password, user.passwordHash)) {
       throw ApiException(401, errUnauthorized, 'invalid email or password');
     }
-    final tokens = await auth.issueTokens(user.id);
+    final tokens = await auth.issueTokens(user.id, scope: mcpScopeFull);
     return jsonResponse(200, {
       'userId': user.id,
       'accessToken': tokens.accessToken,
@@ -89,6 +90,12 @@ void registerAuthRoutes(
               ..where((t) => t.tokenHash.equals(auth.hashRefreshToken(token))))
             .getSingleOrNull();
     if (row == null) {
+      throw ApiException(401, errUnauthorized, 'invalid refresh token');
+    }
+    // OAuth-track refresh tokens are exchanged only at /oauth/token with
+    // client authentication; letting them rotate here would mint a full
+    // session token from a scoped grant.
+    if (row.clientId != null) {
       throw ApiException(401, errUnauthorized, 'invalid refresh token');
     }
     if (row.revokedAt != null) {
@@ -121,7 +128,11 @@ void registerAuthRoutes(
         // family revoke back with it — the caller revokes after commit.
         return null;
       }
-      return auth.issueTokens(row.userId, familyId: row.familyId);
+      return auth.issueTokens(
+        row.userId,
+        scope: row.scope ?? mcpScopeFull,
+        familyId: row.familyId,
+      );
     });
     if (tokens == null) {
       await _revokeFamilyAndReject(db, row.familyId, now);
@@ -153,22 +164,9 @@ Future<Never> _revokeFamilyAndReject(
   // Reuse of a rotated token — sequential replay or lost rotation race —
   // signals theft: revoke the whole family so the successor chain dies with
   // the stolen copy.
-  await (db.update(db.refreshTokens)..where((t) => t.familyId.equals(familyId)))
-      .write(RefreshTokensCompanion(revokedAt: Value(now)));
+  await revokeRefreshFamily(db, familyId, now);
   throw ApiException(401, errUnauthorized, 'invalid refresh token');
 }
 
 Future<Map<String, dynamic>> _readJsonObject(Request request) =>
     readJsonObject(request);
-
-String? _normalizeEmail(Object? raw) {
-  if (raw is! String) {
-    return null;
-  }
-  // Lowercase so the unique index is case-insensitive for real-world emails.
-  final email = raw.trim().toLowerCase();
-  if (email.isEmpty || email.length > 254 || !email.contains('@')) {
-    return null;
-  }
-  return email;
-}

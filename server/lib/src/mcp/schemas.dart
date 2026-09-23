@@ -29,6 +29,11 @@ const String mcpCodeWriteRejected = 'WRITE_REJECTED';
 const String mcpCodeWriteConflict = 'WRITE_CONFLICT';
 const String mcpCodeInternal = 'INTERNAL';
 
+const String mcpScopeRead = 'mcp:read';
+const String mcpScopeWrite = 'mcp:write';
+const String mcpScopeFull = '$mcpScopeRead $mcpScopeWrite';
+const List<String> mcpSupportedScopes = [mcpScopeRead, mcpScopeWrite];
+
 const String hintValidation =
     'Fix the highlighted argument and retry the same tool call.';
 const String hintWindowTooLarge =

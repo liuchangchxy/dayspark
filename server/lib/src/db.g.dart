@@ -363,6 +363,26 @@ class $RefreshTokensTable extends RefreshTokens
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _clientIdMeta = const VerificationMeta(
+    'clientId',
+  );
+  @override
+  late final GeneratedColumn<String> clientId = GeneratedColumn<String>(
+    'client_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
+    'scope',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _expiresAtMeta = const VerificationMeta(
     'expiresAt',
   );
@@ -391,6 +411,8 @@ class $RefreshTokensTable extends RefreshTokens
     userId,
     tokenHash,
     familyId,
+    clientId,
+    scope,
     expiresAt,
     revokedAt,
   ];
@@ -435,6 +457,18 @@ class $RefreshTokensTable extends RefreshTokens
     } else if (isInserting) {
       context.missing(_familyIdMeta);
     }
+    if (data.containsKey('client_id')) {
+      context.handle(
+        _clientIdMeta,
+        clientId.isAcceptableOrUnknown(data['client_id']!, _clientIdMeta),
+      );
+    }
+    if (data.containsKey('scope')) {
+      context.handle(
+        _scopeMeta,
+        scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta),
+      );
+    }
     if (data.containsKey('expires_at')) {
       context.handle(
         _expiresAtMeta,
@@ -474,6 +508,14 @@ class $RefreshTokensTable extends RefreshTokens
         DriftSqlType.string,
         data['${effectivePrefix}family_id'],
       )!,
+      clientId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_id'],
+      ),
+      scope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scope'],
+      ),
       expiresAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}expires_at'],
@@ -496,6 +538,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
   final String userId;
   final String tokenHash;
   final String familyId;
+  final String? clientId;
+  final String? scope;
   final DateTime expiresAt;
   final DateTime? revokedAt;
   const RefreshToken({
@@ -503,6 +547,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
     required this.userId,
     required this.tokenHash,
     required this.familyId,
+    this.clientId,
+    this.scope,
     required this.expiresAt,
     this.revokedAt,
   });
@@ -513,6 +559,12 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
     map['user_id'] = Variable<String>(userId);
     map['token_hash'] = Variable<String>(tokenHash);
     map['family_id'] = Variable<String>(familyId);
+    if (!nullToAbsent || clientId != null) {
+      map['client_id'] = Variable<String>(clientId);
+    }
+    if (!nullToAbsent || scope != null) {
+      map['scope'] = Variable<String>(scope);
+    }
     map['expires_at'] = Variable<DateTime>(expiresAt);
     if (!nullToAbsent || revokedAt != null) {
       map['revoked_at'] = Variable<DateTime>(revokedAt);
@@ -526,6 +578,12 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
       userId: Value(userId),
       tokenHash: Value(tokenHash),
       familyId: Value(familyId),
+      clientId: clientId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(clientId),
+      scope: scope == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scope),
       expiresAt: Value(expiresAt),
       revokedAt: revokedAt == null && nullToAbsent
           ? const Value.absent()
@@ -543,6 +601,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
       userId: serializer.fromJson<String>(json['userId']),
       tokenHash: serializer.fromJson<String>(json['tokenHash']),
       familyId: serializer.fromJson<String>(json['familyId']),
+      clientId: serializer.fromJson<String?>(json['clientId']),
+      scope: serializer.fromJson<String?>(json['scope']),
       expiresAt: serializer.fromJson<DateTime>(json['expiresAt']),
       revokedAt: serializer.fromJson<DateTime?>(json['revokedAt']),
     );
@@ -555,6 +615,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
       'userId': serializer.toJson<String>(userId),
       'tokenHash': serializer.toJson<String>(tokenHash),
       'familyId': serializer.toJson<String>(familyId),
+      'clientId': serializer.toJson<String?>(clientId),
+      'scope': serializer.toJson<String?>(scope),
       'expiresAt': serializer.toJson<DateTime>(expiresAt),
       'revokedAt': serializer.toJson<DateTime?>(revokedAt),
     };
@@ -565,6 +627,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
     String? userId,
     String? tokenHash,
     String? familyId,
+    Value<String?> clientId = const Value.absent(),
+    Value<String?> scope = const Value.absent(),
     DateTime? expiresAt,
     Value<DateTime?> revokedAt = const Value.absent(),
   }) => RefreshToken(
@@ -572,6 +636,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
     userId: userId ?? this.userId,
     tokenHash: tokenHash ?? this.tokenHash,
     familyId: familyId ?? this.familyId,
+    clientId: clientId.present ? clientId.value : this.clientId,
+    scope: scope.present ? scope.value : this.scope,
     expiresAt: expiresAt ?? this.expiresAt,
     revokedAt: revokedAt.present ? revokedAt.value : this.revokedAt,
   );
@@ -581,6 +647,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
       userId: data.userId.present ? data.userId.value : this.userId,
       tokenHash: data.tokenHash.present ? data.tokenHash.value : this.tokenHash,
       familyId: data.familyId.present ? data.familyId.value : this.familyId,
+      clientId: data.clientId.present ? data.clientId.value : this.clientId,
+      scope: data.scope.present ? data.scope.value : this.scope,
       expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
       revokedAt: data.revokedAt.present ? data.revokedAt.value : this.revokedAt,
     );
@@ -593,6 +661,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
           ..write('userId: $userId, ')
           ..write('tokenHash: $tokenHash, ')
           ..write('familyId: $familyId, ')
+          ..write('clientId: $clientId, ')
+          ..write('scope: $scope, ')
           ..write('expiresAt: $expiresAt, ')
           ..write('revokedAt: $revokedAt')
           ..write(')'))
@@ -600,8 +670,16 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, userId, tokenHash, familyId, expiresAt, revokedAt);
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    tokenHash,
+    familyId,
+    clientId,
+    scope,
+    expiresAt,
+    revokedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -610,6 +688,8 @@ class RefreshToken extends DataClass implements Insertable<RefreshToken> {
           other.userId == this.userId &&
           other.tokenHash == this.tokenHash &&
           other.familyId == this.familyId &&
+          other.clientId == this.clientId &&
+          other.scope == this.scope &&
           other.expiresAt == this.expiresAt &&
           other.revokedAt == this.revokedAt);
 }
@@ -619,6 +699,8 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
   final Value<String> userId;
   final Value<String> tokenHash;
   final Value<String> familyId;
+  final Value<String?> clientId;
+  final Value<String?> scope;
   final Value<DateTime> expiresAt;
   final Value<DateTime?> revokedAt;
   final Value<int> rowid;
@@ -627,6 +709,8 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
     this.userId = const Value.absent(),
     this.tokenHash = const Value.absent(),
     this.familyId = const Value.absent(),
+    this.clientId = const Value.absent(),
+    this.scope = const Value.absent(),
     this.expiresAt = const Value.absent(),
     this.revokedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -636,6 +720,8 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
     required String userId,
     required String tokenHash,
     required String familyId,
+    this.clientId = const Value.absent(),
+    this.scope = const Value.absent(),
     required DateTime expiresAt,
     this.revokedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -649,6 +735,8 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
     Expression<String>? userId,
     Expression<String>? tokenHash,
     Expression<String>? familyId,
+    Expression<String>? clientId,
+    Expression<String>? scope,
     Expression<DateTime>? expiresAt,
     Expression<DateTime>? revokedAt,
     Expression<int>? rowid,
@@ -658,6 +746,8 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
       if (userId != null) 'user_id': userId,
       if (tokenHash != null) 'token_hash': tokenHash,
       if (familyId != null) 'family_id': familyId,
+      if (clientId != null) 'client_id': clientId,
+      if (scope != null) 'scope': scope,
       if (expiresAt != null) 'expires_at': expiresAt,
       if (revokedAt != null) 'revoked_at': revokedAt,
       if (rowid != null) 'rowid': rowid,
@@ -669,6 +759,8 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
     Value<String>? userId,
     Value<String>? tokenHash,
     Value<String>? familyId,
+    Value<String?>? clientId,
+    Value<String?>? scope,
     Value<DateTime>? expiresAt,
     Value<DateTime?>? revokedAt,
     Value<int>? rowid,
@@ -678,6 +770,8 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
       userId: userId ?? this.userId,
       tokenHash: tokenHash ?? this.tokenHash,
       familyId: familyId ?? this.familyId,
+      clientId: clientId ?? this.clientId,
+      scope: scope ?? this.scope,
       expiresAt: expiresAt ?? this.expiresAt,
       revokedAt: revokedAt ?? this.revokedAt,
       rowid: rowid ?? this.rowid,
@@ -699,6 +793,12 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
     if (familyId.present) {
       map['family_id'] = Variable<String>(familyId.value);
     }
+    if (clientId.present) {
+      map['client_id'] = Variable<String>(clientId.value);
+    }
+    if (scope.present) {
+      map['scope'] = Variable<String>(scope.value);
+    }
     if (expiresAt.present) {
       map['expires_at'] = Variable<DateTime>(expiresAt.value);
     }
@@ -718,8 +818,965 @@ class RefreshTokensCompanion extends UpdateCompanion<RefreshToken> {
           ..write('userId: $userId, ')
           ..write('tokenHash: $tokenHash, ')
           ..write('familyId: $familyId, ')
+          ..write('clientId: $clientId, ')
+          ..write('scope: $scope, ')
           ..write('expiresAt: $expiresAt, ')
           ..write('revokedAt: $revokedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $OauthClientsTable extends OauthClients
+    with TableInfo<$OauthClientsTable, OauthClient> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OauthClientsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _clientSecretHashMeta = const VerificationMeta(
+    'clientSecretHash',
+  );
+  @override
+  late final GeneratedColumn<String> clientSecretHash = GeneratedColumn<String>(
+    'client_secret_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _clientNameMeta = const VerificationMeta(
+    'clientName',
+  );
+  @override
+  late final GeneratedColumn<String> clientName = GeneratedColumn<String>(
+    'client_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _redirectUrisMeta = const VerificationMeta(
+    'redirectUris',
+  );
+  @override
+  late final GeneratedColumn<String> redirectUris = GeneratedColumn<String>(
+    'redirect_uris',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _authMethodMeta = const VerificationMeta(
+    'authMethod',
+  );
+  @override
+  late final GeneratedColumn<String> authMethod = GeneratedColumn<String>(
+    'auth_method',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    clientSecretHash,
+    clientName,
+    redirectUris,
+    authMethod,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'oauth_clients';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<OauthClient> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('client_secret_hash')) {
+      context.handle(
+        _clientSecretHashMeta,
+        clientSecretHash.isAcceptableOrUnknown(
+          data['client_secret_hash']!,
+          _clientSecretHashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('client_name')) {
+      context.handle(
+        _clientNameMeta,
+        clientName.isAcceptableOrUnknown(data['client_name']!, _clientNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_clientNameMeta);
+    }
+    if (data.containsKey('redirect_uris')) {
+      context.handle(
+        _redirectUrisMeta,
+        redirectUris.isAcceptableOrUnknown(
+          data['redirect_uris']!,
+          _redirectUrisMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_redirectUrisMeta);
+    }
+    if (data.containsKey('auth_method')) {
+      context.handle(
+        _authMethodMeta,
+        authMethod.isAcceptableOrUnknown(data['auth_method']!, _authMethodMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_authMethodMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  OauthClient map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OauthClient(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      clientSecretHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_secret_hash'],
+      ),
+      clientName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_name'],
+      )!,
+      redirectUris: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}redirect_uris'],
+      )!,
+      authMethod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}auth_method'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $OauthClientsTable createAlias(String alias) {
+    return $OauthClientsTable(attachedDatabase, alias);
+  }
+}
+
+class OauthClient extends DataClass implements Insertable<OauthClient> {
+  final String id;
+  final String? clientSecretHash;
+  final String clientName;
+  final String redirectUris;
+  final String authMethod;
+  final DateTime createdAt;
+  const OauthClient({
+    required this.id,
+    this.clientSecretHash,
+    required this.clientName,
+    required this.redirectUris,
+    required this.authMethod,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || clientSecretHash != null) {
+      map['client_secret_hash'] = Variable<String>(clientSecretHash);
+    }
+    map['client_name'] = Variable<String>(clientName);
+    map['redirect_uris'] = Variable<String>(redirectUris);
+    map['auth_method'] = Variable<String>(authMethod);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  OauthClientsCompanion toCompanion(bool nullToAbsent) {
+    return OauthClientsCompanion(
+      id: Value(id),
+      clientSecretHash: clientSecretHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(clientSecretHash),
+      clientName: Value(clientName),
+      redirectUris: Value(redirectUris),
+      authMethod: Value(authMethod),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory OauthClient.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OauthClient(
+      id: serializer.fromJson<String>(json['id']),
+      clientSecretHash: serializer.fromJson<String?>(json['clientSecretHash']),
+      clientName: serializer.fromJson<String>(json['clientName']),
+      redirectUris: serializer.fromJson<String>(json['redirectUris']),
+      authMethod: serializer.fromJson<String>(json['authMethod']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'clientSecretHash': serializer.toJson<String?>(clientSecretHash),
+      'clientName': serializer.toJson<String>(clientName),
+      'redirectUris': serializer.toJson<String>(redirectUris),
+      'authMethod': serializer.toJson<String>(authMethod),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  OauthClient copyWith({
+    String? id,
+    Value<String?> clientSecretHash = const Value.absent(),
+    String? clientName,
+    String? redirectUris,
+    String? authMethod,
+    DateTime? createdAt,
+  }) => OauthClient(
+    id: id ?? this.id,
+    clientSecretHash: clientSecretHash.present
+        ? clientSecretHash.value
+        : this.clientSecretHash,
+    clientName: clientName ?? this.clientName,
+    redirectUris: redirectUris ?? this.redirectUris,
+    authMethod: authMethod ?? this.authMethod,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  OauthClient copyWithCompanion(OauthClientsCompanion data) {
+    return OauthClient(
+      id: data.id.present ? data.id.value : this.id,
+      clientSecretHash: data.clientSecretHash.present
+          ? data.clientSecretHash.value
+          : this.clientSecretHash,
+      clientName: data.clientName.present
+          ? data.clientName.value
+          : this.clientName,
+      redirectUris: data.redirectUris.present
+          ? data.redirectUris.value
+          : this.redirectUris,
+      authMethod: data.authMethod.present
+          ? data.authMethod.value
+          : this.authMethod,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OauthClient(')
+          ..write('id: $id, ')
+          ..write('clientSecretHash: $clientSecretHash, ')
+          ..write('clientName: $clientName, ')
+          ..write('redirectUris: $redirectUris, ')
+          ..write('authMethod: $authMethod, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    clientSecretHash,
+    clientName,
+    redirectUris,
+    authMethod,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OauthClient &&
+          other.id == this.id &&
+          other.clientSecretHash == this.clientSecretHash &&
+          other.clientName == this.clientName &&
+          other.redirectUris == this.redirectUris &&
+          other.authMethod == this.authMethod &&
+          other.createdAt == this.createdAt);
+}
+
+class OauthClientsCompanion extends UpdateCompanion<OauthClient> {
+  final Value<String> id;
+  final Value<String?> clientSecretHash;
+  final Value<String> clientName;
+  final Value<String> redirectUris;
+  final Value<String> authMethod;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const OauthClientsCompanion({
+    this.id = const Value.absent(),
+    this.clientSecretHash = const Value.absent(),
+    this.clientName = const Value.absent(),
+    this.redirectUris = const Value.absent(),
+    this.authMethod = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  OauthClientsCompanion.insert({
+    required String id,
+    this.clientSecretHash = const Value.absent(),
+    required String clientName,
+    required String redirectUris,
+    required String authMethod,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       clientName = Value(clientName),
+       redirectUris = Value(redirectUris),
+       authMethod = Value(authMethod),
+       createdAt = Value(createdAt);
+  static Insertable<OauthClient> custom({
+    Expression<String>? id,
+    Expression<String>? clientSecretHash,
+    Expression<String>? clientName,
+    Expression<String>? redirectUris,
+    Expression<String>? authMethod,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (clientSecretHash != null) 'client_secret_hash': clientSecretHash,
+      if (clientName != null) 'client_name': clientName,
+      if (redirectUris != null) 'redirect_uris': redirectUris,
+      if (authMethod != null) 'auth_method': authMethod,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  OauthClientsCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? clientSecretHash,
+    Value<String>? clientName,
+    Value<String>? redirectUris,
+    Value<String>? authMethod,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return OauthClientsCompanion(
+      id: id ?? this.id,
+      clientSecretHash: clientSecretHash ?? this.clientSecretHash,
+      clientName: clientName ?? this.clientName,
+      redirectUris: redirectUris ?? this.redirectUris,
+      authMethod: authMethod ?? this.authMethod,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (clientSecretHash.present) {
+      map['client_secret_hash'] = Variable<String>(clientSecretHash.value);
+    }
+    if (clientName.present) {
+      map['client_name'] = Variable<String>(clientName.value);
+    }
+    if (redirectUris.present) {
+      map['redirect_uris'] = Variable<String>(redirectUris.value);
+    }
+    if (authMethod.present) {
+      map['auth_method'] = Variable<String>(authMethod.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OauthClientsCompanion(')
+          ..write('id: $id, ')
+          ..write('clientSecretHash: $clientSecretHash, ')
+          ..write('clientName: $clientName, ')
+          ..write('redirectUris: $redirectUris, ')
+          ..write('authMethod: $authMethod, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $OauthCodesTable extends OauthCodes
+    with TableInfo<$OauthCodesTable, OauthCode> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OauthCodesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _codeHashMeta = const VerificationMeta(
+    'codeHash',
+  );
+  @override
+  late final GeneratedColumn<String> codeHash = GeneratedColumn<String>(
+    'code_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _clientIdMeta = const VerificationMeta(
+    'clientId',
+  );
+  @override
+  late final GeneratedColumn<String> clientId = GeneratedColumn<String>(
+    'client_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _redirectUriMeta = const VerificationMeta(
+    'redirectUri',
+  );
+  @override
+  late final GeneratedColumn<String> redirectUri = GeneratedColumn<String>(
+    'redirect_uri',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _codeChallengeMeta = const VerificationMeta(
+    'codeChallenge',
+  );
+  @override
+  late final GeneratedColumn<String> codeChallenge = GeneratedColumn<String>(
+    'code_challenge',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scopesMeta = const VerificationMeta('scopes');
+  @override
+  late final GeneratedColumn<String> scopes = GeneratedColumn<String>(
+    'scopes',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _expiresAtMeta = const VerificationMeta(
+    'expiresAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
+    'expires_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _usedAtMeta = const VerificationMeta('usedAt');
+  @override
+  late final GeneratedColumn<DateTime> usedAt = GeneratedColumn<DateTime>(
+    'used_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    codeHash,
+    clientId,
+    userId,
+    redirectUri,
+    codeChallenge,
+    scopes,
+    expiresAt,
+    usedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'oauth_codes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<OauthCode> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('code_hash')) {
+      context.handle(
+        _codeHashMeta,
+        codeHash.isAcceptableOrUnknown(data['code_hash']!, _codeHashMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codeHashMeta);
+    }
+    if (data.containsKey('client_id')) {
+      context.handle(
+        _clientIdMeta,
+        clientId.isAcceptableOrUnknown(data['client_id']!, _clientIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_clientIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('redirect_uri')) {
+      context.handle(
+        _redirectUriMeta,
+        redirectUri.isAcceptableOrUnknown(
+          data['redirect_uri']!,
+          _redirectUriMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_redirectUriMeta);
+    }
+    if (data.containsKey('code_challenge')) {
+      context.handle(
+        _codeChallengeMeta,
+        codeChallenge.isAcceptableOrUnknown(
+          data['code_challenge']!,
+          _codeChallengeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_codeChallengeMeta);
+    }
+    if (data.containsKey('scopes')) {
+      context.handle(
+        _scopesMeta,
+        scopes.isAcceptableOrUnknown(data['scopes']!, _scopesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scopesMeta);
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(
+        _expiresAtMeta,
+        expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_expiresAtMeta);
+    }
+    if (data.containsKey('used_at')) {
+      context.handle(
+        _usedAtMeta,
+        usedAt.isAcceptableOrUnknown(data['used_at']!, _usedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {codeHash};
+  @override
+  OauthCode map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OauthCode(
+      codeHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code_hash'],
+      )!,
+      clientId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      redirectUri: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}redirect_uri'],
+      )!,
+      codeChallenge: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code_challenge'],
+      )!,
+      scopes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scopes'],
+      )!,
+      expiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}expires_at'],
+      )!,
+      usedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}used_at'],
+      ),
+    );
+  }
+
+  @override
+  $OauthCodesTable createAlias(String alias) {
+    return $OauthCodesTable(attachedDatabase, alias);
+  }
+}
+
+class OauthCode extends DataClass implements Insertable<OauthCode> {
+  final String codeHash;
+  final String clientId;
+  final String userId;
+  final String redirectUri;
+  final String codeChallenge;
+  final String scopes;
+  final DateTime expiresAt;
+  final DateTime? usedAt;
+  const OauthCode({
+    required this.codeHash,
+    required this.clientId,
+    required this.userId,
+    required this.redirectUri,
+    required this.codeChallenge,
+    required this.scopes,
+    required this.expiresAt,
+    this.usedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['code_hash'] = Variable<String>(codeHash);
+    map['client_id'] = Variable<String>(clientId);
+    map['user_id'] = Variable<String>(userId);
+    map['redirect_uri'] = Variable<String>(redirectUri);
+    map['code_challenge'] = Variable<String>(codeChallenge);
+    map['scopes'] = Variable<String>(scopes);
+    map['expires_at'] = Variable<DateTime>(expiresAt);
+    if (!nullToAbsent || usedAt != null) {
+      map['used_at'] = Variable<DateTime>(usedAt);
+    }
+    return map;
+  }
+
+  OauthCodesCompanion toCompanion(bool nullToAbsent) {
+    return OauthCodesCompanion(
+      codeHash: Value(codeHash),
+      clientId: Value(clientId),
+      userId: Value(userId),
+      redirectUri: Value(redirectUri),
+      codeChallenge: Value(codeChallenge),
+      scopes: Value(scopes),
+      expiresAt: Value(expiresAt),
+      usedAt: usedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(usedAt),
+    );
+  }
+
+  factory OauthCode.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OauthCode(
+      codeHash: serializer.fromJson<String>(json['codeHash']),
+      clientId: serializer.fromJson<String>(json['clientId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      redirectUri: serializer.fromJson<String>(json['redirectUri']),
+      codeChallenge: serializer.fromJson<String>(json['codeChallenge']),
+      scopes: serializer.fromJson<String>(json['scopes']),
+      expiresAt: serializer.fromJson<DateTime>(json['expiresAt']),
+      usedAt: serializer.fromJson<DateTime?>(json['usedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'codeHash': serializer.toJson<String>(codeHash),
+      'clientId': serializer.toJson<String>(clientId),
+      'userId': serializer.toJson<String>(userId),
+      'redirectUri': serializer.toJson<String>(redirectUri),
+      'codeChallenge': serializer.toJson<String>(codeChallenge),
+      'scopes': serializer.toJson<String>(scopes),
+      'expiresAt': serializer.toJson<DateTime>(expiresAt),
+      'usedAt': serializer.toJson<DateTime?>(usedAt),
+    };
+  }
+
+  OauthCode copyWith({
+    String? codeHash,
+    String? clientId,
+    String? userId,
+    String? redirectUri,
+    String? codeChallenge,
+    String? scopes,
+    DateTime? expiresAt,
+    Value<DateTime?> usedAt = const Value.absent(),
+  }) => OauthCode(
+    codeHash: codeHash ?? this.codeHash,
+    clientId: clientId ?? this.clientId,
+    userId: userId ?? this.userId,
+    redirectUri: redirectUri ?? this.redirectUri,
+    codeChallenge: codeChallenge ?? this.codeChallenge,
+    scopes: scopes ?? this.scopes,
+    expiresAt: expiresAt ?? this.expiresAt,
+    usedAt: usedAt.present ? usedAt.value : this.usedAt,
+  );
+  OauthCode copyWithCompanion(OauthCodesCompanion data) {
+    return OauthCode(
+      codeHash: data.codeHash.present ? data.codeHash.value : this.codeHash,
+      clientId: data.clientId.present ? data.clientId.value : this.clientId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      redirectUri: data.redirectUri.present
+          ? data.redirectUri.value
+          : this.redirectUri,
+      codeChallenge: data.codeChallenge.present
+          ? data.codeChallenge.value
+          : this.codeChallenge,
+      scopes: data.scopes.present ? data.scopes.value : this.scopes,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+      usedAt: data.usedAt.present ? data.usedAt.value : this.usedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OauthCode(')
+          ..write('codeHash: $codeHash, ')
+          ..write('clientId: $clientId, ')
+          ..write('userId: $userId, ')
+          ..write('redirectUri: $redirectUri, ')
+          ..write('codeChallenge: $codeChallenge, ')
+          ..write('scopes: $scopes, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('usedAt: $usedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    codeHash,
+    clientId,
+    userId,
+    redirectUri,
+    codeChallenge,
+    scopes,
+    expiresAt,
+    usedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OauthCode &&
+          other.codeHash == this.codeHash &&
+          other.clientId == this.clientId &&
+          other.userId == this.userId &&
+          other.redirectUri == this.redirectUri &&
+          other.codeChallenge == this.codeChallenge &&
+          other.scopes == this.scopes &&
+          other.expiresAt == this.expiresAt &&
+          other.usedAt == this.usedAt);
+}
+
+class OauthCodesCompanion extends UpdateCompanion<OauthCode> {
+  final Value<String> codeHash;
+  final Value<String> clientId;
+  final Value<String> userId;
+  final Value<String> redirectUri;
+  final Value<String> codeChallenge;
+  final Value<String> scopes;
+  final Value<DateTime> expiresAt;
+  final Value<DateTime?> usedAt;
+  final Value<int> rowid;
+  const OauthCodesCompanion({
+    this.codeHash = const Value.absent(),
+    this.clientId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.redirectUri = const Value.absent(),
+    this.codeChallenge = const Value.absent(),
+    this.scopes = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+    this.usedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  OauthCodesCompanion.insert({
+    required String codeHash,
+    required String clientId,
+    required String userId,
+    required String redirectUri,
+    required String codeChallenge,
+    required String scopes,
+    required DateTime expiresAt,
+    this.usedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : codeHash = Value(codeHash),
+       clientId = Value(clientId),
+       userId = Value(userId),
+       redirectUri = Value(redirectUri),
+       codeChallenge = Value(codeChallenge),
+       scopes = Value(scopes),
+       expiresAt = Value(expiresAt);
+  static Insertable<OauthCode> custom({
+    Expression<String>? codeHash,
+    Expression<String>? clientId,
+    Expression<String>? userId,
+    Expression<String>? redirectUri,
+    Expression<String>? codeChallenge,
+    Expression<String>? scopes,
+    Expression<DateTime>? expiresAt,
+    Expression<DateTime>? usedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (codeHash != null) 'code_hash': codeHash,
+      if (clientId != null) 'client_id': clientId,
+      if (userId != null) 'user_id': userId,
+      if (redirectUri != null) 'redirect_uri': redirectUri,
+      if (codeChallenge != null) 'code_challenge': codeChallenge,
+      if (scopes != null) 'scopes': scopes,
+      if (expiresAt != null) 'expires_at': expiresAt,
+      if (usedAt != null) 'used_at': usedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  OauthCodesCompanion copyWith({
+    Value<String>? codeHash,
+    Value<String>? clientId,
+    Value<String>? userId,
+    Value<String>? redirectUri,
+    Value<String>? codeChallenge,
+    Value<String>? scopes,
+    Value<DateTime>? expiresAt,
+    Value<DateTime?>? usedAt,
+    Value<int>? rowid,
+  }) {
+    return OauthCodesCompanion(
+      codeHash: codeHash ?? this.codeHash,
+      clientId: clientId ?? this.clientId,
+      userId: userId ?? this.userId,
+      redirectUri: redirectUri ?? this.redirectUri,
+      codeChallenge: codeChallenge ?? this.codeChallenge,
+      scopes: scopes ?? this.scopes,
+      expiresAt: expiresAt ?? this.expiresAt,
+      usedAt: usedAt ?? this.usedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (codeHash.present) {
+      map['code_hash'] = Variable<String>(codeHash.value);
+    }
+    if (clientId.present) {
+      map['client_id'] = Variable<String>(clientId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (redirectUri.present) {
+      map['redirect_uri'] = Variable<String>(redirectUri.value);
+    }
+    if (codeChallenge.present) {
+      map['code_challenge'] = Variable<String>(codeChallenge.value);
+    }
+    if (scopes.present) {
+      map['scopes'] = Variable<String>(scopes.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<DateTime>(expiresAt.value);
+    }
+    if (usedAt.present) {
+      map['used_at'] = Variable<DateTime>(usedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OauthCodesCompanion(')
+          ..write('codeHash: $codeHash, ')
+          ..write('clientId: $clientId, ')
+          ..write('userId: $userId, ')
+          ..write('redirectUri: $redirectUri, ')
+          ..write('codeChallenge: $codeChallenge, ')
+          ..write('scopes: $scopes, ')
+          ..write('expiresAt: $expiresAt, ')
+          ..write('usedAt: $usedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2157,6 +3214,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $UsersTable users = $UsersTable(this);
   late final $RefreshTokensTable refreshTokens = $RefreshTokensTable(this);
+  late final $OauthClientsTable oauthClients = $OauthClientsTable(this);
+  late final $OauthCodesTable oauthCodes = $OauthCodesTable(this);
   late final $DevicesTable devices = $DevicesTable(this);
   late final $RecordsTable records = $RecordsTable(this);
   late final $SyncOpsTable syncOps = $SyncOpsTable(this);
@@ -2168,6 +3227,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     users,
     refreshTokens,
+    oauthClients,
+    oauthCodes,
     devices,
     records,
     syncOps,
@@ -2357,6 +3418,8 @@ typedef $$RefreshTokensTableCreateCompanionBuilder =
       required String userId,
       required String tokenHash,
       required String familyId,
+      Value<String?> clientId,
+      Value<String?> scope,
       required DateTime expiresAt,
       Value<DateTime?> revokedAt,
       Value<int> rowid,
@@ -2367,6 +3430,8 @@ typedef $$RefreshTokensTableUpdateCompanionBuilder =
       Value<String> userId,
       Value<String> tokenHash,
       Value<String> familyId,
+      Value<String?> clientId,
+      Value<String?> scope,
       Value<DateTime> expiresAt,
       Value<DateTime?> revokedAt,
       Value<int> rowid,
@@ -2398,6 +3463,16 @@ class $$RefreshTokensTableFilterComposer
 
   ColumnFilters<String> get familyId => $composableBuilder(
     column: $table.familyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientId => $composableBuilder(
+    column: $table.clientId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scope => $composableBuilder(
+    column: $table.scope,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2441,6 +3516,16 @@ class $$RefreshTokensTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get clientId => $composableBuilder(
+    column: $table.clientId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
     column: $table.expiresAt,
     builder: (column) => ColumnOrderings(column),
@@ -2472,6 +3557,12 @@ class $$RefreshTokensTableAnnotationComposer
 
   GeneratedColumn<String> get familyId =>
       $composableBuilder(column: $table.familyId, builder: (column) => column);
+
+  GeneratedColumn<String> get clientId =>
+      $composableBuilder(column: $table.clientId, builder: (column) => column);
+
+  GeneratedColumn<String> get scope =>
+      $composableBuilder(column: $table.scope, builder: (column) => column);
 
   GeneratedColumn<DateTime> get expiresAt =>
       $composableBuilder(column: $table.expiresAt, builder: (column) => column);
@@ -2515,6 +3606,8 @@ class $$RefreshTokensTableTableManager
                 Value<String> userId = const Value.absent(),
                 Value<String> tokenHash = const Value.absent(),
                 Value<String> familyId = const Value.absent(),
+                Value<String?> clientId = const Value.absent(),
+                Value<String?> scope = const Value.absent(),
                 Value<DateTime> expiresAt = const Value.absent(),
                 Value<DateTime?> revokedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -2523,6 +3616,8 @@ class $$RefreshTokensTableTableManager
                 userId: userId,
                 tokenHash: tokenHash,
                 familyId: familyId,
+                clientId: clientId,
+                scope: scope,
                 expiresAt: expiresAt,
                 revokedAt: revokedAt,
                 rowid: rowid,
@@ -2533,6 +3628,8 @@ class $$RefreshTokensTableTableManager
                 required String userId,
                 required String tokenHash,
                 required String familyId,
+                Value<String?> clientId = const Value.absent(),
+                Value<String?> scope = const Value.absent(),
                 required DateTime expiresAt,
                 Value<DateTime?> revokedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -2541,6 +3638,8 @@ class $$RefreshTokensTableTableManager
                 userId: userId,
                 tokenHash: tokenHash,
                 familyId: familyId,
+                clientId: clientId,
+                scope: scope,
                 expiresAt: expiresAt,
                 revokedAt: revokedAt,
                 rowid: rowid,
@@ -2568,6 +3667,491 @@ typedef $$RefreshTokensTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $RefreshTokensTable, RefreshToken>,
       ),
       RefreshToken,
+      PrefetchHooks Function()
+    >;
+typedef $$OauthClientsTableCreateCompanionBuilder =
+    OauthClientsCompanion Function({
+      required String id,
+      Value<String?> clientSecretHash,
+      required String clientName,
+      required String redirectUris,
+      required String authMethod,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$OauthClientsTableUpdateCompanionBuilder =
+    OauthClientsCompanion Function({
+      Value<String> id,
+      Value<String?> clientSecretHash,
+      Value<String> clientName,
+      Value<String> redirectUris,
+      Value<String> authMethod,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$OauthClientsTableFilterComposer
+    extends Composer<_$AppDatabase, $OauthClientsTable> {
+  $$OauthClientsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientSecretHash => $composableBuilder(
+    column: $table.clientSecretHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientName => $composableBuilder(
+    column: $table.clientName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get redirectUris => $composableBuilder(
+    column: $table.redirectUris,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get authMethod => $composableBuilder(
+    column: $table.authMethod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$OauthClientsTableOrderingComposer
+    extends Composer<_$AppDatabase, $OauthClientsTable> {
+  $$OauthClientsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get clientSecretHash => $composableBuilder(
+    column: $table.clientSecretHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get clientName => $composableBuilder(
+    column: $table.clientName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get redirectUris => $composableBuilder(
+    column: $table.redirectUris,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get authMethod => $composableBuilder(
+    column: $table.authMethod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$OauthClientsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $OauthClientsTable> {
+  $$OauthClientsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get clientSecretHash => $composableBuilder(
+    column: $table.clientSecretHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get clientName => $composableBuilder(
+    column: $table.clientName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get redirectUris => $composableBuilder(
+    column: $table.redirectUris,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get authMethod => $composableBuilder(
+    column: $table.authMethod,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$OauthClientsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $OauthClientsTable,
+          OauthClient,
+          $$OauthClientsTableFilterComposer,
+          $$OauthClientsTableOrderingComposer,
+          $$OauthClientsTableAnnotationComposer,
+          $$OauthClientsTableCreateCompanionBuilder,
+          $$OauthClientsTableUpdateCompanionBuilder,
+          (
+            OauthClient,
+            BaseReferences<_$AppDatabase, $OauthClientsTable, OauthClient>,
+          ),
+          OauthClient,
+          PrefetchHooks Function()
+        > {
+  $$OauthClientsTableTableManager(_$AppDatabase db, $OauthClientsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OauthClientsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$OauthClientsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$OauthClientsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> clientSecretHash = const Value.absent(),
+                Value<String> clientName = const Value.absent(),
+                Value<String> redirectUris = const Value.absent(),
+                Value<String> authMethod = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OauthClientsCompanion(
+                id: id,
+                clientSecretHash: clientSecretHash,
+                clientName: clientName,
+                redirectUris: redirectUris,
+                authMethod: authMethod,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> clientSecretHash = const Value.absent(),
+                required String clientName,
+                required String redirectUris,
+                required String authMethod,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => OauthClientsCompanion.insert(
+                id: id,
+                clientSecretHash: clientSecretHash,
+                clientName: clientName,
+                redirectUris: redirectUris,
+                authMethod: authMethod,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$OauthClientsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $OauthClientsTable,
+      OauthClient,
+      $$OauthClientsTableFilterComposer,
+      $$OauthClientsTableOrderingComposer,
+      $$OauthClientsTableAnnotationComposer,
+      $$OauthClientsTableCreateCompanionBuilder,
+      $$OauthClientsTableUpdateCompanionBuilder,
+      (
+        OauthClient,
+        BaseReferences<_$AppDatabase, $OauthClientsTable, OauthClient>,
+      ),
+      OauthClient,
+      PrefetchHooks Function()
+    >;
+typedef $$OauthCodesTableCreateCompanionBuilder =
+    OauthCodesCompanion Function({
+      required String codeHash,
+      required String clientId,
+      required String userId,
+      required String redirectUri,
+      required String codeChallenge,
+      required String scopes,
+      required DateTime expiresAt,
+      Value<DateTime?> usedAt,
+      Value<int> rowid,
+    });
+typedef $$OauthCodesTableUpdateCompanionBuilder =
+    OauthCodesCompanion Function({
+      Value<String> codeHash,
+      Value<String> clientId,
+      Value<String> userId,
+      Value<String> redirectUri,
+      Value<String> codeChallenge,
+      Value<String> scopes,
+      Value<DateTime> expiresAt,
+      Value<DateTime?> usedAt,
+      Value<int> rowid,
+    });
+
+class $$OauthCodesTableFilterComposer
+    extends Composer<_$AppDatabase, $OauthCodesTable> {
+  $$OauthCodesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get codeHash => $composableBuilder(
+    column: $table.codeHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientId => $composableBuilder(
+    column: $table.clientId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get redirectUri => $composableBuilder(
+    column: $table.redirectUri,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get codeChallenge => $composableBuilder(
+    column: $table.codeChallenge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scopes => $composableBuilder(
+    column: $table.scopes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get usedAt => $composableBuilder(
+    column: $table.usedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$OauthCodesTableOrderingComposer
+    extends Composer<_$AppDatabase, $OauthCodesTable> {
+  $$OauthCodesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get codeHash => $composableBuilder(
+    column: $table.codeHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get clientId => $composableBuilder(
+    column: $table.clientId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get redirectUri => $composableBuilder(
+    column: $table.redirectUri,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get codeChallenge => $composableBuilder(
+    column: $table.codeChallenge,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scopes => $composableBuilder(
+    column: $table.scopes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
+    column: $table.expiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get usedAt => $composableBuilder(
+    column: $table.usedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$OauthCodesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $OauthCodesTable> {
+  $$OauthCodesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get codeHash =>
+      $composableBuilder(column: $table.codeHash, builder: (column) => column);
+
+  GeneratedColumn<String> get clientId =>
+      $composableBuilder(column: $table.clientId, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get redirectUri => $composableBuilder(
+    column: $table.redirectUri,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get codeChallenge => $composableBuilder(
+    column: $table.codeChallenge,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get scopes =>
+      $composableBuilder(column: $table.scopes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get usedAt =>
+      $composableBuilder(column: $table.usedAt, builder: (column) => column);
+}
+
+class $$OauthCodesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $OauthCodesTable,
+          OauthCode,
+          $$OauthCodesTableFilterComposer,
+          $$OauthCodesTableOrderingComposer,
+          $$OauthCodesTableAnnotationComposer,
+          $$OauthCodesTableCreateCompanionBuilder,
+          $$OauthCodesTableUpdateCompanionBuilder,
+          (
+            OauthCode,
+            BaseReferences<_$AppDatabase, $OauthCodesTable, OauthCode>,
+          ),
+          OauthCode,
+          PrefetchHooks Function()
+        > {
+  $$OauthCodesTableTableManager(_$AppDatabase db, $OauthCodesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OauthCodesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$OauthCodesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$OauthCodesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> codeHash = const Value.absent(),
+                Value<String> clientId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> redirectUri = const Value.absent(),
+                Value<String> codeChallenge = const Value.absent(),
+                Value<String> scopes = const Value.absent(),
+                Value<DateTime> expiresAt = const Value.absent(),
+                Value<DateTime?> usedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OauthCodesCompanion(
+                codeHash: codeHash,
+                clientId: clientId,
+                userId: userId,
+                redirectUri: redirectUri,
+                codeChallenge: codeChallenge,
+                scopes: scopes,
+                expiresAt: expiresAt,
+                usedAt: usedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String codeHash,
+                required String clientId,
+                required String userId,
+                required String redirectUri,
+                required String codeChallenge,
+                required String scopes,
+                required DateTime expiresAt,
+                Value<DateTime?> usedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OauthCodesCompanion.insert(
+                codeHash: codeHash,
+                clientId: clientId,
+                userId: userId,
+                redirectUri: redirectUri,
+                codeChallenge: codeChallenge,
+                scopes: scopes,
+                expiresAt: expiresAt,
+                usedAt: usedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$OauthCodesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $OauthCodesTable,
+      OauthCode,
+      $$OauthCodesTableFilterComposer,
+      $$OauthCodesTableOrderingComposer,
+      $$OauthCodesTableAnnotationComposer,
+      $$OauthCodesTableCreateCompanionBuilder,
+      $$OauthCodesTableUpdateCompanionBuilder,
+      (OauthCode, BaseReferences<_$AppDatabase, $OauthCodesTable, OauthCode>),
+      OauthCode,
       PrefetchHooks Function()
     >;
 typedef $$DevicesTableCreateCompanionBuilder =
@@ -3354,6 +4938,10 @@ class $AppDatabaseManager {
       $$UsersTableTableManager(_db, _db.users);
   $$RefreshTokensTableTableManager get refreshTokens =>
       $$RefreshTokensTableTableManager(_db, _db.refreshTokens);
+  $$OauthClientsTableTableManager get oauthClients =>
+      $$OauthClientsTableTableManager(_db, _db.oauthClients);
+  $$OauthCodesTableTableManager get oauthCodes =>
+      $$OauthCodesTableTableManager(_db, _db.oauthCodes);
   $$DevicesTableTableManager get devices =>
       $$DevicesTableTableManager(_db, _db.devices);
   $$RecordsTableTableManager get records =>

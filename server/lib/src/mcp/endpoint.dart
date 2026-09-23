@@ -16,9 +16,12 @@ import 'tools.dart';
 // WWW-Authenticate pointing at the OAuth protected-resource metadata that
 // Task 3 serves at /.well-known/oauth-protected-resource.
 //
-// Scope enforcement is a pluggable seam (T3): replace [scopeChecker] to
-// gate tools by token scope — the default allows everything until T3 wires
-// real mcp:read/mcp:write scopes.
+// Scope enforcement runs through the [scopeChecker] seam on every tools/call
+// AND resources/list+read. AppServer wires the real mcp:read/mcp:write gate
+// (oauth/middleware.dart); the fail-closed default denies everything so a
+// forgotten wiring can never ship an open MCP.
+
+const int mcpMaxBodyBytes = 256 * 1024;
 
 class McpScopeRequest {
   const McpScopeRequest({
@@ -26,16 +29,19 @@ class McpScopeRequest {
     required this.tool,
     required this.readOnly,
     required this.destructive,
+    this.scope,
   });
 
   final String userId;
   final String tool;
   final bool readOnly;
   final bool destructive;
+  final String? scope;
 
   @override
   String toString() =>
-      'McpScopeRequest($userId, $tool, readOnly: $readOnly, destructive: $destructive)';
+      'McpScopeRequest($userId, $tool, readOnly: $readOnly, '
+      'destructive: $destructive, scope: $scope)';
 }
 
 class ScopeDecision {
@@ -54,8 +60,13 @@ class ScopeDecision {
 
 typedef ScopeChecker = ScopeDecision? Function(McpScopeRequest request);
 
-// Default until Task 3 injects the real OAuth scope gate.
-ScopeDecision? allowAllScopes(McpScopeRequest request) => null;
+// Fail-closed default: without a configured checker nothing runs. AppServer
+// swaps in oauth/middleware.dart's mcpScopeGate at construction.
+ScopeDecision? denyAllScopes(McpScopeRequest request) => const ScopeDecision(
+  mcpCodeForbiddenScope,
+  'no scope checker configured',
+  hintForbiddenScope,
+);
 
 class _JsonRpcError implements Exception {
   _JsonRpcError(this.code, this.message, [this.data]);
@@ -76,11 +87,11 @@ class McpEndpoint {
   final Auth auth;
   final void Function(String userId, int seq) notifySeq;
 
-  // T3 seam: swap this for a checker that reads `scope` from the JWT and
-  // returns ScopeDecision(code: FORBIDDEN_SCOPE, ...) when the token may
-  // not run the tool. Consulted before schema validation on every
-  // tools/call, with the tool's annotation flags attached.
-  ScopeChecker scopeChecker = allowAllScopes;
+  // T3 seam: AppServer assigns oauth/middleware.dart's mcpScopeGate here.
+  // Consulted before schema validation on every tools/call and on every
+  // resources/list + resources/read, with the tool's annotation flags and
+  // the token's scope claim attached.
+  ScopeChecker scopeChecker = denyAllScopes;
 
   final IdempotencyRegistry idempotency = IdempotencyRegistry();
 
@@ -90,10 +101,16 @@ class McpEndpoint {
   };
 
   Future<Response> handle(Request request) async {
-    final userId = _authenticatedUserId(request);
-    if (userId == null) {
-      return _unauthorized(request, existingToken: false);
+    final header = request.headers['authorization'];
+    final hasBearer = header != null && header.startsWith('Bearer ');
+    final claims = hasBearer
+        ? auth.verifyAccessTokenClaims(header.substring(7))
+        : null;
+    if (claims == null) {
+      return _unauthorized(request, existingToken: hasBearer);
     }
+    final userId = claims.userId;
+    final scope = claims.scope;
     final contentType = request.headers['content-type'];
     if (contentType != null && !contentType.contains('application/json')) {
       return jsonError(
@@ -103,7 +120,23 @@ class McpEndpoint {
       );
     }
 
-    final raw = await request.readAsString();
+    final declared = int.tryParse(request.headers['content-length'] ?? '');
+    if (declared != null && declared > mcpMaxBodyBytes) {
+      return _payloadTooLarge();
+    }
+    final buffer = <int>[];
+    await for (final chunk in request.read()) {
+      if (buffer.length + chunk.length > mcpMaxBodyBytes) {
+        return _payloadTooLarge();
+      }
+      buffer.addAll(chunk);
+    }
+    String raw;
+    try {
+      raw = utf8.decode(buffer);
+    } on FormatException {
+      return _protocolError(null, -32700, 'Parse error', status: 400);
+    }
     Object? decoded;
     try {
       decoded = jsonDecode(raw);
@@ -152,7 +185,7 @@ class McpEndpoint {
     }
 
     try {
-      final result = await _dispatch(userId, method, message['params']);
+      final result = await _dispatch(userId, scope, method, message['params']);
       if (!isRequest) {
         return Response(202);
       }
@@ -177,16 +210,8 @@ class McpEndpoint {
     }
   }
 
-  String? _authenticatedUserId(Request request) {
-    final header = request.headers['authorization'];
-    if (header == null || !header.startsWith('Bearer ')) {
-      return null;
-    }
-    return auth.verifyAccessToken(header.substring(7));
-  }
-
   Response _unauthorized(Request request, {required bool existingToken}) {
-    final origin = _origin(request);
+    final origin = requestOrigin(request);
     final challenge =
         'Bearer resource_metadata="$origin/.well-known/oauth-protected-resource"';
     final body = jsonError(
@@ -199,14 +224,11 @@ class McpEndpoint {
     return body.change(headers: {'www-authenticate': challenge});
   }
 
-  String _origin(Request request) {
-    final requested = request.requestedUri;
-    if (requested.hasScheme && requested.host.isNotEmpty) {
-      return requested.origin;
-    }
-    final host = request.headers['host'];
-    return host == null || host.isEmpty ? 'http://localhost' : 'http://$host';
-  }
+  Response _payloadTooLarge() => jsonError(
+    413,
+    errValidation,
+    'request body exceeds the 256KB limit',
+  );
 
   Response _protocolError(
     Object? id,
@@ -223,6 +245,7 @@ class McpEndpoint {
 
   Future<Map<String, Object?>> _dispatch(
     String userId,
+    String? scope,
     String method,
     Object? params,
   ) async {
@@ -236,15 +259,44 @@ class McpEndpoint {
           'tools': tools.map((t) => t.toJson()).toList(),
         };
       case 'tools/call':
-        return _toolsCall(userId, params);
+        return _toolsCall(userId, scope, params);
       case 'resources/list':
+        _requireScope(
+          userId,
+          scope,
+          tool: 'resources/list',
+          readOnly: true,
+        );
         return <String, Object?>{
           'resources': mcpResources.map((r) => r.toJson()).toList(),
         };
       case 'resources/read':
-        return _resourcesRead(userId, params);
+        return _resourcesRead(userId, scope, params);
       default:
         throw _JsonRpcError(-32601, 'Method not found: $method');
+    }
+  }
+
+  void _requireScope(
+    String userId,
+    String? scope, {
+    required String tool,
+    required bool readOnly,
+  }) {
+    final decision = scopeChecker(
+      McpScopeRequest(
+        userId: userId,
+        tool: tool,
+        readOnly: readOnly,
+        destructive: false,
+        scope: scope,
+      ),
+    );
+    if (decision != null) {
+      // Resources have no isError tool-result envelope, so a denied
+      // resources/* call surfaces as a JSON-RPC error in the server range
+      // with the FORBIDDEN_SCOPE payload attached as data.
+      throw _JsonRpcError(-32000, decision.message, decision.toJson());
     }
   }
 
@@ -278,6 +330,7 @@ class McpEndpoint {
 
   Future<Map<String, Object?>> _toolsCall(
     String userId,
+    String? scope,
     Object? params,
   ) async {
     if (params is! Map) {
@@ -304,6 +357,7 @@ class McpEndpoint {
       tool: name,
       readOnly: tool.readOnly,
       destructive: tool.destructive,
+      scope: scope,
     ));
     if (decision != null) {
       return _toolErrorResult(decision.toJson());
@@ -354,8 +408,10 @@ class McpEndpoint {
 
   Future<Map<String, Object?>> _resourcesRead(
     String userId,
+    String? scope,
     Object? params,
   ) async {
+    _requireScope(userId, scope, tool: 'resources/read', readOnly: true);
     if (params is! Map) {
       throw _JsonRpcError(-32602, 'resources/read params must be an object');
     }

@@ -19,13 +19,13 @@ LazyDatabase openDatabase(String dbPath) {
 }
 
 @DriftDatabase(
-  tables: [Users, RefreshTokens, Devices, Records, SyncOps, Revisions],
+  tables: [Users, RefreshTokens, OauthClients, OauthCodes, Devices, Records, SyncOps, Revisions],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -34,6 +34,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.addColumn(records, records.seq);
         await m.addColumn(records, records.lastOpId);
+      }
+      if (from < 3) {
+        await m.addColumn(refreshTokens, refreshTokens.clientId);
+        await m.addColumn(refreshTokens, refreshTokens.scope);
+        await m.createTable(oauthClients);
+        await m.createTable(oauthCodes);
       }
     },
     beforeOpen: (details) async {

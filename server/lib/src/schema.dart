@@ -17,11 +17,43 @@ class RefreshTokens extends Table {
   TextColumn get userId => text()();
   TextColumn get tokenHash => text().unique()();
   TextColumn get familyId => text()();
+  // OAuth-track rows carry the issuing client and the granted scope;
+  // /auth login rows keep both null (CLI/device session track).
+  TextColumn get clientId => text().nullable()();
+  TextColumn get scope => text().nullable()();
   DateTimeColumn get expiresAt => dateTime()();
   DateTimeColumn get revokedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('OauthClient')
+class OauthClients extends Table {
+  TextColumn get id => text()();
+  TextColumn get clientSecretHash => text().nullable()();
+  TextColumn get clientName => text()();
+  TextColumn get redirectUris => text()();
+  TextColumn get authMethod => text()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('OauthCode')
+class OauthCodes extends Table {
+  TextColumn get codeHash => text()();
+  TextColumn get clientId => text()();
+  TextColumn get userId => text()();
+  TextColumn get redirectUri => text()();
+  TextColumn get codeChallenge => text()();
+  TextColumn get scopes => text()();
+  DateTimeColumn get expiresAt => dateTime()();
+  DateTimeColumn get usedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {codeHash};
 }
 
 @DataClassName('Device')

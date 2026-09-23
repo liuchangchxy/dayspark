@@ -56,3 +56,16 @@ Middleware catchApiErrors() {
     }
   };
 }
+
+// Absolute origin (scheme://host[:port]) of the incoming request, falling
+// back to the Host header for handlers invoked with a relative URI. OAuth
+// discovery documents and the /mcp WWW-Authenticate challenge all build
+// their URLs from this one shape.
+String requestOrigin(Request request) {
+  final requested = request.requestedUri;
+  if (requested.hasScheme && requested.host.isNotEmpty) {
+    return requested.origin;
+  }
+  final host = request.headers['host'];
+  return host == null || host.isEmpty ? 'http://localhost' : 'http://$host';
+}

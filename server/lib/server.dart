@@ -9,6 +9,8 @@ import 'src/config.dart';
 import 'src/db.dart';
 import 'src/http.dart';
 import 'src/mcp/endpoint.dart';
+import 'src/oauth/as.dart';
+import 'src/oauth/middleware.dart';
 import 'src/routes/auth.dart';
 import 'src/routes/health.dart';
 import 'src/routes/stream.dart';
@@ -27,6 +29,9 @@ export 'src/mcp/endpoint.dart';
 export 'src/mcp/resources.dart';
 export 'src/mcp/schemas.dart';
 export 'src/mcp/tools.dart';
+export 'src/oauth/as.dart';
+export 'src/oauth/consent.dart';
+export 'src/oauth/middleware.dart';
 export 'src/sync/lww.dart';
 
 class AppServer {
@@ -34,6 +39,9 @@ class AppServer {
     : db = database ?? AppDatabase(openDatabase(config.dbPath)) {
     auth = Auth(config, db);
     mcp = McpEndpoint(db: db, auth: auth, notifySeq: _notifySeq);
+    // Real mcp:read/mcp:write gate (fail-closed default in the endpoint is
+    // replaced here so no AppServer can ship with an open scope seam).
+    mcp.scopeChecker = mcpScopeGate;
   }
 
   final Config config;
@@ -62,6 +70,7 @@ class AppServer {
     final router = Router();
     registerHealthRoutes(router);
     registerAuthRoutes(router, db: db, auth: auth);
+    registerOauthRoutes(router, db: db, auth: auth);
     registerSyncRoutes(router, db: db, auth: auth, notifySeq: _notifySeq);
     registerStreamRoutes(
       router,
