@@ -1,0 +1,24 @@
+# DaySpark sync server — see docs/DEPLOY.md.
+# Usage: cd server && cp .env.example .env && edit JWT_SECRET, then
+#        docker compose up -d --build
+services:
+  dayspark-sync:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    image: dayspark-sync:latest
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      # Fails the compose render when .env is missing/empty, and the
+      # container itself fails fast on an empty secret (REQUIRE_JWT_SECRET).
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in server/.env first — openssl rand -hex 32}"
+    volumes:
+      - dayspark-data:/data
+
+volumes:
+  dayspark-data:
+    # Stable name so backup scripts don't depend on the compose project
+    # directory name.
+    name: dayspark-data

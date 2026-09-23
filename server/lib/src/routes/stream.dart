@@ -147,6 +147,9 @@ void registerStreamRoutes(
         'content-type': 'text/event-stream',
         'cache-control': 'no-cache',
         'connection': 'keep-alive',
+        // Tell nginx-family proxies not to buffer this stream, even with
+        // default site config — buffered SSE would defeat invalidation.
+        'x-accel-buffering': 'no',
       },
       // shelf_io buffers streamed responses by default; SSE frames must hit
       // the wire as they are produced.

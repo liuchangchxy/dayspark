@@ -178,6 +178,8 @@ void main() {
     expect(response.headers['content-type'], 'text/event-stream');
     expect(response.headers['cache-control'], 'no-cache');
     expect(response.headers['connection'], 'keep-alive');
+    expect(response.headers['x-accel-buffering'], 'no',
+        reason: 'nginx must not buffer the invalidation stream');
 
     final feed = _SseFeed(response);
     await feed.waitForData('{"cursor":1}');
