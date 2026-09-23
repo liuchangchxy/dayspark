@@ -28,24 +28,25 @@ Future<Response> _request(
   String? contentType,
   String? token,
   String? basic,
+  Map<String, String>? headers,
 }) async {
-  final headers = <String, String>{};
+  final reqHeaders = <String, String>{...?headers};
   if (form != null) {
-    headers['content-type'] = 'application/x-www-form-urlencoded';
+    reqHeaders['content-type'] = 'application/x-www-form-urlencoded';
   } else if (body != null || rawBody != null) {
-    headers['content-type'] = contentType ?? 'application/json';
+    reqHeaders['content-type'] = contentType ?? 'application/json';
   }
   if (token != null) {
-    headers['authorization'] = 'Bearer $token';
+    reqHeaders['authorization'] = 'Bearer $token';
   }
   if (basic != null) {
-    headers['authorization'] = 'Basic $basic';
+    reqHeaders['authorization'] = 'Basic $basic';
   }
   return app.handler(
     Request(
       method,
       _uri(path),
-      headers: headers,
+      headers: reqHeaders,
       body:
           rawBody ??
           (form != null
@@ -398,6 +399,73 @@ void main() {
       expect(body['authorization_servers'], ['http://localhost']);
       expect(body['bearer_methods_supported'], ['header']);
       expect(body['scopes_supported'], ['mcp:read', 'mcp:write']);
+    });
+  });
+
+  group('reverse-proxy X-Forwarded-Proto', () {
+    test('issuer and endpoints advertise https when the proxy says so',
+        () async {
+      final response = await _request(
+        app,
+        'GET',
+        '/.well-known/oauth-authorization-server',
+        headers: {'x-forwarded-proto': 'https'},
+      );
+      expect(response.statusCode, 200);
+      final body = await _json(response);
+      expect(body['issuer'], 'https://localhost');
+      expect(body['authorization_endpoint'], 'https://localhost/oauth/authorize');
+      expect(body['token_endpoint'], 'https://localhost/oauth/token');
+      expect(body['registration_endpoint'], 'https://localhost/oauth/register');
+      expect(body['revocation_endpoint'], 'https://localhost/oauth/revoke');
+    });
+
+    test('WWW-Authenticate resource_metadata honors the forwarded scheme',
+        () async {
+      final unauthorized = await _request(
+        app,
+        'POST',
+        '/mcp',
+        headers: {'x-forwarded-proto': 'https'},
+        body: {
+          'jsonrpc': '2.0',
+          'id': 1,
+          'method': 'initialize',
+        },
+      );
+      expect(unauthorized.statusCode, 401);
+      final challenge = unauthorized.headers['www-authenticate']!;
+      final match = RegExp(
+        r'resource_metadata="([^"]+)"',
+      ).firstMatch(challenge);
+      expect(match, isNotNull, reason: challenge);
+      expect(
+        match!.group(1),
+        'https://localhost/.well-known/oauth-protected-resource',
+      );
+    });
+
+    test('header absent or garbage keeps the connection scheme', () async {
+      for (final headers in <Map<String, String>?>[
+        null,
+        {'x-forwarded-proto': 'gopher'},
+        {'x-forwarded-proto': ' https , http '},
+      ]) {
+        final response = await _request(
+          app,
+          'GET',
+          '/.well-known/oauth-authorization-server',
+          headers: headers,
+        );
+        expect(response.statusCode, 200, reason: '$headers');
+        final body = await _json(response);
+        if (headers == null || headers['x-forwarded-proto'] == 'gopher') {
+          expect(body['issuer'], 'http://localhost', reason: '$headers');
+        } else {
+          // First hop value wins when the list is well-formed.
+          expect(body['issuer'], 'https://localhost', reason: '$headers');
+        }
+      }
     });
   });
 

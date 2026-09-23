@@ -86,11 +86,30 @@ Middleware catchApiErrors() {
 // back to the Host header for handlers invoked with a relative URI. OAuth
 // discovery documents and the /mcp WWW-Authenticate challenge all build
 // their URLs from this one shape.
+//
+// Behind a TLS-terminating reverse proxy the connection scheme is http even
+// for https clients, which would advertise http:// origins the client cannot
+// follow. When the proxy sets X-Forwarded-Proto (nginx:
+// `proxy_set_header X-Forwarded-Proto $scheme;`) its first value wins;
+// without the header (direct exposure) the connection scheme is kept — the
+// header is only trusted when present, behind-proxy deployments only.
 String requestOrigin(Request request) {
   final requested = request.requestedUri;
+  final String origin;
   if (requested.hasScheme && requested.host.isNotEmpty) {
-    return requested.origin;
+    origin = requested.origin;
+  } else {
+    final host = request.headers['host'];
+    origin = host == null || host.isEmpty ? 'http://localhost' : 'http://$host';
   }
-  final host = request.headers['host'];
-  return host == null || host.isEmpty ? 'http://localhost' : 'http://$host';
+  final forwardedProto = request.headers['x-forwarded-proto'];
+  if (forwardedProto == null || forwardedProto.isEmpty) {
+    return origin;
+  }
+  final scheme = forwardedProto.split(',').first.trim().toLowerCase();
+  if (scheme != 'http' && scheme != 'https') {
+    return origin;
+  }
+  final uri = Uri.parse(origin);
+  return uri.scheme == scheme ? origin : uri.replace(scheme: scheme).origin;
 }
