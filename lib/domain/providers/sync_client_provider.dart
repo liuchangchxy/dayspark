@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/sync/foreground_sync_poller.dart';
 import 'package:dayspark/domain/sync/sse_listener.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
 import 'package:dayspark/domain/sync/sync_config.dart';
@@ -63,6 +64,22 @@ final syncEngineProvider = Provider<SyncEngine?>((ref) {
     onInitialCursor: (head) => unawaited(engine.adoptServerHead(head)),
   );
 
+  // WHY 15s foreground fallback (plan-mandated): proxies can leave the
+  // SSE stream lingering without FIN (T4) so the listener never errors
+  // and no reconnect/signals fire — periodic rounds keep push+pull
+  // flowing while foregrounded. Backgrounded = paused; engine.coalescing
+  // caps overlapping triggers at one queued round.
+  final poller = ForegroundSyncPoller(requestRound: engine.requestRound);
+  final lifecycleListener = AppLifecycleListener(
+    // Foreground trigger: round immediately on return + re-arm the timer;
+    // isRunning gates the logged-out provider build (baseUrl-only) that
+    // would otherwise fire no-op rounds every tick.
+    onResume: () {
+      if (engine.isRunning) poller.resumed();
+    },
+    onPause: poller.paused,
+  );
+
   // Both engine rounds and SSE need a configured login; T6 writes tokens
   // and invalidates this provider to bring the engine up.
   unawaited(() async {
@@ -70,6 +87,14 @@ final syncEngineProvider = Provider<SyncEngine?>((ref) {
       if (await tokens.isConfigured()) {
         sse.start();
         await engine.start();
+        // Foreground-only cadence: skip when built while backgrounded —
+        // onResume arms it later.
+        final lifecycle = WidgetsBinding.instance.lifecycleState;
+        if (lifecycle == null ||
+            lifecycle == AppLifecycleState.resumed ||
+            lifecycle == AppLifecycleState.inactive) {
+          poller.start();
+        }
       }
     } catch (e) {
       debugPrint('sync: engine startup error: $e');
@@ -90,6 +115,8 @@ final syncEngineProvider = Provider<SyncEngine?>((ref) {
   );
 
   ref.onDispose(() async {
+    poller.dispose();
+    lifecycleListener.dispose();
     await connSub.cancel();
     await sse.stop();
     await engine.stop();

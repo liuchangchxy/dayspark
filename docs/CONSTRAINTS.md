@@ -318,3 +318,8 @@
 - `tool/check_glibc_version.sh` 面向 Flutter Linux bundle，**不管** server 产物；本地执行若无 readelf 会输出 `SKIP: readelf not found (install binutils)`
 - **Why**: 运行镜像比构建镜像旧会启动即 `GLIBC_x.y not found`；记录天花板供换基座时对照
 - **Date**: 2026-09-23
+
+### 前台 15s 定时轮询兜底 + resumed 立即触发（ForegroundSyncPoller）
+- 仅「前台 && 引擎运行」时 `Timer.periodic(15s)` → `requestRound`（每 tick 一次 push+pull HTTP，引擎 coalesce 控代价，计划内可接受）；`onResume` 立即触发一轮再启表，`onPause` 停表
+- **Why**: 部分反代下 SSE 长连接静默滞留不 FIN（T4），监听器既不 error 也不重连、信号断流；前台靠定时拉取兜底，回前台立即一轮覆盖离线期变更（changelog/ROADMAP 的「回前台触发」即此）
+- **Date**: 2026-09-23
