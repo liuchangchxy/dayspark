@@ -161,10 +161,21 @@
 
 ### 小组件键双写：legacy 三键 + versioned `widget_snapshot` 同时写
 - legacy：`today_events` / `pending_todos` / `todo_count` — 现有 Kotlin/Swift 读取端只认这三个
-- versioned：`widget_snapshot`（`{version:1, generatedAt, todayEvents, pendingTodos, todoCount}`）— P4 迁移读取端的唯一契约，item 形状与 legacy 刻意一致
+- versioned：`widget_snapshot` v2（`{version:2, generatedAt, todayEvents, pendingTodos, todoCount, upcoming, pendingTaps, ui, theme}`）— P4 迁移读取端的唯一契约，item 形状与 legacy 刻意一致
+  - `upcoming`：**今天之后连续 7 天**（[明天 00:00, +8 天 00:00)）的事件+有日期顶层待办；今天不进 upcoming（todayEvents 已覆盖，Upcoming 变体与今日组件并排会重复）
+  - `pendingTaps[]`：native→app 勾选通道。app 每次 flush 消费后写 `[]`；无消费者的 flush 必须**原样保留** native 追加的条目（禁止裸清空）；消费走 `toggleTodoProvider`（提醒取消/markComplete/outbox 单一写路径），组件端禁止直写库
+  - `ui`：按当前 locale **预本地化**的全部组件文案（gen-l10n arb 生成，Kotlin/Swift 零硬编码英文）；locale 切换靠下一次快照写入生效
+  - `theme`：`{dark, colors{background,surface,textPrimary,textSecondary,accent,border}}`（`#RRGGBB`），dark 由 `theme_mode` prefs + 平台亮度解析
 - 删除/改名任何一侧前必须先迁移全部三个原生读取端（Android SharedPreferences + iOS/macOS UserDefaults suite）
 - **Why**: 单写新键会让现网组件立刻空白；单写旧键则 P4 无迁移目标
-- **Date**: 2026-09-22
+- **Date**: 2026-09-22（v2 契约补全 2026-09-24：upcoming/pendingTaps/ui/theme）
+
+### 小组件快速添加通路：home_widget interactivity 回调 + `dayspark://quick-add`
+- widget 按钮点击走 `HomeWidget.registerInteractivityCallback(widgetInteractivityCallback)`（main() 注册，vm:entry-point）；回调**只做导航**（→ `/todo/new?source=widget`），不碰数据库——落库只在 flush 的 pendingTaps 消费路径
+- 通用 deep link 统一翻译函数 `widgetDeepLinkLocation`（`dayspark://quick-add` → quick-add location）；go_router 只认 path 不认 scheme，scheme→path 的映射必须集中在此
+- Android intent-filter / iOS URL types 注册在原生任务（T3）；本任务只保证 Dart 侧 route + 回调入口存在
+- **Why**: 双通道（SP 队列勾选 + interactivity 导航）职责分离，防双写库
+- **Date**: 2026-09-24
 
 ### pending_todos 查询：NULL 到期沉底 + 过滤子任务
 - `ORDER BY (due_date IS NULL) ASC, due_date ASC` + `parentId.isNull()`

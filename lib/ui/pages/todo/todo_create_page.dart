@@ -16,7 +16,11 @@ import 'package:dayspark/domain/providers/ai_provider.dart';
 class TodoCreatePage extends ConsumerStatefulWidget {
   final int? parentId;
 
-  const TodoCreatePage({super.key, this.parentId});
+  /// Where the create was opened from (e.g. `widget` via the quick-add
+  /// deep link `dayspark://quick-add` → `/todo/new?source=widget`).
+  final String? source;
+
+  const TodoCreatePage({super.key, this.parentId, this.source});
 
   @override
   ConsumerState<TodoCreatePage> createState() => _TodoCreatePageState();

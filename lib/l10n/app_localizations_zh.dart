@@ -207,6 +207,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get events => '日程';
 
   @override
+  String get upcoming => '接下来';
+
+  @override
+  String get quickAdd => '快速添加';
+
+  @override
+  String get todayEventsHeader => '今日日程';
+
+  @override
+  String get widgetNoEvents => '今天没有日程';
+
+  @override
+  String get widgetAllDone => '全部完成';
+
+  @override
+  String widgetPendingCount(int count) {
+    return '$count 项待办';
+  }
+
+  @override
   String get typeToSearch => '输入关键词搜索';
 
   @override

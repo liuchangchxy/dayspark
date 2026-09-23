@@ -105,7 +105,12 @@ abstract final class AppRouter {
         pageBuilder: (context, state) {
           final parentIdParam = state.uri.queryParameters['parentId'];
           final parentId = parentIdParam != null ? int.tryParse(parentIdParam) : null;
-          return _fadeTransition(TodoCreatePage(parentId: parentId));
+          return _fadeTransition(
+            TodoCreatePage(
+              parentId: parentId,
+              source: state.uri.queryParameters['source'],
+            ),
+          );
         },
       ),
       GoRoute(

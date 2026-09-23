@@ -66,6 +66,18 @@
   "tomorrow": "明天",
   "notSet": "未设置",
   "events": "日程",
+  "upcoming": "接下来",
+  "quickAdd": "快速添加",
+  "todayEventsHeader": "今日日程",
+  "widgetNoEvents": "今天没有日程",
+  "widgetAllDone": "全部完成",
+  "widgetPendingCount": "{count} 项待办",
+  "@widgetPendingCount": {
+    "description": "Home screen widget label for the number of pending todos",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "typeToSearch": "输入关键词搜索",
   "eventCreated": "日程已创建",
   "todoCreated": "待办已创建",

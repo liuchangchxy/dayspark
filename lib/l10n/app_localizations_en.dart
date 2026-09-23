@@ -207,6 +207,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get events => 'Events';
 
   @override
+  String get upcoming => 'Upcoming';
+
+  @override
+  String get quickAdd => 'Quick add';
+
+  @override
+  String get todayEventsHeader => 'Today\'s Events';
+
+  @override
+  String get widgetNoEvents => 'No events today';
+
+  @override
+  String get widgetAllDone => 'All done!';
+
+  @override
+  String widgetPendingCount(int count) {
+    return '$count pending';
+  }
+
+  @override
   String get typeToSearch => 'Type to search';
 
   @override

@@ -491,6 +491,42 @@ abstract class AppLocalizations {
   /// **'Events'**
   String get events;
 
+  /// No description provided for @upcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming'**
+  String get upcoming;
+
+  /// No description provided for @quickAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick add'**
+  String get quickAdd;
+
+  /// No description provided for @todayEventsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Events'**
+  String get todayEventsHeader;
+
+  /// No description provided for @widgetNoEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'No events today'**
+  String get widgetNoEvents;
+
+  /// No description provided for @widgetAllDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All done!'**
+  String get widgetAllDone;
+
+  /// Home screen widget label for the number of pending todos
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending'**
+  String widgetPendingCount(int count);
+
   /// No description provided for @typeToSearch.
   ///
   /// In en, this message translates to:

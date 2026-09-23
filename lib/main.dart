@@ -14,6 +14,7 @@ import 'domain/providers/sync_client_provider.dart' show syncRuntimeProvider;
 import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
 import 'domain/providers/locale_provider.dart';
 import 'infrastructure/platform/alarm_service.dart';
+import 'infrastructure/platform/home_widget_interactivity.dart';
 import 'infrastructure/platform/notification_service.dart';
 
 void main() async {
@@ -25,6 +26,21 @@ void main() async {
       (defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS)) {
     await HomeWidget.setAppGroupId('group.com.dayspark.app');
+  }
+  // Widget-button taps reach Dart through the interactivity callback
+  // (T3 wires native buttons to `dayspark://` URIs). Platforms home_widget
+  // actually implements; desktop/web have no widget host to call it.
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.android)) {
+    try {
+      await HomeWidget.registerInteractivityCallback(
+        widgetInteractivityCallback,
+      );
+    } catch (e) {
+      debugPrint('home_widget: registerInteractivityCallback error: $e');
+    }
   }
   await AlarmService.init();
   // tz database + local location must be ready before any reminder can

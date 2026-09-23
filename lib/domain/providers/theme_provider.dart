@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _keyThemeMode = 'theme_mode';
+const themeModePrefKey = 'theme_mode';
 const _keyThemeColor = 'theme_color';
 
 final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>(
@@ -16,7 +16,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_keyThemeMode);
+    final saved = prefs.getString(themeModePrefKey);
     if (saved != null) {
       state = ThemeMode.values.firstWhere(
         (m) => m.name == saved,
@@ -28,7 +28,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   Future<void> setThemeMode(ThemeMode mode) async {
     state = mode;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyThemeMode, mode.name);
+    await prefs.setString(themeModePrefKey, mode.name);
   }
 }
 

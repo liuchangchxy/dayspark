@@ -66,6 +66,18 @@
   "tomorrow": "Tomorrow",
   "notSet": "Not set",
   "events": "Events",
+  "upcoming": "Upcoming",
+  "quickAdd": "Quick add",
+  "todayEventsHeader": "Today's Events",
+  "widgetNoEvents": "No events today",
+  "widgetAllDone": "All done!",
+  "widgetPendingCount": "{count} pending",
+  "@widgetPendingCount": {
+    "description": "Home screen widget label for the number of pending todos",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "typeToSearch": "Type to search",
   "eventCreated": "Event created",
   "todoCreated": "Todo created",
