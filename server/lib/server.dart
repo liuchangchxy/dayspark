@@ -17,6 +17,9 @@ export 'package:shelf/shelf.dart' show Handler, Request, Response;
 
 export 'src/auth.dart';
 export 'src/config.dart';
+export 'src/data/record_query.dart';
+export 'src/data/record_writer.dart';
+export 'src/data/rrule_window.dart';
 export 'src/db.dart';
 export 'src/http.dart';
 export 'src/sync/lww.dart';

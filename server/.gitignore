@@ -1,2 +1,2 @@
 # Local SQLite database created by `dart run bin/server.dart`
-data/
+/data/
