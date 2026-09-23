@@ -20,6 +20,29 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
+  server-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Contracts analyze + test
+        working-directory: packages/dayspark_contracts
+        run: |
+          dart pub get
+          dart analyze .
+          dart test
+      - name: Server analyze + test
+        working-directory: server
+        run: |
+          dart pub get
+          dart analyze .
+          dart test
+
   build-web:
     needs: test
     runs-on: ubuntu-latest
