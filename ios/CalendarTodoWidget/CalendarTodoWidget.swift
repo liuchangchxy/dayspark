@@ -25,7 +25,7 @@ struct CalendarTodoProvider: TimelineProvider {
     }
 
     private func loadEntry() -> CalendarTodoEntry {
-        let defaults = UserDefaults(suiteName: "group.com.calendarTodoApp")
+        let defaults = UserDefaults(suiteName: "group.com.dayspark.app")
         let eventsJson = defaults?.string(forKey: "today_events") ?? "[]"
         let todosJson = defaults?.string(forKey: "pending_todos") ?? "[]"
         let todoCount = Int(defaults?.string(forKey: "todo_count") ?? "0") ?? 0

@@ -9,7 +9,7 @@ struct CalendarTodoEntry: TimelineEntry {
 }
 
 struct CalendarTodoProvider: TimelineProvider {
-    let appGroupId = "group.com.calendarTodoApp"
+    let appGroupId = "group.com.dayspark.app"
 
     func placeholder(in context: Context) -> CalendarTodoEntry {
         CalendarTodoEntry(date: Date(), events: [], todos: [], todoCount: "0")

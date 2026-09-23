@@ -5,7 +5,7 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有技术约束，按领域分组（Calendar / Database / UI / Security / Platform）
-- 核心约束：kalender 钉 0.17.x、小组件 App Group `group.com.calendarTodoApp` 双写、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
+- 核心约束：kalender 钉 0.17.x、小组件 App Group `group.com.dayspark.app` 双写、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
 - 修改日历/DB/Provider/通知/小组件相关代码前**必须先读**对应章节
 
 ---
@@ -146,11 +146,11 @@
 
 ## Home Widget / 小组件
 
-### App Group 固定 `group.com.calendarTodoApp`，宿主与组件必须同组
-- iOS/macOS 宿主与 widget extension 的 entitlements `application-groups` 都必须含 `group.com.calendarTodoApp`（**macOS Runner 的 DebugProfile/Release 曾整段缺失**，沙盒宿主写不进组件读的 suite）
-- `lib/main.dart` 在 `WidgetsFlutterBinding.ensureInitialized()` 后立即 `HomeWidget.setAppGroupId('group.com.calendarTodoApp')`（仅 iOS/macOS，`!kIsWeb` 守卫），必须在任何 `saveWidgetData` 之前
+### App Group 固定 `group.com.dayspark.app`，宿主与组件必须同组
+- iOS/macOS 宿主与 widget extension 的 entitlements `application-groups` 都必须含 `group.com.dayspark.app`（**macOS Runner 的 DebugProfile/Release 曾整段缺失**，沙盒宿主写不进组件读的 suite）
+- `lib/main.dart` 在 `WidgetsFlutterBinding.ensureInitialized()` 后立即 `HomeWidget.setAppGroupId('group.com.dayspark.app')`（仅 iOS/macOS，`!kIsWeb` 守卫），必须在任何 `saveWidgetData` 之前
 - **Why**: 不同组 = 静默写入失败，组件永远显示旧数据；改组名需同时改 5 个 entitlements + Swift/Kotlin 读取端，禁止单边改
-- **Date**: 2026-09-22
+- **Date**: 2026-09-24（P4 资产统一群组从 `group.com.calendarTodoApp` 迁移到 `group.com.dayspark.app`，宿主/组件/代码三处必须原子同改）
 
 ### 小组件刷新是写驱动的，刷新逻辑只能挂在 tableUpdates 单点
 - `homeWidgetAutoRefreshProvider` 订阅 `db.tableUpdates`（todos + events 两表），合并去重后调 `HomeWidgetService.updateWidget`（同一时刻最多一个 in-flight，写入期间只补一次 trailing run）

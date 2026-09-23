@@ -32,6 +32,18 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
+  build-ios-simulator:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --simulator --debug
+
   server-test:
     runs-on: ubuntu-latest
     defaults:

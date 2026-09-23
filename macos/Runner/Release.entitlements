@@ -4,13 +4,16 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.calendarTodoApp</string>
+		<string>group.com.dayspark.app</string>
 	</array>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
 	<key>keychain-access-groups</key>
-	<array/>
+	<array>
+		<!-- WHY: flutter_secure_storage persists AI keys on macOS; explicit default access group -->
+		<string>$(AppIdentifierPrefix)com.dayspark.app</string>
+	</array>
 </dict>
 </plist>

@@ -24,7 +24,7 @@ void main() async {
   if (!kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS)) {
-    await HomeWidget.setAppGroupId('group.com.calendarTodoApp');
+    await HomeWidget.setAppGroupId('group.com.dayspark.app');
   }
   await AlarmService.init();
   // tz database + local location must be ready before any reminder can
