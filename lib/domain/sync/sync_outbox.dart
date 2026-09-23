@@ -27,7 +27,7 @@ class OutboxTarget {
 /// writes in `db.transaction` and calls these helpers inside that same
 /// transaction, so a row change and its pending sync op commit or roll back
 /// together (a `tableUpdates`-only seam cannot give that atomicity — see
-/// task-5 report § AllisWell 同事务设计对照).
+/// docs/superpowers/research/alliswell-outbox-comparison.md).
 ///
 /// WHY merge — the outbox holds at most ONE op per recordId:
 /// * successive upserts collapse to the newest payload, keeping the
