@@ -1,0 +1,13 @@
+name: mcp_stdio_wrapper
+description: Newline-delimited JSON-RPC stdio bridge to the DaySpark HTTP MCP endpoint.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+
+executables:
+  mcp_stdio_wrapper: mcp_stdio_wrapper
+
+dev_dependencies:
+  test: ^1.26.0

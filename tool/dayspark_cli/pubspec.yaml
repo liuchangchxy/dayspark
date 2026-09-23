@@ -1,0 +1,13 @@
+name: dayspark_cli
+description: dayspark command line client — MCP tools over HTTP against a DaySpark server.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+
+executables:
+  dayspark: dayspark
+
+dev_dependencies:
+  test: ^1.26.0
