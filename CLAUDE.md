@@ -12,12 +12,12 @@
 
 ## 项目总览 / Project Overview
 
-Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | home_widget | alarm | flutter_local_notifications | Dart server (shelf/drift/SQLite) + dayspark_contracts
+Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | home_widget | alarm | flutter_local_notifications | Dart server (shelf/drift/SQLite) + dayspark_contracts | Server MCP (`POST /mcp`, 17 tools, OAuth 2.1) + `tool/mcp_stdio_wrapper` + `tool/dayspark_cli`
 
-- 开源日历待办 App + AI 助手（BYO key 客户端 AI）；自托管同步后端（P2, v0.22.0 落地）与服务端 MCP（P3）规划中
+- 开源日历待办 App + AI 助手（BYO key 客户端 AI）；自托管同步后端（P2, v0.22.0 落地）与服务端 MCP（P3, v0.23.0 落地）
 - GitHub: https://github.com/liuchangchxy/dayspark
 - Package: `dayspark`, Android: `com.dayspark.app`
-- Current version: `0.22.0+24`
+- Current version: `0.23.0+24`
 - 项目功能状态：`docs/ROADMAP.md`
 - 技术约束记录：`docs/CONSTRAINTS.md`
 - 完整工作流详见本文件下方
@@ -90,8 +90,9 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | home_widget 
 | Theme | `lib/core/theme/` | `AppTheme.light(seedColor:)` / `AppTheme.dark(seedColor:)` |
 | l10n | `lib/l10n/app_en.arb` + `app_zh.arb` | 中英双语同步，改后 `flutter gen-l10n` |
 | Sync engine | `lib/domain/sync/` | outbox + applier + SyncEngine + SSE（P2） |
-| Server | `server/` | Dart shelf 同步后端（auth/JWT、push/pull/SSE、drift/SQLite、Docker） |
+| Server | `server/` | Dart shelf 同步后端（auth/JWT、push/pull/SSE、drift/SQLite、Docker）+ MCP 端点（`POST /mcp` 17 工具 + 3 资源）与 OAuth 2.1 授权服务器 |
 | Contracts | `packages/dayspark_contracts/` | 客户端/服务端共享协议 DTO（SSOT） |
+| MCP tooling | `tool/mcp_stdio_wrapper/`、`tool/dayspark_cli/` | stdio↔HTTP 桥（本地 Agent）与 `dayspark` CLI（HTTP MCP 客户端） |
 
 基础设施服务（platform/alarm/notification/home_widget）→ `lib/infrastructure/platform/`，不放在 `domain/`。
 

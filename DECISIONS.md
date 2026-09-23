@@ -99,3 +99,33 @@
 - **核心决策**：无 schema 变更修复——新增 `SyncSnapshot`/`SyncSnapshotStore`（上次 apply 的服务端 payload，与游标同居 prefs）+ `dirtyFields` 值差分；仅推送脏字段，空 diff 视为已收敛丢弃 op；所有 apply 点（push applied/conflict、piggyback、pull）统一写快照。
 - **对应 SPEC 章节**：SPEC.md 3.2 规则 4、5.2
 - **影响范围**：`lib/domain/sync/{sync_config,sync_payload,sync_engine}.dart`、`engine_test`/e2e 例 ④、`docs/CONSTRAINTS.md` Sync 章节。
+
+### [2026-09-23] MCP 工具面按 P2 现实收缩至 event+task（17 个，非 18/22）
+- **触发背景**：计划标题写「18 = 13读+5写」、更早的规划散文写 22 工具，但 P3 冻结表本身只枚举 17 个名字（7 读 + 10 写）；且 P2 同步只覆盖 event/todo——calendars/tags/reminders 实体未同步，为其做工具只会产出读不到正确真值的假面。
+- **核心决策**：**冻结表胜出**——恰好实现表内 17 个名字（`get_events` 而非散文里的 `list_events`），不发明第 18 个；calendar/tag/reminder 工具**明确不做**，待 P2.5 实体同步落地后增量扩展工具面（标题 miscount 记为计划文本错误，非实现偏差）。
+- **对应 SPEC 章节**：SPEC.md 3.3 规则 1、3.4 P3 行
+- **影响范围**：`server/lib/src/mcp/tools.dart`、`tools/list` 冻结集测试、ROADMAP P3 行遗留注记。
+
+### [2026-09-23] MCP 写通路复用 LWW/nextSeq 内部 op（AI = 一台虚拟设备）
+- **触发背景**：AI 写入必须与设备写入在同一存储与冲突语义下收敛，否则要为 MCP 单开第二套写路径和第二套冲突规则。
+- **核心决策**：每个 `tools/call` 写工具落 `applyInternalOp`（P3 前置任务导出的缝）：同一 `records` 表、同一字段级 LWW、同一 `nextSeq` 单调水位线、同一 `_notifySeq` SSE 广播——**AI 即一台虚拟设备的 push**，设备经既有 pull/SSE 自动可见；`idempotency_key` 直接作 opId，同 key 异 body 拒绝。
+- **对应 SPEC 章节**：SPEC.md 3.2、3.3
+- **影响范围**：`server/lib/src/mcp/tools.dart`、`server/lib/src/sync/`（导出缝）、e2e 矩阵 ①–③。
+
+### [2026-09-23] CLI = HTTP MCP 客户端（dogfood 工具面），不直连 REST
+- **触发背景**：`dayspark` CLI 需要远程操作同步后端；可选直连既有 REST（`/sync/pull` 等）或走 MCP。
+- **核心决策**：CLI 用 `/auth/login` 取登录 token 后**以 MCP 客户端身份**调 `POST /mcp`（`task list` → `list_tasks`、`event add` → `create_event`…），不直连 REST 记录端点——CLI 成为冻结工具面的常驻 dogfood 者，工具名/参数/错误 hint 的任何回归会在 CLI 测试里先炸；凭证存 `~/.dayspark/credentials.json`（chmod 600，token 永不打印）。
+- **对应 SPEC 章节**：SPEC.md 第 2 节（数据流图 CLI→MCP）、3.4 P3 行
+- **影响范围**：`tool/dayspark_cli/`、`docs/qa/p3-mcp-qa.md`。
+
+### [2026-09-23] MCP 协议子集与 OAuth 2.1 均手写（无状态子集 vs SDK）
+- **触发背景**：计划技术栈写明「MCP 协议自实现无状态子集，若 `dart_mcp` SDK 快速验证适配 server 端 streamable 可换用——**默认手写**」；OAuth 2.1 同理需选 SDK 或自实现。
+- **核心决策**：**两处均选手写**（`dart_mcp` 适配性评估未实际发生，按计划默认路径走）——MCP 侧：需要 `isError` 工具结果承载业务错误（严格 SDK 会返回 −32602）、单消息子集拒 batch 数组、401 `WWW-Authenticate` 挑战形状自定义，这三点都是 spec 允许但 SDK 默认行为不同的偏差，协议测试逐条对拍 `initialize`/`tools/list` 形状兜底；OAuth 侧：只需 RFC 8414/9728/7591/6749/7009 的**无状态子集**（PKCE-S256 强制、code sha256 单次、refresh 轮换复用 P2 家族吊销、argon2id 客户端密钥），引入 OAuth SDK 会带上会话/CSRF 框架并绕开既有 hash/rotation 设施，收益不成比例。
+- **对应 SPEC 章节**：SPEC.md 3.3 规则 6、4.2
+- **影响范围**：`server/lib/src/mcp/endpoint.dart`、`server/lib/src/oauth/`、`server/test/mcp_protocol_test.dart`、`server/test/oauth_test.dart`。
+
+### [2026-09-23] AI 删除姿态 = trash 软删（可恢复），无永久删除工具
+- **触发背景**：工具面写操作需要删除语义；对照 AllisWell「无删除姿态」（仅设计吸收，PolyForm NC 禁抄码）与本项目既有回收站（事件/待办均软删 + 恢复 + 清空）。
+- **核心决策**：只提供 `trash_event`/`trash_task`（写 `deletedAt` 进回收站，`destructiveHint:true`），**不提供**任何 `delete_*`/`empty_trash` 工具；永久删除保留给 App UI 回收站人工操作——与冻结需求「对齐回收站语义」一致，AI 幻觉误删可全量恢复。
+- **对应 SPEC 章节**：SPEC.md 3.3 规则 5
+- **影响范围**：`server/lib/src/mcp/tools.dart` 注解矩阵、`docs/CONSTRAINTS.md` MCP 章节。

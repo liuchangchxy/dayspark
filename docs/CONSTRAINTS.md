@@ -323,3 +323,35 @@
 - 仅「前台 && 引擎运行」时 `Timer.periodic(15s)` → `requestRound`（每 tick 一次 push+pull HTTP，引擎 coalesce 控代价，计划内可接受）；`onResume` 立即触发一轮再启表，`onPause` 停表
 - **Why**: 部分反代下 SSE 长连接静默滞留不 FIN（T4），监听器既不 error 也不重连、信号断流；前台靠定时拉取兜底，回前台立即一轮覆盖离线期变更（changelog/ROADMAP 的「回前台触发」即此）
 - **Date**: 2026-09-23
+
+## MCP / AI 接口
+
+### 业务错误必须以工具结果返回，绝不走 JSON-RPC error
+- `tools/call` 的校验失败/未找到/无权限 → `{content:[{type:'text',text:{code,message,hint}}], isError:true}`；JSON-RPC error（−32601/−32700/−32600/−32002/−32601）**只**留给协议层（未知 method、解析失败、坏信封、未知资源 URI）
+- **Why**: AI 客户端对 `isError` 工具结果会读内容并自行纠错重试，对 JSON-RPC error 则直接中止会话——业务失败走协议层会让 AI 拿不到 hint（SPEC 3.3 规则 4）
+- **Date**: 2026-09-23
+
+### 禁止任何永久删除工具（trash = 软删可恢复）
+- 工具面只有 `trash_event`/`trash_task`（写 `deletedAt` 进回收站，`destructiveHint:true`）；**不存在** `delete_*`/`purge_*`/`empty_trash` 工具，永久删除与清空回收站只在 App UI
+- **Why**: AI 幻觉点错不可撤销是信任一票否决项；软删与 App 回收站语义对齐，用户可全量恢复（SPEC 3.3 规则 5）
+- **Date**: 2026-09-23
+
+### Datetime：输出固定 ISO-8601 `…Z`，输入拒 naive、timezone 参数必须 IANA
+- 所有工具输出的时间字段经 `isoZ` 规范化为定宽 UTC `Z` 串；输入（`from`/`to`/`due`/`until`…）必须带时区偏移，naive 串直接 `VALIDATION` 拒绝；`timezone` 参数只接受 IANA 名（`Asia/Shanghai`），不收 `UTC+8`/缩写
+- **Why**: naive 串按服务器本地时区解析会在部署环境变化时静默漂移（T1 结转 M-2）；定宽 `Z` 串使字典序 = 时间序，窗口过滤 SQL/Dart 双路径一致
+- **Date**: 2026-09-23
+
+### RRULE 只收结构化对象，不收原始字符串
+- `recurrence` 参数 = 结构化对象（`freq`/`until`/`count`/`interval`/`byday`…），经 `parseRruleStructured` 校验；裸 RRULE 文本串拒绝
+- **Why**: 原始 RRULE 字符串方言多（分隔符、参数序），自由文本校验无法给出逐字段 hint；结构化对象可逐键验证并生成 AI 可执行的修正建议
+- **Date**: 2026-09-23
+
+### Scope 双门：`mcp:read`/`mcp:write` 同时管工具与资源
+- scope 校验覆盖 `tools/call`（按注解 readOnly/destructive 映射）**和** `resources/list`/`resources/read`（read 资源也要 `mcp:read`）；缺 scope → 工具侧 `FORBIDDEN_SCOPE` 工具结果、资源侧 JSON-RPC −32000 `data.code`；缺 scope 声明的 token 一律 fail-closed
+- **Why**: 只门工具不门资源 = 只读降权 token 仍可枚举数据快照；T2 缝起初只盖 tools/call，评审结转由 T3 补全 resources——两处必须同进同退
+- **Date**: 2026-09-23
+
+### 双轨认证永不交叉：CLI = `/auth/login` token，Agent/connector = OAuth token
+- CLI/本地脚本只走 `POST /auth/login`（`track:"cli"`，全 scope，`/oauth/*` 刷新端点拒绝）；Agent/ChatGPT connector 只走 OAuth 2.1（`track:"oauth"`，同意的 scope 子集，**仅**有效于 `/mcp`，`requireAuth` 在 `/sync/*` 与 `/auth/me` 上 401 拒绝）
+- **Why**: 无头/CLI 场景没有浏览器会话走不了同意页；反过来 OAuth token 若能打 `/sync/push`，`mcp:read` 同意就变成全量写凭证——同意页上的 scope 列表会成为谎言（T3 裁定）
+- **Date**: 2026-09-23

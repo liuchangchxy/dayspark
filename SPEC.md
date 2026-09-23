@@ -41,14 +41,14 @@ flowchart LR
     Client[五平台 Flutter 客户端] <-->|push/pull/SSE| Server[Dart 同步后端 NAS Docker]
     Server --> DB[(SQLite 单文件)]
     AI[AI 助手 via MCP] <-->|Streamable HTTP + OAuth 2.1| Server
-    CLI[dayspark CLI] <-->|REST| Server
+    CLI[dayspark CLI] <-->|HTTP MCP (/mcp)| Server
     Widgets[双端小组件] --> Client
 ```
 
 ### 核心模块划分
 1. **客户端层**：Flutter（Riverpod + Drift + go_router），本地 SQLite 权威存储，离线可用；日历视图基于 kalender 库
 2. **同步后端**：Dart（shelf + drift + SQLite），服务器游标 + 幂等 push + 字段级 LWW + SSE 信号；与客户端共享 `dayspark_contracts` 契约 package
-3. **AI 接口层**：MCP server 长在后端同进程同数据源；22 工具面，工作流工具优先于 API 映射；无硬删除（archive 姿态，对应回收站语义）
+3. **AI 接口层**：MCP server 长在后端同进程同数据源；17 工具面（event+task，随 P2.5 扩展），工作流工具优先于 API 映射；无硬删除（trash 软删姿态，对应回收站语义）
 4. **小组件层**：versioned JSON 快照（home_widget + App Group / AppWidgetProvider），单写入路径
 
 ---
@@ -73,7 +73,7 @@ flowchart LR
 
 ### 3.3 核心功能 C：MCP AI 读写（P3）
 - **业务规则契约**：
-  - 规则 1：工具面 22 个（读 9 + 写 11 + 批量），snake_case `动词_名词`
+  - 规则 1：工具面 17 个（读 7 + 写 10，event+task；calendars/tags/reminders 随 P2.5 实体同步扩展），snake_case `动词_名词`
   - 规则 2：时间 ISO 8601 + IANA timezone；RRULE 结构化对象
   - 规则 3：`list_events` 范围默认 now→+7d，上限 366 天
   - 规则 4：错误以工具结果 `{isError, {code, message, hint}}` 返回，不是 JSON-RPC error
@@ -86,7 +86,7 @@ flowchart LR
 | :--- | :--- | :--- | :--- |
 | **P1** 客户端地基重构 | 单机可用、删历史包袱 | 删除自研 CalDAV 层与客户端 MCP server（schema v8）；日/周/月视图换 kalender（`^0.17.x` 钉 minor）；S1/S3 级 bug 清零（通知链、状态与交互批）；双端小组件数据通路修复；设置页/首页瘦身 | ✅ 完成 (v0.21.0) |
 | **P2** 同步后端 + 客户端同步 | 跨设备同步落地 | `dayspark_contracts` 契约 package；Dart shelf 后端（auth/JWT、push/pull/SSE、LWW/幂等/tombstone）；客户端 outbox + pull applier + SSE 监听；Docker 部署 NAS；双设备 e2e | ✅ 完成 (v0.22.0)，遗留项见 ROADMAP Phase P2.5 |
-| **P3** MCP + CLI | AI 操控数据 | 后端 MCP server（22 工具 + resources + OAuth 2.1）；`tool/mcp_stdio_wrapper`；`tool/dayspark_cli` 薄封装 REST；MCP Inspector + 三客户端 CRUD 验收 | 规划中 / Planned |
+| **P3** MCP + CLI | AI 操控数据 | 后端 MCP server（17 工具 + 3 resources + OAuth 2.1 双轨）；`tool/mcp_stdio_wrapper`；`tool/dayspark_cli` HTTP MCP 客户端；MCP e2e 矩阵 + 四客户端 QA 说明 | ✅ 完成 (v0.23.0)，工具面随 P2.5 实体同步扩展 |
 | **P4** 平台补齐 + Todo清单体验 | 品质与体验收敛 | iOS bundle id/App Group 统一 `com.dayspark.app` 族 + TestFlight；小组件 v2（quick-add deep link、月视图点阵、l10n/暗色）；通知全清单验收；Todo清单 UX 批（六件事收敛、节气、隐藏已完成）；Windows 通知上游复查 | 待做 / Pending |
 
 **明确出范围（P5+ 以后，不进本计划）**：番茄钟/数据复盘、CalDAV 导出层、E2EE。

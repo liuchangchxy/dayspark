@@ -2,10 +2,38 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.22.0+24** — Sync backend: self-hosted Docker server, client outbox/applier/SSE engine, dual-device e2e matrix, account settings / 同步后端：自托管 Docker 服务端、客户端 outbox/applier/SSE 引擎、双设备 e2e 矩阵、账号设置
-- 上一版本 / Previous: **v0.21.0+24** — Phase 1 foundation refactor: kalender views, CalDAV/MCP removal (schema v8), notification chain repair, widget data path fix / Phase 1 基础重构：kalender 日历视图、移除 CalDAV/MCP（schema v8）、通知链修复、小组件数据通路修复
+- 最新版本 / Latest: **v0.23.0+24** — Server MCP: 17 tools + 3 resources, OAuth 2.1 two-track (CLI login token / Agents OAuth), stdio wrapper, dayspark CLI, 5-case e2e matrix, XFP trust fix / 服务端 MCP：17 工具 + 3 资源、OAuth 2.1 双轨（CLI 登录 token / Agent OAuth）、stdio 桥、dayspark CLI、5 例 e2e 矩阵、反代 XFP 信任修复
+- 上一版本 / Previous: **v0.22.0+24** — Sync backend: self-hosted Docker server, client outbox/applier/SSE engine, dual-device e2e matrix, account settings / 同步后端：自托管 Docker 服务端、客户端 outbox/applier/SSE 引擎、双设备 e2e 矩阵、账号设置
 - 最新流程改进 / Pipeline: **SPEC/DECISIONS/AGENTS + pre-commit analyze gate** — 2026-09-22
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.23.0+24 — Server MCP + CLI / 服务端 MCP 与命令行
+
+### Features / 新功能
+
+| # | Feature / 功能 |
+|---|------|
+| 1 | **Server MCP endpoint (`POST /mcp`)** — stateless Streamable-HTTP MCP in-process with the sync backend: **17 frozen tools** (7 read + 10 write: `get_events`/`get_event`/`list_tasks`/`get_task`/`search`/`find_free_time`/`list_trash` + create/update/trash event·task, complete/reopen/snooze task, batch create) + **3 resources** (`dayspark://today`/`overdue`/`inbox`); errors-as-tool-results with code/message/hint. / **服务端 MCP 端点（`POST /mcp`）** — 与同步后端同进程的无状态 Streamable HTTP MCP：**17 个冻结工具**（7 读 + 10 写）+ **3 个资源**（today/overdue/inbox）；业务错误以工具结果返回（code/message/hint） |
+| 2 | **OAuth 2.1 authorization server, two-track** — RFC 8414/9728 discovery, RFC 7591 DCR, PKCE-S256-only authorize + minimal consent page, token rotation reusing the P2 family-revoke machinery, RFC 7009 revoke; scopes `mcp:read`/`mcp:write` double-gated over tools AND resources; **track claim** — CLI login tokens vs Agent OAuth tokens never cross (`track:"oauth"` rejected on `/sync/*`). / **OAuth 2.1 授权服务器（双轨）** — 发现文档、动态注册、PKCE-S256、最小同意页、复用 P2 家族吊销的 token 轮换、撤销端点；`mcp:read`/`mcp:write` 对工具与资源双门校验；**track 声明**——CLI 登录 token 与 Agent OAuth token 互不越界 |
+| 3 | **MCP stdio wrapper (`tool/mcp_stdio_wrapper`)** — stdio↔HTTP line bridge feeding local agents (Claude Code / Codex) from `POST /mcp`; network failure surfaces JSON-RPC −32002 instead of hanging; exit 78 when `DAYSPARK_MCP_URL` missing. / **MCP stdio 桥（`tool/mcp_stdio_wrapper`）** — stdio↔HTTP 行协议桥，本地 Agent（Claude Code/Codex）经此接 `/mcp`；网络失败回 −32002 不挂死；缺 `DAYSPARK_MCP_URL` 退出码 78 |
+| 4 | **`dayspark` CLI (`tool/dayspark_cli`)** — thin HTTP **MCP client** (dogfoods the frozen tool surface) over `/auth/login` + `credentials.json` (chmod 600, tokens never logged): `task list/add/done/trash`, `event list/add`, `login/logout/status`. / **`dayspark` CLI（`tool/dayspark_cli`）** —以 `/auth/login` 取 token 后**以 MCP 客户端身份**调用冻结工具面的薄封装（dogfood），凭证文件 600 权限、token 永不打印 |
+
+### Bug Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | **OAuth discovery and 401 challenge advertised `http://` origins behind an HTTPS reverse proxy — connectors following discovery got non-followable URLs / 反代 HTTPS 后 OAuth 发现文档与 401 challenge 仍广告 `http://` 源，connector 拿到无法跟随的 URL** | Trust first value of `X-Forwarded-Proto` when present (direct-exposure behavior byte-identical when absent); `DEPLOY.md` already ships the nginx `proxy_set_header`. / 有该头时取首个值生效（缺头时行为与原来逐字节一致）；`DEPLOY.md` 已含 nginx `proxy_set_header` 配置 |
+
+### Infrastructure / 基础设施
+
+| # | Change / 变更 |
+|---|------|
+| 1 | **MCP write path = P2 LWW/`nextSeq` internal-op seam** — every AI write lands in `applyInternalOp` (AI acts as one virtual device); device pull/SSE converge automatically; e2e matrix ①–⑤ (create propagate, complete converge, disjoint-field concurrent merge, OAuth full chain, scope demotion) all green. / **MCP 写通路 = P2 LWW/`nextSeq` 内部 op 缝** — AI 写全部走 `applyInternalOp`（AI 即一台虚拟设备），设备经 pull/SSE 自动收敛；e2e 矩阵 ①–⑤ 全绿 |
+| 2 | **Body-size cap 256KB on `/mcp` + OAuth POSTs** → 413 contracts envelope (review carry, heap-DoS guard); exactly-256KB still parses. / **`/mcp` 与 OAuth POST 请求体 256KB 上限** → 413 contracts 信封（评审结转，防堆 DoS）；恰好 256KB 仍可解析 |
+| 3 | **CI tool-package resolve steps** — `dart pub get` in `tool/mcp_stdio_wrapper` + `tool/dayspark_cli` (root analyze scans their tests), mirroring the contracts/server pattern. / **CI tool 包解析步骤** — 两个 tool 包各加 `dart pub get`（根 analyze 会扫到其测试），沿用 contracts/server 模式 |
+| 4 | **Full verification** — root `dart analyze .` 0, `flutter test` 174/174, server analyze 0 + 187/187, contracts 0 + 37/37, wrapper 0 + 9/9, CLI 0 + 20/20; manual Inspector/Claude Code/Codex/ChatGPT checklist at `docs/qa/p3-mcp-qa.md`. / **全量验证** — 根 analyze 0、flutter test 174 全绿、server 0+187、contracts 0+37、wrapper 0+9、CLI 0+20；手工四客户端 QA 清单见 `docs/qa/p3-mcp-qa.md` |
 
 ---
 

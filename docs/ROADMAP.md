@@ -1,14 +1,14 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.22.0+24 | 2026-09-23 | P2 sync backend done: contracts + Dart shelf server (Docker/NAS) + client outbox/applier/SSE engine + dual-device e2e + account settings
+> Last updated / 最后更新: v0.23.0+24 | 2026-09-23 | P3 server MCP done: 17 tools + 3 resources, OAuth 2.1 two-track, stdio wrapper, dayspark CLI, 5-case e2e matrix
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.22.0+24** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
-- 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步
-- 最新变化：**P2 同步后端落地** — `dayspark_contracts`、Dart shelf 服务端（Docker/NAS）、客户端 outbox/applier/SSE 引擎、双设备 e2e 矩阵、账号设置；冻结需求 3 ✅
-- 待完成：Windows 通知恢复、日期格式跟随系统 locale、小组件 v2（quick-add/月视图点阵）、集成测试；下一步 P3 服务端 MCP、P4 平台补齐；同步遗留项见 **Phase P2.5**
+- 当前版本 / Current: **v0.23.0+24** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
+- 最新变化：**P3 服务端 MCP 落地** — 17 工具 + 3 资源、OAuth 2.1 双轨（CLI 登录 token / Agent OAuth）、stdio 桥、`dayspark` CLI、5 例 e2e 矩阵；冻结需求 4 ✅
+- 待完成：Windows 通知恢复、日期格式跟随系统 locale、小组件 v2（quick-add/月视图点阵）、集成测试；下一步 P4 平台补齐；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）
 
 ---
 
@@ -291,6 +291,17 @@
 | **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
 | **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
 
+### v0.23.0 | 2026-09-23 | P3 Server MCP + CLI / P3 服务端 MCP 与 CLI
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **Server MCP endpoint (`POST /mcp`)** — stateless Streamable HTTP in-process with the sync backend: **17 frozen tools** (7 read + 10 write, event+task face; calendar/tag/reminder tools deferred to P2.5 entity sync) + **3 resources** (`dayspark://today`/`overdue`/`inbox`); errors-as-tool-results with code/message/hint; writes land in the P2 LWW/`nextSeq` internal-op seam (AI = one virtual device). / **服务端 MCP 端点（`POST /mcp`）** — 与同步后端同进程的无状态 Streamable HTTP：**17 个冻结工具**（7 读 + 10 写，event+task 面；calendar/tag/reminder 工具随 P2.5 实体同步补）+ **3 个资源**；业务错误以工具结果返回；写走 P2 LWW/`nextSeq` 内部 op 缝（AI 即一台虚拟设备） | [Feature / 功能] SPEC 1.1 需求 4 落地 |
+| **OAuth 2.1 authorization server, two-track** — RFC 8414/9728 discovery, RFC 7591 DCR, PKCE-S256-only authorize + minimal consent page, rotation reusing P2 family-revoke, RFC 7009 revoke; scopes `mcp:read`/`mcp:write` double-gated over tools AND resources; `track` claim keeps CLI login tokens off OAuth-track refresh and OAuth tokens off `/sync/*`. / **OAuth 2.1 授权服务器（双轨）** — 发现文档、动态注册、PKCE-S256、同意页、复用 P2 家族吊销的轮换、撤销；scope 对工具与资源双门；`track` 声明保证两轨 token 互不越界 | [Feature / 功能] |
+| **MCP stdio wrapper + `dayspark` CLI** — `tool/mcp_stdio_wrapper` feeds local agents (Claude Code/Codex) over stdio↔HTTP; `tool/dayspark_cli` is a thin HTTP **MCP client** dogfooding the frozen tool surface (`/auth/login` token, `credentials.json` mode 600). / **stdio 桥 + `dayspark` CLI** — 本地 Agent 经 stdio 桥接 `/mcp`；CLI 是薄 HTTP **MCP 客户端**，dogfood 冻结工具面（登录 token、凭证 600 权限） | [Feature / 功能] |
+| **MCP e2e matrix (5 cases) + four-client QA doc** — server-side matrix: create propagate, complete converge, disjoint-field concurrent merge, OAuth full chain, scope demotion all green; manual Inspector/Claude Code/Codex/ChatGPT checklist at `docs/qa/p3-mcp-qa.md`. / **MCP e2e 矩阵（5 例）+ 四客户端 QA 说明** — 创建传播、完成收敛、不相交字段并发合并、OAuth 全链路、scope 降权全绿；手工清单见 p3-mcp-qa.md | [Engineering / 工程] Orthogonal verification / 正交验证 |
+| **X-Forwarded-Proto trust fix** — reverse-proxy HTTPS origins advertised correctly by OAuth discovery and 401 challenge (direct exposure byte-identical when header absent). / **反代 XFP 信任修复** — OAuth 发现与 401 challenge 正确广告 https 源（缺头时行为不变） | [Fix / 修复] |
+| **Governance** — CONSTRAINTS MCP section (protocol hard rules), DECISIONS +5 entries, SPEC 3.4 P3 ✅, version 0.23.0+24. / **治理** — CONSTRAINTS MCP 章节、DECISIONS +5 条、SPEC 3.4 P3 ✅、版本 0.23.0+24 | [Docs / 文档] |
+
 ### v0.22.0 | 2026-09-23 | P2 Sync Backend / P2 同步后端
 
 | Change / 变更 | Source / 来源 |
@@ -350,7 +361,8 @@
 | # | Frozen Requirement / 冻结需求 | Status / 状态 |
 |---|------|------|
 | 3 | **Cross-device sync** (offline-first, field-level LWW) / **跨设备同步**（离线优先、字段级 LWW） | ✅ 完成 (v0.22.0) — sync backend + client engine + dual-device e2e / 同步后端 + 客户端引擎 + 双设备 e2e |
-| 1, 2, 4–8 | Remaining frozen requirements / 其余冻结需求 | See `SPEC.md` 1.1; tracked by phase plan below / 见 SPEC 1.1，由下方阶段规划跟踪 |
+| 4 | **AI 可读写 MCP** (AI reads/writes events & todos) / **AI 可读写 MCP**（AI 读写事件/待办） | ✅ 完成 (v0.23.0) — server MCP 17 tools + 3 resources, OAuth 2.1 two-track, stdio wrapper + CLI / 服务端 MCP 17 工具 + 3 资源、OAuth 2.1 双轨、stdio 桥 + CLI |
+| 1, 2, 5–8 | Remaining frozen requirements / 其余冻结需求 | See `SPEC.md` 1.1; tracked by phase plan below / 见 SPEC 1.1，由下方阶段规划跟踪 |
 
 ### Scheme Changes / 方案级变更
 
@@ -460,7 +472,7 @@
 - AI task decomposition / AI 任务分解
 
 ### MCP Server — Client-side removed in v0.21.0 / 客户端 MCP 已于 v0.21.0 移除
-> Rebuilt in P3 as server-side MCP (22 tools + OAuth 2.1 + stdio wrapper). History below is archival. / P3 以服务端 MCP 重建，以下为历史存档。
+> Rebuilt in P3 as server-side MCP (17 tools + OAuth 2.1 + stdio wrapper). History below is archival. / P3 以服务端 MCP 重建（17 工具 + OAuth 2.1 + stdio 桥），以下为历史存档。
 - mcp_dart v2.1.1 + StreamableMcpServer (archived / 历史)
 - 6 tools (list_events, list_todos, create_event, create_todo, complete_todo, search) (archived / 历史)
 - 2 resources (today events, pending todos) (archived / 历史)
@@ -538,7 +550,7 @@
 |------|------|------|
 | P1 — Foundation / 基础 | kalender views, CalDAV/MCP removal (schema v8), notification chain, widget data path, governance docs | ✅ 完成 (v0.21.0) |
 | P2 — Sync backend / 同步后端 | `dayspark_contracts`, shelf server (auth/JWT, push/pull/SSE, LWW/idempotency/tombstone), client outbox + pull applier, Docker on NAS, dual-device e2e / 自托管同步后端 + 客户端 outbox | ✅ 完成 (v0.22.0)；遗留项见 Phase P2.5 / leftovers in Phase P2.5 |
-| P3 — Server MCP + CLI / 服务端 MCP | 22 tools + resources + OAuth 2.1 (DCR + PKCE), `tool/mcp_stdio_wrapper`, `tool/dayspark_cli`, MCP Inspector + 3-client CRUD / 服务端 MCP + CLI | Planned / 规划中 |
+| P3 — Server MCP + CLI / 服务端 MCP | 17 tools + 3 resources + OAuth 2.1 two-track (DCR + PKCE), `tool/mcp_stdio_wrapper`, `tool/dayspark_cli`, MCP e2e matrix + 3-client QA doc / 服务端 MCP + CLI | ✅ 完成 (v0.23.0)；工具面随 P2.5 实体同步扩展（calendars/tags/reminders 待补）/ tool surface grows with P2.5 entity sync |
 | P4 — Platform parity / 平台补齐 | iOS bundle/App Group family + TestFlight; widget v2 (quick-add deep link, month-dot widget, l10n/dark); notification UX sweep; todo UX batch; Windows notification stub revisit / 小组件 quick-add 与月视图点阵仍在 P4 待做 | Pending / 待做 |
 
 ### Phase P2.5 — Sync Leftovers / 同步遗留项（P2.5）
@@ -579,9 +591,9 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 |------|------|
 | Source files (lib/) / 源代码文件 | ~75 |
 | Test files (test/) / 测试文件 | ~30 |
-| Test cases (app / server / contracts) / 测试用例（app/server/contracts） | 167 / 44 / 37 (all passing / 全通过) |
-| Analysis issues / 分析问题 | 0 (root + server + contracts) |
+| Test cases (app / server / contracts / wrapper / CLI) / 测试用例（app/server/contracts/wrapper/CLI） | 174 / 187 / 37 / 9 / 20 (all passing / 全通过) |
+| Analysis issues / 分析问题 | 0 (root + server + contracts + wrapper + CLI) |
 | i18n keys / i18n key | 113+ |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.22.0+24 |
+| Version / 版本 | v0.23.0+24 |
