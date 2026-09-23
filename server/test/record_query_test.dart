@@ -65,6 +65,7 @@ Future<List<String>> _ids(
   required String userId,
   RecordType? type,
   bool includeTrashed = false,
+  bool trashedOnly = false,
   DateTime? from,
   DateTime? to,
   String? dueOn,
@@ -80,6 +81,7 @@ Future<List<String>> _ids(
     userId: userId,
     type: type,
     includeTrashed: includeTrashed,
+    trashedOnly: trashedOnly,
     from: from,
     to: to,
     dueOn: dueOn,
@@ -136,6 +138,53 @@ void main() {
 
     final withTrashed = await _ids(db, userId: 'user-1', includeTrashed: true);
     expect(withTrashed, ['live-1', 'live-2', 'soft-1', 'tomb-1']);
+  });
+
+  test('trashedOnly returns only trash; includeTrashed stays a union', () async {
+    await _insert(db, id: 'live-1', type: 'todo', payload: _todo(summary: 'live 1'));
+    await _insert(db, id: 'live-2', type: 'event',
+        payload: _event(start: _utc(2026, 9, 23, 10), end: _utc(2026, 9, 23, 11)));
+    await _insert(
+      db,
+      id: 'tomb-1',
+      type: 'todo',
+      payload: _todo(summary: 'device trash'),
+      deleted: true,
+    );
+    await _insert(
+      db,
+      id: 'soft-1',
+      type: 'event',
+      payload: _event(
+        summary: 'soft trash',
+        start: _utc(2026, 9, 24, 10),
+        end: _utc(2026, 9, 24, 11),
+        deletedAt: _utc(2026, 9, 20).toIso8601String(),
+      ),
+    );
+
+    expect(await _ids(db, userId: 'user-1', trashedOnly: true),
+        ['soft-1', 'tomb-1']);
+    expect(
+      await _ids(db, userId: 'user-1', includeTrashed: true),
+      ['live-1', 'live-2', 'soft-1', 'tomb-1'],
+      reason: 'includeTrashed keeps its live+trash union semantics',
+    );
+    expect(
+      await _ids(
+        db,
+        userId: 'user-1',
+        includeTrashed: true,
+        trashedOnly: true,
+      ),
+      ['soft-1', 'tomb-1'],
+      reason: 'trashedOnly wins when both flags are set',
+    );
+    expect(
+      await _ids(db, userId: 'user-1', type: RecordType.event, trashedOnly: true),
+      ['soft-1'],
+      reason: 'trashedOnly combines with the type filter',
+    );
   });
 
   test('event window is half-open [from, to) on payload start/end', () async {

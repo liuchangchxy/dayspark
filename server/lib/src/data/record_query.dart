@@ -37,7 +37,9 @@ class RecordQueryPage {
 //   earlier (expand via rrule_window.dart).
 // - [dueOn]/[dueFrom]/[dueTo] require payload dueDate (todos).
 // - Soft-deleted rows (tombstone deleted=1 or payload.deletedAt set) are
-//   excluded unless [includeTrashed].
+//   excluded unless [includeTrashed] (union: live + trash). [trashedOnly]
+//   narrows to trash exclusively — MCP list_trash's view — and wins when
+//   both flags are set.
 // - [search] is a case-insensitive LIKE over summary and description with
 //   %, _ and \ escaped literally.
 //
@@ -54,6 +56,7 @@ Future<RecordQueryPage> queryRecords(
   required String userId,
   RecordType? type,
   bool includeTrashed = false,
+  bool trashedOnly = false,
   DateTime? from,
   DateTime? to,
   String? dueOn,
@@ -75,10 +78,13 @@ Future<RecordQueryPage> queryRecords(
     baseVariables.add(Variable.withString(type.name));
   }
 
-  if (!includeTrashed) {
-    base.add(
-      "deleted = 0 AND json_extract(payload_json, '\$.deletedAt') IS NULL",
-    );
+  const trashExpression =
+      "deleted = 1 OR json_extract(payload_json, '\$.deletedAt') IS NOT NULL";
+  if (trashedOnly) {
+    base.add('($trashExpression)');
+  } else if (!includeTrashed) {
+    base.add('deleted = 0 AND json_extract(payload_json, '
+        r"'$.deletedAt') IS NULL");
   }
 
   final outer = <String>[];
