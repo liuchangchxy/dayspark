@@ -139,8 +139,14 @@ docker compose start
 curl http://<nas-ip>:8787/health   # {"ok":true,...}
 ```
 
-Clients converge automatically on their next round — pull is watermark-based and will replay anything newer than the restored state.
-客户端会在下一轮同步自动收敛 —— pull 按水位线增量拉取，会补齐恢复点之后的变更。
+Convergence is **not** unconditional. Pull is watermark-based: everything at or below a client's stored cursor counts as already seen, and pull only returns `seq > cursor` — a client whose cursor sits **ahead of the restored head** would therefore pull nothing, forever.
+收敛**并非**无条件。pull 按水位线增量：客户端游标及以下视为已见过，pull 只返回 `seq > 游标` —— 游标**高于恢复后 head** 的客户端会永远拉不到数据。
+
+What covers you / 兜底如下：
+
+- **SSE initial-head self-heal / SSE 初始 head 自愈** — every SSE connection's first `{"cursor":N}` frame is the server head at connect time; when it lands **below** the client's stored cursor (server restored/rewound), the client resets its cursor to that head and re-rounds from there. Clients whose stored cursor is ahead of the restore **auto-reset** on their next connection. / 每条 SSE 连接的首个 `{"cursor":N}` 帧即连接时的服务端 head；若它**低于**客户端已存游标（服务端被恢复/回卷），客户端把游标回卷到该 head 并从那里重新同步。游标超前于恢复点的客户端会在下次连接时**自动复位**。
+- **Still stalled → logout + login / 仍停滞 → 退出后重新登录** — a login whose server/user differs from the stored sync identity (`last_sync_identity`) clears the cursor, snapshots and row sync state, re-baselining the device against the restored dataset; for identity-same devices the self-heal above covers the rewind, no logout needed. / 登录身份（服务器/用户）与已存同步身份不同时，会清空游标、快照与行同步状态，按恢复后的数据集整体重建基线；同身份设备由上述自愈覆盖，无需退出重登。
+- **Prefer fresh-enough backups / 尽量恢复足够新的备份** — when possible, restore a backup **no older than the least-recently-synced device**; edits made after the backup exist only on clients and re-propagate on their next push. / 尽量恢复**不早于最久未同步设备**的备份；备份之后的编辑只存在于客户端，会在该设备下次 push 时重新传播。
 
 ## 7. Update / 升级
 
