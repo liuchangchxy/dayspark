@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -107,4 +109,55 @@ Future<String> loadOrCreateDeviceId(SharedPreferences prefs) async {
   final id = const Uuid().v7();
   await prefs.setString(key, id);
   return id;
+}
+
+/// Server payload of a record as of the last apply (push result /
+/// piggyback / pull) — the base the engine diffs local edits against.
+class SyncSnapshot {
+  const SyncSnapshot({required this.rev, required this.payload});
+
+  final int rev;
+  final Map<String, Object?> payload;
+}
+
+/// Keeps one snapshot per synced record so pushes carry dirty fields
+/// only (the server's per-field LWW, lww.dart, assumes that; a full-
+/// payload push would overwrite keys the sender never touched).
+abstract class SyncSnapshotStore {
+  Future<SyncSnapshot?> read(String recordId);
+  Future<void> write(String recordId, SyncSnapshot snapshot);
+  Future<void> remove(String recordId);
+}
+
+class PrefsSyncSnapshotStore implements SyncSnapshotStore {
+  PrefsSyncSnapshotStore(this._prefs);
+
+  static const _prefix = 'sync_snapshot_';
+
+  final SharedPreferences _prefs;
+
+  @override
+  Future<SyncSnapshot?> read(String recordId) async {
+    final raw = _prefs.getString('$_prefix$recordId');
+    if (raw == null) return null;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      final rev = json['rev'];
+      final payload = json['payload'];
+      if (rev is! int || payload is! Map<String, dynamic>) return null;
+      return SyncSnapshot(rev: rev, payload: payload);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> write(String recordId, SyncSnapshot snapshot) =>
+      _prefs.setString(
+        '$_prefix$recordId',
+        jsonEncode({'rev': snapshot.rev, 'payload': snapshot.payload}),
+      );
+
+  @override
+  Future<void> remove(String recordId) => _prefs.remove('$_prefix$recordId');
 }

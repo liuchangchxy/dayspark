@@ -17,6 +17,7 @@ void main() {
   late FakeSyncApiClient api;
   late MemoryCursorStore cursors;
   late MemoryTokenStore tokens;
+  late MemorySnapshotStore snapshots;
   late SyncEngine engine;
   late int calendarId;
 
@@ -25,6 +26,7 @@ void main() {
     api = FakeSyncApiClient();
     cursors = MemoryCursorStore();
     tokens = MemoryTokenStore(access: 'access-1', refresh: 'refresh-1');
+    snapshots = MemorySnapshotStore();
     calendarId = await db
         .into(db.calendars)
         .insert(CalendarsCompanion.insert(name: 'Personal'));
@@ -42,6 +44,7 @@ void main() {
       api: api,
       cursorStore: cursors,
       tokenStore: tokens,
+      snapshots: snapshots,
       deviceId: 'device-under-test',
     );
     return engine;
@@ -340,5 +343,83 @@ void main() {
     expect(ops.map((o) => o.type).toSet(), {RecordType.event, RecordType.todo});
     expect(cursors.value, isNotNull);
     expect(await (db.select(db.syncOutbox)).get(), isEmpty);
+  });
+
+  test('push after an applied round sends only fields dirty vs last '
+      'server truth', () async {
+    cursors.value = 0;
+    final id = await insertEvent('v1');
+    await SyncOutbox.enqueueUpsert(db, RecordType.event, id);
+    var pushes = 0;
+    Map<String, dynamic>? firstPayload;
+
+    api.onPush = (request) {
+      pushes++;
+      final op = request.ops.single;
+      if (pushes == 1) {
+        expect(op.fields!['summary'], 'v1');
+        firstPayload = op.fields!;
+        return PushResponse(
+          results: [
+            OpResult(
+              opId: op.opId,
+              status: OpStatus.applied,
+              serverRecord: SyncRecord(
+                id: op.recordId,
+                type: RecordType.event,
+                payload: op.fields!,
+                rev: 1,
+                deleted: false,
+                serverTs: DateTime.utc(2026, 9, 23, 10),
+              ),
+            ),
+          ],
+          piggyback: const [],
+          cursor: request.cursor ?? 0,
+        );
+      }
+      // Second round: only summary + updatedAt changed locally — the op
+      // must not resend keys this device never touched, or the server's
+      // field-level LWW would clobber another device's concurrent edits.
+      expect(op.baseRev, 1);
+      expect(op.fields!.keys.toSet(), {'summary', 'updatedAt'},
+          reason: 'dirty-fields-only push');
+      expect(op.fields!['summary'], 'v2');
+      return PushResponse(
+        results: [
+          OpResult(
+            opId: op.opId,
+            status: OpStatus.applied,
+            serverRecord: SyncRecord(
+              id: op.recordId,
+              type: RecordType.event,
+              payload: {...firstPayload!, ...op.fields!},
+              rev: 2,
+              deleted: false,
+              serverTs: DateTime.utc(2026, 9, 23, 11),
+            ),
+          ),
+        ],
+        piggyback: const [],
+        cursor: request.cursor ?? 0,
+      );
+    };
+
+    await buildEngine().start();
+    expect(pushes, 1);
+
+    await (db.update(db.events)..where((t) => t.id.equals(id))).write(
+      EventsCompanion(
+        summary: const Value('v2'),
+        updatedAt: Value(DateTime.utc(2030, 1, 1)),
+      ),
+    );
+    await SyncOutbox.enqueueUpsert(db, RecordType.event, id);
+    await engine.requestRound();
+
+    expect(pushes, 2);
+    expect(await (db.select(db.syncOutbox)).get(), isEmpty);
+    expect(engine.status.phase, SyncPhase.idle);
+    expect(engine.status.lastError, isNull);
   });
 }

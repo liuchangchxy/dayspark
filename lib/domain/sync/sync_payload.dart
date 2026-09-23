@@ -7,6 +7,25 @@ import 'package:drift/drift.dart' show OrderingTerm;
 
 String? isoOf(DateTime? dt) => dt?.toUtc().toIso8601String();
 
+/// Keys of [current] whose values differ from the last-known server
+/// payload — the dirty-field set a push op may carry. The server's
+/// per-field LWW (server lww.dart) only honors keys the op SETS, so
+/// sending the whole record would clobber fields this device never
+/// edited (lost update on concurrent disjoint edits).
+Map<String, dynamic> dirtyFields(
+  Map<String, dynamic> current,
+  Map<String, Object?> lastKnownServer,
+) {
+  final dirty = <String, dynamic>{};
+  for (final field in current.entries) {
+    if (!lastKnownServer.containsKey(field.key) ||
+        lastKnownServer[field.key] != field.value) {
+      dirty[field.key] = field.value;
+    }
+  }
+  return dirty;
+}
+
 DateTime? parseIso(Object? raw) {
   if (raw is! String) return null;
   return DateTime.tryParse(raw)?.toUtc();

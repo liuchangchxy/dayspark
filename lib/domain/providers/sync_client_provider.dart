@@ -51,6 +51,7 @@ final syncEngineProvider = Provider<SyncEngine?>((ref) {
     api: client,
     cursorStore: PrefsSyncCursorStore(settings.prefs),
     tokenStore: tokens,
+    snapshots: PrefsSyncSnapshotStore(settings.prefs),
     deviceId: settings.deviceId,
   );
   final sse = SseListener(

@@ -49,6 +49,23 @@ class MemoryTokenStore implements SyncTokenStore {
   }
 }
 
+class MemorySnapshotStore implements SyncSnapshotStore {
+  final Map<String, SyncSnapshot> values = {};
+
+  @override
+  Future<SyncSnapshot?> read(String recordId) async => values[recordId];
+
+  @override
+  Future<void> write(String recordId, SyncSnapshot snapshot) async {
+    values[recordId] = snapshot;
+  }
+
+  @override
+  Future<void> remove(String recordId) async {
+    values.remove(recordId);
+  }
+}
+
 /// Scriptable SyncApiClient — the engine's fake server. Push and pull
 /// responses default to benign no-ops; tests override via [onPush]/[onPull].
 class FakeSyncApiClient implements SyncApiClient {

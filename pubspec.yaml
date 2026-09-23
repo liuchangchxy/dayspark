@@ -90,6 +90,9 @@ dev_dependencies:
 
   # Testing
   mocktail: ^1.0.4
+  # Real server for the two-device e2e (test-only import; never ships).
+  dayspark_server:
+    path: server
 
   # OSS licenses
   flutter_oss_licenses: ^3.0.1

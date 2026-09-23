@@ -11,6 +11,7 @@ import 'sync_api_client.dart';
 import 'sync_applier.dart';
 import 'sync_config.dart';
 import 'sync_outbox.dart';
+import 'sync_payload.dart';
 
 enum SyncPhase { idle, pushing, pulling, error }
 
@@ -61,6 +62,7 @@ class SyncEngine {
     required this.api,
     required this.cursorStore,
     required this.tokenStore,
+    required this.snapshots,
     required this.deviceId,
     SyncApplier? applier,
   }) : _applier = applier ?? SyncApplier(db) {
@@ -73,6 +75,10 @@ class SyncEngine {
   final SyncApiClient api;
   final SyncCursorStore cursorStore;
   final SyncTokenStore tokenStore;
+
+  /// Last-known server payload per record — diffs push ops down to the
+  /// fields this device actually changed (see [dirtyFields]).
+  final SyncSnapshotStore snapshots;
   final String deviceId;
   final SyncApplier _applier;
 
@@ -172,7 +178,12 @@ class SyncEngine {
       final entries = await (db.select(db.syncOutbox)
             ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
           .get();
-      final ops = await _buildOps(entries);
+      final (ops, converged) = await _buildOps(entries);
+      if (converged.isNotEmpty) {
+        // Local row already equals the last-known server truth — nothing
+        // to send (an empty upsert would be rejected by the server).
+        await _dropOps(converged);
+      }
       final push = await api.push(PushRequest(
         deviceId: deviceId,
         ops: ops,
@@ -187,7 +198,7 @@ class SyncEngine {
             case OpStatus.applied:
             case OpStatus.duplicate:
               if (result.serverRecord != null) {
-                await _applier.apply(result.serverRecord!);
+                await _applyRemote(result.serverRecord!);
               }
               await _dropOps([result.opId]);
             case OpStatus.conflict:
@@ -196,7 +207,7 @@ class SyncEngine {
               // enqueued after the snapshot (in-flight race) survive and
               // push their newer payload next round.
               if (result.serverRecord != null) {
-                await _applier.apply(result.serverRecord!);
+                await _applyRemote(result.serverRecord!);
               }
               final recordId = recordIdByOp[result.opId] ??
                   result.serverRecord?.id;
@@ -216,7 +227,7 @@ class SyncEngine {
         // Watermark rule: piggyback covers everything (oldCursor, push.cursor];
         // applying it and adopting push.cursor together keeps no gap.
         for (final record in push.piggyback) {
-          await _applier.apply(record);
+          await _applyRemote(record);
         }
         await cursorStore.write(push.cursor);
       });
@@ -232,7 +243,7 @@ class SyncEngine {
         final pull = await api.pull(before);
         await db.transaction(() async {
           for (final change in pull.changes) {
-            await _applier.apply(change);
+            await _applyRemote(change);
           }
           await cursorStore.write(pull.nextCursor);
         });
@@ -262,28 +273,55 @@ class SyncEngine {
     }
   }
 
-  Future<List<PushOp>> _buildOps(List<SyncOutboxEntry> entries) async {
+  Future<(List<PushOp>, List<String>)> _buildOps(
+    List<SyncOutboxEntry> entries,
+  ) async {
     final ops = <PushOp>[];
+    final converged = <String>[];
     for (final entry in entries) {
       final type = RecordType.values.byName(entry.type);
       var baseRev = entry.baseRev;
+      var fields = entry.payloadJson == null
+          ? null
+          : jsonDecode(entry.payloadJson!) as Map<String, dynamic>;
       if (entry.op == OpType.upsert.name) {
         // baseRev is the record's CURRENT last-known server rev — the
         // applier may have advanced it after this op was enqueued.
         baseRev = await _liveServerRev(type, entry.recordId) ?? baseRev;
+        final snapshot = await snapshots.read(entry.recordId);
+        if (snapshot != null && fields != null) {
+          final dirty = dirtyFields(fields, snapshot.payload);
+          if (dirty.isEmpty) {
+            converged.add(entry.opId);
+            continue;
+          }
+          fields = dirty;
+        }
       }
       ops.add(PushOp(
         opId: entry.opId,
         op: OpType.values.byName(entry.op),
         recordId: entry.recordId,
         type: type,
-        fields: entry.payloadJson == null
-            ? null
-            : jsonDecode(entry.payloadJson!) as Map<String, dynamic>,
+        fields: fields,
         baseRev: baseRev,
       ));
     }
-    return ops;
+    return (ops, converged);
+  }
+
+  /// Writes server truth onto the local row and records the payload as
+  /// the diff base for this record's future pushes.
+  Future<void> _applyRemote(SyncRecord record) async {
+    final applied = await _applier.apply(record);
+    if (record.deleted) {
+      await snapshots.remove(record.id);
+    } else if (applied) {
+      await snapshots.write(
+        record.id,
+        SyncSnapshot(rev: record.rev, payload: record.payload),
+      );
+    }
   }
 
   Future<int?> _liveServerRev(RecordType type, String recordId) async {
