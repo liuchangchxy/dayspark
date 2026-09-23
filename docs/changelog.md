@@ -2,9 +2,39 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.21.0+24** — Phase 1 foundation refactor: kalender views, CalDAV/MCP removal (schema v8), notification chain repair, widget data path fix / Phase 1 基础重构：kalender 日历视图、移除 CalDAV/MCP（schema v8）、通知链修复、小组件数据通路修复
+- 最新版本 / Latest: **v0.22.0+24** — Sync backend: self-hosted Docker server, client outbox/applier/SSE engine, dual-device e2e matrix, account settings / 同步后端：自托管 Docker 服务端、客户端 outbox/applier/SSE 引擎、双设备 e2e 矩阵、账号设置
+- 上一版本 / Previous: **v0.21.0+24** — Phase 1 foundation refactor: kalender views, CalDAV/MCP removal (schema v8), notification chain repair, widget data path fix / Phase 1 基础重构：kalender 日历视图、移除 CalDAV/MCP（schema v8）、通知链修复、小组件数据通路修复
 - 最新流程改进 / Pipeline: **SPEC/DECISIONS/AGENTS + pre-commit analyze gate** — 2026-09-22
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.22.0+24 — Sync Backend / 同步后端
+
+### Features / 新功能
+
+| # | Feature / 功能 |
+|---|------|
+| 1 | **Sync server (Docker)** — Dart shelf backend (`server/`: auth/JWT with refresh rotation, `POST /sync/push` idempotent per-op, `GET /sync/pull` watermark cursor, field-level LWW, tombstones, `GET /sync/stream` SSE cursor-only signal), drift/SQLite single-file storage, single-container deploy on NAS via `docker compose` (`docs/DEPLOY.md`). / **同步服务端（Docker）** — Dart shelf 后端（JWT 认证与刷新轮换、幂等逐条 push、水位线游标 pull、字段级 LWW、墓碑、SSE 只发 cursor 信号），drift/SQLite 单文件存储，NAS 上 `docker compose` 单容器部署 |
+| 2 | **Client sync engine** — schema v9 `sync_outbox` (explicit same-transaction enqueue at provider exits) + pull/piggyback applier (event + todo) + `SyncEngine` rounds + SSE listener with reconnect/foreground triggers; offline-first, seconds-level convergence. / **客户端同步引擎** — schema v9 出站队列（provider 出口显式同事务入队）+ pull/piggyback 应用器（event/todo）+ 引擎轮次 + SSE 监听（断网恢复/回前台触发），离线优先、秒级收敛 |
+| 3 | **Dual-device e2e matrix** — 5 cases against a real server inside `flutter test`: create propagate, edit converge, delete tombstone, offline field-disjoint conflict merge, alternating edits with monotonic cursors. / **双设备 e2e 矩阵** — 在 `flutter test` 内对真 server 跑 5 例：创建传播、编辑收敛、删除墓碑、离线不相交字段合并、交替编辑游标单调 |
+| 4 | **Account & sync settings** — settings `account_section`: server URL / register / login / logout, sync status display, engine invalidation on auth change. / **账号与同步设置** — 设置页账号区：服务器地址 / 注册 / 登录 / 登出、同步状态展示、登录态变化驱动引擎失效重建 |
+
+### Bug Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | **Lost-update on concurrent field-disjoint edits (caught by e2e case ④) — client pushed full payloads, so field-level LWW degraded to record-level overwrite and a remote description edit was reverted / e2e 例 ④ 抓到的并发丢更新——客户端全量推送使字段级 LWW 退化为整条覆写，他端 description 被改回旧值** | Client sends dirty fields only: `SyncSnapshot` store (last applied server payload, in prefs alongside cursor) + `dirtyFields` diff; empty diff = converged, op dropped. No schema change. / 客户端只发脏字段：`SyncSnapshot`（上次应用的服务端 payload，与游标同居 prefs）+ `dirtyFields` 求差；空 diff 视为收敛丢弃 op。无 schema 变更 |
+
+### Infrastructure / 基础设施
+
+| # | Change / 变更 |
+|---|------|
+| 1 | **JWT fail-fast** — container refuses to start without `JWT_SECRET` (`REQUIRE_JWT_SECRET=1` → `Config.fromEnv` throws; compose also errors on missing var); secrets never baked into the image. / **JWT 快速失败** — 缺 `JWT_SECRET` 容器拒绝启动（compose 同样报错），密钥绝不烧进镜像 |
+| 2 | **`dayspark_contracts` protocol package** — shared DTOs/error codes between client and server (SSOT), 37 contract tests. / **`dayspark_contracts` 协议包** — 客户端与服务端共享 DTO/错误码（SSOT），37 项契约测试 |
+| 3 | **CI `server-test` job** — `dart analyze` + `dart test` in `server/` plus contracts tests in `packages/dayspark_contracts`, independent of the Flutter jobs. / **CI `server-test` 任务** — `server/` analyze+test 与 contracts 测试，独立于 Flutter job |
+| 4 | **Docker image** — multi-stage build (dart:stable → debian:trixie-slim), system `libsqlite3-0`, `/health` + HEALTHCHECK, 173 MB. / **Docker 镜像** — 多阶段构建（dart:stable → debian:trixie-slim）、系统 libsqlite3-0、/health + HEALTHCHECK、173 MB |
+| 5 | **Full verification** — root `dart analyze .` 0, `flutter test` 167/167, server analyze 0 + 44/44, contracts analyze 0 + 37/37; manual dual-device QA checklist at `docs/qa/p2-manual-qa.md`. / **全量验证** — 根 analyze 0、flutter test 167 全绿、server 0+44、contracts 0+37；手工双设备 QA 清单见 `docs/qa/p2-manual-qa.md` |
 
 ---
 

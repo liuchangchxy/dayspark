@@ -1,14 +1,14 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.21.0+24 | 2026-09-22 | Phase 1 refactor: kalender views, CalDAV/MCP removal (schema v8), notification chain repair, widget data path
+> Last updated / 最后更新: v0.22.0+24 | 2026-09-23 | P2 sync backend done: contracts + Dart shelf server (Docker/NAS) + client outbox/applier/SSE engine + dual-device e2e + account settings
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.21.0+24** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
-- 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）
-- 最新变化：**Phase 1 基础重构** — kalender 替换手写视图、移除 CalDAV/客户端 MCP（schema v8）、通知链修复、小组件数据通路修复
-- 待完成：Windows 通知恢复、日期格式跟随系统 locale、小组件 v2（quick-add/月视图点阵）、集成测试；下一步 P2 同步后端、P3 服务端 MCP
+- 当前版本 / Current: **v0.22.0+24** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步
+- 最新变化：**P2 同步后端落地** — `dayspark_contracts`、Dart shelf 服务端（Docker/NAS）、客户端 outbox/applier/SSE 引擎、双设备 e2e 矩阵、账号设置；冻结需求 3 ✅
+- 待完成：Windows 通知恢复、日期格式跟随系统 locale、小组件 v2（quick-add/月视图点阵）、集成测试；下一步 P3 服务端 MCP、P4 平台补齐；同步遗留项见 **Phase P2.5**
 
 ---
 
@@ -291,6 +291,17 @@
 | **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
 | **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
 
+### v0.22.0 | 2026-09-23 | P2 Sync Backend / P2 同步后端
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **`dayspark_contracts` protocol package** — shared DTOs/error codes as SSOT between client and server, 37 contract tests. / **`dayspark_contracts` 协议包** — 客户端/服务端共享 DTO 与错误码（SSOT），37 项契约测试 | [Engineering / 工程] SPEC 1.1 需求 3 落地 |
+| **Sync server (Docker)** — Dart shelf backend: JWT auth (argon2id + refresh rotation), idempotent per-op push, watermark-cursor pull, field-level LWW, tombstones, SSE cursor-only stream; drift/SQLite single file; multi-stage image on debian trixie, JWT fail-fast; deploy guide `docs/DEPLOY.md`. / **同步服务端（Docker）** — Dart shelf 后端：JWT 认证（argon2id+刷新轮换）、逐条幂等 push、水位线游标 pull、字段级 LWW、墓碑、SSE 只发 cursor；drift/SQLite 单文件；trixie 多阶段镜像、JWT 快速失败；部署指南见 DEPLOY.md | [Feature / 功能] Self-hosted NAS sync / 自托管 NAS 同步 |
+| **Client sync engine** — schema v9 `sync_outbox` + explicit provider-exit enqueue + pull/piggyback applier (event/todo) + `SyncEngine` rounds + SSE listener with reconnect/foreground triggers; account settings section (server URL / register / login / status). / **客户端同步引擎** — schema v9 出站队列 + provider 出口显式入队 + pull/piggyback 应用器（event/todo）+ 引擎轮次 + SSE 监听（断网恢复/回前台）；账号设置区 | [Feature / 功能] Offline-first convergence / 离线优先收敛 |
+| **Dual-device e2e matrix** — 5 cases vs a real server in `flutter test` (create/edit/delete tombstone/offline field-disjoint merge/alternating cursors); case ④ caught a real lost-update, fixed by dirty-fields push (`SyncSnapshot` + `dirtyFields`). / **双设备 e2e 矩阵** — `flutter test` 内对真 server 跑 5 例；例 ④ 抓到真丢更新，以脏字段推送修复 | [Engineering / 工程] Orthogonal verification / 正交验证 |
+| **CI `server-test` job** — `dart analyze` + `dart test` for `server/` and contracts tests for `packages/dayspark_contracts`. / **CI `server-test` 任务** — server analyze+test 与 contracts 测试 | [Engineering / 工程] |
+| **Governance** — CONSTRAINTS Sync section (protocol hard rules), DECISIONS entries, SPEC 3.4 P2 ✅, `docs/qa/p2-manual-qa.md`. / **治理** — CONSTRAINTS 同步章节、DECISIONS 条目、SPEC 3.4 P2 ✅、手工双设备 QA 清单 | [Docs / 文档] |
+
 ### v0.21.0 | 2026-09-22 | Phase 1 Foundation Refactor / Phase 1 基础重构
 
 | Change / 变更 | Source / 来源 |
@@ -331,6 +342,15 @@
 ---
 
 ## 二、Requirement Changes / 需求变更记录
+
+### Frozen Requirements Status / 冻结需求完成状态
+
+> Full definitions in `SPEC.md` 1.1 / 完整定义见 SPEC.md 1.1；此处只跟踪完成状态。 / Status tracking only.
+
+| # | Frozen Requirement / 冻结需求 | Status / 状态 |
+|---|------|------|
+| 3 | **Cross-device sync** (offline-first, field-level LWW) / **跨设备同步**（离线优先、字段级 LWW） | ✅ 完成 (v0.22.0) — sync backend + client engine + dual-device e2e / 同步后端 + 客户端引擎 + 双设备 e2e |
+| 1, 2, 4–8 | Remaining frozen requirements / 其余冻结需求 | See `SPEC.md` 1.1; tracked by phase plan below / 见 SPEC 1.1，由下方阶段规划跟踪 |
 
 ### Scheme Changes / 方案级变更
 
@@ -517,9 +537,21 @@
 | Phase | Scope / 范围 | Status / 状态 |
 |------|------|------|
 | P1 — Foundation / 基础 | kalender views, CalDAV/MCP removal (schema v8), notification chain, widget data path, governance docs | ✅ 完成 (v0.21.0) |
-| P2 — Sync backend / 同步后端 | `dayspark_contracts`, shelf server (auth/JWT, push/pull/SSE, LWW/idempotency/tombstone), client outbox + pull applier, Docker on NAS, dual-device e2e / 自托管同步后端 + 客户端 outbox | **Planned next / 下一步** |
+| P2 — Sync backend / 同步后端 | `dayspark_contracts`, shelf server (auth/JWT, push/pull/SSE, LWW/idempotency/tombstone), client outbox + pull applier, Docker on NAS, dual-device e2e / 自托管同步后端 + 客户端 outbox | ✅ 完成 (v0.22.0)；遗留项见 Phase P2.5 / leftovers in Phase P2.5 |
 | P3 — Server MCP + CLI / 服务端 MCP | 22 tools + resources + OAuth 2.1 (DCR + PKCE), `tool/mcp_stdio_wrapper`, `tool/dayspark_cli`, MCP Inspector + 3-client CRUD / 服务端 MCP + CLI | Planned / 规划中 |
 | P4 — Platform parity / 平台补齐 | iOS bundle/App Group family + TestFlight; widget v2 (quick-add deep link, month-dot widget, l10n/dark); notification UX sweep; todo UX batch; Windows notification stub revisit / 小组件 quick-add 与月视图点阵仍在 P4 待做 | Pending / 待做 |
+
+### Phase P2.5 — Sync Leftovers / 同步遗留项（P2.5）
+
+> Deferred out of P2 (review-disclosed). / P2 范围外的评审披露遗留项。
+
+| # | Item / 项 | Note / 说明 |
+|---|------|------|
+| 1 | **Re-wire local reminders on remote schedule edits / 远端改期必须重挂本地提醒** — pull/piggyback-applied event/todo time or due changes must re-wire local reminders (applier → `rescheduleReminders`/cancel path); until then remote schedule edits leave local alarms at the old time. / **pull/piggyback 应用的事件时间或待办到期变更必须重新接线本地提醒（applier → `rescheduleReminders`/cancel 通路）；在此之前，远端的排期修改会让本机闹钟仍停留在旧时间。** | Binding carry from T5 review / T5 评审强制结转 |
+| 2 | **ICS import bypasses outbox / ICS 导入绕过出站队列** — `ics_service.dart` still raw-`insert`s; imported rows have NULL `sync_id` and don't push until first edited. / `ics_service.dart` 仍裸 `insert`，导入行 `sync_id` 为 NULL，首次编辑前不推送 | Enqueue exit is provider-bound; import path deferred / 入队出口绑定在 provider，导入路径遗留 |
+| 3 | **`calendarId` multi-calendar heuristic / `calendarId` 多日历启发式** — calendars don't sync in P2; unknown `calendar_id` falls back to the first local calendar, so calendar attribution may drift across devices. / 日历 P2 不同步；未知 `calendar_id` 回退首个本地日历，跨设备日历归属可能漂移 | Needs calendar sync or a calendar map / 需日历同步或映射表 |
+| 4 | **`parentSyncId` late re-link / `parentSyncId` 迟到回链** — if the parent row isn't on the device at apply time the child stays top-level; the parent arriving later does **not** re-link. / 应用时父行不在本机则子行置顶层，父行之后到达**不会**回链 | Candidate: re-link by `parentSyncId` later / 候选：按 `parentSyncId` 回链 |
+| 5 | Tag / reminder / attachment payloads not applied / tag、提醒、附件载荷不同步 | P2 applier covers event + todo only / P2 应用器只覆盖 event+todo |
 
 ---
 
@@ -546,10 +578,10 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | Metric / 指标 | Value / 数值 |
 |------|------|
 | Source files (lib/) / 源代码文件 | ~75 |
-| Test files (test/) / 测试文件 | ~25 |
-| Test cases / 测试用例 | 127 (all passing / 全通过) |
-| Analysis issues / 分析问题 | 0 |
+| Test files (test/) / 测试文件 | ~30 |
+| Test cases (app / server / contracts) / 测试用例（app/server/contracts） | 167 / 44 / 37 (all passing / 全通过) |
+| Analysis issues / 分析问题 | 0 (root + server + contracts) |
 | i18n keys / i18n key | 113+ |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.21.0+24 |
+| Version / 版本 | v0.22.0+24 |

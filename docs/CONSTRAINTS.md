@@ -284,3 +284,37 @@
 - **CI 对照**：`ci.yml`/`release.yml` 在 macOS/Windows job 固定 `flutter-version: "3.41.7"`，其余 job 用 `channel: stable`（浮动最新）→ **本地 3.47.3 与 CI pin 3.41.7 不一致**，存在版本漂移风险；本任务不改 CI 文件
 - **Why**: 记录实际可用工具链版本与 CI 差异，防止后续任务误以为本地=CI
 - **Date**: 2026-09-22
+
+## Sync / 同步
+
+### 游标 = 服务器单调水位线，绝不用时间戳
+- `GET /sync/pull` 与 push 响应里的 cursor 是 `records.seq` 的**单调不透明水位线**（整数），禁止改用客户端/服务器时间戳当游标；`PushResponse.cursor` = **已投递水位线**（piggyback 封顶时 = 最后一条已投递 seq，未封顶 = head，空 piggyback 保留请求 cursor 不回退）
+- **Why**: 时钟漂移与同秒并发改动会让时间戳游标丢变更；水位线语义保证「≤ cursor 的变更已全部见过」，封顶 piggyback 不产生静默缺口（T3 C1 裁定）
+- **Date**: 2026-09-23
+
+### LWW 只按服务器到达序对 set 键字段合并
+- 冲突解决 = **op set 过的字段**按服务器到达顺序取胜，未 set 的字段保留服务器现值；记录级 delete vs update 用 `server_ts` 比较，同秒用 opId 字典序破平；客户端**只发 dirty 字段**（`SyncSnapshot` + `dirtyFields` 对上次服务端真值求差，空 diff 视为收敛丢弃 op）
+- **Why**: 全量 payload 推送会让每个键都被 "set"，字段级 LWW 退化为整条覆写——e2e 矩阵例 ④ 抓到的真实丢更新（并发不相交字段编辑被改回旧值）
+- **Date**: 2026-09-23
+
+### Push 逐 op 独立事务，部分失败绝不整批回滚
+- 每个 op 单独事务：查 `sync_ops(op_id)` 幂等回放 → 校验 → LWW 写 `records` → `nextSeq` → 存 op 结果；非法 op 只标记自身 `rejected/…`，同批其余 op 照常应用，响应逐条返回 status
+- **Why**: 整批回滚会让合法操作被非法邻居拖累，违背协议「逐条结果、绝不整批回滚」契约（SPEC 3.2 规则 2）
+- **Date**: 2026-09-23
+
+### Tombstone ≥45 天才 GC；SSE 只发 cursor 信号
+- 软删写 tombstone，经 pull 广播，**保留 ≥45 天**后才可 GC；`GET /sync/stream` 的 SSE 帧**只含 `{"cursor":N}`**，不携带记录载荷，收到信号后走 pull 取数
+- **Why**: 45 天覆盖长期离线设备的重连窗口，提前 GC 会让离线删除复活/丢失；SSE 无载荷使 pull 成为唯一数据通路，避免流上分叉出第二套应用语义（SPEC 3.2 规则 3/5）
+- **Date**: 2026-09-23
+
+### 服务端密码哈希：argon2id（argon2_web）
+- 参数 **argon2id, v=19 (0x13), t=3, m=32768 KiB (32 MiB), p=1, 16 字节随机盐, 32 字节 key**；存储串为自描述格式 `argon2id$v=19$m=32768,t=3,p=1$<salt>$<key>`（b64url，非 PHC），verify 从串内读参数；比较用常量时间 XOR
+- 选型前已跑 KAT：包自带测试 + pointycastle argon2i v1.0、官方 argon2i v1.3 向量、**RFC 9106 argon2id 全向量** 全部通过；PBKDF2-SHA256 100k 回退预案**未启用**
+- **Why**: 纯 Dart（无 FFI，避开 Xcode/CI 原生编译风险）；KAT 先证伪再采用，防止小众包哈希错误静默损坏全部账号
+- **Date**: 2026-09-23
+
+### 服务端镜像 glibc 天花板 GLIBC_2.18（server AOT 非静态）
+- `dart compile exe` 产物**不是**静态 ELF（构建期 ldd 实证动态链接 libc），符号天花板实测最高 **GLIBC_2.18**；运行时与构建同代（`debian:trixie-slim` ↔ `dart:stable`），Dockerfile 两行 `FROM` 必须保持同代（构建日志 `head /etc/os-release` 可查）
+- `tool/check_glibc_version.sh` 面向 Flutter Linux bundle，**不管** server 产物；本地执行若无 readelf 会输出 `SKIP: readelf not found (install binutils)`
+- **Why**: 运行镜像比构建镜像旧会启动即 `GLIBC_x.y not found`；记录天花板供换基座时对照
+- **Date**: 2026-09-23

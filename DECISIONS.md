@@ -69,3 +69,33 @@
 - **核心决策**：移除 ci.yml 与 release.yml 中全部 `flutter-version: 3.41.7`，五平台统一 `channel: stable`；推翻 2026-05-16「统一到 3.41.7」的决定（其动因 Windows AOT/MSB8066 已由通知 stub 方案解决）。
 - **对应 SPEC 章节**：SPEC.md 3.4 P1 行（全平台构建验证）。
 - **影响范围**：.github/workflows/ci.yml、release.yml；Windows/macOS 构建将在新 stable 上首次验证。
+
+### [2026-09-23] 契约包 dayspark_contracts 作为协议 SSOT
+- **触发背景**：同步后端与客户端需共享 push/pull/SSE 的 DTO、错误码与 JSON 形状，跨进程各写一份必然漂移。
+- **核心决策**：新增独立 package `packages/dayspark_contracts`，作为协议唯一真理源（SSOT）——客户端与 `server/` 都只依赖它；契约变更必须先改包与 37 项契约测试，再动两端实现。
+- **对应 SPEC 章节**：SPEC.md 3.2、4.1、4.2
+- **影响范围**：`packages/dayspark_contracts/`、`server/`（path 依赖）、客户端 sync 层、CI `server-test` job。
+
+### [2026-09-23] LWW 裁定：set 键到达序字段合并 + 水位线游标语义
+- **触发背景**：T3 实现需把 SPEC「字段级 LWW / 同秒 opId 破平 / cursor 单调」落成可测规则；T3 评审又暴露封顶 piggyback + head cursor 的静默缺口（C1 Critical）。
+- **核心决策**：① LWW = op **set 过的键**按服务器到达序取胜、未 set 键保留服务器值，delete vs update 用 `server_ts`、同秒 opId 字典序破平；客户端只发 dirty 字段（`SyncSnapshot` diff）。② `PushResponse.cursor` = **已投递水位线**（封顶时为最后一条已投递 seq；空 piggyback 保留请求 cursor，不回退、不跳 head），配合「≤cursor 已全部见过」语义保证无损续拉。
+- **对应 SPEC 章节**：SPEC.md 3.2 规则 3/4、5.2（冲突防御）
+- **影响范围**：`server/lib/src/sync/lww.dart`、`server/lib/src/routes/sync.dart`、`packages/dayspark_contracts`、客户端 `sync_payload.dart`/`SyncEngine`、e2e 矩阵例 ④⑤。
+
+### [2026-09-23] 密码哈希选 argon2id（argon2_web），KAT 先证后用
+- **触发背景**：T2 选哈希算法：brief 首选 `argon2` 包 SDK 约束 `<3.0.0` 不兼容 Dart 3.13；`dargon2`/`fargon2` 为 FFI 原生插件（Xcode/CI 风险），均不可用。
+- **核心决策**：采用纯 Dart `argon2_web ^0.3.0`，参数 argon2id v=19, t=3, m=32 MiB, p=1, 16B 盐, 32B key；采用前在 scratch 包跑通包自带 KAT + pointycastle argon2i v1.0 + 官方 argon2i v1.3 + **RFC 9106 argon2id 全向量**；PBKDF2-SHA256 100k 回退预案保留但**未启用**。
+- **对应 SPEC 章节**：SPEC.md 第 2 节（同步后端）、1.1 需求 6（自托管）
+- **影响范围**：`server/lib/src/auth.dart`、`docs/CONSTRAINTS.md` Sync 章节、server 测试。
+
+### [2026-09-23] Outbox 显式入队（provider 出口），不做全库 watcher
+- **触发背景**：T5 需要「本地变更 → outbox」的入队通路；AllisWell 的同事务 outbox（行+op 同生共死）值得对照，但其为 PolyForm NonCommercial 仅可研究、禁止抄码；drift 下 provider/DAO 分散，事务级 hook 不可行。
+- **核心决策**：**显式 enqueue 出口**——写路径在 provider 出口与业务写同事务显式入队（漏 enqueue 的写路径由 e2e 矩阵兜底；已知缺口：ICS 导入，记入 ROADMAP P2.5）；对照结论仅设计层吸收（同事务原子性语义等价），不复制其代码。
+- **对应 SPEC 章节**：SPEC.md 3.2、5.1（离线/断网）
+- **影响范围**：`lib/domain/providers/*`、`lib/domain/sync/sync_outbox.dart`（含 AllisWell 对照注释）、`test/domain/sync/outbox_test.dart`。
+
+### [2026-09-23] e2e 抓出的丢更新修复：脏字段推送（SyncSnapshot + dirtyFields）
+- **触发背景**：T7 双设备 e2e 矩阵例 ④ 变红：B 离线改 `summary+startDt`、A 同时改 `description`，B 上线后 A 的 description 被改回旧值——客户端全量 payload 使「op set 键到达序」退化为整条记录覆写。
+- **核心决策**：无 schema 变更修复——新增 `SyncSnapshot`/`SyncSnapshotStore`（上次 apply 的服务端 payload，与游标同居 prefs）+ `dirtyFields` 值差分；仅推送脏字段，空 diff 视为已收敛丢弃 op；所有 apply 点（push applied/conflict、piggyback、pull）统一写快照。
+- **对应 SPEC 章节**：SPEC.md 3.2 规则 4、5.2
+- **影响范围**：`lib/domain/sync/{sync_config,sync_payload,sync_engine}.dart`、`engine_test`/e2e 例 ④、`docs/CONSTRAINTS.md` Sync 章节。
