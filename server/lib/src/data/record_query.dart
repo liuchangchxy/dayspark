@@ -40,6 +40,15 @@ class RecordQueryPage {
 //   excluded unless [includeTrashed].
 // - [search] is a case-insensitive LIKE over summary and description with
 //   %, _ and \ escaped literally.
+//
+// Time fields compare as canonical UTC ISO-8601 strings
+// ('...THH:MM:SS.ffffffZ', fraction padded to 6 digits) — exact ordering
+// with no floating-point path (julianday's ~73µs double ulp at current
+// epochs silently dropped sub-ulp window admissions). Payload datetime
+// fields MUST be canonical UTC '...Z' strings (the client's isoOf and any
+// Task-2 writer's DateTime.parse(...).toUtc().toIso8601String() both do);
+// a payload value that is not 'Z'-terminated normalizes to NULL here and
+// falls out of window/due filters instead of being mis-ordered.
 Future<RecordQueryPage> queryRecords(
   AppDatabase db, {
   required String userId,
@@ -58,26 +67,30 @@ Future<RecordQueryPage> queryRecords(
   final pageLimit =
       limit < 1 ? 1 : (limit > recordQueryMaxLimit ? recordQueryMaxLimit : limit);
 
-  final conditions = <String>['user_id = ?'];
-  final variables = <Variable>[Variable.withString(userId)];
+  final base = <String>['user_id = ?'];
+  final baseVariables = <Variable>[Variable.withString(userId)];
 
   if (type != null) {
-    conditions.add('type = ?');
-    variables.add(Variable.withString(type.name));
+    base.add('type = ?');
+    baseVariables.add(Variable.withString(type.name));
   }
 
   if (!includeTrashed) {
-    conditions.add(
+    base.add(
       "deleted = 0 AND json_extract(payload_json, '\$.deletedAt') IS NULL",
     );
   }
 
+  final outer = <String>[];
+  final variables = <Variable>[...baseVariables];
+
   if (from != null || to != null) {
-    conditions.add(_windowClause(from: from, to: to, variables: variables));
+    final clause = _windowClause(from: from, to: to, variables: variables);
+    outer.add(clause);
   }
 
   if (dueOn != null || dueFrom != null || dueTo != null) {
-    conditions.add(
+    outer.add(
       _dueClause(
         dueOn: dueOn,
         dueFrom: dueFrom,
@@ -90,7 +103,7 @@ Future<RecordQueryPage> queryRecords(
 
   if (search != null) {
     final pattern = '%${_escapeLike(search.toLowerCase())}%';
-    conditions.add(
+    outer.add(
       "(LOWER(CAST(json_extract(payload_json, '\$.summary') AS TEXT)) "
       "LIKE ? ESCAPE '\\' OR "
       "LOWER(CAST(json_extract(payload_json, '\$.description') AS TEXT)) "
@@ -101,11 +114,18 @@ Future<RecordQueryPage> queryRecords(
   }
 
   if (cursor != null) {
-    conditions.add('id > ?');
+    outer.add('id > ?');
     variables.add(Variable.withString(cursor));
   }
 
-  final sql = 'SELECT * FROM records WHERE ${conditions.join(' AND ')} '
+  final where = outer.isEmpty ? '' : ' WHERE ${outer.join(' AND ')}';
+  final sql = 'WITH r AS ('
+      'SELECT *, '
+      "${_padIso('startDt')} AS _start, "
+      "${_padIso('endDt')} AS _end, "
+      "${_padIso('dueDate')} AS _due "
+      'FROM records WHERE ${base.join(' AND ')}'
+      ') SELECT * FROM r$where '
       'ORDER BY id ASC LIMIT ?';
   variables.add(Variable.withInt(pageLimit + 1));
 
@@ -155,48 +175,79 @@ String _escapeLike(String value) => value
     .replaceAll('%', r'\%')
     .replaceAll('_', r'\_');
 
-String _iso(DateTime value) => value.toUtc().toIso8601String();
+// Canonical UTC ISO-8601 with the fraction pinned to exactly 6 digits so
+// lexicographic order == chronological order against _padIso output.
+String _canonical(DateTime value) {
+  final s = value.toUtc().toIso8601String();
+  if (!s.endsWith('Z')) {
+    return s;
+  }
+  final body = s.substring(0, s.length - 1);
+  final dot = body.indexOf('.');
+  if (dot < 0) {
+    return '$body.000000Z';
+  }
+  final digits = body.length - dot - 1;
+  if (digits == 6) {
+    return s;
+  }
+  if (digits > 6) {
+    return '${body.substring(0, dot + 7)}Z';
+  }
+  return '$body${'0' * (6 - digits)}Z';
+}
+
+// SQL-side counterpart of _canonical for payload strings: pad/truncate the
+// fraction to 6 digits; NULL for absent values and anything not
+// 'Z'-terminated (offset-bearing strings cannot be ordered against UTC by
+// lexicographic compare — writers must emit '...Z').
+String _padIso(String key) {
+  final x = "json_extract(payload_json, '\$.$key')";
+  return '(CASE'
+      " WHEN $x IS NULL OR substr($x, -1) != 'Z' THEN NULL"
+      " WHEN instr($x, '.') = 0 THEN substr($x, 1, length($x) - 1) || '.000000Z'"
+      " WHEN length($x) - instr($x, '.') - 1 >= 6 "
+      " THEN substr($x, 1, instr($x, '.') + 6) || 'Z'"
+      ' ELSE substr($x, 1, length($x) - 1)'
+      " || substr('000000', 1, 6 - (length($x) - instr($x, '.') - 1)) || 'Z'"
+      ' END)';
+}
 
 String _windowClause({
   required DateTime? from,
   required DateTime? to,
   required List<Variable> variables,
 }) {
-  const startRaw = "json_extract(payload_json, '\$.startDt')";
-  const startDay = "julianday(json_extract(payload_json, '\$.startDt'))";
-  const endDay = "julianday(json_extract(payload_json, '\$.endDt'))";
-  const allDay = "json_extract(payload_json, '\$.isAllDay')";
   const isRrule = "COALESCE(json_extract(payload_json, '\$.rrule'), '') != ''";
-  // Mirrors effectiveEventEnd in rrule_window.dart: zero-length all-day
-  // rows occupy their day, other zero-length rows get a 1h floor.
-  final effectiveEnd = '(CASE WHEN $endDay > $startDay THEN $endDay '
-      "WHEN $allDay IN (1, 'true') THEN $startDay + 1.0 "
-      'ELSE $startDay + 1.0 / 24.0 END)';
-
-  final buffer = StringBuffer();
-  buffer.write('$startRaw IS NOT NULL AND $startDay IS NOT NULL AND (');
+  final parts = <String>['_start IS NOT NULL'];
   if (to != null) {
-    buffer.write('($isRrule AND $startDay < julianday(?))');
-    buffer.write(' OR (NOT ($isRrule) AND $startDay < julianday(?)');
-    if (from != null) {
-      buffer.write(' AND $effectiveEnd > julianday(?)');
-    }
-    buffer.write(')');
-    variables.add(Variable.withString(_iso(to)));
-    variables.add(Variable.withString(_iso(to)));
-    if (from != null) {
-      variables.add(Variable.withString(_iso(from)));
-    }
-  } else {
-    buffer.write('($isRrule');
-    if (from != null) {
-      buffer.write(' OR (NOT ($isRrule) AND $effectiveEnd > julianday(?))');
-      variables.add(Variable.withString(_iso(from)));
-    }
-    buffer.write(')');
+    // Both branches need DTSTART/ start < to; instances never start earlier
+    // than their master row's startDt.
+    parts.add('_start < ?');
+    variables.add(Variable.withString(_canonical(to)));
   }
-  buffer.write(')');
-  return buffer.toString();
+  if (from != null) {
+    // Mirrors effectiveEventEnd in rrule_window.dart, in the string domain:
+    // positive duration compares the raw end; zero-length all-day rows
+    // occupy [start, start+24h) ⇔ start > from−24h; other zero-length rows
+    // get the 1h floor ⇔ start > from−1h. String domain cannot add, so the
+    // shifted bounds are computed in Dart (µs-exact) instead.
+    parts.add(
+      '(($isRrule) OR NOT ($isRrule) AND ('
+      'CASE WHEN _end > _start THEN _end > ? '
+      "WHEN json_extract(payload_json, '\$.isAllDay') IN (1, 'true') "
+      'THEN _start > ? '
+      'ELSE _start > ? END))',
+    );
+    variables.add(Variable.withString(_canonical(from)));
+    variables.add(
+      Variable.withString(_canonical(from.subtract(const Duration(days: 1)))),
+    );
+    variables.add(
+      Variable.withString(_canonical(from.subtract(const Duration(hours: 1)))),
+    );
+  }
+  return parts.join(' AND ');
 }
 
 String _dueClause({
@@ -206,23 +257,20 @@ String _dueClause({
   required String timezone,
   required List<Variable> variables,
 }) {
-  const dueDay = "julianday(json_extract(payload_json, '\$.dueDate'))";
-  const dueRaw = "json_extract(payload_json, '\$.dueDate')";
-  final parts = <String>['$dueRaw IS NOT NULL', '$dueDay IS NOT NULL'];
+  final parts = <String>['_due IS NOT NULL'];
   if (dueOn != null) {
     final (dayStart, dayEnd) = localDayBoundsUtc(dueOn, timezone);
-    parts.add('$dueDay >= julianday(?)');
-    parts.add('$dueDay < julianday(?)');
-    variables.add(Variable.withString(_iso(dayStart)));
-    variables.add(Variable.withString(_iso(dayEnd)));
+    parts.add('_due >= ? AND _due < ?');
+    variables.add(Variable.withString(_canonical(dayStart)));
+    variables.add(Variable.withString(_canonical(dayEnd)));
   }
   if (dueFrom != null) {
-    parts.add('$dueDay >= julianday(?)');
-    variables.add(Variable.withString(_iso(dueFrom)));
+    parts.add('_due >= ?');
+    variables.add(Variable.withString(_canonical(dueFrom)));
   }
   if (dueTo != null) {
-    parts.add('$dueDay < julianday(?)');
-    variables.add(Variable.withString(_iso(dueTo)));
+    parts.add('_due < ?');
+    variables.add(Variable.withString(_canonical(dueTo)));
   }
   return '(${parts.join(' AND ')})';
 }

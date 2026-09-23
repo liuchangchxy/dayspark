@@ -335,6 +335,105 @@ void main() {
     expect(capped.hasMore, isTrue);
   });
 
+  // Proven-flip instant: julianday's ~73µs double ulp at 2026 epoch makes
+  // the old float window clause exclude rows the Dart overlap admits at
+  // these sub-ulp gaps (4995/5000 sampled instants flip).
+  group('window boundary microsecond precision', () {
+    final edge = DateTime.utc(2026, 6, 1, 0, 0, 1, 13);
+
+    test('from = event end - 50us admits the row and its expansion', () async {
+      await _insert(db, id: 'ev-tiny-gap', type: 'event',
+          payload: _event(start: DateTime.utc(2026, 6, 1), end: edge));
+      final from = edge.subtract(const Duration(microseconds: 50));
+      final to = edge.add(const Duration(seconds: 1));
+
+      expect(
+        await _ids(db, userId: 'user-1', type: RecordType.event,
+            from: from, to: to),
+        ['ev-tiny-gap'],
+      );
+      final page = await queryRecords(
+          db, userId: 'user-1', type: RecordType.event, from: from, to: to);
+      final expansion =
+          expandRecordsInWindow(page.records, from: from, to: to);
+      expect(expansion.instances.map((i) => i.master.id), ['ev-tiny-gap']);
+    });
+
+    test('from = event end exactly excludes the row on both sides', () async {
+      await _insert(db, id: 'ev-edge', type: 'event',
+          payload: _event(start: DateTime.utc(2026, 6, 1), end: edge));
+      final from = edge;
+      final to = edge.add(const Duration(seconds: 1));
+
+      expect(
+        await _ids(db, userId: 'user-1', type: RecordType.event,
+            from: from, to: to),
+        isEmpty,
+      );
+      final page = await queryRecords(
+          db, userId: 'user-1', type: RecordType.event, from: from, to: to);
+      final expansion =
+          expandRecordsInWindow(page.records, from: from, to: to);
+      expect(expansion.instances, isEmpty);
+    });
+
+    test(
+        'zero-length event admitted at from = start + 1h - 10us, excluded at start + 1h',
+        () async {
+      await _insert(db, id: 'ev-zero', type: 'event',
+          payload: _event(start: edge, end: edge));
+      final oneHour = edge.add(const Duration(hours: 1));
+
+      final admittedFrom = oneHour.subtract(const Duration(microseconds: 10));
+      expect(
+        await _ids(db, userId: 'user-1', type: RecordType.event,
+            from: admittedFrom, to: edge.add(const Duration(hours: 2))),
+        ['ev-zero'],
+      );
+      final page = await queryRecords(
+        db,
+        userId: 'user-1',
+        type: RecordType.event,
+        from: admittedFrom,
+        to: edge.add(const Duration(hours: 2)),
+      );
+      final expansion = expandRecordsInWindow(
+          page.records,
+          from: admittedFrom,
+          to: edge.add(const Duration(hours: 2)));
+      expect(expansion.instances.map((i) => i.master.id), ['ev-zero']);
+      expect(expansion.instances.single.start, edge);
+      expect(expansion.instances.single.end, oneHour);
+
+      expect(
+        await _ids(db, userId: 'user-1', type: RecordType.event,
+            from: oneHour, to: edge.add(const Duration(hours: 2))),
+        isEmpty,
+      );
+    });
+
+    test(
+        'zero-length all-day event admitted at from = start + 24h - 10us, excluded at start + 24h',
+        () async {
+      final dayStart = DateTime.utc(2026, 6, 1);
+      await _insert(db, id: 'allday-zero-edge', type: 'event',
+          payload: _event(start: dayStart, end: dayStart, allDay: true));
+      final nextDay = dayStart.add(const Duration(days: 1));
+
+      final admittedFrom = nextDay.subtract(const Duration(microseconds: 10));
+      expect(
+        await _ids(db, userId: 'user-1', type: RecordType.event,
+            from: admittedFrom, to: dayStart.add(const Duration(days: 2))),
+        ['allday-zero-edge'],
+      );
+      expect(
+        await _ids(db, userId: 'user-1', type: RecordType.event,
+            from: nextDay, to: dayStart.add(const Duration(days: 2))),
+        isEmpty,
+      );
+    });
+  });
+
   group('rrule window expansion', () {
     Future<List<String>> expandIds({
       required DateTime from,
