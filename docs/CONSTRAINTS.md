@@ -163,7 +163,7 @@
 - legacy：`today_events` / `pending_todos` / `todo_count` — 现有 Kotlin/Swift 读取端只认这三个
 - versioned：`widget_snapshot` v2（`{version:2, generatedAt, todayEvents, pendingTodos, todoCount, upcoming, pendingTaps, ui, theme}`）— P4 迁移读取端的唯一契约，item 形状与 legacy 刻意一致
   - `upcoming`：**今天之后连续 7 天**（[明天 00:00, +8 天 00:00)）的事件+有日期顶层待办；今天不进 upcoming（todayEvents 已覆盖，Upcoming 变体与今日组件并排会重复）
-  - `pendingTaps[]`：native→app 勾选通道。app 每次 flush 消费后写 `[]`；无消费者的 flush 必须**原样保留** native 追加的条目（禁止裸清空）；消费走 `toggleTodoProvider`（提醒取消/markComplete/outbox 单一写路径），组件端禁止直写库
+  - `pendingTaps[]`：native→app 勾选通道。app 每次 flush 消费后写 `[]`；无消费者的 flush 必须**原样保留** native 追加的条目（禁止裸清空）；消费走 `toggleTodoProvider`（提醒取消/markComplete/outbox 单一写路径），组件端禁止直写库。flush 在途的 read→write 窗口内 native append 会被覆盖，已接受的已知边缘（概率=突变触发的 flush 与点击同毫秒）
   - `ui`：按当前 locale **预本地化**的全部组件文案（gen-l10n arb 生成，Kotlin/Swift 零硬编码英文）；locale 切换靠下一次快照写入生效
   - `theme`：`{dark, colors{background,surface,textPrimary,textSecondary,accent,border}}`（`#RRGGBB`），dark 由 `theme_mode` prefs + 平台亮度解析
 - 删除/改名任何一侧前必须先迁移全部三个原生读取端（Android SharedPreferences + iOS/macOS UserDefaults suite）

@@ -10,12 +10,12 @@ import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
-/// One widget-checkbox tap pushed from native code to the app.
-///
-/// Native widgets never write the database directly (single-writer rule):
-/// they append entries to `widget_snapshot.pendingTaps` in the shared
-/// store; the app consumes them on the next flush and lands the completes
-/// through the normal `toggleTodoProvider` path.
+// One widget-checkbox tap pushed from native code to the app.
+//
+// Native widgets never write the database directly (single-writer rule):
+// they append entries to `widget_snapshot.pendingTaps` in the shared
+// store; the app consumes them on the next flush and lands the completes
+// through the normal `toggleTodoProvider` path.
 class WidgetPendingTap {
   const WidgetPendingTap({
     required this.todoId,
@@ -50,10 +50,10 @@ class WidgetPendingTap {
   }
 }
 
-/// Pre-localized widget labels for the locale in effect at snapshot build
-/// time. Native readers render these verbatim — Kotlin/Swift must never
-/// hardcode English (or Chinese) widget copy again; locale switches reach
-/// the widget only through the next snapshot write.
+// Pre-localized widget labels for the locale in effect at snapshot build
+// time. Native readers render these verbatim — Kotlin/Swift must never
+// hardcode English (or Chinese) widget copy again; locale switches reach
+// the widget only through the next snapshot write.
 class WidgetUiStrings {
   const WidgetUiStrings({
     required this.locale,
@@ -108,17 +108,17 @@ class HomeWidgetService {
   static const String legacyTodosKey = 'pending_todos';
   static const String legacyCountKey = 'todo_count';
 
-  /// Snapshot contract (v2) — single blob every native widget reads.
-  ///
-  /// WHY v2 with dual-written legacy keys still present: the three legacy
-  /// keys stay for one more task so live widgets never blank out, while
-  /// `widget_snapshot` becomes the only contract native readers migrate to
-  /// (T3). `upcoming` feeds the next-7-days variant; `pendingTaps` is the
-  /// native→app command channel (app writes `[]` on every flush after
-  /// consumption — native appends, app consumes, never the reverse);
-  /// `ui` carries pre-localized labels so Kotlin/Swift hold zero hardcoded
-  /// copy; `theme` hands native the resolved dark flag + hex tokens so its
-  /// styling matches the app without re-deriving theme logic.
+  // Snapshot contract (v2) — single blob every native widget reads.
+  //
+  // WHY v2 with dual-written legacy keys still present: the three legacy
+  // keys stay for one more task so live widgets never blank out, while
+  // `widget_snapshot` becomes the only contract native readers migrate to
+  // (T3). `upcoming` feeds the next-7-days variant; `pendingTaps` is the
+  // native→app command channel (app writes `[]` on every flush after
+  // consumption — native appends, app consumes, never the reverse);
+  // `ui` carries pre-localized labels so Kotlin/Swift hold zero hardcoded
+  // copy; `theme` hands native the resolved dark flag + hex tokens so its
+  // styling matches the app without re-deriving theme logic.
   static Future<void> updateWidget(
     AppDatabase db, {
     Future<void> Function(List<WidgetPendingTap> taps)? onPendingTaps,
@@ -219,10 +219,10 @@ class HomeWidgetService {
     return rows.length;
   }
 
-  /// Upcoming bucket window: the 7 full days after today — [tomorrow
-  /// 00:00, tomorrow+7d 00:00). Today is excluded on purpose: the legacy
-  /// bucket already covers it and the Upcoming variant sits next to the
-  /// today widget on the home screen.
+  // Upcoming bucket window: the 7 full days after today — [tomorrow
+  // 00:00, tomorrow+7d 00:00). Today is excluded on purpose: the legacy
+  // bucket already covers it and the Upcoming variant sits next to the
+  // today widget on the home screen.
   static ({DateTime start, DateTime end}) upcomingWindow(DateTime now) {
     final todayStart = DateTime(now.year, now.month, now.day);
     final start = todayStart.add(const Duration(days: 1));
@@ -291,9 +291,9 @@ class HomeWidgetService {
     };
   }
 
-  /// Parses `pendingTaps` out of a stored snapshot. Malformed JSON or
-  /// malformed entries degrade to "no taps" instead of throwing — a corrupt
-  /// channel must never block a widget refresh.
+  // Parses `pendingTaps` out of a stored snapshot. Malformed JSON or
+  // malformed entries degrade to "no taps" instead of throwing — a corrupt
+  // channel must never block a widget refresh.
   static List<WidgetPendingTap> decodePendingTaps(String? rawSnapshot) {
     if (rawSnapshot == null || rawSnapshot.isEmpty) {
       return const [];
@@ -320,8 +320,8 @@ class HomeWidgetService {
     }
   }
 
-  /// Resolves widget labels for [locale], or the persisted app locale, or
-  /// the platform locale — in that order (mirrors notification strings).
+  // Resolution order: explicit locale param → persisted app locale →
+  // platform locale (mirrors loadNotificationStrings — no BuildContext).
   static Future<WidgetUiStrings> loadWidgetUiStrings({
     Locale? locale,
     int todoCount = 0,
@@ -351,8 +351,8 @@ class HomeWidgetService {
     );
   }
 
-  /// Resolves the stored theme mode (falling back to platform brightness
-  /// for `system`) and emits native-ready dark flag + hex color tokens.
+  // `system` falls back to platform brightness; emits the native-ready
+  // dark flag + hex color tokens.
   static Future<Map<String, Object?>> resolveWidgetTheme() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(themeModePrefKey);

@@ -16,10 +16,10 @@ final updateHomeWidgetProvider = Provider<Future<void> Function()>((ref) {
   };
 });
 
-/// Lands widget-checkbox taps through the normal complete path
-/// (`toggleTodoProvider`): reminder cancellation, `markComplete`, and the
-/// sync outbox enqueue all stay in one place — the widget never gets a
-/// second write path into the database.
+// Lands widget-checkbox taps through the normal complete path
+// (`toggleTodoProvider`): reminder cancellation, `markComplete`, and the
+// sync outbox enqueue all stay in one place — the widget never gets a
+// second write path into the database.
 final consumeWidgetPendingTapsProvider =
     Provider<Future<void> Function(List<WidgetPendingTap>)>((ref) {
       // toggleTodoProvider is read at call time, not build time: consuming

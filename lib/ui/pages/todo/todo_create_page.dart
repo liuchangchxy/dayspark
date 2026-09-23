@@ -16,8 +16,8 @@ import 'package:dayspark/domain/providers/ai_provider.dart';
 class TodoCreatePage extends ConsumerStatefulWidget {
   final int? parentId;
 
-  /// Where the create was opened from (e.g. `widget` via the quick-add
-  /// deep link `dayspark://quick-add` → `/todo/new?source=widget`).
+  // Where the create was opened from (`widget` via dayspark://quick-add →
+  // /todo/new?source=widget).
   final String? source;
 
   const TodoCreatePage({super.key, this.parentId, this.source});
