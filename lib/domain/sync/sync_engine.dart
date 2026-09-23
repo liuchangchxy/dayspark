@@ -97,6 +97,10 @@ class SyncEngine {
 
   Stream<SyncStatus> get statusStream => _statusController.stream;
 
+  /// True between a successful start() and stop() — the foreground
+  /// poller gates on this so a logged-out provider build never arms it.
+  bool get isRunning => _started && !_stopped;
+
   /// Wires the outbox trigger and runs the first round. No-ops until
   /// tokens exist ("engine runs only when configured"): T6 login writes
   /// the token pair and invalidates the engine provider to (re)start.
@@ -124,6 +128,21 @@ class SyncEngine {
   Future<void> notifyRemoteCursor(int cursor) async {
     final stored = await cursorStore.read() ?? 0;
     if (cursor > stored) await requestRound();
+  }
+
+  /// SSE self-heal, called with the INITIAL head signal of each
+  /// (re)connection. WHY: the server may have been restored from a backup
+  /// OLDER than this client — its head then sits BELOW our stored
+  /// watermark, and pull (which only returns seq > cursor) would return
+  /// nothing forever: a silent permanent stall. Rewind the cursor to the
+  /// server head and round from there so post-restore changes flow again.
+  /// Later signals are forward advances and must never rewind — only the
+  /// initial head of a connection may.
+  Future<void> adoptServerHead(int serverHead) async {
+    final stored = await cursorStore.read();
+    if (stored == null || serverHead >= stored) return;
+    await cursorStore.write(serverHead);
+    await requestRound();
   }
 
   /// Coalesces concurrent triggers: one round runs, at most one follow-up

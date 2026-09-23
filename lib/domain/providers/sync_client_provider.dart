@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -57,25 +58,36 @@ final syncEngineProvider = Provider<SyncEngine?>((ref) {
   final sse = SseListener(
     open: client.openCursorStream,
     onCursor: (cursor) => unawaited(engine.notifyRemoteCursor(cursor)),
+    // Initial head per connection: rewinds a watermark that is AHEAD of a
+    // restored server (restore self-heal — see SyncEngine.adoptServerHead).
+    onInitialCursor: (head) => unawaited(engine.adoptServerHead(head)),
   );
 
   // Both engine rounds and SSE need a configured login; T6 writes tokens
   // and invalidates this provider to bring the engine up.
   unawaited(() async {
-    if (await tokens.isConfigured()) {
-      sse.start();
-      await engine.start();
+    try {
+      if (await tokens.isConfigured()) {
+        sse.start();
+        await engine.start();
+      }
+    } catch (e) {
+      debugPrint('sync: engine startup error: $e');
     }
   }());
 
   var wasOffline = false;
-  final connSub = Connectivity().onConnectivityChanged.listen((results) {
-    final online = results.any((r) => r != ConnectivityResult.none);
-    if (online && wasOffline) {
-      unawaited(engine.requestRound());
-    }
-    wasOffline = !online;
-  });
+  final connSub = Connectivity().onConnectivityChanged.listen(
+    (results) {
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (online && wasOffline) {
+        unawaited(engine.requestRound());
+      }
+      wasOffline = !online;
+    },
+    onError: (Object e) =>
+        debugPrint('sync: connectivity listener error: $e'),
+  );
 
   ref.onDispose(() async {
     await connSub.cancel();

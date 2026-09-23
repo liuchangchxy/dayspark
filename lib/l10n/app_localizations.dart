@@ -1415,6 +1415,12 @@ abstract class AppLocalizations {
   /// **'Last sync: {time}'**
   String lastSync(String time);
 
+  /// No description provided for @syncRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected: {codes}'**
+  String syncRejected(String codes);
+
   /// No description provided for @justNow.
   ///
   /// In en, this message translates to:

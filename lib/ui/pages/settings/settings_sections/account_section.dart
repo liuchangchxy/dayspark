@@ -27,10 +27,14 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   void initState() {
     super.initState();
     Future.microtask(() async {
-      final settings = await ref.read(syncSettingsProvider.future);
-      if (!_urlPrefilled && mounted && settings.baseUrl != null) {
-        _serverUrlController.text = settings.baseUrl!;
-        _urlPrefilled = true;
+      try {
+        final settings = await ref.read(syncSettingsProvider.future);
+        if (!_urlPrefilled && mounted && settings.baseUrl != null) {
+          _serverUrlController.text = settings.baseUrl!;
+          _urlPrefilled = true;
+        }
+      } catch (e) {
+        debugPrint('account: server URL prefill error: $e');
       }
     });
   }
@@ -250,8 +254,13 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
       SyncPhase.error => l.syncPhaseError,
     };
     final last = status.lastSyncAt;
-    if (last == null) return phase;
-    return '$phase · ${l.lastSync(DateFormatters.formatRelativeTime(last, l))}';
+    final base = last == null
+        ? phase
+        : '$phase · ${l.lastSync(DateFormatters.formatRelativeTime(last, l))}';
+    // Rejected op verdicts would otherwise vanish (ops are dropped, the
+    // round succeeds) — surface the raw codes on the status line.
+    if (status.lastRejected.isEmpty) return base;
+    return '$base · ${l.syncRejected(status.lastRejected.join(', '))}';
   }
 
   String _errorText(AppLocalizations l, AccountAuthError error) {

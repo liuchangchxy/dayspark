@@ -301,6 +301,42 @@ void main() {
     expect(cursors.value! >= 10, true);
   });
 
+  test(
+      'SSE initial head below stored cursor rewinds the watermark '
+      '(restore self-heal); later signals never rewind', () async {
+    cursors.value = 50;
+    await buildEngine().start();
+    expect(cursors.value, 50);
+
+    // Mirrors the provider wiring: initial head → adoptServerHead,
+    // every signal → notifyRemoteCursor.
+    final sse = SseListener(
+      open: api.openCursorStream,
+      onCursor: (cursor) => unawaited(engine.notifyRemoteCursor(cursor)),
+      onInitialCursor: (head) => unawaited(engine.adoptServerHead(head)),
+    );
+    sse.start();
+    addTearDown(sse.stop);
+
+    // Initial event of the connection: server was restored to head 30
+    // while this client sits at 50 — cursor must rewind to 30 and a
+    // round must pull from there (otherwise pull(>50) is empty forever).
+    api.cursorController.add(30);
+    await waitUntil(() => cursors.value == 30,
+        reason: 'initial head below stored cursor rewinds the watermark');
+    await waitUntil(() => api.pullCalls.contains(30),
+        reason: 'rewound cursor round pulls from the restored head');
+
+    // A later signal below the stored cursor is NOT an initial head —
+    // it must never rewind (only serverHead < stored on the FIRST event
+    // of a connection is a restore).
+    api.cursorController.add(20);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(cursors.value, 30,
+        reason: 'only the initial head of a connection may rewind');
+    expect(api.pullCalls.contains(20), isFalse);
+  });
+
   test('unconfigured tokens: start is a no-op', () async {
     tokens.access = null;
     tokens.refresh = null;

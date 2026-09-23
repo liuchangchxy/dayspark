@@ -251,6 +251,12 @@
       "time": { "type": "String" }
     }
   },
+  "syncRejected": "已拒绝：{codes}",
+  "@syncRejected": {
+    "placeholders": {
+      "codes": { "type": "String" }
+    }
+  },
   "justNow": "刚刚",
   "minutesAgo": "{minutes} 分钟前",
   "@minutesAgo": {

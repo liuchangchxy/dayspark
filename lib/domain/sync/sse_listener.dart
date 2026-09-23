@@ -8,11 +8,18 @@ class SseListener {
   SseListener({
     required Stream<int> Function() open,
     required void Function(int cursor) onCursor,
+    this.onInitialCursor,
   }) : _open = open,
        _onCursor = onCursor;
 
   final Stream<int> Function() _open;
   final void Function(int cursor) _onCursor;
+
+  /// First signal of each (re)connection — the server head at connect
+  /// time (the server sends it immediately on GET /sync/stream). Only
+  /// that first signal may trigger the cursor self-heal; later signals
+  /// on the same connection are forward advances.
+  final void Function(int cursor)? onInitialCursor;
 
   StreamSubscription<int>? _sub;
   Timer? _reconnectTimer;
@@ -34,10 +41,15 @@ class SseListener {
 
   void _connect() {
     if (!_running) return;
+    var isInitial = true;
     late final StreamSubscription<int> sub;
     sub = _open().listen(
       (cursor) {
         _backoffSeconds = 1;
+        if (isInitial) {
+          isInitial = false;
+          onInitialCursor?.call(cursor);
+        }
         _onCursor(cursor);
       },
       onError: (Object _) => _scheduleReconnect(sub),

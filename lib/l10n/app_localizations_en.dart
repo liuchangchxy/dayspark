@@ -711,6 +711,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String syncRejected(String codes) {
+    return 'Rejected: $codes';
+  }
+
+  @override
   String get justNow => 'just now';
 
   @override

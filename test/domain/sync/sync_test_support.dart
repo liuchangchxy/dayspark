@@ -19,6 +19,11 @@ class MemoryCursorStore implements SyncCursorStore {
   Future<void> write(int cursor) async {
     value = cursor;
   }
+
+  @override
+  Future<void> clear() async {
+    value = null;
+  }
 }
 
 class MemoryTokenStore implements SyncTokenStore {
@@ -63,6 +68,11 @@ class MemorySnapshotStore implements SyncSnapshotStore {
   @override
   Future<void> remove(String recordId) async {
     values.remove(recordId);
+  }
+
+  @override
+  Future<void> clear() async {
+    values.clear();
   }
 }
 

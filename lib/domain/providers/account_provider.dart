@@ -1,6 +1,9 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/sync_client_provider.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
@@ -45,6 +48,11 @@ final accountAuthApiFactoryProvider = Provider<AuthApi Function(String baseUrl)>
 });
 
 const _accountEmailKey = 'account_email';
+
+/// Previous sync identity (normalized baseUrl + userId), compared at
+/// every login to decide whether the stored watermark still belongs to
+/// the dataset the user is authenticating against now.
+const _syncIdentityKey = 'last_sync_identity';
 
 class AccountAuthNotifier extends AsyncNotifier<AccountAuthState> {
   @override
@@ -116,6 +124,16 @@ class AccountAuthNotifier extends AsyncNotifier<AccountAuthState> {
             refreshToken: session.refreshToken,
           );
       final prefs = await SharedPreferences.getInstance();
+      // Identity-change detection: the pull watermark, snapshots and row
+      // sync state only mean anything relative to the (server, user) they
+      // were raised against — keeping them across a switch would skip
+      // everything <= the stale cursor forever (pull never rewinds).
+      final newIdentity = '$normalizedUrl|${session.userId}';
+      final previousIdentity = prefs.getString(_syncIdentityKey);
+      if (previousIdentity != null && previousIdentity != newIdentity) {
+        await _resetSyncStateForIdentityChange(prefs);
+      }
+      await prefs.setString(_syncIdentityKey, newIdentity);
       await prefs.setString(_accountEmailKey, trimmedEmail);
       await PrefsSyncConfigStore(prefs).save(
         SyncConfig(baseUrl: normalizedUrl),
@@ -135,12 +153,30 @@ class AccountAuthNotifier extends AsyncNotifier<AccountAuthState> {
     await ref.read(syncTokenStoreProvider).clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accountEmailKey);
+    // The sync identity pref survives logout so a same-identity relogin
+    // keeps continuity (the reset above runs only on a real switch).
     await ref.read(setFeatureFlagProvider)(FeatureFlag.sync, false);
     // T5 carry: engine only runs when tokens exist — invalidate so the
     // old instance stops and the next build comes up unauthenticated
     // (syncStatusProvider watches it and resets to a fresh status).
     ref.invalidate(syncEngineProvider);
     state = const AsyncData(AccountAuthState());
+  }
+
+  /// Full re-baseline after an identity/server switch: drop the pull
+  /// watermark and every snapshot, and zero row sync state so the next
+  /// round re-identifies all rows (fresh syncIds) and pushes them to the
+  /// new dataset from scratch.
+  Future<void> _resetSyncStateForIdentityChange(SharedPreferences prefs) async {
+    await PrefsSyncCursorStore(prefs).clear();
+    await PrefsSyncSnapshotStore(prefs).clear();
+    final db = ref.read(databaseProvider);
+    await db.update(db.events).write(
+          EventsCompanion(serverRev: const Value(0), syncId: const Value(null)),
+        );
+    await db.update(db.todos).write(
+          TodosCompanion(serverRev: const Value(0), syncId: const Value(null)),
+        );
   }
 
   Future<void> _restartEngine() async {

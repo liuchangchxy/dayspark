@@ -711,6 +711,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String syncRejected(String codes) {
+    return '已拒绝：$codes';
+  }
+
+  @override
   String get justNow => '刚刚';
 
   @override

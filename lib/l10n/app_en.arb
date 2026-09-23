@@ -327,6 +327,12 @@
       "time": { "type": "String" }
     }
   },
+  "syncRejected": "Rejected: {codes}",
+  "@syncRejected": {
+    "placeholders": {
+      "codes": { "type": "String" }
+    }
+  },
   "justNow": "just now",
   "minutesAgo": "{minutes}m ago",
   "@minutesAgo": {

@@ -42,6 +42,10 @@ class PrefsSyncConfigStore implements SyncConfigStore {
 abstract class SyncCursorStore {
   Future<int?> read();
   Future<void> write(int cursor);
+
+  /// Identity/server switch: a watermark only means anything relative to
+  /// the dataset it was raised against (account_provider resets it there).
+  Future<void> clear();
 }
 
 class PrefsSyncCursorStore implements SyncCursorStore {
@@ -56,6 +60,11 @@ class PrefsSyncCursorStore implements SyncCursorStore {
 
   @override
   Future<void> write(int cursor) => _prefs.setInt(_key, cursor);
+
+  @override
+  Future<void> clear() async {
+    await _prefs.remove(_key);
+  }
 }
 
 abstract class SyncTokenStore {
@@ -127,6 +136,11 @@ abstract class SyncSnapshotStore {
   Future<SyncSnapshot?> read(String recordId);
   Future<void> write(String recordId, SyncSnapshot snapshot);
   Future<void> remove(String recordId);
+
+  /// Identity/server switch: snapshots are the diff base against the OLD
+  /// server's truth — keeping them would silently swallow fields the new
+  /// dataset never had.
+  Future<void> clear();
 }
 
 class PrefsSyncSnapshotStore implements SyncSnapshotStore {
@@ -148,6 +162,10 @@ class PrefsSyncSnapshotStore implements SyncSnapshotStore {
       return SyncSnapshot(rev: rev, payload: payload);
     } on FormatException {
       return null;
+    } on TypeError {
+      // Corrupt but parseable JSON of the wrong shape (e.g. a bare
+      // int/list under the key) fails the `as Map` cast, not jsonDecode.
+      return null;
     }
   }
 
@@ -160,4 +178,12 @@ class PrefsSyncSnapshotStore implements SyncSnapshotStore {
 
   @override
   Future<void> remove(String recordId) => _prefs.remove('$_prefix$recordId');
+
+  @override
+  Future<void> clear() async {
+    final keys = _prefs.getKeys().where((k) => k.startsWith(_prefix));
+    for (final key in keys.toList()) {
+      await _prefs.remove(key);
+    }
+  }
 }
