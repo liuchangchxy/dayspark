@@ -39,6 +39,31 @@ Future<Map<String, dynamic>> readJsonObject(Request request) async {
   }
 }
 
+// Shared request-body ceiling for every endpoint that reads a body (POST
+// /mcp and all four OAuth POSTs): content-length fast path plus streaming
+// accumulation with early abort, so an oversized upload is never buffered
+// whole. Over-cap throws ApiException(413) → catchApiErrors renders the
+// standard {"error":{"code":"validation",...}} envelope.
+const int maxRequestBodyBytes = 256 * 1024;
+
+Future<List<int>> readBodyBytes(Request request) async {
+  final declared = int.tryParse(request.headers['content-length'] ?? '');
+  if (declared != null && declared > maxRequestBodyBytes) {
+    throw _bodyTooLarge();
+  }
+  final buffer = <int>[];
+  await for (final chunk in request.read()) {
+    if (buffer.length + chunk.length > maxRequestBodyBytes) {
+      throw _bodyTooLarge();
+    }
+    buffer.addAll(chunk);
+  }
+  return buffer;
+}
+
+ApiException _bodyTooLarge() =>
+    ApiException(413, errValidation, 'request body exceeds the 256KB limit');
+
 Middleware catchApiErrors() {
   return (inner) => (request) async {
     try {

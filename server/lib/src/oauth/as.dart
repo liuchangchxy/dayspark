@@ -95,7 +95,9 @@ Response _redirectError(
 String _sha256Hex(String value) =>
     sha256.convert(utf8.encode(value)).toString();
 
-String _pkceChallenge(String verifier) => base64Url
+// Public so tests can pin the RFC 7636 Appendix B vector against this exact
+// construction — a regression here would silently break every real connector.
+String pkceChallenge(String verifier) => base64Url
     .encode(sha256.convert(ascii.encode(verifier)).bytes)
     .replaceAll('=', '');
 
@@ -103,7 +105,7 @@ bool _verifierFormatOk(String verifier) =>
     RegExp(r'^[A-Za-z0-9\-._~]{43,128}$').hasMatch(verifier);
 
 bool _verifyPkce(String verifier, String challenge) =>
-    _verifierFormatOk(verifier) && _pkceChallenge(verifier) == challenge;
+    _verifierFormatOk(verifier) && pkceChallenge(verifier) == challenge;
 
 bool _validRedirectUri(String raw) {
   final uri = Uri.tryParse(raw);
@@ -140,7 +142,12 @@ List<String> _redirectList(OauthClient client) =>
 
 Future<Map<String, Object?>> _readBody(Request request) async {
   final contentType = request.headers['content-type'] ?? '';
-  final raw = await request.readAsString();
+  final String raw;
+  try {
+    raw = utf8.decode(await readBodyBytes(request));
+  } on FormatException {
+    throw OAuthError(400, 'invalid_request', 'malformed request body');
+  }
   try {
     if (contentType.contains('application/json')) {
       final decoded = jsonDecode(raw);
@@ -594,7 +601,7 @@ void registerOauthRoutes(
     }
     final Map<String, String> form;
     try {
-      form = Uri.splitQueryString(await request.readAsString());
+      form = Uri.splitQueryString(utf8.decode(await readBodyBytes(request)));
     } on FormatException {
       return _page(400, 'malformed form body');
     }

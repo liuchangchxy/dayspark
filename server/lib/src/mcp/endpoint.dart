@@ -19,9 +19,8 @@ import 'tools.dart';
 // Scope enforcement runs through the [scopeChecker] seam on every tools/call
 // AND resources/list+read. AppServer wires the real mcp:read/mcp:write gate
 // (oauth/middleware.dart); the fail-closed default denies everything so a
-// forgotten wiring can never ship an open MCP.
-
-const int mcpMaxBodyBytes = 256 * 1024;
+// forgotten wiring can never ship an open MCP. Body reads go through the
+// shared readBodyBytes cap (http.dart, 256KB → 413 envelope).
 
 class McpScopeRequest {
   const McpScopeRequest({
@@ -120,17 +119,9 @@ class McpEndpoint {
       );
     }
 
-    final declared = int.tryParse(request.headers['content-length'] ?? '');
-    if (declared != null && declared > mcpMaxBodyBytes) {
-      return _payloadTooLarge();
-    }
-    final buffer = <int>[];
-    await for (final chunk in request.read()) {
-      if (buffer.length + chunk.length > mcpMaxBodyBytes) {
-        return _payloadTooLarge();
-      }
-      buffer.addAll(chunk);
-    }
+    // Over-cap throws ApiException(413); catchApiErrors renders the standard
+    // validation envelope.
+    final buffer = await readBodyBytes(request);
     String raw;
     try {
       raw = utf8.decode(buffer);
@@ -223,12 +214,6 @@ class McpEndpoint {
     );
     return body.change(headers: {'www-authenticate': challenge});
   }
-
-  Response _payloadTooLarge() => jsonError(
-    413,
-    errValidation,
-    'request body exceeds the 256KB limit',
-  );
 
   Response _protocolError(
     Object? id,

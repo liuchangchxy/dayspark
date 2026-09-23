@@ -1323,6 +1323,165 @@ void main() {
       expect(decoded['result'], <String, Object?>{});
     });
   });
+
+  group('fix round 1', () {
+    test('register over the 256KB cap returns the 413 envelope', () async {
+      final oversized = List.filled(256 * 1024 + 1, 'x').join();
+      final response = await _request(
+        app,
+        'POST',
+        '/oauth/register',
+        rawBody: oversized,
+        contentType: 'application/json',
+      );
+      expect(response.statusCode, 413);
+      final text = await response.readAsString();
+      final body = jsonDecode(text) as Map<String, dynamic>;
+      expect(body['error']['code'], errValidation);
+      expect((body['error'] as Map)['message'], contains('256KB'));
+    });
+
+    test('register exactly at the 256KB cap passes through', () async {
+      const placeholder = 'PAD';
+      const head = '{"client_name":"';
+      const tail =
+          '","redirect_uris":["https://chatgpt.example.com/cb"],'
+          '"token_endpoint_auth_method":"none"}';
+      final base = '$head$placeholder$tail';
+      final padLength = 256 * 1024 - base.length + placeholder.length;
+      expect(padLength, greaterThan(0));
+      final body = base.replaceFirst(
+        placeholder,
+        List.filled(padLength, 'a').join(),
+      );
+      expect(utf8.encode(body).length, 256 * 1024);
+      expect(jsonDecode(body), isA<Map<String, Object?>>());
+
+      final response = await _request(
+        app,
+        'POST',
+        '/oauth/register',
+        rawBody: body,
+        contentType: 'application/json',
+      );
+      final text = await response.readAsString();
+      expect(response.statusCode, 201, reason: text);
+      final registered = jsonDecode(text) as Map<String, dynamic>;
+      expect(registered['client_id'], isA<String>());
+      expect(
+        (registered['client_name'] as String).length,
+        padLength,
+        reason: 'the padded name must survive the cap untouched',
+      );
+    });
+
+    test(
+        'authorize POST over the cap returns the 413 JSON envelope, '
+        'not an HTML page', () async {
+      final oversized = List.filled(256 * 1024 + 1, 'y').join();
+      final response = await _request(
+        app,
+        'POST',
+        '/oauth/authorize',
+        rawBody: 'email=a@b.c&password=$oversized',
+        contentType: 'application/x-www-form-urlencoded',
+      );
+      expect(response.statusCode, 413);
+      expect(response.headers['content-type'], contains('application/json'));
+      final body =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      expect(body['error']['code'], errValidation);
+      expect((body['error'] as Map)['message'], contains('256KB'));
+    });
+
+    test('authorize rejects redirect_uri near-misses (trailing slash, scheme)',
+        () async {
+      final client = await _registerClient(app);
+      final challenge = _challengeFor(_verifier());
+
+      for (final nearMiss in [
+        'https://chatgpt.example.com/cb/',
+        'http://chatgpt.example.com/cb',
+      ]) {
+        final response = await _authorizeGet(
+          app,
+          clientId: client['client_id'] as String,
+          redirectUri: nearMiss,
+          scope: 'mcp:read',
+          challenge: challenge,
+        );
+        expect(response.statusCode, 400, reason: nearMiss);
+        expect(response.headers['location'], isNull, reason: nearMiss);
+        final html = await response.readAsString();
+        expect(html, isNot(contains('code=')), reason: nearMiss);
+      }
+    });
+
+    test('token rejects redirect_uri near-misses against the bound code',
+        () async {
+      final flow = await _authorized(app, scope: 'mcp:read');
+
+      for (final nearMiss in [
+        'https://chatgpt.example.com/cb/',
+        'http://chatgpt.example.com/cb',
+      ]) {
+        final response = await _token(
+          app,
+          basic: flow.basic,
+          form: {
+            'grant_type': 'authorization_code',
+            'code': flow.code,
+            'redirect_uri': nearMiss,
+            'code_verifier': flow.verifier,
+          },
+        );
+        final text = await response.readAsString();
+        expect(response.statusCode, 400, reason: nearMiss);
+        expect(
+          (jsonDecode(text) as Map<String, dynamic>)['error'],
+          'invalid_grant',
+          reason: nearMiss,
+        );
+      }
+
+      final ok = await _redeem(app, flow);
+      expect(ok['access_token'], isA<String>());
+    });
+
+    test('code cannot be redeemed by a different client', () async {
+      final flow = await _authorized(app, scope: 'mcp:read mcp:write');
+      final other = await _registerClient(app);
+
+      final stolen = await _token(
+        app,
+        basic: _basicAuth(
+          other['client_id'] as String,
+          other['client_secret'] as String,
+        ),
+        form: {
+          'grant_type': 'authorization_code',
+          'code': flow.code,
+          'redirect_uri': _redirect,
+          'code_verifier': flow.verifier,
+        },
+      );
+      expect(stolen.statusCode, 400);
+      final body = await _json(stolen);
+      expect(body['error'], 'invalid_grant');
+      expect(body['access_token'], isNull);
+
+      final legit = await _redeem(app, flow);
+      expect(legit['access_token'], isA<String>());
+    });
+
+    test('PKCE S256 construction matches the RFC 7636 Appendix B vector',
+        () {
+      expect(
+        pkceChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'),
+        'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+      );
+    });
+  });
 }
 
 String _hashOf(String code) =>
