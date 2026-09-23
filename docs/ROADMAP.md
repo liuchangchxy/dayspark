@@ -550,7 +550,7 @@
 |------|------|------|
 | P1 — Foundation / 基础 | kalender views, CalDAV/MCP removal (schema v8), notification chain, widget data path, governance docs | ✅ 完成 (v0.21.0) |
 | P2 — Sync backend / 同步后端 | `dayspark_contracts`, shelf server (auth/JWT, push/pull/SSE, LWW/idempotency/tombstone), client outbox + pull applier, Docker on NAS, dual-device e2e / 自托管同步后端 + 客户端 outbox | ✅ 完成 (v0.22.0)；遗留项见 Phase P2.5 / leftovers in Phase P2.5 |
-| P3 — Server MCP + CLI / 服务端 MCP | 17 tools + 3 resources + OAuth 2.1 two-track (DCR + PKCE), `tool/mcp_stdio_wrapper`, `tool/dayspark_cli`, MCP e2e matrix + 3-client QA doc / 服务端 MCP + CLI | ✅ 完成 (v0.23.0)；工具面随 P2.5 实体同步扩展（calendars/tags/reminders 待补）/ tool surface grows with P2.5 entity sync |
+| P3 — Server MCP + CLI / 服务端 MCP | 17 tools + 3 resources + OAuth 2.1 two-track (DCR + PKCE), `tool/mcp_stdio_wrapper`, `tool/dayspark_cli`, MCP e2e matrix + 4-client QA doc / 服务端 MCP + CLI | ✅ 完成 (v0.23.0)；工具面随 P2.5 实体同步扩展（calendars/tags/reminders 待补）/ tool surface grows with P2.5 entity sync |
 | P4 — Platform parity / 平台补齐 | iOS bundle/App Group family + TestFlight; widget v2 (quick-add deep link, month-dot widget, l10n/dark); notification UX sweep; todo UX batch; Windows notification stub revisit / 小组件 quick-add 与月视图点阵仍在 P4 待做 | Pending / 待做 |
 
 ### Phase P2.5 — Sync Leftovers / 同步遗留项（P2.5）

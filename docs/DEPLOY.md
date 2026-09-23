@@ -66,9 +66,35 @@ The client keeps an SSE stream open (`GET /sync/stream`) for invalidation push. 
 The server already sends `X-Accel-Buffering: no` on the SSE response, which nginx honors per-response; belt-and-braces, also disable buffering in the site config:
 服务端已在 SSE 响应上发送 `X-Accel-Buffering: no`（nginx 会按响应遵守）；保险起见站点配置里再关一次缓冲：
 
+Open DCR (`POST /oauth/register`) is anonymous and runs argon2 password hashing per registration — put it behind a per-IP rate limit, and cap every body at the server's own 256KB ceiling. Declare the limit zone in the `http` context (`/etc/nginx/nginx.conf` or a file under `conf.d/` — `limit_req_zone` is not valid inside `server {}`); the rate is scoped to `/oauth/register` only (a whole-server `5r/m` would starve sync/SSE traffic from real users):
+Open DCR（`POST /oauth/register`）匿名可达且每次注册都跑 argon2 密码哈希 —— 必须按 IP 限流，并在反代处把请求体封顶到服务端同款 256KB。`limit_req_zone` 必须声明在 `http` 上下文（`/etc/nginx/nginx.conf` 或 `conf.d/` 下的文件，不能写在 `server {}` 里）；速率只作用于 `/oauth/register`（整站 `5r/m` 会饿死真实用户的 sync/SSE 流量）：
+
+```nginx
+# http context / http 上下文
+limit_req_zone $binary_remote_addr zone=dcr:10m rate=5r/m;
+```
+
 ```nginx
 server {
     server_name sync.example.com;
+
+    # match the in-app 256KB body cap (readBodyBytes) at the proxy too
+    # / 与服务端 readBodyBytes 256KB 上限对齐，超限在反代直接拒
+    client_max_body_size 256k;
+
+    # Open DCR only: anonymous + argon2 per registration → tight limit
+    # here, everything else unthrottled (already authenticated/body-capped)
+    # / 只限 Open DCR：匿名 + 每次注册跑 argon2；其余端点已有鉴权与体上限
+    location = /oauth/register {
+        limit_req zone=dcr burst=5 nodelay;
+
+        proxy_pass http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:8787;

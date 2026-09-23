@@ -75,7 +75,7 @@ flowchart LR
 - **业务规则契约**：
   - 规则 1：工具面 17 个（读 7 + 写 10，event+task；calendars/tags/reminders 随 P2.5 实体同步扩展），snake_case `动词_名词`
   - 规则 2：时间 ISO 8601 + IANA timezone；RRULE 结构化对象
-  - 规则 3：`list_events` 范围默认 now→+7d，上限 366 天
+  - 规则 3：`get_events` 范围默认 now→+7d，上限 366 天
   - 规则 4：错误以工具结果 `{isError, {code, message, hint}}` 返回，不是 JSON-RPC error
   - 规则 5：不提供 `delete_task`（archive 姿态），与回收站语义对齐
   - 规则 6：传输双形态：`POST /mcp` Streamable HTTP + OAuth 2.1（DCR + PKCE-S256 + token 轮换）；stdio wrapper 喂本地 Agent

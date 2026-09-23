@@ -355,3 +355,8 @@
 - CLI/本地脚本只走 `POST /auth/login`（`track:"cli"`，全 scope，`/oauth/*` 刷新端点拒绝）；Agent/ChatGPT connector 只走 OAuth 2.1（`track:"oauth"`，同意的 scope 子集，**仅**有效于 `/mcp`，`requireAuth` 在 `/sync/*` 与 `/auth/me` 上 401 拒绝）
 - **Why**: 无头/CLI 场景没有浏览器会话走不了同意页；反过来 OAuth token 若能打 `/sync/push`，`mcp:read` 同意就变成全量写凭证——同意页上的 scope 列表会成为谎言（T3 裁定）
 - **Date**: 2026-09-23
+
+### Open DCR 必须落在反代限流 + body 上限之后
+- 规则：Open DCR must sit behind rate limiting (nginx `limit_req`) + body cap; in-app limiter = P4（模板见 `docs/DEPLOY.md` §3：`limit_req_zone … 5r/m` + `client_max_body_size 256k`，作用域 `/oauth/register`）
+- **Why**: `/oauth/register` 匿名可达且每次注册跑 argon2（CPU 密集），应用层限流 P3 未做——没有反代闸门就是匿名算力放大入口；body cap 另挡内存
+- **Date**: 2026-09-23

@@ -11,6 +11,7 @@ Future<Response> _request(
   String method,
   String path, {
   Map<String, Object?>? body,
+  String? rawBody,
   String? token,
 }) async {
   return await handler(
@@ -18,10 +19,10 @@ Future<Response> _request(
       method,
       _uri(path),
       headers: {
-        if (body != null) 'content-type': 'application/json',
+        if (body != null || rawBody != null) 'content-type': 'application/json',
         if (token != null) 'authorization': 'Bearer $token',
       },
-      body: body == null ? null : jsonEncode(body),
+      body: rawBody ?? (body == null ? null : jsonEncode(body)),
     ),
   );
 }
@@ -698,5 +699,22 @@ void main() {
     );
     expect(bad.statusCode, 400);
     expect(_errorCode(await _json(bad)), errValidation);
+  });
+
+  test('/sync/push over the 256KB cap returns the 413 envelope', () async {
+    final token = (await _register(app, 'bigbody@example.com'))['token']!;
+    final oversized = List.filled(256 * 1024 + 1, 'x').join();
+    final response = await _request(
+      app.handler,
+      'POST',
+      '/sync/push',
+      token: token,
+      rawBody: oversized,
+    );
+    expect(response.statusCode, 413);
+    final body = await _json(response);
+    expect(_errorCode(body), errValidation);
+    final error = body['error'] as Map<String, dynamic>;
+    expect(error['message'], contains('256KB'));
   });
 }

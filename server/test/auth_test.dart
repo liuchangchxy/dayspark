@@ -275,4 +275,52 @@ void main() {
       expect(_errorCode(await response.readAsString()), errUnauthorized);
     });
   });
+
+  group('legacy POST body cap (readJsonObject)', () {
+    Future<Response> postRaw(String path, String rawBody) async =>
+        await app.handler(
+          Request(
+            'POST',
+            _uri(path),
+            headers: {'content-type': 'application/json'},
+            body: rawBody,
+          ),
+        );
+
+    test('login over the 256KB cap returns the 413 envelope', () async {
+      final oversized = List.filled(256 * 1024 + 1, 'x').join();
+      final response = await postRaw('/auth/login', oversized);
+      expect(response.statusCode, 413);
+      final decoded =
+          jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+      final error = decoded['error'] as Map<String, dynamic>;
+      expect(error['code'], errValidation);
+      expect(error['message'], contains('256KB'));
+    });
+
+    test('login exactly at the 256KB cap parses through', () async {
+      final register = await _postJson(app.handler, '/auth/register', {
+        'email': 'cap@example.com',
+        'password': 'password123',
+      });
+      expect(register.statusCode, 201);
+
+      const placeholder = 'PAD';
+      const base = '{"email":"cap@example.com","password":"password123",'
+          '"pad":"$placeholder"}';
+      final padLength = 256 * 1024 - base.length + placeholder.length;
+      expect(padLength, greaterThan(0));
+      final body = base.replaceFirst(
+        placeholder,
+        List.filled(padLength, 'a').join(),
+      );
+      expect(utf8.encode(body).length, 256 * 1024);
+
+      final response = await postRaw('/auth/login', body);
+      final text = await response.readAsString();
+      expect(response.statusCode, 200, reason: text);
+      final decoded = jsonDecode(text) as Map<String, dynamic>;
+      expect(decoded['accessToken'], isNotEmpty);
+    });
+  });
 }

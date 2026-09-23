@@ -27,7 +27,10 @@ class ApiException implements Exception {
 
 Future<Map<String, dynamic>> readJsonObject(Request request) async {
   try {
-    final decoded = jsonDecode(await request.readAsString());
+    // Route through the shared cap (readBodyBytes) so /auth/* and
+    // /sync/push get the same 413 ceiling as the OAuth POSTs — two of
+    // these callers are unauthenticated.
+    final decoded = jsonDecode(utf8.decode(await readBodyBytes(request)));
     if (decoded is! Map<String, dynamic>) {
       throw ApiException(400, errValidation, 'body must be a JSON object');
     }
@@ -40,10 +43,12 @@ Future<Map<String, dynamic>> readJsonObject(Request request) async {
 }
 
 // Shared request-body ceiling for every endpoint that reads a body (POST
-// /mcp and all four OAuth POSTs): content-length fast path plus streaming
-// accumulation with early abort, so an oversized upload is never buffered
-// whole. Over-cap throws ApiException(413) → catchApiErrors renders the
-// standard {"error":{"code":"validation",...}} envelope.
+// /mcp, all four OAuth POSTs, and every readJsonObject caller —
+// /auth/register, /auth/login, /auth/refresh, /sync/push): content-length
+// fast path plus streaming accumulation with early abort, so an oversized
+// upload is never buffered whole. Over-cap throws ApiException(413) →
+// catchApiErrors renders the standard {"error":{"code":"validation",...}}
+// envelope.
 const int maxRequestBodyBytes = 256 * 1024;
 
 Future<List<int>> readBodyBytes(Request request) async {
