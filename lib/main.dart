@@ -21,11 +21,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Must run before the first saveWidgetData: Apple widgets read
   // UserDefaults(suiteName:) — without this the host app writes to the
-  // wrong defaults and iOS/macOS widgets stay empty. Apple-only call.
+  // wrong defaults and iOS/macOS widgets stay empty. Apple-only call;
+  // guarded because home_widget has no macOS plugin implementation, and a
+  // missing platform handler must never block app startup.
   if (!kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS)) {
-    await HomeWidget.setAppGroupId('group.com.dayspark.app');
+    try {
+      await HomeWidget.setAppGroupId('group.com.dayspark.app');
+    } catch (e) {
+      debugPrint('home_widget: setAppGroupId error: $e');
+    }
   }
   // Widget-button taps reach Dart through the interactivity callback
   // (T3 wires native buttons to `dayspark://` URIs). Platforms home_widget

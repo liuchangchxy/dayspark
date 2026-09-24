@@ -156,6 +156,9 @@ void main() {
         todoCount: todoCount,
         upcomingEvents: const [],
         upcomingTodos: const [],
+        monthEventDays: await HomeWidgetService.monthEventDaysOfCurrentMonth(
+          db,
+        ),
         ui: ui,
         theme: theme,
         generatedAt: DateTime.utc(2026, 9, 22, 4, 5, 6),
@@ -171,6 +174,7 @@ void main() {
         'todoCount',
         'upcoming',
         'pendingTaps',
+        'monthDots',
         'ui',
         'theme',
       });
@@ -192,7 +196,9 @@ void main() {
       final pendingTodos = decoded['pendingTodos'] as List;
       expect(pendingTodos, hasLength(2));
       for (final item in pendingTodos.cast<Map<String, dynamic>>()) {
-        expect(item.keys.toSet(), {'summary', 'dueDate'});
+        // `id` is the handle native checkbox taps append into pendingTaps.
+        expect(item.keys.toSet(), {'id', 'summary', 'dueDate'});
+        expect(item['id'], isA<int>());
         expect(item['summary'], isA<String>());
         expect(item['dueDate'], isA<String>());
       }
@@ -209,6 +215,23 @@ void main() {
       // appends between flushes, the next flush with a consumer clears it.
       expect(decoded['pendingTaps'], isA<List>());
       expect(decoded['pendingTaps'], isEmpty);
+
+      // monthDots: [[dayNumber, hasEvent]] pairs for the current month; the
+      // golden inserts an all-day event covering today, so today's day shows.
+      final monthDots = decoded['monthDots'] as List;
+      expect(monthDots, isA<List>());
+      for (final pair in monthDots) {
+        expect(pair, isA<List>());
+        final parts = (pair as List);
+        expect(parts, hasLength(2));
+        expect(parts[0], isA<int>());
+        expect(parts[1], true);
+      }
+      final todayDot = monthDots.firstWhere(
+        (pair) => (pair as List)[0] == today.day,
+        orElse: () => null,
+      );
+      expect(todayDot, isNotNull, reason: 'today must carry a month dot');
 
       final uiBlock = decoded['ui'] as Map<String, dynamic>;
       expect(uiBlock.keys.toSet(), {
@@ -338,6 +361,52 @@ void main() {
       for (final item in upcomingTodoItems.cast<Map<String, Object?>>()) {
         expect(item.keys.toSet(), {'summary', 'dueDate'});
       }
+    });
+
+    test('month dots cover every day an event touches in the month',
+        () async {
+      final now = DateTime(2026, 9, 15, 12);
+      await insertEvent(
+        summary: 'Single day',
+        startDt: DateTime(2026, 9, 3, 9),
+        endDt: DateTime(2026, 9, 3, 10),
+      );
+      await insertEvent(
+        summary: 'Multi day',
+        startDt: DateTime(2026, 9, 28, 10),
+        endDt: DateTime(2026, 9, 30, 11),
+      );
+      await insertEvent(
+        summary: 'Crosses into month',
+        startDt: DateTime(2026, 8, 31, 8),
+        endDt: DateTime(2026, 9, 1, 8),
+      );
+      await insertEvent(
+        summary: 'Next month',
+        startDt: DateTime(2026, 10, 5, 9),
+        endDt: DateTime(2026, 10, 5, 10),
+      );
+      await insertEvent(
+        summary: 'Previous month only',
+        startDt: DateTime(2026, 8, 10, 9),
+        endDt: DateTime(2026, 8, 10, 10),
+      );
+      await insertEvent(
+        summary: 'Deleted',
+        startDt: DateTime(2026, 9, 10, 9),
+        endDt: DateTime(2026, 9, 10, 10),
+        deletedAt: DateTime(2026, 9, 11),
+      );
+
+      final days = await HomeWidgetService.monthEventDaysOfCurrentMonth(
+        db,
+        now: now,
+      );
+
+      // Boundary-crossing event occupies Aug 31 (outside) + Sep 1 (inside);
+      // multi-day marks each touched September day; out-of-month and
+      // deleted events stay out.
+      expect(days, [1, 3, 28, 29, 30]);
     });
 
     test('legacy encoders keep payloads native readers parse', () async {

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/infrastructure/platform/home_widget_interactivity.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/event/event_create_page.dart';
@@ -50,6 +51,17 @@ abstract final class AppRouter {
     observers: [
       if (!kReleaseMode) _NavObserver(),
     ],
+    // Engine deep links (widget quick-add on Android/iOS/macOS) arrive as
+    // raw scheme URIs (dayspark://quick-add) before any path match exists;
+    // go_router only routes paths, so every scheme URI is funnelled through
+    // widgetDeepLinkLocation — the single scheme→path translation point.
+    redirect: (context, state) {
+      final location = widgetDeepLinkLocation(state.uri);
+      if (location != null && location != state.uri.toString()) {
+        return location;
+      }
+      return null;
+    },
     onException: (context, state, router) {
       if (!kReleaseMode) {
         debugPrint('[GoRouter] EXCEPTION at ${state.matchedLocation}');

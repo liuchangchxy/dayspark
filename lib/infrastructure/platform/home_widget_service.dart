@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -104,6 +105,17 @@ class HomeWidgetService {
   static const int snapshotVersion = 2;
   static const String androidProviderName =
       'com.dayspark.app.CalendarTodoWidgetProvider';
+  static const String androidUpcomingProviderName =
+      'com.dayspark.app.UpcomingWidgetProvider';
+  static const String androidMonthProviderName =
+      'com.dayspark.app.MonthDotsWidgetProvider';
+  // WidgetKit kind names — home_widget reloads one kind per updateWidget
+  // call, so a flush must fan out over all three or the variants go stale.
+  static const List<String> appleWidgetKinds = [
+    'CalendarTodoWidget',
+    'CalendarUpcomingWidget',
+    'CalendarMonthWidget',
+  ];
   static const String legacyEventsKey = 'today_events';
   static const String legacyTodosKey = 'pending_todos';
   static const String legacyCountKey = 'todo_count';
@@ -129,6 +141,7 @@ class HomeWidgetService {
       final todoCount = await pendingTodoCount(db);
       final upcomingEventsList = await upcomingEvents(db);
       final upcomingTodosList = await upcomingTodos(db);
+      final monthEventDays = await monthEventDaysOfCurrentMonth(db);
 
       // Native→app channel: read taps appended since the last flush, land
       // them through the caller's complete path, then write a fresh
@@ -154,15 +167,16 @@ class HomeWidgetService {
         todoCount: todoCount,
         upcomingEvents: upcomingEventsList,
         upcomingTodos: upcomingTodosList,
+        monthEventDays: monthEventDays,
         pendingTaps: pendingTaps,
         ui: ui,
         theme: theme,
         generatedAt: DateTime.now(),
       );
 
-      // Dual-write: CalendarTodoWidgetProvider.kt and both CalendarTodoWidget.swift
-      // files still read the three legacy keys from their native stores, so they
-      // keep working untouched; `widget_snapshot` is the forward contract for P4.
+      // Dual-write kept for the retirement window: legacy three keys stay
+      // one more release as a downlevel fallback; `widget_snapshot` v2 is
+      // now the contract every native reader (T3) consumes.
       await HomeWidget.saveWidgetData(
         legacyEventsKey,
         encodeTodayEvents(events),
@@ -170,10 +184,38 @@ class HomeWidgetService {
       await HomeWidget.saveWidgetData(legacyTodosKey, encodePendingTodos(todos));
       await HomeWidget.saveWidgetData(legacyCountKey, '$todoCount');
       await HomeWidget.saveWidgetData(snapshotKey, jsonEncode(snapshot));
-      await HomeWidget.updateWidget(qualifiedAndroidName: androidProviderName);
+      await refreshNativeWidgets();
     } catch (e) {
       debugPrint('home_widget: update error: $e');
     }
+  }
+
+  // Fans the refresh out over every registered widget: Android needs one
+  // APPWIDGET_UPDATE broadcast per provider class, iOS one reloadTimelines
+  // per WidgetKit kind (home_widget reloads a single kind per call), and
+  // the macOS shim treats any call as reloadAllTimelines. Branching by
+  // platform keeps each call valid there — a name unknown to a platform
+  // completes with an error that would abort the remaining fan-out.
+  static Future<void> refreshNativeWidgets() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      for (final name in [
+        androidProviderName,
+        androidUpcomingProviderName,
+        androidMonthProviderName,
+      ]) {
+        await HomeWidget.updateWidget(qualifiedAndroidName: name);
+      }
+      return;
+    }
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
+      for (final kind in appleWidgetKinds) {
+        await HomeWidget.updateWidget(iOSName: kind);
+      }
+      return;
+    }
+    await HomeWidget.updateWidget(qualifiedAndroidName: androidProviderName);
   }
 
   static Future<List<Event>> todayEvents(AppDatabase db) {
@@ -264,6 +306,50 @@ class HomeWidgetService {
         .get();
   }
 
+  // Days-of-month (1..31) inside the current calendar month that overlap at
+  // least one event — feeds the month-dots widget variant. Derived here in
+  // one bounded query rather than by native code: todayEvents carries no
+  // date and the upcoming bucket only spans 7 days, so the snapshot alone
+  // cannot reconstruct a month grid (T3 brief's allowed minimal Dart
+  // addition).
+  static Future<List<int>> monthEventDaysOfCurrentMonth(
+    AppDatabase db, {
+    DateTime? now,
+  }) async {
+    final ref = now ?? DateTime.now();
+    final monthStart = DateTime(ref.year, ref.month, 1);
+    final monthEnd = DateTime(ref.year, ref.month + 1, 1);
+    final rows = await (db.select(db.events)
+          ..where((t) => t.deletedAt.isNull())
+          ..where(
+            (t) =>
+                t.startDt.isSmallerThanValue(monthEnd) &
+                t.endDt.isBiggerOrEqualValue(monthStart),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.startDt)])
+          ..limit(200))
+        .get();
+    final days = <int>{};
+    for (final e in rows) {
+      if (!e.endDt.isAfter(e.startDt)) {
+        // Zero-length events still occupy their start day.
+        final s = DateTime(e.startDt.year, e.startDt.month, e.startDt.day);
+        if (!s.isBefore(monthStart) && s.isBefore(monthEnd)) {
+          days.add(s.day);
+        }
+        continue;
+      }
+      var cursor = DateTime(e.startDt.year, e.startDt.month, e.startDt.day);
+      if (cursor.isBefore(monthStart)) cursor = monthStart;
+      while (cursor.isBefore(monthEnd) && cursor.isBefore(e.endDt)) {
+        days.add(cursor.day);
+        cursor = cursor.add(const Duration(days: 1));
+      }
+    }
+    final sorted = days.toList()..sort();
+    return sorted;
+  }
+
   static Map<String, Object?> buildSnapshot({
     required List<Event> events,
     required List<Todo> todos,
@@ -274,6 +360,7 @@ class HomeWidgetService {
     required Map<String, Object?> theme,
     required DateTime generatedAt,
     List<WidgetPendingTap> pendingTaps = const [],
+    List<int> monthEventDays = const [],
   }) {
     return {
       'version': snapshotVersion,
@@ -286,6 +373,12 @@ class HomeWidgetService {
         'todos': upcomingTodos.map(upcomingTodoItem).toList(),
       },
       'pendingTaps': pendingTaps.map((t) => t.toJson()).toList(),
+      // Additive on top of the frozen v2 shape: [[dayNumber, hasEvent]]
+      // pairs for the current month — presence of the pair is what marks
+      // the day, `hasEvent` is carried for contract-shape stability.
+      'monthDots': [
+        for (final day in monthEventDays) [day, true],
+      ],
       'ui': ui.toBlock(),
       'theme': theme,
     };
@@ -402,7 +495,10 @@ class HomeWidgetService {
         'isAllDay': e.isAllDay,
       };
 
+  // `id` rides along so native checkbox taps can address the todo in
+  // pendingTaps (native never writes the DB — it only appends the id).
   static Map<String, Object?> todoItem(Todo t) => {
+        'id': t.id,
         'summary': t.summary,
         'dueDate':
             t.dueDate != null ? '${t.dueDate!.month}/${t.dueDate!.day}' : '',

@@ -1,218 +1,199 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- All copy is set at runtime from the snapshot's pre-localized ui block —
-     no android:text defaults here (Kotlin/Swift hold zero hardcoded copy). -->
+<!-- Copy comes from the snapshot ui block at runtime; rows are plain
+     (checkboxes and quick-add live on the primary widget only). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
+    android:id="@+id/upcoming_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="12dp"
     android:background="#FFFFFF">
 
-    <!-- Events section header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingBottom="4dp">
+        android:paddingBottom="6dp">
         <TextView
-            android:id="@+id/widget_events_header"
+            android:id="@+id/upcoming_header"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:textStyle="bold"
             android:textSize="14sp"
-            android:textColor="#1976D2" />
+            android:textColor="#1976D2"
+            android:visibility="gone" />
         <TextView
-            android:id="@+id/widget_date"
+            android:id="@+id/upcoming_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="11sp"
             android:textColor="#999999" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/event_0"
+    <LinearLayout
+        android:id="@+id/upcoming_row_0"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:textColor="#333333"
-        android:paddingBottom="2dp"
-        android:visibility="gone" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/upcoming_text_0"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+        <TextView
+            android:id="@+id/upcoming_secondary_0"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="11sp"
+            android:textColor="#999999" />
+    </LinearLayout>
 
-    <TextView
-        android:id="@+id/event_1"
+    <LinearLayout
+        android:id="@+id/upcoming_row_1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:textColor="#333333"
-        android:paddingBottom="2dp"
-        android:visibility="gone" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/upcoming_text_1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+        <TextView
+            android:id="@+id/upcoming_secondary_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="11sp"
+            android:textColor="#999999" />
+    </LinearLayout>
 
-    <TextView
-        android:id="@+id/event_2"
+    <LinearLayout
+        android:id="@+id/upcoming_row_2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:textColor="#333333"
-        android:paddingBottom="2dp"
-        android:visibility="gone" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/upcoming_text_2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+        <TextView
+            android:id="@+id/upcoming_secondary_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="11sp"
+            android:textColor="#999999" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/upcoming_row_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/upcoming_text_3"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+        <TextView
+            android:id="@+id/upcoming_secondary_3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="11sp"
+            android:textColor="#999999" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/upcoming_row_4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/upcoming_text_4"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+        <TextView
+            android:id="@+id/upcoming_secondary_4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="11sp"
+            android:textColor="#999999" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/upcoming_row_5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/upcoming_text_5"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+        <TextView
+            android:id="@+id/upcoming_secondary_5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:textSize="11sp"
+            android:textColor="#999999" />
+    </LinearLayout>
 
     <TextView
-        android:id="@+id/no_events"
+        android:id="@+id/upcoming_empty"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="12sp"
         android:textColor="#999999"
-        android:visibility="gone" />
-
-    <!-- Divider -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#E0E0E0"
-        android:layout_marginVertical="8dp" />
-
-    <!-- Todos section header -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingBottom="4dp">
-        <TextView
-            android:id="@+id/widget_todos_header"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textStyle="bold"
-            android:textSize="14sp"
-            android:textColor="#F57C00" />
-        <TextView
-            android:id="@+id/todo_count"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="11sp"
-            android:textColor="#999999" />
-    </LinearLayout>
-
-    <!-- Todo rows: whole row is the tap target (≥48dp), checkbox shows the
-         optimistic pendingTaps state. -->
-    <LinearLayout
-        android:id="@+id/todo_row_0"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:visibility="gone">
-        <CheckBox
-            android:id="@+id/todo_check_0"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:clickable="false"
-            android:focusable="false" />
-        <TextView
-            android:id="@+id/todo_text_0"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textSize="13sp"
-            android:textColor="#333333"
-            android:singleLine="true"
-            android:ellipsize="end" />
-        <TextView
-            android:id="@+id/todo_due_0"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:textSize="11sp"
-            android:textColor="#999999"
-            android:visibility="gone" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/todo_row_1"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:visibility="gone">
-        <CheckBox
-            android:id="@+id/todo_check_1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:clickable="false"
-            android:focusable="false" />
-        <TextView
-            android:id="@+id/todo_text_1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textSize="13sp"
-            android:textColor="#333333"
-            android:singleLine="true"
-            android:ellipsize="end" />
-        <TextView
-            android:id="@+id/todo_due_1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:textSize="11sp"
-            android:textColor="#999999"
-            android:visibility="gone" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/todo_row_2"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:visibility="gone">
-        <CheckBox
-            android:id="@+id/todo_check_2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:clickable="false"
-            android:focusable="false" />
-        <TextView
-            android:id="@+id/todo_text_2"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textSize="13sp"
-            android:textColor="#333333"
-            android:singleLine="true"
-            android:ellipsize="end" />
-        <TextView
-            android:id="@+id/todo_due_2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:textSize="11sp"
-            android:textColor="#999999"
-            android:visibility="gone" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/no_todos"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="12sp"
-        android:textColor="#4CAF50"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/widget_quick_add"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginTop="6dp"
-        android:gravity="center"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        android:textColor="#1976D2"
-        android:background="#14000000"
         android:visibility="gone" />
 
 </LinearLayout>

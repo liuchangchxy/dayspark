@@ -32,6 +32,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Widget quick-add deep link: dayspark://quick-add flows
+                 through the Flutter engine's deep-link hook (enabled by
+                 default) into go_router's redirect, which translates it via
+                 widgetDeepLinkLocation — the single scheme→path point. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="dayspark"
+                    android:host="quick-add"/>
+            </intent-filter>
         </activity>
         <!-- flutter_local_notifications 21: required receivers for scheduled
              notifications, boot rescheduling, and notification actions -->
@@ -52,7 +64,7 @@
             android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
 
-        <!-- Home screen widget receiver -->
+        <!-- Home screen widget receivers -->
         <receiver
             android:name=".CalendarTodoWidgetProvider"
             android:exported="true">
@@ -63,6 +75,32 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/calendar_todo_widget_info" />
         </receiver>
+        <receiver
+            android:name=".UpcomingWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/upcoming_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".MonthDotsWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/month_dots_widget_info" />
+        </receiver>
+
+        <!-- Checkbox taps: appends pendingTaps to the snapshot (single-writer
+             rule — never touches the DB) then refreshes all three widgets. -->
+        <receiver
+            android:name=".WidgetActionReceiver"
+            android:exported="false" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
