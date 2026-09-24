@@ -17,7 +17,7 @@
 | 1 | **债务2：统一事件缝** | 派生态（闹钟/小组件）失效目前靠三条临时通道；改为 post-commit 领域事件（record-applied/removed），消一整类 bug。半天 | §4 |
 | 2 | **前端设计走查** | 输入物已就绪：`docs/design-token-gap.md`（DESIGN.md 令牌 vs 代码逐条差距 + kalender 专项）。流程：按五维度清单（间距节奏/字阶/视觉层级/主题一致[驯化 kalender]/状态设计）逐条产出“具体哪+为什么+怎么改”的选择题 → 用户勾选 → 批量执行。设计语言权威 = `DESIGN.md` | §5 |
 | 3 | **MCP 换官方 SDK（用户已指令）** | 先限时 spike 评估 `dart_mcp` server 端成熟度 → 能承载 17 工具+OAuth+Streamable HTTP 则迁移（工具层不动只换协议壳，485 测兜底），不能则写 DECISIONS 转正手写版。**禁止裸换** | DECISIONS「MCP 协议子集与 OAuth2.1 均手写」条 |
-| 4 | **CI 防漂移 grep** | 版本号散布 pubspec/CLAUDE/changelog/ROADMAP 四处靠人同步 → CI 加一致性检查，不一致即红 | 本文档即提案 |
+| 4 | ~~**CI 防漂移 grep**~~ ✅ 2026-09-24 | 版本号散布四处靠人同步 → 已落 `tool/check_version_consistency.sh`：ci.yml `test` 首步（含 `--selftest`）+ release.yml `version-gate`（tag 必须 = `v<pubspec semver>`）。README 徽章与 START_HERE 故意不在门内（发布后才刷新，入闸会误红） | 已实现 / `tool/check_version_consistency.sh` |
 | 5 | **债务1：载荷 schema 版本化** | 同一实体三份表示（Drift/payload/contracts）；payload 加 schemaVersion + 字段清单进 contracts | §4 |
 | 6 | **债务4：应用内限流** | DCR/登录限流目前只靠 DEPLOY.md 的 nginx，裸部署裸奔；加令牌桶中间件 | §4 |
 | 7 | **P5 主菜：后台同步 + 设备注册** | 同步目前前台协作式（App 关闭收不到远端变更）；devices 表/deviceId 半出生从未写入 | §4 + ROADMAP |

@@ -155,9 +155,11 @@ flutter test         # 必须全绿
 |------|------|
 | `pubspec.yaml` | version `0.x+N`（x 和 N 不能同时改：feature 改 x，fix 改 N），**1.0 前不跳版** |
 | `docs/ROADMAP.md` | 补齐当前版本条目 + 更新 Pending Items + 最后更新行 |
-| `docs/changelog.md` | 顶部追加双语日志（feature 写新功能，bug 写问题+修复） |
+| `docs/changelog.md` | 顶部追加双语日志（feature 写新功能，bug 写问题+修复）+ 更新 `最新版本 / Latest` 与 `上一版本 / Previous` 两行 |
 | `docs/CONSTRAINTS.md` | 修 bug 或关键决策后有新约束就加 |
 | `CLAUDE.md` | Current version 行 + 流程改进时同步 |
+
+改完跑 `tool/check_version_consistency.sh` 自检（CI 同款门，别等 push 后才发现漂移）。
 
 ---
 
@@ -226,6 +228,7 @@ gh release view v<version> --json name,tagName,isDraft,isPrerelease,assets
 - `release.yml`：打 tag 触发，build 5 平台 + 上传 Draft Release（不公开）
 - Linux CI 锁定 `runs-on: ubuntu-22.04`（GLIBC 2.35）
 - 新增原生依赖后必须跑 `tool/check_glibc_version.sh`
+- **版本一致性守卫**：`tool/check_version_consistency.sh` 以 `pubspec.yaml` 为 SSOT，校验 `CLAUDE.md` / `docs/changelog.md` / `docs/ROADMAP.md` 的版本标记 —— `ci.yml` `test` job 首步（含 `--selftest` 自证可失败），`release.yml` `version-gate` 门（`--tag` 要求 tag = `v<pubspec semver>`）。README 徽章与 `docs/START_HERE.md` **不在门内**（更新时机在发布之后，入闸会误红）
 - 禁用 `dart format --set-exit-if-changed`，禁用 `--no-fatal-infos`
 
 ---

@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Version consistency guard / 版本一致性守卫
+        run: |
+          tool/check_version_consistency.sh
+          tool/check_version_consistency.sh --selftest
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
