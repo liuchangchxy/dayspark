@@ -16,7 +16,7 @@
 |---|------|-----------|---------|
 | 1 | **债务2：统一事件缝** | 派生态（闹钟/小组件）失效目前靠三条临时通道；改为 post-commit 领域事件（record-applied/removed），消一整类 bug。半天 | §4 |
 | 2 | **前端设计走查** | 输入物已就绪：`docs/design-token-gap.md`（DESIGN.md 令牌 vs 代码逐条差距 + kalender 专项）。流程：按五维度清单（间距节奏/字阶/视觉层级/主题一致[驯化 kalender]/状态设计）逐条产出“具体哪+为什么+怎么改”的选择题 → 用户勾选 → 批量执行。设计语言权威 = `DESIGN.md` | §5 |
-| 3 | **MCP 换官方 SDK（用户已指令）** | 先限时 spike 评估 `dart_mcp` server 端成熟度 → 能承载 17 工具+OAuth+Streamable HTTP 则迁移（工具层不动只换协议壳，485 测兜底），不能则写 DECISIONS 转正手写版。**禁止裸换** | DECISIONS「MCP 协议子集与 OAuth2.1 均手写」条 |
+| 3 | ~~**MCP 换官方 SDK**~~ ✅ 2026-09-24 | spike 实测**不能承载** → 手写版转正。0.5.2 服务端 Streamable HTTP 未发版；main 只认 2026-07-28（该修订已删 initialize/session）；无 shelf 适配；无 OAuth AS。测试兜底精确边界：壳测试 16 例随壳重写 / 行为守卫 = 工具 47 + CLI 13 + e2e 5 / OAuth 54 应原地绿 | DECISIONS [2026-09-24] MCP 转正手写版 |
 | 4 | ~~**CI 防漂移 grep**~~ ✅ 2026-09-24 | 版本号散布四处靠人同步 → 已落 `tool/check_version_consistency.sh`：ci.yml `test` 首步（含 `--selftest`）+ release.yml `version-gate`（tag 必须 = `v<pubspec semver>`）。README 徽章已改 shields.io 动态徽章（读 GitHub Releases，无手同步点），本文件也不再复制当前版本 | 已实现 / `tool/check_version_consistency.sh` |
 | 5 | **债务1：载荷 schema 版本化** | 同一实体三份表示（Drift/payload/contracts）；payload 加 schemaVersion + 字段清单进 contracts | §4 |
 | 6 | **债务4：应用内限流** | DCR/登录限流目前只靠 DEPLOY.md 的 nginx，裸部署裸奔；加令牌桶中间件 | §4 |
@@ -32,8 +32,8 @@
 - D4 应用内令牌桶限流（=队列6）
 - D5 时间三约定（UTC串/墙钟/本地tz）类型化收敛到单一 TimeCodec（靠 CONSTRAINTS 文档约束着，未类型强制）
 
-**B. 用户直接指令（必须执行，勿忘）**
-- MCP → 官方 SDK 迁移（spike→迁移，=队列3）
+**B. 用户直接指令（已执行）**
+- ~~MCP → 官方 SDK 迁移（=队列3）~~ ✅ 2026-09-24 spike 实测不能承载，已按预案写 DECISIONS 转正手写版（含复核触发条件）
 
 **C. 前端设计（=队列2，流程见 §5）**
 

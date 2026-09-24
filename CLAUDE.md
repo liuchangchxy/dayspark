@@ -228,7 +228,7 @@ gh release view v<version> --json name,tagName,isDraft,isPrerelease,assets
 - `release.yml`：打 tag 触发，build 5 平台 + 上传 Draft Release（不公开）
 - Linux CI 锁定 `runs-on: ubuntu-22.04`（GLIBC 2.35）
 - 新增原生依赖后必须跑 `tool/check_glibc_version.sh`
-- **版本一致性守卫**：`tool/check_version_consistency.sh` 以 `pubspec.yaml` 为 SSOT，校验 `CLAUDE.md` / `docs/changelog.md` / `docs/ROADMAP.md` 的版本标记 —— `ci.yml` `test` job 首步（含 `--selftest` 自证可失败），`release.yml` `version-gate` 门（`--tag` 要求 tag = `v<pubspec semver>`）。README 徽章是 shields.io 动态徽章（读 GitHub Releases，无手同步点）；`docs/START_HERE.md` **不在门内**（版本一律指向 pubspec/ROADMAP，不复制）
+- **版本一致性守卫**：`tool/check_version_consistency.sh` 以 `pubspec.yaml` 为 SSOT，校验 `CLAUDE.md` / `docs/changelog.md` / `docs/ROADMAP.md` 的版本标记 + `server/lib/src/mcp/schemas.dart` 的 `mcpServerVersion`（对外 `serverInfo.version`）—— `ci.yml` `test` job 首步（含 `--selftest` 自证可失败），`release.yml` `version-gate` 门（`--tag` 要求 tag = `v<pubspec semver>`）。README 徽章是 shields.io 动态徽章（读 GitHub Releases，无手同步点）；`docs/START_HERE.md` **不在门内**（版本一律指向 pubspec/ROADMAP，不复制）
 - 禁用 `dart format --set-exit-if-changed`，禁用 `--no-fatal-infos`
 
 ---

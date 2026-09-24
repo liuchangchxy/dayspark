@@ -11,7 +11,9 @@ import 'package:timezone/timezone.dart' as tz;
 // content text with isError:true) — JSON-RPC errors are reserved for
 // protocol violations in endpoint.dart.
 
-const String mcpServerVersion = '0.23.0';
+// Reported as serverInfo.version in initialize. Must track pubspec.yaml's
+// major.minor.patch - enforced by tool/check_version_consistency.sh.
+const String mcpServerVersion = '0.24.0';
 const String mcpLatestProtocolVersion = '2025-06-18';
 const List<String> mcpSupportedProtocolVersions = [
   '2024-11-05',

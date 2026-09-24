@@ -47,7 +47,7 @@
 - **Date**: 2026-05-03
 
 ### 版本标记由 CI 守卫，SSOT 是 pubspec.yaml
-- `tool/check_version_consistency.sh` 校验 `CLAUDE.md`（Current version）、`docs/changelog.md`（`Latest` + 顶部 `## v` 节 + `Previous` 行必须等于第二节版本）、`docs/ROADMAP.md`（`Last updated` + `Current` + `Version` 行）
+- `tool/check_version_consistency.sh` 校验 `CLAUDE.md`（Current version）、`docs/changelog.md`（`Latest` + 顶部 `## v` 节 + `Previous` 行必须等于第二节版本）、`docs/ROADMAP.md`（`Last updated` + `Current` + `Version` 行）、`server/lib/src/mcp/schemas.dart`（`mcpServerVersion` = pubspec 的 major.minor.patch）
 - 门的位置：`ci.yml` `test` job 首步（`test` 是所有构建 job 的 `needs`，不一致即全红）+ `release.yml` `version-gate`（`--tag` 要求 tag = `v<pubspec semver>`，防止打错 tag 发出标注错误的产物）
 - **README 徽章与 `docs/START_HERE.md` 不在门内**：徽章已改 shields.io 动态徽章（`github/v/release?include_prereleases`，读 GitHub Releases，无手同步点）；START_HERE 的版本一律指向 `pubspec.yaml` / `docs/ROADMAP.md`，不复制（其自身第 3 行的防漂移原则）
 - **`releases/latest` 对本仓库无效**：全部 release 都是 prerelease，GitHub 的 `/releases/latest` 只认非 prerelease → 302 回 `/releases` 列表。徽章靠 `include_prereleases` 参数绕开，文档链接一律用 `/releases`
@@ -381,6 +381,12 @@
 - **Date**: 2026-09-23
 
 ## MCP / AI 接口
+
+### MCP 协议壳不要换官方 SDK（2026-09-24 实测）
+- `server/lib/src/mcp/endpoint.dart` 的手写壳是**有意选择**，不是待还的债：官方 `dart_mcp` 服务端 Streamable HTTP 未发版、只认 2026-07-28（该修订删了 initialize/session）、无 shelf 适配、无 OAuth 授权服务器
+- 动传输层之前先读 DECISIONS [2026-09-24]「MCP 转正手写版」条（复核触发条件 + 换壳测试兜底边界都在那）
+- **Why**: 避免后来者看到「手写 JSON-RPC」就想换 SDK，把已完成的 spike 重走一遍
+- **Date**: 2026-09-24
 
 ### 业务错误必须以工具结果返回，绝不走 JSON-RPC error
 - `tools/call` 的校验失败/未找到/无权限 → `{content:[{type:'text',text:{code,message,hint}}], isError:true}`；JSON-RPC error（−32601/−32700/−32600/−32002/−32601）**只**留给协议层（未知 method、解析失败、坏信封、未知资源 URI）

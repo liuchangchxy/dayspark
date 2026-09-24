@@ -133,7 +133,10 @@ void main() {
     );
     final result = body['result'] as Map<String, dynamic>;
     expect(result['protocolVersion'], '2025-03-26');
-    expect(result['serverInfo'], {'name': 'dayspark', 'version': '0.23.0'});
+    // Reference the constant, not a literal: the value is pinned against
+    // pubspec.yaml by tool/check_version_consistency.sh, so a literal here
+    // would just re-assert the drift.
+    expect(result['serverInfo'], {'name': 'dayspark', 'version': mcpServerVersion});
     final capabilities = result['capabilities'] as Map<String, dynamic>;
     expect((capabilities['tools'] as Map)['listChanged'], false);
     expect((capabilities['resources'] as Map)['listChanged'], false);

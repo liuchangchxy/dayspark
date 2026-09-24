@@ -2,11 +2,13 @@
 # Version drift guard: every human-synced copy of the project version must match
 # pubspec.yaml (the single source of truth).
 #
-# Gated markers — all four files are updated together by the "docs: vX 文档与版本"
-# commit (CLAUDE.md workflow step 6):
+# Gated markers — the docs are updated together by the "docs: vX 文档与版本" commit
+# (CLAUDE.md workflow step 6); the code constant must track pubspec at all times:
 #   CLAUDE.md           - Current version
 #   docs/changelog.md   - 最新版本 / Latest, top "## v" section, 上一版本 / Previous
 #   docs/ROADMAP.md     - 最后更新 / Last updated, 当前版本 / Current, Version row
+#   server/lib/src/mcp/schemas.dart - mcpServerVersion, reported to every MCP client
+#                         as serverInfo.version (major.minor.patch, no build number)
 #
 # Deliberately NOT gated, because neither carries a hand-synced version literal:
 #   README.md           - shields.io badge reads the GitHub Releases API
@@ -133,6 +135,9 @@ run_checks() {
   expect docs/ROADMAP.md "Version row" \
     's/^| Version \/ 版本 | v\([^ ]*\) .*$/\1/p' "$full"
 
+  expect server/lib/src/mcp/schemas.dart "mcpServerVersion" \
+    "s/^const String mcpServerVersion = '\([^']*\)'.*$/\1/p" "$semver"
+
   if [ -n "$tag" ]; then
     if [ "$tag" = "v$semver" ]; then
       note_ok "release tag" "$tag"
@@ -163,17 +168,19 @@ fake_semver="0.99.9"
 bumped_full="0.100.0+10"
 bumped_semver="0.100.0"
 
+gated_files="pubspec.yaml CLAUDE.md docs/changelog.md docs/ROADMAP.md server/lib/src/mcp/schemas.dart"
+
 build_fixture() { # build_fixture <dir>
   rm -rf "$1"
-  mkdir -p "$1/docs"
+  mkdir -p "$1/docs" "$1/server/lib/src/mcp"
   local f real_full real_semver
-  for f in pubspec.yaml CLAUDE.md docs/changelog.md docs/ROADMAP.md; do
+  for f in $gated_files; do
     cp "$repo_root/$f" "$1/$f"
   done
   real_full="$(sed -n 's/^version:[[:space:]]*\([^[:space:]]*\).*$/\1/p' "$repo_root/pubspec.yaml" | head -n 1)"
   real_semver="${real_full%%+*}"
   # Neutralise the real version literals so the fixture stays valid across releases.
-  for f in pubspec.yaml CLAUDE.md docs/changelog.md docs/ROADMAP.md; do
+  for f in $gated_files; do
     replace_literal "$1/$f" "$real_full" "$fake_full"
     replace_literal "$1/$f" "$real_semver" "$fake_semver"
   done
@@ -186,6 +193,7 @@ bump_fixture() { # bump_fixture <dir> - replay a correct release bump on the nor
   replace_literal "$fx/docs/changelog.md" "**v$fake_full**" "**v$bumped_full**"
   mutate "$fx/docs/changelog.md" "s/^- 上一版本 \/ Previous: \*\*v[^*]*\*\*/- 上一版本 \/ Previous: **v$fake_full**/"
   replace_literal "$fx/docs/ROADMAP.md" "v$fake_full" "v$bumped_full"
+  replace_literal "$fx/server/lib/src/mcp/schemas.dart" "'$fake_semver'" "'$bumped_semver'"
   # insert the new release section so the old one becomes the "previous" section
   awk -v old="## v$fake_full" -v new="## v$bumped_full - Bump / 升版" '
     { if (!done && index($0, old) == 1) { print new; done = 1 } print }
@@ -261,6 +269,11 @@ run_selftest() {
   mutate "$tmp/fx/docs/changelog.md" 's/^- 上一版本 \/ Previous: \*\*v[^*]*\*\*/- 上一版本 \/ Previous: **v0.0.1+1**/'
   assert_guard fail "changelog Previous out of step" "$tmp/fx"
   assert_mentions "Previous"
+
+  build_fixture "$tmp/fx"
+  replace_literal "$tmp/fx/server/lib/src/mcp/schemas.dart" "'$fake_semver'" "'0.90.0'"
+  assert_guard fail "mcpServerVersion out of step with pubspec" "$tmp/fx"
+  assert_mentions "mcpServerVersion"
 
   build_fixture "$tmp/fx"
   mutate "$tmp/fx/pubspec.yaml" 's/^version: .*/version: 1.0.0+25/'

@@ -123,6 +123,7 @@
 - **核心决策**：**两处均选手写**（`dart_mcp` 适配性评估未实际发生，按计划默认路径走）——MCP 侧：需要 `isError` 工具结果承载业务错误（严格 SDK 会返回 −32602）、单消息子集拒 batch 数组、401 `WWW-Authenticate` 挑战形状自定义，这三点都是 spec 允许但 SDK 默认行为不同的偏差，协议测试逐条对拍 `initialize`/`tools/list` 形状兜底；OAuth 侧：只需 RFC 8414/9728/7591/6749/7009 的**无状态子集**（PKCE-S256 强制、code sha256 单次、refresh 轮换复用 P2 家族吊销、argon2id 客户端密钥），引入 OAuth SDK 会带上会话/CSRF 框架并绕开既有 hash/rotation 设施，收益不成比例。
 - **对应 SPEC 章节**：SPEC.md 3.3 规则 6、4.2
 - **影响范围**：`server/lib/src/mcp/endpoint.dart`、`server/lib/src/oauth/`、`server/test/mcp_protocol_test.dart`、`server/test/oauth_test.dart`。
+- **后续（2026-09-24）**：spike 实测完成 → 见下条「MCP 转正手写版」。其中「严格 SDK 会返回 −32602」这一前提**已被实测推翻**，真正的阻塞是传输 / 协议版本 / OAuth。
 
 ### [2026-09-23] AI 删除姿态 = trash 软删（可恢复），无永久删除工具
 - **触发背景**：工具面写操作需要删除语义；对照 AllisWell「无删除姿态」（仅设计吸收，PolyForm NC 禁抄码）与本项目既有回收站（事件/待办均软删 + 恢复 + 清空）。
@@ -171,3 +172,18 @@
 - **核心决策**：对照实验证明**空数组同样崩**（填值版与 `<array/>` 版均 exit 137、crash report 同症状；仅整键删除存活 ≥7s）→ 决定**整键从 DebugProfile/Release entitlements 删除**并留 dict 内 WHY 注释（偏离 coordinator 最初「改回 empty array」的字面指令，按其根因意图执行）。`flutter_secure_storage` 落 default partition 不受影响；仅真实 Developer-ID/Team 签名构建才可加回。
 - **对应 SPEC 章节**：SPEC.md 3.4 P4 行（平台补齐）
 - **影响范围**：`macos/Runner/{DebugProfile,Release}.entitlements`、`docs/CONSTRAINTS.md` Apple Signing 章节、CI macOS adhoc DMG 可启动性。
+
+### [2026-09-24] MCP 转正手写版：官方 SDK spike 实测不能承载（关闭「换官方 SDK」指令）
+- **触发背景**：用户指令「先限时 spike 评估 `dart_mcp` server 端成熟度 → 能承载 17 工具+OAuth+Streamable HTTP 则迁移（工具层不动只换协议壳），不能则写 DECISIONS 转正手写版；**禁止裸换**」。spike 两路：官方 SDK 外部调研 + 仓库内换壳影响面测绘（壳 / 接缝 / 工具层三层边界）。
+- **核心决策**：**不迁移，手写版转正**。证据（pub.dev API 与源码均一手核验）：
+  ① 已发布最新版 `dart_mcp` **0.5.2（2026-06-29）服务端 Streamable HTTP 尚未发版**，只存在于未发布的 main `0.6.0-wip`（issue #162 仍 open）；
+  ② main 的 HTTP handler `streamable_http.dart:921` 为 `_supportedVersions = {ProtocolVersion.v2026_07_28}`，而该修订**删除 initialize 握手与协议级 session**（官方 spec changelog 原文：「Make MCP stateless: remove the initialize/notifications/initialized handshake」「Remove protocol-level sessions and the Mcp-Session-Id header」）——DaySpark 跑 2025-06-18 + initialize；
+  ③ handler 只吃 `dart:io HttpRequest`，**无 shelf 适配**，接入即绕开既有 shelf 中间件与 401 挑战链；
+  ④ `README`「Authorization is not supported at this time」→ 自研 OAuth 2.1 AS（DCR/PKCE/token/双轨）**100% 仍需保留**。
+  净收益仅「工具/资源注册 API」（本已是最薄的一层），代价是未发版依赖 + 协议降级 + dart:io 耦合 + 0.2→0.6 每个 minor 均 BREAKING。内部测绘另证：壳↔工具接缝不是可插拔端口（一组 plain Dart 类型 + 函数值字段 `ScopeChecker`），故「只换壳」本就需新写适配层 + scope 门重找挂点。
+- **修正一条错误前提**：2026-09-23 条把「严格 SDK 会返回 −32602」列为阻塞理由，**实测推翻**——SDK 的参数校验失败、未知工具、以及工具实现抛出的异常都统一转成 `isError: true` 的 tool result（`tools_support.dart`，catch 处注释 "converted into failed tool call responses"），与本项目「业务错误走工具结果」同向。真正阻塞在**传输 / 协议版本 / OAuth**，将来重看勿再引用旧理由。
+- **复核触发条件**（四条同时满足才值得重开）：官方 Streamable HTTP **服务端**上 pub.dev 且稳定 → 支持 2025-06-18 或提供明确前向兼容路径 → 有 shelf 适配（或可注入自定义 401 挑战）→ 主流客户端普遍协商其支持的协议版本。
+- **对应 SPEC 章节**：SPEC.md 3.3 规则 4/6、4.2
+- **影响范围**：本条 + 2026-09-23 条的后续指针；`docs/START_HERE.md` 队列 3 收口；`server/lib/src/mcp/*`、`tool/mcp_stdio_wrapper`、`tool/dayspark_cli` 均**保持不动**。
+- **附带产出**：换壳测试兜底的精确边界 = 壳测试 `mcp_protocol_test` 16 例（随壳重写）/ 行为守卫 `mcp_tools_test` 47 + CLI 13 + e2e 5（e2e 是唯一真 socket，不可豁免）/ `oauth_test` 54 应原地绿；另修一处活漂移 `mcpServerVersion`（0.23.0 → 0.24.0，并纳入版本守卫）。
+- **备查（不建议采用）**：第三方 `mcp_server` 2.2.3（依赖 shelf、覆盖 2024-11-05→2025-11-25）与 `mcp_dart` 2.4.2 更贴近需求，但均不做授权服务器、均属 pre-1.0 第三方依赖（与钉 kalender 同类风险）。
