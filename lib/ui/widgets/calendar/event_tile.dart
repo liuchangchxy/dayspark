@@ -64,20 +64,23 @@ class EventTile extends StatelessWidget {
       final timeStr = event.isAllDay
           ? ''
           : ' ${DateFormatters.formatTime(event.start)} – ${DateFormatters.formatTime(event.end)}';
-      return Semantics(
-        label: '${event.title}$timeStr',
-        hint: AppLocalizations.of(context)!.openEventDetails,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          child: InkWell(
-            onTap: onTap,
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          label: '${event.title}$timeStr',
+          hint: AppLocalizations.of(context)!.openEventDetails,
+          child: Material(
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(6),
-            child: tile,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(6),
+              child: tile,
+            ),
           ),
         ),
       );
     }
-    return tile;
+    return MouseRegion(cursor: SystemMouseCursors.click, child: tile);
   }
 }

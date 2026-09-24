@@ -303,15 +303,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(Switch), findsOneWidget);
+    expect(find.byType(Switch), findsNWidgets(2));
+    final hideCompletedSwitch = find.descendant(
+      of: find.ancestor(
+        of: find.text('Hide completed'),
+        matching: find.byType(SwitchListTile),
+      ),
+      matching: find.byType(Switch),
+    );
     expect(
-      tester.widget<Switch>(find.byType(Switch)).value,
+      tester.widget<Switch>(hideCompletedSwitch).value,
       isFalse,
     );
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(hideCompletedSwitch);
     await tester.pumpAndSettle();
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect(tester.widget<Switch>(hideCompletedSwitch).value, isTrue);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('hide_completed'), isTrue);
@@ -339,6 +346,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    final hideCompletedSwitch = find.descendant(
+      of: find.ancestor(
+        of: find.text('Hide completed'),
+        matching: find.byType(SwitchListTile),
+      ),
+      matching: find.byType(Switch),
+    );
+    expect(tester.widget<Switch>(hideCompletedSwitch).value, isTrue);
   });
 }

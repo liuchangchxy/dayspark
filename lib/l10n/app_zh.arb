@@ -283,6 +283,7 @@
     }
   },
   "sixThings": "六件事",
+  "sixThingsDesc": "今日清单最多显示六项，超出折叠展开",
   "moreItems": "更多 ({count})",
   "@moreItems": {
     "placeholders": {
@@ -292,6 +293,8 @@
   "collapseList": "收起",
   "hideCompleted": "隐藏已完成",
   "hideCompletedDesc": "在待办列表中隐藏已完成条目",
+  "advancedSettings": "高级",
+  "emptySlotSemantics": "空白时间段，点按新建日程",
   "holidayRestBadge": "休",
   "holidayWorkBadge": "班",
   "termLiChun": "立春",

@@ -39,8 +39,14 @@ String solarTermLabel(AppLocalizations l, String zhName) {
 class MarkedMonthDayHeader extends StatelessWidget {
   final DateTime date;
   final MonthDayHeaderStyle? style;
+  final bool dim;
 
-  const MarkedMonthDayHeader({super.key, required this.date, this.style});
+  const MarkedMonthDayHeader({
+    super.key,
+    required this.date,
+    this.style,
+    this.dim = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +68,7 @@ class MarkedMonthDayHeader extends StatelessWidget {
           color: theme.textTheme.bodyMedium?.color,
         );
 
-    return Column(
+    final content = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -137,5 +143,7 @@ class MarkedMonthDayHeader extends StatelessWidget {
           ),
       ],
     );
+    if (!dim) return content;
+    return Opacity(opacity: 0.3, child: content);
   }
 }

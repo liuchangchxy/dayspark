@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 void main() {
   group('EventTile', () {
@@ -88,6 +89,36 @@ void main() {
       expect(find.text('Holiday'), findsOneWidget);
       // No time text should be present for all-day events
       expect(find.text('00:00'), findsNothing);
+    });
+
+    testWidgets('wraps the tile in a click-cursor MouseRegion',
+        (tester) async {
+      final event = CalendaEventAdapter(
+        drifId: 3,
+        calendarId: 10,
+        title: 'Clickable',
+        start: DateTime(2026, 4, 17, 10, 0),
+        end: DateTime(2026, 4, 17, 11, 0),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: EventTile(event: event, onTap: () {}),
+          ),
+        ),
+      );
+
+      final regions = tester.widgetList<MouseRegion>(
+        find.descendant(
+          of: find.byType(EventTile),
+          matching: find.byType(MouseRegion),
+        ),
+      );
+      expect(regions.any((r) => r.cursor == SystemMouseCursors.click),
+          isTrue);
     });
   });
 }

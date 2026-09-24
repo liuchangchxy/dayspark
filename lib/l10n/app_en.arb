@@ -359,6 +359,7 @@
     }
   },
   "sixThings": "Six Things",
+  "sixThingsDesc": "Cap today's list at six items with a More fold",
   "moreItems": "More ({count})",
   "@moreItems": {
     "placeholders": {
@@ -368,6 +369,8 @@
   "collapseList": "Collapse",
   "hideCompleted": "Hide completed",
   "hideCompletedDesc": "Hide completed items from todo lists",
+  "advancedSettings": "Advanced",
+  "emptySlotSemantics": "Empty time slot, activate to create an event",
   "holidayRestBadge": "Off",
   "holidayWorkBadge": "Work",
   "termLiChun": "Spring Begins",

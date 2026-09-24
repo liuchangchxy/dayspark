@@ -56,15 +56,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         children: [
           const AppearanceSection(),
           const Divider(),
-          const ImportExportSection(),
-          const Divider(),
           const TodosSection(),
+          const Divider(),
+          const ImportExportSection(),
           const Divider(),
           const AccountSection(),
           const Divider(),
           const AiSection(),
           const NotificationsSection(),
-          AboutSection(version: _cachedVersion ?? ''),
+          const Divider(),
+          ExpansionTile(
+            leading: const Icon(CupertinoIcons.gear),
+            title: Text(l.advancedSettings),
+            children: [
+              AboutSection(version: _cachedVersion ?? ''),
+            ],
+          ),
         ],
       ),
     );

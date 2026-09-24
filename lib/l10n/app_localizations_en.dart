@@ -752,6 +752,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sixThings => 'Six Things';
 
   @override
+  String get sixThingsDesc => 'Cap today\'s list at six items with a More fold';
+
+  @override
   String moreItems(int count) {
     return 'More ($count)';
   }
@@ -764,6 +767,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hideCompletedDesc => 'Hide completed items from todo lists';
+
+  @override
+  String get advancedSettings => 'Advanced';
+
+  @override
+  String get emptySlotSemantics => 'Empty time slot, activate to create an event';
 
   @override
   String get holidayRestBadge => 'Off';

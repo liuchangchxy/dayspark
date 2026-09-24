@@ -2,10 +2,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kalender/kalender.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
+import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
 Future<void> _pumpCalendar(
@@ -200,5 +202,61 @@ void main() {
     );
 
     expect(find.text('Zero hour day'), findsWidgets);
+  });
+
+  testWidgets('day and week views open scrolled to 08:00', (tester) async {
+    await _pumpCalendar(tester, events: []);
+
+    final weekConfig =
+        tester.widget<CalendarView>(find.byType(CalendarView));
+    expect(weekConfig.viewConfiguration, isA<MultiDayViewConfiguration>());
+    expect(
+      (weekConfig.viewConfiguration as MultiDayViewConfiguration)
+          .initialTimeOfDay,
+      const TimeOfDay(hour: 8, minute: 0),
+    );
+
+    await tester.tap(find.text('Day'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final dayConfig =
+        tester.widget<CalendarView>(find.byType(CalendarView));
+    expect(
+      (dayConfig.viewConfiguration as MultiDayViewConfiguration)
+          .initialTimeOfDay,
+      const TimeOfDay(hour: 8, minute: 0),
+    );
+  });
+
+  testWidgets('multi-day body exposes empty-slot button semantics',
+      (tester) async {
+    await _pumpCalendar(tester, events: []);
+
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Semantics &&
+            w.properties.button == true &&
+            w.properties.label ==
+                'Empty time slot, activate to create an event',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('month view dims out-of-month day headers', (tester) async {
+    await _pumpCalendar(tester, events: []);
+
+    await tester.tap(find.text('Month'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final headers = tester
+        .widgetList<MarkedMonthDayHeader>(find.byType(MarkedMonthDayHeader))
+        .toList();
+    expect(headers, isNotEmpty);
+    expect(headers.any((h) => h.dim), isTrue);
+    expect(headers.any((h) => !h.dim), isTrue);
   });
 }

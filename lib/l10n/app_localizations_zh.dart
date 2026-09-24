@@ -752,6 +752,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sixThings => '六件事';
 
   @override
+  String get sixThingsDesc => '今日清单最多显示六项，超出折叠展开';
+
+  @override
   String moreItems(int count) {
     return '更多 ($count)';
   }
@@ -764,6 +767,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hideCompletedDesc => '在待办列表中隐藏已完成条目';
+
+  @override
+  String get advancedSettings => '高级';
+
+  @override
+  String get emptySlotSemantics => '空白时间段，点按新建日程';
 
   @override
   String get holidayRestBadge => '休';

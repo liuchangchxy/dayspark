@@ -262,9 +262,11 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
       _viewConfiguration = switch (mode) {
         CalendarViewMode.day => MultiDayViewConfiguration.singleDay(
             initialDateTime: _anchorDate,
+            initialTimeOfDay: const TimeOfDay(hour: 8, minute: 0),
           ),
         CalendarViewMode.week => MultiDayViewConfiguration.week(
             initialDateTime: _anchorDate,
+            initialTimeOfDay: const TimeOfDay(hour: 8, minute: 0),
           ),
         CalendarViewMode.month => MonthViewConfiguration.singleMonth(
             initialDateTime: _anchorDate,
@@ -278,6 +280,42 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+
+    final calendarView = CalendarView(
+      eventsController: _eventsController,
+      calendarController: _calendarController,
+      viewConfiguration: _resolveViewConfiguration(),
+      callbacks: _buildCallbacks(),
+      components: CalendarComponents(
+        monthComponents: MonthComponents(
+          bodyComponents: MonthBodyComponents(
+            // Month day cells carry solar-term labels and statutory
+            // holiday / makeup-workday badges.
+            monthDayHeaderBuilder: (date, style) => MarkedMonthDayHeader(
+              date: date,
+              style: style,
+              dim:
+                  date.year != _anchorDate.year ||
+                  date.month != _anchorDate.month,
+            ),
+          ),
+        ),
+      ),
+      header: CalendarHeader(
+        callbacks: _buildCallbacks(),
+        interaction: _interaction,
+        multiDayTileComponents: _tileComponents,
+      ),
+      body: CalendarBody(
+        callbacks: _buildCallbacks(),
+        interaction: _interaction,
+        multiDayTileComponents: _tileComponents,
+        monthTileComponents: _tileComponents,
+        multiDayBodyConfiguration: MultiDayBodyConfiguration(
+          eventLayoutStrategy: sideBySideLayoutStrategy,
+        ),
+      ),
+    );
 
     return Column(
       children: [
@@ -390,35 +428,18 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
           ),
         ),
         Expanded(
-          child: CalendarView(
-            eventsController: _eventsController,
-            calendarController: _calendarController,
-            viewConfiguration: _resolveViewConfiguration(),
-            callbacks: _buildCallbacks(),
-            components: CalendarComponents(
-              monthComponents: MonthComponents(
-                bodyComponents: MonthBodyComponents(
-                  // Month day cells carry solar-term labels and statutory
-                  // holiday / makeup-workday badges.
-                  monthDayHeaderBuilder: (date, style) =>
-                      MarkedMonthDayHeader(date: date, style: style),
-                ),
-              ),
-            ),
-            header: CalendarHeader(
-              callbacks: _buildCallbacks(),
-              interaction: _interaction,
-              multiDayTileComponents: _tileComponents,
-            ),
-            body: CalendarBody(
-              callbacks: _buildCallbacks(),
-              interaction: _interaction,
-              multiDayTileComponents: _tileComponents,
-              monthTileComponents: _tileComponents,
-              multiDayBodyConfiguration: MultiDayBodyConfiguration(
-                eventLayoutStrategy: sideBySideLayoutStrategy,
-              ),
-            ),
+          // kalender exposes no semantics node for the blank tap-target
+          // slots, so the day/week body region carries the button label
+          // instead (tiles inside keep their own semantics). The wrapper
+          // stays on every mode so CalendarView keeps its state across
+          // view switches.
+          child: Semantics(
+            button: _viewMode != CalendarViewMode.month,
+            label:
+                _viewMode == CalendarViewMode.month
+                    ? null
+                    : l.emptySlotSemantics,
+            child: calendarView,
           ),
         ),
       ],

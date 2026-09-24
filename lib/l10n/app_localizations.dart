@@ -1481,6 +1481,12 @@ abstract class AppLocalizations {
   /// **'Six Things'**
   String get sixThings;
 
+  /// No description provided for @sixThingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap today\'s list at six items with a More fold'**
+  String get sixThingsDesc;
+
   /// No description provided for @moreItems.
   ///
   /// In en, this message translates to:
@@ -1504,6 +1510,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide completed items from todo lists'**
   String get hideCompletedDesc;
+
+  /// No description provided for @advancedSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get advancedSettings;
+
+  /// No description provided for @emptySlotSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty time slot, activate to create an event'**
+  String get emptySlotSemantics;
 
   /// No description provided for @holidayRestBadge.
   ///
