@@ -231,6 +231,62 @@ final class TodoWriter {
     tx.bulkChanged(RecordType.todo, reason: 'identity-reset');
   }
 
+  // 远端真值落地（同步 applier）：只写行 + 登记，不回灌 outbox（见 event_writer
+  // 同名声明的 WHY）。
+  static Future<void> applyRemote(
+    AppDatabase db,
+    RecordScope tx, {
+    required int? existingId,
+    required TodosCompanion data,
+    required DateTime? previousReference,
+  }) async {
+    if (existingId == null) {
+      final id = await db.into(db.todos).insert(data);
+      tx.applied(RecordType.todo, id);
+      return;
+    }
+    await (db.update(
+      db.todos,
+    )..where((t) => t.id.equals(existingId))).write(data);
+    tx.applied(
+      RecordType.todo,
+      existingId,
+      previousReference: previousReference,
+    );
+  }
+
+  // 远端 tombstone：父行进回收站、reminder 行保留为惰性（同 event_writer 的
+  // applyRemoteTombstone）。
+  static Future<void> applyRemoteTombstone(
+    AppDatabase db,
+    RecordScope tx,
+    int id, {
+    required DateTime serverTs,
+    required int rev,
+  }) async {
+    final reminderIds = await ReminderWriter.idsOfParent(db, 'todo', id);
+    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
+      TodosCompanion(
+        deletedAt: Value(serverTs),
+        updatedAt: Value(serverTs),
+        serverRev: Value(rev),
+      ),
+    );
+    tx.removed(RecordType.todo, id, reminderIds: reminderIds);
+  }
+
+  // 只推进 rev，有意空登记（同 event_writer 的 applyRemoteRev）。
+  static Future<void> applyRemoteRev(
+    AppDatabase db,
+    RecordScope tx,
+    int id,
+    int rev,
+  ) async {
+    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
+      TodosCompanion(serverRev: Value(rev)),
+    );
+  }
+
   static Future<Todo?> _row(AppDatabase db, int id) {
     return (db.select(db.todos)..where((t) => t.id.equals(id)))
         .getSingleOrNull();

@@ -1,4 +1,7 @@
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/event_writer.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
@@ -11,6 +14,11 @@ import 'sync_payload.dart';
 /// pending local ops were already resolved against the server; pull never
 /// consults the outbox (records whose push result was `conflict` were
 /// overwritten here and dropped from the outbox during the push step).
+///
+/// Every row write goes through `writers/` with the caller's [RecordScope]
+/// — the applier materialises remote truth, so it registers the derived
+/// state change but never enqueues an outbox op (that would echo the
+/// server's own value back as a local push).
 class SyncApplier {
   SyncApplier(this.db);
 
@@ -19,11 +27,11 @@ class SyncApplier {
   /// Returns false when the record is malformed or is a tombstone with no
   /// local row (nothing to soft-delete); such records are skipped instead
   /// of failing the whole round.
-  Future<bool> apply(SyncRecord record) async {
+  Future<bool> apply(SyncRecord record, RecordScope tx) async {
     try {
       return switch (record.type) {
-        RecordType.event => await _applyEvent(record),
-        RecordType.todo => await _applyTodo(record),
+        RecordType.event => await _applyEvent(record, tx),
+        RecordType.todo => await _applyTodo(record, tx),
       };
     } on FormatException catch (e) {
       debugPrint('sync applier: skip ${record.id}: $e');
@@ -31,7 +39,7 @@ class SyncApplier {
     }
   }
 
-  Future<bool> _applyEvent(SyncRecord record) async {
+  Future<bool> _applyEvent(SyncRecord record, RecordScope tx) async {
     final payload = record.payload;
     final existing = await (db.select(db.events)
           ..where((t) => t.syncId.equals(record.id)))
@@ -40,16 +48,17 @@ class SyncApplier {
     if (record.deleted) {
       if (existing == null) return false;
       if (existing.deletedAt != null) {
-        await _bumpEventRev(existing.id, record.rev);
+        await EventWriter.applyRemoteRev(db, tx, existing.id, record.rev);
       } else {
         // Local trash mirrors the server tombstone; the row itself stays
         // so the recycle-bin restore path keeps working.
-        await (db.update(db.events)..where((t) => t.id.equals(existing.id)))
-            .write(EventsCompanion(
-          deletedAt: Value(record.serverTs),
-          updatedAt: Value(record.serverTs),
-          serverRev: Value(record.rev),
-        ));
+        await EventWriter.applyRemoteTombstone(
+          db,
+          tx,
+          existing.id,
+          serverTs: record.serverTs,
+          rev: record.rev,
+        );
       }
       return true;
     }
@@ -69,16 +78,17 @@ class SyncApplier {
       syncId: Value(record.id),
       serverRev: Value(record.rev),
     );
-    if (existing == null) {
-      await db.into(db.events).insert(companion);
-    } else {
-      await (db.update(db.events)..where((t) => t.id.equals(existing.id)))
-          .write(companion);
-    }
+    await EventWriter.applyRemote(
+      db,
+      tx,
+      existingId: existing?.id,
+      data: companion,
+      previousReference: existing?.startDt,
+    );
     return true;
   }
 
-  Future<bool> _applyTodo(SyncRecord record) async {
+  Future<bool> _applyTodo(SyncRecord record, RecordScope tx) async {
     final payload = record.payload;
     final existing = await (db.select(db.todos)
           ..where((t) => t.syncId.equals(record.id)))
@@ -87,14 +97,15 @@ class SyncApplier {
     if (record.deleted) {
       if (existing == null) return false;
       if (existing.deletedAt != null) {
-        await _bumpTodoRev(existing.id, record.rev);
+        await TodoWriter.applyRemoteRev(db, tx, existing.id, record.rev);
       } else {
-        await (db.update(db.todos)..where((t) => t.id.equals(existing.id)))
-            .write(TodosCompanion(
-          deletedAt: Value(record.serverTs),
-          updatedAt: Value(record.serverTs),
-          serverRev: Value(record.rev),
-        ));
+        await TodoWriter.applyRemoteTombstone(
+          db,
+          tx,
+          existing.id,
+          serverTs: record.serverTs,
+          rev: record.rev,
+        );
       }
       return true;
     }
@@ -131,22 +142,13 @@ class SyncApplier {
       syncId: Value(record.id),
       serverRev: Value(record.rev),
     );
-    if (existing == null) {
-      await db.into(db.todos).insert(companion);
-    } else {
-      await (db.update(db.todos)..where((t) => t.id.equals(existing.id)))
-          .write(companion);
-    }
+    await TodoWriter.applyRemote(
+      db,
+      tx,
+      existingId: existing?.id,
+      data: companion,
+      previousReference: existing?.dueDate,
+    );
     return true;
-  }
-
-  Future<void> _bumpEventRev(int id, int rev) async {
-    await (db.update(db.events)..where((t) => t.id.equals(id)))
-        .write(EventsCompanion(serverRev: Value(rev)));
-  }
-
-  Future<void> _bumpTodoRev(int id, int rev) async {
-    await (db.update(db.todos)..where((t) => t.id.equals(id)))
-        .write(TodosCompanion(serverRev: Value(rev)));
   }
 }

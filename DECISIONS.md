@@ -187,3 +187,15 @@
 - **影响范围**：本条 + 2026-09-23 条的后续指针；`docs/START_HERE.md` 队列 3 收口；`server/lib/src/mcp/*`、`tool/mcp_stdio_wrapper`、`tool/dayspark_cli` 均**保持不动**。
 - **附带产出**：换壳测试兜底的精确边界 = 壳测试 `mcp_protocol_test` 16 例（随壳重写）/ 行为守卫 `mcp_tools_test` 47 + CLI 13 + e2e 5（e2e 是唯一真 socket，不可豁免）/ `oauth_test` 54 应原地绿；另修一处活漂移 `mcpServerVersion`（0.23.0 → 0.24.0，并纳入版本守卫）。
 - **备查（不建议采用）**：第三方 `mcp_server` 2.2.3（依赖 shelf、覆盖 2024-11-05→2025-11-25）与 `mcp_dart` 2.4.2 更贴近需求，但均不做授权服务器、均属 pre-1.0 第三方依赖（与钉 kalender 同类风险）。
+
+### [2026-09-24] 派生态失效统一到"记录缝"：显式 scope（非 Zone 缓冲 / 非执行器拦截）+ 允许物化回写
+- **触发背景**：闹钟/小组件的派生态失效靠三条临时通道（provider 内联手调、UI save 后手写补丁、小组件 `tableUpdates`），合起来仍留 7 处盲区，其中 3 处是用户可见缺陷——远端改期不重挂（P2.5 #1）、远端删除不撤已排队通知（幽灵响铃）、事件回收站恢复不重挂。根因不是"少调了几次"，而是没有单一失效机制。
+- **核心决策**：把失效统一到 **post-commit 领域事件**，发点唯一 = `RecordScope.run`（`lib/domain/records/record_scope.dart`，写入即登记、`db.transaction` 返回后才 `publish`；回滚 = 零发布）。
+  - **为何选 A 显式 scope（`tx` 随 body 传入）而非 B Zone 环境缓冲**：B 漏调 `record()` 完全静默（与当年淘汰 tableUpdates-only 是同一个错误的一半）；A 的漏传**不编译**（`tx` 是必填参数），绕开写入口则守卫 G1 红。Zone 的 `_scopeKey` 只用于探测嵌套，登记永远显式。
+  - **为何 C（`QueryExecutor.interceptWith` 拦截）降级为可选 tripwire、不做机制**：无 row id、`runBatched` 不透明，且挡不住"写对了但没登记"；一旦成机制就要长期背着这份脆弱性。
+  - **为何允许物化回写 `reminders.triggerTime`**：行内时刻是下一次位移的锚——不回写会让第 2 次改期起按上一段位移漂移（首审 P1，极端时会把正确通知撤掉且不再排 = 永不响）。回写仍走缝（`ReminderWriter.materializeTrigger`）但**登记为空**：它不是新的领域事实，登记会让事件在总线上绕一圈回到重排器自己。**锚点归属按 D12**：只有"我们自己物化过的行"（`_materialized[id]` 与行内值同一瞬间）才敢拿会话内锚点 reference 当位移基准，否则退回事件自述的 `previousReference`（这是陈旧事件重复施加位移的防线）。
+  - **为何撤除通道①（provider 内联 `cancel`/`schedule`，14 处调用点）**：与缝并行会让同一 id 在同一时刻被排/撤两次（T3b 实测 `Actual: [2, 2]`）。三条临时通道 → 一条缝；`rescheduleRemindersProvider` 随之删除，其能力由 `ReminderWriter.referenceChanged` 承载。
+  - **远端 tombstone 为何不删提醒行（T4 明确不改的一个既有行为）**：pre-T4 的 applier 落 tombstone 时**根本不动提醒行**——提醒行在本地一直保留；T4 只是给这条路径补上 `removed` + `reminderIds` 登记（撤销 OS 通知），行仍保留为惰性。因此"远端保留 / 本地硬删"的**分歧是既有的**（真正的异类是 `EventWriter.softDelete` 连带硬删行），不是 v0.25.0 引入的新行为；T4 选择两侧都不动（`applyRemoteTombstone` 不删行、也不改本地软删），把统一与否留给产品拍板 → `docs/ROADMAP.md` Pending Items P3 #5。
+  - **两件零调用者的"逃生门"复核结论（T4 收尾）**：`scheduleReminderProvider` 保留（T2 简报定义的"保留一个版本"逃生门：重排器错杀 snooze 时可回退到通知服务直调；删除属于回滚路径变更，另立一项）；`ReminderWriter.referenceChanged` 保留（**T4 applier 不用它**——远端改期走 `EventWriter/TodoWriter.applyRemote`，由 writer 自己"写前读旧值 + 写 + 登记"，比"写一格、再另调一格登记"更紧；`referenceChanged` 与 R1a/R1b/R1c 三条测试留档，钉住"只登记位移"这一格的语义）。两者清理记入 ROADMAP Pending Items P3。
+- **对应 SPEC 章节**：SPEC.md 3.5（规则 1/2/4/5）、第 2 节记录缝模块
+- **影响范围**：`lib/domain/records/**`（新增缝/总线/写入口/重排器）、`lib/domain/providers/record_bus_provider.dart`、全部写路径 provider、`lib/domain/services/ics_service.dart`、`lib/domain/sync/{sync_applier,sync_engine}.dart`、`test/architecture/record_seam_guard_test.dart`、`tool/record_seam_baseline.txt`、`docs/CONSTRAINTS.md` 架构与小组件章节、`docs/ROADMAP.md` P2.5 #1 关单。

@@ -14,7 +14,7 @@
 
 | # | 事项 | 一句话说明 | 详情来源 |
 |---|------|-----------|---------|
-| 1 | **债务2：统一事件缝** | 派生态（闹钟/小组件）失效目前靠三条临时通道；改为 post-commit 领域事件（record-applied/removed），消一整类 bug。半天 | §4 |
+| 1 | ~~**债务2：统一事件缝**~~ ✅ 2026-09-24 | 派生态失效已收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：三条临时通道 → 一条缝；远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂；守卫 + 棘轮基线（已收敛为空）落地。文档与版本 0.25.0+25 已同步 | 已实现 / `docs/ROADMAP.md` v0.25.0 + `docs/CONSTRAINTS.md` 架构章节 |
 | 2 | **前端设计走查** | 输入物已就绪：`docs/design-token-gap.md`（DESIGN.md 令牌 vs 代码逐条差距 + kalender 专项）。流程：按五维度清单（间距节奏/字阶/视觉层级/主题一致[驯化 kalender]/状态设计）逐条产出“具体哪+为什么+怎么改”的选择题 → 用户勾选 → 批量执行。设计语言权威 = `DESIGN.md` | §5 |
 | 3 | ~~**MCP 换官方 SDK**~~ ✅ 2026-09-24 | spike 实测**不能承载** → 手写版转正。0.5.2 服务端 Streamable HTTP 未发版；main 只认 2026-07-28（该修订已删 initialize/session）；无 shelf 适配；无 OAuth AS。测试兜底精确边界：壳测试 16 例随壳重写 / 行为守卫 = 工具 47 + CLI 13 + e2e 5 / OAuth 54 应原地绿 | DECISIONS [2026-09-24] MCP 转正手写版 |
 | 4 | ~~**CI 防漂移 grep**~~ ✅ 2026-09-24 | 版本号散布四处靠人同步 → 已落 `tool/check_version_consistency.sh`：ci.yml `test` 首步（含 `--selftest`）+ release.yml `version-gate`（tag 必须 = `v<pubspec semver>`）。README 徽章已改 shields.io 动态徽章（读 GitHub Releases，无手同步点），本文件也不再复制当前版本 | 已实现 / `tool/check_version_consistency.sh` |
@@ -26,7 +26,7 @@
 ## 3. 完整"说了但没做"清单（散落在会话、未进任何任务的全部条目）
 
 **A. 架构债务（2026-09-24 架构评审产出，仅存在于会话）**
-- D2 统一事件缝（=队列1，最高 ROI）
+- ~~D2 统一事件缝（=队列1，最高 ROI）~~ ✅ 2026-09-24 完成（实施计划 `docs/superpowers/plans/2026-09-24-d2-event-seam.md`，T1–T4 全交付），遗留登记见 ROADMAP Pending Items P3（`triggerTime` 派生态存表 / ICS 接 outbox / CLI 跨进程写 / 事件软删删提醒行产品决策）
 - D1 payload schemaVersion + contracts 字段清单（=队列5）
 - D3 后台同步重建 + device 注册补全（=队列7）
 - D4 应用内令牌桶限流（=队列6）

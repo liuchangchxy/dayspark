@@ -107,6 +107,65 @@ final class EventWriter {
     tx.bulkChanged(RecordType.event, reason: 'identity-reset');
   }
 
+  // 远端真值落地（同步 applier）：只写行 + 登记，不回灌 outbox——回灌会让
+  // 服务端权威值回声成一次本地推送（改期回声、tombstone 回声删除）。
+  // previousReference 取写前旧值（applier 在写之前读到的那一行）。
+  static Future<void> applyRemote(
+    AppDatabase db,
+    RecordScope tx, {
+    required int? existingId,
+    required EventsCompanion data,
+    required DateTime? previousReference,
+  }) async {
+    if (existingId == null) {
+      final id = await db.into(db.events).insert(data);
+      tx.applied(RecordType.event, id);
+      return;
+    }
+    await (db.update(
+      db.events,
+    )..where((t) => t.id.equals(existingId))).write(data);
+    tx.applied(
+      RecordType.event,
+      existingId,
+      previousReference: previousReference,
+    );
+  }
+
+  // 远端 tombstone：父行进回收站、reminder 行**保留**为惰性（与本地软删的硬删行
+  // 有意不同——远端删除不是用户在本机做过的动作，不连带销毁本机数据；恢复事件时
+  // 同一批 id 可被重新调度）。行里的 OS 通知靠 removed 携带的 id 撤销。
+  static Future<void> applyRemoteTombstone(
+    AppDatabase db,
+    RecordScope tx,
+    int id, {
+    required DateTime serverTs,
+    required int rev,
+  }) async {
+    final reminderIds = await ReminderWriter.idsOfParent(db, 'event', id);
+    await (db.update(db.events)..where((t) => t.id.equals(id))).write(
+      EventsCompanion(
+        deletedAt: Value(serverTs),
+        updatedAt: Value(serverTs),
+        serverRev: Value(rev),
+      ),
+    );
+    tx.removed(RecordType.event, id, reminderIds: reminderIds);
+  }
+
+  // 只推进 rev：参考时间与父状态都没变，登记反而会在冷启动账本上触发一次
+  // 多余的 schedule（Δ=0），所以有意空登记。
+  static Future<void> applyRemoteRev(
+    AppDatabase db,
+    RecordScope tx,
+    int id,
+    int rev,
+  ) async {
+    await (db.update(db.events)..where((t) => t.id.equals(id))).write(
+      EventsCompanion(serverRev: Value(rev)),
+    );
+  }
+
   static Future<Event?> _row(AppDatabase db, int id) {
     return (db.select(db.events)..where((t) => t.id.equals(id)))
         .getSingleOrNull();

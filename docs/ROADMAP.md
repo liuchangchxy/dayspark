@@ -1,13 +1,14 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.24.0+24 | 2026-09-24 | P4 platform parity + todo UX done: Apple asset unification, widget v2 three variants, six-things/hide-completed, solar-term markers, settings IA, time-sensitive (device-gate), signing fix
+> Last updated / 最后更新: v0.25.0+25 | 2026-09-24 | Debt 2 unified event seam shipped: post-commit domain events (record-applied/removed) drive every derived state — remote reschedule re-arms local reminders, remote delete cancels queued notifications, three ad-hoc channels collapsed into one seam
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.24.0+24** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.25.0+25** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
-- 最新变化：**P4 平台补齐与待办体验落地** — Apple bundle/App Group 统一 `com.dayspark.app` 族、小组件 v2 三变体（pendingTaps + quick-add）、六件事/隐藏已完成、节气调休月标记、设置 IA 终态、日历体验清欠、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复；冻结需求 2/5 ✅
+- 最新变化：**债务2 统一事件缝落地（v0.25.0）** — 派生态失效从三条临时通道收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂；新增单写入口守卫 + 棘轮基线（已收敛为空）
+- 上一版：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）
 
 ---
@@ -291,6 +292,17 @@
 | **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
 | **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
 
+### v0.25.0 | 2026-09-24 | Debt 2: Unified Event Seam / 债务2 统一事件缝
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **单一失效缝** — 进程内一切 `events`/`todos`/`reminders` 行写入收敛到 `RecordScope.run` + `lib/domain/records/writers/**`（写入即登记、**提交后**发布）；三条临时通道（provider 内联手调 / UI save 补丁 / 小组件 `tableUpdates`）→ 一条缝，`rescheduleRemindersProvider` 已删除。 / **单一失效缝** — 写入口唯一 + post-commit 领域事件 | [Feature / 功能] SPEC 3.5 规则 1–5 落地 |
+| **远端改期重挂本机提醒** — 同步落地（pull / push conflict / piggyback，含 MCP·AI 远端写入）走 applier 时登记 `applied(previousReference: 写前值)`，重排器按 Δ 搬迁并把新触发时刻物化回写 `reminders.triggerTime`。 / **远端改期重挂** — 关 P2.5 #1 | [Fix / 修复] ROADMAP P2.5 #1 |
+| **幽灵响铃修复** — 远端 tombstone 落地时登记 `removed` + 该记录全部 reminder id，已排队通知立即撤销。 / **幽灵响铃修复** — 远端删除不再响 | [Fix / 修复] 债务2 勘察新发现缺陷 |
+| **消费端重写** — `ReminderReconciler`（四档取消 + D12 锚点归属 + 幂等零调用）替换 11 处散落 cancel/schedule；小组件刷新器换驱动源为 `RecordBus`。 / **消费端重写** | [Feature / 功能] SPEC 3.5 规则 4 |
+| **双层机械守卫** — `record_seam_guard_test.dart`（G1 白名单 / G3 已删符号 / G4 `RecordScope.run` 站点数 = 25）+ `tool/record_seam_baseline.txt` 棘轮（**已收敛为空 = 全仓零豁免**）。 / **双层守卫** | [Engineering / 工程] 防漏（静默过期型失效） |
+| **Governance** — CONSTRAINTS 记录缝条目 + 通知链清单补 2 项、DECISIONS ADR（显式 scope vs Zone/拦截器）、SPEC 3.5 规则补全、版本 0.25.0+25。 / **治理** — 约束/决策/SPEC/版本同步 | [Docs / 文档] |
+
 ### v0.24.0 | 2026-09-24 | P4 Platform Parity + Todo UX / P4 平台补齐与待办体验
 
 | Change / 变更 | Source / 来源 |
@@ -550,6 +562,16 @@
 | 8 | Real device build verification / 各平台真机构建验证 | At least Android + iOS / 至少 Android + iOS 真机跑一遍 |
 | 9 | Animation standardization / 动画规范化 | State switches use AnimatedSwitcher 0.2s ease / 状态切换统一 AnimatedSwitcher |
 
+### P3 — 同步 / 派生态遗留（2026-09-24 债务2 收尾登记）
+
+| # | Item / 项 | Note / 说明 |
+|---|------|------|
+| 1 | **`reminders.triggerTime` 是"派生态存进了表"** | 行内时刻只是重排器算出的派生结果，却是所有写入路径必须携带的"写前旧值"之源（`previousReference` 之所以必须存在，正是因为它）。改存 `offsetMinutes`（相对父行参考时刻的偏移）可让全部写入路径无需带旧值、也让跨进程写天然可重算；与 D1（载荷 schema 版本化）一并收敛。 / Derived state stored in a table; storing `offsetMinutes` removes the need for every writer to carry the pre-write value. Converge with D1. |
+| 2 | **P2.5 #2：ICS 接 outbox + `syncId` 回填** | `ics_service.dart` 仍裸 `insert`（派生态义务已由债务2 覆盖：导入包一次 `RecordScope.run` + 每成功行一条 `applied`，见 `docs/CONSTRAINTS.md`）；导入行 `sync_id` 为 NULL、首次编辑前不推送。 / Imported rows stay out of the outbox until first edited. |
+| 3 | **CLI 跨进程写（`bin/dayspark.dart`）接入缝** | 直开同一库文件，进程内钩子结构上盖不住 → 现靠冷启动/恢复前台全量重算兜底（`SPEC.md` §5 规则 9）。接入方式（IPC / 写后信号 / 单一写进程）未定。 / Cross-process writes converge by recompute only. |
+| 4 | **逃生门 / 留档件清理** | `scheduleReminderProvider`（零调用者，T2 保留一个版本的逃生门）与 `ReminderWriter.referenceChanged` + R1a/R1b/R1c（零调用者，T4 applier 改用 `applyRemote` 自带登记）在下一次通知相关改动时一并删除或重新接线。 / Two zero-caller escape hatches from debt 2, kept one version by design — clean up or re-wire in the next notification change. |
+| 5 | **事件软删是否连带删提醒行（产品决策待定；本地/远端两侧现状不一致）** | **两侧现状（两者都是既有行为——远端保留提醒行不是 v0.25.0 新增：pre-T4 的 applier 根本不动提醒行，所以一直保留；真正的异类是本地侧）**：① **远端 tombstone**（一贯行为，v0.25.0 只是给它补上了 `removed` 登记）= 父行进回收站、**提醒行原样保留**（本机恢复该事件时这些行会重新参与调度）；② **本地软删**（`EventWriter.softDelete`）= 连带**硬删**提醒行，恢复事件后提醒永久沉默（`restoreEventProvider` 不重建行）。**一行改法（统一为"保留"）**：`event_writer.dart:38-43` 去掉 `db.delete(db.reminders)…go()`，改为只抓 id 后登记 `removed`；断言侧在 S10（`record_write_seam_test.dart:376-386`）补一条"行仍在"（照 S12 的 `:405` 写法）。**注意**：`emptyEventTrash` / `hardDeleteWithChildren` 仍必须硬删（真删除语义），只动软删这一处。 / **改**：两侧语义一致、回收站恢复能重挂提醒（更可恢复、更少意外）；代价 = 惰性行留在库里直到清空回收站，且"远端删除 → 通知不响"不受影响（仍由 `removed` 撤）。 / **不改**：本地删与远端删行为不同——用户从回收站恢复事件时"有时提醒回来了、有时没回来"，且远端 tombstone 留下的惰性行会一直躺到清空回收站。**需用户拍板**。 |
+
 ### P2 — Nice to Have / 锦上添花
 
 | # | Feature / 功能 | Note / 说明 |
@@ -575,7 +597,7 @@
 
 | # | Item / 项 | Note / 说明 |
 |---|------|------|
-| 1 | **Re-wire local reminders on remote schedule edits / 远端改期必须重挂本地提醒** — pull/piggyback-applied event/todo time or due changes must re-wire local reminders (applier → `rescheduleReminders`/cancel path); until then remote schedule edits leave local alarms at the old time. / **pull/piggyback 应用的事件时间或待办到期变更必须重新接线本地提醒（applier → `rescheduleReminders`/cancel 通路）；在此之前，远端的排期修改会让本机闹钟仍停留在旧时间。** | Binding carry from T5 review / T5 评审强制结转 |
+| 1 | ~~**Re-wire local reminders on remote schedule edits / 远端改期必须重挂本地提醒**~~ — ✅ **交付于 v0.25.0（债务2 T4）**：引擎的 push/pull 两处事务改经 `RecordScope.run`，`SyncApplier.apply(record, tx)` 的六个写点全部走 `writers/` 并登记 `applied(previousReference: 写前 startDt/dueDate)`（tombstone 登记 `removed` + reminderIds）；`ReminderReconciler` 订阅领域事件后按 Δ 重排并物化回写 `triggerTime`，由 OS 侧重挂。同一路径顺带覆盖 pull / push conflict / piggyback 三条落地分支与 MCP·AI 远端写入。 / ~~**pull/piggyback 应用的事件时间或待办到期变更必须重新接线本地提醒**~~ — ✅ v0.25.0 交付：同步 applier 接入记录缝，四种落地分支统一重排，远端改期/删除都会立刻反映到本机闹钟 | ✅ 已关单 (v0.25.0) |
 | 2 | **ICS import bypasses outbox / ICS 导入绕过出站队列** — `ics_service.dart` still raw-`insert`s; imported rows have NULL `sync_id` and don't push until first edited. / `ics_service.dart` 仍裸 `insert`，导入行 `sync_id` 为 NULL，首次编辑前不推送 | Enqueue exit is provider-bound; import path deferred / 入队出口绑定在 provider，导入路径遗留 |
 | 3 | **`calendarId` multi-calendar heuristic / `calendarId` 多日历启发式** — calendars don't sync in P2; unknown `calendar_id` falls back to the first local calendar, so calendar attribution may drift across devices. / 日历 P2 不同步；未知 `calendar_id` 回退首个本地日历，跨设备日历归属可能漂移 | Needs calendar sync or a calendar map / 需日历同步或映射表 |
 | 4 | **`parentSyncId` late re-link / `parentSyncId` 迟到回链** — if the parent row isn't on the device at apply time the child stays top-level; the parent arriving later does **not** re-link. / 应用时父行不在本机则子行置顶层，父行之后到达**不会**回链 | Candidate: re-link by `parentSyncId` later / 候选：按 `parentSyncId` 回链 |
@@ -612,4 +634,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.24.0+24 |
+| Version / 版本 | v0.25.0+25 |

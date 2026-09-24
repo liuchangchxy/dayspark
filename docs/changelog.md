@@ -2,10 +2,37 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.24.0+24** — P4 platform parity + todo UX: Apple bundle/App Group unification, widget v2 three variants + pendingTaps + quick-add deep link, six-things/hide-completed, solar-term/holiday month markers, settings IA terminal, calendar debts, time-sensitive notifications (device-gate caveat), adhoc keychain signing fix / P4 平台补齐与待办体验：Apple 资产统一、小组件 v2 三变体 + 勾选队列 + 快速添加、六件事/隐藏已完成、节气调休月标记、设置 IA 终态、日历体验清欠、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
-- 上一版本 / Previous: **v0.23.0+24** — Server MCP: 17 tools + 3 resources, OAuth 2.1 two-track (CLI login token / Agents OAuth), stdio wrapper, dayspark CLI, 5-case e2e matrix, XFP trust fix / 服务端 MCP：17 工具 + 3 资源、OAuth 2.1 双轨（CLI 登录 token / Agent OAuth）、stdio 桥、dayspark CLI、5 例 e2e 矩阵、反代 XFP 信任修复
+- 最新版本 / Latest: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms; three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
+- 上一版本 / Previous: **v0.24.0+24** — P4 platform parity + todo UX: Apple bundle/App Group unification, widget v2 three variants + pendingTaps + quick-add deep link, six-things/hide-completed, solar-term/holiday month markers, settings IA terminal, calendar debts, time-sensitive notifications (device-gate caveat), adhoc keychain signing fix / P4 平台补齐与待办体验：Apple 资产统一、小组件 v2 三变体 + 勾选队列 + 快速添加、六件事/隐藏已完成、节气调休月标记、设置 IA 终态、日历体验清欠、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 最新流程改进 / Pipeline: **SPEC/DECISIONS/AGENTS + pre-commit analyze gate** — 2026-09-22
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.25.0+25 — Unified Event Seam / 统一事件缝（债务 2）
+
+### Features / 新功能
+
+| # | Feature / 功能 |
+|---|------|
+| 1 | **Single invalidation seam for derived state / 派生态单一失效缝** — 进程内一切 `events`/`todos`/`reminders` 行写入收敛到单写入口 `RecordScope.run` + `lib/domain/records/writers/**`：**写入即登记**（`applied` / `removed` / `bulkChanged`），**提交后**才发布（事务回滚 = 零发布）；三条临时通道（provider 内联手调、UI save 后手写补丁、小组件 `tableUpdates`）收敛为一条缝，`rescheduleRemindersProvider` 与全部内联 `cancel`/`schedule` 调用点撤除。新增两个消费端：`ReminderReconciler`（四档取消 + 位移锚点归属 + 幂等零调用）与小组件刷新器（驱动源 → 领域事件总线）。 / **派生态单一失效缝** — 写入路径统一登记 + 提交后发布；三条临时通道 → 一条缝，两个消费端接管闹钟重排与组件刷新 |
+| 2 | **Remote schedule edits re-arm local reminders / 远端改期重挂本机提醒** — 同步落地（pull / push conflict / piggyback，含 MCP 与 AI 的远端写入）经 applier 写入时登记 `applied(previousReference: 写前 startDt/dueDate)`，重排器按 Δ 搬迁提醒时刻并把新触发时刻**物化回写** `reminders.triggerTime`（行内值是下一次位移的锚）。 / **远端改期重挂** — 四种同步落地分支统一重排，远端改期不再让本机闹钟停在旧时间 |
+| 3 | **Mechanical anti-escape guards / 机械防漏守卫** — `record_seam_guard_test.dart`（G1 写入白名单 / G3 已删通道符号 / G4 `RecordScope.run` 站点数 == 常量）+ `tool/record_seam_baseline.txt` 棘轮账本：未登记的写入即红，**条目失效 / 条数变少 / 等量置换也红**（逼审查者看 diff）。基线已收敛为空 = 全仓零豁免。 / **机械防漏守卫** — 写入白名单 + 站点计数 + 棘轮基线（收敛为空） |
+
+### Bug Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | **远端删除不撤销已排队通知 → 幽灵响铃** — 同步 applier 把远端 tombstone 落到本机软删后，此前排给 OS 的提醒/闹钟仍在原时刻响（债务2 勘察新发现的未登记缺陷） | 远端 tombstone 落地时登记 `removed(type, id, reminderIds: 写前抓下的全部 id)`，重排器第一档无条件 `cancel` 这些 id；reminder 行保留为惰性（远端删除不是用户在本机做过的动作，不连带销毁本机数据）。 / Ghost ringing fixed: remote tombstones now cancel every queued notification for that record |
+| 2 | **远端改期后本机闹钟停在旧时间（P2.5 #1）** — `pull`/`piggyback` 应用的 start/due 变更不会重排本机提醒，跨设备改期后本机按旧时刻响 | 引擎两处事务改经 `RecordScope.run`、applier 六个写点走 writer 并携带写前参考时间；重排器按 Δ 重排 + 物化回写，绝对时刻 `newTrigger = 新参考 − (旧参考 − 旧触发)`。 / Local alarms now follow remote schedule edits |
+| 3 | **远端删除后本机 `deletedAt` 已置但提醒行仍在** — tombstone 只改父行，提醒副作用无人接手 | 与修复 1 同一刀：登记 `removed` + 携带 reminderIds，撤通知不再依赖父行重读。 / Covered by fix 1 |
+
+### Infrastructure / 基础设施
+
+| # | Change / 变更 |
+|---|------|
+| 1 | **Version guard's first real use** — `tool/check_version_consistency.sh` 在本次版本号变更中首次实战（五处一致 + `--selftest` 能红）；`test/architecture/record_seam_guard_test.dart` 的 `_scopeRunSites` 随站点增删显式改常量（22 → 25）。 / **版本守卫首次实战** + 守卫常量随站点收敛 |
+| 2 | **Full verification** — root `dart analyze .` 0 issue、`flutter test` 313/313（`skipped=0`）；server / contracts / wrapper / CLI / Kotlin 五套本任务未触碰，跑一遍确认无意外。 / **全量验证** — app 313 全绿 + 五套回归确认 |
 
 ---
 

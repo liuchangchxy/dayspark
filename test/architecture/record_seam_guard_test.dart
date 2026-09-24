@@ -4,8 +4,15 @@
 // * 行号不进基线哈希：同文件内内容完全相同的两处写入互换位置不会被发现（语义等价，无风险）。
 // * fail-fast 面稍宽：RecordScope.run 会拒绝任何 drift 连接 zone（transaction/exclusively/runWithInterceptor，
 //   三者共用 #DatabaseConnectionUser 键），后两者在当前 lib/** 零使用；一旦使用会得到响亮的 StateError。
-// * 规则 (a) 是行局部正则：把写入拆到多行（`await db` / `.into(` / `db.todos,` / `)` 各占一行）可逃逸；
-//   CI 不跑 `dart format --check`，所以这种写法不会被折叠掩盖 —— 依赖人的自觉 + 审查。
+// * 比对分两趟，同一套规则实现两次：
+//   (a) 行局部正则（原形，保留行号直出，快且好读）；
+//   (b) **空白归一化整文件匹配**——剥离注释/字符串后把连续空白（含换行）折叠为单空格再匹配。
+//   (b) 专治拆行逃逸：`await db` / `.into(` / `db.todos,` / `)` 各占一行也能命中（CI 不跑
+//   `dart format --check`，拆行写法不会被折叠掩盖；本仓库多行链式很惯用，不能靠人记得），
+//   报错给出关键词所在的可读行号 + 归一化后的匹配文本。同一行已由 (a) 报过的不重复计。
+// * **仍然逃逸**（据实披露，不假装堵住）：表名经变量/拼接传入（`db.update(table)`）、
+//   `customStatement` / `db.execute` 直写 SQL、任何不出现 `into|update|delete` 字样的自定义
+//   封装。守卫的保证是"常见写法必红"，不是"证明没写表"。
 // * 已知幽灵事件窗口（已裁定不响亮化）：scope **内层**的外来 db.transaction（savepoint）回滚而外层提交时，
 //   仍会留下幽灵事件。收紧会误伤合法的嵌套 savepoint（DAO 自带事务的 updateSortOrders/emptyTrash），
 //   兜底靠 SPEC §3.5 规则 1「消费端必须容忍重读无此 id」。
@@ -34,7 +41,7 @@ const Set<String> _deletedChannelSymbols = <String>{
 };
 
 // G4：RecordScope.run 站点数。增删站点必须显式改这个常量，好在 diff 里被审查者看见。
-const int _scopeRunSites = 22;
+const int _scopeRunSites = 25;
 
 const Set<String> _readOnlyDaoMethods = <String>{
   'watchPending',
@@ -62,6 +69,11 @@ final RegExp _rawWrite = RegExp(
   r'\b(?:into|update|delete)\s*\(\s*(?:db|_db)\.(?:events|todos|reminders)\b',
 );
 final RegExp _daoCall = RegExp(r'\b(?:todosDao|eventsDao)\.([A-Za-z]\w*)\s*\(');
+final RegExp _normalizedRawWrite = RegExp(
+  r'\b(?:into|update|delete)\s*\(\s*(?:db|_db)\s*\.\s*(?:events|todos|reminders)\b',
+);
+final RegExp _normalizedDaoCall =
+    RegExp(r'\b(?:todosDao|eventsDao)\s*\.\s*([A-Za-z]\w*)\s*\(');
 final RegExp _publishCall = RegExp(r'\.publish\s*\(');
 final RegExp _busAccess = RegExp(r'RecordBus\.of\s*\(');
 
@@ -141,10 +153,49 @@ String stripCommentsAndStrings(String source) {
   return out.toString();
 }
 
+/// 剥离注释/字符串后把连续空白（含换行）折叠为单空格，并保留"归一化后的每个字符对应
+/// 原始第几行"的映射（0 基），好把命中的偏移还原成可读行号。
+class NormalizedSource {
+  const NormalizedSource(this.text, this.lineOf);
+
+  final String text;
+  final List<int> lineOf;
+}
+
+NormalizedSource normalizeWhitespace(String source) {
+  final stripped = stripCommentsAndStrings(source);
+  final out = StringBuffer();
+  final lineOf = <int>[];
+  var line = 0;
+  var pendingSpace = false;
+  for (var i = 0; i < stripped.length; i++) {
+    final ch = stripped[i];
+    if (ch == '\n') line++;
+    if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+      pendingSpace = true;
+      continue;
+    }
+    if (pendingSpace && out.isNotEmpty) {
+      out.write(' ');
+      lineOf.add(line);
+    }
+    pendingSpace = false;
+    out.write(ch);
+    lineOf.add(line);
+  }
+  return NormalizedSource(out.toString(), lineOf);
+}
+
+String _splitWriteDisplay(List<String> original, int line, String matched) {
+  final shown = line - 1 < original.length ? original[line - 1].trim() : '';
+  return '$shown（拆行写法：归一化后匹配 "$matched"）';
+}
+
 List<GuardHit> findViolations(String path, String source) {
   final code = stripCommentsAndStrings(source).split('\n');
   final original = source.split('\n');
   final hits = <GuardHit>[];
+  final lineHits = <int>{};
   final recordPath = _inDirs(path, _recordWriteDirs) || _recordWriteFiles.contains(path);
   final busPath = _inDirs(path, _busDirs);
 
@@ -154,11 +205,13 @@ List<GuardHit> findViolations(String path, String source) {
     if (!recordPath) {
       if (_rawWrite.hasMatch(line)) {
         hits.add(GuardHit(path, i + 1, shown, _bypassWriteMessage));
+        lineHits.add(i + 1);
       }
       for (final match in _daoCall.allMatches(line)) {
         // Deny by default：不在只读名单里的 DAO 方法一律视为写，新增 mutator 无法漏网。
         if (!_readOnlyDaoMethods.contains(match.group(1))) {
           hits.add(GuardHit(path, i + 1, shown, _bypassWriteMessage));
+          lineHits.add(i + 1);
         }
       }
     }
@@ -169,6 +222,29 @@ List<GuardHit> findViolations(String path, String source) {
         !_busAccessFiles.contains(path) &&
         _busAccess.hasMatch(line)) {
       hits.add(GuardHit(path, i + 1, shown, _bypassPublishMessage));
+    }
+  }
+
+  // (b) 空白归一化那一趟：同一行已由 (a) 报过的不重复计（单行写法两趟都会命中）。
+  if (!recordPath) {
+    final normalized = normalizeWhitespace(source);
+    final splitHits = <RegExpMatch>[
+      ..._normalizedRawWrite.allMatches(normalized.text),
+      ..._normalizedDaoCall.allMatches(normalized.text).where(
+            (m) => !_readOnlyDaoMethods.contains(m.group(1)),
+          ),
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    for (final match in splitHits) {
+      final line = normalized.lineOf[match.start] + 1;
+      if (!lineHits.add(line)) continue;
+      hits.add(
+        GuardHit(
+          path,
+          line,
+          _splitWriteDisplay(original, line, match[0] ?? ''),
+          _bypassWriteMessage,
+        ),
+      );
     }
   }
   return hits;
@@ -383,6 +459,62 @@ void main() {
           'bus.publish(batch);',
         ),
         hasLength(1),
+      );
+    });
+
+    test('拆行写法必须命中（空白归一化那一趟），合规写法不得误伤', () {
+      const provider = 'lib/domain/providers/other_provider.dart';
+
+      // 四种拆行形态：写入口拆在动词前/后、DAO mutator 整个拆开。
+      const splitWrite = '''
+await db
+    .into(
+      db.todos,
+    )
+    .insert(row);''';
+      expect(findViolations(provider, splitWrite), hasLength(1));
+
+      const splitDelete = '''
+await (db
+      .delete(
+    db.reminders,
+  ))
+    .go();''';
+      expect(findViolations(provider, splitDelete), hasLength(1));
+
+      const splitDao = '''
+await db
+    .todosDao
+    .updateSortOrders(ids);''';
+      expect(findViolations(provider, splitDao), hasLength(1));
+
+      // 单行写法两趟都命中，但只报一次（不重复计）。
+      expect(
+        findViolations(
+          provider,
+          'await db.into(db.events).insert(companion);',
+        ),
+        hasLength(1),
+      );
+
+      // 合规：只读 DAO 拆行（只读名单照旧豁免）、白名单目录照旧豁免。
+      expect(
+        findViolations(
+          provider,
+          'final p = db\n    .todosDao\n    .watchPending();',
+        ),
+        isEmpty,
+      );
+      expect(
+        findViolations(
+          'lib/domain/records/writers/todo_writer.dart',
+          splitWrite,
+        ),
+        isEmpty,
+      );
+      expect(
+        findViolations('lib/domain/sync/sync_outbox.dart', splitWrite),
+        isEmpty,
       );
     });
 

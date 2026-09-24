@@ -5,7 +5,7 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有技术约束，按领域分组（Calendar / Database / UI / Security / Platform）
-- 核心约束：kalender 钉 0.17.x、App Group 家族名 `group.com.dayspark.app` 双写、adhoc 下 macOS 禁 keychain-access-groups、iOS entitlements 三配置接线、小组件 v2 快照 10 键（含 monthDots）、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
+- 核心约束：kalender 钉 0.17.x、App Group 家族名 `group.com.dayspark.app` 双写、adhoc 下 macOS 禁 keychain-access-groups、iOS entitlements 三配置接线、小组件 v2 快照 10 键（含 monthDots）、**派生态失效只有一条缝（单写入口 `RecordScope.run` + 提交后发布）**、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
 - 修改日历/DB/Provider/通知/小组件/Apple 签名相关代码前**必须先读**对应章节
 
 ---
@@ -91,6 +91,8 @@
 - [ ] 父待办删除（级联子任务）→ 父子提醒都不响
 - [ ] 清空回收站 / 永久删除 → 无残留通知
 - [ ] 事件删除/清空事件回收站 → 提醒不响
+- [ ] **远端改期**（另一台设备/手机改 start 或 due，或 AI·MCP 改期后 pull 到本机）→ 本机该记录的提醒**按新时间重挂**，不留在旧时刻
+- [ ] **远端删除**（另一台设备/AI 把记录丢进回收站）→ 本机已排队的通知**到点不再响**
 - [ ] 重启设备 → 提醒仍会响（ScheduledNotificationBootReceiver）
 - [ ] 语言切中文后新建提醒 → 通知文案为中文
 - [ ] Android 14+：系统设置→精确定时权限已授予（设置页有引导入口兜底）
@@ -118,6 +120,17 @@
 - **Date**: 2026-05-02
 
 ## Architecture / 架构
+
+### 派生态失效只有一条缝：单写入口 + 提交后发布
+- 进程内一切 `events`/`todos`/`reminders` 行写入必须经 `RecordScope.run(db, (tx) async { ... })`，写与登记在同一函数体内（写入口 = `lib/domain/records/writers/**`）。**发布只发生在事务提交之后**（`RecordScope.run` 在 `runZoned` 返回后 `publish`）：回滚 = 零发布
+- 引擎/DAO 不得自开 `db.transaction`（或 `exclusively` / `runWithInterceptor`）再调 `RecordScope.run` —— 会 fail-fast 抛 `StateError`（那里的"提交"只是 `RELEASE SAVEPOINT`，外层回滚会留下幽灵事件）。已有 `db.transaction` 要换成本缝自己开事务
+- **派生文物化写登记为空**：重排器算出的触发时刻回写 `reminders.triggerTime` 经 `ReminderWriter.materializeTrigger`（还在缝内、但**不登记**）——它不改变领域事实，登记会让事件在总线上转一圈回到重排器自己（空批被 `publish` 丢弃）
+- **同步 applier 不回灌 outbox**：远端真值落地走 `EventWriter/TodoWriter.applyRemote*`（只写行 + 登记）。若顺手 `SyncOutbox.enqueue*`，服务端权威值会回声成一次本地推送（改期回声、tombstone 回声删除）
+- **远端 tombstone 与本地软删对提醒行的处置不同（既有分歧，非 v0.25.0 引入）**：远端 tombstone 一贯**保留**提醒行——pre-T4 的 applier 就不动提醒行，v0.25.0 只是给它补上 `removed` + `reminderIds` 登记去撤 OS 通知，行仍保留（本机恢复该事件时这些行会重新参与调度）；本地软删（`EventWriter.softDelete`）**硬删**提醒行，恢复后提醒永久沉默。**真正的异类是本地侧**；两侧一致性待产品拍板 → `docs/ROADMAP.md` Pending Items P3 #5
+- 守卫：`test/architecture/record_seam_guard_test.dart`（G1 写入白名单 / G3 已删通道符号在 `lib/ui/` 零出现 / G4 `RecordScope.run` 站点数 == `_scopeRunSites`）；棘轮账本 `tool/record_seam_baseline.txt` —— **未登记的违规即红，条目失效 / 条数变少 / 等量置换也红**（逼审查者在 diff 里看见）。基线现为空 = 全仓零豁免，新增写入必须进白名单目录，不得往基线里加
+- **已知限制（诚实披露，不假装覆盖；口径与 `test/architecture/record_seam_guard_test.dart` 头注释一致，改守卫请同改本行）**：跨 DB 嵌套不拦（只探测"是否已在 `RecordScope` 里"）；`final dao = db.todosDao; dao.markComplete(..)` 这类**别名**调用漏网（当前 `lib/**` 无此写法）；**表名经变量/拼接传入**（`db.update(table)`）、`customStatement` / `db.execute` 直写 SQL、以及任何不出现 `into|update|delete` 字样的自定义封装都逃逸——守卫的保证是"常见写法必红"（**含拆行写法**：`await db` / `.into(` / `db.todos,` 各占一行由"空白归一化"那一趟接住，selftest 有 3 条 fixture），不是"证明没写表"；缝**盖不住跨进程写**（`bin/dayspark.dart` 直开同一库文件，靠冷启动/恢复前台重算兜底，见 `SPEC.md` §5 规则 9）；漏发**不是运行期异常而是静默过期**，防线是编译期（`tx` 必填）+ 守卫，不是运行期自检
+- **Why**: 派生态失效曾靠三条临时通道（provider 内联手调 / UI save 补丁 / 小组件 `tableUpdates`），合起来仍留 7 处盲区、其中 3 处用户可见；根因是没有单一失效机制
+- **Date**: 2026-09-24
 
 ### 基础设施服务放在 lib/infrastructure/ 而非 domain/services/
 - 平台插件调用（alarm、notification、home_widget）→ `lib/infrastructure/platform/`
@@ -167,12 +180,13 @@
 - **Why**: 不同组 = 静默写入失败，组件永远显示旧数据；改组名需同时改 5 个 entitlements + Swift/Kotlin 读取端，禁止单边改
 - **Date**: 2026-09-24（P4 资产统一群组从 `group.com.calendarTodoApp` 迁移到 `group.com.dayspark.app`，宿主/组件/代码三处必须原子同改）
 
-### 小组件刷新是写驱动的，刷新逻辑只能挂在 tableUpdates 单点
-- `homeWidgetAutoRefreshProvider` 订阅 `db.tableUpdates`（todos + events 两表），合并去重后调 `HomeWidgetService.updateWidget`（同一时刻最多一个 in-flight，写入期间只补一次 trailing run）
-- 禁止改为逐 provider 手动调刷新：`todo_edit_page._save`、`event_edit_page._save`、`home_page` 拖拽都绕过 provider 直接 `db.update(...).write(...)`，挂 provider 会全部漏掉
-- 冷启动读不触发（`tableUpdates` 只在写时发）；冷启动刷新保留在 `home_page` initState
-- **Why**: Drift 的表更新通知是唯一能覆盖所有写入点的 choke point
-- **Date**: 2026-09-22
+### 小组件刷新由领域事件总线驱动，不再挂 `tableUpdates`
+- `homeWidgetAutoRefreshProvider` 订阅 `RecordBus.of(db).changes`（**领域事件总线**，不再是 `db.tableUpdates`），合并去重后调 `HomeWidgetService.updateWidget`（同一时刻最多一个 in-flight，写入期间只补一次 trailing run）；闹钟侧由 `ReminderReconciler` 订阅同一条总线
+- 驱动源必须保持"写路径的副产物"：**禁止**改回 `tableUpdates`——`TableUpdate` 只有 `{table, kind}`、**无行 id**，结构上不可能驱动逐记录闹钟重排；**禁止**改为逐 provider 手动调刷新
+- 旧条目里"UI 绕过 provider 直写库，挂 provider 会漏"的理由**已过期**：v0.25.0 起 `events`/`todos`/`reminders` 的行写入收敛到 `lib/domain/records/writers/**`（守卫 G1 强制），UI 层零裸写。现行理由门槛更高：**唯一发点**（`RecordScope.run` 提交后发布）才是不可绕过的路径
+- 冷启动读不触发（总线只在写时发）；冷启动刷新保留在 `home_page` initState
+- **Why**: 进程内统一走缝，不再维护第二套失效机制；跨进程写（CLI）与非记录刺激（locale/theme/跨午夜）盖不住，由重算兜底
+- **Date**: 2026-09-22（2026-09-24 债务2 T4 重写：驱动源 `tableUpdates` → `RecordBus`；原条目"UI 直写"前提已随单写入口失效）
 
 ### 小组件键双写：legacy 三键 + versioned `widget_snapshot` 同时写
 - legacy：`today_events` / `pending_todos` / `todo_count` — 现有 Kotlin/Swift 读取端只认这三个

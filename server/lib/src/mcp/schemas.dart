@@ -13,7 +13,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 // Reported as serverInfo.version in initialize. Must track pubspec.yaml's
 // major.minor.patch - enforced by tool/check_version_consistency.sh.
-const String mcpServerVersion = '0.24.0';
+const String mcpServerVersion = '0.25.0';
 const String mcpLatestProtocolVersion = '2025-06-18';
 const List<String> mcpSupportedProtocolVersions = [
   '2024-11-05',

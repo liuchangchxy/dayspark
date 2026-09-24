@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
@@ -210,14 +211,14 @@ class SyncEngine {
       ));
 
       final rejected = <String>[];
-      await db.transaction(() async {
+      await RecordScope.run(db, (tx) async {
         final recordIdByOp = {for (final e in entries) e.opId: e.recordId};
         for (final result in push.results) {
           switch (result.status) {
             case OpStatus.applied:
             case OpStatus.duplicate:
               if (result.serverRecord != null) {
-                await _applyRemote(result.serverRecord!);
+                await _applyRemote(result.serverRecord!, tx);
               }
               await _dropOps([result.opId]);
             case OpStatus.conflict:
@@ -226,7 +227,7 @@ class SyncEngine {
               // enqueued after the snapshot (in-flight race) survive and
               // push their newer payload next round.
               if (result.serverRecord != null) {
-                await _applyRemote(result.serverRecord!);
+                await _applyRemote(result.serverRecord!, tx);
               }
               final recordId = recordIdByOp[result.opId] ??
                   result.serverRecord?.id;
@@ -246,7 +247,7 @@ class SyncEngine {
         // Watermark rule: piggyback covers everything (oldCursor, push.cursor];
         // applying it and adopting push.cursor together keeps no gap.
         for (final record in push.piggyback) {
-          await _applyRemote(record);
+          await _applyRemote(record, tx);
         }
         await cursorStore.write(push.cursor);
       });
@@ -260,9 +261,9 @@ class SyncEngine {
       while (true) {
         final before = await cursorStore.read() ?? 0;
         final pull = await api.pull(before);
-        await db.transaction(() async {
+        await RecordScope.run(db, (tx) async {
           for (final change in pull.changes) {
-            await _applyRemote(change);
+            await _applyRemote(change, tx);
           }
           await cursorStore.write(pull.nextCursor);
         });
@@ -331,8 +332,8 @@ class SyncEngine {
 
   /// Writes server truth onto the local row and records the payload as
   /// the diff base for this record's future pushes.
-  Future<void> _applyRemote(SyncRecord record) async {
-    final applied = await _applier.apply(record);
+  Future<void> _applyRemote(SyncRecord record, RecordScope tx) async {
+    final applied = await _applier.apply(record, tx);
     if (record.deleted) {
       await snapshots.remove(record.id);
     } else if (applied) {
@@ -361,7 +362,10 @@ class SyncEngine {
     await (db.delete(db.syncOutbox)..where((t) => t.opId.isIn(opIds))).go();
   }
 
-  Future<void> _baselineSweep() => db.transaction(() async {
+  // 身份回填只改 syncId，参考时间与父状态都没变 → 有意空登记（空批被 publish
+  // 丢弃，不发事件）。仍经 RecordScope 开事务：SPEC §3.5 规则 1 的口径是"一切
+  // events/todos 行写入都在缝里"，与要不要发事件是两回事。
+  Future<void> _baselineSweep() => RecordScope.run(db, (_) async {
         final events = await (db.select(db.events)
               ..where((t) => t.syncId.isNull() & t.deletedAt.isNull()))
             .get();

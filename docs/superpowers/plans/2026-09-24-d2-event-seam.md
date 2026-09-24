@@ -150,28 +150,28 @@ static Future<T> run<T>(AppDatabase db, Future<T> Function(RecordScope tx) body)
 | G1 | `lib/**` 中 `(into\|update\|delete)(db\|_db).(events\|todos)` 与 DAO mutator 只允许出现在白名单（`lib/domain/records/**`、`lib/data/local/database/daos/**`、`sync_outbox.dart`） |
 | G2 | `SyncOutbox.enqueue*` 只允许出现在 `lib/domain/records/record_scope.dart`（保证"入 outbox"与"发事件"同生） |
 | G3 | 已删通道符号在 `lib/ui/` 零出现（`rescheduleRemindersProvider`/`clearRemindersProvider`/`db.tableUpdates`） |
-| G4 | `RecordScope.run(` 站点数 == 常量（**T3 收尾实测 22**：T1 的 updateTodo 切片 1 + T3 迁移 20 + 重排器的物化 1；T3b 删掉 `rescheduleRemindersProvider` 后少 1；**T4 接入 sync_engine 的 push/pull 两处后为 24**），增删必须显式改常量 → diff 里逼审查者看一眼。常量与扫描器在 `test/architecture/record_seam_guard_test.dart` 的 `_scopeRunSites` —— 以那里的实测为准 |
+| G4 | `RecordScope.run(` 站点数 == 常量（**T3 收尾实测 22**：T1 的 updateTodo 切片 1 + T3 迁移 20 + 重排器的物化 1；T3b 删掉 `rescheduleRemindersProvider` 后少 1；**T4 接入 sync_engine 三处后实测 25** = push 事务 + pull 事务 + `_baselineSweep`——简报原写 24 只数了 push/pull 两处，但 §1 #5 要求 `_baselineSweep` 也"仍经 `RecordScope.run` 包事务"（它经 `SyncOutbox` 改 `events/todos` 的 `syncId`，属 SPEC 3.5 规则 1 的"一切记录写入"），故以实测 25 为准），增删必须显式改常量 → diff 里逼审查者看一眼。常量与扫描器在 `test/architecture/record_seam_guard_test.dart` 的 `_scopeRunSites` —— 以那里的实测为准 |
 | G5 | 小组件快照顶层键恒为 10（v2 契约） |
 
 **诚实披露失败模式**：这条缝的漏发**不是运行期异常，而是静默过期**；防线是编译期 + 守卫，不是运行期自检。不要假装有运行期 fail-fast，那会变成空转门禁（REVIEWING 攻击 3）。
 
 ## 任务分解（4 个任务，线性依赖）
 
-### T1 — 缝与总线（无行为变化，基座）
+### T1 — 缝与总线（无行为变化，基座）✅ 已完成（`fe3ba53`）
 新建 `lib/domain/records/{record_change,record_bus,record_scope}.dart` + `writers/`（本任务先做 `updateTodo` 一条纵向切片）+ `record_bus_provider.dart` + 两个守卫。
 **先红测试**：①发布在提交之后（body 内批次 0，await 后 1）②body 抛异常 → 零发布且行未写 ③嵌套 run 并入最外层、内层抛则零发布 ④`applied` 携带 `previousReference`、create 为 null ⑤`removed` 携带 `reminderIds`（无提醒行 → 空列表非 null）⑥`bulkChanged` 一条粗粒度无 localId；守卫 fixture 必须能命中。
 **验收**：`updateTodoProvider` 改经写入口；G1–G5 绿且 `--selftest` 能红；现有 `todos_provider_test.dart`(802 行) 全绿。
 
-### T2 — 两个消费端
+### T2 — 两个消费端 ✅ 已完成（`c423693`）
 `reminder_reconciler.dart` + 装配 + 小组件换驱动源 + resume/midnight/locale/theme 触发。
 **先红测试**（10 条）：`nextTrigger` 表驱动（DST/负Δ/Δ=0/落在过去）；改 due date → **断言绝对时刻**；清空 due → cancel 全部；完成/取消完成；进回收站/恢复；`pastDue+applied 在未来 → cancel` 与 `pastDue+已过去 → 不动`（**成对**）；幂等 0 调用；reorder/文案编辑 0 调用；批量 5 条每父一次；payload 恒为 `parentType:parentId:reminderId` 且第三段为 reminder.id。
 **验收**：手工"改 due date"项通过；`home_widget_provider_test.dart` 三条全绿；删掉 `tableUpdates` 后组件仍刷新。
 
-### T3 — 本地写路径全量接入
+### T3 — 本地写路径全量接入 ✅ 已完成（`130e78e`，含 T3b 撤除通道① + Fix R1）
 `events_provider`(6 事务) + `todos_provider`(余 10) + `moveOverdueToToday` + `account_provider`(→bulkChanged) + `ics_service`（包一次 `run`，仍 insert、不发 outbox，仅发 applied）+ 删 ②-1/②-2/②-3 三处 UI 补丁 + 更新 G1/G4 白名单与计数。
 **先红测试**：更新事件改 start → 重排；`moveOverdueToToday` 3 条 → 每条按时移重排；`restoreEventProvider` → 重挂；ICS 2 正常+1 畸形 → 2 行 2 applied 无 removed；ICS 导入 → 快照含新事件；身份重写 → bulkChanged 且 0 调度；`lib/ui/` 出现已删符号 → 红。
 
-### T4 — applier/engine 接入 + 关单
+### T4 — applier/engine 接入 + 关单 ✅ 已完成（本工作区，未提交：报告见 `.superpowers/sdd/2026-09-24-d2-event-seam/task-4-report.md`）
 引擎两处事务改 `RecordScope.run`；`_applyRemote`/`SyncApplier.apply` 加 `tx` 必填；applier 六个写点改走 writer；`_baselineSweep` 不登记；文档收口 + 版本号。
 **先红测试**：pull 改期 → 按新时间重排（**这就是 P2.5#1 的红**）；pull tombstone → cancel 全部提醒（幽灵响铃的红）；push conflict 走 serverRecord → 重排；piggyback → 重排；批次中途抛 → 零平台调用（发布边界）；baseline sweep → 0 调度。
 **验收**：`ROADMAP.md:578` 关单；手工"远端改期"项通过；`two_device_sync_test.dart` 全绿。
