@@ -1,51 +1,77 @@
-# MCP Server Setup Guide / MCP 服务器配置教程
+# MCP Setup Guide / MCP 服务器配置教程
 
-DaySpark includes a built-in **Model Context Protocol (MCP) server** that lets AI agents (like Claude Code) read and manage your calendar events and todos programmatically.
-DaySpark 内置 **MCP（Model Context Protocol）服务器**，允许 AI Agent（如 Claude Code）通过编程方式读取和管理你的日历事件和待办。
+DaySpark 的 MCP（Model Context Protocol）服务器**内建于自托管后端**（与同步服务同进程、同数据源），让 Claude Code、ChatGPT、Codex 等 AI 直接读写你的日历与任务。
+DaySpark's MCP server lives **inside the self-hosted backend** (same process, same data as sync), letting Claude Code / ChatGPT / Codex read and manage your events and tasks.
 
----
+> 本文替代旧版“应用内 localhost MCP”（v0.13 删除，v0.23 以服务端形态重建）。/ Replaces the removed in-app localhost MCP (deleted in v0.13, rebuilt server-side in v0.23).
 
-## What is MCP? / 什么是 MCP？
+## 能力 / Capabilities
 
-MCP (Model Context Protocol) is an open standard that allows AI assistants to interact with external tools and data. By enabling DaySpark's MCP server, AI agents can:
-MCP 是一种开放标准，允许 AI 助手与外部工具和数据交互。启用 DaySpark 的 MCP 服务器后，AI Agent 可以：
+- **17 个工具 / 17 tools** — 查询/创建/更新事件（含 RRULE 结构化重复）、任务的列表/完成/重开/暂缓、批量建任务、找空档、回收站只读等
+- **3 个资源 / 3 resources** — `dayspark://today`、`dayspark://overdue`、`dayspark://inbox`
+- **安全姿态** — 无永久删除工具（trash 软删=可恢复，与回收站一致）；读工具 `mcp:read`、写工具 `mcp:write` 分域授权；错误以工具结果返回并带 hint（不吐堆栈）
 
-- **List calendars** — See all your calendars / 查看所有日历
-- **List events** — Query events by date range / 按日期范围查询事件
-- **Create events** — Add new calendar events / 创建新日历事件
-- **List todos** — Query todos with optional filters / 查询待办（可选过滤）
-- **Create todos** — Add new todos / 创建新待办
-- **Complete todos** — Mark todos as done / 标记待办为完成
+## 前置 / Prerequisites
 
-## Setup Steps / 配置步骤
+1. 部署 DaySpark 后端并可从 Agent 访问（本机或 NAS）→ 见 [DEPLOY.md](DEPLOY.md)
+2. ChatGPT 远程接入需公网 HTTPS（反代/Tailscale，见 DEPLOY §3/§4）
 
-1. Open **Settings → Advanced Features** and enable **MCP Server** / 打开 **设置 → 高级功能**，启用 **MCP 服务器**
-2. The server starts on `localhost:3001` / 服务器在 `localhost:3001` 启动
-3. Configure your AI agent to connect to it / 配置你的 AI Agent 连接到此地址
+## 双轨认证 / Two Auth Tracks（不可混用）
 
-## Claude Code Configuration / Claude Code 配置
+| 使用者 | 轨道 | 取得令牌 |
+|--------|------|---------|
+| **本地 Agent**（Claude Code / Codex / Hermes 经 stdio 桥） | 登录轨 | `tool/dayspark_cli` 执行 `dayspark login --server URL --email you`（密码交互输入，存 `~/.dayspark/credentials.json` 0600）→ 取 access token |
+| **ChatGPT Connector 等远程客户端** | OAuth 轨 | 走标准 OAuth 2.1（PKCE-S256、动态注册、浏览器同意页）；Bearer 访问令牌**不能**调同步 API，反之亦然（双轨互斥，设计如此） |
 
-Add to your `.claude/settings.json` / 添加到 `.claude/settings.json`：
+## Claude Code 配置 / Claude Code
+
+**方式 A（推荐，stdio 桥）：**
 
 ```json
 {
   "mcpServers": {
     "dayspark": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sse", "http://localhost:3001/sse"]
+      "command": "dart",
+      "args": ["run", "tool/mcp_stdio_wrapper/bin/mcp_stdio_wrapper.dart"],
+      "env": {
+        "DAYSPARK_MCP_URL": "http://localhost:8787/mcp",
+        "DAYSPARK_MCP_TOKEN": "<你的 access token>"
+      }
     }
   }
 }
 ```
 
-## Using with Other Agents / 使用其他 Agent
+**方式 B（HTTP 直连）：** `claude mcp add dayspark --transport http http://localhost:8787/mcp --header "Authorization: Bearer <token>"`
 
-The MCP server exposes an SSE endpoint at `http://localhost:3001/sse`. Any MCP-compatible client can connect to it.
-MCP 服务器在 `http://localhost:3001/sse` 提供 SSE 端点，任何兼容 MCP 的客户端都可以连接。
+## Codex 配置 / Codex
 
-## Notes / 注意事项
+`~/.codex/config.toml`：
 
-- The server only runs on desktop platforms (macOS, Windows, Linux) / 服务器仅在桌面平台运行
-- It is not available on mobile or web / 移动端和 Web 端不可用
-- All data stays local — no cloud relay / 所有数据保留在本地，不经云端中转
-- The server starts/stops with the toggle in settings / 服务器随设置中的开关启停
+```toml
+[mcp_servers.dayspark]
+command = "dart"
+args = ["run", "/path/to/dayspark/tool/mcp_stdio_wrapper/bin/mcp_stdio_wrapper.dart"]
+[...]
+# 或用环境变量注入（视 Codex 版本的 env 语法）
+```
+
+（stdio 桥需要 `DAYSPARK_MCP_URL` + `DAYSPARK_MCP_TOKEN` 环境变量。）
+
+## ChatGPT Connector / OpenAI
+
+1. 后端需公网 HTTPS（DEPLOY.md：nginx 反代**必须**设置 `proxy_set_header X-Forwarded-Proto $scheme;`，否则 OAuth 元数据会错报 http）
+2. 在 ChatGPT → Settings → Connectors → Add custom connector，填入你的服务器 MCP 地址，完成浏览器内 OAuth 同意
+3. 需要 Developer Mode 才暴露全量读写工具（OpenAI 侧要求）
+
+## 验证 / Verify
+
+1. MCP Inspector：`npx @modelcontextprotocol/inspector` → 传输选 HTTP → URL `http://<host>:8787/mcp` → 填 Bearer → `tools/list` 应见 17 个工具
+2. 完整手工清单（含各客户端连通、OAuth 全链路、双轨互斥）见 [docs/qa/p3-mcp-qa.md](../qa/p3-mcp-qa.md)
+
+## 硬性约束 / Hard Rules（详见 CONSTRAINTS.md「MCP / AI 接口」）
+
+- 日期参数：ISO 8601 + 必要处 `timezone`（IANA）；拒收无时区裸时间串
+- RRULE 必须结构化对象 `{freq, interval, ...}`，不收裸字符串
+- `get_events` 默认 now→+7 天，窗口上限 366 天
+- 业务错误一律 `isError` 工具结果（带 code/message/hint），绝不走 JSON-RPC error

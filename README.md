@@ -1,112 +1,94 @@
 # DaySpark / 灵光
 
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Flutter](https://img.shields.io/badge/Flutter-3.11+-02569B?logo=flutter)](https://flutter.dev)
+[![Flutter](https://img.shields.io/badge/Flutter-3.41+-02569B?logo=flutter)](https://flutter.dev)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Web%20%7C%20Windows%20%7C%20Linux-green)](#)
-[![Pre-release](https://img.shields.io/badge/Status-Pre--release-orange)](https://github.com/liuchangchxy/dayspark/releases)
+[![Status](https://img.shields.io/badge/Status-v0.24.0--pre--release-orange)](https://github.com/liuchangchxy/dayspark/releases)
 
 **灵光一闪，日程了然。**
 *A flash of insight, your schedule at a glance.*
 
-开源 AI 日历与待办应用。基于 Flutter，全平台运行。
-An open-source, AI-powered calendar and todo app. Built with Flutter, runs everywhere.
-
-<!-- Uncomment and replace with actual screenshots / 取消注释并替换为真实截图 -->
-<!--
-## Screenshots / 截图
-
-<p float="left">
-  <img src="docs/screenshots/calendar.png" width="240" />
-  <img src="docs/screenshots/todos.png" width="240" />
-</p>
--->
+开源、自托管优先的日历与待办应用（对标 Todo清单 的执行向体验）。Flutter 全平台运行，数据同步与 AI 接口由你自己的服务器掌控。
+An open-source, calendar & todo app with self-hosted sync and first-class AI control. Built with Flutter, runs everywhere.
 
 ---
 
 ## 功能 / Features
 
-- **日历 / Calendar** — 月/周/日视图，事件创建与重复日程（RRULE） / Month/week/day views with event creation and recurring events
-- **待办 / Todos** — 优先级、截止日期、完成追踪、重复任务 / Priority levels, due dates, completion tracking, recurring tasks
-- **CalDAV 同步 / Sync** — 双向同步任何 CalDAV 服务器 / Two-way sync with any CalDAV server (Radicale, Nextcloud, etc.)
-- **AI 助手 / Assistant** — 自然语言创建事件/待办 / Natural language event/todo creation via OpenAI-compatible API
-- **标签 / Tags** — 用彩色标签组织事件和待办 / Organize events and todos with colored tags
-- **提醒 / Reminders** — 事件和截止日期自动通知 / Automatic notifications before events and due dates
-- **搜索 / Search** — 全文搜索事件和待办 / Full-text search across events and todos
+- **日历 / Calendar** — 月/周/日视图（kalender 库），RRULE 重复日程，节气/调休标记，点日期直接建事件 / Month/week/day views, recurring events, solar-term & work-shift markers
+- **待办 / Todos** — 子任务、标签、优先级、回收站、**六件事收敛视图**（Ivy Lee）、隐藏已完成 / Subtasks, tags, priorities, trash, six-things convergence view
+- **自托管同步 / Self-hosted Sync** — 自研 Dart 同步后端（Docker 单容器），多设备一致：幂等推送、字段级冲突合并、断线重连 / Own Dart sync backend in Docker: idempotent push, field-level merge, auto-reconnect
+- **AI 接口 / MCP Server** — 后端内置 MCP：17 个日历/任务工具，OAuth 2.1 双轨（本地 Agent 走登录令牌，ChatGPT/Codex 走 OAuth）；配套 stdio 桥与 `dayspark` CLI / Built-in MCP with 17 tools, OAuth 2.1, stdio bridge and CLI
+- **桌面小组件 / Widgets** — Android 三变体（今日/近七日/月点阵）+ iOS/macOS WidgetKit，勾选与快速添加 / Three Android variants + iOS/macOS widgets with quick-add
+- **提醒 / Reminders** — 本地通知与精确闹钟，完成/改期/恢复全生命周期调度 / Full lifecycle scheduling (complete, reschedule, restore)
+- **标签与搜索 / Tags & Search** — 彩色标签组织，全文搜索 / Colored tags, full-text search
 - **ICS 导入/导出 / Import/Export** — 日历数据交换 / Calendar data interchange
-- **MCP 服务器 / MCP Server** — 通过本地 HTTP 接口暴露日历/待办数据给 AI Agent（仅桌面） / Expose calendar/todo data to AI agents via localhost HTTP (desktop only)
-- **国际化 / i18n** — 中文 + English（欢迎贡献更多语言 / contribution welcome）
-- **离线优先 / Offline-first** — 所有数据通过 Drift 存储在本地 SQLite / All data stored locally in SQLite via Drift
-- **跨平台 / Cross-platform** — Web、macOS、iOS、Android、Windows、Linux
+- **国际化 / i18n** — 中文 + English（欢迎贡献更多语言）
+- **离线优先 / Offline-first** — Drift 本地 SQLite 为权威存储，联网后增量同步 / Local SQLite is the source of truth; incremental sync when online
+- **跨平台 / Cross-platform** — Android、iOS、macOS、Windows、Linux、Web
 
-## 技术栈 / Tech Stack
+## 架构 / Architecture
 
-- **Flutter** + Dart
-- **Drift** (SQLite ORM) — 本地数据库 / local database
-- **Riverpod** — 状态管理 / state management
-- **go_router** — 路由 / navigation
-- **自建日历视图** — 月/周/日视图（v0.13.0 起替代 kalender 库） / Self-built calendar views (replaced kalender library since v0.13.0)
-- **Dio** — HTTP 客户端 / HTTP client (CalDAV)
+```
+Flutter 客户端（六平台）  ⇄  DaySpark 同步后端（NAS Docker）
+  ├ 本地 SQLite（离线优先）      ├ 同步：游标 + 幂等 push + 字段级 LWW + SSE
+  ├ kalender 日历视图            ├ AI：MCP（OAuth 2.1）+ 同源数据
+  └ 桌面小组件                   └ SQLite 单文件存储
+```
+
+契约包 `dayspark_contracts` 是客户端与服务端共享的协议唯一真相源。详细设计见 [SPEC](SPEC.md)、[ROADMAP](docs/ROADMAP.md)、[约束与踩坑](docs/CONSTRAINTS.md)。
 
 ## 开始使用 / Getting Started
 
 ### 前置条件 / Prerequisites
 
-- Flutter SDK >= 3.11.0
-- macOS/iOS: Xcode + CocoaPods
-- Android: Android SDK
-- Web: Chrome
+- Flutter SDK ≥ 3.41（macOS/iOS 需 Xcode；Android 需 Android SDK）
+- 自托管同步：Docker（可选，见 [部署指南](docs/DEPLOY.md)）
 
-### 安装与运行 / Install & Run
+### 运行 / Run
 
 ```bash
 flutter pub get
-dart run build_runner build
-flutter run -d chrome    # Web
-flutter run -d macos     # macOS
-flutter test             # 运行测试 / Run tests
+flutter run -d chrome     # Web
+flutter run -d macos      # macOS
+flutter test              # 测试 / Run tests
 ```
 
 ### 构建 / Build
 
 ```bash
-flutter build web     # Web
-flutter build macos   # macOS
-flutter build apk     # Android
-flutter build ios     # iOS
+flutter build web / macos / apk / ios
 ```
 
 ## 配置 / Configuration
 
-### CalDAV
-设置 → CalDAV 账户 → 输入服务器地址、用户名、密码
-Settings → CalDAV Account → enter server URL, username, password.
-
-### AI
-设置 → AI 配置 → 输入 API Key、Base URL、模型名称。兼容任何 OpenAI 格式的 API。
-Settings → AI Configuration → enter API key, base URL, model name. Works with any OpenAI-compatible API.
+- **AI（客户端自然语言创建）** — 设置 → AI 配置：任意 OpenAI 兼容 API，见 [AI 配置教程](docs/ai-setup.md)
+- **AI（MCP：让 ChatGPT/Claude/Codex 操作你的日程）** — 部署后端后见 [MCP 配置教程](docs/mcp-setup.md)
+- **多设备同步** — 设置 → 账号：注册/登录你的自托管服务器，见 [部署指南](docs/DEPLOY.md)
 
 ## 文档 / Documentation
 
-- [功能演进 / Roadmap](docs/ROADMAP.md) — 功能状态与路线图 / Feature status and roadmap
-- [AI 配置教程 / AI Setup](docs/ai-setup.md) — AI 助手配置指南 / AI assistant setup guide
-- [CalDAV 配置教程 / CalDAV Setup](docs/caldav-setup.md) — CalDAV 同步配置指南 / CalDAV sync setup guide
-- [MCP 配置教程 / MCP Setup](docs/mcp-setup.md) — MCP 服务器配置指南 / MCP server setup guide
-- [CalDAV 同步方案 / Sync Plan](docs/caldav-sync-plan.md) — 同步架构设计 / Synchronization architecture
+- [接续入口 / START HERE](docs/START_HERE.md) — 新会话从这里开始 / Start here for new sessions
+- [功能路线图 / Roadmap](docs/ROADMAP.md)
+- [AI 配置 / AI Setup](docs/ai-setup.md)
+- [MCP 配置 / MCP Setup](docs/mcp-setup.md)
+- [部署指南 / Self-hosting & Deploy](docs/DEPLOY.md)
+- [技术约束 / Constraints](docs/CONSTRAINTS.md) · [决策记录 / Decisions](DECISIONS.md) · [需求规范 / Spec](SPEC.md)
+- [手工验收清单 / QA checklists](docs/qa/)
 
 ## 贡献 / Contributing
 
 欢迎提交 Issue 和 Pull Request。详见 [贡献指南](CONTRIBUTING.md)。
-Issues and pull requests are welcome. See [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## 更新日志 / Changelog
 
-See [GitHub Releases](https://github.com/liuchangchxy/dayspark/releases) for all release notes.
-查看 [GitHub Releases](https://github.com/liuchangchxy/dayspark/releases) 获取所有版本的更新说明。
+见 [GitHub Releases](https://github.com/liuchangchxy/dayspark/releases)。
 
 ## 致谢 / Acknowledgments
 
-- [OpenCode](https://github.com/opencode-ai/opencode) — AI 编码助手，用于本项目大部分开发工作 / AI coding assistant used for most of this project's development
-- AI 模型 / Models: DeepSeek, GLM (智谱), 小米 MiMo — 开发过程中使用的 AI 模型 / AI models used in development
+- [OpenCode](https://github.com/opencode-ai/opencode) · Claude Code · [Superpowers](https://github.com/claude-plugins) — 开发过程中使用的 AI 编码工具 / AI coding tools used in development
+- AI 模型 / Models: DeepSeek、GLM (智谱)、小米 MiMo、Claude — 开发过程中使用的 AI 模型
+- [kalender](https://pub.dev/packages/kalender) (KDAB) · [lunar](https://pub.dev/packages/lunar) — 关键开源依赖 / key open-source dependencies
 
 ## 许可证 / License
 
