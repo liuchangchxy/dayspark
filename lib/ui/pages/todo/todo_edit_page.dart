@@ -12,7 +12,6 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
-import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -72,7 +71,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
 
     setState(() => _saving = true);
     try {
-      final oldDueDate = _todo.dueDate;
       // Combine dueDate and dueTime
       if (_dueDate != null && _dueTime != null) {
         _dueDate = DateTime(
@@ -97,26 +95,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           updatedAt: Value(DateTime.now()),
         ),
       );
-
-      // Keep reminder notifications in sync with the due date (same pattern
-      // as event_edit_page for start-time changes).
-      if (oldDueDate != null && oldDueDate != _dueDate) {
-        try {
-          if (_dueDate != null) {
-            await ref.read(rescheduleRemindersProvider)(
-              parentType: 'todo',
-              parentId: _todo.id,
-              oldReferenceTime: oldDueDate,
-              newReferenceTime: _dueDate!,
-            );
-          } else {
-            // Due date cleared: relative reminders are meaningless now.
-            await ref.read(clearRemindersProvider)('todo', _todo.id);
-          }
-        } catch (e) {
-          debugPrint('todo_edit: reschedule error: $e');
-        }
-      }
 
       if (mounted) context.pop();
     } catch (e) {

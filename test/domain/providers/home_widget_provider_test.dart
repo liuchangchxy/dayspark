@@ -10,7 +10,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
+import 'package:dayspark/domain/providers/record_bus_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/domain/records/record_change.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_service.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 
@@ -39,10 +42,14 @@ void main() {
   late ProviderContainer container;
   late _MockNotificationService notifMock;
   late int calId;
+  // One snapshot write per flush: counting them counts refreshes, not the
+  // fan-out of platform-channel calls inside a single refresh.
+  late int flushes;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({'app_locale': 'en'});
     store = <String, Object?>{};
+    flushes = 0;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           final args = (call.arguments as Map).cast<String, dynamic>();
@@ -50,6 +57,7 @@ void main() {
             case 'getWidgetData':
               return store[args['id'] as String];
             case 'saveWidgetData':
+              if (args['id'] == HomeWidgetService.snapshotKey) flushes++;
               store[args['id'] as String] = args['data'];
               return true;
             case 'updateWidget':
@@ -196,4 +204,65 @@ void main() {
     expect(todo.status, 'COMPLETED');
     expect(await testDb.select(testDb.syncOutbox).get(), hasLength(1));
   });
+
+  test(
+    'bus event drives a flush after tableUpdates is gone; one batch = one flush',
+    () async {
+      await insertTodo();
+      container.read(homeWidgetAutoRefreshProvider);
+      final bus = container.read(recordBusProvider);
+
+      // 等到条件成立（全套件并行时事件循环会被挤），再多让几轮以捕捉"多余的一次"。
+      Future<void> waitUntil(bool Function() condition) async {
+        for (var i = 0; i < 200 && !condition(); i++) {
+          await pumpEventQueue(times: 5);
+        }
+        await pumpEventQueue(times: 50);
+      }
+
+      // 1. A raw drift write no longer drives a refresh: tableUpdates is gone.
+      final beforeRawWrite = flushes;
+      await testDb
+          .into(testDb.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'raw write',
+              status: const Value('NEEDS-ACTION'),
+            ),
+          );
+      await waitUntil(() => false);
+      expect(
+        flushes,
+        beforeRawWrite,
+        reason: '驱动源已换成总线：裸 DB 写不再触发（这也是 resume/冷启动兜底存在的理由）',
+      );
+
+      // 2. A batch of three changes flushes exactly once.
+      final beforeBatchOfThree = flushes;
+      bus.publish([
+        RecordApplied(RecordType.todo, 1, previousReference: null),
+        RecordApplied(
+          RecordType.todo,
+          2,
+          previousReference: DateTime(2026),
+        ),
+        RecordApplied(RecordType.event, 3, previousReference: null),
+      ]);
+      await waitUntil(() => flushes > beforeBatchOfThree);
+      expect(flushes - beforeBatchOfThree, 1, reason: '一次批 = 一次 refresh');
+
+      // 3. Batch size is irrelevant: one change still flushes exactly once.
+      final beforeBatchOfOne = flushes;
+      bus.publish([
+        RecordApplied(RecordType.todo, 1, previousReference: null),
+      ]);
+      await waitUntil(() => flushes > beforeBatchOfOne);
+      expect(
+        flushes - beforeBatchOfOne,
+        1,
+        reason: '批次内容不影响刷新次数',
+      );
+    },
+  );
 }

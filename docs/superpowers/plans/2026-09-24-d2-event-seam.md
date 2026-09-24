@@ -115,6 +115,13 @@ static Future<T> run<T>(AppDatabase db, Future<T> Function(RecordScope tx) body)
 
 把 11 处 cancel/schedule 收敛为**一条幂等规则**：按当前行状态重算该 parent 的期望触发集合，与"上次实际交给 OS 的集合"（`Map<int, DateTime?> _applied`）求差，只动差集。
 
+**⚠️ 派生文物化写（R2 后新增，T3/T4 实现者必读）：期望时刻必须回写 `reminders.triggerTime`。** 行内 `triggerTime` 是下一次位移的**锚**：不回写，第 2 次改期就会按"上一段位移"漂移（首审 P1：甚至会在漂移落进过去时 cancel 掉正确的通知且不再排 = 永不响）。写法：
+
+- `lib/domain/records/writers/reminder_writer.dart` 的 `materializeTrigger`：**只写** `triggerTime`，不建行、不删行、不动父行；经 `RecordScope.run` 但**登记为空**（无 `tx.applied/removed`）→ 空批被 `publish` 丢弃，不发事件、不产生回环。
+- 顺序固定为**先物化、再对外动作**（schedule/cancel）：物化失败时本趟对外动作被 `_safely` 记日志后跳过、且本父**不写状态缓存**，下一次事件（同 reference 亦可）会重试；反向（先排后写）会让锚点在崩溃/写失败后永久陈旧。
+- **位移基准（D12 锚点归属规则）**：`desired = nextTrigger(reference: 当前 reference, previousReference: basis, storedTrigger: 行内值)`，其中 `basis` 只在**我们自己物化过的行**（`_materialized[id]` 与行内值同一瞬间）取"会话内已知的锚点 reference"，否则退回事件自述的 `previousReference`（新建 / 后挂提醒行 / 重启后第一眼 —— 即 `nextTrigger` 规则 2/3 的原意）。若一律信事件自述，陈旧事件会**重复施加位移**。
+- **精度**：比较与回写都按**瞬间**（`isAtSameMomentAs`），且把期望时刻**归一到落库精度**（drift 的 `dateTime` 是 unix 秒）——否则事件里带亚秒/UTC 值时会每次 reconcile 都回写一行（写放大且永不收敛）。
+
 - `nextTrigger` 必须是**纯函数**（唯一需要手工算边界处：DST / 负 Δ / Δ=0），用**人工手算的 `DateTime` 字面量**表驱动测试（防自证向量）。
 - **取消分档**（否则必然吃掉 snooze）：
 
@@ -126,7 +133,7 @@ static Future<T> run<T>(AppDatabase db, Future<T> Function(RecordScope tx) body)
 
 - **幂等**：`previousReference == 当前 reference` 且父状态未变 → 直接 return，**零平台调用**（用测试断言"0 次"钉住，覆盖 `reorderTodos`、纯文案编辑、身份重写）。
 - 装配：`lib/domain/providers/record_bus_provider.dart` 的 `Provider<void>`，`main.dart:76` 旁一行，与 `homeWidgetAutoRefreshProvider` 同构。
-- **冷启动/恢复前台做全量重算**（跨进程写的唯一兜底）：`_applied` 为空时**保守规则——绝不去 cancel 本次会话没有调度过的东西**，只补排"期望在未来且行内 `triggerTime` 也这么说"的提醒。
+- **冷启动/恢复前台做全量重算**（跨进程写的唯一兜底）：**保守门只作用于 `pastDue` 档**——该档不论冷启动与否都不 cancel 本次会话没调度过的 id（snooze 把 OS 时刻排到未来、行内 `triggerTime` 仍停在过去，按行判会误杀活跃 snooze）；**`removed`/`inactive` 档的父行状态（trashed / 已完成 / 参考时间为空）是权威的，冷启动、`_applied` 为空时也必须 cancel**（含 snooze，见 `CONSTRAINTS.md:90`——"进回收站 → 提醒不响"本就覆盖 snooze）。补排只看"期望在未来"：`nextTrigger` 规则 2 返回过去时刻时落入 `pastDue` 档，**不得 schedule**。
 
 ### 消费端 2：小组件刷新器
 

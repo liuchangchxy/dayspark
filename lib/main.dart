@@ -10,6 +10,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/platform_scroll_behavior.dart';
 import 'domain/providers/home_widget_provider.dart';
+import 'domain/providers/record_bus_provider.dart';
 import 'domain/providers/sync_client_provider.dart' show syncRuntimeProvider;
 import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
 import 'domain/providers/locale_provider.dart';
@@ -74,6 +75,9 @@ class DaySparkApp extends ConsumerWidget {
     // One-shot read: starts the write-driven widget refresh listener for
     // the app's lifetime (provider instance is cached by the container).
     ref.read(homeWidgetAutoRefreshProvider);
+    // Same lifetime, same driver: the record bus reconciles reminder
+    // notifications against each committed write (cold-start sweep included).
+    ref.read(reminderReconcilerProvider);
     // Sync engine (outbox drain + SSE + connectivity triggers); no-op
     // until a server base URL and tokens are configured.
     ref.read(syncRuntimeProvider);

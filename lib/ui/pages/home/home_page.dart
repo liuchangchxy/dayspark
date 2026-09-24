@@ -17,7 +17,10 @@ import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
+import 'package:dayspark/domain/providers/locale_provider.dart';
+import 'package:dayspark/domain/providers/record_bus_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
@@ -62,6 +65,7 @@ class _HomePageState extends ConsumerState<HomePage>
     _initCurrentTab();
     WidgetsBinding.instance.addObserver(this);
     _listenForDefaultTabChanges();
+    _listenForWidgetRefreshTriggers();
     Future.microtask(_runStartupSideEffects);
   }
 
@@ -108,7 +112,7 @@ class _HomePageState extends ConsumerState<HomePage>
       _checkOverdueTodos();
       _startDayCheckTimer();
       _checkVersionChangelog();
-      ref.read(updateHomeWidgetProvider)();
+      _refreshHomeWidget();
     } catch (e) {
       debugPrint('initState microtask error: $e');
     }
@@ -126,23 +130,56 @@ class _HomePageState extends ConsumerState<HomePage>
     final delay = midnight.difference(now);
     _dayCheckTimer = Timer(delay, () {
       if (!mounted) return;
-      final current = DateTime.now();
-      final today = DateTime(current.year, current.month, current.day);
-      if (today != _lastCheckedDay) {
-        _lastCheckedDay = today;
-        _checkOverdueTodos();
-      }
-      _scheduleNextMidnightCheck();
+      _handleDayRollover();
     });
+  }
+
+  // The widget snapshot and the reminder schedules both go stale across a day
+  // boundary (today/upcoming buckets, reminders that fell due), so the
+  // rollover refreshes both even when the calendar day itself did not change.
+  void _handleDayRollover() {
+    _refreshHomeWidget();
+    final current = DateTime.now();
+    final today = DateTime(current.year, current.month, current.day);
+    if (today != _lastCheckedDay) {
+      _lastCheckedDay = today;
+      _checkOverdueTodos();
+    }
+    _scheduleNextMidnightCheck();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkOverdueTodos();
-      _dayCheckTimer?.cancel();
-      _scheduleNextMidnightCheck();
+      _handleResumed();
     }
+  }
+
+  void _handleResumed() {
+    _refreshHomeWidget();
+    // The bus only carries in-process writes; the conservative full recompute
+    // is what catches an external process (CLI) editing the same file, plus
+    // any write path not yet migrated to the seam.
+    unawaited(ref.read(reminderReconcilerProvider).reconcileAll());
+    _checkOverdueTodos();
+    _dayCheckTimer?.cancel();
+    _scheduleNextMidnightCheck();
+  }
+
+  void _refreshHomeWidget() {
+    unawaited(ref.read(updateHomeWidgetProvider)());
+  }
+
+  void _listenForWidgetRefreshTriggers() {
+    Future.microtask(() {
+      if (!mounted) return;
+      // Widget copy and colors are baked into the snapshot at build time, so
+      // a language or theme change must rebuild it through this same entry
+      // point — a listener per setting would eventually miss one.
+      ref.listenManual(localeProvider, (_, __) => _refreshHomeWidget());
+      ref.listenManual(themeModeProvider, (_, __) => _refreshHomeWidget());
+      ref.listenManual(themeColorProvider, (_, __) => _refreshHomeWidget());
+    });
   }
 
   Future<void> _checkVersionChangelog() async {

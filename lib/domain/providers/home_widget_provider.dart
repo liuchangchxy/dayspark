@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/record_bus_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_service.dart';
 
@@ -35,17 +35,18 @@ final consumeWidgetPendingTapsProvider =
       };
     });
 
-// Every mutation path (providers, edit pages, drag-resize) writes through
-// Drift, so listening to todos/events table updates is the single choke
-// point that covers all of them — sprinkling calls across mutation exits
-// would silently miss future write sites. tableUpdates only fires on
-// writes, so initial query loads never trigger a refresh; consecutive
-// writes coalesce into one trailing refresh instead of a platform-channel
-// storm. The upcoming bucket reads the same two tables at snapshot build
-// time, so this listener covers it too; pendingTaps consumption rides
-// along inside every flush (updateWidget consumes before writing).
+// The record bus is the single choke point for migrated writes: published
+// after commit, so a refresh never sees pre-commit rows, and one
+// transaction batch collapses into one trailing refresh instead of a
+// platform-channel storm. Batch contents are ignored on purpose — the
+// snapshot is a full recompute from the two tables, and the upcoming bucket
+// reads the same tables at build time. Only in-process seam writes reach the
+// bus, so home_page also refreshes on resume and the cold-start snapshot;
+// pendingTaps consumption rides along inside every flush (updateWidget
+// consumes before writing).
 final homeWidgetAutoRefreshProvider = Provider<void>((ref) {
   final db = ref.watch(databaseProvider);
+  final bus = ref.watch(recordBusProvider);
   final onPendingTaps = ref.read(consumeWidgetPendingTapsProvider);
   var running = false;
   var queued = false;
@@ -66,13 +67,6 @@ final homeWidgetAutoRefreshProvider = Provider<void>((ref) {
     }
   }
 
-  final subscription = db
-      .tableUpdates(
-        TableUpdateQuery.allOf([
-          TableUpdateQuery.onTable(db.todos),
-          TableUpdateQuery.onTable(db.events),
-        ]),
-      )
-      .listen((_) => unawaited(refresh()));
+  final subscription = bus.changes.listen((_) => unawaited(refresh()));
   ref.onDispose(subscription.cancel);
 });
