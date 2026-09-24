@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
 import 'package:dayspark/ui/widgets/calendar/kalender_calendar_event.dart';
+import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
 class CalendarSection extends ConsumerStatefulWidget {
@@ -394,6 +395,16 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
             calendarController: _calendarController,
             viewConfiguration: _resolveViewConfiguration(),
             callbacks: _buildCallbacks(),
+            components: CalendarComponents(
+              monthComponents: MonthComponents(
+                bodyComponents: MonthBodyComponents(
+                  // Month day cells carry solar-term labels and statutory
+                  // holiday / makeup-workday badges.
+                  monthDayHeaderBuilder: (date, style) =>
+                      MarkedMonthDayHeader(date: date, style: style),
+                ),
+              ),
+            ),
             header: CalendarHeader(
               callbacks: _buildCallbacks(),
               interaction: _interaction,

@@ -747,4 +747,99 @@ class AppLocalizationsEn extends AppLocalizations {
   String hoursAgo(int hours) {
     return '${hours}h ago';
   }
+
+  @override
+  String get sixThings => 'Six Things';
+
+  @override
+  String moreItems(int count) {
+    return 'More ($count)';
+  }
+
+  @override
+  String get collapseList => 'Collapse';
+
+  @override
+  String get hideCompleted => 'Hide completed';
+
+  @override
+  String get hideCompletedDesc => 'Hide completed items from todo lists';
+
+  @override
+  String get holidayRestBadge => 'Off';
+
+  @override
+  String get holidayWorkBadge => 'Work';
+
+  @override
+  String get termLiChun => 'Spring Begins';
+
+  @override
+  String get termYuShui => 'Rain Water';
+
+  @override
+  String get termJingZhe => 'Insects Waken';
+
+  @override
+  String get termChunFen => 'Spring Equinox';
+
+  @override
+  String get termQingMing => 'Clear and Bright';
+
+  @override
+  String get termGuYu => 'Grain Rain';
+
+  @override
+  String get termLiXia => 'Summer Begins';
+
+  @override
+  String get termXiaoMan => 'Grain Full';
+
+  @override
+  String get termMangZhong => 'Grain in Ear';
+
+  @override
+  String get termXiaZhi => 'Summer Solstice';
+
+  @override
+  String get termXiaoShu => 'Minor Heat';
+
+  @override
+  String get termDaShu => 'Major Heat';
+
+  @override
+  String get termLiQiu => 'Autumn Begins';
+
+  @override
+  String get termChuShu => 'End of Heat';
+
+  @override
+  String get termBaiLu => 'White Dew';
+
+  @override
+  String get termQiuFen => 'Autumn Equinox';
+
+  @override
+  String get termHanLu => 'Cold Dew';
+
+  @override
+  String get termShuangJiang => 'Frost Descent';
+
+  @override
+  String get termLiDong => 'Winter Begins';
+
+  @override
+  String get termXiaoXue => 'Minor Snow';
+
+  @override
+  String get termDaXue => 'Major Snow';
+
+  @override
+  String get termDongZhi => 'Winter Solstice';
+
+  @override
+  String get termXiaoHan => 'Minor Cold';
+
+  @override
+  String get termDaHan => 'Major Cold';
 }

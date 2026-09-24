@@ -11,6 +11,7 @@ import 'settings_sections/ai_section.dart';
 import 'settings_sections/appearance_section.dart';
 import 'settings_sections/import_export_section.dart';
 import 'settings_sections/notifications_section.dart';
+import 'settings_sections/todos_section.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -56,6 +57,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           const AppearanceSection(),
           const Divider(),
           const ImportExportSection(),
+          const Divider(),
+          const TodosSection(),
           const Divider(),
           const AccountSection(),
           const Divider(),

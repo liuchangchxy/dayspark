@@ -33,6 +33,9 @@ dependencies:
   # Calendar UI
   intl: ^0.20.0
 
+  # Solar terms + statutory holiday / makeup-workday data (pure Dart)
+  lunar: ^1.7.8
+
   # Recurring events (RRULE RFC 5545)
   rrule: ^0.2.18
   rrule_generator: ^0.9.8

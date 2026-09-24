@@ -1474,6 +1474,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours}h ago'**
   String hoursAgo(int hours);
+
+  /// No description provided for @sixThings.
+  ///
+  /// In en, this message translates to:
+  /// **'Six Things'**
+  String get sixThings;
+
+  /// No description provided for @moreItems.
+  ///
+  /// In en, this message translates to:
+  /// **'More ({count})'**
+  String moreItems(int count);
+
+  /// No description provided for @collapseList.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get collapseList;
+
+  /// No description provided for @hideCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide completed'**
+  String get hideCompleted;
+
+  /// No description provided for @hideCompletedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide completed items from todo lists'**
+  String get hideCompletedDesc;
+
+  /// No description provided for @holidayRestBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get holidayRestBadge;
+
+  /// No description provided for @holidayWorkBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get holidayWorkBadge;
+
+  /// No description provided for @termLiChun.
+  ///
+  /// In en, this message translates to:
+  /// **'Spring Begins'**
+  String get termLiChun;
+
+  /// No description provided for @termYuShui.
+  ///
+  /// In en, this message translates to:
+  /// **'Rain Water'**
+  String get termYuShui;
+
+  /// No description provided for @termJingZhe.
+  ///
+  /// In en, this message translates to:
+  /// **'Insects Waken'**
+  String get termJingZhe;
+
+  /// No description provided for @termChunFen.
+  ///
+  /// In en, this message translates to:
+  /// **'Spring Equinox'**
+  String get termChunFen;
+
+  /// No description provided for @termQingMing.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear and Bright'**
+  String get termQingMing;
+
+  /// No description provided for @termGuYu.
+  ///
+  /// In en, this message translates to:
+  /// **'Grain Rain'**
+  String get termGuYu;
+
+  /// No description provided for @termLiXia.
+  ///
+  /// In en, this message translates to:
+  /// **'Summer Begins'**
+  String get termLiXia;
+
+  /// No description provided for @termXiaoMan.
+  ///
+  /// In en, this message translates to:
+  /// **'Grain Full'**
+  String get termXiaoMan;
+
+  /// No description provided for @termMangZhong.
+  ///
+  /// In en, this message translates to:
+  /// **'Grain in Ear'**
+  String get termMangZhong;
+
+  /// No description provided for @termXiaZhi.
+  ///
+  /// In en, this message translates to:
+  /// **'Summer Solstice'**
+  String get termXiaZhi;
+
+  /// No description provided for @termXiaoShu.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor Heat'**
+  String get termXiaoShu;
+
+  /// No description provided for @termDaShu.
+  ///
+  /// In en, this message translates to:
+  /// **'Major Heat'**
+  String get termDaShu;
+
+  /// No description provided for @termLiQiu.
+  ///
+  /// In en, this message translates to:
+  /// **'Autumn Begins'**
+  String get termLiQiu;
+
+  /// No description provided for @termChuShu.
+  ///
+  /// In en, this message translates to:
+  /// **'End of Heat'**
+  String get termChuShu;
+
+  /// No description provided for @termBaiLu.
+  ///
+  /// In en, this message translates to:
+  /// **'White Dew'**
+  String get termBaiLu;
+
+  /// No description provided for @termQiuFen.
+  ///
+  /// In en, this message translates to:
+  /// **'Autumn Equinox'**
+  String get termQiuFen;
+
+  /// No description provided for @termHanLu.
+  ///
+  /// In en, this message translates to:
+  /// **'Cold Dew'**
+  String get termHanLu;
+
+  /// No description provided for @termShuangJiang.
+  ///
+  /// In en, this message translates to:
+  /// **'Frost Descent'**
+  String get termShuangJiang;
+
+  /// No description provided for @termLiDong.
+  ///
+  /// In en, this message translates to:
+  /// **'Winter Begins'**
+  String get termLiDong;
+
+  /// No description provided for @termXiaoXue.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor Snow'**
+  String get termXiaoXue;
+
+  /// No description provided for @termDaXue.
+  ///
+  /// In en, this message translates to:
+  /// **'Major Snow'**
+  String get termDaXue;
+
+  /// No description provided for @termDongZhi.
+  ///
+  /// In en, this message translates to:
+  /// **'Winter Solstice'**
+  String get termDongZhi;
+
+  /// No description provided for @termXiaoHan.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor Cold'**
+  String get termXiaoHan;
+
+  /// No description provided for @termDaHan.
+  ///
+  /// In en, this message translates to:
+  /// **'Major Cold'**
+  String get termDaHan;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -281,5 +281,41 @@
     "placeholders": {
       "hours": { "type": "int" }
     }
-  }
+  },
+  "sixThings": "六件事",
+  "moreItems": "更多 ({count})",
+  "@moreItems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "collapseList": "收起",
+  "hideCompleted": "隐藏已完成",
+  "hideCompletedDesc": "在待办列表中隐藏已完成条目",
+  "holidayRestBadge": "休",
+  "holidayWorkBadge": "班",
+  "termLiChun": "立春",
+  "termYuShui": "雨水",
+  "termJingZhe": "惊蛰",
+  "termChunFen": "春分",
+  "termQingMing": "清明",
+  "termGuYu": "谷雨",
+  "termLiXia": "立夏",
+  "termXiaoMan": "小满",
+  "termMangZhong": "芒种",
+  "termXiaZhi": "夏至",
+  "termXiaoShu": "小暑",
+  "termDaShu": "大暑",
+  "termLiQiu": "立秋",
+  "termChuShu": "处暑",
+  "termBaiLu": "白露",
+  "termQiuFen": "秋分",
+  "termHanLu": "寒露",
+  "termShuangJiang": "霜降",
+  "termLiDong": "立冬",
+  "termXiaoXue": "小雪",
+  "termDaXue": "大雪",
+  "termDongZhi": "冬至",
+  "termXiaoHan": "小寒",
+  "termDaHan": "大寒"
 }

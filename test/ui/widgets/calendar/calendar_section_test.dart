@@ -135,6 +135,32 @@ void main() {
     );
   });
 
+  testWidgets('month view slot tap routes to event creation with a range', (
+    tester,
+  ) async {
+    DateTimeRange? tapped;
+    await _pumpCalendar(
+      tester,
+      events: [],
+      onTimeSlotTapped: (range) => tapped = range,
+    );
+
+    await tester.tap(find.text('Month'));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // Tap inside the month grid body (below the weekday header row).
+    await tester.tapAt(const Offset(400, 400));
+    await tester.pump();
+
+    expect(tapped, isNotNull);
+    expect(
+      tapped!.end.difference(tapped!.start),
+      const Duration(hours: 1),
+    );
+    expect(tapped!.start.isUtc, isFalse);
+  });
+
   testWidgets('title-only event update refreshes rendered tiles',
       (tester) async {
     final now = DateTime.now();

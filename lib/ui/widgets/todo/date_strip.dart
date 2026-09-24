@@ -9,6 +9,8 @@ class DateStrip extends StatelessWidget {
   final VoidCallback? onCalendarTap;
   final bool showAllMode;
   final VoidCallback? onShowAll;
+  final bool sixThingsMode;
+  final VoidCallback? onSixThingsToggle;
 
   const DateStrip({
     super.key,
@@ -17,6 +19,8 @@ class DateStrip extends StatelessWidget {
     this.onCalendarTap,
     this.showAllMode = false,
     this.onShowAll,
+    this.sixThingsMode = false,
+    this.onSixThingsToggle,
   });
 
   @override
@@ -90,6 +94,14 @@ class DateStrip extends StatelessWidget {
                 selected: selectedDate == null && !showAllMode,
                 accentColor: theme.colorScheme.tertiary,
                 onTap: () => onDateSelected(null),
+              ),
+              const SizedBox(width: 4),
+              _chip(
+                context: context,
+                label: l.sixThings,
+                selected: sixThingsMode,
+                accentColor: theme.colorScheme.secondary,
+                onTap: () => onSixThingsToggle?.call(),
               ),
             ],
           ),

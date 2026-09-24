@@ -747,4 +747,99 @@ class AppLocalizationsZh extends AppLocalizations {
   String hoursAgo(int hours) {
     return '$hours 小时前';
   }
+
+  @override
+  String get sixThings => '六件事';
+
+  @override
+  String moreItems(int count) {
+    return '更多 ($count)';
+  }
+
+  @override
+  String get collapseList => '收起';
+
+  @override
+  String get hideCompleted => '隐藏已完成';
+
+  @override
+  String get hideCompletedDesc => '在待办列表中隐藏已完成条目';
+
+  @override
+  String get holidayRestBadge => '休';
+
+  @override
+  String get holidayWorkBadge => '班';
+
+  @override
+  String get termLiChun => '立春';
+
+  @override
+  String get termYuShui => '雨水';
+
+  @override
+  String get termJingZhe => '惊蛰';
+
+  @override
+  String get termChunFen => '春分';
+
+  @override
+  String get termQingMing => '清明';
+
+  @override
+  String get termGuYu => '谷雨';
+
+  @override
+  String get termLiXia => '立夏';
+
+  @override
+  String get termXiaoMan => '小满';
+
+  @override
+  String get termMangZhong => '芒种';
+
+  @override
+  String get termXiaZhi => '夏至';
+
+  @override
+  String get termXiaoShu => '小暑';
+
+  @override
+  String get termDaShu => '大暑';
+
+  @override
+  String get termLiQiu => '立秋';
+
+  @override
+  String get termChuShu => '处暑';
+
+  @override
+  String get termBaiLu => '白露';
+
+  @override
+  String get termQiuFen => '秋分';
+
+  @override
+  String get termHanLu => '寒露';
+
+  @override
+  String get termShuangJiang => '霜降';
+
+  @override
+  String get termLiDong => '立冬';
+
+  @override
+  String get termXiaoXue => '小雪';
+
+  @override
+  String get termDaXue => '大雪';
+
+  @override
+  String get termDongZhi => '冬至';
+
+  @override
+  String get termXiaoHan => '小寒';
+
+  @override
+  String get termDaHan => '大寒';
 }

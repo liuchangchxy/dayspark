@@ -357,5 +357,41 @@
     "placeholders": {
       "hours": { "type": "int" }
     }
-  }
+  },
+  "sixThings": "Six Things",
+  "moreItems": "More ({count})",
+  "@moreItems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "collapseList": "Collapse",
+  "hideCompleted": "Hide completed",
+  "hideCompletedDesc": "Hide completed items from todo lists",
+  "holidayRestBadge": "Off",
+  "holidayWorkBadge": "Work",
+  "termLiChun": "Spring Begins",
+  "termYuShui": "Rain Water",
+  "termJingZhe": "Insects Waken",
+  "termChunFen": "Spring Equinox",
+  "termQingMing": "Clear and Bright",
+  "termGuYu": "Grain Rain",
+  "termLiXia": "Summer Begins",
+  "termXiaoMan": "Grain Full",
+  "termMangZhong": "Grain in Ear",
+  "termXiaZhi": "Summer Solstice",
+  "termXiaoShu": "Minor Heat",
+  "termDaShu": "Major Heat",
+  "termLiQiu": "Autumn Begins",
+  "termChuShu": "End of Heat",
+  "termBaiLu": "White Dew",
+  "termQiuFen": "Autumn Equinox",
+  "termHanLu": "Cold Dew",
+  "termShuangJiang": "Frost Descent",
+  "termLiDong": "Winter Begins",
+  "termXiaoXue": "Minor Snow",
+  "termDaXue": "Major Snow",
+  "termDongZhi": "Winter Solstice",
+  "termXiaoHan": "Minor Cold",
+  "termDaHan": "Major Cold"
 }

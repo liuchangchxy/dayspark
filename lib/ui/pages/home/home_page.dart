@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -39,6 +40,9 @@ class _HomePageState extends ConsumerState<HomePage>
   bool _userChangedTab = false;
   DateTime? _selectedDate = DateTime.now();
   bool _showAllTodos = false;
+  // Expanding the six-things fold row is ephemeral: it collapses again when
+  // the user leaves the date or turns the mode off.
+  bool _sixThingsExpanded = false;
   final Set<int> _selectedTagIds = {};
   bool _calendarTabWasActive = false;
   Timer? _dayCheckTimer;
@@ -423,9 +427,18 @@ class _HomePageState extends ConsumerState<HomePage>
         DateStrip(
           selectedDate: _selectedDate,
           showAllMode: _showAllTodos,
+          sixThingsMode:
+              ref.watch(sixThingsModeProvider).valueOrNull ?? false,
+          onSixThingsToggle: () {
+            final current =
+                ref.read(sixThingsModeProvider).valueOrNull ?? false;
+            setState(() => _sixThingsExpanded = false);
+            ref.read(setSixThingsModeProvider)(!current);
+          },
           onDateSelected: (date) => setState(() {
             _selectedDate = date;
             _showAllTodos = false;
+            _sixThingsExpanded = false;
           }),
           onShowAll: () => setState(() => _showAllTodos = true),
           onCalendarTap: () async {
@@ -518,6 +531,8 @@ class _HomePageState extends ConsumerState<HomePage>
 
   Widget _buildTodoList() {
     final l = AppLocalizations.of(context)!;
+    final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
+    final sixThingsOn = ref.watch(sixThingsModeProvider).valueOrNull ?? false;
     final tagKey = _selectedTagIds.isEmpty
         ? ''
         : (_selectedTagIds.toList()..sort()).join(',');
@@ -528,13 +543,13 @@ class _HomePageState extends ConsumerState<HomePage>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(l.error('$e'))),
         data: (todos) {
-          if (todos.isEmpty) return _emptyState(l);
           final pending = todos
               .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
               .toList();
-          final completed = todos
-              .where((t) => t.status == 'COMPLETED')
-              .toList();
+          final completed = hideCompleted
+              ? <Todo>[]
+              : todos.where((t) => t.status == 'COMPLETED').toList();
+          if (pending.isEmpty && completed.isEmpty) return _emptyState(l);
           return CustomScrollView(
             slivers: [
               if (pending.isNotEmpty) ...[
@@ -571,7 +586,9 @@ class _HomePageState extends ConsumerState<HomePage>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(l.error('$e'))),
         data: (inboxTodos) {
-          final completed = completedAsync.valueOrNull ?? [];
+          final completed = hideCompleted
+              ? <Todo>[]
+              : (completedAsync.valueOrNull ?? []);
           if (inboxTodos.isEmpty && completed.isEmpty) {
             return _emptyState(l);
           }
@@ -634,19 +651,32 @@ class _HomePageState extends ConsumerState<HomePage>
         }
 
         // Filter completed for the selected date
-        final dateCompleted = completed.where((t) {
-          if (t.completedAt == null) return false;
-          final c = DateTime(
-            t.completedAt!.year,
-            t.completedAt!.month,
-            t.completedAt!.day,
-          );
-          return c == date;
-        }).toList();
+        final dateCompleted = hideCompleted
+            ? <Todo>[]
+            : completed.where((t) {
+                if (t.completedAt == null) return false;
+                final c = DateTime(
+                  t.completedAt!.year,
+                  t.completedAt!.month,
+                  t.completedAt!.day,
+                );
+                return c == date;
+              }).toList();
 
         if (overdue.isEmpty && dateTodos.isEmpty && dateCompleted.isEmpty) {
           return _emptyState(l);
         }
+
+        // Six-things convergence (Ivy Lee): on today only, the ordered list
+        // collapses to 6 slots plus a "More" fold; the full list reappears
+        // after expanding. The visible items are always a prefix of the
+        // drag-ordered list, so reorder indices map 1:1 onto the full list.
+        final capActive =
+            sixThingsOn && date == today && !_sixThingsExpanded;
+        final visibleTodos = capActive && dateTodos.length > 6
+            ? dateTodos.sublist(0, 6)
+            : dateTodos;
+        final hiddenCount = dateTodos.length - visibleTodos.length;
 
         return CustomScrollView(
           slivers: [
@@ -673,11 +703,11 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
               ),
               SliverReorderableList(
-                itemCount: dateTodos.length,
+                itemCount: visibleTodos.length,
                 onReorderItem: (oldIndex, newIndex) =>
                     _onReorderItem(dateTodos, oldIndex, newIndex),
                 itemBuilder: (context, index) {
-                  final t = dateTodos[index];
+                  final t = visibleTodos[index];
                   return _reorderableTodoTile(
                     t,
                     Key('date-${t.id}'),
@@ -685,6 +715,18 @@ class _HomePageState extends ConsumerState<HomePage>
                   );
                 },
               ),
+              if (hiddenCount > 0)
+                SliverToBoxAdapter(
+                  child: _foldRow(l.moreItems(hiddenCount), CupertinoIcons.chevron_down, () {
+                    setState(() => _sixThingsExpanded = true);
+                  }),
+                ),
+              if (_sixThingsExpanded && sixThingsOn && date == today)
+                SliverToBoxAdapter(
+                  child: _foldRow(l.collapseList, CupertinoIcons.chevron_up, () {
+                    setState(() => _sixThingsExpanded = false);
+                  }),
+                ),
             ],
             if (dateCompleted.isNotEmpty) ...[
               const SliverToBoxAdapter(
@@ -719,9 +761,14 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   Widget _reorderableTodoTile(Todo todo, Key key, {required int index}) {
+    // Per-tile Material: during a reorder drag the tile is reparented into
+    // the drag overlay, where the Scaffold Material may already be defunct.
     final tile = MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: _todoTile(todo, index: index),
+      child: Material(
+        type: MaterialType.transparency,
+        child: _todoTile(todo, index: index),
+      ),
     );
     if (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.windows) {
       return ReorderableDragStartListener(
@@ -828,6 +875,34 @@ class _HomePageState extends ConsumerState<HomePage>
             style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _foldRow(String label, IconData icon, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 48,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
       ),
     );
   }
