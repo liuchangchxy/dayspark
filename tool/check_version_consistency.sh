@@ -88,7 +88,7 @@ read_version() {
     echo "FATAL: no version: key in $pubspec" >&2
     exit 2
   fi
-  if ! printf '%s' "$full" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$'; then
+  if ! printf '%s' "$full" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+[+][0-9]+$'; then
     echo "FATAL: pubspec version '$full' is not <major>.<minor>.<patch>+<build>" >&2
     exit 2
   fi
@@ -142,12 +142,26 @@ run_checks() {
   fi
 }
 
-escape_re() { printf '%s' "$1" | sed 's/\./\\./g; s/\+/\\+/g'; }
+# Literal (regex-free) in-place replacement: awk index/substr behave identically on
+# BSD and GNU userland. Do NOT use sed for this - `\+` in a BRE means "one or more"
+# to GNU sed but a literal plus to BSD sed, which silently breaks replacement.
+replace_literal() { # replace_literal <file> <old-literal> <new-literal>
+  local f="$1" old="$2" new="$3"
+  [ -n "$old" ] || return 0
+  awk -v old="$old" -v new="$new" '
+    { line = $0; out = ""; while ((i = index(line, old)) > 0) { out = out substr(line, 1, i - 1) new; line = substr(line, i + length(old)) } print out line }
+  ' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+}
 
 mutate() { # mutate <file> <sed-expr>
   local f="$1" expr="$2"
   sed "$expr" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
 }
+
+fake_full="0.99.9+9"
+fake_semver="0.99.9"
+bumped_full="0.100.0+10"
+bumped_semver="0.100.0"
 
 build_fixture() { # build_fixture <dir>
   rm -rf "$1"
@@ -160,21 +174,22 @@ build_fixture() { # build_fixture <dir>
   real_semver="${real_full%%+*}"
   # Neutralise the real version literals so the fixture stays valid across releases.
   for f in pubspec.yaml CLAUDE.md docs/changelog.md docs/ROADMAP.md; do
-    sed -e "s/$(escape_re "$real_full")/0.99.9+9/g" \
-        -e "s/$(escape_re "$real_semver")/0.99.9/g" "$1/$f" > "$1/$f.tmp"
-    mv "$1/$f.tmp" "$1/$f"
+    replace_literal "$1/$f" "$real_full" "$fake_full"
+    replace_literal "$1/$f" "$real_semver" "$fake_semver"
   done
 }
 
 bump_fixture() { # bump_fixture <dir> - replay a correct release bump on the normalised fixture
   local fx="$1"
-  mutate "$fx/pubspec.yaml" 's/^version: .*/version: 0.100.0+10/'
-  mutate "$fx/CLAUDE.md" 's/`0.99.9+9`/`0.100.0+10`/'
-  mutate "$fx/docs/changelog.md" 's/\*\*v0.99.9+9\*\*/**v0.100.0+10**/'
-  mutate "$fx/docs/changelog.md" 's/^- 上一版本 \/ Previous: \*\*v[^*]*\*\*/- 上一版本 \/ Previous: **v0.99.9+9**/'
-  mutate "$fx/docs/ROADMAP.md" 's/v0.99.9+9/v0.100.0+10/g'
-  awk '{ if (!done && index($0, "## v0.99.9+9") == 1) { print "## v0.100.0+10 - Bump / 升版"; done = 1 } print }' \
-    "$fx/docs/changelog.md" > "$fx/docs/changelog.md.tmp"
+  replace_literal "$fx/pubspec.yaml" "version: $fake_full" "version: $bumped_full"
+  replace_literal "$fx/CLAUDE.md" "\`$fake_full\`" "\`$bumped_full\`"
+  replace_literal "$fx/docs/changelog.md" "**v$fake_full**" "**v$bumped_full**"
+  mutate "$fx/docs/changelog.md" "s/^- 上一版本 \/ Previous: \*\*v[^*]*\*\*/- 上一版本 \/ Previous: **v$fake_full**/"
+  replace_literal "$fx/docs/ROADMAP.md" "v$fake_full" "v$bumped_full"
+  # insert the new release section so the old one becomes the "previous" section
+  awk -v old="## v$fake_full" -v new="## v$bumped_full - Bump / 升版" '
+    { if (!done && index($0, old) == 1) { print new; done = 1 } print }
+  ' "$fx/docs/changelog.md" > "$fx/docs/changelog.md.tmp"
   mv "$fx/docs/changelog.md.tmp" "$fx/docs/changelog.md"
 }
 
@@ -253,10 +268,10 @@ run_selftest() {
 
   build_fixture "$tmp/fx"
   bump_fixture "$tmp/fx"
-  assert_guard pass "correctly bumped release commit" "$tmp/fx" --tag v0.100.0
+  assert_guard pass "correctly bumped release commit" "$tmp/fx" --tag "v$bumped_semver"
 
   build_fixture "$tmp/fx"
-  assert_guard pass "matching release tag" "$tmp/fx" --tag v0.99.9
+  assert_guard pass "matching release tag" "$tmp/fx" --tag "v$fake_semver"
   assert_guard fail "mismatched release tag" "$tmp/fx" --tag v0.99.8
 
   if [ "$st_fail" -ne 0 ]; then

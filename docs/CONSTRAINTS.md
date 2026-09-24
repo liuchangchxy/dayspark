@@ -292,6 +292,13 @@
 
 ## CI/CD / 持续集成与发布
 
+### shell 脚本的字面替换不要用 sed（2026-09-24）
+- `\+` 在 BRE 里 **GNU sed 解释为「一个或多个」、BSD sed 解释为字面 `+`** → 同一句 `sed 's/0\.24\.0\+24/…/'` 在 macOS 生效、在 Linux **静默不替换**
+- 字面替换一律用 `awk` 的 `index`/`substr`（见 `tool/check_version_consistency.sh` 的 `replace_literal`）；需要字面 `+` 时写 `[+]`
+- **本机 macOS 绿 ≠ CI 绿**：shell 脚本改动必须用 Linux 容器验一遍 —— `docker run --rm -v "$PWD:/work:ro" -w /work ubuntu:24.04 bash -c './tool/<script>'`（CI 是 Ubuntu 24.04 + bash 5 + GNU sed + mawk）
+- **Why**: 2026-09-24 版本守卫首跑 CI 红（run 35985658477），根因即此；由脚本自身 selftest 抓出，**未静默通过**
+- **Date**: 2026-09-24
+
 ### CI 必须构建 release 模式
 - `ci.yml` 中所有平台的 `flutter build` 命令使用 `--release` 而非 `--debug`
 - Web/macOS/Linux/Windows/Android 全部走 release 构建
