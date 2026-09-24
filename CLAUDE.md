@@ -19,6 +19,7 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | lunar (solar
 - Package: `dayspark`, Android: `com.dayspark.app`
 - Current version: `0.24.0+24`
 - 项目功能状态：`docs/ROADMAP.md`
+- **接续入口（新会话说"从哪开始"先读它）：`docs/START_HERE.md`**
 - 技术约束记录：`docs/CONSTRAINTS.md`
 - 完整工作流详见本文件下方
 
