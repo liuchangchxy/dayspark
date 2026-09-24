@@ -15,7 +15,7 @@
 | # | 事项 | 一句话说明 | 详情来源 |
 |---|------|-----------|---------|
 | 1 | **债务2：统一事件缝** | 派生态（闹钟/小组件）失效目前靠三条临时通道；改为 post-commit 领域事件（record-applied/removed），消一整类 bug。半天 | §4 |
-| 2 | **前端设计走查** | 用户截图 → 五维度清单（间距节奏/字阶/视觉层级/主题一致[驯化 kalender：星期全称、行高42→48、now线用主题色]/状态设计）→ 用户选择题 → 批量执行。流程见 §5 | §5 |
+| 2 | **前端设计走查** | 输入物已就绪：`docs/design-token-gap.md`（DESIGN.md 令牌 vs 代码逐条差距 + kalender 专项）。流程：按五维度清单（间距节奏/字阶/视觉层级/主题一致[驯化 kalender]/状态设计）逐条产出“具体哪+为什么+怎么改”的选择题 → 用户勾选 → 批量执行。设计语言权威 = `DESIGN.md` | §5 |
 | 3 | **MCP 换官方 SDK（用户已指令）** | 先限时 spike 评估 `dart_mcp` server 端成熟度 → 能承载 17 工具+OAuth+Streamable HTTP 则迁移（工具层不动只换协议壳，485 测兜底），不能则写 DECISIONS 转正手写版。**禁止裸换** | DECISIONS「MCP 协议子集与 OAuth2.1 均手写」条 |
 | 4 | **CI 防漂移 grep** | 版本号散布 pubspec/CLAUDE/changelog/ROADMAP 四处靠人同步 → CI 加一致性检查，不一致即红 | 本文档即提案 |
 | 5 | **债务1：载荷 schema 版本化** | 同一实体三份表示（Drift/payload/contracts）；payload 加 schemaVersion + 字段清单进 contracts | §4 |
@@ -62,25 +62,28 @@
 
 ## 5. 前端设计走查流程（固定套路，勿改成"直接改好看"）
 
-1. 用户发 3–5 张觉得丑的截图
-2. AI 按五维度逐张挑毛病：**间距节奏(4/8倍数)/字阶(固定层级)/视觉层级(重点是否跳出来)/主题一致性(kalender 未驯化处：英文星期全称、行高42≠48、now线系统红)/状态设计(空/加载/错误)**
-3. 产出"具体哪、为什么、怎么改"清单 → 用户只做 改/不改 选择题
+1. 主输入 = `docs/design-token-gap.md`（DESIGN.md vs 代码的逐条差距表）；可选补充：用户觉得丑的 3–5 张截图
+2. AI 按五维度逐条产出“具体哪、为什么、怎么改”：**间距节奏(4/8倍数)/字阶(固定层级)/视觉层级(重点是否跳出来)/主题一致性(kalender 未驯化处)/状态设计(空/加载/错误)**
+3. 清单 → 用户只做 改/不改 选择题
 4. AI 批量执行 + 测试收口
-- 设计语言权威：`CLAUDE.md` UI 原则（信息密度、圆角6/8/12、CupertinoIcons、无渐变）
+- 设计语言权威：`DESIGN.md` UI 令牌（CLAUDE.md UI 原则为行为补充）
 
 ## 6. 关键文档地图（状态类信息永远看这里，别信本文复述）
 
 | 要查什么 | 去哪 |
 |---------|------|
-| 冻结需求8条 / 各Phase状态 | `SPEC.md` |
-| 版本 / 工作流红线 / 架构分层 | `CLAUDE.md` |
+| 冻结需求8条 / 规则契约 / 架构实例(§2) | `SPEC.md`（**状态一律看 ROADMAP**） |
+| 版本 / 工作流红线 / 架构分层 / 文档地图 | `CLAUDE.md` |
+| 流程四件：执行工序·Rulings / 审查五配方 / 测试DoD / 架构七步 | `docs/process/{EXECUTION,REVIEWING,TESTING,ARCHITECTURE}.md`（vendored 自 vibe-coding-starter，定制规则见 CLAUDE 工作流开头） |
 | 踩坑防回归（签名、同步、小组件、时区…） | `docs/CONSTRAINTS.md` |
 | 为什么这样决定 | `DECISIONS.md` |
-| 进度全景 / P2.5 / follow-ups | `docs/ROADMAP.md` |
+| 进度全景 / P2.5 / follow-ups（**状态唯一源**） | `docs/ROADMAP.md` |
 | 用户可见变更史 | `docs/changelog.md` |
-| 各Phase实施计划 | `docs/superpowers/plans/` |
+| 设计令牌（颜色/字阶/间距/圆角） | `DESIGN.md`；**规范 vs 代码差距表** `docs/design-token-gap.md`（设计走查任务的输入） |
+| 各Phase实施计划（含主计划） | `docs/superpowers/plans/` |
 | 手工验收清单 | `docs/qa/` |
 | AI 跨工具入口（Codex 等） | `AGENTS.md` |
+| 归档（CalDAV 旧文档、旧外部评审） | `docs/archive/` |
 
 ## 7. 开工方式
 
