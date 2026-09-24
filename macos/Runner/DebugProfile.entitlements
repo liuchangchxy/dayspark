@@ -14,10 +14,6 @@
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
-	<key>keychain-access-groups</key>
-	<array>
-		<!-- WHY: flutter_secure_storage persists AI keys on macOS; explicit default access group -->
-		<string>$(AppIdentifierPrefix)com.dayspark.app</string>
-	</array>
+	<!-- WHY: keychain-access-groups key must stay ABSENT under adhoc/teamless signing — $(AppIdentifierPrefix) expands to bare bundle id and even an empty array makes taskgate reject spawn with SIGKILL "Taskgated Invalid Signature" (2026-09-24 crash; empty-array build re-proven). flutter_secure_storage uses the default keychain partition; only add this key with a real Developer-ID/team build. -->
 </dict>
 </plist>
