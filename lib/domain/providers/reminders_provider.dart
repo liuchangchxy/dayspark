@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/reminder_writer.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
@@ -85,29 +87,20 @@ final createReminderProvider =
       })
     >((ref) {
       final db = ref.read(databaseProvider);
-      final scheduleReminder = ref.read(scheduleReminderProvider);
       return ({
         required parentType,
         required parentId,
         required triggerTime,
-      }) async {
-        final id = await db
-            .into(db.reminders)
-            .insert(
-              RemindersCompanion.insert(
-                parentType: parentType,
-                parentId: parentId,
-                triggerTime: triggerTime,
-              ),
-            );
-
-        final reminder = await (db.select(
-          db.reminders,
-        )..where((t) => t.id.equals(id))).getSingle();
-        await scheduleReminder(reminder);
-
-        return id;
-      };
+      }) => RecordScope.run(
+        db,
+        (tx) => ReminderWriter.add(
+          db,
+          tx,
+          parentType: parentType,
+          parentId: parentId,
+          triggerTime: triggerTime,
+        ),
+      );
     });
 
 /// Schedules an existing reminder row with locale-resolved strings.
@@ -130,34 +123,17 @@ final scheduleReminderProvider =
 final clearRemindersProvider =
     Provider<Future<void> Function(String, int)>((ref) {
       final db = ref.read(databaseProvider);
-      final notifService = ref.read(notificationServiceProvider);
-      return (String parentType, int parentId) async {
-        final reminders =
-            await (db.select(db.reminders)..where(
-                  (t) =>
-                      t.parentType.equals(parentType) &
-                      t.parentId.equals(parentId),
-                ))
-                .get();
-        for (final r in reminders) {
-          await notifService.cancel(r.id);
-        }
-        await (db.delete(db.reminders)..where(
-              (t) =>
-                  t.parentType.equals(parentType) & t.parentId.equals(parentId),
-            ))
-            .go();
-      };
+      return (String parentType, int parentId) => RecordScope.run(
+        db,
+        (tx) => ReminderWriter.clear(db, tx, parentType, parentId),
+      );
     });
 
 /// Delete a reminder and cancel its notification.
 final deleteReminderProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
-  final notifService = ref.read(notificationServiceProvider);
-  return (int id) async {
-    await notifService.cancel(id);
-    await (db.delete(db.reminders)..where((t) => t.id.equals(id))).go();
-  };
+  return (int id) =>
+      RecordScope.run(db, (tx) => ReminderWriter.delete(db, tx, id));
 });
 
 /// Quick-add default reminders when creating an event (5min, 15min before).
@@ -204,60 +180,3 @@ final addDefaultTodoRemindersProvider =
       };
     });
 
-/// Reschedule reminders when the reference time changes (e.g. event start or todo due date).
-/// Deletes old reminders and creates new ones with the same offsets relative to the new time.
-final rescheduleRemindersProvider =
-    Provider<
-      Future<void> Function({
-        required String parentType,
-        required int parentId,
-        required DateTime oldReferenceTime,
-        required DateTime newReferenceTime,
-      })
-    >((ref) {
-      final db = ref.read(databaseProvider);
-      final notifService = ref.read(notificationServiceProvider);
-      final createReminder = ref.read(createReminderProvider);
-      return ({
-        required parentType,
-        required parentId,
-        required oldReferenceTime,
-        required newReferenceTime,
-      }) async {
-        // Get existing reminders
-        final reminders =
-            await (db.select(db.reminders)..where(
-                  (t) =>
-                      t.parentType.equals(parentType) &
-                      t.parentId.equals(parentId),
-                ))
-                .get();
-
-        // Calculate offsets from old reference time
-        final offsets = reminders
-            .map((r) => oldReferenceTime.difference(r.triggerTime))
-            .toList();
-
-        // Cancel and delete old reminders
-        for (final r in reminders) {
-          await notifService.cancel(r.id);
-        }
-        await (db.delete(db.reminders)..where(
-              (t) =>
-                  t.parentType.equals(parentType) & t.parentId.equals(parentId),
-            ))
-            .go();
-
-        // Create new reminders with same offsets from new reference time
-        for (final offset in offsets) {
-          final triggerTime = newReferenceTime.subtract(offset);
-          if (triggerTime.isAfter(DateTime.now())) {
-            await createReminder(
-              parentType: parentType,
-              parentId: parentId,
-              triggerTime: triggerTime,
-            );
-          }
-        }
-      };
-    });

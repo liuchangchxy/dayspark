@@ -1,11 +1,12 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/sync_client_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/event_writer.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
 import 'package:dayspark/domain/sync/sync_config.dart';
 
@@ -171,12 +172,10 @@ class AccountAuthNotifier extends AsyncNotifier<AccountAuthState> {
     await PrefsSyncCursorStore(prefs).clear();
     await PrefsSyncSnapshotStore(prefs).clear();
     final db = ref.read(databaseProvider);
-    await db.update(db.events).write(
-          EventsCompanion(serverRev: const Value(0), syncId: const Value(null)),
-        );
-    await db.update(db.todos).write(
-          TodosCompanion(serverRev: const Value(0), syncId: const Value(null)),
-        );
+    await RecordScope.run(db, (tx) async {
+      await EventWriter.clearSyncState(db, tx);
+      await TodoWriter.clearSyncState(db, tx);
+    });
   }
 
   Future<void> _restartEngine() async {

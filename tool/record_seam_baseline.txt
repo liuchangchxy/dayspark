@@ -1,8 +1,3 @@
 # 单写入口守卫棘轮基线：每行 <仓库相对路径> TAB <未迁移违规条数> TAB <sha256(按文件序拼接的违规行内容)>
 # 未列入的站点即红；条数变少 / 内容置换 / 条目失效也红——任何变化都必须显式改本文件，好在 diff 里被审查者看见。
-lib/domain/providers/account_provider.dart	2	095acd4942592043583ef4bf95591d41ddd111104a2ea10b73e1113c7d05b116
-lib/domain/providers/events_provider.dart	6	3c7063774265a22e16ae77a54a09ef8d7d5e4f13e3f7361dc584112ae064a79c
-lib/domain/providers/reminders_provider.dart	4	2345ca5baba28c03b9dc27f951695275ee71d9be844ed44c3ed8c3bc649225ba
-lib/domain/providers/todos_provider.dart	13	b5a90217f249882b18bd63363d88dbf62f6771396664c9399e0d267d55228024
-lib/domain/services/ics_service.dart	2	ec24e4dd1f623d388d50c616356c3c679e0e2ad4f346d076c92f8d19a7d7f75e
 lib/domain/sync/sync_applier.dart	8	eb0dbcbe2712367be149177fd3b499269ccbf85af064e4946864f162c3949159

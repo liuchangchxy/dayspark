@@ -19,7 +19,6 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/record_bus_provider.dart';
-import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
@@ -425,30 +424,13 @@ class _HomePageState extends ConsumerState<HomePage>
               '&end=${range.end.millisecondsSinceEpoch}',
             );
           },
+          // 拖拽改期只走 provider：重排提醒由提交后的领域事件接管
+          // （旧的内联补丁与重排器并存会互相争抢）。
           onEventChanged: (event) async {
-            final db = ref.read(databaseProvider);
-            final previous = await (db.select(
-                  db.events,
-                )..where((t) => t.id.equals(event.drifId)))
-                .getSingleOrNull();
             await ref.read(updateEventProvider)(
               event.drifId,
               event.toUpdateCompanion(),
             );
-            // Without this, dragged events keep notifications at the old time.
-            final oldStart = previous?.startDt;
-            if (oldStart != null && oldStart != event.start) {
-              try {
-                await ref.read(rescheduleRemindersProvider)(
-                  parentType: 'event',
-                  parentId: event.drifId,
-                  oldReferenceTime: oldStart,
-                  newReferenceTime: event.start,
-                );
-              } catch (e) {
-                debugPrint('home: rescheduleReminders error: $e');
-              }
-            }
           },
         );
       },

@@ -150,7 +150,7 @@ static Future<T> run<T>(AppDatabase db, Future<T> Function(RecordScope tx) body)
 | G1 | `lib/**` 中 `(into\|update\|delete)(db\|_db).(events\|todos)` 与 DAO mutator 只允许出现在白名单（`lib/domain/records/**`、`lib/data/local/database/daos/**`、`sync_outbox.dart`） |
 | G2 | `SyncOutbox.enqueue*` 只允许出现在 `lib/domain/records/record_scope.dart`（保证"入 outbox"与"发事件"同生） |
 | G3 | 已删通道符号在 `lib/ui/` 零出现（`rescheduleRemindersProvider`/`clearRemindersProvider`/`db.tableUpdates`） |
-| G4 | `RecordScope.run(` 站点数 == 常量（迁移后 24），增删必须显式改常量 → diff 里逼审查者看一眼 |
+| G4 | `RecordScope.run(` 站点数 == 常量（**T3 收尾实测 22**：T1 的 updateTodo 切片 1 + T3 迁移 20 + 重排器的物化 1；T3b 删掉 `rescheduleRemindersProvider` 后少 1；**T4 接入 sync_engine 的 push/pull 两处后为 24**），增删必须显式改常量 → diff 里逼审查者看一眼。常量与扫描器在 `test/architecture/record_seam_guard_test.dart` 的 `_scopeRunSites` —— 以那里的实测为准 |
 | G5 | 小组件快照顶层键恒为 10（v2 契约） |
 
 **诚实披露失败模式**：这条缝的漏发**不是运行期异常，而是静默过期**；防线是编译期 + 守卫，不是运行期自检。不要假装有运行期 fail-fast，那会变成空转门禁（REVIEWING 攻击 3）。

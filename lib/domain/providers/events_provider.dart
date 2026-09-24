@@ -2,9 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/providers/reminders_provider.dart';
-import 'package:dayspark/domain/sync/sync_outbox.dart';
-import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/event_writer.dart';
 
 // Static range key ("startMs-endMs") is part of the provider contract
 // (docs/CONSTRAINTS.md); autoDispose only releases unused instances.
@@ -55,63 +54,37 @@ final createEventProvider =
       }) {
         // Row insert and outbox op share one transaction: either both
         // commit or neither does (SyncOutbox.enqueue seam).
-        return db.transaction(() async {
-          final id = await db
-              .into(db.events)
-              .insert(
-                EventsCompanion.insert(
-                  calendarId: calendarId,
-                  summary: summary,
-                  startDt: startDt,
-                  endDt: endDt,
-                  isAllDay: Value(isAllDay),
-                  description: Value(description),
-                  location: Value(location),
-                  rrule: Value(rrule),
-                ),
-              );
-          await SyncOutbox.enqueueUpsert(db, RecordType.event, id);
-          return id;
-        });
+        return RecordScope.run(
+          db,
+          (tx) => EventWriter.create(
+            db,
+            tx,
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: summary,
+              startDt: startDt,
+              endDt: endDt,
+              isAllDay: Value(isAllDay),
+              description: Value(description),
+              location: Value(location),
+              rrule: Value(rrule),
+            ),
+          ),
+        );
       };
     });
 
 final updateEventProvider =
     Provider<Future<void> Function(int id, EventsCompanion data)>((ref) {
       final db = ref.read(databaseProvider);
-      return (int id, EventsCompanion data) => db.transaction(() async {
-        await (db.update(db.events)..where((t) => t.id.equals(id))).write(data);
-        await SyncOutbox.enqueueUpsert(db, RecordType.event, id);
-      });
+      return (int id, EventsCompanion data) =>
+          RecordScope.run(db, (tx) => EventWriter.update(db, tx, id, data));
     });
 
 final deleteEventProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
-  final notifService = ref.read(notificationServiceProvider);
-  return (int id) async {
-    // Cancel scheduled notifications
-    final reminders =
-        await (db.select(db.reminders)..where(
-              (t) => t.parentType.equals('event') & t.parentId.equals(id),
-            ))
-            .get();
-    for (final r in reminders) {
-      await notifService.cancel(r.id);
-    }
-    await (db.delete(
-      db.reminders,
-    )..where((t) => t.parentType.equals('event') & t.parentId.equals(id))).go();
-    await db.transaction(() async {
-      // Soft delete
-      await (db.update(db.events)..where((t) => t.id.equals(id))).write(
-        EventsCompanion(
-          deletedAt: Value(DateTime.now()),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-      await SyncOutbox.enqueueDelete(db, RecordType.event, id);
-    });
-  };
+  return (int id) =>
+      RecordScope.run(db, (tx) => EventWriter.softDelete(db, tx, id));
 });
 
 final deletedEventsProvider = StreamProvider<List<Event>>((ref) {
@@ -121,61 +94,20 @@ final deletedEventsProvider = StreamProvider<List<Event>>((ref) {
 
 final restoreEventProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
-  return (int id) => db.transaction(() async {
-    await db.eventsDao.restoreEvent(id);
-    // Resurrect intent: replaces a pending tombstone in the outbox.
-    await SyncOutbox.enqueueUpsert(db, RecordType.event, id);
-  });
+  return (int id) =>
+      RecordScope.run(db, (tx) => EventWriter.restore(db, tx, id));
 });
 
 final hardDeleteEventWithChildrenProvider =
     Provider<Future<void> Function(int)>((ref) {
       final db = ref.read(databaseProvider);
-      final notifService = ref.read(notificationServiceProvider);
-      return (int id) async {
-        // DAO deletes reminder rows only; cancel OS notifications first so
-        // nothing fires after the rows are gone.
-        final reminders =
-            await (db.select(db.reminders)..where(
-                  (t) =>
-                      t.parentType.equals('event') & t.parentId.equals(id),
-                ))
-                .get();
-        for (final r in reminders) {
-          await notifService.cancel(r.id);
-        }
-        await db.transaction(() async {
-          final targets =
-              await SyncOutbox.captureDeletes(db, RecordType.event, [id]);
-          await db.eventsDao.hardDeleteEventWithChildren(id);
-          await SyncOutbox.enqueueDeletes(db, targets);
-        });
-      };
+      return (int id) => RecordScope.run(
+        db,
+        (tx) => EventWriter.hardDeleteWithChildren(db, tx, id),
+      );
     });
 
 final emptyEventTrashProvider = Provider<Future<void> Function()>((ref) {
   final db = ref.read(databaseProvider);
-  final notifService = ref.read(notificationServiceProvider);
-  return () async {
-    final deleted =
-        await (db.select(db.events)..where((t) => t.deletedAt.isNotNull()))
-            .get();
-    final ids = deleted.map((e) => e.id).toList();
-    if (ids.isNotEmpty) {
-      final reminders =
-          await (db.select(db.reminders)..where(
-                (t) => t.parentType.equals('event') & t.parentId.isIn(ids),
-              ))
-              .get();
-      for (final r in reminders) {
-        await notifService.cancel(r.id);
-      }
-    }
-    await db.transaction(() async {
-      final targets =
-          await SyncOutbox.captureDeletes(db, RecordType.event, ids);
-      await db.eventsDao.emptyEventTrash();
-      await SyncOutbox.enqueueDeletes(db, targets);
-    });
-  };
+  return () => RecordScope.run(db, (tx) => EventWriter.emptyTrash(db, tx));
 });

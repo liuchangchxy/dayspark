@@ -9,7 +9,6 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
-import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -86,19 +85,6 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
         updated.toUpdateCompanion(),
       );
 
-      // Reschedule reminders if start time changed
-      final oldStart = widget.event.start;
-      final newStart = updated.start;
-      if (oldStart != newStart && !_isAllDay) {
-        try {
-          await ref.read(rescheduleRemindersProvider)(
-            parentType: 'event',
-            parentId: _event.drifId,
-            oldReferenceTime: oldStart,
-            newReferenceTime: newStart,
-          );
-        } catch (e) { debugPrint('event_edit: error: $e'); }
-      }
 
       if (mounted) context.pop();
     } catch (e) {

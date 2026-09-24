@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/local/database/app_database.dart';
+import '../records/record_scope.dart';
+import '../records/writers/event_writer.dart';
+import '../records/writers/todo_writer.dart';
 import 'ical/ical_converter.dart';
 
 /// Import/export .ics files.
@@ -90,33 +93,37 @@ class IcsService {
     var events = 0;
     var todos = 0;
 
-    for (final child in component.children) {
-      if (child is VEvent) {
-        try {
-          final childCal = VCalendar();
-          childCal.productId = '-//CalendarTodoApp//EN';
-          childCal.children.add(child);
-          final companion = _converter.icalToEventCompanion(
-            childCal.toString(),
-            calendarId,
-          );
-          await _db.into(_db.events).insert(companion);
-          events++;
-        } catch (e) { debugPrint('ics: VEVENT insert error: $e'); }
-      } else if (child is VTodo) {
-        try {
-          final childCal = VCalendar();
-          childCal.productId = '-//CalendarTodoApp//EN';
-          childCal.children.add(child);
-          final companion = _converter.icalToTodoCompanion(
-            childCal.toString(),
-            calendarId,
-          );
-          await _db.into(_db.todos).insert(companion);
-          todos++;
-        } catch (e) { debugPrint('ics: VTODO insert error: $e'); }
+    // 一批导入 = 一个事务 = 一个事件批；畸形行在 catch 里被吞掉，不登记
+    // （没落库的行不该让派生态去重读）。
+    await RecordScope.run(_db, (tx) async {
+      for (final child in component.children) {
+        if (child is VEvent) {
+          try {
+            final childCal = VCalendar();
+            childCal.productId = '-//CalendarTodoApp//EN';
+            childCal.children.add(child);
+            final companion = _converter.icalToEventCompanion(
+              childCal.toString(),
+              calendarId,
+            );
+            await EventWriter.importRow(_db, tx, companion);
+            events++;
+          } catch (e) { debugPrint('ics: VEVENT insert error: $e'); }
+        } else if (child is VTodo) {
+          try {
+            final childCal = VCalendar();
+            childCal.productId = '-//CalendarTodoApp//EN';
+            childCal.children.add(child);
+            final companion = _converter.icalToTodoCompanion(
+              childCal.toString(),
+              calendarId,
+            );
+            await TodoWriter.importRow(_db, tx, companion);
+            todos++;
+          } catch (e) { debugPrint('ics: VTODO insert error: $e'); }
+        }
       }
-    }
+    });
 
     return (events: events, todos: todos);
   }

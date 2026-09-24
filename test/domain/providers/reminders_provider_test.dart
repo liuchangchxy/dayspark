@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
+import 'package:dayspark/domain/providers/record_bus_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 
@@ -19,10 +20,95 @@ void main() {
   late AppDatabase testDb;
   late ProviderContainer container;
   late _MockNotificationService notifMock;
+  late int cancelCalls;
+  late int scheduleCalls;
+
+  void stubNotificationService() {
+    when(() => notifMock.cancel(any())).thenAnswer((_) async {
+      cancelCalls++;
+    });
+    when(
+      () => notifMock.scheduleFromReminder(
+        any(),
+        eventReminderTitle: any(named: 'eventReminderTitle'),
+        todoReminderTitle: any(named: 'todoReminderTitle'),
+        eventReminderBody: any(named: 'eventReminderBody'),
+        todoReminderBody: any(named: 'todoReminderBody'),
+      ),
+    ).thenAnswer((_) async {
+      scheduleCalls++;
+    });
+  }
+
+  Future<void> waitUntil(bool Function() condition) async {
+    for (var i = 0; i < 200 && !condition(); i++) {
+      await pumpEventQueue(times: 5);
+    }
+  }
+
+  // 等到消费端真把这次变更交给 OS（条件等待），再多让几轮以捕捉"多余的一次"
+  // ——通道① 与重排器并存时这里会数到 2。
+  Future<void> waitForNotifCalls({int cancels = 0, int schedules = 0}) async {
+    for (var i = 0;
+        i < 200 && (cancelCalls < cancels || scheduleCalls < schedules);
+        i++) {
+      await pumpEventQueue(times: 5);
+    }
+    await pumpEventQueue(times: 50);
+  }
+
+  // 先播一个"哨兵"待办 + 未来提醒，等到它被排就说明本会话的冷启动全量重算
+  // 已落地；随后删掉哨兵行、清空 mock 历史，让 fixture 的事件批成为唯一被测批。
+  Future<void> wireReconciler() async {
+    final calId = await testDb
+        .into(testDb.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Decoy'));
+    final decoyId = await testDb
+        .into(testDb.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calId,
+            summary: 'Decoy',
+            dueDate: Value(DateTime(2027, 1, 4, 9)),
+          ),
+        );
+    await testDb
+        .into(testDb.reminders)
+        .insert(
+          RemindersCompanion.insert(
+            parentType: 'todo',
+            parentId: decoyId,
+            triggerTime: DateTime(2027, 1, 4, 8),
+          ),
+        );
+    container.read(reminderReconcilerProvider);
+    await waitUntil(() => scheduleCalls > 0);
+    await (testDb.delete(testDb.reminders)..where((t) => t.parentId.equals(decoyId))).go();
+    await (testDb.delete(testDb.todos)..where((t) => t.id.equals(decoyId))).go();
+    reset(notifMock);
+    cancelCalls = 0;
+    scheduleCalls = 0;
+    stubNotificationService();
+  }
+
+  setUpAll(() {
+    registerFallbackValue(
+      Reminder(
+        id: 0,
+        parentType: 'todo',
+        parentId: 0,
+        triggerTime: DateTime(2020),
+        isTriggered: false,
+      ),
+    );
+  });
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({'app_locale': 'en'});
     notifMock = _MockNotificationService();
-    when(() => notifMock.cancel(any())).thenAnswer((_) async {});
+    cancelCalls = 0;
+    scheduleCalls = 0;
+    stubNotificationService();
     testDb = AppDatabase.forTesting(NativeDatabase.memory());
     container = ProviderContainer(
       overrides: [
@@ -187,6 +273,7 @@ void main() {
 
   group('clearRemindersProvider', () {
     test('cancels and deletes only the target parent reminders', () async {
+      await wireReconciler();
       final calId = await testDb
           .into(testDb.calendars)
           .insert(CalendarsCompanion.insert(name: 'Test'));
@@ -216,6 +303,8 @@ void main() {
       final reminderB = await addReminder(todoB);
 
       await container.read(clearRemindersProvider).call('todo', todoA);
+
+      await waitForNotifCalls(cancels: 2);
 
       verify(() => notifMock.cancel(reminderA1)).called(1);
       verify(() => notifMock.cancel(reminderA2)).called(1);

@@ -26,6 +26,16 @@ const List<String> _busAccessFiles = <String>[
   'lib/domain/providers/record_bus_provider.dart',
 ];
 
+// 已删通道符号（G3）：写入路径接缝后这些不再是合法入口，lib/ui/ 必须零出现。
+const Set<String> _deletedChannelSymbols = <String>{
+  'rescheduleRemindersProvider',
+  'clearRemindersProvider',
+  'tableUpdates',
+};
+
+// G4：RecordScope.run 站点数。增删站点必须显式改这个常量，好在 diff 里被审查者看见。
+const int _scopeRunSites = 22;
+
 const Set<String> _readOnlyDaoMethods = <String>{
   'watchPending',
   'watchCompleted',
@@ -225,6 +235,54 @@ Map<String, List<GuardHit>> scanLib(String root) {
   return found;
 }
 
+List<String> deletedSymbolHits(String root) {
+  final hits = <String>[];
+  final dir = Directory('$root/lib/ui');
+  if (!dir.existsSync()) return hits;
+  final files =
+      dir.listSync(recursive: true).whereType<File>().where(
+            (f) => f.path.endsWith('.dart'),
+          ).toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
+  for (final file in files) {
+    final full = file.path.replaceAll('\\', '/');
+    final path = full.startsWith('$root/')
+        ? full.substring(root.length + 1)
+        : full;
+    final lines = stripCommentsAndStrings(file.readAsStringSync()).split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      for (final symbol in _deletedChannelSymbols) {
+        if (lines[i].contains(symbol)) {
+          hits.add('$path:${i + 1} 已删通道符号 $symbol 不得再出现在 UI 层');
+        }
+      }
+    }
+  }
+  return hits;
+}
+
+Map<String, int> scopeRunSites(String root) {
+  final counts = <String, int>{};
+  final files =
+      Directory('$root/lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
+  for (final file in files) {
+    final full = file.path.replaceAll('\\', '/');
+    final path = full.startsWith('$root/')
+        ? full.substring(root.length + 1)
+        : full;
+    final count = RegExp(
+      r'RecordScope\.run\(',
+    ).allMatches(stripCommentsAndStrings(file.readAsStringSync())).length;
+    if (count > 0) counts[path] = count;
+  }
+  return counts;
+}
+
 String _reject(String path, int line, String message, String detail, String source) =>
     '$path:$line $detail$message\n    $source';
 
@@ -418,6 +476,36 @@ void main() {
       }
 
       expect(problems, isEmpty, reason: problems.join('\n'));
+    });
+  });
+
+  group('deleted channels and scope sites', () {
+    test('G3：已删通道符号在 lib/ui/ 零出现', () {
+      final root = resolveRepoRoot();
+      if (root == null) {
+        fail('仓库根解析失败（CWD=${Directory.current.path}）');
+      }
+      expect(
+        deletedSymbolHits(root),
+        isEmpty,
+        reason:
+            '写路径接缝后这三条通道只保留 provider 本体（逃生门），UI 层不得再直呼；'
+            '改期由提交后的领域事件驱动',
+      );
+    });
+
+    test('G4：RecordScope.run 站点数与常量一致', () {
+      final root = resolveRepoRoot();
+      if (root == null) {
+        fail('仓库根解析失败（CWD=${Directory.current.path}）');
+      }
+      final sites = scopeRunSites(root);
+      final total = sites.values.fold<int>(0, (sum, count) => sum + count);
+      expect(
+        total,
+        _scopeRunSites,
+        reason: '站点增删必须显式改 _scopeRunSites（当前分布：$sites）',
+      );
     });
   });
 }

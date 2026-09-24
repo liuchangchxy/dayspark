@@ -58,6 +58,12 @@ final class RecordScope {
     _register(RecordRemoved(type, localId, reminderIds: reminderIds));
   }
 
+  // 粗粒度登记：整表元数据重写（身份切换 / baseline 回填）不逐个 id 登记，
+  // 消费端按 type 自行决定要不要重读。
+  void bulkChanged(RecordType type, {required String reason}) {
+    _register(RecordsBulkChanged(type, reason: reason));
+  }
+
   void _register(RecordChange change) {
     if (_closed) {
       throw StateError(
