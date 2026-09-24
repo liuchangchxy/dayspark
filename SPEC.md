@@ -50,6 +50,7 @@ flowchart LR
 2. **同步后端**：Dart（shelf + drift + SQLite），服务器游标 + 幂等 push + 字段级 LWW + SSE 信号；与客户端共享 `dayspark_contracts` 契约 package
 3. **AI 接口层**：MCP server 长在后端同进程同数据源；17 工具面（event+task，随 P2.5 扩展），工作流工具优先于 API 映射；无硬删除（trash 软删姿态，对应回收站语义）
 4. **小组件层**：versioned JSON 快照（home_widget + App Group / AppWidgetProvider），单写入路径
+5. **派生态失效层**：客户端单写入口（`RecordScope`）+ post-commit 领域事件（`record-applied` / `record-removed`）驱动闹钟重排与小组件快照刷新；事件只携带"重读拿不回来"的信息（写前参考时间、硬删前的 reminder id）
 
 ---
 
@@ -93,6 +94,16 @@ flowchart LR
 
 ---
 
+### 3.5 核心功能 D：派生态一致性（闹钟 / 小组件）
+
+- **业务描述**：记录（事件/待办）的派生副作用——本地通知/闹钟的重排、桌面小组件快照的刷新——必须在每次记录写入后收敛到当前行状态，不因写入入口不同而静默失效
+- **业务规则契约**：
+  - **规则 1**：进程内一切记录写入（用户操作、ICS 导入、账号重置、同步应用）必须经单写入口 `RecordScope.run`；写入即登记，**提交后**发布；对不存在的 localId 仍会发出一条 `applied`（`previousReference` 为 null），消费端必须容忍"重读无此 id"并按 inactive 处理
+  - **规则 2**：发布边界 = 事务提交。"`db.transaction()` 返回"即"已提交"；事务回滚 → **零发布**
+  - **规则 3**：事件粒度 = per-record + per-transaction batch；**不携带 after 值**（消费端提交后重读行为准）；**不做事件溯源/持久化/重放**
+  - **规则 4**：消费端必须幂等；取消须**按原因分档**，活跃 snooze（在 `reminder.id` 上重排、其行内 `triggerTime` 已成过去）不得被清
+  - **规则 5**：**跨进程写**（`bin/dayspark.dart` 直开同一库文件）不受缝覆盖，由冷启动/恢复前台全量重算兜底
+
 ## 4. 数据结构与接口契约 (Data Contracts)
 
 ### 4.1 同步记录结构
@@ -125,3 +136,5 @@ flowchart LR
 5. **重复事件**：展开绑定可见窗口（before/after），不做全量时间轴展开；拖拽重复事件须防改坏整个系列
 6. **版本解析**：构建号比较用 `int.tryParse`，解析失败视为无更新，不得抛异常
 7. **平台差异**：UI/交互改动必须显式考虑桌面鼠标 vs 移动触摸（平台感知法则）；本地验证命令用 `dart analyze .`（`flutter analyze` 在中文路径下 LSP 崩溃）
+8. **派生态一致性**：记录写入的派生态失效由 post-commit 领域事件驱动；事务回滚不得产生事件；事件批量边界 = 事务边界
+9. **跨进程写入**：外部进程直写库文件（CLI）不产生领域事件，客户端靠冷启动/恢复前台重算收敛

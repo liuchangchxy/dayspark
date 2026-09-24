@@ -3,6 +3,8 @@ import 'package:drift/drift.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 
@@ -107,10 +109,10 @@ final createTodoProvider =
 final updateTodoProvider =
     Provider<Future<void> Function(int id, TodosCompanion data)>((ref) {
       final db = ref.read(databaseProvider);
-      return (int id, TodosCompanion data) => db.transaction(() async {
-        await (db.update(db.todos)..where((t) => t.id.equals(id))).write(data);
-        await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
-      });
+      return (int id, TodosCompanion data) => RecordScope.run(
+        db,
+        (tx) => TodoWriter.updateTodo(db, tx, id, data),
+      );
     });
 
 final toggleTodoProvider =

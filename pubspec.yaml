@@ -92,6 +92,7 @@ dev_dependencies:
   drift_dev: ^2.24.0
 
   # Testing
+  crypto: ^3.0.7
   mocktail: ^1.0.4
   # Real server for the two-device e2e (test-only import; never ships).
   dayspark_server:
