@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:rrule/rrule.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -355,8 +356,9 @@ String parseRruleStructured(Object? raw, String field) {
   } on McpToolException {
     rethrow;
   } catch (e) {
+    stderr.writeln('mcp: recurrence parse failed for $field: $e');
     throw mcpValidation(
-      '$field is not a valid recurrence combination: $e',
+      '$field is not a valid recurrence combination',
       hint: 'Check that each BY* part is legal for the chosen freq.',
     );
   }
