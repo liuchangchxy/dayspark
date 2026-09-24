@@ -2,10 +2,40 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.23.0+24** — Server MCP: 17 tools + 3 resources, OAuth 2.1 two-track (CLI login token / Agents OAuth), stdio wrapper, dayspark CLI, 5-case e2e matrix, XFP trust fix / 服务端 MCP：17 工具 + 3 资源、OAuth 2.1 双轨（CLI 登录 token / Agent OAuth）、stdio 桥、dayspark CLI、5 例 e2e 矩阵、反代 XFP 信任修复
-- 上一版本 / Previous: **v0.22.0+24** — Sync backend: self-hosted Docker server, client outbox/applier/SSE engine, dual-device e2e matrix, account settings / 同步后端：自托管 Docker 服务端、客户端 outbox/applier/SSE 引擎、双设备 e2e 矩阵、账号设置
+- 最新版本 / Latest: **v0.24.0+24** — P4 platform parity + todo UX: Apple bundle/App Group unification, widget v2 three variants + pendingTaps + quick-add deep link, six-things/hide-completed, solar-term/holiday month markers, settings IA terminal, calendar debts, time-sensitive notifications (device-gate caveat), adhoc keychain signing fix / P4 平台补齐与待办体验：Apple 资产统一、小组件 v2 三变体 + 勾选队列 + 快速添加、六件事/隐藏已完成、节气调休月标记、设置 IA 终态、日历体验清欠、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
+- 上一版本 / Previous: **v0.23.0+24** — Server MCP: 17 tools + 3 resources, OAuth 2.1 two-track (CLI login token / Agents OAuth), stdio wrapper, dayspark CLI, 5-case e2e matrix, XFP trust fix / 服务端 MCP：17 工具 + 3 资源、OAuth 2.1 双轨（CLI 登录 token / Agent OAuth）、stdio 桥、dayspark CLI、5 例 e2e 矩阵、反代 XFP 信任修复
 - 最新流程改进 / Pipeline: **SPEC/DECISIONS/AGENTS + pre-commit analyze gate** — 2026-09-22
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.24.0+24 — P4 Platform Parity + Todo UX / P4 平台补齐与待办体验
+
+### Features / 新功能
+
+| # | Feature / 功能 |
+|---|------|
+| 1 | **Apple asset unification** — bundle id `dev.opencal.*` → `com.dayspark.app*`（Runner/扩展/测试 target）、App Group `group.com.calendarTodoApp` → `group.com.dayspark.app`（entitlements + Swift suiteName + Dart `setAppGroupId` 原子同改），`dayspark` URL scheme 双端注册，CI 新增 iOS simulator 编译门。 / **Apple 资产统一** — bundle id 与 App Group 全量迁入 `com.dayspark.app` / `group.com.dayspark.app` 族（宿主/组件/代码原子同改），双端注册 `dayspark` scheme，CI 加 iOS simulator 构建门 |
+| 2 | **Widget v2, three variants** — Today / Upcoming / 月点阵 × Android/iOS/macOS 全部改读 versioned `widget_snapshot` v2（+`monthDots` 10 键契约）；**pendingTaps** 勾选队列（原生只入队、app 经既有 toggle 单一写路径消费，同 todoId last-wins）；**`dayspark://quick-add` 快速添加 deep link**（interactivity 回调只导航）；`ui` 块按 locale 预本地化（原生零硬编码英文）+ `theme` 暗色样式；macOS home_widget 方法通道 shim。 / **小组件 v2 三变体** — Today/Upcoming/月点阵 × 三端改读 v2 快照（含 `monthDots`）；`pendingTaps` 勾选队列走既有单一写路径；`dayspark://quick-add` 快速添加通路；文案预本地化 + 暗色主题；macOS 方法通道 shim |
+| 3 | **Six things + hide-completed** — 今天视图 Ivy Lee 六槽收敛（DateStrip chip，**默认 OFF**）+「更多 (N)/收起」折叠，复用既有拖拽排序前缀语义；设置 → 待办区六件事/隐藏已完成双开关（`hide_completed` 持久化，ON 隐藏三视图已完成分组）。 / **六件事 + 隐藏已完成** — 今天视图六槽收敛（默认 OFF，chip + 设置开关）与「更多/收起」折叠，复用既有拖拽管线；隐藏已完成过滤全部待办视图 |
+| 4 | **Solar-term & holiday month markers** — 接入纯 Dart `lunar ^1.7.8`：月视图日期头渲染节气微标签（24 个 zh/en l10n key）+ 法定班/休角标（数据止于 2026，2027+ 班/休静默降级、节气算法不受影响）；月视图非当月日期整格淡化。 / **节气/调休月标记** — 接入 `lunar ^1.7.8`：节气微标签 + 班/休角标（法定数据止于 2026，2027+ 角标静默降级），非当月日期淡化 |
+| 5 | **Settings IA terminal** — 一级精简为外观组（语言/默认标签/主题色等）→ 功能组（待办/数据/账号/AI/通知）→ 折叠「高级」收纳关于 + 开源许可；危险/低频项不再平铺一级。 / **设置 IA 终态** — 一级 = 外观组 → 功能组 → 折叠「高级」（关于 + 许可），低频项全部入高级 |
+
+### Bug Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | **macOS adhoc 启动 SIGKILL（2026-09-24 用户实测崩溃）— `keychain-access-groups` 填 `$(AppIdentifierPrefix)` 在 adhoc/teamless 签名下展开为裸 bundle id，taskgate 以 `Invalid Signature` 拒绝 spawn（`codesign --verify` 仍通过）** | 实验证明**空数组同样崩**（exit 137 复现）→ 整键从 `macos/Runner/{DebugProfile,Release}.entitlements` 删除并留 WHY 注释；重建后直跑存活 ≥7s。约束见 `docs/CONSTRAINTS.md` macOS 签名章节 / Root cause proven by experiment: even an empty array crashes — key removed entirely; launch gate re-verified |
+| 2 | **P1 日历遗留 (b) 类欠账** — 日/周从 00:00 起滚、事件 tile 桌面无 click 光标、空白槽无语义节点、月视图非当月日期不淡化 | `initialTimeOfDay` 08:00、事件 tile `MouseRegion(click)` ×2、空白槽 `Semantics(button)`（day/week）、非当月 header `Opacity 0.3` / Four calendar debts cleared (scroll/cursor/semantics/dim) |
+| 3 | **iOS time-sensitive 通知从未真正生效 — `Runner.entitlements` 文件存在但 pbxproj 无 `CODE_SIGN_ENTITLEMENTS`（inert）；接线后个人 team 拒绝 capability，device/TestFlight 构建 fail-closed** | 补齐 Runner Debug/Release/Profile 三配置接线 + schedule/snooze 两路径 `interruptionLevel: .timeSensitive`；**设备门 caveat**：真机/TestFlight 前须付费 team 保留或删该 entitlement 行（代码优雅降级），模拟器/CI 不受影响 / Entitlement wired on all 3 configs + time-sensitive on both schedule paths; device-gate caveat recorded (keep-vs-remove decision before TestFlight) |
+
+### Infrastructure / 基础设施
+
+| # | Change / 变更 |
+|---|------|
+| 1 | **Hygiene bucket（P1–P3 评审结转）** — tool 测试（`mcp_stdio_wrapper` + `dayspark_cli`）进 ci.yml `server-test` job；MCP `WINDOW` hint 去 cursor 承诺措辞；工具内部错误 `$e` → 不透明 `INTERNAL` + stderr 日志（recurrence 解析同款）；consent/error HTML 加 `X-Frame-Options: DENY` + `frame-ancestors 'none'`；RFC 7591 补 `client_secret_expires_at`/`client_id_issued_at`；`response_mode` 非 `query` 拒绝；Linux `APPLICATION_ID` → `com.dayspark.app.dayspark`（存量安装视为新应用，需重钉启动器，数据无损）。 / **卫生桶（P1–P3 评审结转）** — tool 测试进 CI、`$e` 脱敏、consent 防帧头、RFC 7591 两字段、`response_mode` 校验、Linux APPLICATION_ID 迁移 caveat |
+| 2 | **Windows 通知 stub 上游复查** — pub.dev 3.1.1（2026-06-14）无 gen_snapshot AOT 修复记录且 platform-interface 版本冲突，`patches/flutter_local_notifications_windows` override **保留**，记 ROADMAP 跟进。 / **Windows 通知 stub 上游复查** — 上游无 AOT 修复且依赖冲突，override 保留，跟进记 ROADMAP |
+| 3 | **Full verification** — root `dart analyze .` 0, `flutter test` 217/217, server 195/195, contracts 37/37, wrapper 9/9, CLI 20/20, Kotlin 7/7; manual QA checklist `docs/qa/p4-manual-qa.md`. / **全量验证** — 根 analyze 0、flutter 217、server 195、contracts 37、wrapper 9、CLI 20、Kotlin 7 全绿；手工验收清单见 `docs/qa/p4-manual-qa.md` |
 
 ---
 

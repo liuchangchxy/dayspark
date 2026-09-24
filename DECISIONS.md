@@ -129,3 +129,45 @@
 - **核心决策**：只提供 `trash_event`/`trash_task`（写 `deletedAt` 进回收站，`destructiveHint:true`），**不提供**任何 `delete_*`/`empty_trash` 工具；永久删除保留给 App UI 回收站人工操作——与冻结需求「对齐回收站语义」一致，AI 幻觉误删可全量恢复。
 - **对应 SPEC 章节**：SPEC.md 3.3 规则 5
 - **影响范围**：`server/lib/src/mcp/tools.dart` 注解矩阵、`docs/CONSTRAINTS.md` MCP 章节。
+
+### [2026-09-24] Apple bundle id / App Group 家族原子统一到 `com.dayspark.app` / `group.com.dayspark.app`
+- **触发背景**：P4 平台补齐——iOS/Mac 资产仍散在 `dev.opencal.*` bundle id 与 `group.com.calendarTodoApp` 组名下，与项目更名后的 `com.dayspark.app` 族不一致，App Group 不统一会让小组件宿主/扩展读写不同 suite。
+- **核心决策**：一次原子迁移全部资产——bundle id（Runner/Widget 扩展/RunnerTests × iOS+macOS）、App Group（6 份 entitlements + Swift `suiteName`/`appGroupId` + Dart `setAppGroupId`）同改同验；降级路径仅允许组名回退旧值（bundle 改名保留）。终态 grep：旧组名/旧 bundle id 零残留。
+- **对应 SPEC 章节**：SPEC.md 1.1 需求 2、3.4 P4 行
+- **影响范围**：`ios/**`、`macos/**`、`lib/main.dart`、`docs/CONSTRAINTS.md` Home Widget 章节、CI（+iOS simulator job）。
+
+### [2026-09-24] 小组件快照文案走预本地化（snapshot pre-localization），原生零 intl
+- **触发背景**：widget v2 要求 l10n/去硬编码英文，但 Kotlin/Swift 渲染层没有可靠的 intl 运行时，逐端维护翻译表必然漂移。
+- **核心决策**：`ui` 块由 Dart 在构建快照时用 `AppLocalizations.delegate.load(解析后的 locale)` 解析成**成品字符串**写入（解析顺序：显式参数 → `app_locale` prefs → 平台 locale），原生只 `setText`；locale 切换靠下一次快照写入生效，与数据刷新同一通路，不新增同步机制。arb（zh+en 成对）是唯一文案源。
+- **对应 SPEC 章节**：SPEC.md 3.4 P4 行（小组件 v2 l10n）、第 2 节小组件层
+- **影响范围**：`lib/infrastructure/platform/home_widget_service.dart`（`ui` 键 + 6 个新 arb key）、三端原生渲染（T3）、golden schema 测试。
+
+### [2026-09-24] 六件事收敛：默认 OFF + 复用既有拖拽排序管线（前缀语义）
+- **触发背景**：Todo清单 UX 批 A 要把今天待办收敛为 Ivy Lee 六槽；可选方案有独立六槽存储、第二套排序管线、直接替换待执行面。
+- **核心决策**：**默认 OFF** 的 DateStrip chip 开关（`six_things_mode` prefs，设置区同步开关）；折叠态 = 现有 `dateTodos`（已按 sortOrder 排序）的**前缀 `sublist(0,6)`**——`SliverReorderableList` → `_onReorderItem` → `reorderTodosProvider` 既有单管线原样复用，重排索引与全列表 1:1 映射，无第二套持久化。仅作用于今天视图（`selectedDate == today`）；逾期带独立置顶不占六槽；「更多 (N)/收起」折叠行保证可逆。
+- **对应 SPEC 章节**：SPEC.md 3.4 P4 行（Todo清单 UX 批）、1.1 需求 8（克制）
+- **影响范围**：`lib/ui/widgets/todo/date_strip.dart`、home todos tab、`lib/domain/providers/todos_ui_prefs_provider.dart`、settings TodosSection、`test/ui/pages/home/home_todos_tab_test.dart`。
+
+### [2026-09-24] 节气/调休数据选 `lunar ^1.7.8`（6tail，纯 Dart）
+- **触发背景**：月视图需要节气微标签 + 法定班/休角标；候选需 macOS/CI 兼容（无原生库）、算法稳定、维护活跃。
+- **核心决策**：采用纯 Dart `lunar: ^1.7.8`——无 platform 目录/无 FFI/无 `.so`（GLIBC 检查不适用，macOS 按构造兼容）；`Lunar.fromDate().getJie()/getQi()` 取节气、`HolidayUtil.getHolidayByYmd` 取班/休，包一层 `ChineseCalendarService` 按天 memoize（365 天 ≈12ms）。已知边界：**法定调休数据内嵌止于 2026**，2027+ 班/休角标静默消失（节气为算法不受影响），升级 lunar 前为预期行为。
+- **对应 SPEC 章节**：SPEC.md 3.4 P4 行（节气）
+- **影响范围**：`pubspec.yaml`、`lib/domain/services/chinese_calendar_service.dart`、`marked_month_day_header.dart`、24 个节气 l10n key、对应单测。
+
+### [2026-09-24] time-sensitive 通知：保留 entitlement + 代码，设备门留 keep/remove 降级预案
+- **触发背景**：iOS 事件提醒需要 `interruptionLevel: .timeSensitive` 真正生效；接线 `Runner.entitlements` 后发现个人免费 team 不支持 Time Sensitive Notifications capability，device/TestFlight 构建在 profile 创建阶段失败（fail-closed）。
+- **核心决策**：**保留** entitlement + 双路径（schedule/snooze）代码不动；记录明确降级预案——上真机/TestFlight 前二选一：付费 team 开 capability（保留），或从 `Runner.entitlements` 删除该单行（`interruptionLevel` 无 entitlement 时系统优雅降级为普通优先级，Dart 零改动）。模拟器/CI 不受影响；macOS 故意不加对应 capability（系统降级）。
+- **对应 SPEC 章节**：SPEC.md 3.4 P4 行（通知全清单验收）
+- **影响范围**：`ios/Runner/Runner.entitlements`、`lib/infrastructure/platform/notification_service.dart`、`docs/CONSTRAINTS.md` Notifications 章节、`docs/qa/p4-manual-qa.md` §六。
+
+### [2026-09-24] Linux `APPLICATION_ID` 迁移到 `com.dayspark.app.dayspark`（接受一次性重钉 caveat）
+- **触发背景**：T1 review 结转——Linux 端 GTK application-id 仍是 `dev.opencal.calendar_todo_app`，与全局 `com.dayspark.app` 族不一致。
+- **核心决策**：`linux/CMakeLists.txt` `APPLICATION_ID` 改为 `com.dayspark.app.dayspark`（Linux 不允许纯域名倒置与 bundle id 完全同名时的惯例后缀写法）。**接受迁移 caveat**：存量安装升级后被桌面环境视为**不同应用**——旧 id 键控的固定启动器/Dock 条目可能失配、旧 id 下的 gsettings 遗留；应用数据走 XDG 标准路径**无损失**，对用户是一次性的重新固定启动器操作。
+- **对应 SPEC 章节**：SPEC.md 1.1 需求 2、3.4 P4 行
+- **影响范围**：`linux/CMakeLists.txt:10`、桌面文件/window class 关联、发版说明（需提示 Linux 用户重钉启动器）。
+
+### [2026-09-24] macOS 签名：keychain-access-groups 整键删除（非清空数组）
+- **触发背景**：2026-09-24 用户实测 macOS 启动 SIGKILL（taskgate `Invalid Signature`）——T1 曾按上游 README 把 `keychain-access-groups` 填成 `$(AppIdentifierPrefix)com.dayspark.app`；adhoc/teamless 下前缀展开为裸 bundle id，taskgate 拒绝 spawn。
+- **核心决策**：对照实验证明**空数组同样崩**（填值版与 `<array/>` 版均 exit 137、crash report 同症状；仅整键删除存活 ≥7s）→ 决定**整键从 DebugProfile/Release entitlements 删除**并留 dict 内 WHY 注释（偏离 coordinator 最初「改回 empty array」的字面指令，按其根因意图执行）。`flutter_secure_storage` 落 default partition 不受影响；仅真实 Developer-ID/Team 签名构建才可加回。
+- **对应 SPEC 章节**：SPEC.md 3.4 P4 行（平台补齐）
+- **影响范围**：`macos/Runner/{DebugProfile,Release}.entitlements`、`docs/CONSTRAINTS.md` Apple Signing 章节、CI macOS adhoc DMG 可启动性。
