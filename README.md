@@ -3,7 +3,7 @@
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Flutter](https://img.shields.io/badge/Flutter-3.41+-02569B?logo=flutter)](https://flutter.dev)
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Web%20%7C%20Windows%20%7C%20Linux-green)](#)
-[![Status](https://img.shields.io/badge/Status-v0.24.0--pre--release-orange)](https://github.com/liuchangchxy/dayspark/releases)
+[![Status](https://img.shields.io/github/v/release/liuchangchxy/dayspark?include_prereleases&label=Status&color=orange)](https://github.com/liuchangchxy/dayspark/releases)
 
 **灵光一闪，日程了然。**
 *A flash of insight, your schedule at a glance.*

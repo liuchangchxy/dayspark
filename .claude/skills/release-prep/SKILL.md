@@ -53,7 +53,7 @@ flutter test       # 必须全绿
 - `docs/changelog.md` — 顶部追加双语日志（feature 写新功能，bug 写问题+修复）
 - `docs/CONSTRAINTS.md` — 修 bug 或关键决策后有新约束就加
 - `CLAUDE.md` — Current version 行
-- 跑 `tool/check_version_consistency.sh` 自检（CI 同款门：pubspec / CLAUDE / changelog 含 Previous 行 / ROADMAP 四处必须一致；README 与 START_HERE 不在门内）
+- 跑 `tool/check_version_consistency.sh` 自检（CI 同款门：pubspec / CLAUDE / changelog 含 Previous 行 / ROADMAP 四处必须一致；README 是动态徽章、START_HERE 不复制版本，均无需手改）
 
 ## 5 — 推送
 

@@ -49,7 +49,8 @@
 ### 版本标记由 CI 守卫，SSOT 是 pubspec.yaml
 - `tool/check_version_consistency.sh` 校验 `CLAUDE.md`（Current version）、`docs/changelog.md`（`Latest` + 顶部 `## v` 节 + `Previous` 行必须等于第二节版本）、`docs/ROADMAP.md`（`Last updated` + `Current` + `Version` 行）
 - 门的位置：`ci.yml` `test` job 首步（`test` 是所有构建 job 的 `needs`，不一致即全红）+ `release.yml` `version-gate`（`--tag` 要求 tag = `v<pubspec semver>`，防止打错 tag 发出标注错误的产物）
-- **README 徽章与 `docs/START_HERE.md` 故意不在门内**：徽章在发布后的 docs 批次重切，START_HERE 的"当前版本 + tag URL"在 publish 之后才写 —— 入闸会让合法的发布提交误红
+- **README 徽章与 `docs/START_HERE.md` 不在门内**：徽章已改 shields.io 动态徽章（`github/v/release?include_prereleases`，读 GitHub Releases，无手同步点）；START_HERE 的版本一律指向 `pubspec.yaml` / `docs/ROADMAP.md`，不复制（其自身第 3 行的防漂移原则）
+- **`releases/latest` 对本仓库无效**：全部 release 都是 prerelease，GitHub 的 `/releases/latest` 只认非 prerelease → 302 回 `/releases` 列表。徽章靠 `include_prereleases` 参数绕开，文档链接一律用 `/releases`
 - **Why**: 四处版本号靠人同步，发布提交漏改一处即静默漂移；tag 与 pubspec 不一致时 `release.yml` 仍会照常出包
 - **Date**: 2026-09-24
 

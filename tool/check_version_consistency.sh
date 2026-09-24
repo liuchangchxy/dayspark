@@ -8,10 +8,9 @@
 #   docs/changelog.md   - 最新版本 / Latest, top "## v" section, 上一版本 / Previous
 #   docs/ROADMAP.md     - 最后更新 / Last updated, 当前版本 / Current, Version row
 #
-# Deliberately NOT gated, because both are refreshed out of band (a correct
-# release commit would otherwise be flagged red):
-#   README.md           - status badge is re-cut in a later docs pass
-#   docs/START_HERE.md  - "当前版本 + tag URL" is written after the release is published
+# Deliberately NOT gated, because neither carries a hand-synced version literal:
+#   README.md           - shields.io badge reads the GitHub Releases API
+#   docs/START_HERE.md  - points at pubspec.yaml / docs/ROADMAP.md instead of repeating it
 #
 # Usage:
 #   tool/check_version_consistency.sh                  check this repo
