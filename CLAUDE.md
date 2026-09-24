@@ -29,6 +29,14 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | lunar (solar
 
 从需求到发布的完整生命周期，每阶段是卡口，不允许跳过。
 
+**流程文档分工（四件 vendored 自 vibe-coding-starter@d339922，定义见各文件头）：**
+
+- 多任务执行工序（简报/报告/diff 审查包、Fix 循环 ≤5、**Rulings 裁定披露**、预检接缝扫描）→ `docs/process/EXECUTION.md`
+- 审查攻击配方（空转测试/边界数学/证据链倒挂/自证向量/跨端键一致性 + 审查者三律）→ `docs/process/REVIEWING.md`
+- 测试铁律、门禁、**DoD 收敛停止准则**（P0–P3 阶梯 + `skipped=0` 即收）→ `docs/process/TESTING.md`
+- 顶层架构推导法（七步 + 三判据 + 抄/造判据；产物写入 SPEC §2）→ `docs/process/ARCHITECTURE.md`
+- DaySpark 专属差异（发版流程、版本规则、平台法则、改表/l10n/UI 规则）**只写在本文件**，不写入 vendored 文件
+
 ---
 
 ### 0 — 需求
@@ -119,16 +127,19 @@ flutter test         # 必须全绿
 - CI 配置变更：先普通 push 验证再打 tag（正交法则）
 - CI 自动跑：全平台 `--release` 构建（`ci.yml`），release-only bug 提前暴露
 - CI 不改 `dart format --set-exit-if-changed`
+- **何时收口**：停止准则用 `docs/process/TESTING.md` DoD——P0/P1 清零 + 测试 100% 且 `skipped=0` → 必须明确宣布通过，禁止借 P2/P3 理论风险无限发散
+- **审查怎么做**：配方见 `docs/process/REVIEWING.md`（发现期五攻击法；修复期回 TESTING 铁律 RCA 全局清扫）；审查者必须亲手重跑门禁，禁止只信报告
 
 ---
 
 ### 4 — 代码审查
 
-加载 `dayspark-code-review` skill，对本次所有改动逐项检查。
+加载 `dayspark-code-review` skill（若存在），对本次所有改动逐项检查；**同时按 `docs/process/REVIEWING.md` 五攻击配方主动找洞**（至少各试一次：空转测试、边界数学、证据链倒挂、自证向量、跨端键一致性）。
 
-- **BLOCKER** 项必须修复才能继续
-- **WARNING** 项建议修复，至少确认已知悉
-- 修复后重新跑 `flutter analyze` + `flutter test`
+- **严重度阶梯统一为 P0–P3**（定义见 `docs/process/TESTING.md` DoD）：P0/P1 = 阻断必须清零；P2/P3 = 记入待办禁内耗。旧称 BLOCKER≈P0/P1、WARNING≈P2/P3，不再混用
+- P0/P1 必须修复才能继续；修复时执行 RCA：全项目同类实现一次清剿，严禁孤立改单行
+- 修复后重新跑 `dart analyze .` + `flutter test`
+- **阶段收尾必须交付 Rulings 裁定清单**（格式与阈值见 `docs/process/EXECUTION.md` §3）：只收行为/范围/代价级决定，禁止静默裁定
 
 ---
 
@@ -236,10 +247,16 @@ gh release view v<version> --json name,tagName,isDraft,isPrerelease,assets
 
 | 文档 | 一句话定位 |
 |------|-----------|
-| `SPEC.md` | **业务**真理源：做什么、规则契约、P1–P4 功能矩阵（改业务先改它） |
+| `docs/START_HERE.md` | **接续入口**：新会话“从哪开始”先读它（未做事项唯一清单） |
+| `SPEC.md` | **业务**真理源：做什么、规则契约、架构实例（§2）（改业务先改它；**状态一律看 ROADMAP**） |
 | `DECISIONS.md` | **为什么**：重大决策的轻量 ADR 时间线 |
 | `docs/CONSTRAINTS.md` | **坑**：技术约束与避坑清单（用户纠错也追加到这里） |
 | `docs/changelog.md` | **反馈**：用户反馈日志（原文→todo→代码 溯源） |
-| `docs/ROADMAP.md` | **功能**：功能演进全景与状态 |
+| `docs/ROADMAP.md` | **状态唯一源**：功能全景、需求/阶段状态、P2.5、follow-ups |
+| `DESIGN.md` | **设计令牌 SSOT**：颜色/字阶/间距/圆角/组件原则（UI 改动对拍它；代码差距见 `docs/design-token-gap.md`） |
+| `docs/process/*.md` | **流程四件**（vendored）：执行/审查/测试/架构方法，见本文件工作流开头的分工 |
+| `docs/qa/` | 各阶段手工验收清单（可按用户豁免先例处理） |
+| `docs/archive/` | 过时文档归档（历史考古，不维护） |
+| `docs/superpowers/plans/` | 各阶段实施计划（含主计划） |
 
 跨工具 AI 入口见 `AGENTS.md`（三大底线 + 指向本文件与 SPEC.md）。

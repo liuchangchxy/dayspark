@@ -21,8 +21,18 @@
 | [CLAUDE.md](CLAUDE.md) | **工程规则**（代码风格、架构分层、工作流卡口、版本/CI 规则） | 所有 AI，写代码前必读 |
 | [DECISIONS.md](DECISIONS.md) | **为什么**（轻量 ADR 时间线，重大决策留痕） | 决策存疑时查 |
 | [docs/CONSTRAINTS.md](docs/CONSTRAINTS.md) | **坑**（技术约束/避坑清单） | 改日历/DB/Provider/通知/同步前必读 |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | **功能**演进全景与状态 | 判断功能现状时查 |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | **状态唯一源**：功能全景、需求/阶段状态、待办 | 判断功能现状时查 |
 | [docs/changelog.md](docs/changelog.md) | **反馈**日志（原文→todo→代码 溯源） | 处理用户反馈时查 |
+| [docs/START_HERE.md](docs/START_HERE.md) | **接续入口**：新会话“从哪开始”的唯一清单 | 会话开工前必读 |
+| [docs/process/](docs/process/) | **流程四件**（vendored）：执行工序 / 审查配方 / 测试与 DoD / 架构方法 | 多任务开工、审查、收口前读 |
+
+**分工边界**：领域技术坑 → `docs/CONSTRAINTS.md`（纠错追加处）；AI 行为与工作习惯 → 本文件【教训】区；业务规则 → `SPEC.md`；执行工序与裁定披露 → `docs/process/EXECUTION.md`。同一内容只写一家，互相引用不复制。
+
+---
+
+## 阶段收尾：Rulings 裁定披露（强制）
+
+用户授权“自动执行整段流程 / 失败才停”时，阶段收尾除交付结论外**必须附裁定清单**：本阶段 AI 替用户拍板的决定，一行一条，格式 `裁定 → 判错的代价`；只收**行为/范围/代价级**决定，纯实现细节不收；需长期留存的写入 `DECISIONS.md`。**禁止静默裁定。**（详见 [docs/process/EXECUTION.md](docs/process/EXECUTION.md) §3）
 
 ---
 
