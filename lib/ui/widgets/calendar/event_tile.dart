@@ -81,6 +81,6 @@ class EventTile extends StatelessWidget {
         ),
       );
     }
-    return MouseRegion(cursor: SystemMouseCursors.click, child: tile);
+    return tile;
   }
 }

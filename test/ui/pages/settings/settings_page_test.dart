@@ -40,7 +40,7 @@ void main() {
     PackageInfo.setMockInitialValues(
       appName: 'DaySpark',
       packageName: 'com.dayspark.app',
-      version: '0.23.0',
+      version: '0.24.0',
       buildNumber: '24',
       buildSignature: '',
     );

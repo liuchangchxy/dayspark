@@ -51,6 +51,9 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   @override
   void initState() {
     super.initState();
+    if (widget.source != null) {
+      debugPrint('todo_create: source=${widget.source}');
+    }
     final now = DateTime.now();
     _dueDate = DateTime(now.year, now.month, now.day);
     // Pre-select first calendar

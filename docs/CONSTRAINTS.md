@@ -200,6 +200,13 @@
 - **Why**: 接线遗漏让 entitlement 静默失效，验收门形同虚设；三配置缺一（如只挂 Release）会在对应构建形态下丢失 capability
 - **Date**: 2026-09-24
 
+### `build-ios-simulator`：无证书 iOS 编译门（首跑未验）
+- `ci.yml` 新增 `build-ios-simulator` job（`needs: test` → `runs-on: macos-latest` → `flutter build ios --simulator --debug`），是个人/无证书 team 下的 iOS 编译门；对 `ci.yml` 的改动 insertion-only（只新增 job/步骤，不动既有逻辑）
+- **首跑未证实**：job 本地同命令跑绿过，但 CI 运行时行为要到首次普通 push 才验证——按正交法则，首次 push 必须盯该 job 首跑
+- 与上条互补：sim 编译绿 **≠** entitlement 已嵌入（Xcode 27 对 `iphonesimulator` 的 `codesign -d` 打空 `{}` 属平台策略；嵌入验证见上条 `Runner.entitlements` 的 `__TEXT,__entitlements` 段检查）
+- **Why**: 个人 team 无证书、device `flutter build ios` 在 provisioning 阶段 fail-closed，没有此门则 iOS 编译回归只能靠手工冒烟兜底；同时防止把「sim 编译门」误当 entitlements 验收门（旧「sim build 绿 = 门禁空」教训）
+- **Date**: 2026-09-24
+
 ### pending_todos 查询：NULL 到期沉底 + 过滤子任务
 - `ORDER BY (due_date IS NULL) ASC, due_date ASC` + `parentId.isNull()`
 - **Why**: 普通 `ASC` 在 SQLite 中 NULL 排最前，组件三个槽位会被无日期/子任务占满
