@@ -37,7 +37,7 @@ const List<String> mcpSupportedScopes = [mcpScopeRead, mcpScopeWrite];
 const String hintValidation =
     'Fix the highlighted argument and retry the same tool call.';
 const String hintWindowTooLarge =
-    'Narrow the window to at most 366 days or page with limit/cursor.';
+    'Narrow the window to at most 366 days or lower the limit.';
 const String hintEventNotFound =
     'No visible event with that id — list windows with get_events or browse trash with list_trash(kind: event).';
 const String hintTaskNotFound =

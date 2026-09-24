@@ -61,16 +61,29 @@ Future<Response> _guard(Future<Response> Function() run) async {
   }
 }
 
+// Frame-ancestors ban on every HTML response (consent + error pages):
+// clickjacking must not be able to overlay the authorize form.
+const Map<String, String> _frameGuardHeaders = {
+  'x-frame-options': 'DENY',
+  'content-security-policy': "frame-ancestors 'none'",
+};
+
 Response _page(int status, String message) => Response(
   status,
   body: renderOAuthErrorPage(message),
-  headers: {'content-type': 'text/html; charset=utf-8'},
+  headers: {
+    'content-type': 'text/html; charset=utf-8',
+    ..._frameGuardHeaders,
+  },
 );
 
 Response _html(int status, String body) => Response(
   status,
   body: body,
-  headers: {'content-type': 'text/html; charset=utf-8'},
+  headers: {
+    'content-type': 'text/html; charset=utf-8',
+    ..._frameGuardHeaders,
+  },
 );
 
 Response _redirect(String location, {required int status}) =>
@@ -459,6 +472,8 @@ Future<Response> _registerClient(
     'grant_types': ['authorization_code', 'refresh_token'],
     'response_types': ['code'],
     'issued_at': now.millisecondsSinceEpoch ~/ 1000,
+    'client_id_issued_at': now.millisecondsSinceEpoch ~/ 1000,
+    'client_secret_expires_at': 0,
   });
 }
 
@@ -553,6 +568,15 @@ void registerOauthRoutes(
         redirectUri,
         'unsupported_response_type',
         'only response_type=code is supported',
+        state,
+      );
+    }
+    final responseMode = params['response_mode'];
+    if (responseMode != null && responseMode != 'query') {
+      return _redirectError(
+        redirectUri,
+        'invalid_request',
+        'response_mode must be query',
         state,
       );
     }

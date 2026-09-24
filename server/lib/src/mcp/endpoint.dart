@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:shelf/shelf.dart';
@@ -382,12 +383,7 @@ class McpEndpoint {
     } on McpToolException catch (e) {
       return _toolErrorResult(e.toJson());
     } catch (e) {
-      return _toolErrorResult(<String, Object?>{
-        'code': mcpCodeInternal,
-        'message': 'tool "$name" failed: $e',
-        'hint': 'Retry once; if it persists, check the server logs for the '
-            'underlying exception.',
-      });
+      return _toolErrorResult(mcpToolInternalFailure(name, e));
     }
   }
 
@@ -459,4 +455,16 @@ class McpEndpoint {
       'isError': true,
     };
   }
+}
+
+// Unexpected handler failures log the real exception server-side and hand
+// the caller an opaque INTERNAL — SQL/stack details must not cross the wire.
+Map<String, Object?> mcpToolInternalFailure(String tool, Object error) {
+  stderr.writeln('mcp: tool "$tool" failed: $error');
+  return <String, Object?>{
+    'code': mcpCodeInternal,
+    'message': 'tool "$tool" failed with an internal error',
+    'hint': 'Retry once; if it persists, check the server logs for the '
+        'underlying exception.',
+  };
 }

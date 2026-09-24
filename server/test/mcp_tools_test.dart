@@ -313,6 +313,17 @@ void main() {
       expect(payload['hint'], contains('366'));
     });
 
+    test('WINDOW_TOO_LARGE hint narrows the window without promising '
+        'cursor paging', () async {
+      final payload = await _toolError(app, token, 'get_events', {
+        'from': iso(now()),
+        'to': iso(now().add(const Duration(days: 400))),
+      });
+      expect(payload['hint'], contains('Narrow the window'));
+      expect(payload['hint'], contains('lower the limit'));
+      expect(payload['hint'], isNot(contains('cursor')));
+    });
+
     test('rejects an invalid IANA timezone', () async {
       final payload = await _toolError(app, token, 'get_events', {
         'timezone': 'Mars/Olympus_Mons',

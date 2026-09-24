@@ -162,6 +162,18 @@ void main() {
     expect(body['result'], <String, Object?>{});
   });
 
+  test('internal tool failure is opaque and carries INTERNAL', () {
+    final payload = mcpToolInternalFailure(
+      'get_events',
+      Exception('SELECT * FROM secrets failed'),
+    );
+    expect(payload['code'], mcpCodeInternal);
+    expect(payload['message'], contains('get_events'));
+    expect(payload['message'], isNot(contains('SELECT')));
+    expect(payload['message'], isNot(contains('secrets')));
+    expect(payload['hint'], contains('server logs'));
+  });
+
   test('unknown method returns JSON-RPC -32601 with the request id', () async {
     final body = await _rpc(app, token, 'resources/subscribe', id: 7);
     expect(body['result'], isNull);

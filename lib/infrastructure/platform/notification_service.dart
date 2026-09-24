@@ -237,7 +237,9 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
     );
-    const iosDetails = DarwinNotificationDetails();
+    const iosDetails = DarwinNotificationDetails(
+      interruptionLevel: InterruptionLevel.timeSensitive,
+    );
     const windowsDetails = WindowsNotificationDetails(
       actions: [
         WindowsAction(content: 'Mark Complete', arguments: 'mark_complete'),
@@ -300,7 +302,9 @@ class NotificationService {
         ),
       ],
     );
-    const iosDetails = DarwinNotificationDetails();
+    const iosDetails = DarwinNotificationDetails(
+      interruptionLevel: InterruptionLevel.timeSensitive,
+    );
     const windowsDetails = WindowsNotificationDetails(
       actions: [
         WindowsAction(content: 'Mark Complete', arguments: 'mark_complete'),

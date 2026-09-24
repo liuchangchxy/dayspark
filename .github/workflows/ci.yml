@@ -66,6 +66,16 @@ jobs:
           dart pub get
           dart analyze .
           dart test
+      - name: MCP stdio wrapper test
+        working-directory: tool/mcp_stdio_wrapper
+        run: |
+          dart pub get
+          dart test
+      - name: dayspark_cli test
+        working-directory: tool/dayspark_cli
+        run: |
+          dart pub get
+          dart test
 
   build-web:
     needs: test

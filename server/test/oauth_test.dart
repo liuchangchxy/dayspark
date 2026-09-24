@@ -110,6 +110,7 @@ Future<Response> _authorizeGet(
   required String clientId,
   required String redirectUri,
   String responseType = 'code',
+  String? responseMode,
   String? scope,
   String? state,
   String? challenge,
@@ -119,6 +120,7 @@ Future<Response> _authorizeGet(
     'client_id': clientId,
     'redirect_uri': redirectUri,
     'response_type': responseType,
+    if (responseMode != null) 'response_mode': responseMode,
     if (scope != null) 'scope': scope,
     if (state != null) 'state': state,
     if (challenge != null) 'code_challenge': challenge,
@@ -494,6 +496,14 @@ void main() {
       expect(client['token_endpoint_auth_method'], 'none');
     });
 
+    test('registration carries RFC 7591 issue/expiry timestamps', () async {
+      final client = await _registerClient(app);
+      expect(client['client_id_issued_at'], isA<int>());
+      expect(client['client_id_issued_at'] as int, greaterThan(0));
+      expect(client['client_secret_expires_at'], 0);
+      expect(client['issued_at'], isA<int>());
+    });
+
     test('registration rejects a redirect_uri without a host', () async {
       final response = await _request(app, 'POST', '/oauth/register', body: {
         'client_name': 'Bad',
@@ -562,6 +572,54 @@ void main() {
       expect(html.toLowerCase(), contains('redirect_uri'));
       expect(html, isNot(contains('code=')));
       expect(html, isNot(contains('code_challenge')));
+    });
+
+    test('consent and error pages send frame-blocking headers', () async {
+      final client = await _registerClient(app);
+      final consent = await _authorizeGet(
+        app,
+        clientId: client['client_id'] as String,
+        redirectUri: _redirect,
+        scope: 'mcp:read',
+        challenge: _challengeFor(_verifier()),
+      );
+      expect(consent.statusCode, 200);
+      expect(consent.headers['x-frame-options'], 'DENY');
+      expect(
+        consent.headers['content-security-policy'],
+        contains("frame-ancestors 'none'"),
+      );
+
+      final errorPage = await _authorizeGet(
+        app,
+        clientId: 'nope',
+        redirectUri: _redirect,
+        scope: 'mcp:read',
+        challenge: _challengeFor(_verifier()),
+      );
+      expect(errorPage.statusCode, 400);
+      expect(errorPage.headers['x-frame-options'], 'DENY');
+      expect(
+        errorPage.headers['content-security-policy'],
+        contains("frame-ancestors 'none'"),
+      );
+    });
+
+    test('response_mode other than query is rejected with invalid_request',
+        () async {
+      final client = await _registerClient(app);
+      final response = await _authorizeGet(
+        app,
+        clientId: client['client_id'] as String,
+        redirectUri: _redirect,
+        responseMode: 'form_post',
+        scope: 'mcp:read',
+        challenge: _challengeFor(_verifier()),
+      );
+      expect(response.statusCode, 302);
+      final location = Uri.parse(response.headers['location']!);
+      expect(location.queryParameters['error'], 'invalid_request');
+      expect(location.queryParameters['error_description'], contains('query'));
     });
 
     test('unknown client_id renders an error page with no redirect',
