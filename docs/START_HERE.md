@@ -8,7 +8,7 @@
 
 ## 1. 我们在哪（一句话）
 
-四阶段主计划 **P1 地基 → P2 同步后端 → P3 MCP/CLI → P4 平台+UX 全部完成**，v0.24.0 五平台已发布；六套测试全绿（app 217 / server 195 / contracts 37 / wrapper 9 / CLI 20 / Kotlin 7）。每任务经独立审查+终审，过程裁定见各 DECISIONS 条目。
+四阶段主计划 **P1 地基 → P2 同步后端 → P3 MCP/CLI → P4 平台+UX 全部完成**；**债务2 统一事件缝已交付**（v0.25.0+25，五平台构建全绿）。六套测试全绿（app 316 / server 195 / contracts 37 / wrapper 9 / CLI 20 / Kotlin 7）。每任务经独立审查+终审，过程裁定见各 DECISIONS 条目与 `docs/superpowers/plans/2026-09-24-d2-event-seam.md` 收尾记录。
 
 ## 2. 下一步优先队列（按序）
 
@@ -26,7 +26,7 @@
 ## 3. 完整"说了但没做"清单（散落在会话、未进任何任务的全部条目）
 
 **A. 架构债务（2026-09-24 架构评审产出，仅存在于会话）**
-- ~~D2 统一事件缝（=队列1，最高 ROI）~~ ✅ 2026-09-24 完成（实施计划 `docs/superpowers/plans/2026-09-24-d2-event-seam.md`，T1–T4 全交付），遗留登记见 ROADMAP Pending Items P3（`triggerTime` 派生态存表 / ICS 接 outbox / CLI 跨进程写 / 事件软删删提醒行产品决策）
+- ~~D2 统一事件缝（=队列1，最高 ROI）~~ ✅ 2026-09-24 完成（实施计划 `docs/superpowers/plans/2026-09-24-d2-event-seam.md`，T1–T4 全交付 + 2026-09-25 收尾小改动「事件软删保留提醒行」按用户裁定实施），遗留登记见 ROADMAP Pending Items P3（`triggerTime` 派生态存表 / ICS 接 outbox / CLI 跨进程写）
 - D1 payload schemaVersion + contracts 字段清单（=队列5）
 - D3 后台同步重建 + device 注册补全（=队列7）
 - D4 应用内令牌桶限流（=队列6）
@@ -53,7 +53,7 @@
 - P1–P3 各终审 deferred (b)/(c) → 各阶段会话已交付，凡承重者均已入 ROADMAP/CONSTRAINTS
 
 **F. 过程记录（豁免类，防止下次被当成"没做的流程"）**
-- 人工 QA 豁免：P2（2026-09-23）、P4（2026-09-24 用户明示"不想做任何人工事"）；P3 四客户端走查未做。清单留存 `docs/qa/p{2,3,4}-*.md` 供有需要时补
+- 人工 QA 豁免：P2（2026-09-23）、P4（2026-09-24 用户明示"不想做任何人工事"）、**D2 债务2（2026-09-25 用户裁定记账豁免，3 项抽查未执行，清单留存 `docs/qa/d2-manual-qa.md`）**；P3 四客户端走查未做。清单留存 `docs/qa/p{2,3,4}-*.md` 供有需要时补
 - 发布自动化链已跑通一次：push→CI 8格→tag→五平台产物冒烟→publish（含 secret 二进制雷修复）
 
 ## 4. 架构债务详情

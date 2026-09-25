@@ -33,7 +33,7 @@
 | # | Change / 变更 |
 |---|------|
 | 1 | **Version guard's first real use** — `tool/check_version_consistency.sh` 在本次版本号变更中首次实战（五处一致 + `--selftest` 能红）；`test/architecture/record_seam_guard_test.dart` 的 `_scopeRunSites` 随站点增删显式改常量（22 → 25）。 / **版本守卫首次实战** + 守卫常量随站点收敛 |
-| 2 | **Full verification** — root `dart analyze .` 0 issue、`flutter test` 313/313（`skipped=0`）；server / contracts / wrapper / CLI / Kotlin 五套本任务未触碰，跑一遍确认无意外。 / **全量验证** — app 313 全绿 + 五套回归确认 |
+| 2 | **Full verification** — root `dart analyze .` 0 issue、`flutter test` 316/316（`skipped=0`）；server / contracts / wrapper / CLI / Kotlin 五套本任务未触碰，跑一遍确认无意外。 / **全量验证** — app 316 全绿 + 五套回归确认 |
 
 ---
 

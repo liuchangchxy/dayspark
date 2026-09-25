@@ -629,7 +629,7 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 |------|------|
 | Source files (lib/) / 源代码文件 | ~75 |
 | Test files (test/) / 测试文件 | ~30 |
-| Test cases (app / server / contracts / wrapper / CLI) / 测试用例（app/server/contracts/wrapper/CLI） | 217 / 195 / 37 / 9 / 20 (all passing / 全通过) + Kotlin 7 |
+| Test cases (app / server / contracts / wrapper / CLI) / 测试用例（app/server/contracts/wrapper/CLI） | 316 / 195 / 37 / 9 / 20 (all passing / 全通过) + Kotlin 7 |
 | Analysis issues / 分析问题 | 0 (root + server + contracts + wrapper + CLI) |
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
