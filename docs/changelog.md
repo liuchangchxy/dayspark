@@ -2,7 +2,7 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms; three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
+- 最新版本 / Latest: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
 - 上一版本 / Previous: **v0.24.0+24** — P4 platform parity + todo UX: Apple bundle/App Group unification, widget v2 three variants + pendingTaps + quick-add deep link, six-things/hide-completed, solar-term/holiday month markers, settings IA terminal, calendar debts, time-sensitive notifications (device-gate caveat), adhoc keychain signing fix / P4 平台补齐与待办体验：Apple 资产统一、小组件 v2 三变体 + 勾选队列 + 快速添加、六件事/隐藏已完成、节气调休月标记、设置 IA 终态、日历体验清欠、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 最新流程改进 / Pipeline: **SPEC/DECISIONS/AGENTS + pre-commit analyze gate** — 2026-09-22
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
@@ -26,6 +26,7 @@
 | 1 | **远端删除不撤销已排队通知 → 幽灵响铃** — 同步 applier 把远端 tombstone 落到本机软删后，此前排给 OS 的提醒/闹钟仍在原时刻响（债务2 勘察新发现的未登记缺陷） | 远端 tombstone 落地时登记 `removed(type, id, reminderIds: 写前抓下的全部 id)`，重排器第一档无条件 `cancel` 这些 id；reminder 行保留为惰性（远端删除不是用户在本机做过的动作，不连带销毁本机数据）。 / Ghost ringing fixed: remote tombstones now cancel every queued notification for that record |
 | 2 | **远端改期后本机闹钟停在旧时间（P2.5 #1）** — `pull`/`piggyback` 应用的 start/due 变更不会重排本机提醒，跨设备改期后本机按旧时刻响 | 引擎两处事务改经 `RecordScope.run`、applier 六个写点走 writer 并携带写前参考时间；重排器按 Δ 重排 + 物化回写，绝对时刻 `newTrigger = 新参考 − (旧参考 − 旧触发)`。 / Local alarms now follow remote schedule edits |
 | 3 | **远端删除后本机 `deletedAt` 已置但提醒行仍在** — tombstone 只改父行，提醒副作用无人接手 | 与修复 1 同一刀：登记 `removed` + 携带 reminderIds，撤通知不再依赖父行重读。 / Covered by fix 1 |
+| 4 | **事件进回收站再恢复，提醒永远不响** — 事件软删连带硬删提醒行（与待办侧不对称），`restoreEventProvider` 不重建行，用户恢复事件后提醒永久沉默 | 统一为**保留**：`EventWriter.softDelete` 不再删提醒行、登记改回 `applied`（`previousReference` = 写前 `startDt`），OS 通知由重排器读父行 `deletedAt != null` 走 `inactive` 档撤销；恢复时同一批 id 按行内 `triggerTime`（Δ=0）重新排上（触发时刻已成过去的按 `pastDue` 档保持惰性、不补响，与待办侧同）。硬删路径（`hardDeleteEventWithChildren` / `emptyEventTrash`）仍硬删行。 / **Deleted-then-restored events re-arm their reminders** — soft delete keeps reminder rows (symmetric with todos); restore re-schedules the same ids |
 
 ### Infrastructure / 基础设施
 

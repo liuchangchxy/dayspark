@@ -91,6 +91,7 @@
 - [ ] 父待办删除（级联子任务）→ 父子提醒都不响
 - [ ] 清空回收站 / 永久删除 → 无残留通知
 - [ ] 事件删除/清空事件回收站 → 提醒不响
+- [ ] 事件进回收站 → 提醒不响；恢复 → 未来提醒恢复调度（与待办侧对称）
 - [ ] **远端改期**（另一台设备/手机改 start 或 due，或 AI·MCP 改期后 pull 到本机）→ 本机该记录的提醒**按新时间重挂**，不留在旧时刻
 - [ ] **远端删除**（另一台设备/AI 把记录丢进回收站）→ 本机已排队的通知**到点不再响**
 - [ ] 重启设备 → 提醒仍会响（ScheduledNotificationBootReceiver）
@@ -126,7 +127,7 @@
 - 引擎/DAO 不得自开 `db.transaction`（或 `exclusively` / `runWithInterceptor`）再调 `RecordScope.run` —— 会 fail-fast 抛 `StateError`（那里的"提交"只是 `RELEASE SAVEPOINT`，外层回滚会留下幽灵事件）。已有 `db.transaction` 要换成本缝自己开事务
 - **派生文物化写登记为空**：重排器算出的触发时刻回写 `reminders.triggerTime` 经 `ReminderWriter.materializeTrigger`（还在缝内、但**不登记**）——它不改变领域事实，登记会让事件在总线上转一圈回到重排器自己（空批被 `publish` 丢弃）
 - **同步 applier 不回灌 outbox**：远端真值落地走 `EventWriter/TodoWriter.applyRemote*`（只写行 + 登记）。若顺手 `SyncOutbox.enqueue*`，服务端权威值会回声成一次本地推送（改期回声、tombstone 回声删除）
-- **远端 tombstone 与本地软删对提醒行的处置不同（既有分歧，非 v0.25.0 引入）**：远端 tombstone 一贯**保留**提醒行——pre-T4 的 applier 就不动提醒行，v0.25.0 只是给它补上 `removed` + `reminderIds` 登记去撤 OS 通知，行仍保留（本机恢复该事件时这些行会重新参与调度）；本地软删（`EventWriter.softDelete`）**硬删**提醒行，恢复后提醒永久沉默。**真正的异类是本地侧**；两侧一致性待产品拍板 → `docs/ROADMAP.md` Pending Items P3 #5
+- **软删一律"行保留 + 靠父行状态判定"，只有硬删才连带删行（2026-09-25 统一，此前本地/远端不对称）**：本地软删（`EventWriter.softDelete`）与远端 tombstone（`applyRemoteTombstone`）现在都**保留**提醒行、父行只置 `deletedAt`——"进回收站 → 恢复"两条路径都能把同一批 id 重新排上（此前本地软删**硬删**行，事件恢复后提醒永久沉默，是与待办侧不对称的异类；远端 tombstone 一贯保留行——pre-T4 的 applier 根本不动提醒行）。两侧差别只剩**登记格**：本地软删登记 `applied`（`previousReference` = 写前 `startDt`；**不登记 `removed`**——记录仍在回收站里，而 `removed` 的语义是"记录已不存在"），由重排器读父行 `deletedAt != null` 走 `inactive` 档撤通知；远端 tombstone 仍登记 `removed` + `reminderIds`（远端删除不是用户在本机做过的动作、也不知本机有哪些行，故按父级整体携带删前 id）。**硬删必须连带删行**：`hardDeleteEventWithChildren` / `emptyEventTrash` / 待办 `permanentDelete` / `emptyTrash` 删行并发 `removed` + `reminderIds`，否则永久删除后留下的惰性行成永久垃圾 → `SPEC.md` §3.5 规则 4；`docs/ROADMAP.md` Pending Items P3 #5（已关单）
 - 守卫：`test/architecture/record_seam_guard_test.dart`（G1 写入白名单 / G3 已删通道符号在 `lib/ui/` 零出现 / G4 `RecordScope.run` 站点数 == `_scopeRunSites`）；棘轮账本 `tool/record_seam_baseline.txt` —— **未登记的违规即红，条目失效 / 条数变少 / 等量置换也红**（逼审查者在 diff 里看见）。基线现为空 = 全仓零豁免，新增写入必须进白名单目录，不得往基线里加
 - **已知限制（诚实披露，不假装覆盖；口径与 `test/architecture/record_seam_guard_test.dart` 头注释一致，改守卫请同改本行）**：跨 DB 嵌套不拦（只探测"是否已在 `RecordScope` 里"）；`final dao = db.todosDao; dao.markComplete(..)` 这类**别名**调用漏网（当前 `lib/**` 无此写法）；**表名经变量/拼接传入**（`db.update(table)`）、`customStatement` / `db.execute` 直写 SQL、以及任何不出现 `into|update|delete` 字样的自定义封装都逃逸——守卫的保证是"常见写法必红"（**含拆行写法**：`await db` / `.into(` / `db.todos,` 各占一行由"空白归一化"那一趟接住，selftest 有 3 条 fixture），不是"证明没写表"；缝**盖不住跨进程写**（`bin/dayspark.dart` 直开同一库文件，靠冷启动/恢复前台重算兜底，见 `SPEC.md` §5 规则 9）；漏发**不是运行期异常而是静默过期**，防线是编译期（`tx` 必填）+ 守卫，不是运行期自检
 - **Why**: 派生态失效曾靠三条临时通道（provider 内联手调 / UI save 补丁 / 小组件 `tableUpdates`），合起来仍留 7 处盲区、其中 3 处用户可见；根因是没有单一失效机制

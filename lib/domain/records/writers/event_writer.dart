@@ -32,21 +32,21 @@ final class EventWriter {
     tx.applied(RecordType.event, id, previousReference: existing?.startDt);
   }
 
-  // 事件软删连带硬删 reminder 行（既有产品语义，本次不改）：行没了就没有任何
-  // 重读路径能让消费端撤销已交给 OS 的通知，因此必须随事件携带删前的 id
-  // （CONSTRAINTS 清单第 6 条"进回收站 → 提醒不响"）。
+  // 事件软删与待办侧对称：父行只置 deletedAt，reminder 行**保留**为惰性——进
+  // 回收站不是"记录已不存在"（行还在，恢复时同一批 id 要被重新调度）；若连带
+  // 删行，恢复后就没有任何行可重挂、也没有任何重读路径能让消费端撤掉已交给 OS
+  // 的通知。通知改由重排器按父行 inactive 档撤销（`_readParent` 的
+  // `deletedAt != null`），登记 applied 而非 removed——removed 的语义是"记录已
+  // 不存在"，与"行仍在回收站里"相左。硬删路径（hardDeleteWithChildren /
+  // emptyTrash）仍必须硬删行：永久删除后留下的惰性行就是垃圾。
   static Future<void> softDelete(AppDatabase db, RecordScope tx, int id) async {
-    final reminderIds = await ReminderWriter.idsOfParent(db, 'event', id);
-    await (db.delete(db.reminders)..where(
-          (t) => t.parentType.equals('event') & t.parentId.equals(id),
-        ))
-        .go();
+    final existing = await _row(db, id);
     final now = DateTime.now();
     await (db.update(db.events)..where((t) => t.id.equals(id))).write(
       EventsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
     );
     await SyncOutbox.enqueueDelete(db, RecordType.event, id);
-    tx.removed(RecordType.event, id, reminderIds: reminderIds);
+    tx.applied(RecordType.event, id, previousReference: existing?.startDt);
   }
 
   static Future<void> restore(AppDatabase db, RecordScope tx, int id) async {
@@ -132,9 +132,10 @@ final class EventWriter {
     );
   }
 
-  // 远端 tombstone：父行进回收站、reminder 行**保留**为惰性（与本地软删的硬删行
-  // 有意不同——远端删除不是用户在本机做过的动作，不连带销毁本机数据；恢复事件时
-  // 同一批 id 可被重新调度）。行里的 OS 通知靠 removed 携带的 id 撤销。
+  // 远端 tombstone：父行进回收站、reminder 行**保留**为惰性（与本地软删的
+  // "保留行"一致；两侧差别只在登记格：远端删除不是用户在本机做过的动作，也不
+  // 知道本机有哪些行，故按父级整体携带删前的 id 走 removed 撤销通知，而本地
+  // 软删按父行 inactive 档判定）。恢复事件时同一批 id 可被重新调度。
   static Future<void> applyRemoteTombstone(
     AppDatabase db,
     RecordScope tx,

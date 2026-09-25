@@ -195,7 +195,18 @@
   - **为何 C（`QueryExecutor.interceptWith` 拦截）降级为可选 tripwire、不做机制**：无 row id、`runBatched` 不透明，且挡不住"写对了但没登记"；一旦成机制就要长期背着这份脆弱性。
   - **为何允许物化回写 `reminders.triggerTime`**：行内时刻是下一次位移的锚——不回写会让第 2 次改期起按上一段位移漂移（首审 P1，极端时会把正确通知撤掉且不再排 = 永不响）。回写仍走缝（`ReminderWriter.materializeTrigger`）但**登记为空**：它不是新的领域事实，登记会让事件在总线上绕一圈回到重排器自己。**锚点归属按 D12**：只有"我们自己物化过的行"（`_materialized[id]` 与行内值同一瞬间）才敢拿会话内锚点 reference 当位移基准，否则退回事件自述的 `previousReference`（这是陈旧事件重复施加位移的防线）。
   - **为何撤除通道①（provider 内联 `cancel`/`schedule`，14 处调用点）**：与缝并行会让同一 id 在同一时刻被排/撤两次（T3b 实测 `Actual: [2, 2]`）。三条临时通道 → 一条缝；`rescheduleRemindersProvider` 随之删除，其能力由 `ReminderWriter.referenceChanged` 承载。
-  - **远端 tombstone 为何不删提醒行（T4 明确不改的一个既有行为）**：pre-T4 的 applier 落 tombstone 时**根本不动提醒行**——提醒行在本地一直保留；T4 只是给这条路径补上 `removed` + `reminderIds` 登记（撤销 OS 通知），行仍保留为惰性。因此"远端保留 / 本地硬删"的**分歧是既有的**（真正的异类是 `EventWriter.softDelete` 连带硬删行），不是 v0.25.0 引入的新行为；T4 选择两侧都不动（`applyRemoteTombstone` 不删行、也不改本地软删），把统一与否留给产品拍板 → `docs/ROADMAP.md` Pending Items P3 #5。
+  - **远端 tombstone 为何不删提醒行（T4 明确不改的一个既有行为）**：pre-T4 的 applier 落 tombstone 时**根本不动提醒行**——提醒行在本地一直保留；T4 只是给这条路径补上 `removed` + `reminderIds` 登记（撤销 OS 通知），行仍保留为惰性。因此"远端保留 / 本地硬删"的**分歧是既有的**（真正的异类是 `EventWriter.softDelete` 连带硬删行），不是 v0.25.0 引入的新行为；T4 选择两侧都不动（`applyRemoteTombstone` 不删行、也不改本地软删），把统一与否留给产品拍板 → `docs/ROADMAP.md` Pending Items P3 #5。**（2026-09-25 已拍板并实施：统一为"保留"，见本文件末条。）**
   - **两件零调用者的"逃生门"复核结论（T4 收尾）**：`scheduleReminderProvider` 保留（T2 简报定义的"保留一个版本"逃生门：重排器错杀 snooze 时可回退到通知服务直调；删除属于回滚路径变更，另立一项）；`ReminderWriter.referenceChanged` 保留（**T4 applier 不用它**——远端改期走 `EventWriter/TodoWriter.applyRemote`，由 writer 自己"写前读旧值 + 写 + 登记"，比"写一格、再另调一格登记"更紧；`referenceChanged` 与 R1a/R1b/R1c 三条测试留档，钉住"只登记位移"这一格的语义）。两者清理记入 ROADMAP Pending Items P3。
 - **对应 SPEC 章节**：SPEC.md 3.5（规则 1/2/4/5）、第 2 节记录缝模块
 - **影响范围**：`lib/domain/records/**`（新增缝/总线/写入口/重排器）、`lib/domain/providers/record_bus_provider.dart`、全部写路径 provider、`lib/domain/services/ics_service.dart`、`lib/domain/sync/{sync_applier,sync_engine}.dart`、`test/architecture/record_seam_guard_test.dart`、`tool/record_seam_baseline.txt`、`docs/CONSTRAINTS.md` 架构与小组件章节、`docs/ROADMAP.md` P2.5 #1 关单。
+
+### [2026-09-25] 事件软删**保留**提醒行（与待办侧对称）：回收站恢复能重挂提醒
+- **触发背景**：债务2 收尾时暴露的不对称——待办软删保留提醒行（恢复可重挂），事件软删（`EventWriter.softDelete`）却**连带硬删**提醒行，用户把事件丢进回收站再恢复，提醒永久沉默。远端 tombstone 一贯保留行，故本地侧是唯一的异类。
+- **核心决策**：**统一为"保留"**。`EventWriter.softDelete` 去掉 `db.delete(db.reminders)…go()`，父行只置 `deletedAt`、提醒行保留为惰性。
+  - **为何连带把登记从 `removed` 改回 `applied`**：`removed` 的语义是"记录已不存在"（硬删时用它 + `reminderIds` 撤通知）。软删后记录仍在回收站里，用 `removed` 是语义谎言；改 `applied` 后由重排器读父行 `deletedAt != null` 走 **`inactive` 档**撤 OS 通知——这正是待办侧的既有范式（T3b 当初改成 `removed` 是"行被删了、`applied` 撤不掉任何东西"这一事实的必然结果；行一旦保留，这个理由就消失了）。
+  - **为何硬删路径不动**：`hardDeleteEventWithChildren` / `emptyEventTrash`（及待办的 `permanentDelete` / `emptyTrash`）仍**硬删**提醒行并发 `removed` + `reminderIds`——永久删除后留下惰性行就是永久垃圾，且真删后没有任何"重读父行"的路径可撤销通知。
+  - **残留（有意不动，已披露）**：远端 tombstone 仍登记 `removed` + `reminderIds`。两侧现在都保留行、用户可见行为一致，差别只剩登记格（远端删除不是用户在本机做过的动作、也不知本机有哪些行）；改它要动 T4 已钉死的断言面（`applier_test.dart:288` 等），超出本次"一行改法"的范围。
+- **一处既有断言被本决策证伪（据实记录）**：`test/domain/providers/events_provider_test.dart:215-216` 的 `expect(reminders, isEmpty)` 钉的正是被推翻的旧行为，按裁定改为 `expect(reminders.map((r) => r.id), [reminderId])`（点名具体 id，强度不降）。**更正**：T4 的 R2 曾"更正"称"不存在 `expect(reminders, isEmpty)` 这条断言"——那是错的，断言存在，只是在 provider 测试里而非缝测试里；事实是"改一条"而非"补一条"。
+- **反向验证**：5 处逐条改坏实现均已红（软删重新删行 → S10/S14/S15 + provider 断言 4 红；登记回 `removed` → S14 红；去掉 `previousReference` → S14 红；`_readParent` 一律 `active` → S10/S14/S15 红；DAO 层去掉两处硬删 → 对应 DAO 测试红）。
+- **对应 SPEC 章节**：SPEC.md 3.5 规则 4
+- **影响范围**：`lib/domain/records/writers/event_writer.dart`（`softDelete` + 两处注释）、`test/domain/records/record_write_seam_test.dart`（S14/S15）、`test/domain/providers/events_provider_test.dart`（改 1 条断言）、`test/data/local/database/daos/events_dao_test.dart`（新增 1 条钉 `emptyEventTrash` 硬删行——此前零覆盖）、`docs/{ROADMAP,CONSTRAINTS,changelog}.md`。

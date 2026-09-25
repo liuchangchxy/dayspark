@@ -385,6 +385,77 @@ void main() {
       expect(schedules, isEmpty);
     });
 
+    // 事件软删与待办侧对称：父行只置 deletedAt，提醒行**保留**为惰性。行仍在 =
+    // 记录仍在回收站里，所以登记 applied、靠父行 inactive 档撤通知，而不是
+    // removed（后者语义是"记录已不存在"）。行保留正是"恢复能重挂"的前提。
+    test('S14 事件软删（进回收站）→ 提醒行保留 + 按父行 inactive 档撤通知', () async {
+      await wireSeamConsumers();
+      final start = DateTime(2027, 6, 14, 9);
+      final eventId = await insertEvent(start: start);
+      final reminderId = await insertReminder(
+        'event',
+        eventId,
+        DateTime(2027, 6, 14, 8, 55),
+      );
+
+      await container.read(deleteEventProvider)(eventId);
+
+      await settleBatch(cancelCount: 1);
+      expect(cancels, [reminderId]);
+      expect(schedules, isEmpty);
+
+      final rows = await db.select(db.reminders).get();
+      expect(
+        rows.where((r) => r.id == reminderId),
+        hasLength(1),
+        reason: '软删不删提醒行，否则回收站恢复后无可重挂',
+      );
+
+      final change = flatBatches().single;
+      expect(
+        change,
+        isA<RecordApplied>(),
+        reason: '记录仍在回收站里 → 登记 applied 靠父行 inactive 判定，不用 removed',
+      );
+      expect((change as RecordApplied).localId, eventId);
+      expect(change.previousReference, start);
+    });
+
+    // 本次决策要修的用户可见行为：事件软删保留提醒行后，"进回收站 → 恢复"
+    // 必须像待办一样把提醒重新排上（旧实现硬删行 → 恢复后提醒永久沉默）。
+    test('S15 事件进回收站后恢复 → 同一 reminder id 按行内绝对时刻重新排上', () async {
+      await wireSeamConsumers();
+      final start = DateTime(2027, 6, 15, 9);
+      final eventId = await insertEvent(start: start);
+      final reminderId = await insertReminder(
+        'event',
+        eventId,
+        DateTime(2027, 6, 15, 8, 55),
+      );
+
+      await container.read(deleteEventProvider)(eventId);
+      await settleBatch(cancelCount: 1);
+      expect(cancels, [reminderId], reason: '前置：软删先撤掉已排的通知');
+      expect(schedules, isEmpty);
+      cancels.clear();
+      batches.clear();
+
+      await container.read(restoreEventProvider)(eventId);
+
+      await settleBatch(scheduleCount: 1);
+      expect(
+        schedules.single.id,
+        reminderId,
+        reason: '重挂回原 reminder 行（id 空间就是通知 id）',
+      );
+      expect(
+        schedules.single.triggerTime,
+        DateTime(2027, 6, 15, 8, 55),
+        reason: 'start 未变（Δ=0）→ 绝对时刻 = 行内时刻',
+      );
+      expect(cancels, isEmpty);
+    });
+
     // 参考时间为空的父行（无 dueDate 的待办）在 SPEC §3.5 规则 4 里属 inactive
     // 档：撤掉通道① 后由重排器统一判定——旧内联通道无条件重排，是与规则 4 相左
     // 的历史行为。reminder 行保留为惰性（不删行）。

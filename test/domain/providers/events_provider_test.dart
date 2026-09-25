@@ -213,7 +213,11 @@ void main() {
       await waitForNotifCalls(cancels: 1);
       verify(() => notifMock.cancel(reminderId)).called(1);
       final reminders = await testDb.select(testDb.reminders).get();
-      expect(reminders, isEmpty);
+      expect(
+        reminders.map((r) => r.id),
+        [reminderId],
+        reason: '软删保留提醒行（与待办侧对称），恢复才能重挂',
+      );
       final event = await (testDb.select(
         testDb.events,
       )..where((t) => t.id.equals(eventId))).getSingle();
