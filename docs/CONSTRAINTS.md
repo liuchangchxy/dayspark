@@ -5,7 +5,7 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有技术约束，按领域分组（Calendar / Database / UI / Security / Platform）
-- 核心约束：kalender 钉 0.17.x、App Group 家族名 `group.com.dayspark.app` 双写、adhoc 下 macOS 禁 keychain-access-groups、iOS entitlements 三配置接线、小组件 v2 快照 10 键（含 monthDots）、**派生态失效只有一条缝（单写入口 `RecordScope.run` + 提交后发布）**、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
+- 核心约束：kalender 钉 0.17.x、App Group 家族名 `group.com.dayspark.app` 双写、adhoc 下 macOS 禁 keychain-access-groups、iOS entitlements 三配置接线、小组件 v2 快照 10 键（含 monthDots）、**派生态失效只有一条缝（单写入口 `RecordScope.run` + 提交后发布）**、**web 产物禁碰 `dart:io Platform.*`（缺 `kIsWeb` 守卫会白屏）**、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
 - 修改日历/DB/Provider/通知/小组件/Apple 签名相关代码前**必须先读**对应章节
 
 ---
@@ -304,6 +304,15 @@
 - **Flutter 版本**: release.yml 统一使用 3.41.7（与 CI debug 和 macOS release 一致）
 - **CI lint**: `analysis_options.yaml` 排除 `patches/**` 目录，避免第三方补丁包的 pre-existing lint 警告导致 CI 失败
 - **Date**: 2026-05-16
+
+## Web 构建 / Web Build
+
+### web 产物里禁止触碰 `dart:io` 的 `Platform.*`（dart2js 里是一调用就抛的 stub）
+- `Platform.isAndroid` / `isIOS` / `operatingSystem` 在 web 产物里是**无条件抛异常**的 stub；若在 `runApp` **之前**命中，**整页白屏**（v0.25.0 Web 产物实测如此）
+- 平台判断一律 **`kIsWeb` 先行守卫**（`if (kIsWeb) return;`），且**不要**用 `defaultTargetPlatform` 替代——web 上它按浏览器 UA 返回 `android`/`iOS`，会去调不存在的原生实现
+- **Why**: 2026-09-26 发现 v0.25.0 Web 白屏，根因 `main.dart:52 AlarmService.init()` 缺守卫；同类点 `notification_service.dart:116`（被上游 `.catchError` 吞掉 → web 上通知静默不初始化）、`notifications_section.dart:37/53`（Android 手机浏览器会露出「系统闹钟」开关）。完整事故条目见 `DECISIONS.md`
+- **防复发判据**：无头截图后断言「**唯一颜色数 > 1**」（纯白 = 1 色），比字节数可靠
+- **Date**: 2026-09-26
 
 ## CI/CD / 持续集成与发布
 

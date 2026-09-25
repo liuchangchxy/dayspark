@@ -562,6 +562,12 @@
 | 8 | Real device build verification / 各平台真机构建验证 | At least Android + iOS / 至少 Android + iOS 真机跑一遍 |
 | 9 | Animation standardization / 动画规范化 | State switches use AnimatedSwitcher 0.2s ease / 状态切换统一 AnimatedSwitcher |
 
+### P1 — 待修缺陷（阻断，2026-09-26 发现）
+
+| # | Item / 项 | Note / 说明 |
+|---|------|------|
+| 1 | **Web 端白屏 — v0.25.0 已发布产物在浏览器里不可用** | 根因已定位（1 级）：`main.dart:52 await AlarmService.init()` 缺 `kIsWeb` 守卫 → `alarm_service.dart:10` 的 `Platform.isAndroid/isIOS` 在 dart2js 产物里是**一调用就抛**的 stub → `main()` 在 `runApp` 之前中断 → 白屏。**最小修复≈一行**（`if (kIsWeb) return;` + `foundation.dart` import，影响面为零）；同批建议补 `notification_service.dart:116`、`notifications_section.dart:37/53` 的同类守卫；并加 CI「web 冒烟截图非纯白」断言。证据链/防复发见 `DECISIONS.md` 事故条目与 `CONSTRAINTS.md` Web 章节 | [Bug / 缺陷] 会话发现，未修 |
+
 ### P3 — 同步 / 派生态遗留（2026-09-24 债务2 收尾登记）
 
 | # | Item / 项 | Note / 说明 |

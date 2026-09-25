@@ -210,3 +210,14 @@
 - **反向验证**：5 处逐条改坏实现均已红（软删重新删行 → S10/S14/S15 + provider 断言 4 红；登记回 `removed` → S14 红；去掉 `previousReference` → S14 红；`_readParent` 一律 `active` → S10/S14/S15 红；DAO 层去掉两处硬删 → 对应 DAO 测试红）。
 - **对应 SPEC 章节**：SPEC.md 3.5 规则 4
 - **影响范围**：`lib/domain/records/writers/event_writer.dart`（`softDelete` + 两处注释）、`test/domain/records/record_write_seam_test.dart`（S14/S15）、`test/domain/providers/events_provider_test.dart`（改 1 条断言）、`test/data/local/database/daos/events_dao_test.dart`（新增 1 条钉 `emptyEventTrash` 硬删行——此前零覆盖）、`docs/{ROADMAP,CONSTRAINTS,changelog}.md`。
+
+### [2026-09-26] 事故：v0.25.0 的 Web 产物白屏（`dart:io Platform` 在 dart2js 里是抛异常 stub）
+- **症状**：`flutter build web --release` 产物在浏览器里恒为白屏（截图唯一颜色数 = 1）；Flutter 宿主元素（`flutter-view`/`flt-glass-pane`）已挂载、无网络失败，控制台只有一条无信息量的 minified 堆栈。
+- **根因链（1 级）**：`main.dart:52 await AlarmService.init()`（**缺 `kIsWeb` 守卫**）→ `alarm_service.dart:10 if (!Platform.isAndroid && !Platform.isIOS) return;` → `dart:io` 的 `Platform._operatingSystem` 在 dart2js 产物里是**无条件抛异常**的 stub（产物 `main.dart.js:8138`）→ `main()` 在 `runApp` **之前**中断 → 组件树从未构建 → 白屏。
+- **最小修复（未实施）**：`alarm_service.dart` 的 `init()` 首行加 `if (kIsWeb) return;`（+ `foundation.dart` import）。影响面为零——web 上本就不存在 `Alarm` 平台实现。**陷阱**：不要用 `defaultTargetPlatform` 替代 `Platform.isX`，web 上它按浏览器 UA 返回 `android`/`iOS`，会去调不存在的原生实现。
+- **如何验证**：① 对照组——最小 Flutter 应用在**同一**无头管线正常出图（排除环境因素）；② 把产物里该 stub 中立化后应用立刻出图（228 色、异常 0）；③ 判据用「唯一颜色数 > 1」而非字节数。
+- **如何防复发**：`lib/infrastructure/platform/` 内平台判断一律 `kIsWeb` 先行；CI 加 web 冒烟截图断言（纯白即红）。
+- **同类隐患（同批修）**：`notification_service.dart:116` 的 `Platform.isAndroid`（被上游 `.catchError` 吞掉 → web 上通知静默不初始化）；`notifications_section.dart:37/53` 用 `defaultTargetPlatform`（Android 手机浏览器上会显示出「系统闹钟」开关，点开即踩同一抛错）。
+- **对应 SPEC 章节**：SPEC.md §5（边缘情况与边界防御）
+- **影响范围**：`lib/infrastructure/platform/alarm_service.dart`、`notification_service.dart`、设置页通知区；**Web 平台全部用户（v0.25.0 起）**
+- **状态**：根因已定位、**修复未实施**；登记于 `docs/START_HERE.md` 队列第 0 项与 `docs/ROADMAP.md` P1

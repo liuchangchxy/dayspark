@@ -65,3 +65,6 @@ lib/oss_licenses.dart
 
 # Screenshots (personal / not for distribution)
 screenshots/
+
+# Impeccable（第三方设计 skill，Apache-2.0）— 不 vendor 进公开仓库；需要时 npx impeccable install 重装
+.claude/skills/impeccable/
