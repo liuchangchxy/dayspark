@@ -21,7 +21,7 @@
 | 5 | **债务1：载荷 schema 版本化** | 同一实体三份表示（Drift/payload/contracts）；payload 加 schemaVersion + 字段清单进 contracts | §4 |
 | 6 | **债务4：应用内限流** | DCR/登录限流目前只靠 DEPLOY.md 的 nginx，裸部署裸奔；加令牌桶中间件 | §4 |
 | 7 | **P5 主菜：后台同步 + 设备注册** | 同步目前前台协作式（App 关闭收不到远端变更）；devices 表/deviceId 半出生从未写入 | §4 + ROADMAP |
-| 8 | 用户决策项：TestFlight time-sensitive keep/remove（上架前）；v下一版 release notes 补 iOS15/macOS12 地板抬升 | 见 ROADMAP P4 follow-ups + docs/qa/p4-manual-qa.md | ROADMAP/QA |
+| 8 | 用户决策项：TestFlight time-sensitive keep/remove（上架前）；~~v下一版 release notes 补 iOS15/macOS12 地板抬升~~ ✅ 2026-09-25（v0.25.0 release notes 已写明「最低系统要求 iOS 17+ / macOS 12+」） | 见 ROADMAP P4 follow-ups + docs/qa/p4-manual-qa.md | ROADMAP/QA |
 
 ## 3. 完整"说了但没做"清单（散落在会话、未进任何任务的全部条目）
 
