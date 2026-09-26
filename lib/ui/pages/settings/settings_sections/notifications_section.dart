@@ -34,9 +34,10 @@ class NotificationsSection extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS ||
-            defaultTargetPlatform == TargetPlatform.windows) ...[
+        if (!kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.android ||
+                defaultTargetPlatform == TargetPlatform.iOS ||
+                defaultTargetPlatform == TargetPlatform.windows)) ...[
           const Divider(),
           SwitchListTile(
             secondary: const Icon(CupertinoIcons.alarm),
@@ -50,7 +51,8 @@ class NotificationsSection extends ConsumerWidget {
           ),
           const Divider(),
         ],
-        if (defaultTargetPlatform == TargetPlatform.android &&
+        if (!kIsWeb &&
+            defaultTargetPlatform == TargetPlatform.android &&
             ref.watch(canScheduleExactProvider).valueOrNull == false) ...[
           const Divider(),
           ListTile(

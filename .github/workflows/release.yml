@@ -24,6 +24,14 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build web --release
+      - name: Web smoke — 白屏即红 / fail if the page renders blank
+        run: dart run tool/web_smoke.dart --dir build/web --screenshot build/web-smoke.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-smoke-screenshot
+          path: build/web-smoke.png
+          if-no-files-found: ignore
       - run: cd build/web && zip -r $GITHUB_WORKSPACE/dayspark-web.zip .
       - uses: actions/upload-artifact@v4
         with:

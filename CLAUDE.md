@@ -17,7 +17,7 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | lunar (solar
 - 开源日历待办 App + AI 助手（BYO key 客户端 AI）；自托管同步后端（P2, v0.22.0 落地）与服务端 MCP（P3, v0.23.0 落地）
 - GitHub: https://github.com/liuchangchxy/dayspark
 - Package: `dayspark`, Android: `com.dayspark.app`
-- Current version: `0.25.0+25`
+- Current version: `0.25.1+26`
 - 项目功能状态：`docs/ROADMAP.md`
 - **接续入口（新会话说"从哪开始"先读它）：`docs/START_HERE.md`**
 - 技术约束记录：`docs/CONSTRAINTS.md`

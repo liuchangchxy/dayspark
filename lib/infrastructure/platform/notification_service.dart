@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../core/utils/platform_target.dart';
 import '../../data/local/database/app_database.dart';
 import 'alarm_service.dart';
 
@@ -113,7 +112,7 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    if (Platform.isAndroid) {
+    if (isAndroid) {
       final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin
       >();
@@ -164,7 +163,7 @@ class NotificationService {
 
   /// Whether exact alarms may currently be scheduled (Android 12+ gate).
   Future<bool> canScheduleExactAlarms() async {
-    if (kIsWeb || !Platform.isAndroid) return true;
+    if (!isAndroid) return true;
     final android = _plugin.resolvePlatformSpecificImplementation<
       AndroidFlutterLocalNotificationsPlugin
     >();
@@ -173,7 +172,7 @@ class NotificationService {
 
   /// Opens the system screen that grants the exact-alarm permission.
   Future<void> requestExactAlarmsPermission() async {
-    if (kIsWeb || !Platform.isAndroid) return;
+    if (!isAndroid) return;
     final android = _plugin.resolvePlatformSpecificImplementation<
       AndroidFlutterLocalNotificationsPlugin
     >();

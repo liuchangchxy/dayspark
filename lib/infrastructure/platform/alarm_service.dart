@@ -1,13 +1,13 @@
-import 'dart:io';
-
 import 'package:alarm/alarm.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/utils/platform_target.dart';
 
 class AlarmService {
   static const _prefKey = 'system_alarm_enabled';
 
   static Future<void> init() async {
-    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (!isNativeMobile) return;
     await Alarm.init();
   }
 
@@ -19,7 +19,7 @@ class AlarmService {
   static Future<void> setEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefKey, value);
-    if (!value && (Platform.isAndroid || Platform.isIOS)) {
+    if (!value && isNativeMobile) {
       await Alarm.stopAll();
     }
   }
@@ -31,7 +31,7 @@ class AlarmService {
     required String title,
     required String body,
   }) async {
-    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (!isNativeMobile) return;
     if (dateTime.isBefore(DateTime.now())) return;
 
     final alarmId = type == 'event' ? id + 500000 : id + 600000;
@@ -47,13 +47,13 @@ class AlarmService {
         body: body,
         stopButton: 'Stop',
       ),
-      warningNotificationOnKill: Platform.isIOS,
+      warningNotificationOnKill: isIOS,
     );
     await Alarm.set(alarmSettings: alarmSettings);
   }
 
   static Future<void> cancelAlarm(int id, {String? type}) async {
-    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (!isNativeMobile) return;
     if (type != null) {
       final alarmId = type == 'event' ? id + 500000 : id + 600000;
       await Alarm.stop(alarmId);

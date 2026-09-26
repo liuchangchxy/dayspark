@@ -1,14 +1,15 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.25.0+25 | 2026-09-24 | Debt 2 unified event seam shipped: post-commit domain events (record-applied/removed) drive every derived state — remote reschedule re-arms local reminders, remote delete cancels queued notifications, three ad-hoc channels collapsed into one seam
+> Last updated / 最后更新: v0.25.1+26 | 2026-09-26 | Web blank-screen P1 fixed: every `dart:io Platform.*` read funnels through one `kIsWeb`-guarded helper (`lib/core/utils/platform_target.dart`), a static guard test keeps it that way, and CI now fails when the built Web page renders blank
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.25.0+25** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.25.1+26** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
-- 最新变化：**债务2 统一事件缝落地（v0.25.0）** — 派生态失效从三条临时通道收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂；新增单写入口守卫 + 棘轮基线（已收敛为空）
-- 上一版：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
+- 最新变化：**Web 白屏修复（v0.25.1）** — v0.25.0 的 Web 产物在浏览器里恒白屏（`runApp` 之前的 `dart:io Platform.*` 在 dart2js 里必抛）；平台判断收敛到唯一 `kIsWeb` 守卫入口 `lib/core/utils/platform_target.dart` + 静态守卫测试 + CI「web 冒烟截图非纯白」断言（白屏即红）
+- 上一版：**债务2 统一事件缝（v0.25.0）** — 派生态失效从三条临时通道收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂
+- 更早：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）
 
 ---
@@ -292,6 +293,15 @@
 | **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
 | **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
 
+### v0.25.1 | 2026-09-26 | Web Blank-Screen Fix / Web 白屏修复
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **Web 产物恒白屏修复（P1）** — v0.25.0 已发布的 Web 包在浏览器里完全不可用（截图唯一颜色数 = 1）；根因是 `main.dart` 在 `runApp` 之前调 `AlarmService.init()`，其 `dart:io Platform.isAndroid` 在 dart2js 产物里是一调用就抛的 stub。修复后同一条冒烟管线实测约 400 色 / 着墨比约 15.5%（唯一颜色数逐次略有浮动，多次复跑 402–405 色）。 / **Web blank screen fixed** — same headless pipeline now renders ~400 colours | [Fix / 修复] START_HERE 队列 #0 |
+| **平台判断单点收敛** — 新增 `lib/core/utils/platform_target.dart`（`isAndroid` / `isIOS` / `isNativeMobile`，`kIsWeb` 短路在前）作为全仓 `Platform.*` 的唯一读点：`alarm_service.dart` 5 处、`notification_service.dart` 3 处改用之（其中仅 `:116` 是 web 上真会抛的点，另两处原本已带 `kIsWeb ||`），`notifications_section.dart` 补 `!kIsWeb` 守卫（Android 手机浏览器不再露出「系统闹钟」开关）。 / Platform reads funnel through one web-safe helper | [Engineering / 工程] CONSTRAINTS Web 章节 |
+| **防复发双闸** — 静态守卫 `test/architecture/web_platform_guard_test.dart`（白名单 + 必须与 `kIsWeb` 同行 + getter 逐字接对 + 扫描器自证）与冒烟断言 `tool/web_smoke.dart`（零依赖 headless Chrome 截图 + 手写 PNG 解码，纯白即红；截图随 artifact 上传）。判据不止"不白"：**产物自检**（不是 Flutter web 产物当场拒）+ **主文档（仅主框架）状态 2xx/304** + **Flutter 主脚本加载成功** + **宿主元素存在**（Flutter 换渲染器时用 `--allow-missing-host` 放行）四道正身信号，避免"有内容的非 App 页"被判绿，**同时挂 `ci.yml` 与 `release.yml` 的 `build-web`**（发布门也挡）。反证（抽掉守卫 → 守卫测试红 + 产物冒烟判白屏）已跑通。 / **Static guard + CI screenshot smoke** — red/green controls exercised | [CI / 持续集成] DECISIONS 2026-09-26 |
+| **测试** — app 用例 316 → 345（+29：平台守卫 6 / 平台断言等价 1 / web_smoke 13＝外部金标 2 + 过滤器往返 1 + 格式与报错 2 + 产物自检与静态服务 2 + HTTP 状态判据 1 + 白屏判据 5 / 设置页两条闸门 native 侧回归 9） | [Test / 测试] `flutter test` |
+
 ### v0.25.0 | 2026-09-24 | Debt 2: Unified Event Seam / 债务2 统一事件缝
 
 | Change / 变更 | Source / 来源 |
@@ -562,11 +572,11 @@
 | 8 | Real device build verification / 各平台真机构建验证 | At least Android + iOS / 至少 Android + iOS 真机跑一遍 |
 | 9 | Animation standardization / 动画规范化 | State switches use AnimatedSwitcher 0.2s ease / 状态切换统一 AnimatedSwitcher |
 
-### P1 — 待修缺陷（阻断，2026-09-26 发现）
+### P1 — 待修缺陷（阻断；2026-09-26 发现，同日清空）
 
 | # | Item / 项 | Note / 说明 |
 |---|------|------|
-| 1 | **Web 端白屏 — v0.25.0 已发布产物在浏览器里不可用** | 根因已定位（1 级）：`main.dart:52 await AlarmService.init()` 缺 `kIsWeb` 守卫 → `alarm_service.dart:10` 的 `Platform.isAndroid/isIOS` 在 dart2js 产物里是**一调用就抛**的 stub → `main()` 在 `runApp` 之前中断 → 白屏。**最小修复≈一行**（`if (kIsWeb) return;` + `foundation.dart` import，影响面为零）；同批建议补 `notification_service.dart:116`、`notifications_section.dart:37/53` 的同类守卫；并加 CI「web 冒烟截图非纯白」断言。证据链/防复发见 `DECISIONS.md` 事故条目与 `CONSTRAINTS.md` Web 章节 | [Bug / 缺陷] 会话发现，未修 |
+| 1 | ~~**Web 端白屏 — v0.25.0 已发布产物在浏览器里不可用**~~ ✅ **修复于 v0.25.1** | 根因：`main.dart` 在 `runApp` 之前调 `AlarmService.init()` → `alarm_service.dart` 的 `Platform.isAndroid` 在 dart2js 产物里**一调用就抛** → `main()` 中断 → 白屏（事故证据链见 `DECISIONS.md`、规则见 `CONSTRAINTS.md` Web 章节）。交付：`lib/core/utils/platform_target.dart` 唯一读点（5+1 处调用点收敛、设置页补守卫）+ 静态守卫测试 + CI 冒烟断言 `tool/web_smoke.dart`；反证已跑通（抽掉守卫 → 守卫红 + 产物冒烟判白屏）。**队列现已清空** | ✅ 已关单 (v0.25.1) |
 
 ### P3 — 同步 / 派生态遗留（2026-09-24 债务2 收尾登记）
 
@@ -580,6 +590,9 @@
 | 6 | **Linux bundle 主程序名仍是旧名 `calendar_todo_app`** | 桌面 id 已在 P4 改为 `com.dayspark.app.dayspark`，但 `linux/CMakeLists.txt` 的 `BINARY_NAME` 未同步 → 从终端启动要敲 `./calendar_todo_app`，与产品名不符（观感问题，不影响功能）。改名需同步改桌面文件与打包脚本 | [Cosmetic / 观感] v0.25.0 产物验收发现 |
 | 7 | **macOS 发行包带 `com.apple.security.get-task-allow`** | v0.25.0 产物验收发现：adhoc 签名的 DMG 里该 entitlement 仍在（允许调试器 attach）。属**既有状态**（历次 release 同）且不阻断使用，但发行包带调试授权是硬化缺口 → 若要收紧需在 release 配置里去除（注意别踩 `keychain-access-groups` 那类 taskgate 坑） | [Security / 安全] v0.25.0 产物验收发现 |
 | 8 | **`release.yml` 的 `generate_release_notes: true` 实为空转** | v0.25.0 发版时该 flag 产出的 body 是**空的**（0 行），实际靠人工 notes 填充 → 要么去掉该 flag，要么查明为何未生成（上一个是 prerelease，GitHub 的自动生成可能因此无基线） | [Engineering / 工程] v0.25.0 发版时发现 |
+| 9 | **Web 端 ICS 导出不可用（今日白屏同批勘察发现）** | `ics_service.saveIcsToFile` 走 `getApplicationDocumentsDirectory()`（path_provider 无 web 实现）→ web 上抛异常、被 `import_export_section.dart` 的 try/catch 兜住弹「导出失败」，用户实际拿不到导出文件。**不阻断启动**（不属白屏同类，故未纳入 v0.25.1）；导入侧已有 `kIsWeb` 分支正常。修法：web 上改为浏览器下载（Blob）或明确提示不支持 | [Bug / 缺陷] 2026-09-26 会话发现 |
+| 10 | **Web 上通知不可用且被静默吞掉** | `flutter_local_notifications` 无 web 实现 → `NotificationService.init()` 的 `_plugin.initialize()`（`notification_service.dart:110`）抛错，被 `lib/domain/providers/reminders_provider.dart:17` 的 `.catchError((_) {})` 吞掉 → web 上通知静默不初始化、也不报警。**既有状态**（v0.25.1 的白屏修复只消除了"因 `Platform.*` 而抛"那条路径，行为未变）；要么给 web 一条明确的降级提示，要么记录为"web 不支持提醒" | [Bug / 缺陷] 2026-09-26 白屏修复审查发现 |
+| 11 | **web 冒烟工具自身的已知边界（P3，五项，均已披露不修）** | ① `mainFrameId == null` 时主框架过滤静默退回（Chrome 若不返 `frameId`）；② **刻意伪造**的产物（手写 `<flt-glass-pane>` div + 假 `main.dart.js`）能过四道信号 —— 要关需 `Network.getResponseBody` 比对字节/哈希；③ `--fail-on-errors` 默认不开（会被 favicon 404 这类良性错误触发，非干净信号）；④ 颜色判据两类误判（内容稀疏页假红 0.385% / CSS 渐变底空白假绿 89%）；⑤ `serveDir` 对 `/index.html;v=2` 这类路径参数返回 404（Flutter 不会这么请求）。详情见 `docs/CONSTRAINTS.md` Web 章 | [Tooling / 工具] 2026-09-26 五轮对抗审查结转 |
 
 ### P2 — Nice to Have / 锦上添花
 
@@ -638,9 +651,9 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 |------|------|
 | Source files (lib/) / 源代码文件 | ~75 |
 | Test files (test/) / 测试文件 | ~30 |
-| Test cases (app / server / contracts / wrapper / CLI) / 测试用例（app/server/contracts/wrapper/CLI） | 316 / 195 / 37 / 9 / 20 (all passing / 全通过) + Kotlin 7 |
+| Test cases (app / server / contracts / wrapper / CLI) / 测试用例（app/server/contracts/wrapper/CLI） | 345 / 195 / 37 / 9 / 20 (all passing / 全通过) + Kotlin 7 |
 | Analysis issues / 分析问题 | 0 (root + server + contracts + wrapper + CLI) |
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.25.0+25 |
+| Version / 版本 | v0.25.1+26 |

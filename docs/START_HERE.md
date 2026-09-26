@@ -2,19 +2,19 @@
 
 > **给 AI 的指令**：当用户说"看看从哪里开始 / 继续项目"时，先读完本文档，再按「优先队列」行动。本文档是**未做事项的唯一清单索引**；状态类信息一律引用专业文档，不在此重复（防漂移）。
 
-**最后更新：2026-09-24 · 当前版本以 `pubspec.yaml` 为准（全景见 `docs/ROADMAP.md`，发布记录见 https://github.com/liuchangchxy/dayspark/releases ）**
+**最后更新：2026-09-26 · 当前版本以 `pubspec.yaml` 为准（全景见 `docs/ROADMAP.md`，发布记录见 https://github.com/liuchangchxy/dayspark/releases ）**
 
 ---
 
 ## 1. 我们在哪（一句话）
 
-四阶段主计划 **P1 地基 → P2 同步后端 → P3 MCP/CLI → P4 平台+UX 全部完成**；**债务2 统一事件缝已交付并随 v0.25.0 发布**（prerelease，五平台产物齐全）。⚠️ **但 v0.25.0 的 Web 产物白屏（P1，见队列第 0 项）**。六套测试全绿（app 316 / server 195 / contracts 37 / wrapper 9 / CLI 20 / Kotlin 7）。每任务经独立审查+终审，过程裁定见各 DECISIONS 条目与 `docs/superpowers/plans/2026-09-24-d2-event-seam.md` 收尾记录。
+四阶段主计划 **P1 地基 → P2 同步后端 → P3 MCP/CLI → P4 平台+UX 全部完成**；**债务2 统一事件缝已交付并随 v0.25.0 发布**（prerelease，五平台产物齐全）；✅ **v0.25.0 的 Web 白屏 P1 已修复并随 v0.25.1 交付**（`Platform.*` 唯一读点 + 静态守卫测试 + CI 冒烟截图断言）。六套测试全绿（app 345 / server 195 / contracts 37 / wrapper 9 / CLI 20 / Kotlin 7）。每任务经独立审查+终审，过程裁定见各 DECISIONS 条目与 `docs/superpowers/plans/2026-09-24-d2-event-seam.md` 收尾记录。
 
 ## 2. 下一步优先队列（按序）
 
 | # | 事项 | 一句话说明 | 详情来源 |
 |---|------|-----------|---------|
-| **0** | **⚠️ P1：Web 端白屏 — v0.25.0 已发布产物在浏览器里不可用** | 根因已定位（2026-09-26）：`main.dart:52` 的 `AlarmService.init()` 缺 `kIsWeb` 守卫，而 `dart:io` 的 `Platform.*` 在 dart2js 产物里是**一调用就抛**的 stub → `main()` 在 `runApp` 前中断 → 白屏。修复≈一行 + 同类守卫 + CI「截图非纯白」冒烟断言。**证据链/防复发见 `DECISIONS.md` 事故条目，规则见 `CONSTRAINTS.md` Web 章节** | DECISIONS 事故条目 / ROADMAP P1 |
+| **0** | ~~**⚠️ P1：Web 端白屏 — v0.25.0 已发布产物在浏览器里不可用**~~ ✅ 2026-09-26 | 交付：`lib/core/utils/platform_target.dart` 成为 `Platform.*` 全仓唯一读点（`alarm_service.dart` 5 处 + `notification_service.dart` 3 处收敛，设置页补 `!kIsWeb` 守卫）；静态守卫 `test/architecture/web_platform_guard_test.dart`；CI 冒烟断言 `tool/web_smoke.dart`（零依赖 headless 截图，纯白即红，`ci.yml` 与 `release.yml` 的 `build-web` 都挂）。反证已跑通（抽掉守卫 → 守卫红 + 产物冒烟判白屏，复现 `main.dart.js` minified 堆栈）；本地实测约 400 色 / 着墨比约 15.5%（多次复跑 402–405 色，唯一颜色数有浮动）。v0.25.1 待发版 | 已实现 / DECISIONS 事故条目 + ROADMAP v0.25.1 |
 | 1 | ~~**债务2：统一事件缝**~~ ✅ 2026-09-24 | 派生态失效已收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：三条临时通道 → 一条缝；远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂；守卫 + 棘轮基线（已收敛为空）落地。文档与版本 0.25.0+25 已同步 | 已实现 / `docs/ROADMAP.md` v0.25.0 + `docs/CONSTRAINTS.md` 架构章节 |
 | 2 | **前端设计走查** | 输入物已就绪：`docs/design-token-gap.md`（DESIGN.md 令牌 vs 代码逐条差距 + kalender 专项）。流程：按五维度清单（间距节奏/字阶/视觉层级/主题一致[驯化 kalender]/状态设计）逐条产出“具体哪+为什么+怎么改”的选择题 → 用户勾选 → 批量执行。设计语言权威 = `DESIGN.md` | §5 |
 | 3 | ~~**MCP 换官方 SDK**~~ ✅ 2026-09-24 | spike 实测**不能承载** → 手写版转正。0.5.2 服务端 Streamable HTTP 未发版；main 只认 2026-07-28（该修订已删 initialize/session）；无 shelf 适配；无 OAuth AS。测试兜底精确边界：壳测试 16 例随壳重写 / 行为守卫 = 工具 47 + CLI 13 + e2e 5 / OAuth 54 应原地绿 | DECISIONS [2026-09-24] MCP 转正手写版 |
@@ -38,8 +38,9 @@
 
 **C. 前端设计（=队列2，流程见 §5）**
 
-**C2. 新发现缺陷（2026-09-26 会话发现，未修）**
-- **Web 白屏 P1**（=队列第 0 项）：v0.25.0 的 Web 产物在浏览器里恒白屏；根因 `dart:io Platform` 在 dart2js 里抛异常 + `main()` 缺 `kIsWeb` 守卫。同类点：`notification_service.dart:116`、`notifications_section.dart:37/53`
+**C2. 新发现缺陷（2026-09-26 会话发现）**
+- ~~**Web 白屏 P1**（=队列第 0 项）~~ ✅ 2026-09-26 修复并随 v0.25.1 交付（唯一读点 + 静态守卫 + CI 冒烟断言）
+- **Web 端 ICS 导出不可用**（同批勘察发现，**未修**，P2/P3 级）：`ics_service.saveIcsToFile` 走 `getApplicationDocumentsDirectory()`（path_provider 无 web 实现）→ 抛异常被 try/catch 兜住弹「导出失败」，用户实际拿不到导出。**不属白屏同类**（不阻断启动），故未纳入 v0.25.1；导入侧已有 `kIsWeb` 分支，正常
 
 **D. 终审 triage 出的 (b) 类小项（部分只在会话）**
 - quick-add PendingIntent 加 `setPackage(context.packageName)`（防 scheme 抢注）
@@ -76,7 +77,7 @@
 
 | 要查什么 | 去哪 |
 |---------|------|
-| **前端设计诊断工具** | **`Impeccable` 已装**在 `.claude/skills/impeccable/`（**已 gitignore，不入公开仓库**；重装：`npx impeccable install --providers=claude --scope=project --no-hooks`）。诊断流程见其 `reference/critique.md`（A/B 两个隔离子代理）；**严禁运行 `/document`**——它会覆盖 `DESIGN.md`，那是本项目的设计令牌 SSOT。**已备好 5 张真实渲染截图**（`/`·`/settings`·`/trash`·`/search`·`/todo/new`）+ 零依赖 CDP 截图器 + 白屏判据（`uniqueColors > 1`）：见工作区 `.superpowers/sdd/2026-09-26-web-blank-diagnosis/`（**不入 git**，注意该目录属工作区、阶段收尾可能被清理；若要用它接 CI 冒烟断言，在第 0 项任务里一并提升进 `tool/`）|
+| **前端设计诊断工具** | **`Impeccable` 已装**在 `.claude/skills/impeccable/`（**已 gitignore，不入公开仓库**；重装：`npx impeccable install --providers=claude --scope=project --no-hooks`）。诊断流程见其 `reference/critique.md`（A/B 两个隔离子代理）；**严禁运行 `/document`**——它会覆盖 `DESIGN.md`，那是本项目的设计令牌 SSOT。**已备好 5 张真实渲染截图**（`/`·`/settings`·`/trash`·`/search`·`/todo/new`）+ 零依赖 CDP 截图器 ；**该工作区目录已被清理**——其中的「零依赖 CDP 截图器 + 白屏判据」已在队列第 0 项任务里重写并提升为 `tool/web_smoke.dart`（`ci.yml` 的 `build-web` job 调用，纯白即红）|
 | 冻结需求8条 / 规则契约 / 架构实例(§2) | `SPEC.md`（**状态一律看 ROADMAP**） |
 | 版本 / 工作流红线 / 架构分层 / 文档地图 | `CLAUDE.md` |
 | 流程四件：执行工序·Rulings / 审查五配方 / 测试DoD / 架构七步 | `docs/process/{EXECUTION,REVIEWING,TESTING,ARCHITECTURE}.md`（vendored 自 vibe-coding-starter，定制规则见 CLAUDE 工作流开头） |
@@ -92,4 +93,4 @@
 
 ## 7. 开工方式
 
-用户说"继续/看从哪开始"→ 按 §2 队列**序号最小的未完成项**行动（当前是第 **0** 项 Web 白屏 P1；下表编号为保持交叉引用而原样保留）；改动前照 `CLAUDE.md` 完整工作流（SDD：计划→子代理实现→独立审查→终审→Rulings 披露→用户确认后才 push/tag）。**未在本文档与 ROADMAP 出现的"会话中提到但未做"的事项 = 不存在，以本清单为准。**
+用户说"继续/看从哪开始"→ 按 §2 队列**序号最小的未完成项**行动（当前是第 **2** 项前端设计走查；下表编号为保持交叉引用而原样保留）；改动前照 `CLAUDE.md` 完整工作流（SDD：计划→子代理实现→独立审查→终审→Rulings 披露→用户确认后才 push/tag）。**未在本文档与 ROADMAP 出现的"会话中提到但未做"的事项 = 不存在，以本清单为准。**

@@ -213,11 +213,21 @@
 
 ### [2026-09-26] 事故：v0.25.0 的 Web 产物白屏（`dart:io Platform` 在 dart2js 里是抛异常 stub）
 - **症状**：`flutter build web --release` 产物在浏览器里恒为白屏（截图唯一颜色数 = 1）；Flutter 宿主元素（`flutter-view`/`flt-glass-pane`）已挂载、无网络失败，控制台只有一条无信息量的 minified 堆栈。
-- **根因链（1 级）**：`main.dart:52 await AlarmService.init()`（**缺 `kIsWeb` 守卫**）→ `alarm_service.dart:10 if (!Platform.isAndroid && !Platform.isIOS) return;` → `dart:io` 的 `Platform._operatingSystem` 在 dart2js 产物里是**无条件抛异常**的 stub（产物 `main.dart.js:8138`）→ `main()` 在 `runApp` **之前**中断 → 组件树从未构建 → 白屏。
-- **最小修复（未实施）**：`alarm_service.dart` 的 `init()` 首行加 `if (kIsWeb) return;`（+ `foundation.dart` import）。影响面为零——web 上本就不存在 `Alarm` 平台实现。**陷阱**：不要用 `defaultTargetPlatform` 替代 `Platform.isX`，web 上它按浏览器 UA 返回 `android`/`iOS`，会去调不存在的原生实现。
+- **根因链（1 级）**：`main.dart:52 await AlarmService.init()`（**缺 `kIsWeb` 守卫**）→ `alarm_service.dart:10 if (!Platform.isAndroid && !Platform.isIOS) return;` → `dart:io` 的 `Platform._operatingSystem` 在 dart2js 产物里是**无条件抛异常**的 stub（产物 `main.dart.js:8138`；行号属当次产物，同日复建后为 `:8130`，同一 `Platform._operatingSystem` UnsupportedError）→ `main()` 在 `runApp` **之前**中断 → 组件树从未构建 → 白屏。
+- **陷阱（修复时已遵守）**：不要用 `defaultTargetPlatform` 替代 `Platform.isX`，web 上它按浏览器 UA 返回 `android`/`iOS`，会去调不存在的原生实现。
 - **如何验证**：① 对照组——最小 Flutter 应用在**同一**无头管线正常出图（排除环境因素）；② 把产物里该 stub 中立化后应用立刻出图（228 色、异常 0）；③ 判据用「唯一颜色数 > 1」而非字节数。
 - **如何防复发**：`lib/infrastructure/platform/` 内平台判断一律 `kIsWeb` 先行；CI 加 web 冒烟截图断言（纯白即红）。
 - **同类隐患（同批修）**：`notification_service.dart:116` 的 `Platform.isAndroid`（被上游 `.catchError` 吞掉 → web 上通知静默不初始化）；`notifications_section.dart:37/53` 用 `defaultTargetPlatform`（Android 手机浏览器上会显示出「系统闹钟」开关，点开即踩同一抛错）。
 - **对应 SPEC 章节**：SPEC.md §5（边缘情况与边界防御）
 - **影响范围**：`lib/infrastructure/platform/alarm_service.dart`、`notification_service.dart`、设置页通知区；**Web 平台全部用户（v0.25.0 起）**
-- **状态**：根因已定位、**修复未实施**；登记于 `docs/START_HERE.md` 队列第 0 项与 `docs/ROADMAP.md` P1
+- **修复（2026-09-26 当天完成，v0.25.1+26）**：没有就地补一行守卫，而是按"单点收敛 + 机械守卫"修（决定见下一条 ADR）——`lib/core/utils/platform_target.dart` 成为全仓 `Platform.*` 唯一读点（`kIsWeb` 短路在前），`alarm_service.dart`(5 处) / `notification_service.dart`(3 处，含原本已有 `kIsWeb \|\|` 的两处) 改用 `isAndroid`/`isIOS`/`isNativeMobile`，`notifications_section.dart` 补 `!kIsWeb`；静态守卫 `test/architecture/web_platform_guard_test.dart` + CI 冒烟断言 `tool/web_smoke.dart`（纯白即红）双闸防复发。
+- **修复反证（正-反-正，2026-09-26）**：抽掉 `platform_target.dart` 的 `!kIsWeb &&` → ① 守卫测试红（`kIsWeb 短路必须先于 Platform.*`）② 重建产物冒烟判「白屏：唯一颜色数 1 < 2」并复现 `main.dart.js` minified 堆栈（与事故症状一致）；恢复后 ① 守卫绿 ② 冒烟绿（约 400 色 / 着墨比约 15.5% / 未捕获异常 0；唯一颜色数逐次略有浮动）。
+- **状态**：✅ 已修复并交付（v0.25.1+26，本地实测见上；登记于 `docs/START_HERE.md` 队列 #0 与 `docs/ROADMAP.md` P1 → 均已关单）
+
+### [2026-09-26] 决策：`Platform.*` 单点收敛 + CI web 冒烟断言（v0.25.1）
+- **背景**：白屏事故当天修复（见上条）。症状一个、根因一行，但"能一路发到用户手里"本身是流程缺口：CI 只验证了构建成功，没人打开产物看一眼。
+- **决定**：① **结构式修复**而非就地补守卫——`lib/core/utils/platform_target.dart` 成为全仓 `Platform.*` 唯一读点（`kIsWeb` 短路在前），配静态守卫测试（白名单 + 必须与 `kIsWeb` 同行 + 扫描器自证 + 受守卫站点计数），与既有 `record_seam_guard_test`（单写入口 + 守卫）同构；② 给 CI 加一条"打开看一眼"的机械断言 `tool/web_smoke.dart`——静态服务 `build/web` + headless Chrome(CDP) 截图 + 手写 PNG 解码，判据 = 唯一颜色数 + 着墨比，**同时挂 `ci.yml` 与 `release.yml` 的 `build-web`**（v0.25.0 正是从 release 链路发出去的，发布门必须也挡）。
+- **备选与否决**：就地逐点加 `!kIsWeb &&`（改动更小，但 8 处散落、下次照样漏）否；`defaultTargetPlatform` 替代 `Platform.isX` 否（web 上按 UA 返回 android/iOS → 调不存在的原生实现）；引 npm/puppeteer 截图否（新增 CI 依赖链，且本仓库零依赖脚本已有先例 `tool/check_version_consistency.sh`）。
+- **代价与边界（据实披露）**：`web_smoke` 只保证"渲染出了内容"，不保证内容正确；`--fail-on-errors` 默认关闭（页面有未捕获异常只打印，需要时手动收紧），以免 CI 抖动；PNG 解码只支持 8 位非隔行（= Chrome 截图形态），其它形态明确抛错而非静默降级。**判据是启发式，两个已知误判已实测**：内容稀疏但真实渲染的页面（标题+段落，着墨比 0.385%）会被判白屏；纯 CSS 渐变底的空白页（着墨比 89%）会被放行——本 App 首屏余量约 31 倍（15.5% vs 0.5% 阈值），且生成的 `index.html` 无 CSS 背景，故 pre-`runApp` 抛错仍落在纯白上。**判据不止"不白"**：初版只说"唯一颜色数 + 着墨比"，独立审查当场演示了一个假绿——把宿主探测降级成诊断后，一张**根本不是 App** 的 502 占位页（有内容、非纯白）会被判 PASS。补上四道正身信号：① 产物目录自检（`index.html` + Flutter 引导脚本 + `main.dart.*` 齐件，否则当场拒）；② 主文档（**仅主框架**：`type == 'Document'` 也含 iframe，故按 `Page.navigate` 返回的 `frameId` 过滤）状态必须 2xx/304（`Network.responseReceived`）；③ Flutter 主脚本必须加载成功；④ 宿主元素必须存在（`flt-glass-pane` / `flutter-view` / `flt-scene-host`，换渲染器时用 `--allow-missing-host` 显式放行）。红色控制已跑：非 Flutter 占位页 → `不是 Flutter web 产物`；产物文件齐全但引擎没启动（真 `index.html` + 真 `flutter_bootstrap.js` + 零字节 `main.dart.js`）→ `未探测到 Flutter 宿主元素`。静态服务的路径判定同时从"前缀比较"改成"拒绝点段"，补掉 `..%2f`（pathSegments 把 `%2f` 解成段内斜杠）的目录穿越。
+- **影响范围**：新增 `lib/core/utils/platform_target.dart`、`test/architecture/web_platform_guard_test.dart`、`test/core/utils/platform_target_test.dart`、`tool/web_smoke.dart`、`test/tool/web_smoke_test.dart`、`test/ui/pages/settings/notifications_section_test.dart`（native 侧闸门可见性回归）；改 `lib/infrastructure/platform/{alarm_service,notification_service}.dart`、`lib/ui/pages/settings/settings_sections/notifications_section.dart`、`.github/workflows/{ci,release}.yml`、`docs/{ROADMAP,CONSTRAINTS,START_HERE,changelog}.md`；版本 `0.25.1+26`（app 用例 316 → 345）。
+- **对应 SPEC 章节**：SPEC.md §5（边缘情况与边界防御）

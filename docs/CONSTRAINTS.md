@@ -5,7 +5,7 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有技术约束，按领域分组（Calendar / Database / UI / Security / Platform）
-- 核心约束：kalender 钉 0.17.x、App Group 家族名 `group.com.dayspark.app` 双写、adhoc 下 macOS 禁 keychain-access-groups、iOS entitlements 三配置接线、小组件 v2 快照 10 键（含 monthDots）、**派生态失效只有一条缝（单写入口 `RecordScope.run` + 提交后发布）**、**web 产物禁碰 `dart:io Platform.*`（缺 `kIsWeb` 守卫会白屏）**、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
+- 核心约束：kalender 钉 0.17.x、App Group 家族名 `group.com.dayspark.app` 双写、adhoc 下 macOS 禁 keychain-access-groups、iOS entitlements 三配置接线、小组件 v2 快照 10 键（含 monthDots）、**派生态失效只有一条缝（单写入口 `RecordScope.run` + 提交后发布）**、**`dart:io Platform.*` 全仓唯一读点 = `lib/core/utils/platform_target.dart`（`kIsWeb` 短路在前；缺守卫会白屏）**、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
 - 修改日历/DB/Provider/通知/小组件/Apple 签名相关代码前**必须先读**对应章节
 
 ---
@@ -307,11 +307,19 @@
 
 ## Web 构建 / Web Build
 
-### web 产物里禁止触碰 `dart:io` 的 `Platform.*`（dart2js 里是一调用就抛的 stub）
+### `dart:io` 的 `Platform.*` 全仓只允许一个读点（web 上是一调用就抛的 stub）
 - `Platform.isAndroid` / `isIOS` / `operatingSystem` 在 web 产物里是**无条件抛异常**的 stub；若在 `runApp` **之前**命中，**整页白屏**（v0.25.0 Web 产物实测如此）
-- 平台判断一律 **`kIsWeb` 先行守卫**（`if (kIsWeb) return;`），且**不要**用 `defaultTargetPlatform` 替代——web 上它按浏览器 UA 返回 `android`/`iOS`，会去调不存在的原生实现
-- **Why**: 2026-09-26 发现 v0.25.0 Web 白屏，根因 `main.dart:52 AlarmService.init()` 缺守卫；同类点 `notification_service.dart:116`（被上游 `.catchError` 吞掉 → web 上通知静默不初始化）、`notifications_section.dart:37/53`（Android 手机浏览器会露出「系统闹钟」开关）。完整事故条目见 `DECISIONS.md`
-- **防复发判据**：无头截图后断言「**唯一颜色数 > 1**」（纯白 = 1 色），比字节数可靠
+- **规则**：`lib/**` 里 `Platform.*` 只允许出现在 `lib/core/utils/platform_target.dart`，且每次读取必须与 `kIsWeb` **同行**（短路在前）；其余代码一律用 `isAndroid` / `isIOS` / `isNativeMobile`。新增平台差异判断时改这个文件，别在调用点新写 `Platform.*`
+- **机械守卫**：`test/architecture/web_platform_guard_test.dart` —— 白名单外的 `Platform.*` 即红；白名单文件里没跟 `kIsWeb` 同行也红；扫描器自带违规/合规样本自证 + 受守卫站点计数（增删要在 diff 里被看见）
+- **不要**用 `defaultTargetPlatform` 替代 `Platform.isX` —— web 上它按浏览器 UA 返回 `android`/`iOS`，会去调不存在的原生实现；把它当"有没有原生能力"的闸门用时（如设置页「系统闹钟」开关、精确闹钟授权），必须 `!kIsWeb &&` 先行
+- **Why**: 2026-09-26 发现 v0.25.0 Web 白屏，根因 `main.dart` 在 `runApp` 前调 `AlarmService.init()` 缺守卫；同类点 `notification_service.dart:116`（被上游 `.catchError` 吞掉 → web 上通知静默不初始化）、`notifications_section.dart:37/53`（Android 手机浏览器会露出「系统闹钟」开关）。完整事故条目与实施决策见 `DECISIONS.md`
+- **防复发判据（已接 CI）**：`tool/web_smoke.dart` —— 静态服务 `build/web` + headless Chrome(CDP) 截图 + 手写 PNG 解码（零依赖），断言「**唯一颜色数 > 1** 且与主色差异 > 8 的像素占比 ≥ 0.5%」（纯白 = 1 色），比字节数可靠；**同时挂 `ci.yml` 与 `release.yml` 的 `build-web`**（发布门也挡：v0.25.0 正是从 release 链路发出去的），失败时截图作为 artifact 上传
+- **判据是启发式，已知两类误判（据实披露，别当它是"空白探测器"）**：内容稀疏但真实渲染的页面（标题 48px + 一段正文 → 着墨比 0.385%）会被判白屏；纯 CSS 渐变底的空白页（着墨比 89%）会被放行。本 App 首屏余量约 31 倍（≈15.5% vs 0.5% 阈值），且生成的 `index.html` 无 CSS 背景，故 pre-`runApp` 抛错仍落在纯白上。颜色判据管的是"白不白"，管不了"是不是我们的 App"（第 317 行上方那条正身信号专管这个）；白屏事故里宿主元素**已挂载**，所以它不能单独当判据，但缺少它 + 主脚本没加载 = 根本不是 App，必须红
+- **判据不止"不白"（2026-09-26 审查补）**：初版只按颜色判，审查当场演示了假绿——把宿主探测降级成诊断后，一张**根本不是 App** 的 502 占位页（非纯白）会 PASS。现在四道正身信号缺一不可：① 产物目录自检（`index.html` + Flutter 引导脚本 + `main.dart.*` 齐件，否则当场拒）；② 主文档（**仅主框架**，按 `frameId` 过滤）状态 2xx/304；③ Flutter 主脚本（`main.dart.js/.mjs/.wasm` 或 `flutter_bootstrap.js`）加载成功；④ 宿主元素存在（换渲染器时用 `--allow-missing-host` 放行，别把闸门整个拆掉）。另：静态服务已改为**拒绝点段**（`.`, `..`, 含 `/` 或 `\` 的段）—— `..%2f` 会被 `pathSegments` 解成段内斜杠，前缀比较挡不住；非法 UTF-8 转义（`/%c0%ae`）答 400，而不是让 handler 抛异常带走整进程（那抛在 HttpServer 自己的 zone 里，`runSmoke` 的 try 接不住）
+- **红色控制（2026-09-26 实跑）**：非 Flutter 占位页 → `不是 Flutter web 产物`；产物齐件但引擎没启动（零字节 `main.dart.js`）→ `未探测到 Flutter 宿主元素`；`--allow-missing-host` 放行后仍是 `白屏：唯一颜色数 1 < 2`（真坏页在浏览器里就是纯白，故逃生门不会开成假绿）
+- **未关的边界（据实披露）**：**刻意伪造**的产物（真 `index.html` + 真引导脚本 + 假的 `main.dart.js` + 手写一个 `<flt-glass-pane>` div）能通过四道信号 —— 宿主检查是 `querySelector`，主脚本检查只看 HTTP 200。威胁模型是"我们的构建坏了"，不是"有人伪造产物"；真要关就得上 `Network.getResponseBody` 比对字节/哈希（未来项）
+- **反证记录（2026-09-26，正-反-正）**：抽掉 `platform_target.dart` 的 `!kIsWeb &&` 后 ① 守卫测试红（`kIsWeb 短路必须先于 Platform.*`）② 重建产物冒烟判「白屏：唯一颜色数 1 < 2」并复现 `main.dart.js` minified 堆栈；恢复后两者皆绿（复跑 ≈400 色 / 着墨比 ≈15.5%，唯一颜色数逐次略有浮动，别把某一跑的数字当常量写进文档）
+- **别顺手改它**：web 上通知**不可用**是既有事实（`flutter_local_notifications` 无 web 实现，`_plugin.initialize()` 抛错被 `reminders_provider` 的 `.catchError((_) {})` 吞掉 → 静默不初始化）——这与"因 `Platform.*` 而抛"是两件事，已记 ROADMAP P3 #10
 - **Date**: 2026-09-26
 
 ## CI/CD / 持续集成与发布
@@ -322,6 +330,12 @@
 - **本机 macOS 绿 ≠ CI 绿**：shell 脚本改动必须用 Linux 容器验一遍 —— `docker run --rm -v "$PWD:/work:ro" -w /work ubuntu:24.04 bash -c './tool/<script>'`（CI 是 Ubuntu 24.04 + bash 5 + GNU sed + mawk）
 - **Why**: 2026-09-24 版本守卫首跑 CI 红（run 35985658477），根因即此；由脚本自身 selftest 抓出，**未静默通过**
 - **Date**: 2026-09-24
+
+### web 产物必须有「非白屏」断言（构建成功 ≠ 页面能渲染）
+- `ci.yml` **与 `release.yml`** 的 `build-web` job 在 `flutter build web --release` 之后必须跑 `dart run tool/web_smoke.dart --dir build/web --screenshot build/web-smoke.png`；ubuntu runner 自带 Chrome（需要 Chrome ≥112 的 `--headless=new`），脚本按 `CHROME_EXECUTABLE` → PATH（`google-chrome` 等）→ macOS 应用路径的顺序查找
+- 默认只把「白屏」判红，页面 JS 报错只打印；要连未捕获异常一起卡门加 `--fail-on-errors`（默认不加以免 CI 抖动），判据阈值可调 `--min-colors` / `--min-ink`
+- **Why**: v0.25.0 的 Web 产物白屏能一路发到用户手里，就是因为 CI 只验证了「构建成功」。同一教训在别的平台同样成立：release 构建产物必须有一条"打开来看一眼"的机械断言
+- **Date**: 2026-09-26
 
 ### CI 必须构建 release 模式
 - `ci.yml` 中所有平台的 `flutter build` 命令使用 `--release` 而非 `--debug`
