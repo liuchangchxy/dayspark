@@ -295,6 +295,7 @@
   "hideCompletedDesc": "在待办列表中隐藏已完成条目",
   "advancedSettings": "高级",
   "emptySlotSemantics": "空白时间段，点按新建日程",
+  "emptyCalendarHint": "点按空白处，新建第一条日程",
   "holidayRestBadge": "休",
   "holidayWorkBadge": "班",
   "termLiChun": "立春",

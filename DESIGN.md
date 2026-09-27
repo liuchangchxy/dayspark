@@ -105,8 +105,11 @@ AI 编码工具读此文件来保持 UI 一致性。
 第三方库样式必须显式接线，禁止用库默认混入两种 locale 体系：
 
 - 星期标签：`weekDayHeaderStyle.stringBuilder` 用 App 语言（`Localizations.localeOf` + `DateFormat.E`），不跟 kalender 自身 `context.locale`（浏览器/系统 locale）。
-- 时间轴：`timelineStyle.stringBuilder` 固定 24h `H:mm`（如 `8:00`）。标尺只做标尺：全半角统一 5 字符，测量与渲染同源，任何 locale 下零截断。
+- 时间轴：`timelineStyle.stringBuilder` 固定 24h `H:mm`（如 `8:00`）。标尺只做标尺：全半角统一 5 字符，测量与渲染同源，任何 locale 下零截断。标签密度与网格线同频：整点线配整点标签（`textPadding.vertical` 即密度推子，归零会塌成 5 分钟一档，见 `calendar_section.dart` 注释）。
 - now-indicator：`lineColor`/`circleColor` = theme `error`（已接线，保持）。
+- 日列表头：自画（`CalendarDayHeader`），大数字（headline）+ 星期（caption），today 数字 accent + 14% accent 底 pill；禁用库默认 IconButton 圆点两行。
+- 网格线：自画（`CalendarHourLines`），只画整点线，颜色 = divider 35%；禁用库默认半小时自适应分段。
+- 空态：日历无事件时叠一句非交互提示（`emptyCalendarHint`，`IgnorePointer` 透传点按新建），禁止晾整页空网。
 
 ## 自定义主题色条款（2026-09-27 走查补）
 

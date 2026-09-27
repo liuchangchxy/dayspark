@@ -775,6 +775,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get emptySlotSemantics => '空白时间段，点按新建日程';
 
   @override
+  String get emptyCalendarHint => '点按空白处，新建第一条日程';
+
+  @override
   String get holidayRestBadge => '休';
 
   @override

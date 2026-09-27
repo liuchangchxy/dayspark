@@ -1523,6 +1523,12 @@ abstract class AppLocalizations {
   /// **'Empty time slot, activate to create an event'**
   String get emptySlotSemantics;
 
+  /// No description provided for @emptyCalendarHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an empty slot to create your first event'**
+  String get emptyCalendarHint;
+
   /// No description provided for @holidayRestBadge.
   ///
   /// In en, this message translates to:

@@ -371,6 +371,7 @@
   "hideCompletedDesc": "Hide completed items from todo lists",
   "advancedSettings": "Advanced",
   "emptySlotSemantics": "Empty time slot, activate to create an event",
+  "emptyCalendarHint": "Tap an empty slot to create your first event",
   "holidayRestBadge": "Off",
   "holidayWorkBadge": "Work",
   "termLiChun": "Spring Begins",

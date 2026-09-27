@@ -775,6 +775,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emptySlotSemantics => 'Empty time slot, activate to create an event';
 
   @override
+  String get emptyCalendarHint => 'Tap an empty slot to create your first event';
+
+  @override
   String get holidayRestBadge => 'Off';
 
   @override
