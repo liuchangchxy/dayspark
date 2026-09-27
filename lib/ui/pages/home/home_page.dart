@@ -27,6 +27,7 @@ import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   final int initialTab;
@@ -99,15 +100,10 @@ class _HomePageState extends ConsumerState<HomePage>
   Future<void> _runStartupSideEffects() async {
     try {
       final notifService = NotificationService();
-      notifService.onNotificationAction =
-          (actionId, parentId, parentType, reminderId) {
-            _handleNotificationAction(
-              actionId,
-              parentId,
-              parentType,
-              reminderId,
-            );
-          };
+      notifService
+          .onNotificationAction = (actionId, parentId, parentType, reminderId) {
+        _handleNotificationAction(actionId, parentId, parentType, reminderId);
+      };
       _checkOverdueTodos();
       _startDayCheckTimer();
       _checkVersionChangelog();
@@ -194,9 +190,7 @@ class _HomePageState extends ConsumerState<HomePage>
           context: context,
           builder: (ctx) => AlertDialog(
             title: Text(l.whatsNew),
-            content: SingleChildScrollView(
-              child: Text('v$current'),
-            ),
+            content: SingleChildScrollView(child: Text('v$current')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
@@ -207,7 +201,9 @@ class _HomePageState extends ConsumerState<HomePage>
         );
       }
       prefs.setString('last_seen_version', current);
-    } catch (e) { debugPrint('home: checkVersionChangelog error: $e'); }
+    } catch (e) {
+      debugPrint('home: checkVersionChangelog error: $e');
+    }
   }
 
   Future<void> _checkOverdueTodos() async {
@@ -299,7 +295,8 @@ class _HomePageState extends ConsumerState<HomePage>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final r = _calendarRange();
-        final k = '${r.start.millisecondsSinceEpoch}-${r.end.millisecondsSinceEpoch}';
+        final k =
+            '${r.start.millisecondsSinceEpoch}-${r.end.millisecondsSinceEpoch}';
         ref.invalidate(eventsInDateRangeProvider(k));
       });
     } else if (!isCalendarTab) {
@@ -446,8 +443,7 @@ class _HomePageState extends ConsumerState<HomePage>
         DateStrip(
           selectedDate: _selectedDate,
           showAllMode: _showAllTodos,
-          sixThingsMode:
-              ref.watch(sixThingsModeProvider).valueOrNull ?? false,
+          sixThingsMode: ref.watch(sixThingsModeProvider).valueOrNull ?? false,
           onSixThingsToggle: () {
             final current =
                 ref.read(sixThingsModeProvider).valueOrNull ?? false;
@@ -491,7 +487,7 @@ class _HomePageState extends ConsumerState<HomePage>
                               final selected = _selectedTagIds.contains(tag.id);
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
+                                  horizontal: AppSpacing.xs,
                                 ),
                                 child: FilterChip(
                                   label: Text(tag.name),
@@ -690,8 +686,7 @@ class _HomePageState extends ConsumerState<HomePage>
         // collapses to 6 slots plus a "More" fold; the full list reappears
         // after expanding. The visible items are always a prefix of the
         // drag-ordered list, so reorder indices map 1:1 onto the full list.
-        final capActive =
-            sixThingsOn && date == today && !_sixThingsExpanded;
+        final capActive = sixThingsOn && date == today && !_sixThingsExpanded;
         final visibleTodos = capActive && dateTodos.length > 6
             ? dateTodos.sublist(0, 6)
             : dateTodos;
@@ -701,13 +696,19 @@ class _HomePageState extends ConsumerState<HomePage>
           slivers: [
             if (overdue.isNotEmpty) ...[
               SliverToBoxAdapter(
-                child: _sectionHeader(l.overdue, overdue.length, Theme.of(context).colorScheme.error),
+                child: _sectionHeader(
+                  l.overdue,
+                  overdue.length,
+                  Theme.of(context).colorScheme.error,
+                ),
               ),
               SliverList(
                 delegate: SliverChildListDelegate(
-                  overdue.asMap().entries.map(
-                    (e) => _todoTile(e.value, index: e.key),
-                  ).toList(),
+                  overdue
+                      .asMap()
+                      .entries
+                      .map((e) => _todoTile(e.value, index: e.key))
+                      .toList(),
                 ),
               ),
             ],
@@ -736,15 +737,23 @@ class _HomePageState extends ConsumerState<HomePage>
               ),
               if (hiddenCount > 0)
                 SliverToBoxAdapter(
-                  child: _foldRow(l.moreItems(hiddenCount), CupertinoIcons.chevron_down, () {
-                    setState(() => _sixThingsExpanded = true);
-                  }),
+                  child: _foldRow(
+                    l.moreItems(hiddenCount),
+                    CupertinoIcons.chevron_down,
+                    () {
+                      setState(() => _sixThingsExpanded = true);
+                    },
+                  ),
                 ),
               if (_sixThingsExpanded && sixThingsOn && date == today)
                 SliverToBoxAdapter(
-                  child: _foldRow(l.collapseList, CupertinoIcons.chevron_up, () {
-                    setState(() => _sixThingsExpanded = false);
-                  }),
+                  child: _foldRow(
+                    l.collapseList,
+                    CupertinoIcons.chevron_up,
+                    () {
+                      setState(() => _sixThingsExpanded = false);
+                    },
+                  ),
                 ),
             ],
             if (dateCompleted.isNotEmpty) ...[
@@ -789,12 +798,10 @@ class _HomePageState extends ConsumerState<HomePage>
         child: _todoTile(todo, index: index),
       ),
     );
-    if (defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.windows) {
-      return ReorderableDragStartListener(
-        key: key,
-        index: index,
-        child: tile,
-      );
+    if (defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows) {
+      return ReorderableDragStartListener(key: key, index: index, child: tile);
     }
     return ReorderableDelayedDragStartListener(
       key: key,
@@ -848,14 +855,17 @@ class _HomePageState extends ConsumerState<HomePage>
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   '${todos.length}',
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -886,12 +896,18 @@ class _HomePageState extends ConsumerState<HomePage>
           const SizedBox(height: 16),
           Text(
             l.noPendingTodos,
-            style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             l.tapToCreate,
-            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -912,7 +928,7 @@ class _HomePageState extends ConsumerState<HomePage>
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -934,15 +950,19 @@ class _HomePageState extends ConsumerState<HomePage>
           Text(
             title,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: accentColor ?? Theme.of(context).colorScheme.onSurfaceVariant,
+              color:
+                  accentColor ?? Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             '$count',
-            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -953,16 +973,18 @@ class _HomePageState extends ConsumerState<HomePage>
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: TodoListTile(
-      index: index,
-      summary: todo.summary,
-      isCompleted: isCompleted,
-      priority: todo.priority,
-      todoId: todo.id,
-      dueDate: todo.dueDate,
-      startDate: todo.startDate,
-      onToggle: () =>
-          ref.read(toggleTodoProvider)(id: todo.id, isCompleted: !isCompleted),
-      onTap: () => context.push('/todo/edit', extra: todo),
+        index: index,
+        summary: todo.summary,
+        isCompleted: isCompleted,
+        priority: todo.priority,
+        todoId: todo.id,
+        dueDate: todo.dueDate,
+        startDate: todo.startDate,
+        onToggle: () => ref.read(toggleTodoProvider)(
+          id: todo.id,
+          isCompleted: !isCompleted,
+        ),
+        onTap: () => context.push('/todo/edit', extra: todo),
       ),
     );
   }

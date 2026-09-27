@@ -9,6 +9,8 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/centered_content.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class EventCreatePage extends ConsumerStatefulWidget {
   final DateTime initialStart;
@@ -218,8 +220,8 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
             onPressed: _aiLoading ? null : _aiParse,
             icon: _aiLoading
                 ? const SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: AppSpacing.lg,
+                    height: AppSpacing.lg,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(CupertinoIcons.sparkles),
@@ -237,7 +239,8 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
           ),
         ],
       ),
-      body: ListView(
+      body: CenteredContent(
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           TextField(
@@ -312,6 +315,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
             },
           ),
         ],
+        ),
       ),
     );
   }

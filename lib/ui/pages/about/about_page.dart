@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/centered_content.dart';
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -52,7 +53,9 @@ class _AboutPageState extends State<AboutPage> {
       if (mounted) {
         final list = resp.data as List;
         setState(() {
-          _latestRelease = list.isNotEmpty ? list.first as Map<String, dynamic> : null;
+          _latestRelease = list.isNotEmpty
+              ? list.first as Map<String, dynamic>
+              : null;
           _checking = false;
         });
       }
@@ -121,8 +124,9 @@ class _AboutPageState extends State<AboutPage> {
         ),
         title: Text(l.about),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
+      body: CenteredContent(
+        child: ListView(
+          padding: const EdgeInsets.all(24),
         children: [
           Icon(
             CupertinoIcons.calendar_badge_plus,
@@ -272,6 +276,7 @@ class _AboutPageState extends State<AboutPage> {
             trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
           ),
         ],
+        ),
       ),
     );
   }

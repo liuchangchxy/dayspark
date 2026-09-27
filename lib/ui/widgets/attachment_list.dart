@@ -45,18 +45,21 @@ class AttachmentList extends ConsumerWidget {
           if (attachments.isEmpty)
             Text(
               l.noAttachments,
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             )
           else
             ...attachments.map(
               (a) => ListTile(
                 dense: true,
                 leading: const Icon(CupertinoIcons.doc_text, size: 20),
-                title: Text(a.fileName, style: const TextStyle(fontSize: 13)),
+                title: Text(a.fileName, style: const TextStyle(fontSize: 14)),
                 subtitle: a.fileSize > 0
                     ? Text(
                         _formatSize(a.fileSize),
-                        style: const TextStyle(fontSize: 11),
+                        style: const TextStyle(fontSize: 12),
                       )
                     : null,
                 trailing: IconButton(

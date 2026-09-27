@@ -15,6 +15,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class TodoEditPage extends ConsumerStatefulWidget {
   final Todo todo;
@@ -74,8 +75,11 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       // Combine dueDate and dueTime
       if (_dueDate != null && _dueTime != null) {
         _dueDate = DateTime(
-          _dueDate!.year, _dueDate!.month, _dueDate!.day,
-          _dueTime!.hour, _dueTime!.minute,
+          _dueDate!.year,
+          _dueDate!.month,
+          _dueDate!.day,
+          _dueTime!.hour,
+          _dueTime!.minute,
         );
       }
 
@@ -156,7 +160,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (date != null && mounted) setState(() => _dueDate = DateTime(date.year, date.month, date.day));
+    if (date != null && mounted) {
+      setState(() => _dueDate = DateTime(date.year, date.month, date.day));
+    }
   }
 
   Future<void> _pickStartDate() async {
@@ -166,7 +172,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    if (date != null && mounted) setState(() => _startDate = DateTime(date.year, date.month, date.day));
+    if (date != null && mounted) {
+      setState(() => _startDate = DateTime(date.year, date.month, date.day));
+    }
   }
 
   @override
@@ -264,7 +272,8 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
             title: Text(l.dueTime),
             subtitle: _dueTime != null
                 ? Text(
-                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}')
+                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}',
+                  )
                 : Text(l.notSet),
             onTap: () async {
               final time = await showWheelTimePicker(
@@ -290,14 +299,21 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           ),
           const SizedBox(height: 4),
           Wrap(
-            spacing: 6,
-            children: _priorityValues.map((v) => ChoiceChip(
-              label: Text(priorityLabels[v]!, style: const TextStyle(fontSize: 12)),
-              selected: _priority == v,
-              onSelected: (_) => setState(() => _priority = v),
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            )).toList(),
+            spacing: AppSpacing.sm,
+            children: _priorityValues
+                .map(
+                  (v) => ChoiceChip(
+                    label: Text(
+                      priorityLabels[v]!,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    selected: _priority == v,
+                    onSelected: (_) => setState(() => _priority = v),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                )
+                .toList(),
           ),
           const SizedBox(height: 16),
 
@@ -366,7 +382,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
 
     return Wrap(
       spacing: 8,
-      runSpacing: 6,
+      runSpacing: AppSpacing.sm,
       children: [
         _quickChip(l.today, today),
         _quickChip(l.tomorrow, tomorrow),
@@ -428,7 +444,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                   l.noSubtasks,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13,
+                    fontSize: 12,
                   ),
                 ),
               );
@@ -437,12 +453,13 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
               children: subtasks.map((sub) {
                 final done = sub.status == 'COMPLETED';
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                   child: Row(
                     children: [
                       InkWell(
                         onTap: () => ref.read(toggleTodoProvider)(
-                          id: sub.id, isCompleted: !done,
+                          id: sub.id,
+                          isCompleted: !done,
                         ),
                         borderRadius: BorderRadius.circular(12),
                         child: Padding(
@@ -454,7 +471,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                             size: 18,
                             color: done
                                 ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -463,9 +482,10 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                         child: Text(
                           sub.summary,
                           style: TextStyle(
-                            fontSize: 13,
-                            decoration:
-                                done ? TextDecoration.lineThrough : null,
+                            fontSize: 14,
+                            decoration: done
+                                ? TextDecoration.lineThrough
+                                : null,
                             color: done
                                 ? Theme.of(context).disabledColor
                                 : null,
@@ -546,9 +566,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }

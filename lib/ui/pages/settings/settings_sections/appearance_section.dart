@@ -35,8 +35,8 @@ class AppearanceSection extends ConsumerWidget {
             ref.watch(localeProvider) == null
                 ? l.languageSystem
                 : ref.watch(localeProvider)?.languageCode == 'zh'
-                    ? l.languageZh
-                    : l.languageEn,
+                ? l.languageZh
+                : l.languageEn,
           ),
           onTap: () => _showLanguageDialog(context, ref),
         ),
@@ -152,36 +152,37 @@ class AppearanceSection extends ConsumerWidget {
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: InkWell(
-                onTap: () {
-                  ref.read(themeColorProvider.notifier).setColor(color);
-                  Navigator.of(ctx).pop();
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: selected
-                        ? Border.all(
-                            color: Theme.of(ctx).colorScheme.onSurface,
-                            width: 3,
+                  onTap: () {
+                    ref.read(themeColorProvider.notifier).setColor(color);
+                    Navigator.of(ctx).pop();
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: selected
+                          ? Border.all(
+                              color: Theme.of(ctx).colorScheme.onSurface,
+                              width: 3,
+                            )
+                          : null,
+                    ),
+                    child: selected
+                        ? Icon(
+                            CupertinoIcons.checkmark,
+                            color:
+                                ThemeData.estimateBrightnessForColor(color) ==
+                                    Brightness.dark
+                                ? Colors.white
+                                : Colors.black,
+                            size: 20,
                           )
                         : null,
                   ),
-                  child: selected
-                      ? Icon(
-                          CupertinoIcons.checkmark,
-                          color: ThemeData.estimateBrightnessForColor(color) ==
-                                  Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                          size: 20,
-                        )
-                      : null,
                 ),
-              ),
               ),
             );
           }).toList(),

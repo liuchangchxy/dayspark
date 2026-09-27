@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 /// Show the AI configuration dialog. Used by both Settings and AI Chat pages.
 Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
@@ -184,7 +185,6 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
               'Format: http://host:port/v1 (e.g., http://192.168.1.100:11434/v1)',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 11,
               ),
             ),
             const SizedBox(height: 12),
@@ -210,8 +210,8 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
                   onPressed: _detecting ? null : _detectModels,
                   icon: _detecting
                       ? const SizedBox(
-                          width: 14,
-                          height: 14,
+                          width: AppSpacing.lg,
+                          height: AppSpacing.lg,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(CupertinoIcons.search, size: 14),

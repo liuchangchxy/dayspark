@@ -10,7 +10,7 @@
 - 最新变化：**Web 白屏修复（v0.25.1）** — v0.25.0 的 Web 产物在浏览器里恒白屏（`runApp` 之前的 `dart:io Platform.*` 在 dart2js 里必抛）；平台判断收敛到唯一 `kIsWeb` 守卫入口 `lib/core/utils/platform_target.dart` + 静态守卫测试 + CI「web 冒烟截图非纯白」断言（白屏即红）
 - 上一版：**债务2 统一事件缝（v0.25.0）** — 派生态失效从三条临时通道收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂
 - 更早：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
-- 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）
+- 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）；Web 缺口见 Pending **#9（ICS 导出不可用）/#10（通知静默未初始化）**
 
 ---
 

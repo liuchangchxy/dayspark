@@ -95,128 +95,130 @@ class TodoListTile extends ConsumerWidget {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: InkWell(
-        onTap: onTap,
-        child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            if (_priorityColor(theme.brightness) != Colors.transparent)
-              Semantics(
-                label: priority == 1 ? l.highPriority : l.mediumPriority,
-                child: Container(
-                  width: 4,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: _priorityColor(theme.brightness),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-              )
-            else
-              const SizedBox(width: 4),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: isCompleted
-                  ? Semantics(
-                      button: true,
-                      label: l.markIncomplete,
-                      child: Checkbox(
-                        value: true,
-                        onChanged: (_) => onToggle(),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                if (_priorityColor(theme.brightness) != Colors.transparent)
+                  Semantics(
+                    label: priority == 1 ? l.highPriority : l.mediumPriority,
+                    child: Container(
+                      width: 4,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: _priorityColor(theme.brightness),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                    )
-                  : (index != null
-                      ? Center(
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              border: Border.all(
-                                color: theme.colorScheme.outline,
-                                width: 1.5,
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${index! + 1}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      : Semantics(
+                    ),
+                  )
+                else
+                  const SizedBox(width: 4),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: isCompleted
+                      ? Semantics(
                           button: true,
-                          label: l.markComplete,
+                          label: l.markIncomplete,
                           child: Checkbox(
-                            value: false,
+                            value: true,
                             onChanged: (_) => onToggle(),
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
                             visualDensity: VisualDensity.compact,
                           ),
-                        )),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    summary,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: textColor,
-                      decoration: isCompleted
-                          ? TextDecoration.lineThrough
-                          : null,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Row(
+                        )
+                      : (index != null
+                            ? Center(
+                                child: Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    border: Border.all(
+                                      color: theme.colorScheme.outline,
+                                      width: 1.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${index! + 1}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Semantics(
+                                button: true,
+                                label: l.markComplete,
+                                child: Checkbox(
+                                  value: false,
+                                  onChanged: (_) => onToggle(),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              )),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Flexible(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Text(
-                            _dueDateLabel(context),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _isOverdue
-                                  ? theme.colorScheme.error
-                                  : (dueDate == null
-                                        ? theme.colorScheme.onSurfaceVariant
-                                        : theme.textTheme.bodySmall?.color),
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      Text(
+                        summary,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: textColor,
+                          decoration: isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      tagsAsync.when(
-                        data: (tags) => _tagDots(context, tags),
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Text(
+                                _dueDateLabel(context),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _isOverdue
+                                      ? theme.colorScheme.error
+                                      : (dueDate == null
+                                            ? theme.colorScheme.onSurfaceVariant
+                                            : theme.textTheme.bodySmall?.color),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          tagsAsync.when(
+                            data: (tags) => _tagDots(context, tags),
+                            loading: () => const SizedBox.shrink(),
+                            error: (_, __) => const SizedBox.shrink(),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-    ),
     );
   }
 

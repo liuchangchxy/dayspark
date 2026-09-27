@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 /// App-wide theme configuration. Read DESIGN.md for design rationale.
 @immutable
 abstract final class AppTheme {
-  static ThemeData light({Color? seedColor}) => _buildTheme(Brightness.light, seedColor);
-  static ThemeData dark({Color? seedColor}) => _buildTheme(Brightness.dark, seedColor);
+  static ThemeData light({Color? seedColor}) =>
+      _buildTheme(Brightness.light, seedColor);
+  static ThemeData dark({Color? seedColor}) =>
+      _buildTheme(Brightness.dark, seedColor);
 
   static ThemeData _buildTheme(Brightness brightness, [Color? seedColor]) {
     final isLight = brightness == Brightness.light;
@@ -24,9 +27,17 @@ abstract final class AppTheme {
 
     final ColorScheme colorScheme;
     if (seedColor != null) {
+      // Seed replaces accent only; semantic tokens stay (DESIGN 自定义主题色条款).
       colorScheme = ColorScheme.fromSeed(
         seedColor: seedColor,
         brightness: brightness,
+      ).copyWith(
+        error: error,
+        surface: surface,
+        onSurface: textPrimary,
+        surfaceContainerHighest: isLight
+            ? AppColors.lightSurfaceContainerHighest
+            : AppColors.darkSurfaceContainerHighest,
       );
     } else {
       colorScheme = ColorScheme(
@@ -40,8 +51,8 @@ abstract final class AppTheme {
         surface: surface,
         onSurface: textPrimary,
         surfaceContainerHighest: isLight
-            ? const Color(0xFFEEEEEE)
-            : const Color(0xFF2D2D3A),
+            ? AppColors.lightSurfaceContainerHighest
+            : AppColors.darkSurfaceContainerHighest,
       );
     }
 
@@ -75,10 +86,15 @@ abstract final class AppTheme {
           backgroundColor: accent,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6),
           borderSide: BorderSide(color: border),
@@ -92,15 +108,33 @@ abstract final class AppTheme {
           borderSide: BorderSide(color: accent, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
         ),
         hintStyle: TextStyle(color: textSecondary),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: accent,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
       ),
       datePickerTheme: DatePickerThemeData(headerForegroundColor: Colors.white),
     );

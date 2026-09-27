@@ -60,20 +60,39 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               return;
             }
             _debounceTimer?.cancel();
-            _debounceTimer = Timer(
-              const Duration(milliseconds: 300),
-              () {
-                final text = _searchController.text.trim();
-                if (text.isNotEmpty) {
-                  setState(() => _query = text);
-                }
-              },
-            );
+            _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+              final text = _searchController.text.trim();
+              if (text.isNotEmpty) {
+                setState(() => _query = text);
+              }
+            });
           },
         ),
       ),
       body: _query.isEmpty
-          ? Center(child: Text(l.typeToSearch))
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.12),
+                    child: Icon(
+                      CupertinoIcons.search,
+                      size: 30,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    l.typeToSearch,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ],
+              ),
+            )
           : ref
                 .watch(searchResultsProvider(_query))
                 .when(
@@ -91,10 +110,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                             child: Text(
                               l.events,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleMedium,
                             ),
                           ),
                           ...results.events.map((event) {
@@ -120,10 +138,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                             child: Text(
                               l.todos,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleMedium,
                             ),
                           ),
                           ...results.todos.map(

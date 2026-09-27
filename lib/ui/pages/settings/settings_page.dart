@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/centered_content.dart';
 import 'settings_sections/about_section.dart';
 import 'settings_sections/account_section.dart';
 import 'settings_sections/ai_section.dart';
@@ -30,9 +31,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     // Load persisted settings once on first build
     if (!_loaded) {
       _loaded = true;
-      Future.microtask(
-        () => NotificationsSection.loadSystemAlarmSetting(ref),
-      );
+      Future.microtask(() => NotificationsSection.loadSystemAlarmSetting(ref));
       PackageInfo.fromPlatform().then((i) {
         _cachedVersion = 'DaySpark v${i.version}';
         if (mounted) setState(() {});
@@ -52,7 +51,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
         title: Text(l.settings),
       ),
-      body: ListView(
+      body: CenteredContent(
+        child: ListView(
         children: [
           const AppearanceSection(),
           const Divider(),
@@ -68,11 +68,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ExpansionTile(
             leading: const Icon(CupertinoIcons.gear),
             title: Text(l.advancedSettings),
-            children: [
-              AboutSection(version: _cachedVersion ?? ''),
-            ],
+            children: [AboutSection(version: _cachedVersion ?? '')],
           ),
         ],
+        ),
       ),
     );
   }

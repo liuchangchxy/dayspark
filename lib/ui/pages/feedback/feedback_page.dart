@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/centered_content.dart';
 
 class FeedbackPage extends StatefulWidget {
   const FeedbackPage({super.key});
@@ -33,7 +34,8 @@ class _FeedbackPageState extends State<FeedbackPage> {
         ),
         title: Text(l.feedback),
       ),
-      body: ListView(
+      body: CenteredContent(
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           TextField(
@@ -59,7 +61,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
               ).showSnackBar(SnackBar(content: Text(l.feedbackCopied)));
             },
             icon: Icon(
-              _copied ? CupertinoIcons.checkmark_circle : CupertinoIcons.doc_on_clipboard,
+              _copied
+                  ? CupertinoIcons.checkmark_circle
+                  : CupertinoIcons.doc_on_clipboard,
               size: 18,
             ),
             label: Text(l.feedbackSubmit),
@@ -80,6 +84,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
             label: Text(l.gitHub),
           ),
         ],
+        ),
       ),
     );
   }

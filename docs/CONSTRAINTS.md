@@ -460,3 +460,11 @@
 - 规则：Open DCR must sit behind rate limiting (nginx `limit_req`) + body cap; in-app limiter = P4（模板见 `docs/DEPLOY.md` §3：`limit_req_zone … 5r/m` + `client_max_body_size 256k`，作用域 `/oauth/register`）
 - **Why**: `/oauth/register` 匿名可达且每次注册跑 argon2（CPU 密集），应用层限流 P3 未做——没有反代闸门就是匿名算力放大入口；body cap 另挡内存
 - **Date**: 2026-09-23
+
+## Toolchain / 工具链 (continued)
+
+### `flutter analyze` 在中文路径下必崩，用 `dart analyze` 替代（2026-09-27）
+- 现象：仓库放在 `…/日历待办 app 项目/calendar_todo_app` 时，`flutter analyze` 在 analysis_server LSP 建连阶段 `FormatException: Unterminated string`（exit 255），堆栈止于 `LspByteStreamServerChannel._readMessage` 的 `jsonDecode`——workspace 路径含 CJK（`%E7%9B%AE` = "目"）进 capabilities JSON 即炸，与被分析文件内容无关；symlink 到 ASCII 路径无效（server 端 canonicalize 回真实路径）
+- 对策：静态分析统一用 `dart analyze <files>`（同 server 不同传输，不崩，2026-09-27 实测改动文件 `No issues found`）；`flutter test` / `flutter build` 不受影响
+- **Why**: 误会成"我的改动把分析搞挂了"会浪费一轮 RCA；这是工具链对非 ASCII 路径的硬伤，不是代码问题
+- **Date**: 2026-09-27

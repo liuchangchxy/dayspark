@@ -9,6 +9,7 @@ import 'package:dayspark/domain/providers/account_provider.dart';
 import 'package:dayspark/domain/providers/sync_client_provider.dart';
 import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class AccountSection extends ConsumerStatefulWidget {
   const AccountSection({super.key});
@@ -53,6 +54,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     final account = ref.watch(accountAuthProvider);
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -126,8 +128,8 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
               const Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: SizedBox(
-                  width: 18,
-                  height: 18,
+                  width: AppSpacing.lg,
+                  height: AppSpacing.lg,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
@@ -211,9 +213,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
                     : () => unawaited(
                         ref.read(accountAuthProvider.notifier).logout(),
                       ),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 48),
-                ),
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
                 child: Text(l.logout),
               ),
             ),

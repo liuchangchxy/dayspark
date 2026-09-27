@@ -38,6 +38,7 @@ abstract final class AppTypography {
   static TextTheme textTheme() {
     return TextTheme(
       headlineSmall: headline,
+      titleSmall: title,
       titleMedium: title,
       bodyLarge: body,
       bodyMedium: body.copyWith(fontSize: 14),

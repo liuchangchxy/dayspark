@@ -576,7 +576,7 @@ void main() {
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
       final darkColors = dark['colors'] as Map<String, Object?>;
-      expect(darkColors['accent'], '#60A5FA');
+      expect(darkColors['accent'], '#3B82F6');
       expect(darkColors['background'], '#0F0F14');
     });
   });

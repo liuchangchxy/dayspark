@@ -7,6 +7,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class TrashPage extends ConsumerWidget {
   const TrashPage({super.key});
@@ -153,8 +154,7 @@ class TrashPage extends ConsumerWidget {
           ref,
           l,
           onRestore: () => ref.read(restoreTodoProvider)(todo.id),
-          onDelete: () =>
-              ref.read(permanentDeleteTodoProvider)(todo.id),
+          onDelete: () => ref.read(permanentDeleteTodoProvider)(todo.id),
         ),
       ),
     );
@@ -181,7 +181,10 @@ class TrashPage extends ConsumerWidget {
         color: Theme.of(context).colorScheme.error,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
-        child: Icon(CupertinoIcons.delete, color: Theme.of(context).colorScheme.onError),
+        child: Icon(
+          CupertinoIcons.delete,
+          color: Theme.of(context).colorScheme.onError,
+        ),
       ),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
@@ -214,8 +217,8 @@ class TrashPage extends ConsumerWidget {
           ref,
           l,
           onRestore: () => ref.read(restoreEventProvider)(event.id),
-          onDelete: () => ref
-              .read(hardDeleteEventWithChildrenProvider)(event.id),
+          onDelete: () =>
+              ref.read(hardDeleteEventWithChildrenProvider)(event.id),
         ),
       ),
     );
@@ -268,9 +271,9 @@ class TrashPage extends ConsumerWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             '$count',
             style: TextStyle(

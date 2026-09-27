@@ -3,6 +3,7 @@ import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class EventTile extends StatelessWidget {
   final CalendaEventAdapter event;
@@ -20,43 +21,46 @@ class EventTile extends StatelessWidget {
     final tile = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 20),
       child: Container(
-      decoration: BoxDecoration(
-        color: resolvedColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: resolvedColor, width: 2),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      // kalender gives tiles tight, sometimes very short constraints
-      // (e.g. 1h slots, all-day bar); scale content instead of overflowing.
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.topLeft,
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            event.title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: resolvedColor,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (!event.isAllDay)
-            Text(
-              DateFormatters.formatTime(event.start),
-              style: TextStyle(
-                fontSize: 10,
-                color: resolvedColor.withValues(alpha: 0.8),
-              ),
-              maxLines: 1,
-            ),
-        ],
+        decoration: BoxDecoration(
+          color: resolvedColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: resolvedColor, width: 2),
         ),
-      ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        // kalender gives tiles tight, sometimes very short constraints
+        // (e.g. 1h slots, all-day bar); scale content instead of overflowing.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.topLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                event.title,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: resolvedColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (!event.isAllDay)
+                Text(
+                  DateFormatters.formatTime(event.start),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: resolvedColor.withValues(alpha: 0.8),
+                  ),
+                  maxLines: 1,
+                ),
+            ],
+          ),
+        ),
       ),
     );
 

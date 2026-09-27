@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kalender/kalender.dart';
 import 'package:dayspark/domain/services/chinese_calendar_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 String solarTermLabel(AppLocalizations l, String zhName) {
   return switch (zhName) {
@@ -56,14 +57,12 @@ class MarkedMonthDayHeader extends StatelessWidget {
     final holidayMark = ChineseCalendarService.holiday(date);
     final now = DateTime.now();
     final isToday =
-        date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+        date.year == now.year && date.month == now.month && date.day == now.day;
 
     final numberStyle =
         style?.numberTextStyle ??
         TextStyle(
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
           color: theme.textTheme.bodyMedium?.color,
         );
@@ -94,14 +93,15 @@ class MarkedMonthDayHeader extends StatelessWidget {
                 ),
               )
             else
-              Text('${date.day}', style: numberStyle, textAlign: TextAlign.center),
+              Text(
+                '${date.day}',
+                style: numberStyle,
+                textAlign: TextAlign.center,
+              ),
             if (holidayMark != null) ...[
-              const SizedBox(width: 2),
+              const SizedBox(width: AppSpacing.xs),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 2,
-                  vertical: 0.5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                 decoration: BoxDecoration(
                   color: holidayMark.isWorkday
                       ? theme.colorScheme.primary
@@ -113,7 +113,7 @@ class MarkedMonthDayHeader extends StatelessWidget {
                       ? l.holidayWorkBadge
                       : l.holidayRestBadge,
                   style: TextStyle(
-                    fontSize: 7,
+                    fontSize: 10,
                     height: 1.3,
                     fontWeight: FontWeight.w600,
                     color: holidayMark.isWorkday
@@ -127,14 +127,14 @@ class MarkedMonthDayHeader extends StatelessWidget {
         ),
         if (termZh != null)
           Padding(
-            padding: const EdgeInsets.only(top: 1, bottom: 2),
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 solarTermLabel(l, termZh),
                 maxLines: 1,
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 10,
                   height: 1.1,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

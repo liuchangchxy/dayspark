@@ -16,17 +16,19 @@ abstract final class AppColors {
   static const Color lightError = Color(0xFFDC2626);
   static const Color lightBorder = Color(0xFFE5E7EB);
   static const Color lightDisabled = Color(0xFF9CA3AF);
+  static const Color lightSurfaceContainerHighest = Color(0xFFEEEEEE);
 
   // --- Dark Mode ---
   static const Color darkBackground = Color(0xFF0F0F14);
   static const Color darkSurface = Color(0xFF1A1A2E);
   static const Color darkTextPrimary = Color(0xFFE4E4E7);
   static const Color darkTextSecondary = Color(0xFF9CA3AF);
-  static const Color darkAccent = Color(0xFF60A5FA);
+  static const Color darkAccent = Color(0xFF3B82F6);
   static const Color darkAccentHover = Color(0xFF93C5FD);
   static const Color darkSuccess = Color(0xFF22C55E);
   static const Color darkWarning = Color(0xFFFACC15);
   static const Color darkError = Color(0xFFEF4444);
   static const Color darkBorder = Color(0xFF2D2D3A);
   static const Color darkDisabled = Color(0xFF4B5563);
+  static const Color darkSurfaceContainerHighest = Color(0xFF2D2D3A);
 }

@@ -16,9 +16,14 @@ class ViewSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<CalendarViewMode>(
+    final scheme = Theme.of(context).colorScheme;
+    // Compact control, not a full-bleed bar (mobile stays full width).
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<CalendarViewMode>(
         showSelectedIcon: false,
         segments: [
           ButtonSegment(value: CalendarViewMode.day, label: Text(l.day)),
@@ -31,6 +36,27 @@ class ViewSwitcher extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           textStyle: WidgetStatePropertyAll(
             Theme.of(context).textTheme.labelLarge,
+          ),
+          // Surface track, accent pill for selected — no full-bleed bar.
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return scheme.primary;
+            }
+            return scheme.surfaceContainerHighest.withValues(alpha: 0.5);
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return scheme.onPrimary;
+            }
+            return scheme.onSurfaceVariant;
+          }),
+          side: WidgetStatePropertyAll(
+            BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
           ),
         ),
       ),

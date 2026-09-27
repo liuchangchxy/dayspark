@@ -27,10 +27,15 @@ AI 编码工具读此文件来保持 UI 一致性。
 | Token | Hex | Usage |
 |-------|-----|-------|
 | background | #0F0F14 | 页面背景 |
-| surface | #1A1A2E | 卡片/弹窗背景 |
+| surface | #1A1A2E | 卡片/弹窗背景、输入框填充 |
 | textPrimary | #E4E4E7 | 主文字 |
 | textSecondary | #9CA3AF | 辅助文字 |
 | accent | #3B82F6 | 按钮、选中态、链接 |
+| accentHover | #93C5FD | 按钮悬停（dark） |
+| success | #22C55E | 成功状态（dark） |
+| warning | #FACC15 | 警告状态（dark） |
+| error | #EF4444 | 错误状态（dark，含日历 now-indicator） |
+| disabled | #4B5563 | 禁用态（dark；light 用 #9CA3AF） |
 | border | #2D2D3A | 边框、分割线 |
 
 ## Typography
@@ -75,3 +80,35 @@ AI 编码工具读此文件来保持 UI 一致性。
 5. 阴影极少使用，用 border 区分层次
 6. 最小触摸目标 48x48dp
 7. 色彩对比度符合 WCAG 2.1 AA
+
+## Page Layout（页面级条款，2026-09-27 走查补）
+
+### Section 标题
+- 一律左对齐：`title`（16sp w600），`padding horizontal 16 / vertical 8`。
+- 禁止居中分组标题（"数据""账号"居中即此条违规实例）。
+
+### 桌面内容列
+- 表单 / 设置 / 关于 / 反馈 / 空状态页：内容列 `max-width 640`，超宽居中。
+- 日历视图免此条（full-bleed），但工具条控件必须收进同一标题栏，禁止三拨控件各占一行。
+
+### 空状态模板
+- 结构：图标 + 标题（body）+ 一句说明（caption）+ 行动按钮。
+- 行动点必须放在空状态体内（可与右上角入口并存，禁止只有右上角入口）。
+- 四页差异化：search 给历史/建议入口，aichat 给"去哪找 Key"一句话引导，tags/trash 行动按钮就地新建/清空——禁止四胞胎。
+
+### 表单输入框
+- `filled: true`，`fillColor: surface`（light `#FFFFFF` / dark `#1A1A2E`）。
+- 禁止透明底输入框直接趴在 background 上（"纯黑感"主因）。
+
+## Kalender 接管条款（2026-09-27 走查补）
+
+第三方库样式必须显式接线，禁止用库默认混入两种 locale 体系：
+
+- 星期标签：`weekDayHeaderStyle.stringBuilder` 用 App 语言（`Localizations.localeOf` + `DateFormat.E`），不跟 kalender 自身 `context.locale`（浏览器/系统 locale）。
+- 时间轴：`timelineStyle.stringBuilder` 固定 24h `H:mm`（如 `8:00`）。标尺只做标尺：全半角统一 5 字符，测量与渲染同源，任何 locale 下零截断。
+- now-indicator：`lineColor`/`circleColor` = theme `error`（已接线，保持）。
+
+## 自定义主题色条款（2026-09-27 走查补）
+
+- 用户选色（seed）只允许替换 accent 系（primary/secondary）。
+- `error` / `surface` / `onSurface` / `surfaceContainerHighest` 必须回填 token（`ColorScheme.fromSeed(...).copyWith(...)`），禁止整套 scheme 脱离 token 表。

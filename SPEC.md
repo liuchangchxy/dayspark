@@ -138,3 +138,4 @@ flowchart LR
 7. **平台差异**：UI/交互改动必须显式考虑桌面鼠标 vs 移动触摸（平台感知法则）；本地验证命令用 `dart analyze .`（`flutter analyze` 在中文路径下 LSP 崩溃）
 8. **派生态一致性**：记录写入的派生态失效由 post-commit 领域事件驱动；事务回滚不得产生事件；事件批量边界 = 事务边界
 9. **跨进程写入**：外部进程直写库文件（CLI）不产生领域事件，客户端靠冷启动/恢复前台重算收敛
+10. **Web 平台防御**：`dart:io` 的 `Platform.*` 在 dart2js 产物里是一调用就抛的 stub——`runApp` 之前任何一次读取即整页白屏（v0.25.0 事故，见 DECISIONS 2026-09-26）。全仓平台判断只允许经唯一读点 `lib/core/utils/platform_target.dart`（`kIsWeb` 短路在前，导出 `isAndroid`/`isIOS`/`isNativeMobile`）；禁止用 `defaultTargetPlatform` 替代 `Platform.isX`（web 上它按浏览器 UA 返回 android/iOS，会去调不存在的原生实现）。防复发：静态守卫测试（`test/architecture/web_platform_guard_test.dart`）+ CI 与 release 双链路 web 冒烟截图断言（`tool/web_smoke.dart`，纯白即红）

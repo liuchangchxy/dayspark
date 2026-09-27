@@ -51,13 +51,23 @@ class TagsPage extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(CupertinoIcons.tag, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  Icon(
+                    CupertinoIcons.tag,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(height: 16),
-                  Text(l.noTags, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                  const SizedBox(height: 8),
                   Text(
-                    l.tapToCreate,
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    l.noTags,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => _showCreateDialog(context, ref),
+                    icon: const Icon(CupertinoIcons.add, size: 18),
+                    label: Text(l.createTag),
                   ),
                 ],
               ),

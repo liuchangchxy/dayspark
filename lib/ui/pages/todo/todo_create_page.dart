@@ -8,10 +8,12 @@ import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/centered_content.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class TodoCreatePage extends ConsumerStatefulWidget {
   final int? parentId;
@@ -79,8 +81,11 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       // Combine dueDate and dueTime
       if (_dueDate != null && _dueTime != null) {
         _dueDate = DateTime(
-          _dueDate!.year, _dueDate!.month, _dueDate!.day,
-          _dueTime!.hour, _dueTime!.minute,
+          _dueDate!.year,
+          _dueDate!.month,
+          _dueDate!.day,
+          _dueTime!.hour,
+          _dueTime!.minute,
         );
       }
 
@@ -115,7 +120,9 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       for (final tagId in _selectedTagIds) {
         try {
           await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
-        } catch (e) { debugPrint('todo_create: addTag error: $e'); }
+        } catch (e) {
+          debugPrint('todo_create: addTag error: $e');
+        }
       }
 
       if (mounted) context.pop();
@@ -230,8 +237,8 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
             onPressed: _aiLoading ? null : _aiParse,
             icon: _aiLoading
                 ? const SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: AppSpacing.lg,
+                    height: AppSpacing.lg,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(CupertinoIcons.sparkles),
@@ -249,27 +256,43 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           ),
         ],
       ),
-      body: ListView(
+      body: CenteredContent(
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Title
-          TextField(
-            controller: _summaryController,
-            decoration: InputDecoration(
-              labelText: l.title,
-              border: const OutlineInputBorder(),
+          // Title + calendar
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _summaryController,
+                    decoration: InputDecoration(
+                      labelText: l.title,
+                      border: const OutlineInputBorder(),
+                    ),
+                    textCapitalization: TextCapitalization.sentences,
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCalendarPicker(l),
+                ],
+              ),
             ),
-            textCapitalization: TextCapitalization.sentences,
-            autofocus: true,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          // Calendar picker
-          _buildCalendarPicker(l),
-          const SizedBox(height: 16),
-
-          // Start date
-          ListTile(
+          // Dates + time
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Start date
+                  ListTile(
             leading: const Icon(CupertinoIcons.play),
             title: Text(l.startDate),
             subtitle: _startDate != null
@@ -314,7 +337,8 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
             title: Text(l.dueTime),
             subtitle: _dueTime != null
                 ? Text(
-                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}')
+                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}',
+                  )
                 : Text(l.notSet),
             onTap: () async {
               final time = await showWheelTimePicker(
@@ -331,23 +355,42 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                 : null,
             contentPadding: EdgeInsets.zero,
           ),
-          const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
 
-          // Priority
-          Text(
+          // Priority + tags + notes
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Priority
+                  Text(
             l.priority,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
           Wrap(
-            spacing: 6,
-            children: _priorityValues.map((v) => ChoiceChip(
-              label: Text(priorityLabels[v]!, style: const TextStyle(fontSize: 12)),
-              selected: _priority == v,
-              onSelected: (_) => setState(() => _priority = v),
-              visualDensity: VisualDensity.compact,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            )).toList(),
+            spacing: AppSpacing.sm,
+            children: _priorityValues
+                .map(
+                  (v) => ChoiceChip(
+                    label: Text(
+                      priorityLabels[v]!,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    selected: _priority == v,
+                    onSelected: (_) => setState(() => _priority = v),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                )
+                .toList(),
           ),
           const SizedBox(height: 16),
 
@@ -379,7 +422,12 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
               });
             },
           ),
+                ],
+              ),
+            ),
+          ),
         ],
+        ),
       ),
     );
   }
@@ -448,7 +496,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
 
     return Wrap(
       spacing: 8,
-      runSpacing: 6,
+      runSpacing: AppSpacing.sm,
       children: [
         _quickChip(l.today, today),
         _quickChip(l.tomorrow, tomorrow),
@@ -490,11 +538,18 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               children: [
-                Icon(CupertinoIcons.tag, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                Icon(
+                  CupertinoIcons.tag,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   l.noTags,
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
                 TextButton(
                   onPressed: () => context.push('/tags'),
@@ -525,7 +580,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
             ),
             const SizedBox(height: 4),
             Wrap(
-              spacing: 6,
+              spacing: AppSpacing.sm,
               runSpacing: 4,
               children: allTags.map((tag) {
                 final isSelected = _selectedTagIds.contains(tag.id);

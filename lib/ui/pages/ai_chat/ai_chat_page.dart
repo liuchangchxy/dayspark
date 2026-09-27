@@ -9,6 +9,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class AiChatPage extends ConsumerStatefulWidget {
   const AiChatPage({super.key});
@@ -119,14 +120,14 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.md,
                                 ),
                                 constraints: BoxConstraints(
                                   maxWidth: (() {
                                     final maxBubbleWidth =
                                         MediaQuery.of(context).size.width *
-                                            0.75;
+                                        0.75;
                                     return maxBubbleWidth > 600
                                         ? 600.0
                                         : maxBubbleWidth;
@@ -151,9 +152,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                       ).textTheme.bodyMedium,
                                     ),
                                     if (!isUser) ...[
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: AppSpacing.sm),
                                       Wrap(
-                                        spacing: 6,
+                                        spacing: AppSpacing.sm,
                                         runSpacing: 4,
                                         children: [
                                           _QuickActionChip(
@@ -219,8 +220,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
+                                horizontal: AppSpacing.lg,
+                                vertical: AppSpacing.md,
                               ),
                             ),
                             textInputAction: TextInputAction.send,
@@ -232,8 +233,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           onPressed: _sending ? null : _send,
                           icon: _sending
                               ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
+                                  width: AppSpacing.lg,
+                                  height: AppSpacing.lg,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                   ),
@@ -261,6 +262,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                     Text(
                       l.aiNotConfigured,
                       style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l.aiGoToSettings,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
@@ -398,7 +405,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           todoId: todoId,
                           dueDate: null,
                         );
-                      } catch (e) { debugPrint('ai_chat: addReminders error: $e'); }
+                      } catch (e) {
+                        debugPrint('ai_chat: addReminders error: $e');
+                      }
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(l.todoCreatedShort)),
@@ -484,7 +493,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             eventId: eventId,
             startDt: start,
           );
-        } catch (e) { debugPrint('ai_chat: addEventReminders error: $e'); }
+        } catch (e) {
+          debugPrint('ai_chat: addEventReminders error: $e');
+        }
       } else {
         final dueDate = result['due_date'] != null
             ? DateTime.parse(result['due_date'] as String)
@@ -504,7 +515,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             todoId: todoId,
             dueDate: dueDate,
           );
-        } catch (e) { debugPrint('ai_chat: addTodoReminders error: $e'); }
+        } catch (e) {
+          debugPrint('ai_chat: addTodoReminders error: $e');
+        }
       }
 
       if (mounted) {
@@ -546,16 +559,19 @@ class _QuickActionChip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 14, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 2),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),

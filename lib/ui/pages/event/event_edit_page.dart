@@ -59,8 +59,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       return;
     }
 
-    if (!_isAllDay &&
-        _event.end.isBefore(_event.start)) {
+    if (!_isAllDay && _event.end.isBefore(_event.start)) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l.endBeforeStart)));
@@ -84,7 +83,6 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
         _event.drifId,
         updated.toUpdateCompanion(),
       );
-
 
       if (mounted) context.pop();
     } catch (e) {
@@ -112,7 +110,9 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: Text(l.delete),
           ),
         ],
@@ -125,9 +125,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   }
 
   Future<void> _pickDateTime(bool isStart) async {
-    final current = isStart
-        ? _event.start
-        : _event.end;
+    final current = isStart ? _event.start : _event.end;
     final date = await showDatePicker(
       context: context,
       initialDate: current,

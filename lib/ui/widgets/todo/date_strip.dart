@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 class DateStrip extends StatelessWidget {
   final DateTime? selectedDate;
@@ -64,13 +65,14 @@ class DateStrip extends StatelessWidget {
                   onPressed: () => onDateSelected(today),
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
                   ),
                   child: Text(
                     l.today,
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -150,53 +152,55 @@ class DateStrip extends StatelessWidget {
                           ),
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.md,
+                            ),
                             decoration: BoxDecoration(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : isToday
-                                ? theme.colorScheme.primary.withValues(
-                                    alpha: 0.3,
-                                  )
-                                : null,
-                            borderRadius: BorderRadius.circular(8),
-                            border: isToday && !isSelected
-                                ? Border.all(
-                                    color: theme.colorScheme.primary,
-                                    width: 1,
-                                  )
-                                : null,
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                weekdayLabel,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: isSelected
-                                      ? theme.colorScheme.onPrimary
-                                      : theme.textTheme.bodySmall?.color,
+                              color: isSelected
+                                  ? theme.colorScheme.primary
+                                  : isToday
+                                  ? theme.colorScheme.primary.withValues(
+                                      alpha: 0.3,
+                                    )
+                                  : null,
+                              borderRadius: BorderRadius.circular(8),
+                              border: isToday && !isSelected
+                                  ? Border.all(
+                                      color: theme.colorScheme.primary,
+                                      width: 1,
+                                    )
+                                  : null,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  weekdayLabel,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isSelected
+                                        ? theme.colorScheme.onPrimary
+                                        : theme.textTheme.bodySmall?.color,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${date.day}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: isToday
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  color: isSelected
-                                      ? theme.colorScheme.onPrimary
-                                      : theme.textTheme.bodyMedium?.color,
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  '${date.day}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: isToday
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? theme.colorScheme.onPrimary
+                                        : theme.textTheme.bodyMedium?.color,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     );
                   }),
                 ),
@@ -236,7 +240,10 @@ class DateStrip extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
             decoration: BoxDecoration(
               color: selected ? accentColor : null,
               borderRadius: BorderRadius.circular(8),
@@ -247,7 +254,7 @@ class DateStrip extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: selected
                     ? theme.colorScheme.onTertiary

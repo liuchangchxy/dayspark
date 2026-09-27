@@ -19,6 +19,7 @@ class ImportExportSection extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -57,10 +58,9 @@ class ImportExportSection extends ConsumerWidget {
                 );
                 if (context.mounted) {
                   try {
-                    await Share.shareXFiles(
-                      [XFile(path)],
-                      subject: 'DaySpark Calendar Export',
-                    );
+                    await Share.shareXFiles([
+                      XFile(path),
+                    ], subject: 'DaySpark Calendar Export');
                   } on UnimplementedError {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

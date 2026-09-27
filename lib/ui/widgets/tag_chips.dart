@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 
 /// A row of tag chips that can toggle tag assignment.
 class TagChips extends ConsumerWidget {
@@ -29,7 +30,7 @@ class TagChips extends ConsumerWidget {
         final assignedIds = assignedTags.map((t) => t.id).toSet();
 
         return Wrap(
-          spacing: 6,
+          spacing: AppSpacing.sm,
           runSpacing: 4,
           children: allTags.map((tag) {
             final isAssigned = assignedIds.contains(tag.id);
