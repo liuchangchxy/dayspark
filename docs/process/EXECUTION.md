@@ -1,4 +1,4 @@
-> **来源 / Provenance**：vendored from [`liuchangchxy/vibe-coding-starter`](https://github.com/liuchangchxy/vibe-coding-starter) @ `d339922`（2026-09-24）。
+> **来源 / Provenance**：vendored from [`liuchangchxy/vibe-coding-starter`](https://github.com/liuchangchxy/vibe-coding-starter) @ `0cae2f4`（2026-10-01）。
 > **DaySpark 定制规则**：本文件保持与上游逐字一致，**不在此文件内写 DaySpark 专属内容**；DaySpark 差异一律写在 `CLAUDE.md`。更新方式：从上游重取本文件 + 重加本头。
 
 # 多代理执行工序守则 (EXECUTION.md)
@@ -29,7 +29,7 @@
 | 7 | **阶段终审**：整段 diff 对抗审查 + 把全部延后项做 **a/b/c 三级裁决**（a=合并前必修 b=进待办 c=作废） | 终审报告 |
 | 8 | **Rulings 披露 + 交付菜单**：见 §3；随后给出 Merge/Push/Keep 选项由用户拍板 | 用户确认 |
 
-**停止准则不自造**：任何阶段的“能不能收”一律执行 `TESTING.md` DoD——**P0/P1 清零 + 测试 100% 且 `skipped=0` → 必须明确宣布通过，严禁借 P2/P3 理论风险无限发散**。
+**停止准则不自造**：任何阶段的“能不能收”一律执行 `TESTING.md` §三 DoD——**P0/P1 清零 + 测试 100% 且 `skipped=0` → 必须明确宣布通过，严禁借 P2/P3 理论风险无限发散**。
 
 ---
 
@@ -52,7 +52,7 @@
 
 ## 4. 进度账本 × 微快照（双轨互补）
 
-- **代码快照**：大重构前 `python scripts/checkpoint.py save "说明"`（AGENTS 引擎“微快照”）——管**代码状态**可回滚；
+- **代码快照**：大重构前 `python tool/checkpoint.py save "说明"`（AGENTS 引擎“微快照”）——管**代码状态**可回滚；
 - **进度账本**：多任务链期间维护一个 `progress.md`（当前任务、已完成行、延后项、裁定）——管**流程状态**，防止长对话失忆重复干活；阶段收尾随工作区清理，承重内容已沉淀进 DECISIONS/ROADMAP。
 - 两者不可互替：账本不能回滚代码，快照不记审查结论。
 
@@ -78,3 +78,4 @@
 | 两套严重度阶梯混用 | 以 P0–P3 为准，见 §0 映射 |
 | 审查发现“以后再说”却不入账本 | §2 carry-forward |
 | 阶段收尾只报“全绿”不报裁定 | §3 强制清单 |
+| 把单次实测数字写成文档事实 | 写区间/量级 + 注明浮动（如"约 400 色，逐次浮动"），别把某一次跑的值当常量 |

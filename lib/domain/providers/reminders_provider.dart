@@ -34,17 +34,22 @@ class NotificationStrings {
   final String todoReminderBody;
 }
 
+/// 解析当前生效的通知语言：显式传入 → 持久化的 app locale → 系统 locale。
+///
+/// 独立成函数是因为「文案已烘焙进系统的出口」（通知 / 桌面小组件）需要回答
+/// 「上次排期用的是哪种语言」才能判断要不要重排——见 ReminderReconciler。
+Future<Locale> resolveNotificationLocale({Locale? locale}) async {
+  if (locale != null) return locale;
+  final prefs = await SharedPreferences.getInstance();
+  final code = prefs.getString(appLocalePrefKey);
+  if (code != null) return Locale(code);
+  return WidgetsBinding.instance.platformDispatcher.locale;
+}
+
 /// Resolves notification strings for [locale], or the persisted app locale,
 /// or the platform locale — in that order.
 Future<NotificationStrings> loadNotificationStrings({Locale? locale}) async {
-  var resolved = locale ?? const Locale('en');
-  if (locale == null) {
-    final prefs = await SharedPreferences.getInstance();
-    final code = prefs.getString(appLocalePrefKey);
-    resolved = code != null
-        ? Locale(code)
-        : WidgetsBinding.instance.platformDispatcher.locale;
-  }
+  final resolved = await resolveNotificationLocale(locale: locale);
   final l = await AppLocalizations.delegate.load(resolved);
   return NotificationStrings(
     eventReminderTitle: l.eventReminder,

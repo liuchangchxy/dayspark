@@ -11,6 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Whitespace and line-ending check / 行尾空格与换行符检查
+        run: python3 tool/check_whitespace.py
+
+      - name: Hardcoded absolute path scan / 硬编码绝对路径扫描
+        run: python3 tool/scan_hardcoded_paths.py
+
       - name: Version consistency guard / 版本一致性守卫
         run: |
           tool/check_version_consistency.sh

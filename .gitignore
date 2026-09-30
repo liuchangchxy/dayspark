@@ -74,6 +74,7 @@ skills-lock.json
 
 # Impeccable（第三方设计 skill，Apache-2.0）— 不 vendor 进公开仓库；需要时 npx impeccable install 重装
 .claude/skills/impeccable/
+.impeccable/
 
 # taste-skill（第三方设计 skill，MIT）— 不 vendor 进公开仓库；本机 github.com 直连被墙时用 codeload tar 包手装：
 # curl -sL -o /tmp/taste.tgz https://codeload.github.com/Leonxlnx/taste-skill/tar.gz/refs/heads/main

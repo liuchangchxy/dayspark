@@ -1,9 +1,9 @@
-> **来源 / Provenance**：vendored from [`liuchangchxy/vibe-coding-starter`](https://github.com/liuchangchxy/vibe-coding-starter) @ `d339922`（2026-09-24）。
+> **来源 / Provenance**：vendored from [`liuchangchxy/vibe-coding-starter`](https://github.com/liuchangchxy/vibe-coding-starter) @ `0cae2f4`（2026-10-01）。
 > **DaySpark 定制规则**：本文件保持与上游逐字一致，**不在此文件内写 DaySpark 专属内容**；DaySpark 差异一律写在 `CLAUDE.md`。更新方式：从上游重取本文件 + 重加本头。
 
 # 对抗性审查配方 (REVIEWING.md)
 
-> **定位**：审查 = **发现期**。修复期必须回到 `TESTING.md` 铁律“根因全局治理（RCA）”——发现一处，修复时全局清扫同类，严禁孤立改单行。
+> **定位**：审查 = **发现期**。修复期必须回到 `TESTING.md` §一.5「1 变 4 根因发散」——发现一处，修复时全局清扫同类，严禁孤立改单行。
 > 输出纪律：审查者**必须亲手重跑门禁**（analyze/test），禁止只读实现者的报告就下结论；diff 范围之外发现的问题标注“⚠️ 范围外”，交上级裁决，不许自行扩权修改。
 
 ---
@@ -16,7 +16,7 @@
 
 ---
 
-## 五种攻击配方（每轮审查逐条过）
+## 六种攻击配方（每轮审查逐条过）
 
 ### 1. 空转测试识别
 测试断言无实质约束即为“空转”。查法：删掉被测实现/替换为恒等实现，测试是否仍绿？断言是否只在复读实现（如 `expect(f(x), f(x))`）？**测试必须能在实现错误时变红，才算存在。**
@@ -33,6 +33,11 @@
 ### 5. 跨端键一致性
 同一契约被多处实现时（前后端字段、双端原生读取、配置键），全仓 grep 新旧键名，核对 **key-for-key + 类型一致 + 版本门**；任何一端漏改/类型不符 = 静默数据丢失。
 
+### 6. 缓存死水与交付穿透（Stale Cache & Delivery Penetration）
+- **静态入口强缓存死锁**：SPA 入口文件（HTML）若未在 Web 服务侧显式配置 `Cache-Control: no-cache, no-store, must-revalidate`，无论构建产物哈希如何变更，客户端均会因入口被强缓存而持续加载旧版本。
+- **内嵌容器与外壳内存驻留**：当系统运行于 Electron、桌面原生 WebView、平台 iframe 或移动端原生外壳中时，仅刷新或重新构建往往无法突破容器本身的内存 Web 视图缓存。
+- **指纹穿透验证律**：审查交付闭环时，禁止以“构建命令成功”或“后端端口 200”冒充端侧交付成功；必须从最终物理消费端的真实 DOM/运行时环境中，提取带有唯一变更特征的**物理指纹**（如版本号元数据、Git Commit SHA、构建时间戳标记或新增 DOM 节点的唯一样式签名），证明新产物已物理穿透至用户视口。
+
 ---
 
 ## 审查者三律
@@ -45,6 +50,6 @@
 
 ## 与其它文档的衔接
 
-- 发现的缺陷如何修 → `TESTING.md` 铁律 1（缺陷即测试）+ 铁律 3（RCA 全局清扫）；
-- 何时停止审查 → `TESTING.md` DoD（P0/P1 清零 + 测试 100% `skipped=0`）；
+- 发现的缺陷如何修 → `TESTING.md` §一.1（缺陷即测试）+ §一.5（1 变 4 全局清扫）；
+- 何时停止审查 → `TESTING.md` §三 DoD（P0/P1 清零 + 测试 100% `skipped=0`）；
 - 审查发现的去向 → `EXECUTION.md` §2 carry-forward（账本 → 下任务 → ROADMAP 三级落点）。

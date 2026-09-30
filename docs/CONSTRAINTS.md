@@ -468,3 +468,31 @@
 - 对策：静态分析统一用 `dart analyze <files>`（同 server 不同传输，不崩，2026-09-27 实测改动文件 `No issues found`）；`flutter test` / `flutter build` 不受影响
 - **Why**: 误会成"我的改动把分析搞挂了"会浪费一轮 RCA；这是工具链对非 ASCII 路径的硬伤，不是代码问题
 - **Date**: 2026-09-27
+
+## Localization / 本地化
+
+### rrule_generator 的 RRuleTextDelegate 接不进 ARB 字典（2026-10-01）
+- 现象：`RRuleTextDelegate` 暴露的是 `String get repeat` 这类裸 getter，没有 locale 参数也没有 key，无法把文案交给 l10n 字典
+- 对策：`LocaleAwareRRuleTextDelegate` 内联中英两套，用 `_isChinese` 选取；**代价是加第三种语言必须改代码**
+- **Why**: 这是第三方接口限制，不是本项目疏忽。若将来要支持第三语言，正确做法是 fork 该包或换用支持 locale 的 recurrence 文本库，而不是在实现里继续堆分支
+- **Date**: 2026-10-01
+
+### 通知文案排期时烘焙进 OS，切语言不会自动刷新（2026-10-01）
+- 现象：用户切到英文后，切换之前已排期的提醒仍弹中文
+- 根因：`ReminderReconciler._schedule` 以 `_applied`（上次交给 OS 的时刻）做短路——时刻没变就 early return，而 title/body 早已写死在已排期的通知里
+- 对策：`ReminderReconciler.onLocaleChanged()` 清空 `_applied` 后重算，由 `reminderReconcilerProvider` 监听 `localeProvider` 触发
+- **Why**: 通知属于「字典之外的出口」，任何 UI 层的 i18n 检查都看不见它；出口清单见 `docs/l10n-outlets.md`
+- **Date**: 2026-10-01
+
+### CorrectChineseTextDelegate 曾是纯中文死代码（2026-10-01）
+- 现象：`lib/core/l10n/rrule_text_delegate.dart` 是纯中文 delegate，且无任何引用，被 `LocaleAwareRRuleTextDelegate` 完全取代
+- 对策：删除；由 `test/architecture/no_raw_text_guard_test.dart` 保证同类不再回流
+- **Why**: 死代码留在仓库里会被后来者当成「现成的中文方案」再次接上，等于把 i18n 缺口重新打开
+- **Date**: 2026-10-01
+
+### 月视图在月初会显示上一个月（2026-10-01 定位，未修）
+- 现象：今天 = 10-01，点"月"后月视图渲染的是 **9 月**（实测文本序列 `31, 1..30, 1..4` + 白露/秋分）。`test/ui/widgets/calendar/marked_month_day_header_test.dart` 的 `month view grid shows current-month solar terms` 因此变红，**在 HEAD(v0.26.0) 上就红，且是日期相关——每月约有 4 天会红**
+- 根因链：① `_anchorDate` 初值是"今天"(10-01)；② 首屏周视图上报 `visibleDateTimeRange.start` = 本周周一 = **09-28**；③ `_anchorFromRange`（week 分支）= `range.start` → anchor 被改成 09-28；④ 切月视图时 `singleMonth(initialDateTime: _anchorDate=09-28)` → 渲染 9 月。测试的期望值却按 `DateTime.now().month`(10) 算，故对不上
+- **未修的理由**：修法有两条且是产品决策——(a) 认为"锚点跟随可见周起点"是设计意图 → 改测试（按 anchor 规则算期望值 + 固定时钟）；(b) 认为"切月视图应显示今天所在月" → 改 `_anchorFromRange` 的 month 分支或切换时的 anchor。两条都会改变用户可见行为，需用户拍板
+- **为什么记在这里**：它同时是"日期相关测试"的典型坑——**测试用了真实时钟又假设时钟落在某个区间**，会在特定日期假红并掩盖真实回归
+- **Date**: 2026-10-01

@@ -14,30 +14,39 @@ mkdir -p .git/hooks
 HOOK_PATH=".git/hooks/pre-commit"
 cat > "$HOOK_PATH" <<'EOF'
 #!/bin/sh
-# DaySpark pre-commit gate: dart analyze . must be green (zero exit).
-# flutter test is intentionally NOT run here (too slow); tests are gated by workflow.
+# DaySpark pre-commit gate.
+#   dart analyze  —— 必须零 issue（快，每次提交都跑）
+#   防测试篡改     —— 拦住"放宽断言/删用例来造绿"（快，扫 git diff）
+#   硬编码绝对路径 —— 拦住写死本机路径（快，扫 git 跟踪的文件）
+# flutter test 故意不在此处跑（太慢）；全量测试由 CI 与发布流程卡口。
 
 echo "============================================================"
-echo " [pre-commit] Running: dart analyze ."
+echo " [pre-commit] analyze + 防篡改 + 硬编码路径"
 echo "============================================================"
 
 dart analyze .
-RESULT=$?
-
-if [ $RESULT -ne 0 ]; then
+if [ $? -ne 0 ]; then
   echo ""
-  echo "[BLOCKED] dart analyze reported issues; commit rejected."
-  echo "Fix the analyzer output above, then commit again."
+  echo "[BLOCKED] dart analyze 报出问题，提交被拒。修好上面的输出再提交。"
   echo "============================================================"
   exit 1
 fi
 
+if [ -f "tool/guard_test_tampering.py" ]; then
+  python3 tool/guard_test_tampering.py || exit 1
+fi
+
+if [ -f "tool/scan_hardcoded_paths.py" ]; then
+  python3 tool/scan_hardcoded_paths.py || exit 1
+fi
+
 echo ""
-echo "[PASSED] dart analyze clean. Proceeding with commit."
+echo "[PASSED] 全部门禁通过，继续提交。"
 echo "============================================================"
 exit 0
 EOF
 
 chmod 755 "$HOOK_PATH"
 echo "[SUCCESS] installed $HOOK_PATH (executable)"
-echo "[INFO] gate: dart analyze . ; tests remain a workflow gate (flutter test)."
+echo "[INFO] gates: dart analyze . + 防测试篡改 + 硬编码路径扫描"
+echo "[INFO] flutter test 仍是 CI/发布门禁（此处不跑，太慢）。"

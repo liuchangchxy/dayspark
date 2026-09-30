@@ -44,6 +44,25 @@
 - **kalender 外观可换、引擎归库**（2026-09-27 走查结论）✅ 换装完成：定位/拖拽/虚拟滚动引擎是库的，但每个零件（dayHeader/timeline/hourLines/事件块/月网格）都有 builder 钩子可整体替换；已换：自画表头（大数字+星期+today accent pill）/自画整点网格线/标尺整点标签+次级色+防切边/空态一句提示。新文件 `calendar_day_header.dart` + `calendar_hour_lines.dart` + 测试 `calendar_parts_test.dart`，DESIGN 接管条款已补，截图见项目根 `web-shots-2026-09-27-c/`。fork/换库不到万不得已不碰
 - **Web 端 ICS 导出不可用**（同批勘察发现，**未修**，P2/P3 级）：`ics_service.saveIcsToFile` 走 `getApplicationDocumentsDirectory()`（path_provider 无 web 实现）→ 抛异常被 try/catch 兜住弹「导出失败」，用户实际拿不到导出。**不属白屏同类**（不阻断启动），故未纳入 v0.25.1；导入侧已有 `kIsWeb` 分支，正常
 
+**G. 以 vibe-coding-starter 为蓝本吸收（2026-10-01 会话）**
+
+已完成（详见 `DECISIONS.md` 同日 ADR）：
+- ~~i18n 三道门禁~~ ✅ 键对齐守卫 + 裸文案守卫（`test/architecture/`，均带违规/合规自证）+ 出口清单 `docs/l10n-outlets.md`
+- ~~通知切语言不刷新~~ ✅ `ReminderReconciler.onLocaleChanged()` + `force` 旁路（真 bug，非改进）
+- ~~门禁总账~~ ✅ `docs/GATES.md`：19 条门禁，**其中 12 条"红过没"标为未记录**
+- ~~`docs/process/` 补课~~ ✅ 四件更新到 `0cae2f4` + 新增第五件 `LOCALIZATION.md`
+- ~~pre-commit 扩门~~ ✅ analyze + 防篡改 + 硬编码路径；`check_whitespace.py` 进 CI
+- ~~`docs/qa/TEST_EVIDENCE_TEMPLATE.md`~~ ✅ 已建
+
+**尚未做（下一批候选）**：
+- **`docs/GATES.md` §四.1 的 12 条变异实证**——按 §一.7 标准，"没红过的门禁一律视为不存在"。这是当前最该补的一件事
+- **AI 输出语言约束是启发式**（`ai_provider.dart` 写的是 "Respond in the same language as the user"；`parseNaturalLanguage` 的 prompt 完全没提语言）→ 应显式透传 `locale` + "Respond strictly in {target_language}"（出口清单 #7）
+- **原生通知渠道名/动作按钮不随 App 内语言切换**（出口清单 #4）；Android 渠道创建后不可改名，改语言需新建渠道 id
+- **伪语言冒烟**：出口清单要求"新增出口必须被冒烟覆盖"，但目前**没有伪语言机制**，出口 2/3 只靠单测覆盖，未做过整机冒烟
+- `tool/checkpoint.py` 微快照已复制进 `tool/`，但**尚未在流程里用起来**（AGENTS 引擎 1.4 未接）
+- `tool/scan_hardcoded_paths.py` 改成 `git ls-files` 的修正**尚未回流到 starter**（上游有同样问题）
+- **[P1] 月视图月初显示上个月**（2026-10-01 定位，**未修**）：今天 10-01 点"月"渲染的是 9 月（`_anchorDate` 被周视图首帧改成 09-28）。连带 `marked_month_day_header_test` 的 "month view grid shows current-month solar terms" **在 HEAD 上就红，且每月约 4 天会红**。修法二选一（改测试或改产品行为），**需用户拍板**，见 `docs/CONSTRAINTS.md` 同日条目
+
 **D. 终审 triage 出的 (b) 类小项（部分只在会话）**
 - quick-add PendingIntent 加 `setPackage(context.packageName)`（防 scheme 抢注）
 - iOS widget 扩展 IPHONEOS_DEPLOYMENT_TARGET 26.4 → 15/17（否则老 iOS 无小组件）
@@ -82,7 +101,9 @@
 | **前端设计诊断工具** | **`Impeccable` 已装**在 `.claude/skills/impeccable/`（**已 gitignore，不入公开仓库**；重装：`npx impeccable install --providers=claude --scope=project --no-hooks`）。诊断流程见其 `reference/critique.md`（A/B 两个隔离子代理）；**严禁运行 `/document`**——它会覆盖 `DESIGN.md`，那是本项目的设计令牌 SSOT。**已备好 5 张真实渲染截图**（`/`·`/settings`·`/trash`·`/search`·`/todo/new`）+ 零依赖 CDP 截图器 ；**该工作区目录已被清理**——其中的「零依赖 CDP 截图器 + 白屏判据」已在队列第 0 项任务里重写并提升为 `tool/web_smoke.dart`（`ci.yml` 的 `build-web` job 调用，纯白即红）|
 | 冻结需求8条 / 规则契约 / 架构实例(§2) | `SPEC.md`（**状态一律看 ROADMAP**） |
 | 版本 / 工作流红线 / 架构分层 / 文档地图 | `CLAUDE.md` |
-| 流程四件：执行工序·Rulings / 审查五配方 / 测试DoD / 架构七步 | `docs/process/{EXECUTION,REVIEWING,TESTING,ARCHITECTURE}.md`（vendored 自 vibe-coding-starter，定制规则见 CLAUDE 工作流开头） |
+| 流程五件：执行工序·Rulings / 审查六配方 / 测试DoD / 架构七步 / 本地化三层强制 | `docs/process/{EXECUTION,REVIEWING,TESTING,ARCHITECTURE,LOCALIZATION}.md`（vendored 自 vibe-coding-starter@0cae2f4，定制规则见 CLAUDE 工作流开头） |
+| **门禁总账**：每条门禁守什么、挂在哪、红过没 | `docs/GATES.md` |
+| **用户可见文案出口清单** | `docs/l10n-outlets.md` |
 | 踩坑防回归（签名、同步、小组件、时区…） | `docs/CONSTRAINTS.md` |
 | 为什么这样决定 | `DECISIONS.md` |
 | 进度全景 / P2.5 / follow-ups（**状态唯一源**） | `docs/ROADMAP.md` |

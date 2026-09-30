@@ -39,6 +39,9 @@ final class ReminderReconciler {
 
   // 上次实际交给 OS 的时刻（null = 已知没有通知）；缺键 = 本次会话没碰过。
   final Map<int, DateTime?> _applied = <int, DateTime?>{};
+  // 上次排期时实际使用的语言（languageCode）。通知文案已经写死在 OS 里，
+  // 这是判断「要不要为语言变更重排」的唯一可靠依据。
+  String? _stringsLocale;
   // 我们物化过的行值：只有这些行的"所属 reference"确定等于 _parentStates 的锚点，
   // 才敢拿锚点当位移基准；行内值是写入路径建的（新建/后挂提醒行）时只能退回
   // 事件自述的 previousReference——那正是 §2.1 规则 2/3 的原意。
@@ -50,6 +53,26 @@ final class ReminderReconciler {
   Future<void> handle(List<RecordChange> batch) => _enqueue(() => _handle(batch));
 
   Future<void> reconcileAll() => _enqueue(_reconcileAll);
+
+  /// 语言切换后重排：通知的 title/body 是排期时烘焙进 OS 的，_applied 只记
+  /// 「上次交给 OS 的时刻」，时刻没变就短路——于是切语言后，切换之前排好的
+  /// 提醒仍会按旧语言弹。清掉 _applied 再整轮重算，才会用新语言重新下发。
+  ///
+  /// 只清 _applied：_materialized/_parentStates 描述的是行值基线，与语言无关，
+  /// 清掉反而会退化成「只能靠行内值兜底」（见 _reconcileParent 的基准选择）。
+  /// 走 _enqueue 是同一条串行链，不会与批次重排交错。
+  ///
+  /// 以「上次排期实际用的语言」做判据，而不是让调用方去猜这是不是首次回调——
+  /// 后者依赖「监听先于 localeProvider.load() 注册」，是个说不清的次序假设。
+  /// 只清「确实交给过 OS」的条目（值非 null），保留「已知无通知」的 null 标记：
+  /// 前者必须按新语言重发，后者本来就没东西可发，留着能省掉一轮无谓 cancel。
+  Future<void> onLocaleChanged() => _enqueue(() async {
+    final next = (await resolveNotificationLocale()).languageCode;
+    if (_stringsLocale == next) return;
+    _stringsLocale = next;
+    _applied.removeWhere((_, handedToOs) => handedToOs != null);
+    await _reconcileAll(force: true);
+  });
 
   // 两个入口共用一条串行链：批与批、重算与批都不得交错重排同一个父，否则会拿
   // 半更新的 _applied/父状态去求差。catchError 保证一次意外异常不会堵死整条链。
@@ -110,7 +133,7 @@ final class ReminderReconciler {
     }
   }
 
-  Future<void> _reconcileAll() async {
+  Future<void> _reconcileAll({bool force = false}) async {
     final rows =
         await (_db.select(_db.reminders)
               ..orderBy([(t) => OrderingTerm.asc(t.id)]))
@@ -128,6 +151,7 @@ final class ReminderReconciler {
         () => _reconcileParent(
           parentType: parent.$1,
           parentId: parent.$2,
+          force: force,
           // 基准取会话内已知的锚点 reference；首次（冷启动）无锚点时交给
           // nextTrigger 规则 2 用行内值兜底——行内值现在会被物化回写，跨重启有效。
           previousReference: _parentStates[parent]?.reference,
@@ -140,6 +164,7 @@ final class ReminderReconciler {
     required String parentType,
     required int parentId,
     required DateTime? previousReference,
+    bool force = false,
   }) async {
     final key = (parentType, parentId);
     final parent = await _readParent(parentType, parentId);
@@ -147,7 +172,12 @@ final class ReminderReconciler {
     final active = parent?.active ?? false;
     final state = (reference: reference, active: active);
     final anchorReference = _parentStates[key]?.reference;
-    if (_parentStates[key] == state && previousReference == reference) return;
+    // 早退是常规优化：父状态与参考时间都没变 → 这一父没有任何事要做。
+    // force 绕过它，用于「数据没变但平台侧必须重做」的场景——目前只有语言
+    // 切换（通知文案已烘焙进 OS）。
+    if (!force && _parentStates[key] == state && previousReference == reference) {
+      return;
+    }
 
     final reminders = await _readReminders(parentType, parentId);
     if (reminders.isEmpty) {
@@ -242,7 +272,9 @@ final class ReminderReconciler {
         applied.isAtSameMomentAs(desired)) {
       return;
     }
-    final strings = await loadNotificationStrings();
+    final locale = await resolveNotificationLocale();
+    _stringsLocale = locale.languageCode;
+    final strings = await loadNotificationStrings(locale: locale);
     await _notifications.scheduleFromReminder(
       reminder.copyWith(triggerTime: desired),
       eventReminderTitle: strings.eventReminderTitle,

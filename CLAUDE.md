@@ -29,9 +29,11 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | lunar (solar
 
 从需求到发布的完整生命周期，每阶段是卡口，不允许跳过。
 
-**流程文档分工（四件 vendored 自 vibe-coding-starter@d339922，定义见各文件头）：**
+**流程文档分工（五件 vendored 自 vibe-coding-starter@0cae2f4，定义见各文件头）：**
 
 - 多任务执行工序（简报/报告/diff 审查包、Fix 循环 ≤5、**Rulings 裁定披露**、预检接缝扫描）→ `docs/process/EXECUTION.md`
+- 本地化与视觉主题三层强制（封闭类型 / 键对齐+裸文案门禁 / **伪语言冒烟 + 出口清单**）→ `docs/process/LOCALIZATION.md`
+- **门禁总账**（每条门禁守什么、挂哪、红过没）→ `docs/GATES.md`
 - 审查攻击配方（空转测试/边界数学/证据链倒挂/自证向量/跨端键一致性 + 审查者三律）→ `docs/process/REVIEWING.md`
 - 测试铁律、门禁、**DoD 收敛停止准则**（P0–P3 阶梯 + `skipped=0` 即收）→ `docs/process/TESTING.md`
 - 顶层架构推导法（七步 + 三判据 + 抄/造判据；产物写入 SPEC §2）→ `docs/process/ARCHITECTURE.md`

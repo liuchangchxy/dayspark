@@ -231,3 +231,24 @@
 - **代价与边界（据实披露）**：`web_smoke` 只保证"渲染出了内容"，不保证内容正确；`--fail-on-errors` 默认关闭（页面有未捕获异常只打印，需要时手动收紧），以免 CI 抖动；PNG 解码只支持 8 位非隔行（= Chrome 截图形态），其它形态明确抛错而非静默降级。**判据是启发式，两个已知误判已实测**：内容稀疏但真实渲染的页面（标题+段落，着墨比 0.385%）会被判白屏；纯 CSS 渐变底的空白页（着墨比 89%）会被放行——本 App 首屏余量约 31 倍（15.5% vs 0.5% 阈值），且生成的 `index.html` 无 CSS 背景，故 pre-`runApp` 抛错仍落在纯白上。**判据不止"不白"**：初版只说"唯一颜色数 + 着墨比"，独立审查当场演示了一个假绿——把宿主探测降级成诊断后，一张**根本不是 App** 的 502 占位页（有内容、非纯白）会被判 PASS。补上四道正身信号：① 产物目录自检（`index.html` + Flutter 引导脚本 + `main.dart.*` 齐件，否则当场拒）；② 主文档（**仅主框架**：`type == 'Document'` 也含 iframe，故按 `Page.navigate` 返回的 `frameId` 过滤）状态必须 2xx/304（`Network.responseReceived`）；③ Flutter 主脚本必须加载成功；④ 宿主元素必须存在（`flt-glass-pane` / `flutter-view` / `flt-scene-host`，换渲染器时用 `--allow-missing-host` 显式放行）。红色控制已跑：非 Flutter 占位页 → `不是 Flutter web 产物`；产物文件齐全但引擎没启动（真 `index.html` + 真 `flutter_bootstrap.js` + 零字节 `main.dart.js`）→ `未探测到 Flutter 宿主元素`。静态服务的路径判定同时从"前缀比较"改成"拒绝点段"，补掉 `..%2f`（pathSegments 把 `%2f` 解成段内斜杠）的目录穿越。
 - **影响范围**：新增 `lib/core/utils/platform_target.dart`、`test/architecture/web_platform_guard_test.dart`、`test/core/utils/platform_target_test.dart`、`tool/web_smoke.dart`、`test/tool/web_smoke_test.dart`、`test/ui/pages/settings/notifications_section_test.dart`（native 侧闸门可见性回归）；改 `lib/infrastructure/platform/{alarm_service,notification_service}.dart`、`lib/ui/pages/settings/settings_sections/notifications_section.dart`、`.github/workflows/{ci,release}.yml`、`docs/{ROADMAP,CONSTRAINTS,START_HERE,changelog}.md`；版本 `0.25.1+26`（app 用例 316 → 345）。
 - **对应 SPEC 章节**：SPEC.md §5（边缘情况与边界防御）
+
+### [2026-10-01] 吸收 vibe-coding-starter 经验：i18n 三道门禁 + 门禁总账 + 通知切语言修复
+- **触发背景**：以 vibe-coding-starter（`0cae2f4`）为蓝本对照，发现本地三处短板：① ARB 中英 274/274 齐平，但**没有任何门禁守着它**；② `lib/` 目前无裸文案，同样无门禁防止变脏；③ 通知属于"字典之外的出口"——文案在排期时烘焙进 OS，切语言后不刷新（真 bug）。
+- **核心决策**：
+  1. **两道 l10n 守卫落地**（`test/architecture/`）：`l10n_parity_guard_test.dart`（ARB 键双向对齐，漏译与废弃键都报）+ `no_raw_text_guard_test.dart`（`lib/` 非注释行不得含中文，豁免走白名单且必须写 WHY、并反向校验无死豁免）。两者都自带违规/合规样本自证。
+  2. **通知切语言修复**：`ReminderReconciler.onLocaleChanged()` —— 以「上次排期实际用的语言」`_stringsLocale` 为判据（而不是让调用方猜"这是不是首次回调"，那会引入"监听是否先于 load 注册"的次序假设）；只清 `_applied` 中值非 null 的条目（保留"已知无通知"标记，省掉无谓 cancel）；因 `_reconcileParent` 开头有"父状态没变就早退"的常规优化，**必须加 `force` 旁路**——语言切换恰恰是"数据没变但平台侧必须重做"的场景。
+  3. **出口清单** `docs/l10n-outlets.md`：把通知 / 小组件 / 服务端错误 / AI 输出 / 原生资源逐条列出，标明文案来源、语言取自、切换时如何刷新、覆盖手段；并显式登记三个已知缺口（原生通知渠道名、AI 语言约束是启发式、裸文案守卫是事后扫描）。
+  4. **门禁总账** `docs/GATES.md`：19 条门禁逐条列出守什么/挂在哪/**红过没**。判据取自 `TESTING.md` §一.7「一条没红过的门禁视为不存在」——本表把"12 条未记录"如实暴露出来，而非假装都验过。
+  5. **`docs/process/` 五件重取更新**（原四件停在 `d339922`）：补入契约防线、规范即测试、门禁即证据、测试层级与证据报告、正交验证、溯源验收、漂移守卫、棘轮基线、异步排查，并新增第五件 `LOCALIZATION.md`（五个返工源 → 三层强制 + 可执行配方）。
+  6. **pre-commit 从"只跑 analyze"扩到三门**：`dart analyze` + `tool/guard_test_tampering.py` + `tool/scan_hardcoded_paths.py`（都很快）。`check_whitespace.py` 进 CI 不进钩子。
+- **顺带修正（门禁抓出来的真问题）**：
+  - `lib/core/l10n/rrule_text_delegate.dart`（纯中文 delegate）**无任何引用**，是死代码，已被 `LocaleAwareRRuleTextDelegate` 取代 → 删除；留在仓库里会被后来者当成"现成的中文方案"重新接上。
+  - `tool/scan_hardcoded_paths.py` 原实现用 `os.walk` 扫文件系统，会把 `ios/Pods` 里 sqlite 源码的 `/home/fred/data.db` 示例判为违规 → 改为只扫 `git ls-files` 跟踪的文件（**上游 starter 有同样的问题，待回流**）。
+- **变异实证（五条，全部当场跑通）**：① 删 `app_zh.arb` 的 `todoReminder` → `zh 漏译 1 个键：todoReminder`；② `lib/` 写入 `Text('你好')` → `about_section.dart: 第 26 行`；③ 写入 `/home/chang/secret` → `file:line` 报出；④ 删掉一条既有 `expect(schedules, isEmpty)` → 防篡改门禁报出断言原文；⑤ `.gitignore` 加行尾空格 → 报出 `file:line`。
+- **代价与边界（据实披露）**：
+  - 通知切语言时会对**所有已排期通知**重下一次平台调用——语言切换是低频用户动作，可接受；但极端情况下（数百条提醒）会有一小段平台调用抖动。
+  - `_stringsLocale` 只记 `languageCode`：`zh` 与 `zh-Hans` 视为同一语言。当前只支持中英，无影响；将来加地区变体需改判据。
+  - 裸文案守卫**只拦新写的**，拦不住"该加的 key 没加"——后者靠键对齐门禁，且要等 key 加进 en 之后才生效。
+  - `rrule_generator` 的 `RRuleTextDelegate` 只收裸字符串，接不进 ARB，故 `LocaleAwareRRuleTextDelegate` 内联中英两套——**加第三种语言必须改代码**（已记入 `docs/CONSTRAINTS.md`）。
+- **影响范围**：新增 `test/architecture/{l10n_parity,no_raw_text}_guard_test.dart`、`docs/{GATES.md,l10n-outlets.md,docs/qa/TEST_EVIDENCE_TEMPLATE.md}`、`docs/process/LOCALIZATION.md`；改 `lib/domain/records/reminder_reconciler.dart`、`lib/domain/providers/{record_bus_provider,reminders_provider}.dart`、`docs/process/{TESTING,REVIEWING,EXECUTION}.md`、`tool/scan_hardcoded_paths.py`、`scripts/setup-hooks.sh`、`.github/workflows/ci.yml`、`CLAUDE.md`、`AGENTS.md`、`docs/CONSTRAINTS.md`；删 `lib/core/l10n/rrule_text_delegate.dart`。
+- **对应 SPEC 章节**：SPEC.md §1.1 冻结需求 8 条之外的行为规范；i18n 属工程执行层，不改变产品契约。

@@ -115,7 +115,7 @@ docker run --rm -v dayspark-data:/data -v "$PWD":/backup alpine \
 
 # B) 没有生产库 → 用 main（P2，schemaVersion=2）现造一个
 git worktree add /tmp/dayspark-p2 main
-(cd /tmp/dayspark-p2/server && JWT_SECRET=x DB_PATH=/tmp/p2-dayspark.db dart run bin/server.dart &) 
+(cd /tmp/dayspark-p2/server && JWT_SECRET=x DB_PATH=/tmp/p2-dayspark.db dart run bin/server.dart &)
 sleep 2 && pkill -f 'p2-dayspark.db'   # boot once, then stop / 起一次即停
 ```
 

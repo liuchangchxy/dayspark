@@ -1,3 +1,5 @@
+import 'dart:ui' show Locale;
+
 import 'package:drift/drift.dart'
     show ApplyInterceptor, QueryExecutor, QueryInterceptor, Value;
 import 'package:drift/native.dart';
@@ -76,6 +78,7 @@ void main() {
   late int calId;
   late List<Reminder> schedules;
   late List<int> cancels;
+  late List<String> todoTitles;
 
   void stubNotificationService() {
     when(() => notif.cancel(captureAny())).thenAnswer((inv) async {
@@ -91,6 +94,7 @@ void main() {
       ),
     ).thenAnswer((inv) async {
       schedules.add(inv.positionalArguments.first as Reminder);
+      todoTitles.add(inv.namedArguments[#todoReminderTitle] as String);
     });
     when(
       () => notif.snooze(
@@ -126,6 +130,7 @@ void main() {
     notif = _MockNotificationService();
     schedules = <Reminder>[];
     cancels = <int>[];
+    todoTitles = <String>[];
     stubNotificationService();
     calId = await db
         .into(db.calendars)
@@ -984,6 +989,56 @@ void main() {
         schedules.map((r) => r.triggerTime).toList(),
         [trigger.add(const Duration(days: 1))],
         reason: '改期事件经总线到达重排器：按新参考时间落到精确时刻',
+      );
+    });
+
+    test('18 切语言 → 已排期通知按新语言重排（文案烘焙进 OS，UI 检查看不见）', () async {
+      // provider 用真实时钟，故基准相对 now 现取（与测试 15 同一手法）。
+      final base = DateTime.now().add(const Duration(days: 3));
+      final due = DateTime(
+        base.year,
+        base.month,
+        base.day,
+        base.hour,
+        base.minute,
+        base.second,
+      );
+      final trigger = due.subtract(const Duration(hours: 1));
+      final todoId = await insertTodo(dueDate: due);
+      await insertReminder(trigger, parentId: todoId);
+
+      SharedPreferences.setMockInitialValues({appLocalePrefKey: 'en'});
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          notificationServiceProvider.overrideWithValue(notif),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // 复刻 main.dart 的启动顺序：先装载初始语言，再挂重排器。
+      await container.read(localeProvider.notifier).load();
+      final wired = container.read(reminderReconcilerProvider);
+      await waitUntil(() => schedules.isNotEmpty);
+      expect(todoTitles.last, 'Todo Reminder', reason: '初始排期用英文');
+
+      // 幂等：同状态再触发一次，_applied 短路，0 次平台调用。
+      schedules.clear();
+      todoTitles.clear();
+      await wired.handle([
+        RecordApplied(RecordType.todo, todoId, previousReference: due),
+      ]);
+      expect(schedules, isEmpty, reason: '时刻没变 → 短路，不重发');
+
+      // 切到中文：已排期通知的 title/body 是旧语言的，必须整轮重排。
+      await container.read(localeProvider.notifier).setLocale(const Locale('zh'));
+      await waitUntil(() => schedules.isNotEmpty);
+
+      expect(todoTitles.last, '待办提醒', reason: '切语言后重新下发，用的是新语言');
+      expect(
+        schedules.last.triggerTime,
+        trigger,
+        reason: '只换文案，时刻不动',
       );
     });
   });

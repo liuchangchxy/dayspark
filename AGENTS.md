@@ -24,7 +24,9 @@
 | [docs/ROADMAP.md](docs/ROADMAP.md) | **状态唯一源**：功能全景、需求/阶段状态、待办 | 判断功能现状时查 |
 | [docs/changelog.md](docs/changelog.md) | **反馈**日志（原文→todo→代码 溯源） | 处理用户反馈时查 |
 | [docs/START_HERE.md](docs/START_HERE.md) | **接续入口**：新会话“从哪开始”的唯一清单 | 会话开工前必读 |
-| [docs/process/](docs/process/) | **流程四件**（vendored）：执行工序 / 审查配方 / 测试与 DoD / 架构方法 | 多任务开工、审查、收口前读 |
+| [docs/process/](docs/process/) | **流程五件**（vendored）：执行工序 / 审查配方 / 测试与 DoD / 架构方法 / 本地化与主题 | 多任务开工、审查、收口前读 |
+| [docs/GATES.md](docs/GATES.md) | **门禁总账**：每条门禁守什么、挂在哪、红过没（变异实证） | 加/改门禁时读 |
+| [docs/l10n-outlets.md](docs/l10n-outlets.md) | **用户可见文案出口清单**：新增出口必须登记并接上刷新路径 | 动文案/通知/小组件前读 |
 
 **分工边界**：领域技术坑 → `docs/CONSTRAINTS.md`（纠错追加处）；AI 行为与工作习惯 → 本文件【教训】区；业务规则 → `SPEC.md`；执行工序与裁定披露 → `docs/process/EXECUTION.md`。同一内容只写一家，互相引用不复制。
 
