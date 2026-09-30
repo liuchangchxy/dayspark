@@ -43,7 +43,6 @@ class _FeedbackPageState extends State<FeedbackPage> {
             decoration: InputDecoration(
               labelText: l.feedback,
               hintText: l.feedbackHint,
-              border: const OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
             maxLines: 8,

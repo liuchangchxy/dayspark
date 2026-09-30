@@ -16,6 +16,8 @@ import 'package:dayspark/ui/widgets/calendar/kalender_calendar_event.dart';
 import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class CalendarSection extends ConsumerStatefulWidget {
   final List<CalendaEventAdapter> events;
@@ -24,6 +26,15 @@ class CalendarSection extends ConsumerStatefulWidget {
   final void Function(CalendaEventAdapter event)? onEventChanged;
   final void Function(DateTime anchor)? onAnchorChanged;
 
+  /// When true the section drops its inline date-range title (the host shows
+  /// it in the page header instead) but keeps the view switcher and paging
+  /// controls (DESIGN 页面主标题).
+  final bool hideHeader;
+
+  /// Called whenever the title for the current view/anchor changes, so the
+  /// host can put it in the page header.
+  final void Function(String title, String? subtitle)? onHeaderChanged;
+
   const CalendarSection({
     super.key,
     required this.events,
@@ -31,6 +42,8 @@ class CalendarSection extends ConsumerStatefulWidget {
     this.onTimeSlotTapped,
     this.onEventChanged,
     this.onAnchorChanged,
+    this.hideHeader = false,
+    this.onHeaderChanged,
   });
 
   @override
@@ -158,6 +171,90 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
     ref.read(viewedDateProvider.notifier).state = anchor;
   }
 
+  Widget _buildToolbar(AppLocalizations l) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        widget.hideHeader ? AppSpacing.sm : AppSpacing.xs,
+        AppSpacing.sm,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          ViewSwitcher(
+            currentMode: _viewMode,
+            onModeChanged: (mode) =>
+                ref.read(calendarViewModeProvider.notifier).setViewMode(mode),
+          ),
+          if (!_isViewingToday) ...[
+            const SizedBox(width: AppSpacing.sm),
+            Semantics(
+              button: true,
+              label: l.goToToday,
+              child: TextButton(
+                onPressed: _goToToday,
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(l.goToToday),
+              ),
+            ),
+          ],
+          const Spacer(),
+          Semantics(
+            button: true,
+            label: l.previousPeriod,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: IconButton(
+                icon: const Icon(CupertinoIcons.chevron_left, size: 20),
+                onPressed: _navigateBack,
+              ),
+            ),
+          ),
+          Semantics(
+            button: true,
+            label: l.nextPeriod,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: IconButton(
+                icon: const Icon(CupertinoIcons.chevron_right, size: 20),
+                onPressed: _navigateForward,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Title shown in the page header. Day and week carry their range; month
+  /// carries only "9月" because the year sits underneath it (DESIGN 页面主标题).
+  String get headerTitle => switch (_viewMode) {
+    CalendarViewMode.day => _formatDayHeader(),
+    CalendarViewMode.week => _formatWeekHeader(),
+    CalendarViewMode.month => _formatMonthOnly(),
+  };
+
+  /// Subtitle under [headerTitle]; null when the title already carries it.
+  String? get headerSubtitle => _viewMode == CalendarViewMode.month
+      ? DateFormat.y(
+          Localizations.localeOf(context).toString(),
+        ).format(_anchorDate)
+      : null;
+
+  String _formatMonthOnly() {
+    final locale = Localizations.localeOf(context).toString();
+    final month = DateFormat.MMM(locale).format(_anchorDate);
+    // zh formats as "9月" already; "2026年9月" would duplicate the year.
+    return month;
+  }
+
   String _formatDayHeader() {
     final locale = Localizations.localeOf(context).toString();
     final dateStr = DateFormat.MMMd(locale).format(_anchorDate);
@@ -171,25 +268,6 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
     final weekStart = _anchorDate.subtract(Duration(days: weekday - 1));
     final weekEnd = weekStart.add(const Duration(days: 6));
     return '${DateFormat.Md(locale).format(weekStart)} – ${DateFormat.Md(locale).format(weekEnd)}';
-  }
-
-  String _formatMonthHeader() {
-    final locale = Localizations.localeOf(context).toString();
-    return DateFormat.yMMMM(locale).format(_anchorDate);
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _anchorDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      final d = DateTime(picked.year, picked.month, picked.day);
-      _calendarController.jumpToDate(d);
-      _setAnchor(d);
-    }
   }
 
   void _goToToday() {
@@ -282,6 +360,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    widget.onHeaderChanged?.call(headerTitle, headerSubtitle);
     final theme = Theme.of(context);
 
     final calendarView = CalendarView(
@@ -292,6 +371,17 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
       components: CalendarComponents(
         multiDayComponents: MultiDayComponents(
           headerComponents: MultiDayHeaderComponents(
+            // kalender's default is a filled tonal IconButton that crowds the
+            // time gutter; the gutter carries the timeline, so the week number
+            // stays a quiet label (DESIGN Kalender 接管条款).
+            weekNumberBuilder: (range, style) => Center(
+              child: Text(
+                '${range.weekNumbers.$1}',
+                style: AppTypography.overline.copyWith(
+                  color: context.semantic.textTertiary,
+                ),
+              ),
+            ),
             // Big number + weekday, today in accent (own widget, not
             // kalender's grey IconButton two-liner).
             dayHeaderBuilder: (date, style) {
@@ -306,10 +396,10 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
             // segments read as prison bars on dark backgrounds.
             hourLines: (heightPerMinute, range, style, timelineStyle) =>
                 CalendarHourLines(
-              heightPerMinute: heightPerMinute,
-              timeOfDayRange: range,
-              color: theme.dividerColor.withValues(alpha: 0.35),
-            ),
+                  heightPerMinute: heightPerMinute,
+                  timeOfDayRange: range,
+                  color: theme.dividerColor.withValues(alpha: 0.35),
+                ),
           ),
         ),
         multiDayComponentStyles: MultiDayComponentStyles(
@@ -389,125 +479,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Semantics(
-                      button: true,
-                      label: (switch (_viewMode) {
-                        CalendarViewMode.day => _formatDayHeader(),
-                        CalendarViewMode.week => _formatWeekHeader(),
-                        CalendarViewMode.month => _formatMonthHeader(),
-                      }),
-                      child: InkWell(
-                        onTap: _pickDate,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.08,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 200),
-                                child: Text(
-                                  (switch (_viewMode) {
-                                    CalendarViewMode.day => _formatDayHeader(),
-                                    CalendarViewMode.week =>
-                                      _formatWeekHeader(),
-                                    CalendarViewMode.month =>
-                                      _formatMonthHeader(),
-                                  }),
-                                  key: ValueKey(_anchorDate),
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Icon(
-                                CupertinoIcons.calendar,
-                                size: 18,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (!_isViewingToday) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    Semantics(
-                      button: true,
-                      label: l.goToToday,
-                      child: TextButton(
-                        onPressed: _goToToday,
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          minimumSize: Size.zero,
-                        ),
-                        child: Text(l.goToToday),
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  Semantics(
-                    button: true,
-                    label: l.previousPeriod,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: IconButton(
-                        icon: const Icon(CupertinoIcons.chevron_left, size: 20),
-                        onPressed: _navigateBack,
-                      ),
-                    ),
-                  ),
-                  Semantics(
-                    button: true,
-                    label: l.nextPeriod,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: IconButton(
-                        icon: const Icon(
-                          CupertinoIcons.chevron_right,
-                          size: 20,
-                        ),
-                        onPressed: _navigateForward,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              ViewSwitcher(
-                currentMode: _viewMode,
-                onModeChanged: (mode) => ref
-                    .read(calendarViewModeProvider.notifier)
-                    .setViewMode(mode),
-              ),
-            ],
-          ),
-        ),
+        _buildToolbar(l),
         Expanded(
           child: Stack(
             children: [
@@ -525,12 +497,13 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
               ),
               // Empty grid reads as a dead spreadsheet; float one
               // non-interactive hint instead (taps pass through to slots).
-              if (widget.events.isEmpty &&
-                  _viewMode != CalendarViewMode.month)
+              if (widget.events.isEmpty && _viewMode != CalendarViewMode.month)
                 Positioned(
-                  top: AppSpacing.xl,
-                  left: 0,
-                  right: 0,
+                  // Clears the day-header row so the hint never sits on the
+                  // weekday labels.
+                  top: 88,
+                  left: AppSpacing.lg,
+                  right: AppSpacing.lg,
                   child: IgnorePointer(
                     child: Center(
                       child: Container(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/domain/providers/theme_provider.dart';
 
 void main() {
   group('AppColors', () {
@@ -25,17 +26,57 @@ void main() {
       expect(AppColors.darkBorder, isA<Color>());
     });
 
-    test('accent values match DESIGN.md', () {
-      expect(AppColors.lightAccent, const Color(0xFF2563EB));
-      expect(AppColors.darkAccent, const Color(0xFF3B82F6));
+    test('accent values match DESIGN.md (iOS systemBlue)', () {
+      expect(AppColors.lightAccent, const Color(0xFF007AFF));
+      expect(AppColors.darkAccent, const Color(0xFF0A84FF));
     });
 
-    test('light background is #FAFAFA', () {
-      expect(AppColors.lightBackground, const Color(0xFFFAFAFA));
+    test('light background is #F2F2F7', () {
+      expect(AppColors.lightBackground, const Color(0xFFF2F2F7));
     });
 
-    test('dark background is #0F0F14', () {
-      expect(AppColors.darkBackground, const Color(0xFF0F0F14));
+    test('dark background is #0A0A0C', () {
+      expect(AppColors.darkBackground, const Color(0xFF0A0A0C));
+    });
+  });
+
+  group('AppAccent presets', () {
+    test('every preset carries a distinct light/dark pair', () {
+      final lights = AppAccent.values.map((a) => a.light).toSet();
+      final darks = AppAccent.values.map((a) => a.dark).toSet();
+      expect(lights.length, AppAccent.values.length);
+      expect(darks.length, AppAccent.values.length);
+      for (final accent in AppAccent.values) {
+        expect(accent.light, isNot(accent.dark));
+      }
+    });
+
+    test('resolve follows brightness', () {
+      expect(AppAccent.blue.resolve(Brightness.light), AppAccent.blue.light);
+      expect(AppAccent.blue.resolve(Brightness.dark), AppAccent.blue.dark);
+    });
+
+    test('fromLegacyColor maps stored colors onto the nearest preset', () {
+      expect(
+        AppAccent.fromLegacyColor(const Color(0xFF007AFF).toARGB32()),
+        AppAccent.blue,
+      );
+      expect(
+        AppAccent.fromLegacyColor(const Color(0xFF34C759).toARGB32()),
+        AppAccent.green,
+      );
+      // An unrecognized legacy color falls back to the default.
+      expect(
+        AppAccent.fromLegacyColor(const Color(0xFF123456).toARGB32()),
+        AppAccent.blue,
+      );
+      expect(AppAccent.fromLegacyColor(null), AppAccent.blue);
+    });
+
+    test('fromId falls back to blue for unknown ids', () {
+      expect(AppAccent.fromId('purple'), AppAccent.purple);
+      expect(AppAccent.fromId('nope'), AppAccent.blue);
+      expect(AppAccent.fromId(null), AppAccent.blue);
     });
   });
 }

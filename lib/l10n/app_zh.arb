@@ -75,10 +75,11 @@
   "@widgetPendingCount": {
     "description": "Home screen widget label for the number of pending todos",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "typeToSearch": "输入关键词搜索",
   "eventCreated": "日程已创建",
   "todoCreated": "待办已创建",
   "importExport": "导入/导出",
@@ -141,8 +142,12 @@
   "dateLabel": "{month}月{day}日",
   "@dateLabel": {
     "placeholders": {
-      "month": { "type": "int" },
-      "day": { "type": "int" }
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
     }
   },
   "checkUpdate": "检查更新",
@@ -150,7 +155,9 @@
   "newVersionAvailable": "发现新版本：{version}",
   "@newVersionAvailable": {
     "placeholders": {
-      "version": { "type": "String" }
+      "version": {
+        "type": "String"
+      }
     }
   },
   "currentVersion": "当前版本",
@@ -211,21 +218,27 @@
   "nMore": "+{count}",
   "@nMore": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subtaskHint": "子任务文本",
   "rateLimited": "请求频繁。请访问 github.com/{repo}/releases 手动检查。",
   "@rateLimited": {
     "placeholders": {
-      "repo": { "type": "String" }
+      "repo": {
+        "type": "String"
+      }
     }
   },
   "connectionTimedOut": "连接超时，请检查网络。",
   "updateCheckFailed": "检查更新失败。请访问 github.com/{repo}/releases。",
   "@updateCheckFailed": {
     "placeholders": {
-      "repo": { "type": "String" }
+      "repo": {
+        "type": "String"
+      }
     }
   },
   "gitHub": "GitHub",
@@ -260,26 +273,34 @@
   "lastSync": "上次同步：{time}",
   "@lastSync": {
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
   "syncRejected": "已拒绝：{codes}",
   "@syncRejected": {
     "placeholders": {
-      "codes": { "type": "String" }
+      "codes": {
+        "type": "String"
+      }
     }
   },
   "justNow": "刚刚",
   "minutesAgo": "{minutes} 分钟前",
   "@minutesAgo": {
     "placeholders": {
-      "minutes": { "type": "int" }
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "hoursAgo": "{hours} 小时前",
   "@hoursAgo": {
     "placeholders": {
-      "hours": { "type": "int" }
+      "hours": {
+        "type": "int"
+      }
     }
   },
   "sixThings": "六件事",
@@ -287,7 +308,9 @@
   "moreItems": "更多 ({count})",
   "@moreItems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "collapseList": "收起",
@@ -321,5 +344,45 @@
   "termDaXue": "大雪",
   "termDongZhi": "冬至",
   "termXiaoHan": "小寒",
-  "termDaHan": "大寒"
+  "termDaHan": "大寒",
+  "searchEmptyTitle": "搜索你的日历",
+  "@searchEmptyTitle": {
+    "description": "搜索你的日历"
+  },
+  "searchEmptyHint": "按标题或备注找日程和待办。",
+  "@searchEmptyHint": {
+    "description": "按标题或备注找日程和待办。"
+  },
+  "searchSuggestions": "收件箱里的",
+  "@searchSuggestions": {
+    "description": "收件箱里的"
+  },
+  "trashEmptyHint": "删掉的日程和待办会先留在这里，直到你彻底清空。",
+  "@trashEmptyHint": {
+    "description": "删掉的日程和待办会先留在这里，直到你彻底清空。"
+  },
+  "trashEmptyAction": "回到待办",
+  "@trashEmptyAction": {
+    "description": "回到待办"
+  },
+  "aichatNoKeyTitle": "先接上 AI",
+  "@aichatNoKeyTitle": {
+    "description": "先接上 AI"
+  },
+  "aichatNoKeyHint": "DaySpark 用你自己的 API key。去「设置 → 高级功能」填一个，再回来。",
+  "@aichatNoKeyHint": {
+    "description": "DaySpark 用你自己的 API key。去「设置 → 高级功能」填一个，再回来。"
+  },
+  "aichatSetupKey": "去填 key",
+  "@aichatSetupKey": {
+    "description": "去填 key"
+  },
+  "tagsEmptyAction": "新建标签",
+  "@tagsEmptyAction": {
+    "description": "新建标签"
+  },
+  "tagEmptyHint": "用标签给待办分类，之后可以按标签筛选。",
+  "@tagEmptyHint": {
+    "description": "用标签给待办分类，之后可以按标签筛选。"
+  }
 }

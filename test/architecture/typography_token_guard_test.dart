@@ -1,11 +1,11 @@
-// 字号守卫：DESIGN.md 字阶只认 {10, 12, 14, 16, 20}。
+// 字号守卫：DESIGN.md 字阶只认 {11, 13, 15, 17, 20, 26}。
 // `fontSize:` 后跟数字面量不在字阶里即红；token/变量引用不参与判定。
 // 已知限制：`fontSize:` 写在注释里也会红（宁枉勿纵，见 web_platform_guard 同款披露）。
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-const List<double> _scale = [10, 12, 14, 16, 20];
+const List<double> _scale = [11, 13, 15, 17, 20, 26];
 
 final RegExp _fontSize = RegExp(r'fontSize\s*:\s*(\d+(?:\.\d+)?)');
 final RegExp _commentOnly = RegExp(r'^\s*//');
@@ -34,11 +34,11 @@ String? resolveRepoRoot([Directory? from]) {
 
 void main() {
   test('守卫自证：违规样本红、合规样本绿', () {
-    expect(fontSizeViolation('fontSize: 13,'), isNotNull);
-    expect(fontSizeViolation('fontSize: 11,'), isNotNull);
+    expect(fontSizeViolation('fontSize: 12,'), isNotNull);
+    expect(fontSizeViolation('fontSize: 14,'), isNotNull);
     expect(fontSizeViolation('fontSize: 7,'), isNotNull);
-    expect(fontSizeViolation('const TextStyle(fontSize: 12)'), isNull);
-    expect(fontSizeViolation('fontSize: 16,'), isNull);
+    expect(fontSizeViolation('const TextStyle(fontSize: 13)'), isNull);
+    expect(fontSizeViolation('fontSize: 15,'), isNull);
     expect(
       fontSizeViolation(
         'fontSize: Theme.of(context).textTheme.bodySmall?.fontSize,',

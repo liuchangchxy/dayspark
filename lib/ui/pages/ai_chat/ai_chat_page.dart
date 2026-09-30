@@ -8,8 +8,10 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class AiChatPage extends ConsumerStatefulWidget {
   const AiChatPage({super.key});
@@ -79,32 +81,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
               children: [
                 Expanded(
                   child: messages.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  CupertinoIcons.sparkles,
-                                  size: 48,
-                                  color: Theme.of(context).disabledColor,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  l.aiHint,
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  l.aiExample,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
+                      ? EmptyState(
+                          icon: CupertinoIcons.sparkles,
+                          title: l.aiHint,
+                          hint: l.aiExample,
                         )
                       : ListView.builder(
                           controller: _scrollController,
@@ -247,36 +227,14 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                 ),
               ],
             )
-          : Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      CupertinoIcons.chat_bubble_2,
-                      size: 48,
-                      color: Theme.of(context).disabledColor,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      l.aiNotConfigured,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l.aiGoToSettings,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () => showAiConfigDialog(context, ref),
-                      icon: const Icon(CupertinoIcons.settings, size: 18),
-                      label: Text(l.aiConfig),
-                    ),
-                  ],
-                ),
+          : EmptyState(
+              icon: CupertinoIcons.chat_bubble_2,
+              title: l.aichatNoKeyTitle,
+              hint: l.aichatNoKeyHint,
+              action: FilledButton.icon(
+                onPressed: () => showAiConfigDialog(context, ref),
+                icon: const Icon(CupertinoIcons.settings, size: 18),
+                label: Text(l.aichatSetupKey),
               ),
             ),
     );
@@ -571,7 +529,7 @@ class _QuickActionChip extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTypography.caption.fontSize,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),

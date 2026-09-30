@@ -28,6 +28,8 @@ import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   final int initialTab;
@@ -48,6 +50,10 @@ class _HomePageState extends ConsumerState<HomePage>
   bool _sixThingsExpanded = false;
   final Set<int> _selectedTagIds = {};
   bool _calendarTabWasActive = false;
+  // Page header title, pushed up from CalendarSection so it sits in the AppBar.
+  // Kept as state rather than read in build(): the calendar owns its anchor.
+  String? _calendarTitle;
+  String? _calendarSubtitle;
   Timer? _dayCheckTimer;
   DateTime? _lastCheckedDay;
 
@@ -305,6 +311,33 @@ class _HomePageState extends ConsumerState<HomePage>
 
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: AppSpacing.lg,
+        centerTitle: false,
+        title: isCalendarTab
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      _calendarTitle ?? '',
+                      key: ValueKey(_calendarTitle ?? ''),
+                      style: AppTypography.display,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if ((_calendarSubtitle ?? '').isNotEmpty)
+                    Text(
+                      _calendarSubtitle!,
+                      style: AppTypography.caption.copyWith(
+                        color: context.semantic.textSecondary,
+                      ),
+                    ),
+                ],
+              )
+            : null,
         actions: [
           if (ref
                   .watch(featureFlagsProvider)
@@ -401,7 +434,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final eventsAsync = ref.watch(eventsInDateRangeProvider(rangeKey));
     final viewed = ref.watch(viewedDateProvider);
 
-    return eventsAsync.when(
+    final calendar = eventsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text(l.error('$e'))),
       data: (events) {
@@ -414,6 +447,19 @@ class _HomePageState extends ConsumerState<HomePage>
         );
         return CalendarSection(
           events: adapters,
+          hideHeader: true,
+          onHeaderChanged: (title, subtitle) {
+            if (title == _calendarTitle && subtitle == _calendarSubtitle) {
+              return;
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              setState(() {
+                _calendarTitle = title;
+                _calendarSubtitle = subtitle;
+              });
+            });
+          },
           onEventTapped: (event) => context.push('/event/edit', extra: event),
           onTimeSlotTapped: (range) {
             context.push(
@@ -432,6 +478,8 @@ class _HomePageState extends ConsumerState<HomePage>
         );
       },
     );
+
+    return calendar;
   }
 
   Widget _buildTodoTab() {
@@ -854,8 +902,8 @@ class _HomePageState extends ConsumerState<HomePage>
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: AppTypography.title.fontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -863,7 +911,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 Text(
                   '${todos.length}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppTypography.caption.fontSize,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -897,7 +945,7 @@ class _HomePageState extends ConsumerState<HomePage>
           Text(
             l.noPendingTodos,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: AppTypography.title.fontSize,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
@@ -905,7 +953,7 @@ class _HomePageState extends ConsumerState<HomePage>
           Text(
             l.tapToCreate,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppTypography.caption.fontSize,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
@@ -928,7 +976,7 @@ class _HomePageState extends ConsumerState<HomePage>
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: AppTypography.title.fontSize,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -950,7 +998,7 @@ class _HomePageState extends ConsumerState<HomePage>
           Text(
             title,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: AppTypography.title.fontSize,
               fontWeight: FontWeight.w600,
               color:
                   accentColor ?? Theme.of(context).colorScheme.onSurfaceVariant,
@@ -960,7 +1008,7 @@ class _HomePageState extends ConsumerState<HomePage>
           Text(
             '$count',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppTypography.caption.fontSize,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),

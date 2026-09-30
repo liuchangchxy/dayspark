@@ -2,7 +2,7 @@
 
 > **给 AI 的指令**：当用户说"看看从哪里开始 / 继续项目"时，先读完本文档，再按「优先队列」行动。本文档是**未做事项的唯一清单索引**；状态类信息一律引用专业文档，不在此重复（防漂移）。
 
-**最后更新：2026-09-27 · 当前版本以 `pubspec.yaml` 为准（全景见 `docs/ROADMAP.md`，发布记录见 https://github.com/liuchangchxy/dayspark/releases ）**
+**最后更新：2026-09-30 · 当前版本以 `pubspec.yaml` 为准（全景见 `docs/ROADMAP.md`，发布记录见 https://github.com/liuchangchxy/dayspark/releases ）**
 
 ---
 
@@ -16,6 +16,7 @@
 |---|------|-----------|---------|
 | **0** | ~~**⚠️ P1：Web 端白屏 — v0.25.0 已发布产物在浏览器里不可用**~~ ✅ 2026-09-26 | 交付：`lib/core/utils/platform_target.dart` 成为 `Platform.*` 全仓唯一读点（`alarm_service.dart` 5 处 + `notification_service.dart` 3 处收敛，设置页补 `!kIsWeb` 守卫）；静态守卫 `test/architecture/web_platform_guard_test.dart`；CI 冒烟断言 `tool/web_smoke.dart`（零依赖 headless 截图，纯白即红，`ci.yml` 与 `release.yml` 的 `build-web` 都挂）。反证已跑通（抽掉守卫 → 守卫红 + 产物冒烟判白屏，复现 `main.dart.js` minified 堆栈）；本地实测约 400 色 / 着墨比约 15.5%（多次复跑 402–405 色，唯一颜色数有浮动；实测截图见项目根 `web-shots-2026-09-26/` desktop/mobile）。已随 **v0.25.1** 发布（tag 已打、远端已同步） | 已实现 / DECISIONS 事故条目 + ROADMAP v0.25.1 |
 | 1 | ~~**债务2：统一事件缝**~~ ✅ 2026-09-24 | 派生态失效已收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：三条临时通道 → 一条缝；远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂；守卫 + 棘轮基线（已收敛为空）落地。文档与版本 0.25.0+25 已同步 | 已实现 / `docs/ROADMAP.md` v0.25.0 + `docs/CONSTRAINTS.md` 架构章节 |
+| 2b | ~~**视觉重设计（taste + impeccable）**~~ ✅ 2026-09-30 | 方向：从 Linear 式冷淡高密度转向 **Apple 日历式温和清晰**。交付：`DESIGN.md` 重写（iOS 系统色板 / 6 级字阶含 1.7 倍层次硬规矩 / 圆角 8-10-12-16 / 分层阴影 / 锁死的 5 套预设主题色）+ 全项目 token 清剿（36 处硬编码字号、10 处隐形输入框边框、越界圆角）+ 设置页分组卡片 + **四个空状态差异化**（`DESIGN.md` 09-27 立规矩、代码未落地 = 假完成，本次补齐）+ 拖拽闪屏与深色对比度修复。随 **v0.26.0** 发布。遗留 5 项见 ROADMAP Pending #12 | 已实现 / `DESIGN.md` + `docs/changelog.md` v0.26.0 |
 | 2 | ~~**前端设计走查**~~ ✅ 2026-09-27 | 交付：DESIGN.md 三条新规（页面布局/Kalender 接管/自定义主题色）+ `AppSpacing` 全量收敛 + 输入框 filled/surface、按钮圆角 6/12、seed 只换 accent 系 + 日历接线（24h 时间轴/App 语言星期/now-indicator=error/网格线收淡）+ 表单设置页 640 居中卡片化。实测截图见项目根 `web-shots-2026-09-27*/`。kalender 换装见 §3C2 | 已实现 / DESIGN.md + §5 |
 | 3 | ~~**MCP 换官方 SDK**~~ ✅ 2026-09-24 | spike 实测**不能承载** → 手写版转正。0.5.2 服务端 Streamable HTTP 未发版；main 只认 2026-07-28（该修订已删 initialize/session）；无 shelf 适配；无 OAuth AS。测试兜底精确边界：壳测试 16 例随壳重写 / 行为守卫 = 工具 47 + CLI 13 + e2e 5 / OAuth 54 应原地绿 | DECISIONS [2026-09-24] MCP 转正手写版 |
 | 4 | ~~**CI 防漂移 grep**~~ ✅ 2026-09-24 | 版本号散布四处靠人同步 → 已落 `tool/check_version_consistency.sh`：ci.yml `test` 首步（含 `--selftest`）+ release.yml `version-gate`（tag 必须 = `v<pubspec semver>`）。README 徽章已改 shields.io 动态徽章（读 GitHub Releases，无手同步点），本文件也不再复制当前版本 | 已实现 / `tool/check_version_consistency.sh` |

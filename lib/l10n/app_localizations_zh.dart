@@ -227,9 +227,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get typeToSearch => '输入关键词搜索';
-
-  @override
   String get eventCreated => '日程已创建';
 
   @override
@@ -854,4 +851,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get termDaHan => '大寒';
+
+  @override
+  String get searchEmptyTitle => '搜索你的日历';
+
+  @override
+  String get searchEmptyHint => '按标题或备注找日程和待办。';
+
+  @override
+  String get searchSuggestions => '收件箱里的';
+
+  @override
+  String get trashEmptyHint => '删掉的日程和待办会先留在这里，直到你彻底清空。';
+
+  @override
+  String get trashEmptyAction => '回到待办';
+
+  @override
+  String get aichatNoKeyTitle => '先接上 AI';
+
+  @override
+  String get aichatNoKeyHint => 'DaySpark 用你自己的 API key。去「设置 → 高级功能」填一个，再回来。';
+
+  @override
+  String get aichatSetupKey => '去填 key';
+
+  @override
+  String get tagsEmptyAction => '新建标签';
+
+  @override
+  String get tagEmptyHint => '用标签给待办分类，之后可以按标签筛选。';
 }

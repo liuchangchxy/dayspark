@@ -2,12 +2,44 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.25.1+26** — Web blank-screen fix: the v0.25.0 Web build never rendered in a browser (a `dart:io` `Platform.*` read before `runApp` throws unconditionally under dart2js, so `main()` died and the widget tree was never built); every platform read now funnels through one `kIsWeb`-guarded helper, a static guard test keeps it that way, and CI fails when the built page is blank / Web 白屏修复：v0.25.0 的 Web 产物在浏览器里恒白屏（`runApp` 之前的 `dart:io Platform.*` 读取在 dart2js 里必抛，`main()` 中断、组件树从未构建）；平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试，CI 增加「截图非纯白」冒烟断言（白屏即红）
-- 上一版本 / Previous: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
+- 最新版本 / Latest: **v0.26.0+27** — Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette (light `#F2F2F7` ground + white cards, dark `#0A0A0C` + `#1C1C1E`), a 6-step type scale (26/20/17/15/13/11) with a guarded 1.7x display-to-body ratio, iOS radii (8/10/12/16, pill), layered elevation, a locked 5-preset accent palette replacing the free colour picker, a rewritten `DESIGN.md`, and a project-wide token sweep (36 hardcoded font sizes and every off-scale radius/input border) / 视觉重设计：从 Linear 式冷淡高密度转向 Apple 日历式温和清晰——iOS 系统色板（浅色 `#F2F2F7` 底 + 纯白卡片，深色 `#0A0A0C` + `#1C1C1E`）、6 级字阶（26/20/17/15/13/11，主标题与正文 1.7 倍差带测试守护）、iOS 圆角（8/10/12/16 + 胶囊）、分层阴影、锁死的 5 套预设主题色取代自由选色器、`DESIGN.md` 重写，以及全项目 token 清剿（36 处硬编码字号 + 全部越界圆角与输入框边框）
+- 上一版本 / Previous: **v0.25.1+26** — Web 白屏修复：平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言（白屏即红） / Web blank-screen fix: every `Platform.*` read funnels through one guarded helper, with a static guard test and a CI screenshot smoke gate (blank page = red)
+- 更早 / Earlier: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
 - 最新流程改进 / Pipeline: **SPEC/DECISIONS/AGENTS + pre-commit analyze gate + Web 冒烟截图门（白屏即 CI 红）** — 2026-09-26
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
 
 ---
+
+## v0.26.0+27 — Visual Redesign / 视觉重设计
+
+**用户反馈原文 / User feedback:** "我让改前端" → 选用 `taste` + `impeccable` 两个 skill 重新设计前端，方向选定 **Apple 日历式温和清晰**，浅深同做、适度留白、锁死自带色卡、真 iOS 质感。
+
+### Features / 新功能
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|----------|
+| 1 | **设计系统重写** | `DESIGN.md` 由「Linear 冷淡 + 信息密度优先」改为「Apple 日历式温和清晰」：色板换 iOS 系统色、字阶 5 级改 6 级（26/20/17/15/13/11）、圆角放宽到 8/10/12/16、引入分层阴影（禁止彩色阴影）、图标统一 `CupertinoIcons`。新增硬规矩：**主标题与正文字号差 ≥ 1.7 倍**，有测试守护 / Rewritten around the iOS system palette with a guarded display-to-body ratio |
+| 2 | **锁死的主题色卡** | 删掉自由选色器（一个坏色相会把整个语义色族拖出 token 表），改为 5 套预设（蓝/绿/橙/紫/粉），每套自带配好的浅深配对；换色只替换 accent 系，`error`/`surface` 等语义色一律回填 token，禁止 `ColorScheme.fromSeed` 整套派生。老用户存在 `SharedPreferences` 里的自定义色自动映射到最接近的预设，设置不丢 / Free picker replaced by five curated presets; a stored custom colour migrates onto the nearest preset |
+| 3 | **空状态四页差异化** | `DESIGN.md` 的空状态模板此前只立了规矩没落地（假完成）。现补：搜索给收件箱最近 3 条直接点入、AI 助手给「去哪找 key」一句话 + 「去填 key」按钮、回收站给解释 + 「回到待办」、标签补说明文案。抽了共享组件统一模板（图标圆底 + 标题 + 说明 + 行动按钮） / Four empty states differentiated through one shared template |
+| 4 | **设置页分组卡片** | 原来所有分组直接浮在页面底色上靠发丝分割线分隔，深色下那条线等于不存在、整页读成「一片黑 + 几个字」。改为 iOS 分组卡片（安静的大写标签 + 圆角表面卡片）/ Settings regrouped into labelled cards |
+
+### Bug Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | **`备注` 输入框完全不可见** — `todo_create_page` 里硬编码 `border: OutlineInputBorder()` 覆盖了主题的填充样式，字段渲染成空 | 删掉硬编码边框；输入框改走主题（填充色比卡片深一档，否则同色即隐形） |
+| 2 | **全项目 10 处同类硬编码输入框边框** — 每处都会让输入框隐形（标签页、日程新建/编辑、待办编辑、反馈页） | 一次清剿，全部改走 `inputDecorationTheme` |
+| 3 | **拖拽展开日历/待办时整页闪屏** | 根因：手柄每移动一像素就 `setState` → 整页重建 + 两边内容反复重排重查。改为**松手才提交** |
+| 4 | **深色一进页面就一圈霓虹蓝** | `autofocus: true` + 2px 全亮描边。描边降到 1px、深色下 45% 透明，让填充色承担聚焦提示 |
+| 5 | **深色纯黑底在桌面大屏又硬又平** | `#000000` → `#0A0A0C`（`DESIGN.md` 与测试同步） |
+| 6 | **信息密度** | 36 处硬编码字号全部改走字阶 token；越界圆角全部对齐新刻度 |
+
+### Notes / 说明
+
+- 主页曾按预览做成「日历 + 今日待办各半屏」，用户复核后**裁定撤回**，恢复「日历整页 + 底部切 tab」。app bar 保留新的大标题（`9月` / 日期区间）。
+- 日历仍是 kalender 驱动：**皮肤全换，骨架归库**（定位/滚动/翻页/拖拽吸附算法不动）。
+- 事件块改为浅底 + 左侧 3px 色条（分类色：工作跟随主题色 / 生活绿 / 产品紫 / 提醒橙）。
+
 
 ## v0.25.1+26 — Web Blank-Screen Fix / Web 白屏修复
 

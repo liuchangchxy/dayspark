@@ -10,9 +10,15 @@ import 'package:dayspark/data/file_reader.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class ImportExportSection extends ConsumerWidget {
-  const ImportExportSection({super.key});
+  const ImportExportSection({super.key, this.showHeader = false});
+
+  /// True when the section is rendered on its own rather than inside a
+  /// labelled group card.
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,10 +27,19 @@ class ImportExportSection extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(l.data, style: Theme.of(context).textTheme.titleSmall),
-        ),
+        if (showHeader)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
+            child: Text(
+              l.data,
+              style: AppTypography.title,
+            ),
+          ),
         ListTile(
           leading: const Icon(CupertinoIcons.arrow_down_doc),
           title: Text(l.importExport),

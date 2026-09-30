@@ -527,12 +527,6 @@ abstract class AppLocalizations {
   /// **'{count} pending'**
   String widgetPendingCount(int count);
 
-  /// No description provided for @typeToSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Type to search'**
-  String get typeToSearch;
-
   /// No description provided for @eventCreated.
   ///
   /// In en, this message translates to:
@@ -1684,6 +1678,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Major Cold'**
   String get termDaHan;
+
+  /// Search your calendar
+  ///
+  /// In en, this message translates to:
+  /// **'Search your calendar'**
+  String get searchEmptyTitle;
+
+  /// Find events and todos by title or notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Find events and todos by title or notes.'**
+  String get searchEmptyHint;
+
+  /// From your inbox
+  ///
+  /// In en, this message translates to:
+  /// **'From your inbox'**
+  String get searchSuggestions;
+
+  /// Deleted events and todos wait here until you remove them.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted events and todos wait here until you remove them.'**
+  String get trashEmptyHint;
+
+  /// Back to todos
+  ///
+  /// In en, this message translates to:
+  /// **'Back to todos'**
+  String get trashEmptyAction;
+
+  /// Connect an AI provider
+  ///
+  /// In en, this message translates to:
+  /// **'Connect an AI provider'**
+  String get aichatNoKeyTitle;
+
+  /// DaySpark uses your own API key. Add one in Settings → AI assistant, then come back.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark uses your own API key. Add one in Settings → AI assistant, then come back.'**
+  String get aichatNoKeyHint;
+
+  /// Open AI settings
+  ///
+  /// In en, this message translates to:
+  /// **'Open AI settings'**
+  String get aichatSetupKey;
+
+  /// Create a tag
+  ///
+  /// In en, this message translates to:
+  /// **'Create a tag'**
+  String get tagsEmptyAction;
+
+  /// Tags group your todos so you can filter by area.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags group your todos so you can filter by area.'**
+  String get tagEmptyHint;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -151,8 +151,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
-    // Tap inside the month grid body (below the weekday header row).
-    await tester.tapAt(const Offset(400, 400));
+    // Tap inside the month grid body. Located from the rendered grid so the
+    // point survives toolbar/layout changes instead of being a fixed pixel.
+    final grid = find.byType(MonthBody);
+    expect(grid, findsOneWidget);
+    await tester.tapAt(tester.getCenter(grid));
     await tester.pump();
 
     expect(tapped, isNotNull);

@@ -206,7 +206,6 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             controller: _titleController,
             decoration: InputDecoration(
               labelText: l.title,
-              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
@@ -244,7 +243,6 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             controller: _descriptionController,
             decoration: InputDecoration(
               labelText: l.description,
-              border: const OutlineInputBorder(),
             ),
             maxLines: 3,
           ),
@@ -253,7 +251,6 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             controller: _locationController,
             decoration: InputDecoration(
               labelText: l.location,
-              border: const OutlineInputBorder(),
               prefixIcon: const Icon(CupertinoIcons.location),
             ),
           ),

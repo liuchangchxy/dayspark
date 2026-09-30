@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 /// Show the AI configuration dialog. Used by both Settings and AI Chat pages.
 Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
@@ -227,7 +228,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
                   _detectError!,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.error,
-                    fontSize: 12,
+                    fontSize: AppTypography.caption.fontSize,
                   ),
                 ),
               ),

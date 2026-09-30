@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/empty_state.dart';
 
 const _tagColors = [
   '#EF4444',
@@ -47,29 +48,14 @@ class TagsPage extends ConsumerWidget {
         error: (e, _) => Center(child: Text(l.error('$e'))),
         data: (tags) {
           if (tags.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    CupertinoIcons.tag,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l.noTags,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: () => _showCreateDialog(context, ref),
-                    icon: const Icon(CupertinoIcons.add, size: 18),
-                    label: Text(l.createTag),
-                  ),
-                ],
+            return EmptyState(
+              icon: CupertinoIcons.tag,
+              title: l.noTags,
+              hint: l.tagEmptyHint,
+              action: FilledButton.icon(
+                onPressed: () => _showCreateDialog(context, ref),
+                icon: const Icon(CupertinoIcons.add, size: 18),
+                label: Text(l.tagsEmptyAction),
               ),
             );
           }
@@ -141,7 +127,6 @@ class TagsPage extends ConsumerWidget {
                 controller: nameController,
                 decoration: InputDecoration(
                   labelText: l.tagName,
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
@@ -214,7 +199,6 @@ class TagsPage extends ConsumerWidget {
                 controller: nameController,
                 decoration: InputDecoration(
                   labelText: l.tagName,
-                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),

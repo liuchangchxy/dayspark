@@ -1,14 +1,15 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.25.1+26 | 2026-09-26 | Web blank-screen P1 fixed: every `dart:io Platform.*` read funnels through one `kIsWeb`-guarded helper (`lib/core/utils/platform_target.dart`), a static guard test keeps it that way, and CI now fails when the built Web page renders blank
+> Last updated / 最后更新: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.25.1+26** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.26.0+27** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
-- 最新变化：**Web 白屏修复（v0.25.1）** — v0.25.0 的 Web 产物在浏览器里恒白屏（`runApp` 之前的 `dart:io Platform.*` 在 dart2js 里必抛）；平台判断收敛到唯一 `kIsWeb` 守卫入口 `lib/core/utils/platform_target.dart` + 静态守卫测试 + CI「web 冒烟截图非纯白」断言（白屏即红）
-- 上一版：**债务2 统一事件缝（v0.25.0）** — 派生态失效从三条临时通道收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂
+- 最新变化：**视觉重设计（v0.26.0）** — 从 Linear 式冷淡高密度转向 Apple 日历式温和清晰：iOS 系统色板、6 级字阶（主标题/正文 1.7 倍差带测试守护）、iOS 圆角与分层阴影、锁死的 5 套预设主题色取代自由选色器、设置页改分组卡片、四个空状态差异化；`DESIGN.md` 重写，全项目 token 清剿
+- 上一版：**Web 白屏修复（v0.25.1）** — 平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言
+- 更早：**债务2 统一事件缝（v0.25.0）** — 派生态失效从三条临时通道收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂
 - 更早：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）；Web 缺口见 Pending **#9（ICS 导出不可用）/#10（通知静默未初始化）**
 
@@ -592,6 +593,7 @@
 | 8 | **`release.yml` 的 `generate_release_notes: true` 实为空转** | v0.25.0 发版时该 flag 产出的 body 是**空的**（0 行），实际靠人工 notes 填充 → 要么去掉该 flag，要么查明为何未生成（上一个是 prerelease，GitHub 的自动生成可能因此无基线） | [Engineering / 工程] v0.25.0 发版时发现 |
 | 9 | **Web 端 ICS 导出不可用（今日白屏同批勘察发现）** | `ics_service.saveIcsToFile` 走 `getApplicationDocumentsDirectory()`（path_provider 无 web 实现）→ web 上抛异常、被 `import_export_section.dart` 的 try/catch 兜住弹「导出失败」，用户实际拿不到导出文件。**不阻断启动**（不属白屏同类，故未纳入 v0.25.1）；导入侧已有 `kIsWeb` 分支正常。修法：web 上改为浏览器下载（Blob）或明确提示不支持 | [Bug / 缺陷] 2026-09-26 会话发现 |
 | 10 | **Web 上通知不可用且被静默吞掉** | `flutter_local_notifications` 无 web 实现 → `NotificationService.init()` 的 `_plugin.initialize()`（`notification_service.dart:110`）抛错，被 `lib/domain/providers/reminders_provider.dart:17` 的 `.catchError((_) {})` 吞掉 → web 上通知静默不初始化、也不报警。**既有状态**（v0.25.1 的白屏修复只消除了"因 `Platform.*` 而抛"那条路径，行为未变）；要么给 web 一条明确的降级提示，要么记录为"web 不支持提醒" | [Bug / 缺陷] 2026-09-26 白屏修复审查发现 |
+| 12 | **视觉重设计的收尾项（v0.26.0 审查结转，P2/P3 级，均已披露不修）** | ① 除主页外其他页面仍是居中小标题，与主页新的大标题不是一个体系；② 表单卡片内字段上方间距比其他字段多约 16px，节奏不齐；③ 日历网格顶部第一格时间标签轻微切边；④ 无实数据时事件块无法目视验收（本地库为空）；⑤ 「今天」快捷入口随半屏布局一起撤回，待办 tab 的日期条承担该职能。 / Deferred polish from the v0.26.0 redesign review |
 | 11 | **web 冒烟工具自身的已知边界（P3，五项，均已披露不修）** | ① `mainFrameId == null` 时主框架过滤静默退回（Chrome 若不返 `frameId`）；② **刻意伪造**的产物（手写 `<flt-glass-pane>` div + 假 `main.dart.js`）能过四道信号 —— 要关需 `Network.getResponseBody` 比对字节/哈希；③ `--fail-on-errors` 默认不开（会被 favicon 404 这类良性错误触发，非干净信号）；④ 颜色判据两类误判（内容稀疏页假红 0.385% / CSS 渐变底空白假绿 89%）；⑤ `serveDir` 对 `/index.html;v=2` 这类路径参数返回 404（Flutter 不会这么请求）。详情见 `docs/CONSTRAINTS.md` Web 章 | [Tooling / 工具] 2026-09-26 五轮对抗审查结转 |
 
 ### P2 — Nice to Have / 锦上添花
@@ -656,4 +658,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.25.1+26 |
+| Version / 版本 | v0.26.0+27 |

@@ -4,7 +4,7 @@ import 'dart:ui';
 class ColorUtils {
   ColorUtils._();
 
-  static const Color _fallback = Color(0xFF2563EB);
+  static const Color _fallback = Color(0xFF007AFF);
 
   static Color parseHex(String hex) {
     final code = hex.replaceAll('#', '');

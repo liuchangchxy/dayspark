@@ -6,8 +6,10 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class TrashPage extends ConsumerWidget {
   const TrashPage({super.key});
@@ -45,24 +47,13 @@ class TrashPage extends ConsumerWidget {
           error: (e, _) => Center(child: Text(l.error('$e'))),
           data: (eventRows) {
             if (todoRows.isEmpty && eventRows.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      CupertinoIcons.trash,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      l.trashEmpty,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+              return EmptyState(
+                icon: CupertinoIcons.trash,
+                title: l.trashEmpty,
+                hint: l.trashEmptyHint,
+                action: FilledButton(
+                  onPressed: () => context.go('/'),
+                  child: Text(l.trashEmptyAction),
                 ),
               );
             }
@@ -147,7 +138,7 @@ class TrashPage extends ConsumerWidget {
           todo.deletedAt != null
               ? DateFormatters.formatDateTime(todo.deletedAt!)
               : '',
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: AppTypography.caption.fontSize),
         ),
         trailing: _restoreDeleteActions(
           context,
@@ -210,7 +201,7 @@ class TrashPage extends ConsumerWidget {
               ? '${DateFormatters.formatDateTime(event.startDt)} · '
                     '${DateFormatters.formatDateTime(event.deletedAt!)}'
               : '',
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: AppTypography.caption.fontSize),
         ),
         trailing: _restoreDeleteActions(
           context,
@@ -271,13 +262,13 @@ class TrashPage extends ConsumerWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            style: AppTypography.title.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: AppSpacing.sm),
           Text(
             '$count',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppTypography.caption.fontSize,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),

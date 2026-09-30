@@ -1,16 +1,12 @@
-// 圆角守卫：DESIGN.md 圆角只认 {6, 8, 12}，12 为最大值。
+// 圆角守卫：DESIGN.md 圆角只认 {8, 10, 12, 16}（16 为最大值），胶囊走 999。
 // `BorderRadius.circular(N)` / `Radius.circular(N)` 的 N 不在集合里即红。
-// 豁免（几何正确，非审美例外）：
-// * tags_page.dart 两处 circular(16) —— Ø32 色点的 InkWell 水波纹半径，r16 即圆本身。
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-const List<double> _radii = [6, 8, 12];
+const List<double> _radii = [8, 10, 12, 16];
 
-const Map<String, List<String>> _allowlist = {
-  'lib/ui/pages/tags/tags_page.dart': ['circular(16)'],
-};
+const Map<String, List<String>> _allowlist = {};
 
 final RegExp _radius = RegExp(
   r'(?:BorderRadius|Radius)\.circular\(\s*(\d+(?:\.\d+)?)',
@@ -41,7 +37,7 @@ String? resolveRepoRoot([Directory? from]) {
 void main() {
   test('守卫自证：违规样本红、合规样本绿', () {
     expect(
-      radiusViolation('borderRadius: BorderRadius.circular(16),'),
+      radiusViolation('borderRadius: BorderRadius.circular(6),'),
       isNotNull,
     );
     expect(

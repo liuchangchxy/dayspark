@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 /// Shows a bottom sheet with a Cupertino-style scroll wheel time picker
 /// plus an optional text input field.
@@ -118,7 +119,7 @@ class _WheelTimePickerSheetState extends State<_WheelTimePickerSheet> {
               children: [
                 Text(
                   l.keyboardInput,
-                  style: TextStyle(fontSize: 14, color: theme.hintColor),
+                  style: AppTypography.body.copyWith(color: theme.hintColor),
                 ),
                 const Spacer(),
                 IconButton(

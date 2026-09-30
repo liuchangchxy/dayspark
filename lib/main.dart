@@ -84,7 +84,7 @@ class DaySparkApp extends ConsumerWidget {
     ref.watch(localeProvider);
     ref.read(localeProvider.notifier).load();
     final themeMode = ref.watch(themeModeProvider);
-    final seedColor = ref.watch(themeColorProvider);
+    final accent = ref.watch(themeColorProvider);
     final locale = ref.watch(localeProvider);
     return ScrollConfiguration(
       behavior: AppScrollBehavior(),
@@ -100,8 +100,8 @@ class DaySparkApp extends ConsumerWidget {
           child: MaterialApp.router(
             title: 'DaySpark',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(seedColor: seedColor),
-            darkTheme: AppTheme.dark(seedColor: seedColor),
+            theme: AppTheme.light(accent: accent.light),
+            darkTheme: AppTheme.dark(accent: accent.dark),
             themeMode: themeMode,
             locale: locale,
             localizationsDelegates: const [

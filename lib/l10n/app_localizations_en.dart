@@ -227,9 +227,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get typeToSearch => 'Type to search';
-
-  @override
   String get eventCreated => 'Event created';
 
   @override
@@ -854,4 +851,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get termDaHan => 'Major Cold';
+
+  @override
+  String get searchEmptyTitle => 'Search your calendar';
+
+  @override
+  String get searchEmptyHint => 'Find events and todos by title or notes.';
+
+  @override
+  String get searchSuggestions => 'From your inbox';
+
+  @override
+  String get trashEmptyHint => 'Deleted events and todos wait here until you remove them.';
+
+  @override
+  String get trashEmptyAction => 'Back to todos';
+
+  @override
+  String get aichatNoKeyTitle => 'Connect an AI provider';
+
+  @override
+  String get aichatNoKeyHint => 'DaySpark uses your own API key. Add one in Settings → AI assistant, then come back.';
+
+  @override
+  String get aichatSetupKey => 'Open AI settings';
+
+  @override
+  String get tagsEmptyAction => 'Create a tag';
+
+  @override
+  String get tagEmptyHint => 'Tags group your todos so you can filter by area.';
 }

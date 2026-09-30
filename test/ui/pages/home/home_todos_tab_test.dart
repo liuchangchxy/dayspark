@@ -217,12 +217,21 @@ void main() {
 
     // Long-press drag (ReorderableDelayedDragStartListener on touch
     // platforms) moves Task 0 one slot down within the visible six.
+    // The distance comes from the rendered rows, so it survives a type-scale
+    // change instead of hardcoding a pixel offset.
+    final dragDistance =
+        (tester.getCenter(find.text('Task 1')).dy -
+            tester.getCenter(find.text('Task 0')).dy) *
+        1.5;
     final gesture = await tester.startGesture(
       tester.getCenter(find.text('Task 0')),
     );
-    await tester.pump(const Duration(milliseconds: 600));
-    await gesture.moveBy(const Offset(0, 110));
-    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 700));
+    for (var i = 0; i < 10; i++) {
+      await gesture.moveBy(Offset(0, dragDistance / 10));
+      await tester.pump(const Duration(milliseconds: 30));
+    }
+    await tester.pump(const Duration(milliseconds: 300));
     await gesture.up();
     await _settle(tester);
 

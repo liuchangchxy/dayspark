@@ -570,14 +570,14 @@ void main() {
       final light = HomeWidgetService.buildThemeBlock(dark: false);
       expect(light['dark'], false);
       final lightColors = light['colors'] as Map<String, Object?>;
-      expect(lightColors['accent'], '#2563EB');
-      expect(lightColors['background'], '#FAFAFA');
+      expect(lightColors['accent'], '#007AFF');
+      expect(lightColors['background'], '#F2F2F7');
 
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
       final darkColors = dark['colors'] as Map<String, Object?>;
-      expect(darkColors['accent'], '#3B82F6');
-      expect(darkColors['background'], '#0F0F14');
+      expect(darkColors['accent'], '#0A84FF');
+      expect(darkColors['background'], '#0A0A0C');
     });
   });
 }

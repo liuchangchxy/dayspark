@@ -14,7 +14,10 @@ import 'package:flutter_test/flutter_test.dart';
 const String _allowlistRelativePath = 'lib/core/utils/platform_target.dart';
 
 /// 守卫的保证是"常见写法必红"，不是"证明没人碰过 Platform"。
-const int _expectedGuardedReads = 2;
+///
+/// 这是棘轮：新增受保护的读取要显式改这个数。2026-09-28 由 2 提到 3，
+/// 因为设置页要按平台隐藏通知分组，新增 `isWindows` 谓词（同样 kIsWeb 短路）。
+const int _expectedGuardedReads = 3;
 
 final RegExp _platformRead = RegExp(
   r'(?<![A-Za-z0-9_])Platform\s*\.\s*(is[A-Za-z]+|operatingSystem)\b',

@@ -75,10 +75,11 @@
   "@widgetPendingCount": {
     "description": "Home screen widget label for the number of pending todos",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "typeToSearch": "Type to search",
   "eventCreated": "Event created",
   "todoCreated": "Todo created",
   "importExport": "Import / Export",
@@ -91,34 +92,46 @@
   "exportedTo": "Exported to {path}",
   "@exportedTo": {
     "placeholders": {
-      "path": { "type": "String" }
+      "path": {
+        "type": "String"
+      }
     }
   },
   "exportFailed": "Export failed: {error}",
   "@exportFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "noCalendarToImport": "No calendar found to import into",
   "importFailed": "Import failed: {error}",
   "@importFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "importedResult": "Imported {events} event(s) and {todos} todo(s)",
   "@importedResult": {
     "placeholders": {
-      "events": { "type": "int" },
-      "todos": { "type": "int" }
+      "events": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      }
     }
   },
   "importExportDesc": "Export calendar events and todos to .ics, or import from a .ics file.",
   "error": "Error: {error}",
   "@error": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "endBeforeStart": "End time must be after start time",
@@ -126,13 +139,17 @@
   "aiError": "AI error: {error}",
   "@aiError": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "deleteEventConfirm": "Delete \"{title}\"?",
   "@deleteEventConfirm": {
     "placeholders": {
-      "title": { "type": "String" }
+      "title": {
+        "type": "String"
+      }
     }
   },
   "noTimeSlots": "No time slot suggestions available",
@@ -140,7 +157,9 @@
   "schedulingFailed": "Scheduling failed: {error}",
   "@schedulingFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "noSubtaskSuggestions": "No subtask suggestions available",
@@ -149,20 +168,26 @@
   "failedCreateTodo": "Failed to create todo: {error}",
   "@failedCreateTodo": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "breakdownFailed": "Breakdown failed: {error}",
   "@breakdownFailed": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "eventCreatedShort": "Event created",
   "failedAction": "Failed: {error}",
   "@failedAction": {
     "placeholders": {
-      "error": { "type": "String" }
+      "error": {
+        "type": "String"
+      }
     }
   },
   "noAttachments": "No attachments",
@@ -176,13 +201,17 @@
   "moveToTodayPrompt": "You have {count} overdue todo(s). Move due dates to today?",
   "@moveToTodayPrompt": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "movedToToday": "Moved {count} todo(s) to today",
   "@movedToToday": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "skip": "Skip",
@@ -207,8 +236,12 @@
   "dateLabel": "{month}/{day}",
   "@dateLabel": {
     "placeholders": {
-      "month": { "type": "int" },
-      "day": { "type": "int" }
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
     }
   },
   "checkUpdate": "Check for Updates",
@@ -216,7 +249,9 @@
   "newVersionAvailable": "New version available: {version}",
   "@newVersionAvailable": {
     "placeholders": {
-      "version": { "type": "String" }
+      "version": {
+        "type": "String"
+      }
     }
   },
   "currentVersion": "Current version",
@@ -236,7 +271,9 @@
   "snoozedFor": "Snoozed for {duration}",
   "@snoozedFor": {
     "placeholders": {
-      "duration": { "type": "String" }
+      "duration": {
+        "type": "String"
+      }
     }
   },
   "markComplete": "Mark Complete",
@@ -282,21 +319,27 @@
   "nMore": "+{count} more",
   "@nMore": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "subtaskHint": "Subtask text",
   "rateLimited": "Rate limited. Visit github.com/{repo}/releases to check manually.",
   "@rateLimited": {
     "placeholders": {
-      "repo": { "type": "String" }
+      "repo": {
+        "type": "String"
+      }
     }
   },
   "connectionTimedOut": "Connection timed out. Check your network.",
   "updateCheckFailed": "Update check failed. Visit github.com/{repo}/releases.",
   "@updateCheckFailed": {
     "placeholders": {
-      "repo": { "type": "String" }
+      "repo": {
+        "type": "String"
+      }
     }
   },
   "gitHub": "GitHub",
@@ -307,7 +350,9 @@
   "tagWith": "Tag: {name}",
   "@tagWith": {
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
   "openEventDetails": "Open event details",
@@ -336,26 +381,34 @@
   "lastSync": "Last sync: {time}",
   "@lastSync": {
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
   "syncRejected": "Rejected: {codes}",
   "@syncRejected": {
     "placeholders": {
-      "codes": { "type": "String" }
+      "codes": {
+        "type": "String"
+      }
     }
   },
   "justNow": "just now",
   "minutesAgo": "{minutes}m ago",
   "@minutesAgo": {
     "placeholders": {
-      "minutes": { "type": "int" }
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "hoursAgo": "{hours}h ago",
   "@hoursAgo": {
     "placeholders": {
-      "hours": { "type": "int" }
+      "hours": {
+        "type": "int"
+      }
     }
   },
   "sixThings": "Six Things",
@@ -363,7 +416,9 @@
   "moreItems": "More ({count})",
   "@moreItems": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "collapseList": "Collapse",
@@ -397,5 +452,45 @@
   "termDaXue": "Major Snow",
   "termDongZhi": "Winter Solstice",
   "termXiaoHan": "Minor Cold",
-  "termDaHan": "Major Cold"
+  "termDaHan": "Major Cold",
+  "searchEmptyTitle": "Search your calendar",
+  "@searchEmptyTitle": {
+    "description": "Search your calendar"
+  },
+  "searchEmptyHint": "Find events and todos by title or notes.",
+  "@searchEmptyHint": {
+    "description": "Find events and todos by title or notes."
+  },
+  "searchSuggestions": "From your inbox",
+  "@searchSuggestions": {
+    "description": "From your inbox"
+  },
+  "trashEmptyHint": "Deleted events and todos wait here until you remove them.",
+  "@trashEmptyHint": {
+    "description": "Deleted events and todos wait here until you remove them."
+  },
+  "trashEmptyAction": "Back to todos",
+  "@trashEmptyAction": {
+    "description": "Back to todos"
+  },
+  "aichatNoKeyTitle": "Connect an AI provider",
+  "@aichatNoKeyTitle": {
+    "description": "Connect an AI provider"
+  },
+  "aichatNoKeyHint": "DaySpark uses your own API key. Add one in Settings → AI assistant, then come back.",
+  "@aichatNoKeyHint": {
+    "description": "DaySpark uses your own API key. Add one in Settings → AI assistant, then come back."
+  },
+  "aichatSetupKey": "Open AI settings",
+  "@aichatSetupKey": {
+    "description": "Open AI settings"
+  },
+  "tagsEmptyAction": "Create a tag",
+  "@tagsEmptyAction": {
+    "description": "Create a tag"
+  },
+  "tagEmptyHint": "Tags group your todos so you can filter by area.",
+  "@tagEmptyHint": {
+    "description": "Tags group your todos so you can filter by area."
+  }
 }

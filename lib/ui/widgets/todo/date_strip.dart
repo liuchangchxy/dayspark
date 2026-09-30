@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class DateStrip extends StatelessWidget {
   final DateTime? selectedDate;
@@ -71,8 +72,8 @@ class DateStrip extends StatelessWidget {
                   ),
                   child: Text(
                     l.today,
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      fontSize: AppTypography.caption.fontSize,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -177,7 +178,7 @@ class DateStrip extends StatelessWidget {
                                 Text(
                                   weekdayLabel,
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: AppTypography.overline.fontSize,
                                     color: isSelected
                                         ? theme.colorScheme.onPrimary
                                         : theme.textTheme.bodySmall?.color,
@@ -187,7 +188,7 @@ class DateStrip extends StatelessWidget {
                                 Text(
                                   '${date.day}',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: AppTypography.body.fontSize,
                                     fontWeight: isToday
                                         ? FontWeight.bold
                                         : FontWeight.normal,
@@ -254,7 +255,7 @@ class DateStrip extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTypography.caption.fontSize,
                 fontWeight: FontWeight.w600,
                 color: selected
                     ? theme.colorScheme.onTertiary

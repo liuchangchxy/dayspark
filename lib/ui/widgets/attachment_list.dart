@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dayspark/domain/providers/attachments_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class AttachmentList extends ConsumerWidget {
   final String parentType;
@@ -46,7 +47,7 @@ class AttachmentList extends ConsumerWidget {
             Text(
               l.noAttachments,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTypography.caption.fontSize,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             )
@@ -55,11 +56,11 @@ class AttachmentList extends ConsumerWidget {
               (a) => ListTile(
                 dense: true,
                 leading: const Icon(CupertinoIcons.doc_text, size: 20),
-                title: Text(a.fileName, style: const TextStyle(fontSize: 14)),
+                title: Text(a.fileName, style: TextStyle(fontSize: AppTypography.body.fontSize)),
                 subtitle: a.fileSize > 0
                     ? Text(
                         _formatSize(a.fileSize),
-                        style: const TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: AppTypography.caption.fontSize),
                       )
                     : null,
                 trailing: IconButton(

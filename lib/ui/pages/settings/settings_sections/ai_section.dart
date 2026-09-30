@@ -19,7 +19,7 @@ class AiSection extends ConsumerWidget {
     final flagsAsync = ref.watch(featureFlagsProvider);
     return ExpansionTile(
       leading: const Icon(CupertinoIcons.lab_flask),
-      title: Text(l.advancedFeatures),
+      title: Text(l.aiAssistant),
       initiallyExpanded:
           flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) == true,
       children: [

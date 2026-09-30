@@ -247,7 +247,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
             controller: _titleController,
             decoration: InputDecoration(
               labelText: l.title,
-              border: const OutlineInputBorder(),
             ),
             textCapitalization: TextCapitalization.sentences,
           ),
@@ -286,7 +285,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
             controller: _descriptionController,
             decoration: InputDecoration(
               labelText: l.description,
-              border: const OutlineInputBorder(),
             ),
             maxLines: 3,
             textCapitalization: TextCapitalization.sentences,
@@ -296,7 +294,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
             controller: _locationController,
             decoration: InputDecoration(
               labelText: l.location,
-              border: const OutlineInputBorder(),
               prefixIcon: const Icon(CupertinoIcons.location),
             ),
           ),

@@ -10,6 +10,10 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/ui/widgets/empty_state.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -70,28 +74,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ),
       ),
       body: _query.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 36,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.12),
-                    child: Icon(
-                      CupertinoIcons.search,
-                      size: 30,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l.typeToSearch,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ],
-              ),
+          ? EmptyState(
+              icon: CupertinoIcons.search,
+              title: l.searchEmptyTitle,
+              hint: l.searchEmptyHint,
+              extra: _suggestions(context, ref, l),
             )
           : ref
                 .watch(searchResultsProvider(_query))
@@ -166,4 +153,32 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 ),
     );
   }
+  /// Search starts blank otherwise; the inbox is the closest thing to "your
+  /// recent stuff" without storing a query history (DESIGN 空状态模板).
+  Widget _suggestions(BuildContext context, WidgetRef ref, AppLocalizations l) {
+    final inbox = ref.watch(inboxTodosProvider).valueOrNull ?? const [];
+    if (inbox.isEmpty) return const SizedBox.shrink();
+    final top = inbox.take(3).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l.searchSuggestions,
+          style: AppTypography.overline.copyWith(
+            color: context.semantic.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (final todo in top)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: const Icon(CupertinoIcons.circle, size: 18),
+            title: Text(todo.summary, style: AppTypography.body),
+            onTap: () => context.push('/todo/edit', extra: todo),
+          ),
+      ],
+    );
+  }
+
 }

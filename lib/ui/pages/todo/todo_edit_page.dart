@@ -16,6 +16,7 @@ import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class TodoEditPage extends ConsumerStatefulWidget {
   final Todo todo;
@@ -221,7 +222,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
             controller: _summaryController,
             decoration: InputDecoration(
               labelText: l.title,
-              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
@@ -295,7 +295,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           // Priority
           Text(
             l.priority,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            style: AppTypography.caption.copyWith(fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
           Wrap(
@@ -305,7 +305,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                   (v) => ChoiceChip(
                     label: Text(
                       priorityLabels[v]!,
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: AppTypography.caption.fontSize),
                     ),
                     selected: _priority == v,
                     onSelected: (_) => setState(() => _priority = v),
@@ -322,7 +322,6 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
             controller: _descriptionController,
             decoration: InputDecoration(
               labelText: l.description,
-              border: const OutlineInputBorder(),
             ),
             maxLines: 3,
           ),
@@ -444,7 +443,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                   l.noSubtasks,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: AppTypography.caption.fontSize,
                   ),
                 ),
               );
@@ -482,7 +481,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                         child: Text(
                           sub.summary,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: AppTypography.body.fontSize,
                             decoration: done
                                 ? TextDecoration.lineThrough
                                 : null,

@@ -114,7 +114,7 @@ Future<void> _pumpSection(WidgetTester tester) async {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: Locale('en'),
-        home: Scaffold(body: SingleChildScrollView(child: AccountSection())),
+        home: Scaffold(body: SingleChildScrollView(child: AccountSection(showHeader: true))),
       ),
     ),
   );
@@ -407,7 +407,7 @@ void main() {
           supportedLocales: AppLocalizations.supportedLocales,
           locale: Locale('en'),
           home:
-              Scaffold(body: SingleChildScrollView(child: AccountSection())),
+              Scaffold(body: SingleChildScrollView(child: AccountSection(showHeader: true))),
         ),
       ),
     );

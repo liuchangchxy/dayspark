@@ -10,9 +10,14 @@ import 'package:dayspark/domain/providers/sync_client_provider.dart';
 import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class AccountSection extends ConsumerStatefulWidget {
-  const AccountSection({super.key});
+  const AccountSection({super.key, this.showHeader = false});
+
+  /// True when the section is rendered on its own rather than inside a
+  /// labelled group card.
+  final bool showHeader;
 
   @override
   ConsumerState<AccountSection> createState() => _AccountSectionState();
@@ -56,10 +61,19 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(l.account, style: Theme.of(context).textTheme.titleSmall),
-        ),
+        if (widget.showHeader)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
+            child: Text(
+              l.account,
+              style: AppTypography.title,
+            ),
+          ),
         ...account.when(
           data: (state) => state.email == null
               ? _buildLoggedOut(l, state)
@@ -87,7 +101,6 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
                 labelText: l.serverUrl,
                 hintText: 'https://sync.example.com',
                 isDense: true,
-                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 8),
@@ -98,7 +111,6 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
               decoration: InputDecoration(
                 labelText: l.email,
                 isDense: true,
-                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 8),
@@ -110,7 +122,6 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
               decoration: InputDecoration(
                 labelText: l.password,
                 isDense: true,
-                border: const OutlineInputBorder(),
               ),
             ),
             if (error != null) ...[
@@ -119,7 +130,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
                 _errorText(l, error),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
+                  fontSize: AppTypography.caption.fontSize,
                 ),
               ),
             ],

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/centered_content.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -169,7 +170,7 @@ class _AboutPageState extends State<AboutPage> {
             const SizedBox(height: 16),
             Text(
               _error!,
-              style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+              style: TextStyle(color: theme.colorScheme.error, fontSize: AppTypography.caption.fontSize),
             ),
           ],
           if (_latestRelease != null) ...[
@@ -179,7 +180,7 @@ class _AboutPageState extends State<AboutPage> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

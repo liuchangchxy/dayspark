@@ -5,6 +5,7 @@ import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class TodoListTile extends ConsumerWidget {
   final String summary;
@@ -108,7 +109,7 @@ class TodoListTile extends ConsumerWidget {
                       height: 32,
                       decoration: BoxDecoration(
                         color: _priorityColor(theme.brightness),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   )
@@ -141,13 +142,13 @@ class TodoListTile extends ConsumerWidget {
                                       color: theme.colorScheme.outline,
                                       width: 1.5,
                                     ),
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Center(
                                     child: Text(
                                       '${index! + 1}',
                                       style: TextStyle(
-                                        fontSize: 10,
+                                        fontSize: AppTypography.overline.fontSize,
                                         fontWeight: FontWeight.w600,
                                         color:
                                             theme.colorScheme.onSurfaceVariant,
@@ -176,7 +177,7 @@ class TodoListTile extends ConsumerWidget {
                       Text(
                         summary,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: AppTypography.body.fontSize,
                           color: textColor,
                           decoration: isCompleted
                               ? TextDecoration.lineThrough
@@ -193,7 +194,7 @@ class TodoListTile extends ConsumerWidget {
                               child: Text(
                                 _dueDateLabel(context),
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: AppTypography.caption.fontSize,
                                   color: _isOverdue
                                       ? theme.colorScheme.error
                                       : (dueDate == null

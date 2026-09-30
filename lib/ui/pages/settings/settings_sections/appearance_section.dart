@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
@@ -25,8 +27,8 @@ class AppearanceSection extends ConsumerWidget {
         ListTile(
           leading: const Icon(CupertinoIcons.color_filter),
           title: Text(l.themeColor),
-          subtitle: _themeColorPreview(ref),
-          onTap: () => _showColorPicker(context, ref),
+          subtitle: _themeColorPreview(context, ref),
+          onTap: () => _showAccentDialog(context, ref),
         ),
         ListTile(
           leading: const Icon(CupertinoIcons.globe),
@@ -54,8 +56,8 @@ class AppearanceSection extends ConsumerWidget {
     );
   }
 
-  Widget _themeColorPreview(WidgetRef ref) {
-    final color = ref.watch(themeColorProvider);
+  Widget _themeColorPreview(BuildContext context, WidgetRef ref) {
+    final accent = ref.watch(themeColorProvider);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -63,10 +65,12 @@ class AppearanceSection extends ConsumerWidget {
           width: 16,
           height: 16,
           decoration: BoxDecoration(
-            color: color ?? const Color(0xFF2563EB),
+            color: accent.resolve(Theme.of(context).brightness),
             shape: BoxShape.circle,
           ),
         ),
+        const SizedBox(width: 8),
+        Text(accent.nameFor(Localizations.localeOf(context))),
       ],
     );
   }
@@ -120,82 +124,72 @@ class AppearanceSection extends ConsumerWidget {
     );
   }
 
-  static const _presetColors = [
-    Color(0xFF2563EB), // Blue (default)
-    Color(0xFF7C3AED), // Purple
-    Color(0xFFDB2777), // Pink
-    Color(0xFFDC2626), // Red
-    Color(0xFFEA580C), // Orange
-    Color(0xFFCA8A04), // Yellow
-    Color(0xFF16A34A), // Green
-    Color(0xFF0891B2), // Cyan
-    Color(0xFF4F46E5), // Indigo
-    Color(0xFF64748B), // Slate
-  ];
-
-  void _showColorPicker(BuildContext context, WidgetRef ref) {
+  void _showAccentDialog(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final current = ref.read(themeColorProvider);
+    final locale = Localizations.localeOf(context);
+    final current = ref.watch(themeColorProvider);
+    final brightness = Theme.of(context).brightness;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.themeColor),
         content: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: _presetColors.asMap().entries.map((entry) {
-            final i = entry.key;
-            final color = entry.value;
-            final selected = (current ?? const Color(0xFF2563EB)) == color;
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.md,
+          children: AppAccent.values.map((accent) {
+            final color = accent.resolve(brightness);
+            final selected = current == accent;
+            final label = accent.nameFor(locale);
             return Semantics(
-              label: 'Color ${i + 1}',
+              label: label,
+              selected: selected,
+              button: true,
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: InkWell(
                   onTap: () {
-                    ref.read(themeColorProvider.notifier).setColor(color);
+                    ref.read(themeColorProvider.notifier).setAccent(accent);
                     Navigator.of(ctx).pop();
                   },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: selected
-                          ? Border.all(
-                              color: Theme.of(ctx).colorScheme.onSurface,
-                              width: 3,
-                            )
-                          : null,
+                  borderRadius: BorderRadius.circular(AppSpacing.sm),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: selected
+                                ? Border.all(
+                                    color: Theme.of(
+                                      ctx,
+                                    ).colorScheme.onSurface,
+                                    width: 2,
+                                  )
+                                : null,
+                          ),
+                          child: selected
+                              ? const Icon(
+                                  CupertinoIcons.checkmark,
+                                  color: Colors.white,
+                                  size: 18,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(label, style: AppTypography.overline),
+                      ],
                     ),
-                    child: selected
-                        ? Icon(
-                            CupertinoIcons.checkmark,
-                            color:
-                                ThemeData.estimateBrightnessForColor(color) ==
-                                    Brightness.dark
-                                ? Colors.white
-                                : Colors.black,
-                            size: 20,
-                          )
-                        : null,
                   ),
                 ),
               ),
             );
           }).toList(),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              ref.read(themeColorProvider.notifier).setColor(null);
-              Navigator.of(ctx).pop();
-            },
-            child: Text(l.resetColor),
-          ),
-        ],
       ),
     );
   }

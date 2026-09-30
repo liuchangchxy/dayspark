@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 class TodoCreatePage extends ConsumerStatefulWidget {
   final int? parentId;
@@ -258,175 +259,176 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
       ),
       body: CenteredContent(
         child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Title + calendar
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _summaryController,
-                    decoration: InputDecoration(
-                      labelText: l.title,
-                      border: const OutlineInputBorder(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Title + calendar
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: _summaryController,
+                      decoration: InputDecoration(labelText: l.title),
+                      textCapitalization: TextCapitalization.sentences,
+                      autofocus: true,
                     ),
-                    textCapitalization: TextCapitalization.sentences,
-                    autofocus: true,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildCalendarPicker(l),
-                ],
+                    const SizedBox(height: 16),
+                    _buildCalendarPicker(l),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // Dates + time
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Start date
-                  ListTile(
-            leading: const Icon(CupertinoIcons.play),
-            title: Text(l.startDate),
-            subtitle: _startDate != null
-                ? Text(DateFormatters.formatDate(_startDate!))
-                : Text(l.notSet),
-            onTap: _pickStartDate,
-            trailing: _startDate != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _startDate = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
-
-          // Due date with quick options
-          const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(CupertinoIcons.calendar),
-            title: Text(l.dueDate),
-            subtitle: _dueDate != null
-                ? Text(DateFormatters.formatDate(_dueDate!))
-                : Text(l.notSet),
-            onTap: _pickCustomDate,
-            trailing: _dueDate != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _dueDate = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 8),
-
-          // Quick date chips
-          _buildQuickDateChips(l, now),
-          const SizedBox(height: 8),
-
-          // Due time
-          ListTile(
-            leading: const Icon(CupertinoIcons.clock),
-            title: Text(l.dueTime),
-            subtitle: _dueTime != null
-                ? Text(
-                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}',
-                  )
-                : Text(l.notSet),
-            onTap: () async {
-              final time = await showWheelTimePicker(
-                context,
-                initialTime: _dueTime ?? TimeOfDay.now(),
-              );
-              if (time != null) setState(() => _dueTime = time);
-            },
-            trailing: _dueTime != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _dueTime = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Priority + tags + notes
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Priority
-                  Text(
-            l.priority,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: AppSpacing.sm,
-            children: _priorityValues
-                .map(
-                  (v) => ChoiceChip(
-                    label: Text(
-                      priorityLabels[v]!,
-                      style: const TextStyle(fontSize: 12),
+            // Dates + time
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Start date
+                    ListTile(
+                      leading: const Icon(CupertinoIcons.play),
+                      title: Text(l.startDate),
+                      subtitle: _startDate != null
+                          ? Text(DateFormatters.formatDate(_startDate!))
+                          : Text(l.notSet),
+                      onTap: _pickStartDate,
+                      trailing: _startDate != null
+                          ? IconButton(
+                              icon: const Icon(CupertinoIcons.clear, size: 18),
+                              onPressed: () =>
+                                  setState(() => _startDate = null),
+                            )
+                          : null,
+                      contentPadding: EdgeInsets.zero,
                     ),
-                    selected: _priority == v,
-                    onSelected: (_) => setState(() => _priority = v),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 16),
 
-          // Description
-          TextField(
-            controller: _descriptionController,
-            decoration: InputDecoration(
-              labelText: l.description,
-              border: const OutlineInputBorder(),
-            ),
-            maxLines: 3,
-            textCapitalization: TextCapitalization.sentences,
-          ),
-          const SizedBox(height: 16),
+                    // Due date with quick options
+                    const SizedBox(height: 8),
+                    ListTile(
+                      leading: const Icon(CupertinoIcons.calendar),
+                      title: Text(l.dueDate),
+                      subtitle: _dueDate != null
+                          ? Text(DateFormatters.formatDate(_dueDate!))
+                          : Text(l.notSet),
+                      onTap: _pickCustomDate,
+                      trailing: _dueDate != null
+                          ? IconButton(
+                              icon: const Icon(CupertinoIcons.clear, size: 18),
+                              onPressed: () => setState(() => _dueDate = null),
+                            )
+                          : null,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(height: 8),
 
-          // Tags
-          _buildTagSelector(l),
-          const SizedBox(height: 16),
+                    // Quick date chips
+                    _buildQuickDateChips(l, now),
+                    const SizedBox(height: 8),
 
-          // Recurrence rule
-          RRuleGenerator(
-            localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
-            config: RRuleGeneratorConfig(),
-            initialRRule: _rrule ?? '',
-            withExcludeDates: false,
-            onChange: (String rrule) {
-              setState(() {
-                _rrule = rrule.isEmpty ? null : rrule;
-              });
-            },
-          ),
-                ],
+                    // Due time
+                    ListTile(
+                      leading: const Icon(CupertinoIcons.clock),
+                      title: Text(l.dueTime),
+                      subtitle: _dueTime != null
+                          ? Text(
+                              '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}',
+                            )
+                          : Text(l.notSet),
+                      onTap: () async {
+                        final time = await showWheelTimePicker(
+                          context,
+                          initialTime: _dueTime ?? TimeOfDay.now(),
+                        );
+                        if (time != null) setState(() => _dueTime = time);
+                      },
+                      trailing: _dueTime != null
+                          ? IconButton(
+                              icon: const Icon(CupertinoIcons.clear, size: 18),
+                              onPressed: () => setState(() => _dueTime = null),
+                            )
+                          : null,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+
+            // Priority + tags + notes
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Priority
+                    Text(
+                      l.priority,
+                      style: AppTypography.caption.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      children: _priorityValues
+                          .map(
+                            (v) => ChoiceChip(
+                              label: Text(
+                                priorityLabels[v]!,
+                                style: TextStyle(
+                                  fontSize: AppTypography.caption.fontSize,
+                                ),
+                              ),
+                              selected: _priority == v,
+                              onSelected: (_) => setState(() => _priority = v),
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Description
+                    TextField(
+                      controller: _descriptionController,
+                      decoration: InputDecoration(labelText: l.description),
+                      maxLines: 3,
+                      textCapitalization: TextCapitalization.sentences,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tags
+                    _buildTagSelector(l),
+                    const SizedBox(height: 16),
+
+                    // Recurrence rule
+                    RRuleGenerator(
+                      localeBuilder: (_) =>
+                          LocaleAwareRRuleTextDelegate(context),
+                      config: RRuleGeneratorConfig(),
+                      initialRRule: _rrule ?? '',
+                      withExcludeDates: false,
+                      onChange: (String rrule) {
+                        setState(() {
+                          _rrule = rrule.isEmpty ? null : rrule;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -442,7 +444,9 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           children: [
             Text(
               l.calendar,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              style: AppTypography.caption.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 4),
             DropdownButtonFormField<int>(
@@ -548,7 +552,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                   l.noTags,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: AppTypography.caption.fontSize,
                   ),
                 ),
                 TextButton(
@@ -573,7 +577,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                   onPressed: () => context.push('/tags'),
                   child: Text(
                     l.manageTags,
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: AppTypography.caption.fontSize),
                   ),
                 ),
               ],

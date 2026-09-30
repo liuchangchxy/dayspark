@@ -3,6 +3,7 @@ import 'package:kalender/kalender.dart';
 import 'package:dayspark/domain/services/chinese_calendar_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
 String solarTermLabel(AppLocalizations l, String zhName) {
   return switch (zhName) {
@@ -62,7 +63,7 @@ class MarkedMonthDayHeader extends StatelessWidget {
     final numberStyle =
         style?.numberTextStyle ??
         TextStyle(
-          fontSize: 14,
+          fontSize: AppTypography.body.fontSize,
           fontWeight: FontWeight.w500,
           color: theme.textTheme.bodyMedium?.color,
         );
@@ -106,14 +107,14 @@ class MarkedMonthDayHeader extends StatelessWidget {
                   color: holidayMark.isWorkday
                       ? theme.colorScheme.primary
                       : theme.colorScheme.error,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   holidayMark.isWorkday
                       ? l.holidayWorkBadge
                       : l.holidayRestBadge,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: AppTypography.overline.fontSize,
                     height: 1.3,
                     fontWeight: FontWeight.w600,
                     color: holidayMark.isWorkday
@@ -134,7 +135,7 @@ class MarkedMonthDayHeader extends StatelessWidget {
                 solarTermLabel(l, termZh),
                 maxLines: 1,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: AppTypography.overline.fontSize,
                   height: 1.1,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
