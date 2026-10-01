@@ -1,11 +1,11 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
+> Last updated / 最后更新: v0.27.0+28 | 2026-10-01 | Sync devices +全双语护栏: every account can now see its connected devices (`POST /devices/register`, `GET /devices`, `x-device-id` actually sent, in-app device list), the AI answers in the app language instead of guessing, switching language now re-issues already-scheduled reminders, and four new guards cover the localization surface (dictionary parity, raw-text scan, outlet inventory, gate ledger). Previous: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.26.0+27** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.27.0+28** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
 - 最新变化：**视觉重设计（v0.26.0）** — 从 Linear 式冷淡高密度转向 Apple 日历式温和清晰：iOS 系统色板、6 级字阶（主标题/正文 1.7 倍差带测试守护）、iOS 圆角与分层阴影、锁死的 5 套预设主题色取代自由选色器、设置页改分组卡片、四个空状态差异化；`DESIGN.md` 重写，全项目 token 清剿
 - 上一版：**Web 白屏修复（v0.25.1）** — 平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言
@@ -293,6 +293,17 @@
 | **Android signing keys removed from git tracking** — new random-password keystore generated, `key.properties` + `release-keystore.jks` added to `.gitignore`, old files `git rm`'d. / **Android 签名密钥移出 git 追踪** | [Security / 安全] |
 | **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
 | **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
+
+### v0.27.0 | 2026-10-01 | Connected Devices + Localization Guards / 设备注册与本地化护栏
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **Connected devices** — `POST /devices/register` (idempotent) + `GET /devices`; the client now actually sends `x-device-id` and reports on sign-in and every cold start; settings lists each device with its last-seen time. The `devices` table existed but was never written to. / **已连接设备**——服务端注册与列表接口，客户端真正上报，设置页可见 | [User / 用户] |
+| **AI answers in the app language** — the chat prompt moves from "same language as the user" (a guess) to an explicit hard constraint; the parser passes the language through but is told **not** to translate the user's own title. / **AI 按界面语言回答**——启发式改硬约束；解析器不翻译用户写的标题 | [User / 用户] |
+| **Switching language re-issues scheduled reminders** — notification text is baked in at schedule time, so reminders set before the switch kept the old language. / **切语言后重发已排期提醒** | [User / 用户] |
+| **Four localization guards** — dictionary key parity (both directions), raw-text scan over `lib/`, a **user-visible text outlet inventory** (`docs/l10n-outlets.md`), and a **gate ledger** recording which gates have actually gone red (`docs/GATES.md`). / **四道本地化护栏** | [User / 用户] |
+| **Process docs updated to five** — `docs/process/` refreshed and `LOCALIZATION.md` added (five rework sources → three enforcement layers, with runnable recipes). / **流程文档补齐至五件** | [Process / 流程] |
+| **Server migration test added** — the server had none, and this release is its first forced migration (v3 → v4) on a database that holds the user's only copy. / **服务端迁移测试补齐** | [Engineering / 工程] |
 
 ### v0.25.1 | 2026-09-26 | Web Blank-Screen Fix / Web 白屏修复
 
@@ -658,4 +669,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.26.0+27 |
+| Version / 版本 | v0.27.0+28 |

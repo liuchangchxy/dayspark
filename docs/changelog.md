@@ -2,13 +2,44 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.26.0+27** — Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette (light `#F2F2F7` ground + white cards, dark `#0A0A0C` + `#1C1C1E`), a 6-step type scale (26/20/17/15/13/11) with a guarded 1.7x display-to-body ratio, iOS radii (8/10/12/16, pill), layered elevation, a locked 5-preset accent palette replacing the free colour picker, a rewritten `DESIGN.md`, and a project-wide token sweep (36 hardcoded font sizes and every off-scale radius/input border) / 视觉重设计：从 Linear 式冷淡高密度转向 Apple 日历式温和清晰——iOS 系统色板（浅色 `#F2F2F7` 底 + 纯白卡片，深色 `#0A0A0C` + `#1C1C1E`）、6 级字阶（26/20/17/15/13/11，主标题与正文 1.7 倍差带测试守护）、iOS 圆角（8/10/12/16 + 胶囊）、分层阴影、锁死的 5 套预设主题色取代自由选色器、`DESIGN.md` 重写，以及全项目 token 清剿（36 处硬编码字号 + 全部越界圆角与输入框边框）
-- 上一版本 / Previous: **v0.25.1+26** — Web 白屏修复：平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言（白屏即红） / Web blank-screen fix: every `Platform.*` read funnels through one guarded helper, with a static guard test and a CI screenshot smoke gate (blank page = red)
+- 最新版本 / Latest: **v0.27.0+28** — 设备注册 + 双语护栏：账号能看到自己的已连接设备（`POST /devices/register`、`GET /devices`、`x-device-id` 真正发出去、设置页设备列表），AI 按界面语言回答而不是碰运气，切换语言会重发已排期的提醒，另加四道本地化护栏（字典键对齐 / 裸文案扫描 / 文案出口清单 / 门禁总账） / Sync devices + localization guards: an account can now see its connected devices, the AI answers in the app language instead of guessing, switching language re-issues already-scheduled reminders, plus four guards over the localization surface
+- 上一版本 / Previous: **v0.26.0+27** — Web 白屏修复：平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言（白屏即红） / Web blank-screen fix: every `Platform.*` read funnels through one guarded helper, with a static guard test and a CI screenshot smoke gate (blank page = red)
 - 更早 / Earlier: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
-- 最新流程改进 / Pipeline: **SPEC/DECISIONS/AGENTS + pre-commit analyze gate + Web 冒烟截图门（白屏即 CI 红）** — 2026-09-26
+- 最新流程改进 / Pipeline: **门禁总账 + 变异实证（一条没红过的门禁视为不存在）+ 出口清单 + 流程文档五件** — 2026-10-01
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
 
 ---
+
+## v0.27.0+28 — Connected Devices + Localization Guards / 设备注册与本地化护栏
+
+**用户反馈原文 / User feedback:** 「加一个双语切换和日夜切换功能。要写进我们的需求文档里」→「我要的不是那种非常简单的双语设计，而是从根本上就是一键双语，彻底的双语那种」
+
+### Features / 新功能
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|----------|
+| 1 | **已连接设备** | 服务端 `POST /devices/register`（幂等 upsert）+ `GET /devices`；客户端 `x-device-id` 真正发出去，登录后与每次冷启动各上报一次；设置页列出设备名与最后活跃时间。此前 `devices` 表建好了却**从没有任何一处写入**——客户端一直在发 deviceId，服务端一直没收 |
+| 2 | **AI 按界面语言回答** | 对话提示词由「跟用户同语言」的启发式改为硬约束 `Respond strictly in {界面语言}`；解析器透传语言但**明确要求不要翻译用户写的标题**（那是用户自己的话）。两个提示词抽成纯函数，测试断言语言约束真的进去了 |
+| 3 | **切语言后已排期的提醒会重发** | 通知文案是排期时写进系统的，切语言不会自动刷新——用户切到英文后，之前排的提醒仍弹中文。现在语言一变就按新语言重下 |
+| 4 | **四道本地化护栏** | 字典中英键对齐守卫（双向，漏译与废弃键都报）、裸文案扫描守卫（`lib/` 非注释行不得含中文，豁免须写 WHY）、**文案出口清单**（`docs/l10n-outlets.md`：通知/小组件/服务端错误/AI/原生资源逐条登记）、**门禁总账**（`docs/GATES.md`） |
+| 5 | **流程文档补齐至五件** | `docs/process/` 从四件更新到新版并新增 `LOCALIZATION.md`（五个返工源 → 三层强制 + 可执行配方） |
+
+### Bug Fixes / 修复
+
+| # | Issue / 问题 | Fix / 修复 |
+|---|------|----------|
+| 1 | **切语言后已排期提醒不刷新**（真 bug） | 以「上次排期实际用的语言」为判据整轮重排；同时发现重排器的「父状态没变就早退」优化会挡住它，加了强制旁路 |
+| 2 | **AI 语言靠启发式** | 界面英文而用户中文提问时照旧回中文；改为显式透传 |
+| 3 | **一条守卫本地绿、CI 红** | 守卫扫的是文件系统而不是 git 跟踪的文件，把本机才有的生成文件也算进去了（CI 干净检出里没有它）。改为只扫 git 跟踪的文件；**同一个陷阱当天犯了两次**，已立成规矩 |
+| 4 | **一条测试每月约 4 天假红** | 它假设「月视图显示当前月」，但实际显示的是「本周周一所在月」，月初跨月时对不上。已按真实规则改；**产品行为经用户拍板确认为设计意图，未改** |
+| 5 | **服务端从没有迁移测试** | 客户端早有，服务端一直缺——而这次的 schema 变更（v3→v4）是服务端第一次被迫迁移，它跑在用户 NAS 上、没有备份可回。已补迁移测试（用裸 sqlite3 把库倒回旧形状再打开，验数据保留、新列补上、重复打开幂等） |
+| 6 | **契约解析缺字段时抛错类型不对** | 抛 `_TypeError` 而不是约定的 `FormatException`，调用方按契约写的 `on FormatException` 会漏成未捕获异常 |
+
+### Notes / 说明
+
+- **仍未做**：关掉 App 也能收到远端更新（P5-b）。方案已定：以后台拉取 + 回前台补同步为主，第三方推送做成可选开关且默认关——因为它会让「何时、哪台设备有变更」这类信息经过 Google/Apple，这个取舍留给用户自己开。已写入 `docs/superpowers/plans/2026-10-01-p5-background-sync.md`
+- **门禁可信度**：本次给当时没被验证过的 9 条门禁补了 8 条「打坏它、看它是否报错」的实证；剩下 1 条（Linux 兼容性检查）被查出**环境不对时会静默放行**，已登记待修
+- 应用内语言/主题切换本身（跟随系统/中文/英文、浅色/深色）此前已交付，本次补的是它**后面那些容易被忽略的地方**：通知、小组件、AI、原生资源
 
 ## v0.26.0+27 — Visual Redesign / 视觉重设计
 
