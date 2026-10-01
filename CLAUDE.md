@@ -233,6 +233,7 @@ gh release view v<version> --json name,tagName,isDraft,isPrerelease,assets
 - 新增原生依赖后必须跑 `tool/check_glibc_version.sh`
 - **版本一致性守卫**：`tool/check_version_consistency.sh` 以 `pubspec.yaml` 为 SSOT，校验 `CLAUDE.md` / `docs/changelog.md` / `docs/ROADMAP.md` 的版本标记 + `server/lib/src/mcp/schemas.dart` 的 `mcpServerVersion`（对外 `serverInfo.version`）—— `ci.yml` `test` job 首步（含 `--selftest` 自证可失败），`release.yml` `version-gate` 门（`--tag` 要求 tag = `v<pubspec semver>`）。README 徽章是 shields.io 动态徽章（读 GitHub Releases，无手同步点）；`docs/START_HERE.md` **不在门内**（版本一律指向 pubspec/ROADMAP，不复制）
 - 禁用 `dart format --set-exit-if-changed`，禁用 `--no-fatal-infos`
+- **分支保护现状（2026-10-01 拍板保持）**：`main` 上 PR 必需 + 必需检查 `["test"]`，但 **`enforce_admins` 未开** → 直推 main 会**绕过**必需检查，CI 属**事后验证**。故：**推送前本地必须跑完 `dart analyze .` + `flutter test` 并以输出为证**，且**每次推送后回看该次 CI 结论**（`gh run list --branch main --limit 1`）。理由与否决记录见 `DECISIONS.md` [2026-10-01]
 
 ---
 

@@ -263,3 +263,17 @@
 - **同时修掉的**：测试原先按 `DateTime.now().month` 算期望值 → 改为按 anchor 规则算，消除每月约 4 天的假红（假红会掩盖真实回归）。
 - **影响范围**：`test/ui/widgets/calendar/marked_month_day_header_test.dart`、`docs/CONSTRAINTS.md`、`docs/START_HERE.md`、`docs/GATES.md`。**产品代码零改动。**
 - **对应 SPEC 章节**：不涉及业务契约，属交互语义裁定。
+
+### [2026-10-01] 决策：不开 `enforce_admins`，直推 main 继续绕过必需检查（已知并接受）
+- **触发背景**：2026-10-01 连续三次推送 main，远端都回了 `Bypassed rule violations: Changes must be made through a pull request / Required status check "test" is expected`。查得分支保护配置为：PR 必需 ✓、必需检查 `["test"]` ✓、**`enforce_admins: false`**——管理员可绕过。首次推送后 main 确实红了几分钟。
+- **备选与否决**：
+  - (a) 开 `enforce_admins` + 批准数保持 1 —— **否**：GitHub 不允许自己批准自己的 PR，而本仓库协作者只有作者一人 → **主分支会对本人彻底关死**；
+  - (b) 开 `enforce_admins` + 批准数改 0 —— **否（本次）**：虽能避免锁死，但等于把"外部 PR 必须先经作者审阅"这条保护一并撤掉；用户权衡后选择先不动；
+  - (c) **保持现状**。
+- **核心决策**：**保持现状（c）**。已知并接受：直推 main 会绕过必需状态检查，CI 属于**事后验证**而非事前卡口。
+- **因此的责任分配（必须遵守）**：
+  1. **推送前本地必须跑完 `dart analyze .` + `flutter test`**，并以输出为证——CI 不再是你的安全网；
+  2. 每次推送后**必须回看那次 CI 的结论**（`gh run list --branch main --limit 1`）；红了要立刻修，而不是等下一次推送顺带发现；
+  3. `build-macos` 等构建 job 偶发失败先按偶发处理，但要用 `gh run rerun --failed` 证明确属偶发（2026-10-01 有一次 `cdn.cocoapods.org` DNS 失败，重跑即过）。
+- **复核触发条件**：若将来增加第二个协作者，应重新评估 (a)/(b)——那时"自己批不了自己的 PR"不再是障碍。
+- **影响范围**：仅流程约定，无代码改动。落点：本条目 + `CLAUDE.md` CI 规则段。
