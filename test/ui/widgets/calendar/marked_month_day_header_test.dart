@@ -96,12 +96,22 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
+    // 月视图显示的月份由 _anchorDate 决定，而 _anchorDate 在首屏会被
+    // _applyVisibleRange 改写成「当前可见周的第一天」（周视图分支取
+    // range.start）。所以它等于 **本周周一的月份**，不是「今天的月份」——
+    // 每月头几天（本周跨月）两者不同，直接拿 now.month 算期望值会假红。
+    //
+    // 「月初点月视图看到上个月」这件事本身是否合理，见 docs/CONSTRAINTS.md
+    // 同日条目，**尚未拍板**；本测试只断言「网格显示的那个月，两个节气都渲染」，
+    // 不对"该显示哪个月"下判断。
     final now = DateTime.now();
-    final lastDay = DateTime(now.year, now.month + 1, 0);
+    final anchor = now.subtract(Duration(days: now.weekday - 1));
+    final shown = DateTime(anchor.year, anchor.month);
+    final lastDay = DateTime(shown.year, shown.month + 1, 0);
     final terms = <String>{};
     for (var day = 1; day <= lastDay.day; day++) {
       final term = ChineseCalendarService.solarTerm(
-        DateTime(now.year, now.month, day),
+        DateTime(shown.year, shown.month, day),
       );
       if (term != null) terms.add(term);
     }

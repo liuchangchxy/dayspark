@@ -46,9 +46,14 @@
 
 ---
 
-## 三点五、当前已知红灯
+## 三点五、当前红灯
 
-- `test/ui/widgets/calendar/marked_month_day_header_test.dart` 的 `month view grid shows current-month solar terms`：**日期相关假红**，在 HEAD 上即红，每月约 4 天会红（今天 10-01 命中）。根因与两种修法见 `docs/CONSTRAINTS.md` 同日条目；**需用户拍板产品行为后再修**。它已被计入下表的"未记录"之外。
+无。`flutter test` 366 passed / 0 failed。
+
+### 已关的假红（2026-10-01）
+
+- `marked_month_day_header_test` 的 `month view grid shows current-month solar terms`：**日期相关假红**，在 HEAD(v0.26.0) 上即红、每月约 4 天命中。测试原先按"今天所在月"算期望值，而月视图显示的是"本周周一所在月"（月初跨月时两者不同）。已改为按 anchor 规则算，**未改产品行为**；"月初该显示哪个月"仍是待拍板的产品问题，见 `docs/CONSTRAINTS.md`。
+- `no_raw_text_guard_test` 的 `白名单无死豁免`：**本地绿 CI 红**。守卫原用文件系统扫描，把 gitignore 的生成文件 `lib/oss_licenses.dart` 也算了进来（CI 干净检出里没有它）。已改为只扫 `git ls-files` 跟踪的文件。这条是"新门禁必须在干净检出上验"的实例。
 
 ## 四、已知缺口
 

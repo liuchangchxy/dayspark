@@ -11,10 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 final RegExp _cjk = RegExp(r'[一-鿿]');
 final RegExp _comment = RegExp(r'^\s*(//|///|\*|/\*)');
 
-/// 文件 → 豁免理由。只收「不是面向用户文案」的四类。
+/// 文件 → 豁免理由。只收「不是面向用户文案」的几类。
 const Map<String, String> _allowlist = {
-  'lib/oss_licenses.dart':
-      '生成文件（flutter_oss_licenses），文案来自 pubspec.description，不归字典管',
   'lib/domain/records/record_scope.dart':
       '开发者断言消息（ArgumentError），面向维护者不面向用户',
   'lib/domain/records/record_bus.dart':
@@ -45,13 +43,25 @@ String? resolveRepoRoot([Directory? from]) {
   }
 }
 
+/// 只扫 **git 跟踪**的文件。
+///
+/// 走文件系统会把本机生成物一起扫进来（例如 `lib/oss_licenses.dart` 是
+/// gitignore 的生成文件，CI 的干净检出里根本不存在）——于是本地绿、CI 红，
+/// 或者反过来：白名单条目在本地有对象、在 CI 看就是「死豁免」。
+/// 跟踪文件恰好等于「这个项目自己写的文件」，这才是本守卫的扫描面。
 Map<String, List<int>> scanRoot(String root) {
+  final listed = Process.runSync(
+    'git',
+    const ['ls-files', '-z', 'lib'],
+    workingDirectory: root,
+  ).stdout as String;
   final hits = <String, List<int>>{};
-  for (final entity in Directory('$root/lib').listSync(recursive: true)) {
-    if (entity is! File || !entity.path.endsWith('.dart')) continue;
-    final rel = entity.path.substring(root.length + 1);
+  for (final rel in listed.split('\u0000')) {
+    if (rel.isEmpty || !rel.endsWith('.dart')) continue;
     if (rel.startsWith('lib/l10n/')) continue;
-    final lines = entity.readAsLinesSync();
+    final file = File('$root/$rel');
+    if (!file.existsSync()) continue;
+    final lines = file.readAsLinesSync();
     for (var i = 0; i < lines.length; i++) {
       if (isRawTextLine(lines[i])) {
         hits.putIfAbsent(rel, () => []).add(i + 1);
