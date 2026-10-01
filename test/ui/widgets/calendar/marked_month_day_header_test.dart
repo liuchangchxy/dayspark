@@ -101,9 +101,10 @@ void main() {
     // range.start）。所以它等于 **本周周一的月份**，不是「今天的月份」——
     // 每月头几天（本周跨月）两者不同，直接拿 now.month 算期望值会假红。
     //
-    // 「月初点月视图看到上个月」这件事本身是否合理，见 docs/CONSTRAINTS.md
-    // 同日条目，**尚未拍板**；本测试只断言「网格显示的那个月，两个节气都渲染」，
-    // 不对"该显示哪个月"下判断。
+    // 「月初点月视图看到上个月」已于 2026-10-01 拍板为**设计意图**（锚点
+    // 跟随当前可见周的第一天），不是 bug——见 docs/CONSTRAINTS.md 同日条目。
+    // 本测试因此按 anchor 规则算期望值，并断言「网格显示的那个月，两个节气
+    // 都渲染」；若将来有人单独改 _anchorFromRange 的 month/week 分支，这里会红。
     final now = DateTime.now();
     final anchor = now.subtract(Duration(days: now.weekday - 1));
     final shown = DateTime(anchor.year, anchor.month);

@@ -61,7 +61,7 @@
 - **伪语言冒烟**：出口清单要求"新增出口必须被冒烟覆盖"，但目前**没有伪语言机制**，出口 2/3 只靠单测覆盖，未做过整机冒烟
 - `tool/checkpoint.py` 微快照已复制进 `tool/`，但**尚未在流程里用起来**（AGENTS 引擎 1.4 未接）
 - `tool/scan_hardcoded_paths.py` 改成 `git ls-files` 的修正**尚未回流到 starter**（上游有同样问题）
-- **[待拍板] 月视图月初显示上个月**（2026-10-01）：今天 10-01 点"月"渲染 9 月（`_anchorDate` 被周视图首帧改成 09-28）。**假装红的测试已修**（改按 anchor 规则算期望值，未动产品行为），CI 已转绿。**产品上是否可接受仍未拍板**——见 `docs/CONSTRAINTS.md` 同日条目
+- ~~[待拍板] 月视图月初显示上个月~~ ✅ 2026-10-01 **已拍板：接受现状**（锚点跟随当前可见周第一天，是设计意图）。测试已按此规则修，CI 转绿。见 `docs/CONSTRAINTS.md` 同日条目
 
 **D. 终审 triage 出的 (b) 类小项（部分只在会话）**
 - quick-add PendingIntent 加 `setPackage(context.packageName)`（防 scheme 抢注）

@@ -252,3 +252,14 @@
   - `rrule_generator` 的 `RRuleTextDelegate` 只收裸字符串，接不进 ARB，故 `LocaleAwareRRuleTextDelegate` 内联中英两套——**加第三种语言必须改代码**（已记入 `docs/CONSTRAINTS.md`）。
 - **影响范围**：新增 `test/architecture/{l10n_parity,no_raw_text}_guard_test.dart`、`docs/{GATES.md,l10n-outlets.md,docs/qa/TEST_EVIDENCE_TEMPLATE.md}`、`docs/process/LOCALIZATION.md`；改 `lib/domain/records/reminder_reconciler.dart`、`lib/domain/providers/{record_bus_provider,reminders_provider}.dart`、`docs/process/{TESTING,REVIEWING,EXECUTION}.md`、`tool/scan_hardcoded_paths.py`、`scripts/setup-hooks.sh`、`.github/workflows/ci.yml`、`CLAUDE.md`、`AGENTS.md`、`docs/CONSTRAINTS.md`；删 `lib/core/l10n/rrule_text_delegate.dart`。
 - **对应 SPEC 章节**：SPEC.md §1.1 冻结需求 8 条之外的行为规范；i18n 属工程执行层，不改变产品契约。
+
+### [2026-10-01] 决策：月初月视图显示上个月 = 设计意图，不是 bug
+- **触发背景**：10-01 点"月"渲染的是 9 月，`marked_month_day_header_test` 因此每月约 4 天假红。定位后发现根因是 `_anchorFromRange`（week 分支取 `range.start`）把 `_anchorDate` 从"今天"改成了"本周周一"。
+- **备选与否决**：
+  - (a) 改 `_anchorFromRange` 让切月视图显示"今天所在月"——**否**：锚点跟随**所在周**是本项目的一贯语义，为迁就一个直觉单独改 month 分支会让 week/month 两个分支语义分裂；
+  - (b) 认为现状是 bug、改产品——**否**，理由同上。
+- **核心决策**：**接受现状**。锚点跟随"当前可见周的第一天"是设计意图；月初头几天看到上个月是正确行为。
+- **连带约定**：`_anchorFromRange` 的 week 分支（`range.start`）不得为了"看起来更符合直觉"单独改动；要改必须连同 `marked_month_day_header_test` 一起改，并更新 `docs/CONSTRAINTS.md` 的裁定。
+- **同时修掉的**：测试原先按 `DateTime.now().month` 算期望值 → 改为按 anchor 规则算，消除每月约 4 天的假红（假红会掩盖真实回归）。
+- **影响范围**：`test/ui/widgets/calendar/marked_month_day_header_test.dart`、`docs/CONSTRAINTS.md`、`docs/START_HERE.md`、`docs/GATES.md`。**产品代码零改动。**
+- **对应 SPEC 章节**：不涉及业务契约，属交互语义裁定。
