@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'package:dayspark/domain/providers/locale_provider.dart';
+
 const _keyAiApiKey = 'ai_api_key';
 const _keyAiBaseUrl = 'ai_base_url';
 const _keyAiModel = 'ai_model';
@@ -167,25 +169,11 @@ Future<Map<String, dynamic>> parseNaturalLanguage({
   required String input,
   required String type, // 'event' or 'todo'
 }) async {
-  final systemPrompt =
-      '''You are a calendar and todo parser. Parse the user's natural language input into structured data.
-Return ONLY valid JSON with these fields:
-${type == 'event' ? '''{
-  "summary": "event title",
-  "start": "2026-05-01T10:00:00",
-  "end": "2026-05-01T11:00:00",
-  "description": "optional description",
-  "location": "optional location",
-  "is_all_day": false
-}''' : '''{
-  "summary": "todo title",
-  "due_date": "2026-05-15",
-  "priority": 5,
-  "description": "optional description"
-}'''}
-
-Use today's date as reference: ${DateTime.now().toIso8601String().substring(0, 10)}.
-If a date/time is ambiguous, make a reasonable guess. Priority: 1=high, 5=medium, 9=low, 0=none.''';
+  final systemPrompt = buildParseSystemPrompt(
+    type: type,
+    appLanguage: languageNameFor(await resolveAppLocale()),
+    today: DateTime.now().toIso8601String().substring(0, 10),
+  );
 
   final result = await callAiApi(
     config: config,
@@ -237,9 +225,9 @@ class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
     state = [...state, AiChatMessage(role: 'assistant', content: '...')];
 
     try {
-      final systemPrompt =
-          'You are a helpful calendar and todo assistant. '
-          'Help the user manage their schedule. Be concise. Respond in the same language as the user.';
+      final systemPrompt = buildChatSystemPrompt(
+        languageNameFor(await resolveAppLocale()),
+      );
       final response = await callAiApi(
         config: config,
         systemPrompt: systemPrompt,
@@ -267,3 +255,43 @@ class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
 
   void clear() => state = [];
 }
+
+/// 解析器的系统提示词。抽成纯函数，才能断言"语言约束真的进了 prompt"——
+/// 出口清单 #7 的验收点就在这里，否则只是"接了线"而不是"证明接了线"。
+///
+/// 注意 summary 是**用户自己的话**，不能按 App 语言翻译；约束只作用于模型
+/// 自己产出的文本（比如它补的 description）。
+String buildParseSystemPrompt({
+  required String type,
+  required String appLanguage,
+  required String today,
+}) {
+  return '''You are a calendar and todo parser. Parse the user's natural language input into structured data.
+The user's app language is $appLanguage. Keep "summary" in the language the user wrote in - do not translate it. Any text you generate yourself (for example a "description" the user did not dictate) must be in $appLanguage.
+Return ONLY valid JSON with these fields:
+${type == 'event' ? '''{
+  "summary": "event title",
+  "start": "2026-05-01T10:00:00",
+  "end": "2026-05-01T11:00:00",
+  "description": "optional description",
+  "location": "optional location",
+  "is_all_day": false
+}''' : '''{
+  "summary": "todo title",
+  "due_date": "2026-05-15",
+  "priority": 5,
+  "description": "optional description"
+}'''}
+
+Use today's date as reference: $today.
+If a date/time is ambiguous, make a reasonable guess. Priority: 1=high, 5=medium, 9=low, 0=none.''';
+}
+
+/// 对话系统提示词。
+///
+/// 「跟用户同语言」是启发式——App 切成英文而用户中文提问时它会照旧回中文；
+/// 按 standards/LOCALIZATION.md L-12 改成对目标语言的硬约束。
+String buildChatSystemPrompt(String appLanguage) =>
+    'You are a helpful calendar and todo assistant. '
+    'Help the user manage their schedule. Be concise. '
+    'Respond strictly in $appLanguage.';

@@ -55,8 +55,8 @@
 - ~~`docs/qa/TEST_EVIDENCE_TEMPLATE.md`~~ ✅ 已建
 
 **尚未做（下一批候选）**：
-- **`docs/GATES.md` §四.1 的 12 条变异实证**——按 §一.7 标准，"没红过的门禁一律视为不存在"。这是当前最该补的一件事
-- **AI 输出语言约束是启发式**（`ai_provider.dart` 写的是 "Respond in the same language as the user"；`parseNaturalLanguage` 的 prompt 完全没提语言）→ 应显式透传 `locale` + "Respond strictly in {target_language}"（出口清单 #7）
+- ~~**`docs/GATES.md` 的变异实证**~~ ✅ 2026-10-01：补齐 8 条；剩 glibc 一条查出"环境缺失即静默放行"，已登记待修
+- ~~**AI 输出语言约束是启发式**~~ ✅ 2026-10-01：两处 prompt 抽成纯函数并显式透传语言（对话用硬约束、解析器额外要求不翻译用户的 summary），由 `ai_provider_test.dart` 断言；`resolveAppLocale` 收敛进 `locale_provider.dart` 供通知与 AI 共用
 - **原生通知渠道名/动作按钮不随 App 内语言切换**（出口清单 #4）；Android 渠道创建后不可改名，改语言需新建渠道 id
 - **伪语言冒烟**：出口清单要求"新增出口必须被冒烟覆盖"，但目前**没有伪语言机制**，出口 2/3 只靠单测覆盖，未做过整机冒烟
 - `tool/checkpoint.py` 微快照已复制进 `tool/`，但**尚未在流程里用起来**（AGENTS 引擎 1.4 未接）

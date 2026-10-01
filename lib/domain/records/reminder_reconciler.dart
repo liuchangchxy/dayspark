@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/records/record_change.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
@@ -67,7 +68,7 @@ final class ReminderReconciler {
   /// 只清「确实交给过 OS」的条目（值非 null），保留「已知无通知」的 null 标记：
   /// 前者必须按新语言重发，后者本来就没东西可发，留着能省掉一轮无谓 cancel。
   Future<void> onLocaleChanged() => _enqueue(() async {
-    final next = (await resolveNotificationLocale()).languageCode;
+    final next = (await resolveAppLocale()).languageCode;
     if (_stringsLocale == next) return;
     _stringsLocale = next;
     _applied.removeWhere((_, handedToOs) => handedToOs != null);
@@ -272,7 +273,7 @@ final class ReminderReconciler {
         applied.isAtSameMomentAs(desired)) {
       return;
     }
-    final locale = await resolveNotificationLocale();
+    final locale = await resolveAppLocale();
     _stringsLocale = locale.languageCode;
     final strings = await loadNotificationStrings(locale: locale);
     await _notifications.scheduleFromReminder(

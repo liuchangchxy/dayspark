@@ -4,7 +4,7 @@
 >
 > **规矩**：新增一个会出现用户可见文字的地方，必须同时 ①登记进本表 ②被冒烟覆盖。**不在表上的出口，视为未接线。**
 
-最后更新：2026-10-01
+最后更新：2026-10-01（AI 出口已接线）
 
 ---
 
@@ -18,7 +18,7 @@
 | 4 | 通知动作按钮 / 渠道名 | 原生资源（Android `strings.xml` / iOS） | 系统语言，**不随 App 内切换** | 不适用（系统级，切换需改系统语言） | ⚠️ 未覆盖——见下方"已知缺口" |
 | 5 | 服务端错误 | 结构化 `{"error":{"code","message"}}`，前端按 code 查表 | 不适用（返回的是 code） | 不适用 | `_mapApiError` 走枚举 → `_errorText` 走 l10n |
 | 6 | MCP / CLI 输出 | 服务端工具描述与错误（面向 AI，非终端用户） | 不适用 | 不适用 | 不纳入本清单（读者是 AI agent） |
-| 7 | AI 生成文本 | 模型输出 | prompt 中声明的语言 | 不适用（每次请求现生成） | ⚠️ 未强制——见下方"已知缺口" |
+| 7 | AI 生成文本 | 模型输出 | `languageNameFor(resolveAppLocale())` 显式透传进 prompt | 不适用（每次请求现生成，天然跟随当前语言） | `ai_provider_test.dart` 断言 prompt 真含语言约束 |
 | 8 | 导出（ICS） | 文件名 / 日历名 | — | — | 内容为数据（SUMMARY 是用户数据，不翻译） |
 | 9 | 权限弹窗 / 应用名 / 应用商店文案 | 原生资源 + 商店后台 | 系统语言 | 不适用 | ⚠️ 未覆盖 |
 
@@ -27,7 +27,8 @@
 ## 已知缺口
 
 1. **通知渠道名与动作按钮**（#4）走 Android/iOS 原生资源，不随 App 内语言切换。当前只有一份。要支持双语需按语言各出一份原生资源；且 Android 通知渠道创建后**不可改名**，改语言需要新建渠道 id。
-2. **AI 输出语言**（#7）目前靠 system prompt 里的一句话 "Respond in the same language as the user"——是启发式，不是硬约束；`parseNaturalLanguage` 的 prompt 完全没提语言。按 `standards/LOCALIZATION.md` L-12，应显式透传 `locale` 并写死 "Respond strictly in {target_language}"。
+2. ~~**AI 输出语言**（#7）靠启发式~~ ✅ 2026-10-01 已修：`buildChatSystemPrompt` 改为硬约束 `Respond strictly in {appLanguage}`；`buildParseSystemPrompt` 透传语言并**明确要求不要翻译用户写的 summary**（标题是用户自己的话）。两个 prompt 抽成纯函数，由 `ai_provider_test.dart` 断言语言约束真的进了 prompt——否则只是"接了线"而不是"证明接了线"。
+   - **代价披露**：硬约束意味着 App 语言为英文时，即使用户用中文提问，AI 也用英文回答。这是 L-12 的要求，但双语用户可能觉得别扭；若要改回"跟随提问语言"，改 `buildChatSystemPrompt` 一处即可。
 3. **#1 的覆盖是"事后扫描"而非"事前拦截"**：`no_raw_text_guard_test.dart` 能拦住新写的裸中文，但拦不住"该加的 key 没加"——那个由键对齐门禁在补了 key 之后才生效。
 
 ---
