@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:test/test.dart';
 
@@ -31,6 +33,7 @@ OpResult _sampleResult() => OpResult(
     );
 
 void main() {
+  _deviceContractTests();
   group('PushOp', () {
     test('toJson/fromJson roundtrip with optionals set', () {
       final original = _sampleOp();
@@ -378,6 +381,74 @@ void main() {
 
       expect(restored.nextCursor, 2);
       expect(restored.hasMore, isFalse);
+    });
+  });
+}
+
+// 设备契约：注册与列表两侧共用同一份形状，加字段时不会各写各的。
+void _deviceContractTests() {
+  group('DeviceDto', () {
+    test('round-trips through JSON with UTC lastSeen', () {
+      final original = DeviceDto(
+        deviceId: 'dev-1',
+        name: 'Pixel',
+        lastSeen: DateTime.utc(2026, 10, 1, 12, 30),
+      );
+      final restored = DeviceDto.fromJson(
+        jsonDecode(jsonEncode(original.toJson())) as Map<String, dynamic>,
+      );
+      expect(restored.deviceId, 'dev-1');
+      expect(restored.name, 'Pixel');
+      expect(restored.lastSeen, DateTime.utc(2026, 10, 1, 12, 30));
+      expect(restored.lastSeen.isUtc, isTrue);
+    });
+
+    test('name is optional', () {
+      final dto = DeviceDto.fromJson({
+        'deviceId': 'dev-1',
+        'name': null,
+        'lastSeen': '2026-10-01T00:00:00.000Z',
+      });
+      expect(dto.name, isNull);
+    });
+
+    test('missing deviceId or lastSeen is a FormatException', () {
+      expect(
+        () => DeviceDto.fromJson({'lastSeen': '2026-10-01T00:00:00.000Z'}),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => DeviceDto.fromJson({'deviceId': 'dev-1'}),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
+
+  group('DeviceListResponse', () {
+    test('round-trips a list', () {
+      final original = DeviceListResponse(
+        devices: [
+          DeviceDto(
+            deviceId: 'a',
+            lastSeen: DateTime.utc(2026, 1, 1),
+          ),
+          DeviceDto(
+            deviceId: 'b',
+            name: 'laptop',
+            lastSeen: DateTime.utc(2026, 2, 1),
+          ),
+        ],
+      );
+      final restored = DeviceListResponse.fromJson(
+        jsonDecode(jsonEncode(original.toJson())) as Map<String, dynamic>,
+      );
+      expect(restored.devices.map((d) => d.deviceId), ['a', 'b']);
+      expect(restored.devices.last.name, 'laptop');
+    });
+
+    test('empty list is valid (a fresh account has no devices yet)', () {
+      final restored = DeviceListResponse.fromJson({'devices': <Object?>[]});
+      expect(restored.devices, isEmpty);
     });
   });
 }

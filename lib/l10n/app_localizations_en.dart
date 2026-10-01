@@ -881,4 +881,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tagEmptyHint => 'Tags group your todos so you can filter by area.';
+
+  @override
+  String get connectedDevices => 'Connected devices';
+
+  @override
+  String get devicesEmpty => 'No devices have reported in yet.';
+
+  @override
+  String get deviceUnknownName => 'Unnamed device';
+
+  @override
+  String deviceLastSeen(String time) {
+    return 'Last active $time';
+  }
+
+  @override
+  String get devicesLoadFailed => 'Couldn\'t load the device list';
 }

@@ -12,6 +12,7 @@ import 'src/mcp/endpoint.dart';
 import 'src/oauth/as.dart';
 import 'src/oauth/middleware.dart';
 import 'src/routes/auth.dart';
+import 'src/routes/devices.dart';
 import 'src/routes/health.dart';
 import 'src/routes/stream.dart';
 import 'src/routes/sync.dart';
@@ -71,6 +72,7 @@ class AppServer {
     registerHealthRoutes(router);
     registerAuthRoutes(router, db: db, auth: auth);
     registerOauthRoutes(router, db: db, auth: auth);
+    registerDeviceRoutes(router, db: db, auth: auth);
     registerSyncRoutes(router, db: db, auth: auth, notifySeq: _notifySeq);
     registerStreamRoutes(
       router,

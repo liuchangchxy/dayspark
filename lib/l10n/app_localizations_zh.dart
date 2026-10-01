@@ -881,4 +881,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tagEmptyHint => '用标签给待办分类，之后可以按标签筛选。';
+
+  @override
+  String get connectedDevices => '已连接设备';
+
+  @override
+  String get devicesEmpty => '还没有设备上报过。';
+
+  @override
+  String get deviceUnknownName => '未命名设备';
+
+  @override
+  String deviceLastSeen(String time) {
+    return '最后活跃 $time';
+  }
+
+  @override
+  String get devicesLoadFailed => '设备列表加载失败';
 }

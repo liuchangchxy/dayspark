@@ -25,7 +25,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +40,9 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(refreshTokens, refreshTokens.scope);
         await m.createTable(oauthClients);
         await m.createTable(oauthCodes);
+      }
+      if (from < 4) {
+        await m.addColumn(syncOps, syncOps.deviceId);
       }
     },
     beforeOpen: (details) async {

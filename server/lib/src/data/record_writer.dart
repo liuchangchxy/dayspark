@@ -22,10 +22,13 @@ Future<OpResult> applyInternalOp({
   required String userId,
   required PushOp op,
   required void Function(String userId, int seq) notify,
+  String deviceId = '',
 }) async {
   final app = _asAppDatabase(db);
   final seqBefore = await currentSeq(app, userId);
-  final result = await app.transaction(() => _applyOp(app, userId, op));
+  final result = await app.transaction(
+    () => _applyOp(app, userId, op, deviceId),
+  );
   final seqAfter = await currentSeq(app, userId);
   if (seqAfter > seqBefore) {
     notify(userId, seqAfter);
@@ -69,7 +72,12 @@ String newOpId() {
       '${hex.substring(20, 32)}';
 }
 
-Future<OpResult> _applyOp(AppDatabase db, String userId, PushOp op) async {
+Future<OpResult> _applyOp(
+  AppDatabase db,
+  String userId,
+  PushOp op,
+  String deviceId,
+) async {
   final stored = await findSyncOp(db, op.opId);
   if (stored != null) {
     if (stored.userId != userId) {
@@ -81,7 +89,13 @@ Future<OpResult> _applyOp(AppDatabase db, String userId, PushOp op) async {
   }
 
   final result = await _processOp(db, userId, op);
-  await storeOpResult(db, opId: op.opId, userId: userId, result: result);
+  await storeOpResult(
+    db,
+    opId: op.opId,
+    userId: userId,
+    result: result,
+    deviceId: deviceId,
+  );
   return result;
 }
 

@@ -141,6 +141,16 @@ class AuthSession {
 /// Credential endpoints (T6 UI codes against this so tests fake auth
 /// without dio). Both server responses carry the full token pair —
 /// register issues tokens itself, so a successful register is logged in.
+/// Device registration + listing. Separate from [SyncApiClient] so the sync
+/// fakes in tests are not forced to grow device methods they never call.
+abstract class DeviceApi {
+  /// Idempotent: the client reports on every cold start, and a repeat report
+  /// must not create a second row or wipe a name the user set.
+  Future<DeviceDto> registerDevice({required String deviceId, String? name});
+
+  Future<List<DeviceDto>> fetchDevices();
+}
+
 abstract class AuthApi {
   Future<AuthSession> login({required String email, required String password});
 
@@ -153,11 +163,20 @@ abstract class AuthApi {
 /// Bearer-token auth with single-flight refresh: on 401 the original
 /// request is retried exactly once after POST /auth/refresh rotates the
 /// token pair (T2 contract).
-class AuthSyncApiClient implements SyncApiClient, AuthApi {
-  AuthSyncApiClient({required this.transport, required this.tokens});
+class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
+  AuthSyncApiClient({
+    required this.transport,
+    required this.tokens,
+    this.deviceId = '',
+  });
 
   final SyncTransport transport;
   final SyncTokenStore tokens;
+
+  /// This install's id. Sent as `x-device-id` on every authed request so the
+  /// server can bind `AuthContext.deviceId` — the push body carries it too,
+  /// but the header is what covers non-push endpoints.
+  final String deviceId;
 
   Future<void>? _refreshInFlight;
 
@@ -165,6 +184,7 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi {
     final access = await tokens.readAccessToken();
     return {
       if (access != null) 'authorization': 'Bearer $access',
+      if (deviceId.isNotEmpty) 'x-device-id': deviceId,
       'content-type': 'application/json',
     };
   }
@@ -190,6 +210,31 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi {
       );
     }
     return response;
+  }
+
+  @override
+  Future<DeviceDto> registerDevice({
+    required String deviceId,
+    String? name,
+  }) async {
+    final response = await _send(
+      method: 'POST',
+      path: '/devices/register',
+      body: jsonEncode({'deviceId': deviceId, if (name != null) 'name': name}),
+    );
+    if (response.statusCode != 200) throw _toException(response);
+    return DeviceDto.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<List<DeviceDto>> fetchDevices() async {
+    final response = await _send(method: 'GET', path: '/devices');
+    if (response.statusCode != 200) throw _toException(response);
+    return DeviceListResponse.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    ).devices;
   }
 
   Future<void> _refresh() {

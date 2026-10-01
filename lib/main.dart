@@ -11,7 +11,7 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/platform_scroll_behavior.dart';
 import 'domain/providers/home_widget_provider.dart';
 import 'domain/providers/record_bus_provider.dart';
-import 'domain/providers/sync_client_provider.dart' show syncRuntimeProvider;
+import 'domain/providers/sync_client_provider.dart' show deviceRegistrationProvider, syncRuntimeProvider;
 import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
 import 'domain/providers/locale_provider.dart';
 import 'infrastructure/platform/alarm_service.dart';
@@ -81,6 +81,10 @@ class DaySparkApp extends ConsumerWidget {
     // Sync engine (outbox drain + SSE + connectivity triggers); no-op
     // until a server base URL and tokens are configured.
     ref.read(syncRuntimeProvider);
+    // Device registration rides the same lifetime: reports this install once
+    // it is logged in, so the account's device list is populated even for
+    // installs that signed in before this feature existed.
+    ref.watch(deviceRegistrationProvider);
     ref.watch(localeProvider);
     ref.read(localeProvider.notifier).load();
     final themeMode = ref.watch(themeModeProvider);

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:drift/drift.dart' show Value;
 
 import '../db.dart';
 
@@ -18,6 +19,7 @@ Future<void> storeOpResult(
   required String opId,
   required String userId,
   required OpResult result,
+  String deviceId = '',
 }) {
   return db
       .into(db.syncOps)
@@ -25,6 +27,8 @@ Future<void> storeOpResult(
         SyncOpsCompanion.insert(
           opId: opId,
           userId: userId,
+          // Empty for internal (MCP / migration) writes - they have no device.
+          deviceId: Value(deviceId),
           resultJson: jsonEncode(result.toJson()),
           createdAt: DateTime.now().toUtc(),
         ),

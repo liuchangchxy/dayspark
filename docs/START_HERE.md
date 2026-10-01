@@ -54,6 +54,20 @@
 - ~~pre-commit 扩门~~ ✅ analyze + 防篡改 + 硬编码路径；`check_whitespace.py` 进 CI
 - ~~`docs/qa/TEST_EVIDENCE_TEMPLATE.md`~~ ✅ 已建
 
+**H. P5 后台同步 + 设备注册（2026-10-01 起）**
+
+方案文件：`docs/superpowers/plans/2026-10-01-p5-background-sync.md`
+
+- ~~**P5-a 设备注册**~~ ✅ 2026-10-01 交付：
+  - 服务端 `POST /devices/register`（幂等 upsert，跨账号 deviceId 冲突 → 409）+ `GET /devices`
+  - `SyncOps` 加 `deviceId` 列（**schemaVersion 3 → 4 + 迁移**），`x-device-id` 头优先、body 回退
+  - 客户端 `x-device-id` 真的发出去了；登录后与每次冷启动各上报一次（**升级前已登录的设备也会被补登记**）
+  - 设置页「已连接设备」：名称 + 最后活跃
+  - **顺带补了服务端从没有过的迁移测试**（客户端早就有）——它跑在用户 NAS 上，那个库是全部数据
+- **P5-b仍未做**，已定方向：**C（后台拉取）+ D（回前台补同步）为主，A（FCM/APNs）做可选开关默认关**
+  - A 一旦启用，元数据（何时、哪台设备有变更）会经过 Google/Apple —— 开关文案必须先与用户确认
+  - C 是"尽力而为"：iOS 配额可能数小时一次，**不能向用户承诺"实时"**
+
 **尚未做（下一批候选）**：
 - ~~**`docs/GATES.md` 的变异实证**~~ ✅ 2026-10-01：补齐 8 条；剩 glibc 一条查出"环境缺失即静默放行"，已登记待修
 - ~~**AI 输出语言约束是启发式**~~ ✅ 2026-10-01：两处 prompt 抽成纯函数并显式透传语言（对话用硬约束、解析器额外要求不翻译用户的 summary），由 `ai_provider_test.dart` 断言；`resolveAppLocale` 收敛进 `locale_provider.dart` 供通知与 AI 共用

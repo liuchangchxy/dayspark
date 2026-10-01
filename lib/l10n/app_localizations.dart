@@ -1738,6 +1738,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tags group your todos so you can filter by area.'**
   String get tagEmptyHint;
+
+  /// No description provided for @connectedDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected devices'**
+  String get connectedDevices;
+
+  /// No description provided for @devicesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No devices have reported in yet.'**
+  String get devicesEmpty;
+
+  /// No description provided for @deviceUnknownName.
+  ///
+  /// In en, this message translates to:
+  /// **'Unnamed device'**
+  String get deviceUnknownName;
+
+  /// No description provided for @deviceLastSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'Last active {time}'**
+  String deviceLastSeen(String time);
+
+  /// No description provided for @devicesLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the device list'**
+  String get devicesLoadFailed;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

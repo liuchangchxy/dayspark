@@ -384,5 +384,10 @@
   "tagEmptyHint": "用标签给待办分类，之后可以按标签筛选。",
   "@tagEmptyHint": {
     "description": "用标签给待办分类，之后可以按标签筛选。"
-  }
+  },
+  "connectedDevices": "已连接设备",
+  "devicesEmpty": "还没有设备上报过。",
+  "deviceUnknownName": "未命名设备",
+  "deviceLastSeen": "最后活跃 {time}",
+  "devicesLoadFailed": "设备列表加载失败"
 }

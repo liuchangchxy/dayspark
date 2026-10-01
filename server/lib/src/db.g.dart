@@ -2712,6 +2712,18 @@ class $SyncOpsTable extends SyncOps with TableInfo<$SyncOpsTable, SyncOp> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _resultJsonMeta = const VerificationMeta(
     'resultJson',
   );
@@ -2735,7 +2747,13 @@ class $SyncOpsTable extends SyncOps with TableInfo<$SyncOpsTable, SyncOp> {
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [opId, userId, resultJson, createdAt];
+  List<GeneratedColumn> get $columns => [
+    opId,
+    userId,
+    deviceId,
+    resultJson,
+    createdAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2763,6 +2781,12 @@ class $SyncOpsTable extends SyncOps with TableInfo<$SyncOpsTable, SyncOp> {
       );
     } else if (isInserting) {
       context.missing(_userIdMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
     }
     if (data.containsKey('result_json')) {
       context.handle(
@@ -2797,6 +2821,10 @@ class $SyncOpsTable extends SyncOps with TableInfo<$SyncOpsTable, SyncOp> {
         DriftSqlType.string,
         data['${effectivePrefix}user_id'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
       resultJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}result_json'],
@@ -2817,11 +2845,13 @@ class $SyncOpsTable extends SyncOps with TableInfo<$SyncOpsTable, SyncOp> {
 class SyncOp extends DataClass implements Insertable<SyncOp> {
   final String opId;
   final String userId;
+  final String deviceId;
   final String resultJson;
   final DateTime createdAt;
   const SyncOp({
     required this.opId,
     required this.userId,
+    required this.deviceId,
     required this.resultJson,
     required this.createdAt,
   });
@@ -2830,6 +2860,7 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
     final map = <String, Expression>{};
     map['op_id'] = Variable<String>(opId);
     map['user_id'] = Variable<String>(userId);
+    map['device_id'] = Variable<String>(deviceId);
     map['result_json'] = Variable<String>(resultJson);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -2839,6 +2870,7 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
     return SyncOpsCompanion(
       opId: Value(opId),
       userId: Value(userId),
+      deviceId: Value(deviceId),
       resultJson: Value(resultJson),
       createdAt: Value(createdAt),
     );
@@ -2852,6 +2884,7 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
     return SyncOp(
       opId: serializer.fromJson<String>(json['opId']),
       userId: serializer.fromJson<String>(json['userId']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
       resultJson: serializer.fromJson<String>(json['resultJson']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -2862,6 +2895,7 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
     return <String, dynamic>{
       'opId': serializer.toJson<String>(opId),
       'userId': serializer.toJson<String>(userId),
+      'deviceId': serializer.toJson<String>(deviceId),
       'resultJson': serializer.toJson<String>(resultJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -2870,11 +2904,13 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
   SyncOp copyWith({
     String? opId,
     String? userId,
+    String? deviceId,
     String? resultJson,
     DateTime? createdAt,
   }) => SyncOp(
     opId: opId ?? this.opId,
     userId: userId ?? this.userId,
+    deviceId: deviceId ?? this.deviceId,
     resultJson: resultJson ?? this.resultJson,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -2882,6 +2918,7 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
     return SyncOp(
       opId: data.opId.present ? data.opId.value : this.opId,
       userId: data.userId.present ? data.userId.value : this.userId,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       resultJson: data.resultJson.present
           ? data.resultJson.value
           : this.resultJson,
@@ -2894,6 +2931,7 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
     return (StringBuffer('SyncOp(')
           ..write('opId: $opId, ')
           ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
           ..write('resultJson: $resultJson, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -2901,13 +2939,15 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
   }
 
   @override
-  int get hashCode => Object.hash(opId, userId, resultJson, createdAt);
+  int get hashCode =>
+      Object.hash(opId, userId, deviceId, resultJson, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is SyncOp &&
           other.opId == this.opId &&
           other.userId == this.userId &&
+          other.deviceId == this.deviceId &&
           other.resultJson == this.resultJson &&
           other.createdAt == this.createdAt);
 }
@@ -2915,12 +2955,14 @@ class SyncOp extends DataClass implements Insertable<SyncOp> {
 class SyncOpsCompanion extends UpdateCompanion<SyncOp> {
   final Value<String> opId;
   final Value<String> userId;
+  final Value<String> deviceId;
   final Value<String> resultJson;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const SyncOpsCompanion({
     this.opId = const Value.absent(),
     this.userId = const Value.absent(),
+    this.deviceId = const Value.absent(),
     this.resultJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2928,6 +2970,7 @@ class SyncOpsCompanion extends UpdateCompanion<SyncOp> {
   SyncOpsCompanion.insert({
     required String opId,
     required String userId,
+    this.deviceId = const Value.absent(),
     required String resultJson,
     required DateTime createdAt,
     this.rowid = const Value.absent(),
@@ -2938,6 +2981,7 @@ class SyncOpsCompanion extends UpdateCompanion<SyncOp> {
   static Insertable<SyncOp> custom({
     Expression<String>? opId,
     Expression<String>? userId,
+    Expression<String>? deviceId,
     Expression<String>? resultJson,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
@@ -2945,6 +2989,7 @@ class SyncOpsCompanion extends UpdateCompanion<SyncOp> {
     return RawValuesInsertable({
       if (opId != null) 'op_id': opId,
       if (userId != null) 'user_id': userId,
+      if (deviceId != null) 'device_id': deviceId,
       if (resultJson != null) 'result_json': resultJson,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -2954,6 +2999,7 @@ class SyncOpsCompanion extends UpdateCompanion<SyncOp> {
   SyncOpsCompanion copyWith({
     Value<String>? opId,
     Value<String>? userId,
+    Value<String>? deviceId,
     Value<String>? resultJson,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -2961,6 +3007,7 @@ class SyncOpsCompanion extends UpdateCompanion<SyncOp> {
     return SyncOpsCompanion(
       opId: opId ?? this.opId,
       userId: userId ?? this.userId,
+      deviceId: deviceId ?? this.deviceId,
       resultJson: resultJson ?? this.resultJson,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -2975,6 +3022,9 @@ class SyncOpsCompanion extends UpdateCompanion<SyncOp> {
     }
     if (userId.present) {
       map['user_id'] = Variable<String>(userId.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
     }
     if (resultJson.present) {
       map['result_json'] = Variable<String>(resultJson.value);
@@ -2993,6 +3043,7 @@ class SyncOpsCompanion extends UpdateCompanion<SyncOp> {
     return (StringBuffer('SyncOpsCompanion(')
           ..write('opId: $opId, ')
           ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
           ..write('resultJson: $resultJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -4624,6 +4675,7 @@ typedef $$SyncOpsTableCreateCompanionBuilder =
     SyncOpsCompanion Function({
       required String opId,
       required String userId,
+      Value<String> deviceId,
       required String resultJson,
       required DateTime createdAt,
       Value<int> rowid,
@@ -4632,6 +4684,7 @@ typedef $$SyncOpsTableUpdateCompanionBuilder =
     SyncOpsCompanion Function({
       Value<String> opId,
       Value<String> userId,
+      Value<String> deviceId,
       Value<String> resultJson,
       Value<DateTime> createdAt,
       Value<int> rowid,
@@ -4653,6 +4706,11 @@ class $$SyncOpsTableFilterComposer
 
   ColumnFilters<String> get userId => $composableBuilder(
     column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4686,6 +4744,11 @@ class $$SyncOpsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get resultJson => $composableBuilder(
     column: $table.resultJson,
     builder: (column) => ColumnOrderings(column),
@@ -4711,6 +4774,9 @@ class $$SyncOpsTableAnnotationComposer
 
   GeneratedColumn<String> get userId =>
       $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
   GeneratedColumn<String> get resultJson => $composableBuilder(
     column: $table.resultJson,
@@ -4751,12 +4817,14 @@ class $$SyncOpsTableTableManager
               ({
                 Value<String> opId = const Value.absent(),
                 Value<String> userId = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
                 Value<String> resultJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncOpsCompanion(
                 opId: opId,
                 userId: userId,
+                deviceId: deviceId,
                 resultJson: resultJson,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -4765,12 +4833,14 @@ class $$SyncOpsTableTableManager
               ({
                 required String opId,
                 required String userId,
+                Value<String> deviceId = const Value.absent(),
                 required String resultJson,
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => SyncOpsCompanion.insert(
                 opId: opId,
                 userId: userId,
+                deviceId: deviceId,
                 resultJson: resultJson,
                 createdAt: createdAt,
                 rowid: rowid,

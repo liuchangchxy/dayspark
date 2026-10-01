@@ -492,5 +492,17 @@
   "tagEmptyHint": "Tags group your todos so you can filter by area.",
   "@tagEmptyHint": {
     "description": "Tags group your todos so you can filter by area."
-  }
+  },
+  "connectedDevices": "Connected devices",
+  "devicesEmpty": "No devices have reported in yet.",
+  "deviceUnknownName": "Unnamed device",
+  "deviceLastSeen": "Last active {time}",
+  "@deviceLastSeen": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "devicesLoadFailed": "Couldn't load the device list"
 }

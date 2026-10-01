@@ -31,12 +31,23 @@ void registerSyncRoutes(
     }
 
     final userId = context.userId;
+    // The header is authoritative (it identifies the caller's install); the
+    // body field is the legacy path the client has always sent. Either way the
+    // id lands on the op ledger so "which device wrote this" is answerable.
+    final deviceId = context.deviceId ?? push.deviceId;
+    await _touchDevice(db, userId: userId, deviceId: deviceId);
     final results = <OpResult>[];
     for (final op in push.ops) {
       // Same per-op seam as internal/MCP writes: one transaction + LWW +
       // sync_ops + post-commit notify per op; request order is preserved.
       results.add(
-        await applyInternalOp(db: db, userId: userId, op: op, notify: notifySeq),
+        await applyInternalOp(
+          db: db,
+          userId: userId,
+          op: op,
+          notify: notifySeq,
+          deviceId: deviceId,
+        ),
       );
     }
     final seqAfter = await currentSeq(db, userId);
@@ -100,6 +111,22 @@ Future<List<RecordRow>> _changesSince(
         ..orderBy([(t) => OrderingTerm.asc(t.seq)])
         ..limit(limit))
       .get();
+}
+
+/// Best-effort liveness stamp. A push from an unregistered device still
+/// applies - registration is not a precondition for syncing, it only decides
+/// whether we have a row to stamp.
+Future<void> _touchDevice(
+  AppDatabase db, {
+  required String userId,
+  required String deviceId,
+}) async {
+  if (deviceId.isEmpty) {
+    return;
+  }
+  await (db.update(db.devices)
+        ..where((t) => t.deviceId.equals(deviceId) & t.userId.equals(userId)))
+      .write(DevicesCompanion(lastSeen: Value(DateTime.now().toUtc())));
 }
 
 int _parseQueryInt(Request request, String name, {required int fallback}) {

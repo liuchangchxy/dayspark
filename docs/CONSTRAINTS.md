@@ -506,3 +506,21 @@
 - **Why**: 「这个项目自己写的文件」这个集合，git 的答案才是权威。文件系统里混着构建产物、依赖源码、本机临时件——它们的生命周期与仓库不同，**判据建立在它们之上必然出现"本地绿 CI 红"或反之**
 - **推论**：任何"扫描源码文本"的守卫（规范即测试三件套）都适用本条；同时这也说明**变异/边界验证必须在干净检出上进行**，本地绿不构成证据
 - **Date**: 2026-10-01
+
+## Server / 服务端
+
+### 服务端 schema 迁移此前完全没有测试覆盖（2026-10-01 补齐）
+- 现象：`server/lib/src/db.dart` 从 v2 起就有 `onUpgrade` 分支，但 `server/test/` 下**没有任何迁移测试**——客户端 `test/data/local/database/migration/migration_test.dart` 早就有了
+- **Why 这条特别要紧**：服务端跑在用户自己的 NAS 上，那个 SQLite 文件里是他们全部的日程与待办，**没有备份可回**。迁移写错不是"功能不好用"，是数据没了
+- 对策：新增 `server/test/migration_test.dart`，用**裸 `sqlite3`** 把库倒回旧形状（删列 + `PRAGMA user_version` 回拨）再用当前代码打开，走真实升级路径
+- **做法上的讲究**：降级那一步刻意不借 drift 内部 API——借了就等于**用被测对象去搭被测环境**，测出来的是自证
+- **Date**: 2026-10-01
+
+## Contracts / 契约
+
+### 契约解析函数遇到缺失字段会抛 `_TypeError` 而不是 `FormatException`（2026-10-01）
+- 现象：`DeviceDto.fromJson({'lastSeen': ...})`（缺 `deviceId`）抛 `_TypeError: type 'Null' is not a subtype of type 'Object'`，而不是该包承诺的 `FormatException`
+- 根因：`_parseUtcDateTime(Object value, String field)` 的参数是**非空** `Object`，把 `json['lastSeen']`（可能为 null）直接传进去，在调用边界就炸了，`is! String` 那道判断根本没机会跑
+- 对策：先过 `_requireField<T>` 再进解析函数。`record_dto.dart` / `sync_api.dart` 里是同样写法但目前调用方都先 `_requireField` 过，所以没暴露——**新增字段时容易踩**
+- **Why**: 调用方按契约写 `try { ... } on FormatException` 会把 `_TypeError` 漏出去，变成"未捕获异常"而不是"这条数据格式不对"
+- **Date**: 2026-10-01

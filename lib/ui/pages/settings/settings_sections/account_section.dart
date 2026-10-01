@@ -193,6 +193,11 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
         title: Text(state.email!),
         subtitle: Text(_statusText(l, status)),
       ),
+      ListTile(
+        leading: const Icon(CupertinoIcons.device_phone_portrait),
+        title: Text(l.connectedDevices),
+        onTap: () => _showDevicesDialog(context),
+      ),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
@@ -255,6 +260,58 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     }
     final state = ref.read(accountAuthProvider).valueOrNull;
     if (state?.email != null) _passwordController.clear();
+  }
+
+  /// 已连接设备：列出本账号注册过的设备与最后活跃时间。
+  ///
+  /// 加载失败与"一台都没有"必须分开表达——把失败画成空白会让人以为设备丢了。
+  void _showDevicesDialog(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.connectedDevices),
+        content: SizedBox(
+          width: 360,
+          child: Consumer(
+            builder: (ctx, ref, _) {
+              final devices = ref.watch(connectedDevicesProvider);
+              return switch (devices) {
+                AsyncData(:final value) when value.isEmpty => Text(l.devicesEmpty),
+                AsyncData(:final value) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final d in value)
+                        ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(CupertinoIcons.device_laptop, size: 20),
+                          title: Text(d.name ?? l.deviceUnknownName),
+                          subtitle: Text(
+                            l.deviceLastSeen(
+                              DateFormatters.formatRelativeTime(d.lastSeen, l),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                AsyncError() => Text(l.devicesLoadFailed),
+                _ => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+              };
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.ok),
+          ),
+        ],
+      ),
+    );
   }
 
   String _statusText(AppLocalizations l, SyncStatus status) {

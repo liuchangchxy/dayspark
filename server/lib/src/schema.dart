@@ -94,6 +94,11 @@ class Records extends Table {
 class SyncOps extends Table {
   TextColumn get opId => text()();
   TextColumn get userId => text()();
+  // Which device submitted this op. Device attribution is per-op history, so it
+  // lives on the op ledger rather than on Records (which holds current state and
+  // already carries lastOpId for the "who wrote last" question). Empty for ops
+  // replayed from before this column existed.
+  TextColumn get deviceId => text().withDefault(const Constant(''))();
   TextColumn get resultJson => text()();
   DateTimeColumn get createdAt => dateTime()();
 

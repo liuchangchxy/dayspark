@@ -5,6 +5,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dayspark/core/utils/device_label.dart';
+import 'package:dayspark/domain/providers/account_provider.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/sync/foreground_sync_poller.dart';
 import 'package:dayspark/domain/sync/sse_listener.dart';
@@ -47,6 +50,7 @@ final syncEngineProvider = Provider<SyncEngine?>((ref) {
   final client = AuthSyncApiClient(
     transport: DioSyncTransport(baseUrl: settings.baseUrl!),
     tokens: tokens,
+    deviceId: settings.deviceId,
   );
   final engine = SyncEngine(
     db: db,
@@ -145,3 +149,51 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
 final syncStatusProvider = NotifierProvider<SyncStatusNotifier, SyncStatus>(
   SyncStatusNotifier.new,
 );
+
+/// 设备注册：登录后与每次冷启动各上报一次（服务端幂等，重复上报不建第二行）。
+///
+/// 为什么挂在 provider 而不是只塞进登录成功那一行：只挂登录路径的话，
+/// **升级前就已经登录过的设备永远不会被登记**——而他们恰恰是最该出现在
+/// 「已连接设备」里的那批。
+///
+/// 注册失败不冒泡：它不该影响同步，下一次冷启动会再试。
+final deviceRegistrationProvider = Provider<void>((ref) {
+  final settings = ref.watch(syncSettingsProvider).valueOrNull;
+  if (settings == null || settings.baseUrl == null) return;
+  // Non-null email is the logged-in signal (account_provider).
+  final email = ref.watch(accountAuthProvider).valueOrNull?.email;
+  if (email == null) return;
+
+  final client = AuthSyncApiClient(
+    transport: DioSyncTransport(baseUrl: settings.baseUrl!),
+    tokens: ref.watch(syncTokenStoreProvider),
+    deviceId: settings.deviceId,
+  );
+  unawaited(() async {
+    try {
+      await client.registerDevice(
+        deviceId: settings.deviceId,
+        name: deviceDisplayName(),
+      );
+    } catch (e) {
+      debugPrint('device register failed: $e');
+    }
+  }());
+});
+
+/// 本账号已注册的设备列表，供设置页展示。
+///
+/// 只在已登录时构建；未配置服务器/未登录返回空表而不是抛错——设置页不该
+/// 因为没配好后端就崩。
+final connectedDevicesProvider = FutureProvider<List<DeviceDto>>((ref) async {
+  final settings = ref.watch(syncSettingsProvider).valueOrNull;
+  if (settings == null || settings.baseUrl == null) return const [];
+  final email = ref.watch(accountAuthProvider).valueOrNull?.email;
+  if (email == null) return const [];
+  final client = AuthSyncApiClient(
+    transport: DioSyncTransport(baseUrl: settings.baseUrl!),
+    tokens: ref.watch(syncTokenStoreProvider),
+    deviceId: settings.deviceId,
+  );
+  return client.fetchDevices();
+});

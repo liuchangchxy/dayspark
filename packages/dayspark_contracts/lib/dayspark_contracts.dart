@@ -1,3 +1,4 @@
+export 'src/device_dto.dart' show DeviceDto, DeviceListResponse;
 export 'src/errors.dart';
 export 'src/record_dto.dart' show RecordType, SyncRecord;
 export 'src/sync_api.dart'

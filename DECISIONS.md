@@ -277,3 +277,16 @@
   3. `build-macos` 等构建 job 偶发失败先按偶发处理，但要用 `gh run rerun --failed` 证明确属偶发（2026-10-01 有一次 `cdn.cocoapods.org` DNS 失败，重跑即过）。
 - **复核触发条件**：若将来增加第二个协作者，应重新评估 (a)/(b)——那时"自己批不了自己的 PR"不再是障碍。
 - **影响范围**：仅流程约定，无代码改动。落点：本条目 + `CLAUDE.md` CI 规则段。
+
+### [2026-10-01] P5-a 设备注册交付 + P5-b 选型（C+D 为主，A 可选）
+- **触发背景**：P5 是产品定位里唯一未兑现的核心承诺——「App 一关就收不到远端变更」。摸底发现地基全在（outbox / LWW / 幂等 / SSE / 单写缝），缺的是两件：设备身份没落地、后台无通道。
+- **诊断（实测）**：客户端 `deviceId` 早已生成并随 push body 上报；服务端 `Devices` 表也早已建好——**但没有任何一处写入它**，`applyInternalOp` 不接收 deviceId，`x-device-id` 头客户端从不发。所谓"devices 表半出生"，指的就是这个。
+- **P5-a 核心决策**：
+  1. 设备归属落在 **`SyncOps.deviceId`** 而非 `Records`：`Records` 是"当前状态"（已有 `lastOpId` 表达"谁最后写的"），设备归属是**逐 op 的历史**，SyncOps 本就是 append-only 的 op 账本。**代价**：服务端 schemaVersion 3 → 4，需要迁移。
+  2. `x-device-id` 头优先、push body 回退：头覆盖所有认证端点，body 是客户端一直在用的老路径，两者都留。
+  3. 注册挂在 **provider**（登录态 + baseUrl 就绪即上报）而不是只塞进登录成功那一行——只挂登录的话，**升级前已经登录过的设备永远不会被登记**，而它们恰恰最该出现在设备列表里。
+  4. 跨账号 deviceId 冲突返回 **409 不重绑**：deviceId 按安装铸造、永不复用；静默重绑会让一个账号认领另一个账号的设备行——将来那行上会挂唤醒通道，值得偷。
+- **P5-b 选型（用户拍板）**：**C（后台拉取：WorkManager / BGAppRefreshTask）+ D（回前台补同步）为主；A（FCM/APNs）做可选开关、默认关。** 否决 B（自托管推送 UnifiedPush/ntfy）：Android 好但 iOS 无对应实现，只覆盖一半平台还要多维护一条通道。A 不是不能做，而是会把「何时、哪台设备有变更」这类元数据交给 Google/Apple——**这个判断该由用户做**，所以默认关并在设置里明确告知。
+- **据实披露的边界**：C 是"尽力而为"，iOS `BGAppRefreshTask` 由系统决定配额，可能数小时一次，**UI 不得承诺"实时"**；桌面三平台本就常驻，D 基本够用；Web 关掉标签页同样只能靠 D。
+- **顺带补齐**：服务端此前**没有任何迁移测试**（客户端早有 `migration_test.dart`），而 v4 是服务端第一次被迫迁移。已补 `server/test/migration_test.dart`：用裸 sqlite3 把库倒回 v3 形状再打开，验数据保留、新列补上且旧行为空串（不凭空造归属）、迁移后写入仍可用、重复打开幂等。
+- **影响范围**：`server/lib/src/{schema,db,routes/devices,routes/sync,sync/idempotency,data/record_writer}.dart`、`server/lib/server.dart`、`packages/dayspark_contracts/lib/src/device_dto.dart` + barrel、`lib/core/utils/device_label.dart`、`lib/domain/sync/sync_api_client.dart`、`lib/domain/providers/sync_client_provider.dart`、`lib/main.dart`、`lib/ui/pages/settings/settings_sections/account_section.dart`、`lib/l10n/*.arb`（+5 键）；新增测试 4 个文件。**版本号未动**（发版另行确认）。
