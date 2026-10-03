@@ -115,6 +115,12 @@
 
 ## UI / 界面
 
+### Computer Use 截图：区分窗口观察与截图文件落盘
+- CUA 返回的应用窗口画面只能证明“观察到了窗口”，不能证明项目目录已生成截图文件；交付截图前必须检查目标目录并打开核验图像内容。
+- macOS 截图必须选择目标应用窗口，不得把全屏截图误当成应用截图；如系统截图权限/保存流程失败，应明确报告失败，不以未经验证的替代方式宣称完成。
+- **Why**: Todo 对标调研中曾误存全桌面图并误报截图进度；随后 ScreenCaptureKit 因终端无屏幕录制权限失败，说明观察能力与文件截图能力不是一回事。
+- **Date**: 2026-10-01
+
 ### 主题色不能用 const 引用运行时值
 - `SizedBox(child: CircularProgressIndicator(color: Theme.of(context)...))` 不能加 const
 - **Why**: Theme.of(context) 是运行时值，const 构造函数要求编译期常量
