@@ -80,3 +80,8 @@ skills-lock.json
 # curl -sL -o /tmp/taste.tgz https://codeload.github.com/Leonxlnx/taste-skill/tar.gz/refs/heads/main
 .claude/skills/design-taste-frontend/
 .claude/skills/redesign-existing-projects/
+
+# 对标调研（Todo清单）：仅正文文档入库，截图与中间产物不入公开仓库
+research/todo-qingdan/screenshots/
+research/todo-qingdan/tools/scratch/
+research/todo-qingdan/tools/*.png
