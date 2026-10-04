@@ -604,6 +604,7 @@ void main() {
       String allocationState = 'active',
       String? allocationStartAt,
       String? allocationEndAt,
+      String? occurrenceId,
       Map<String, Object?> todoFields = const {},
       bool unresolved = false,
       bool allocationTombstone = false,
@@ -632,7 +633,7 @@ void main() {
         type: RecordType.taskAllocation,
         fields: {
           'todoSyncId': todoId,
-          'occurrenceId': null,
+          'occurrenceId': occurrenceId,
           'startAt': allocationStartAt ?? iso(busyStart),
           'endAt': allocationEndAt ?? iso(busyEnd),
           'state': allocationState,
@@ -666,11 +667,19 @@ void main() {
             ))
             .write(row.copyWith(deleted: true));
       }
-      final starts = await slotStarts(
-        from: DateTime.utc(2030, 1, 7, 9),
-        to: DateTime.utc(2030, 1, 7, 12),
+      final intervals = await getBusyIntervals(
+        app.db,
+        userId: userId,
+        from: busyStart,
+        to: busyEnd,
       );
-      return starts.contains(busyEnd);
+      return intervals.any(
+        (interval) => interval.sources.any(
+          (source) =>
+              source.type == BusyIntervalSource.taskAllocation &&
+              source.id == 'allocation-$todoId',
+        ),
+      );
     }
 
     test('returns slots inside working hours that avoid busy events', () async {
@@ -861,18 +870,108 @@ void main() {
       },
     );
 
-    test(
-      'repeating Todo allocation is excluded in the current phase',
-      () async {
-        expect(
-          await allocationBlocks(
-            todoId: 'todo-repeating',
-            todoFields: {'rrule': 'RRULE:FREQ=DAILY'},
-          ),
-          isFalse,
-        );
-      },
-    );
+    test('unknownLegacy recurring Todo rejects an unbound allocation', () async {
+      await expectLater(
+        allocationBlocks(
+          todoId: 'todo-repeating',
+          todoFields: {'rrule': 'RRULE:FREQ=DAILY'},
+        ),
+        throwsA(isA<TestFailure>()),
+      );
+    });
+
+    test('valid and orphan occurrence allocations retain defensive busy time', () async {
+      final series = <String, Object?>{
+        'rrule': 'FREQ=DAILY;COUNT=3',
+        'recurrenceSpec': {
+          'anchor': {
+            'source': 'start',
+            'valueType': 'dateTime',
+            'value': '2030-01-07T10:00:00',
+          },
+          'timeZone': 'UTC',
+          'rrule': 'FREQ=DAILY;COUNT=3',
+        },
+        'recurrenceRevision': 1,
+        'recurrenceLegacyState': 'knownZoned',
+      };
+      const occurrenceId = 'v1:DT:2030-01-07T10:00:00@UTC';
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-valid-occurrence',
+          todoFields: series,
+          occurrenceId: occurrenceId,
+        ),
+        isTrue,
+      );
+
+      await _seed(app, userId, 'todo-orphan-occurrence',
+          type: RecordType.todo,
+          fields: {
+            'summary': 'Orphan series',
+            'status': 'NEEDS-ACTION',
+            'deletedAt': null,
+            ...series,
+          });
+      await _seed(app, userId, 'allocation-todo-orphan-occurrence',
+          type: RecordType.taskAllocation,
+          fields: {
+            'todoSyncId': 'todo-orphan-occurrence',
+            'occurrenceId': occurrenceId,
+            'startAt': iso(busyStart),
+            'endAt': iso(busyEnd),
+            'state': 'active',
+            'createdAt': iso(busyStart.subtract(const Duration(days: 1))),
+            'updatedAt': iso(busyStart.subtract(const Duration(days: 1))),
+          });
+      final seriesRow = (await _row(app, userId, 'todo-orphan-occurrence'))!;
+      final changed = jsonDecode(seriesRow.payloadJson) as Map<String, dynamic>
+        ..['rrule'] = 'FREQ=WEEKLY;BYDAY=TU;COUNT=3'
+        ..['recurrenceSpec'] = {
+          'anchor': {
+            'source': 'start',
+            'valueType': 'dateTime',
+            'value': '2030-01-07T10:00:00',
+          },
+          'timeZone': 'UTC',
+          'rrule': 'FREQ=WEEKLY;BYDAY=TU;COUNT=3',
+        }
+        ..['recurrenceRevision'] = 2;
+      await (app.db.update(app.db.records)
+            ..where((row) => row.userId.equals(userId) &
+                row.id.equals('todo-orphan-occurrence')))
+          .write(seriesRow.copyWith(payloadJson: jsonEncode(changed)));
+      final orphanIntervals = await getBusyIntervals(
+        app.db,
+        userId: userId,
+        from: busyStart,
+        to: busyEnd,
+      );
+      expect(
+        orphanIntervals.any((interval) => interval.sources.any(
+              (source) => source.id == 'allocation-todo-orphan-occurrence',
+            )),
+        isTrue,
+      );
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-cancelled-orphan',
+          todoFields: series,
+          occurrenceId: occurrenceId,
+          allocationState: 'cancelledByUser',
+        ),
+        isFalse,
+      );
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-invalidated-orphan',
+          todoFields: series,
+          occurrenceId: occurrenceId,
+          allocationState: 'invalidatedByCompletion',
+        ),
+        isFalse,
+      );
+    });
 
     test(
       'historical_block: completed Todo keeps a past allocation busy in history',

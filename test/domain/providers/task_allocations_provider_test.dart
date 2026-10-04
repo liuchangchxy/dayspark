@@ -8,6 +8,9 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 void main() {
   late AppDatabase db;
@@ -571,6 +574,77 @@ void main() {
       expect(items, hasLength(1));
       expect(items.single.allocation.id, activeId);
       expect(items.single.todo.summary, 'Prepare slides');
+    },
+  );
+
+  test(
+    'Calendar shows valid occurrence allocations and hides an orphan after edit',
+    () async {
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2026, 10, 5, 9, 0, 0),
+        ),
+        timeZone: 'UTC',
+        rrule: 'FREQ=WEEKLY;BYDAY=MO;COUNT=4',
+      );
+      final todoId = await RecordScope.run(
+        db,
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Weekly planning',
+            rrule: Value(spec.rule.canonical),
+          ),
+          recurrenceSpec: spec,
+        ),
+      );
+      final occurrenceId = OccurrenceId.forNominal(
+        spec.anchor.value,
+        spec.timeZone,
+      ).value;
+      final allocationId = await container.read(createTaskAllocationProvider)(
+        todoId: todoId,
+        occurrenceId: occurrenceId,
+        startAt: DateTime.utc(2026, 10, 5, 20),
+        endAt: DateTime.utc(2026, 10, 5, 21),
+      );
+      final start = DateTime.utc(2026, 10, 4).millisecondsSinceEpoch;
+      final end = DateTime.utc(2026, 10, 6).millisecondsSinceEpoch;
+      final rangeKey = '$start-$end';
+      expect(
+        (await container.read(
+          taskAllocationsInDateRangeProvider(rangeKey).future,
+        )).map((item) => item.allocation.id),
+        [allocationId],
+      );
+
+      await container.read(updateTodoProvider)(
+        todoId,
+        const TodosCompanion(),
+        recurrenceSpec: RecurrenceSpec.parse(
+          anchor: spec.anchor,
+          timeZone: 'Asia/Tokyo',
+          rrule: spec.rule.canonical,
+        ),
+        replaceRecurrence: true,
+      );
+      container.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
+      expect(
+        await container.read(
+          taskAllocationsInDateRangeProvider(rangeKey).future,
+        ),
+        isEmpty,
+      );
+      expect(
+        await (db.select(db.taskAllocations)
+              ..where((row) => row.id.equals(allocationId)))
+            .getSingle()
+            .then((row) => row.occurrenceId),
+        occurrenceId,
+      );
     },
   );
 }

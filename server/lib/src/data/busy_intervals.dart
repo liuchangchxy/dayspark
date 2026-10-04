@@ -109,7 +109,7 @@ Future<List<BusyInterval>> getBusyIntervals(
         final todo = jsonDecode(todoRow.payloadJson) as Map<String, dynamic>;
         if (todo['deletedAt'] != null ||
             todo['status'] == 'CANCELLED' ||
-            todo['rrule'] != null) {
+            (todo['rrule'] != null && payload['occurrenceId'] == null)) {
           continue;
         }
         if (todo['status'] == 'COMPLETED') {

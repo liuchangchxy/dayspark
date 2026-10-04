@@ -95,6 +95,36 @@ abstract class AppLocalizations {
     Locale('zh')
   ];
 
+  /// No description provided for @selectTodoOccurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'Select occurrence'**
+  String get selectTodoOccurrence;
+
+  /// No description provided for @legacyRecurrenceRequiresConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm this recurrence before scheduling an occurrence.'**
+  String get legacyRecurrenceRequiresConfirmation;
+
+  /// No description provided for @unsupportedRecurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'This recurrence rule cannot be expanded for scheduling.'**
+  String get unsupportedRecurrence;
+
+  /// No description provided for @noOccurrencesAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No occurrences are available in the next 90 days.'**
+  String get noOccurrencesAvailable;
+
+  /// No description provided for @orphanTaskAllocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Its recurring occurrence no longer exists. The scheduled time is retained.'**
+  String get orphanTaskAllocation;
+
   /// No description provided for @appName.
   ///
   /// In en, this message translates to:

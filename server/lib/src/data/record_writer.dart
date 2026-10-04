@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:drift/drift.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -175,6 +176,7 @@ Future<OpResult> _processUpsert(
           code: errConflict,
         );
       }
+      await _validateOccurrenceBinding(db, userId, allocation);
       payload = (await _enforceAllocationState(
         db,
         userId,
@@ -244,6 +246,10 @@ Future<OpResult> _processUpsert(
       );
     }
     final existingPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+    final previousAllocation = TaskAllocationPayload.fromJson(existingPayload);
+    if (previousAllocation.occurrenceId != allocation.occurrenceId) {
+      await _validateOccurrenceBinding(db, userId, allocation);
+    }
     final existingState = existingPayload['state'];
     final state =
         existingState == 'cancelledByUser' ||
@@ -306,6 +312,39 @@ Future<OpResult> _processUpsert(
     code: recurrenceConflict ? errConflict : null,
     serverRecord: toSyncRecord(updated),
   );
+}
+
+Future<void> _validateOccurrenceBinding(
+  AppDatabase db,
+  String userId,
+  TaskAllocationPayload allocation,
+) async {
+  final parent = await _selectRecord(db, userId, allocation.todoSyncId);
+  if (parent == null) return;
+  if (parent.type != RecordType.todo.wireName || parent.deleted) {
+    throw const FormatException('TaskAllocation parent is unavailable');
+  }
+  final todo = jsonDecode(parent.payloadJson) as Map<String, dynamic>;
+  final recurrence = TodoRecurrenceDto.fromTodoPayload(todo);
+  final spec = recurrence.spec;
+  if (spec == null) {
+    if (recurrence.legacyState == RecurrenceLegacyState.unknownLegacy ||
+        todo['rrule'] != null) {
+      throw const FormatException('legacy recurrence must be confirmed');
+    }
+    if (allocation.occurrenceId != null) {
+      throw const FormatException('ordinary Todo cannot bind an occurrence');
+    }
+    return;
+  }
+  final occurrenceId = allocation.occurrenceId;
+  if (occurrenceId == null) {
+    throw const FormatException('recurring Todo requires occurrenceId');
+  }
+  tzdata.initializeTimeZones();
+  if (!isOccurrenceValidForSpec(spec, occurrenceId)) {
+    throw const FormatException('occurrenceId is not in the current series');
+  }
 }
 
 const _recurrenceKeys = <String>{

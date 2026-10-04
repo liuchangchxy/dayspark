@@ -1,4 +1,9 @@
 {
+  "selectTodoOccurrence": "Select occurrence",
+  "legacyRecurrenceRequiresConfirmation": "Confirm this recurrence before scheduling an occurrence.",
+  "unsupportedRecurrence": "This recurrence rule cannot be expanded for scheduling.",
+  "noOccurrencesAvailable": "No occurrences are available in the next 90 days.",
+  "orphanTaskAllocation": "Its recurring occurrence no longer exists. The scheduled time is retained.",
   "@@locale": "en",
   "appName": "DaySpark",
   "calendar": "Calendar",

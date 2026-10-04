@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 final class TaskAllocationWriter {
@@ -13,9 +15,33 @@ final class TaskAllocationWriter {
     required int todoId,
     required DateTime startAt,
     required DateTime endAt,
+    String? occurrenceId,
   }) async {
     final range = _canonicalRange(startAt, endAt);
-    await _requireSchedulableTodo(db, todoId);
+    final todo = await _requireSchedulableTodo(db, todoId);
+    final recurring = todo.rrule != null && todo.rrule!.isNotEmpty;
+    if (recurring && todo.recurrenceLegacyState != 'knownZoned') {
+      throw StateError('legacy recurrence must be confirmed');
+    }
+    if (recurring && occurrenceId == null) {
+      throw StateError('Recurring Todo requires an occurrenceId.');
+    }
+    if (!recurring && occurrenceId != null) {
+      throw StateError('Ordinary Todo cannot bind an occurrenceId.');
+    }
+    if (recurring) {
+      final recurrence = TodoRecurrence.fromTodo(todo);
+      if (recurrence.isUnknownLegacy) {
+        throw StateError('legacy recurrence must be confirmed');
+      }
+      if (recurrence.spec == null) {
+        throw StateError('Unsupported recurrence cannot be scheduled.');
+      }
+      if (occurrenceId == null ||
+          !isOccurrenceStillValidForSeries(todo, occurrenceId)) {
+        throw StateError('Occurrence does not belong to the current series.');
+      }
+    }
     final now = DateTime.now();
     final id = await db
         .into(db.taskAllocations)
@@ -24,6 +50,7 @@ final class TaskAllocationWriter {
             todoId: Value(todoId),
             startAt: range.$1,
             endAt: range.$2,
+            occurrenceId: Value(occurrenceId),
             createdAt: Value(now),
             updatedAt: Value(now),
           ),
@@ -135,7 +162,7 @@ final class TaskAllocationWriter {
     return (canonicalStart, canonicalEnd);
   }
 
-  static Future<void> _requireSchedulableTodo(
+  static Future<Todo> _requireSchedulableTodo(
     AppDatabase db,
     int todoId,
   ) async {
@@ -148,8 +175,6 @@ final class TaskAllocationWriter {
         todo.status == 'CANCELLED') {
       throw StateError('TaskAllocation requires an active Todo.');
     }
-    if (todo.rrule != null && todo.rrule!.isNotEmpty) {
-      throw StateError('Recurring Todos cannot be scheduled in Phase 1.');
-    }
+    return todo;
   }
 }

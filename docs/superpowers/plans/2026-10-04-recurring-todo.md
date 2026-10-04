@@ -1,6 +1,6 @@
 # Recurring Todo — Implementation Plan
 
-Status: **R1 shared recurrence core complete; R2 persistence and atomic sync complete**
+Status: **R1, R2 and R3 complete locally; R4 not started**
 Contract: `SPEC.md` §3.1.1
 Source audit: `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`
 
@@ -59,6 +59,15 @@ Acceptance includes migration cases for ordinary/start-only/due-only/start+due/c
 - Ensure old occurrence keys remain historical/orphaned after series RRULE/anchor/timezone edits or recurrence removal; do not rebind.
 - Extend client/server allocation validation and Calendar projection; maintain existing busy-time completion/trash/tombstone behavior.
 - Add tests for dueDate independence, start-vs-due anchoring, date-only prompt, unknown legacy, edited series orphaning, and old-device payload handling.
+
+R3 completion on 2026-10-05:
+
+- Added `TodoOccurrence` as a finite-window read-only projection over the shared engine; DATE values retain null resolved instants. `expandTodoOccurrences` distinguishes ordinary, unknown legacy, unsupported, and expanded outcomes.
+- Added shared `isOccurrenceValidForSpec`; client writer and server sync validation use it. Repeating allocations require a valid non-null occurrence key; unknown legacy is rejected; ordinary Todos retain null keys.
+- Calendar projection includes valid recurring allocations and hides orphan keys. Todo detail keeps every allocation visible and marks orphan associations. Active orphan intervals remain busy; cancelled/completion-invalidated and unresolved items do not.
+- Todo arrange UI exposes a bounded 90-day occurrence picker and then a separately selected actual execution interval. No recurrence occurrence is projected as a timed block by itself.
+- Due projection is intentionally absent: R2 has no relative local due semantics, and UTC duration subtraction would be DST-unsafe.
+- Verification: root analyze clean; root Flutter suite 435 passed; recurrence 19, contracts 52, server 233, wrapper 9, CLI 20 passed; two-device occurrence identity round-trip passed. Exact final stage gates are recorded in the R3 completion report and DECISIONS.
 
 ## Phase 5 — Acceptance and rollout
 

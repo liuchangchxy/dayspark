@@ -1,4 +1,9 @@
 {
+  "selectTodoOccurrence": "选择重复事项",
+  "legacyRecurrenceRequiresConfirmation": "请先确认此重复规则，再安排某一次重复事项。",
+  "unsupportedRecurrence": "此重复规则暂不支持展开和安排。",
+  "noOccurrencesAvailable": "未来 90 天内没有可选的重复事项。",
+  "orphanTaskAllocation": "对应的重复事项已不存在，原安排时间仍予保留。",
   "@@locale": "zh",
   "appName": "灵光",
   "calendar": "日历",

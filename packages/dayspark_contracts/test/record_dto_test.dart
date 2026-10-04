@@ -154,7 +154,7 @@ void main() {
     test('roundtrips only the first-version domain fields', () {
       final original = TaskAllocationPayload(
         todoSyncId: 'todo-uuid',
-        occurrenceId: null,
+        occurrenceId: 'v1:DT:2026-10-05T09:00:00@Asia/Shanghai',
         startAt: DateTime.utc(2026, 10, 7, 9, 0, 0, 123),
         endAt: DateTime.utc(2026, 10, 7, 10),
         state: TaskAllocationState.active,

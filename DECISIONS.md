@@ -362,3 +362,14 @@
 - **代价**：旧重复 Todo 在用户确认 timezone 与 anchor interpretation 前不可编辑 recurrence 字段或进入正式 occurrence 语义；同 revision 的并发编辑可能由固定字典序选中一端，用户需在之后再次编辑才能覆盖。R2 不含 occurrence UI、Calendar expansion、Allocation occurrence binding 或 recurring Todo MCP。
 - **对应 SPEC 章节**：SPEC.md §3.1.1、§3.2。
 - **影响范围**：Todo schema/writer、sync contracts/client/server、ICS legacy import、migration tests、architecture guard 与 recurrence implementation plan。
+
+### [2026-10-05] R3 Occurrence projection 与 TaskAllocation 绑定
+- **触发背景**：R2 已有稳定 RecurrenceSpec 与共享引擎，但尚无 occurrence projection、Allocation 验证、Calendar 投影或用户安排入口。
+- **核心决策**：Occurrence 仅由 `knownZoned` RecurrenceSpec 在显式有限窗口中按共享引擎确定性生成，不新增 occurrence 表；Allocation identity 通过 shared `isOccurrenceValidForSpec` 验证，实际 `[startAt,endAt)` 独立于 occurrence nominal time；每个 occurrence 可有多个 Allocation。Series 变化只派生 orphan 状态，不改 key、不重绑、不删除。正常 Calendar 隐藏 orphan，Todo 详情保留并提示；仍 active 且区间有效的 orphan 继续占 busy time。DATE occurrence 无 resolved instant，用户安排时另选执行时段。服务端同步写入在父系列已到达时验证 occurrence；unresolved parent 保留到端侧解析。
+- **Rulings 裁定披露**：
+  - occurrence due projection 暂缺 → 不投影 due；判错代价：用户暂时看不到重复 occurrence 的 deadline，避免 DST 跨越时把错误的固定 UTC duration 当作 due。
+  - 未来 orphan 不进入正常 Calendar、但详情可发现且 active 继续占 busy → 判错代价：系列修改后旧安排仍占据空闲时间，需用户显式取消/重新安排。
+  - unknownLegacy 显示安排入口但阻止选择并提示需确认，不在 R3 做确认向导 → 判错代价：legacy 用户需要到后续 R4 才能完成正式转换。
+  - occurrence selector 默认 90 日、最多 100 项 → 判错代价：窗口外 occurrence 需要稍后再安排，且极密集规则会因显式上限失败而不是静默截断。
+- **对应 SPEC 章节**：SPEC.md §3.1.1、§3.1 规则 3/6/8/10/13/14。
+- **实施与验证**：`docs/superpowers/plans/2026-10-04-recurring-todo.md`；package/root/contracts/server/wrapper/CLI 门禁均通过；root Flutter 436 tests、server 233 tests，另有真实双设备 TaskAllocation occurrenceId round-trip。

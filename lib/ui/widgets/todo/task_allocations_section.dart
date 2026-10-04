@@ -4,7 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 class TaskAllocationsSection extends ConsumerWidget {
   const TaskAllocationsSection({super.key, required this.todo});
@@ -12,7 +16,6 @@ class TaskAllocationsSection extends ConsumerWidget {
   final Todo todo;
 
   bool get _canSchedule =>
-      todo.rrule == null &&
       todo.deletedAt == null &&
       todo.status != 'COMPLETED' &&
       todo.status != 'CANCELLED';
@@ -55,6 +58,9 @@ class TaskAllocationsSection extends ConsumerWidget {
             return Column(
               children: allocations.map((allocation) {
                 final active = allocation.state == 'active';
+                final orphan =
+                    allocation.occurrenceId != null &&
+                    !_isCurrentOccurrence(allocation.occurrenceId!);
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(CupertinoIcons.time),
@@ -63,7 +69,11 @@ class TaskAllocationsSection extends ConsumerWidget {
                     '${DateFormatters.formatTime(allocation.startAt)} – '
                     '${DateFormatters.formatTime(allocation.endAt)}',
                   ),
-                  subtitle: active ? null : Text(l.cancelledTaskAllocation),
+                  subtitle: orphan
+                      ? Text(l.orphanTaskAllocation)
+                      : active
+                      ? null
+                      : Text(l.cancelledTaskAllocation),
                   trailing: active
                       ? IconButton(
                           tooltip: l.cancelTaskAllocation,
@@ -85,6 +95,68 @@ class TaskAllocationsSection extends ConsumerWidget {
   Future<void> _create(BuildContext context, WidgetRef ref) async {
     final l = AppLocalizations.of(context)!;
     final now = DateTime.now();
+    String? occurrenceId;
+    if (todo.rrule != null && todo.rrule!.isNotEmpty) {
+      final freshTodo =
+          await (ref
+                  .read(databaseProvider)
+                  .select(ref.read(databaseProvider).todos)
+                ..where((row) => row.id.equals(todo.id)))
+              .getSingle();
+      if (!context.mounted) return;
+      final TodoOccurrenceExpansion expansion;
+      try {
+        expansion = expandTodoOccurrences(
+          freshTodo,
+          startInclusive: now,
+          endExclusive: now.add(const Duration(days: 90)),
+          maxOccurrences: 100,
+        );
+      } on Object catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l.error('$error'))));
+        }
+        return;
+      }
+      if (expansion.status != TodoOccurrenceExpansionStatus.expanded) {
+        if (context.mounted) {
+          final message = switch (expansion.status) {
+            TodoOccurrenceExpansionStatus.requiresLegacyConfirmation =>
+              l.legacyRecurrenceRequiresConfirmation,
+            TodoOccurrenceExpansionStatus.unsupported =>
+              l.unsupportedRecurrence,
+            _ => l.noOccurrencesAvailable,
+          };
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+        }
+        return;
+      }
+      if (expansion.occurrences.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.noOccurrencesAvailable)));
+        return;
+      }
+      final selected = await showDialog<TodoOccurrence>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          title: Text(l.selectTodoOccurrence),
+          children: [
+            for (final occurrence in expansion.occurrences)
+              SimpleDialogOption(
+                onPressed: () => Navigator.of(dialogContext).pop(occurrence),
+                child: Text(_occurrenceLabel(occurrence)),
+              ),
+          ],
+        ),
+      );
+      if (selected == null || !context.mounted) return;
+      occurrenceId = selected.occurrenceId;
+    }
     final initialStart = DateTime(now.year, now.month, now.day, now.hour + 1);
     final date = await showDatePicker(
       context: context,
@@ -124,6 +196,7 @@ class TaskAllocationsSection extends ConsumerWidget {
         todoId: todo.id,
         startAt: startAt,
         endAt: endAt,
+        occurrenceId: occurrenceId,
       );
     } catch (error) {
       if (context.mounted) {
@@ -131,6 +204,27 @@ class TaskAllocationsSection extends ConsumerWidget {
           context,
         ).showSnackBar(SnackBar(content: Text(l.error('$error'))));
       }
+    }
+  }
+
+  String _occurrenceLabel(TodoOccurrence occurrence) {
+    final nominal = occurrence.nominalAnchor;
+    if (nominal is LocalDate) return nominal.canonical;
+    final instant = occurrence.resolvedStartInstant;
+    return instant == null
+        ? nominal.canonical
+        : '${nominal.canonical} (${DateFormatters.formatDate(instant.toLocal())} '
+              '${DateFormatters.formatTime(instant.toLocal())})';
+  }
+
+  bool _isCurrentOccurrence(String occurrenceId) {
+    try {
+      return !TodoRecurrence.fromTodo(todo).isUnknownLegacy &&
+          isOccurrenceStillValidForSeries(todo, occurrenceId);
+    } on FormatException {
+      return false;
+    } on RecurrenceRuleException {
+      return false;
     }
   }
 

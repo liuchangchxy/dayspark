@@ -9,6 +9,21 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get selectTodoOccurrence => '选择重复事项';
+
+  @override
+  String get legacyRecurrenceRequiresConfirmation => '请先确认此重复规则，再安排某一次重复事项。';
+
+  @override
+  String get unsupportedRecurrence => '此重复规则暂不支持展开和安排。';
+
+  @override
+  String get noOccurrencesAvailable => '未来 90 天内没有可选的重复事项。';
+
+  @override
+  String get orphanTaskAllocation => '对应的重复事项已不存在，原安排时间仍予保留。';
+
+  @override
   String get appName => '灵光';
 
   @override

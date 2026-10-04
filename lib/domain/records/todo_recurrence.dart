@@ -6,6 +6,12 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 
 bool _recurrenceZoneDataReady = false;
 
+void ensureTodoRecurrenceTimeZonesInitialized() {
+  if (_recurrenceZoneDataReady) return;
+  tzdata.initializeTimeZones();
+  _recurrenceZoneDataReady = true;
+}
+
 enum TodoRecurrenceLegacyState { knownZoned, unknownLegacy }
 
 extension TodoRecurrenceLegacyStateWire on TodoRecurrenceLegacyState {
@@ -209,10 +215,7 @@ final class TodoRecurrence {
 }
 
 void _validateKnownZone(String value) {
-  if (!_recurrenceZoneDataReady) {
-    tzdata.initializeTimeZones();
-    _recurrenceZoneDataReady = true;
-  }
+  ensureTodoRecurrenceTimeZonesInitialized();
   try {
     tz.getLocation(value);
   } on tz.LocationNotFoundException {

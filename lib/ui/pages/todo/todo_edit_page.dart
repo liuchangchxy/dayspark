@@ -303,10 +303,8 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
               contentPadding: EdgeInsets.zero,
             ),
           ],
-          if (_rrule == null) ...[
-            const SizedBox(height: 8),
-            TaskAllocationsSection(todo: _todo),
-          ],
+          const SizedBox(height: 8),
+          TaskAllocationsSection(todo: _todo),
           const SizedBox(height: 16),
 
           // Priority

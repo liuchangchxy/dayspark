@@ -4,6 +4,9 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 final taskAllocationsForTodoProvider = StreamProvider.autoDispose
     .family<List<TaskAllocation>, int>((ref, todoId) {
@@ -41,8 +44,7 @@ final taskAllocationsInDateRangeProvider = StreamProvider.autoDispose
                   start.toUtc().millisecondsSinceEpoch,
                 ) &
                 db.todos.deletedAt.isNull() &
-                db.todos.status.isNotIn(const ['CANCELLED']) &
-                db.todos.rrule.isNull(),
+                db.todos.status.isNotIn(const ['CANCELLED']),
           );
       return query.watch().map(
         (rows) => rows
@@ -50,12 +52,17 @@ final taskAllocationsInDateRangeProvider = StreamProvider.autoDispose
               final allocation = row.readTable(db.taskAllocations);
               final todo = row.readTable(db.todos);
               final completedAt = todo.completedAt;
+              final recurring = todo.rrule != null && todo.rrule!.isNotEmpty;
+              final validOccurrence = !recurring
+                  ? allocation.occurrenceId == null
+                  : allocation.occurrenceId != null &&
+                        _isValidOccurrence(todo, allocation.occurrenceId!);
               final passesCompletionBoundary =
                   todo.status != 'COMPLETED' ||
                   (completedAt != null &&
                       allocation.startAt.toUtc().millisecondsSinceEpoch <
                           completedAt.toUtc().millisecondsSinceEpoch);
-              return passesCompletionBoundary
+              return passesCompletionBoundary && validOccurrence
                   ? TaskAllocationCalendarItem(
                       allocation: allocation,
                       todo: todo,
@@ -67,26 +74,43 @@ final taskAllocationsInDateRangeProvider = StreamProvider.autoDispose
       );
     });
 
+bool _isValidOccurrence(Todo todo, String occurrenceId) {
+  try {
+    return !TodoRecurrence.fromTodo(todo).isUnknownLegacy &&
+        isOccurrenceStillValidForSeries(todo, occurrenceId);
+  } on FormatException {
+    return false;
+  } on RecurrenceRuleException {
+    return false;
+  }
+}
+
 final createTaskAllocationProvider =
     Provider<
       Future<int> Function({
         required int todoId,
         required DateTime startAt,
         required DateTime endAt,
+        String? occurrenceId,
       })
     >((ref) {
       final db = ref.read(databaseProvider);
-      return ({required todoId, required startAt, required endAt}) =>
-          RecordScope.run(
-            db,
-            (tx) => TaskAllocationWriter.create(
-              db,
-              tx,
-              todoId: todoId,
-              startAt: startAt,
-              endAt: endAt,
-            ),
-          );
+      return ({
+        required todoId,
+        required startAt,
+        required endAt,
+        occurrenceId,
+      }) => RecordScope.run(
+        db,
+        (tx) => TaskAllocationWriter.create(
+          db,
+          tx,
+          todoId: todoId,
+          startAt: startAt,
+          endAt: endAt,
+          occurrenceId: occurrenceId,
+        ),
+      );
     });
 
 final rescheduleTaskAllocationProvider =

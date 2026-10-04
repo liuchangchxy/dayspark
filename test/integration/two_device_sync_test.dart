@@ -12,7 +12,9 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:dayspark_server/server.dart' as srv;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../domain/sync/sync_test_support.dart';
 
@@ -236,6 +238,8 @@ void main() {
   late _Device b;
   var registerSeq = 0;
 
+  setUpAll(tzdata.initializeTimeZones);
+
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('dayspark_e2e_');
     app = srv.AppServer(
@@ -303,6 +307,65 @@ void main() {
     expect(onA.serverRev, 1);
     _expectConverged(onA, onB, reason: 'case 1 create');
   });
+
+  test(
+    'occurrence allocation round trips its series and occurrence ids',
+    () async {
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2035, 5, 1, 9, 0, 0),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=WEEKLY;COUNT=2',
+      );
+      final todoId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: a.calendarId,
+            summary: 'occurrence sync',
+            rrule: Value(spec.rule.canonical),
+          ),
+          recurrenceSpec: spec,
+        ),
+      );
+      final todo = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      final occurrenceId = OccurrenceId.forNominal(
+        spec.anchor.value,
+        spec.timeZone,
+      ).value;
+      final allocationId = await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.create(
+          a.db,
+          tx,
+          todoId: todoId,
+          occurrenceId: occurrenceId,
+          startAt: DateTime.utc(2035, 4, 30, 20),
+          endAt: DateTime.utc(2035, 4, 30, 21),
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final allocationA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(allocationId))).getSingle();
+      final todoB = await (b.db.select(
+        b.db.todos,
+      )..where((row) => row.syncId.equals(todo.syncId!))).getSingle();
+      final allocationB = await (b.db.select(
+        b.db.taskAllocations,
+      )..where((row) => row.syncId.equals(allocationA.syncId!))).getSingle();
+      expect(todoB.syncId, todo.syncId);
+      expect(allocationB.todoSyncId, todo.syncId);
+      expect(allocationB.occurrenceId, occurrenceId);
+    },
+  );
 
   test(
     'TaskAllocation create and completion invalidation converge over sync',

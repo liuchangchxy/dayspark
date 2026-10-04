@@ -9,6 +9,21 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get selectTodoOccurrence => 'Select occurrence';
+
+  @override
+  String get legacyRecurrenceRequiresConfirmation => 'Confirm this recurrence before scheduling an occurrence.';
+
+  @override
+  String get unsupportedRecurrence => 'This recurrence rule cannot be expanded for scheduling.';
+
+  @override
+  String get noOccurrencesAvailable => 'No occurrences are available in the next 90 days.';
+
+  @override
+  String get orphanTaskAllocation => 'Its recurring occurrence no longer exists. The scheduled time is retained.';
+
+  @override
   String get appName => 'DaySpark';
 
   @override
