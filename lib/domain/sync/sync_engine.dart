@@ -200,6 +200,14 @@ class SyncEngine {
       final serverCapabilities = (await api.fetchServerCapabilities())
           .capabilities
           .toSet();
+      final taskAllocationEnabled = serverCapabilities.contains(
+        SyncCapability.taskAllocationV1,
+      );
+      final priorTaskAllocationEnabled = await cursorStore
+          .readTaskAllocationCapabilityState();
+      final capabilityBackfill =
+          taskAllocationEnabled && priorTaskAllocationEnabled != true;
+      final roundCursor = capabilityBackfill ? 0 : cursor;
 
       // --- push ---
       final entries = await (db.select(
@@ -218,7 +226,7 @@ class SyncEngine {
         PushRequest(
           deviceId: deviceId,
           ops: ops,
-          cursor: cursor,
+          cursor: roundCursor,
           capabilities: const [SyncCapability.taskAllocationV1],
         ),
       );
@@ -288,6 +296,13 @@ class SyncEngine {
           break;
         }
       }
+
+      // Commit only after the complete push/pull round succeeds. If the
+      // capability was newly enabled, the round started at zero and scanned
+      // the server's current snapshot (including tombstones).
+      await cursorStore.writeTaskAllocationCapabilityState(
+        taskAllocationEnabled,
+      );
 
       _backoffSeconds = 1;
       _emit(

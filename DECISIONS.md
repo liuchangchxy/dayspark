@@ -323,6 +323,7 @@
   3. 为 Todo hard-delete op 增加 `hardDelete: true` tombstone payload marker；历史无标记 tombstone 仍进回收站。只有显式标记才在新客户端物理删除 Todo 及关联 Allocation。Todo 永久删除/清空回收站先捕获 Allocation sync identity、再在同一 DB transaction 内 enqueue Allocation 与 Todo tombstone，最后删本地行。
   4. TaskAllocation 保留 `todoSyncId` 为逻辑父引用，`todoId` 可空；父项先到时允许 unresolved 行存在，Calendar 查询通过父 Todo inner join 隐藏，父项到达后按 UUID 解析绑定。
   5. 服务端对已完成父 Todo 的 Allocation upsert 强制执行 UTC 毫秒完成边界；父 Todo 完成时同事务为未来 active Allocation 写失效状态。服务端对 terminal `state` 保持单调，避免迟到改期激活取消/失效项；hard-delete 父项对相关 Allocation 写 tombstone，后到 upsert 不得复活。
+  6. 全局 seq cursor 在能力关闭时仍可越过隐藏 Allocation，因此客户端另存 capability 扫描标记；首次发现或重新发现 `task_allocation_v1` 时从 seq 0 回扫当前记录快照（含 tombstone），整轮成功后才记录已扫描。这样旧游标不会漏掉历史 Allocation，服务端保留当前 tombstone 使回扫可幂等收敛。
 - **并发边界**：字段级 LWW 继续合并独立时间字段与单字段状态；终态单调与 completed-parent invariant 是领域约束，不依赖客户端时钟或请求抵达“正常顺序”。
 - **对应 SPEC 章节**：SPEC.md §3.5 规则 6、§4.1.1、§4.2、§5。
 - **实施计划**：`docs/superpowers/plans/2026-10-04-task-allocation.md` Phase 2。

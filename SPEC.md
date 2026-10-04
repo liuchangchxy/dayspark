@@ -173,6 +173,8 @@ TaskAllocation 同步使用 `RecordType.task_allocation` 和正式 capability `t
 
 capability 过滤先按原始 `records.seq` 读取有界页，再过滤响应记录；`nextCursor` 总推进到该原始页最后一条记录的 seq，`hasMore` 也按原始页判断。Push piggyback watermark 同理推进到最后扫描 seq，即使该页的记录因 capability 未返回。这样被过滤的记录不会卡住旧客户端游标，Event/Todo 后续页仍可到达。SSE 只发送 cursor 信号，不携带记录类型或 payload。
 
+客户端必须把“服务端是否支持 `task_allocation_v1`”与全局 seq cursor 的推进状态关联处理：如果曾在能力关闭/不可发现期间推进过 cursor，随后首次发现服务端支持 Allocation，必须从 seq 0 回扫服务端当前记录快照（含 tombstone），再保存能力已启用标记。回扫按当前记录状态幂等应用；服务端必须保留墓碑作为当前记录状态，避免重放已永久删除记录时复活本地数据。若一轮同步失败，不得提交能力已启用标记，以便下轮继续回扫。能力再次不可用时清除该标记；下次恢复支持时重新回扫。
+
 TaskAllocation payload 只包含 `todoSyncId`、可空 `occurrenceId`、`startAt`、`endAt`、`state`、`createdAt`、`updatedAt`；记录 UUID、rev、deleted、serverTs 留在同步 envelope。父 Todo 尚未到达时，客户端保留带 `todoSyncId` 的 unresolved Allocation，Calendar 与忙碌投影隐藏 unresolved 项；父项到达后按 sync UUID 绑定，不以本地整数 ID 猜测。
 
 永久删除 Todo 的 delete op 显式带 `hardDelete: true` tombstone 标记；不带标记的历史 Todo tombstone 继续按回收站软删兼容。单项永久删除与清空回收站必须在删本地 Allocation/Todo 行之前，捕获每个已同步 Allocation/Todo 的 sync UUID 和 rev，并在同一事务 enqueue 对应 tombstone。远端收到标记 tombstone 后物理清除本地 Todo 与其 Allocation；这与普通 Todo 软删（未标记 tombstone，Allocation 保留并由父项状态隐藏）区分。不得依赖 SQLite FK cascade 生成同步删除事实。

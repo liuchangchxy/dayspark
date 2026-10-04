@@ -9,6 +9,7 @@ import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 class MemoryCursorStore implements SyncCursorStore {
   int? value;
+  bool? taskAllocationCapabilityEnabled = true;
 
   MemoryCursorStore([this.value]);
 
@@ -21,8 +22,18 @@ class MemoryCursorStore implements SyncCursorStore {
   }
 
   @override
+  Future<bool?> readTaskAllocationCapabilityState() async =>
+      taskAllocationCapabilityEnabled;
+
+  @override
+  Future<void> writeTaskAllocationCapabilityState(bool enabled) async {
+    taskAllocationCapabilityEnabled = enabled;
+  }
+
+  @override
   Future<void> clear() async {
     value = null;
+    taskAllocationCapabilityEnabled = null;
   }
 }
 

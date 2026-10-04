@@ -692,6 +692,30 @@ void main() {
     },
   );
 
+  test(
+    'newly enabled TaskAllocation capability rewinds the shared cursor once',
+    () async {
+      cursors.value = 50;
+      cursors.taskAllocationCapabilityEnabled = false;
+      api.onPush = (request) => PushResponse(
+        results: const [],
+        piggyback: const [],
+        cursor: request.cursor ?? 0,
+      );
+      api.onPull = (cursor) {
+        expect(cursor, 0, reason: 'backfill starts at the beginning');
+        return PullResponse(changes: const [], nextCursor: 60, hasMore: false);
+      };
+
+      await buildEngine().start();
+
+      expect(api.pushCalls.single.cursor, 0);
+      expect(api.pullCalls, [0]);
+      expect(cursors.value, 60);
+      expect(cursors.taskAllocationCapabilityEnabled, isTrue);
+    },
+  );
+
   test('push after an applied round sends only fields dirty vs last '
       'server truth', () async {
     cursors.value = 0;
