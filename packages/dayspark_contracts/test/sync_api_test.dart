@@ -4,33 +4,30 @@ import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:test/test.dart';
 
 PushOp _sampleOp() => const PushOp(
-      opId: 'op-1',
-      op: OpType.upsert,
-      recordId: 'rec-1',
-      type: RecordType.event,
-      fields: {'title': 'Meeting', 'rev': 3},
-      baseRev: 2,
-    );
+  opId: 'op-1',
+  op: OpType.upsert,
+  recordId: 'rec-1',
+  type: RecordType.event,
+  fields: {'title': 'Meeting', 'rev': 3},
+  baseRev: 2,
+);
 
-PushRequest _sampleRequest() => PushRequest(
-      deviceId: 'device-a',
-      ops: [_sampleOp()],
-      cursor: 42,
-    );
+PushRequest _sampleRequest() =>
+    PushRequest(deviceId: 'device-a', ops: [_sampleOp()], cursor: 42);
 
 OpResult _sampleResult() => OpResult(
-      opId: 'op-1',
-      status: OpStatus.conflict,
-      serverRecord: SyncRecord(
-        id: 'rec-1',
-        type: RecordType.event,
-        payload: {'title': 'Server wins'},
-        rev: 5,
-        deleted: false,
-        serverTs: DateTime.utc(2026, 9, 23, 12),
-      ),
-      code: errConflict,
-    );
+  opId: 'op-1',
+  status: OpStatus.conflict,
+  serverRecord: SyncRecord(
+    id: 'rec-1',
+    type: RecordType.event,
+    payload: {'title': 'Server wins'},
+    rev: 5,
+    deleted: false,
+    serverTs: DateTime.utc(2026, 9, 23, 12),
+  ),
+  code: errConflict,
+);
 
 void main() {
   _deviceContractTests();
@@ -89,7 +86,11 @@ void main() {
       expect(
         () => PushOp.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('opId')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('opId'),
+          ),
         ),
       );
     });
@@ -101,7 +102,11 @@ void main() {
       expect(
         () => PushOp.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('op')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('op'),
+          ),
         ),
       );
     });
@@ -113,7 +118,11 @@ void main() {
       expect(
         () => PushOp.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('type')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('type'),
+          ),
         ),
       );
     });
@@ -145,6 +154,30 @@ void main() {
       expect(restored.cursor, isNull);
     });
 
+    test('capabilities roundtrip and unknown capabilities are preserved', () {
+      const capabilities = [
+        SyncCapability.taskAllocationV1,
+        'future_capability_v9',
+      ];
+      final original = PushRequest(
+        deviceId: 'device-a',
+        ops: const [],
+        capabilities: capabilities,
+      );
+
+      final json = original.toJson();
+      final restored = PushRequest.fromJson(json);
+
+      expect(json['capabilities'], capabilities);
+      expect(restored.capabilities, capabilities);
+    });
+
+    test('legacy request without capabilities defaults to none', () {
+      final json = _sampleRequest().toJson()..remove('capabilities');
+
+      expect(PushRequest.fromJson(json).capabilities, isEmpty);
+    });
+
     test('ignores unknown JSON keys', () {
       final json = _sampleRequest().toJson();
       json['traceId'] = 'abc';
@@ -160,7 +193,11 @@ void main() {
       expect(
         () => PushRequest.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('deviceId')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('deviceId'),
+          ),
         ),
       );
     });
@@ -171,7 +208,11 @@ void main() {
       expect(
         () => PushRequest.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('ops')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('ops'),
+          ),
         ),
       );
     });
@@ -180,10 +221,7 @@ void main() {
       final json = _sampleRequest().toJson();
       (json['ops'] as List).first['op'] = 'destroy';
 
-      expect(
-        () => PushRequest.fromJson(json),
-        throwsA(isA<FormatException>()),
-      );
+      expect(() => PushRequest.fromJson(json), throwsA(isA<FormatException>()));
     });
   });
 
@@ -201,10 +239,7 @@ void main() {
     });
 
     test('roundtrip with null optionals', () {
-      const original = OpResult(
-        opId: 'op-3',
-        status: OpStatus.applied,
-      );
+      const original = OpResult(opId: 'op-3', status: OpStatus.applied);
 
       final restored = OpResult.fromJson(original.toJson());
 
@@ -219,7 +254,11 @@ void main() {
       expect(
         () => OpResult.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('status')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('status'),
+          ),
         ),
       );
     });
@@ -231,7 +270,11 @@ void main() {
       expect(
         () => OpResult.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('status')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('status'),
+          ),
         ),
       );
     });
@@ -264,7 +307,10 @@ void main() {
         'rejected',
       );
       expect(
-        const OpResult(opId: 'd', status: OpStatus.duplicate).toJson()['status'],
+        const OpResult(
+          opId: 'd',
+          status: OpStatus.duplicate,
+        ).toJson()['status'],
         'duplicate',
       );
     });
@@ -297,21 +343,30 @@ void main() {
     });
 
     test('missing cursor throws FormatException naming the field', () {
-      final json = PushResponse(results: const [], piggyback: const [], cursor: 1)
-          .toJson()
-        ..remove('cursor');
+      final json = PushResponse(
+        results: const [],
+        piggyback: const [],
+        cursor: 1,
+      ).toJson()..remove('cursor');
 
       expect(
         () => PushResponse.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('cursor')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('cursor'),
+          ),
         ),
       );
     });
 
     test('ignores unknown JSON keys', () {
-      final json = PushResponse(results: const [], piggyback: const [], cursor: 5)
-          .toJson();
+      final json = PushResponse(
+        results: const [],
+        piggyback: const [],
+        cursor: 5,
+      ).toJson();
       json['extra'] = 1;
 
       final restored = PushResponse.fromJson(json);
@@ -347,34 +402,49 @@ void main() {
     });
 
     test('missing nextCursor throws FormatException naming the field', () {
-      final json = PullResponse(changes: const [], nextCursor: 1, hasMore: false)
-          .toJson()
-        ..remove('nextCursor');
+      final json = PullResponse(
+        changes: const [],
+        nextCursor: 1,
+        hasMore: false,
+      ).toJson()..remove('nextCursor');
 
       expect(
         () => PullResponse.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('nextCursor')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('nextCursor'),
+          ),
         ),
       );
     });
 
     test('missing hasMore throws FormatException naming the field', () {
-      final json = PullResponse(changes: const [], nextCursor: 1, hasMore: false)
-          .toJson()
-        ..remove('hasMore');
+      final json = PullResponse(
+        changes: const [],
+        nextCursor: 1,
+        hasMore: false,
+      ).toJson()..remove('hasMore');
 
       expect(
         () => PullResponse.fromJson(json),
         throwsA(
-          isA<FormatException>().having((e) => e.message, 'message', contains('hasMore')),
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('hasMore'),
+          ),
         ),
       );
     });
 
     test('ignores unknown JSON keys', () {
-      final json = PullResponse(changes: const [], nextCursor: 2, hasMore: false)
-          .toJson();
+      final json = PullResponse(
+        changes: const [],
+        nextCursor: 2,
+        hasMore: false,
+      ).toJson();
       json['serverVersion'] = '1.0.0';
 
       final restored = PullResponse.fromJson(json);
@@ -428,10 +498,7 @@ void _deviceContractTests() {
     test('round-trips a list', () {
       final original = DeviceListResponse(
         devices: [
-          DeviceDto(
-            deviceId: 'a',
-            lastSeen: DateTime.utc(2026, 1, 1),
-          ),
+          DeviceDto(deviceId: 'a', lastSeen: DateTime.utc(2026, 1, 1)),
           DeviceDto(
             deviceId: 'b',
             name: 'laptop',

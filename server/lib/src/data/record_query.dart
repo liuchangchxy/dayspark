@@ -67,15 +67,16 @@ Future<RecordQueryPage> queryRecords(
   String? cursor,
   int limit = recordQueryDefaultLimit,
 }) async {
-  final pageLimit =
-      limit < 1 ? 1 : (limit > recordQueryMaxLimit ? recordQueryMaxLimit : limit);
+  final pageLimit = limit < 1
+      ? 1
+      : (limit > recordQueryMaxLimit ? recordQueryMaxLimit : limit);
 
   final base = <String>['user_id = ?'];
   final baseVariables = <Variable>[Variable.withString(userId)];
 
   if (type != null) {
     base.add('type = ?');
-    baseVariables.add(Variable.withString(type.name));
+    baseVariables.add(Variable.withString(type.wireName));
   }
 
   const trashExpression =
@@ -83,8 +84,10 @@ Future<RecordQueryPage> queryRecords(
   if (trashedOnly) {
     base.add('($trashExpression)');
   } else if (!includeTrashed) {
-    base.add('deleted = 0 AND json_extract(payload_json, '
-        r"'$.deletedAt') IS NULL");
+    base.add(
+      'deleted = 0 AND json_extract(payload_json, '
+      r"'$.deletedAt') IS NULL",
+    );
   }
 
   final outer = <String>[];
@@ -125,7 +128,8 @@ Future<RecordQueryPage> queryRecords(
   }
 
   final where = outer.isEmpty ? '' : ' WHERE ${outer.join(' AND ')}';
-  final sql = 'WITH r AS ('
+  final sql =
+      'WITH r AS ('
       'SELECT *, '
       "${_padIso('startDt')} AS _start, "
       "${_padIso('endDt')} AS _end, "
@@ -161,8 +165,7 @@ Future<RecordQueryPage> queryRecords(
   final location = _tzLocation(timezone);
   final start = tz.TZDateTime(location, year, month, day).toUtc();
   final next = DateTime.utc(year, month, day).add(const Duration(days: 1));
-  final end =
-      tz.TZDateTime(location, next.year, next.month, next.day).toUtc();
+  final end = tz.TZDateTime(location, next.year, next.month, next.day).toUtc();
   return (start, end);
 }
 
@@ -176,10 +179,8 @@ tz.Location _tzLocation(String timezone) {
   return tz.getLocation(timezone);
 }
 
-String _escapeLike(String value) => value
-    .replaceAll(r'\', r'\\')
-    .replaceAll('%', r'\%')
-    .replaceAll('_', r'\_');
+String _escapeLike(String value) =>
+    value.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');
 
 // Canonical UTC ISO-8601 with the fraction pinned to exactly 6 digits so
 // lexicographic order == chronological order against _padIso output.

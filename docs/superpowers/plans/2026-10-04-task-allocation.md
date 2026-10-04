@@ -82,3 +82,33 @@ schemaVersion 从 9 升至 10。新建 `TaskAllocations` 表，Todo 外键采用
 Phase 1 验收：migration、创建/改期/取消、dueDate 不变量、重复 Todo 拒绝、Calendar active 投影及交互测试通过；`dart analyze .` 零 issue，`flutter test` 全量通过。当前不包含跨设备同步或 busy-time 验收。
 
 以上后续阶段均需先按 SPEC 补足相应实施 brief 和测试，不得作为 Phase 1 的隐含交付。
+
+## Phase 2 — 跨设备同步
+
+### 协议与兼容
+
+- `RecordType.task_allocation` 与正式 payload DTO 进入 `dayspark_contracts`；payload 只包含 `todoSyncId`、可空 `occurrenceId`、`startAt`、`endAt`、`state`、`createdAt`、`updatedAt`。record UUID/rev/deleted/serverTs 仍属于同步 envelope。
+- capability 使用 `task_allocation_v1`。客户端先请求 `/sync/capabilities`；旧服务端 404 按不支持处理，仍可同步 Event/Todo，但 TaskAllocation outbox 留存。push body 与 pull query 均发送 capability；未知 capability 忽略。
+- Server 对旧客户端按原始 seq 有界分页，再过滤 TaskAllocation；pull cursor/hasMore 和 push piggyback watermark 根据原始扫描页推进，避免隐藏记录卡住 cursor。
+
+### 本地同步数据模型与生命周期
+
+- 升级客户端 schema：TaskAllocation 增加独立 `syncId`、`serverRev`、`todoSyncId`；本地 `todoId` 可空以表示 unresolved 父项。
+- Allocation 的 create/reschedule/cancel/completion invalidation 写入 outbox；远端 apply 只更新本地状态与 RecordScope，不回灌 outbox。Allocation upsert 前确保父 Todo 获得 sync identity 和 outbox upsert。
+- 单项永久删除与清空回收站在删除行前捕获 Allocation/Todo sync UUID 和 rev，并在同一 RecordScope transaction 写 tombstone outbox；远端无标记的历史 Todo tombstone 保持回收站兼容，`hardDelete:true` 才执行物理删除。
+- 父 Todo 未到时，Allocation 以 `todoSyncId` 保留 unresolved；Calendar inner join 隐藏。Todo 到达时绑定本地 id，并按 completion boundary 补做本地失效。
+
+### 服务端不变量与并发收敛
+
+- 通用 records 表继续承载 Allocation，不加关系表。服务端校验完整合并 payload、状态枚举、UUID 父引用和 UTC 毫秒时间区间。
+- 用户取消与完成失效状态均单调终态；字段级 LWW 可合并并发改期字段，但后到的 active 状态不能覆盖 terminal state。
+- Todo 完成 op 与未来 active Allocation 失效在服务端一个领域写入组内生成 records seq；之后到达的 Allocation upsert 再按当前 Todo 状态 enforce invariant。Todo hard-delete 同事务 tombstone 其所有 Allocation；后续 upsert 不复活。
+- 不对外增加 MCP Allocation 写工具，不改 `find_free_time`/busy-time。
+
+### 验收矩阵
+
+- Contracts：RecordType/Allocation payload 往返、capability 往返/未知值、缺省 capability 的旧请求兼容。
+- Server：capability 下发与缺省过滤、被过滤后 cursor 推进、Event/Todo 正常、payload 校验、LWW/终态与完成边界、hard tombstone。
+- Client：各本地行为 outbox、远端 apply 无回声、remote tombstone、unresolved 父绑定、父完成后到的 Allocation 失效。
+- 两端 E2E：创建、改期、取消、完成失效、父+Allocation 永久删除、Allocation 先到、旧 capability 客户端同步 Event/Todo。
+- 门禁：`dart analyze .`、`flutter test`、contracts 与 server 全量测试、CLI/MCP 回归、`git diff --check`。

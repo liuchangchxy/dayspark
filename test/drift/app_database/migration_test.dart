@@ -9,6 +9,7 @@ import 'generated/schema.dart';
 import 'generated/schema_v8.dart' as v8;
 import 'generated/schema_v9.dart' as v9;
 import 'generated/schema_v10.dart' as v10;
+import 'generated/schema_v11.dart' as v11;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -193,15 +194,15 @@ void main() {
   });
 
   test(
-    'real v9 to v10 migration preserves records, indexes and FK behavior',
+    'real v9 to v11 migration preserves records, indexes and FK behavior',
     () async {
       final now = DateTime.utc(2026, 10, 4, 12).millisecondsSinceEpoch ~/ 1000;
       final trigger = now + 3600;
       await verifier.testWithDataIntegrity(
         oldVersion: 9,
-        newVersion: 10,
+        newVersion: 11,
         createOld: v9.DatabaseAtV9.new,
-        createNew: v10.DatabaseAtV10.new,
+        createNew: v11.DatabaseAtV11.new,
         openTestedDatabase: AppDatabase.new,
         createItems: (batch, oldDb) {
           batch.insert(
@@ -292,14 +293,14 @@ void main() {
           );
         },
         validateItems: (newDb) async {
-          expect(newDb.schemaVersion, 10);
+          expect(newDb.schemaVersion, 11);
           final calendars = await newDb.select(newDb.calendars).get();
           final events = await newDb.select(newDb.events).get();
           final todos = await newDb.select(newDb.todos).get();
           final reminders = await newDb.select(newDb.reminders).get();
           expect(
             calendars.single,
-            const v10.CalendarsData(
+            const v11.CalendarsData(
               id: 1,
               name: 'Work',
               color: '#123456',
@@ -310,7 +311,7 @@ void main() {
           );
           expect(
             events.single,
-            v10.EventsData(
+            v11.EventsData(
               id: 1,
               calendarId: 1,
               summary: 'v9 event',
@@ -329,7 +330,7 @@ void main() {
           );
           expect(
             todos.single,
-            v10.TodosData(
+            v11.TodosData(
               id: 1,
               calendarId: 1,
               summary: 'v9 todo',
@@ -352,7 +353,7 @@ void main() {
           );
           expect(
             reminders.single,
-            v10.RemindersData(
+            v11.RemindersData(
               id: 1,
               parentType: 'todo',
               parentId: 1,
@@ -362,12 +363,12 @@ void main() {
           );
           expect(
             (await newDb.select(newDb.tags).get()).single,
-            const v10.TagsData(id: 1, name: 'preserved', color: '#654321'),
+            const v11.TagsData(id: 1, name: 'preserved', color: '#654321'),
           );
           expect(await newDb.select(newDb.eventTags).get(), hasLength(1));
           expect(await newDb.select(newDb.todoTags).get(), hasLength(1));
           expect(await newDb.select(newDb.attachments).get(), [
-            v10.AttachmentsData(
+            v11.AttachmentsData(
               id: 1,
               parentType: 'todo',
               parentId: 1,
@@ -386,6 +387,8 @@ void main() {
               .get();
           expect(indexes.map((row) => row.read<String>('name')).toSet(), {
             'task_allocations_todo_id',
+            'task_allocations_todo_sync_id',
+            'task_allocations_sync_id',
             'task_allocations_time_range',
           });
           final todoId = todos.single.id;
@@ -402,8 +405,8 @@ void main() {
           final allocationId = await newDb
               .into(newDb.taskAllocations)
               .insert(
-                v10.TaskAllocationsCompanion.insert(
-                  todoId: todoId,
+                v11.TaskAllocationsCompanion.insert(
+                  todoId: Value(todoId),
                   startAt: DateTime.utc(2026, 10, 5, 9).millisecondsSinceEpoch,
                   endAt: DateTime.utc(2026, 10, 5, 10).millisecondsSinceEpoch,
                 ),
@@ -417,6 +420,65 @@ void main() {
             )..where((row) => row.id.equals(allocationId))).get(),
             isEmpty,
           );
+        },
+      );
+    },
+  );
+
+  test(
+    'v10 to v11 preserves allocations and permits unresolved parents',
+    () async {
+      final now = DateTime.utc(2026, 10, 4, 12).millisecondsSinceEpoch ~/ 1000;
+      await verifier.testWithDataIntegrity(
+        oldVersion: 10,
+        newVersion: 11,
+        createOld: v10.DatabaseAtV10.new,
+        createNew: v11.DatabaseAtV11.new,
+        openTestedDatabase: AppDatabase.new,
+        createItems: (batch, oldDb) {
+          batch.insert(
+            oldDb.calendars,
+            v10.CalendarsCompanion.insert(name: 'Personal'),
+          );
+          batch.insert(
+            oldDb.todos,
+            v10.TodosCompanion.insert(calendarId: 1, summary: 'Preserved Todo'),
+          );
+          batch.insert(
+            oldDb.taskAllocations,
+            v10.TaskAllocationsCompanion.insert(
+              todoId: 1,
+              startAt: now + 3600,
+              endAt: now + 7200,
+              state: const Value('cancelledByUser'),
+              createdAt: Value(now - 20),
+              updatedAt: Value(now - 10),
+            ),
+          );
+        },
+        validateItems: (newDb) async {
+          expect(newDb.schemaVersion, 11);
+          final migrated = await newDb.select(newDb.taskAllocations).get();
+          expect(migrated, hasLength(1));
+          expect(migrated.single.todoId, 1);
+          expect(migrated.single.todoSyncId, equals(null));
+          expect(migrated.single.syncId, equals(null));
+          expect(migrated.single.state, 'cancelledByUser');
+          final unresolvedId = await newDb
+              .into(newDb.taskAllocations)
+              .insert(
+                v11.TaskAllocationsCompanion.insert(
+                  todoId: const Value(null),
+                  todoSyncId: const Value('todo-from-another-device'),
+                  startAt: DateTime.utc(2026, 10, 5, 9).millisecondsSinceEpoch,
+                  endAt: DateTime.utc(2026, 10, 5, 10).millisecondsSinceEpoch,
+                ),
+              );
+          final unresolved = await (newDb.select(
+            newDb.taskAllocations,
+          )..where((row) => row.id.equals(unresolvedId))).getSingle();
+          expect(unresolved.todoId, equals(null));
+          expect(unresolved.todoSyncId, 'todo-from-another-device');
         },
       );
     },

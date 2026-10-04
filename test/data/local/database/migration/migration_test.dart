@@ -321,7 +321,7 @@ Future<void> _runAndVerify(File file) async {
 
 void main() {
   group('Database migration', () {
-    test('v1 → v10 full migration preserves data integrity', () async {
+    test('v1 → v11 full migration preserves data integrity', () async {
       final file = _createV1Database();
       try {
         await _runAndVerify(file);
@@ -330,10 +330,10 @@ void main() {
       }
     });
 
-    test('fresh database at v10 initializes correctly', () async {
+    test('fresh database at v11 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 10);
+        expect(db.schemaVersion, 11);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
@@ -345,9 +345,9 @@ void main() {
       }
     });
 
-    test('schema snapshot exists for v10', () async {
+    test('schema snapshot exists for v11', () async {
       final schemaFile = File(
-        'drift_schemas/app_database/drift_schema_v10.json',
+        'drift_schemas/app_database/drift_schema_v11.json',
       );
       expect(
         await schemaFile.exists(),

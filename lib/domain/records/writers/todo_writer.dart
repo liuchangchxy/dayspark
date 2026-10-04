@@ -158,8 +158,28 @@ final class TodoWriter {
       db.todos,
     )..where((t) => t.parentId.equals(id))).get();
     final ids = <int>[id, ...children.map((c) => c.id)];
+    final todos = await (db.select(
+      db.todos,
+    )..where((t) => t.id.isIn(ids))).get();
+    final todoSyncIds = todos
+        .map((todo) => todo.syncId)
+        .whereType<String>()
+        .toList();
     final reminderIds = await ReminderWriter.idsByParent(db, 'todo', ids);
-    final targets = await SyncOutbox.captureDeletes(db, RecordType.todo, ids);
+    final allocations = await _allocationsForTodos(db, ids, todoSyncIds);
+    final allocationTargets = await SyncOutbox.captureDeletes(
+      db,
+      RecordType.taskAllocation,
+      allocations.map((row) => row.id).toList(),
+    );
+    final targets = await SyncOutbox.captureDeletes(
+      db,
+      RecordType.todo,
+      ids,
+      hardDelete: true,
+    );
+    await SyncOutbox.enqueueDeletes(db, allocationTargets);
+    await SyncOutbox.enqueueDeletes(db, targets);
     // FK-safe delete order (mirrors emptyTrash): child-rows first, todo rows
     // last, all in one transaction.
     for (final tid in ids) {
@@ -171,9 +191,8 @@ final class TodoWriter {
     await (db.delete(
       db.reminders,
     )..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
-    await _deleteTaskAllocations(db, tx, ids);
+    await _deleteTaskAllocations(db, tx, ids, todoSyncIds);
     await (db.delete(db.todos)..where((t) => t.id.isIn(ids))).go();
-    await SyncOutbox.enqueueDeletes(db, targets);
     for (final tid in ids) {
       tx.removed(
         RecordType.todo,
@@ -188,11 +207,27 @@ final class TodoWriter {
       db.todos,
     )..where((t) => t.deletedAt.isNotNull())).get();
     final ids = deleted.map((t) => t.id).toList();
+    final todoSyncIds = deleted
+        .map((todo) => todo.syncId)
+        .whereType<String>()
+        .toList();
     final reminderIds = await ReminderWriter.idsByParent(db, 'todo', ids);
-    final targets = await SyncOutbox.captureDeletes(db, RecordType.todo, ids);
-    await _deleteTaskAllocations(db, tx, ids);
-    await db.todosDao.emptyTrash();
+    final allocations = await _allocationsForTodos(db, ids, todoSyncIds);
+    final allocationTargets = await SyncOutbox.captureDeletes(
+      db,
+      RecordType.taskAllocation,
+      allocations.map((row) => row.id).toList(),
+    );
+    final targets = await SyncOutbox.captureDeletes(
+      db,
+      RecordType.todo,
+      ids,
+      hardDelete: true,
+    );
+    await SyncOutbox.enqueueDeletes(db, allocationTargets);
     await SyncOutbox.enqueueDeletes(db, targets);
+    await _deleteTaskAllocations(db, tx, ids, todoSyncIds);
+    await db.todosDao.emptyTrash();
     for (final id in ids) {
       tx.removed(
         RecordType.todo,
@@ -245,13 +280,20 @@ final class TodoWriter {
   }) async {
     if (existingId == null) {
       final id = await db.into(db.todos).insert(data);
+      await _resolveTaskAllocations(db, tx, id);
       tx.applied(RecordType.todo, id);
       return;
     }
     await (db.update(
       db.todos,
     )..where((t) => t.id.equals(existingId))).write(data);
-    await _invalidateAllocationsAfterCompletion(db, tx, existingId);
+    await _invalidateAllocationsAfterCompletion(
+      db,
+      tx,
+      existingId,
+      queueSync: false,
+    );
+    await _resolveTaskAllocations(db, tx, existingId);
     tx.applied(
       RecordType.todo,
       existingId,
@@ -277,6 +319,48 @@ final class TodoWriter {
       ),
     );
     tx.removed(RecordType.todo, id, reminderIds: reminderIds);
+  }
+
+  static Future<bool> applyRemoteHardDelete(
+    AppDatabase db,
+    RecordScope tx, {
+    required String syncId,
+    required int? localId,
+  }) async {
+    final allocations =
+        await (db.select(db.taskAllocations)..where(
+              (row) =>
+                  row.todoSyncId.equals(syncId) |
+                  (localId == null
+                      ? const Constant(false)
+                      : row.todoId.equals(localId)),
+            ))
+            .get();
+    if (allocations.isNotEmpty) {
+      final ids = allocations.map((row) => row.id).toList();
+      await (db.delete(
+        db.taskAllocations,
+      )..where((row) => row.id.isIn(ids))).go();
+      for (final allocation in allocations) {
+        tx.taskAllocationChanged(allocation.id);
+      }
+    }
+    if (localId == null) return allocations.isNotEmpty;
+    final reminderIds = await ReminderWriter.idsOfParent(db, 'todo', localId);
+    await (db.delete(
+      db.todoTags,
+    )..where((row) => row.todoId.equals(localId))).go();
+    await (db.delete(db.attachments)..where(
+          (row) => row.parentType.equals('todo') & row.parentId.equals(localId),
+        ))
+        .go();
+    await (db.delete(db.reminders)..where(
+          (row) => row.parentType.equals('todo') & row.parentId.equals(localId),
+        ))
+        .go();
+    await (db.delete(db.todos)..where((row) => row.id.equals(localId))).go();
+    tx.removed(RecordType.todo, localId, reminderIds: reminderIds);
+    return true;
   }
 
   // 只推进 rev，有意空登记（同 event_writer 的 applyRemoteRev）。
@@ -312,16 +396,69 @@ final class TodoWriter {
     AppDatabase db,
     RecordScope tx,
     List<int> todoIds,
+    List<String> todoSyncIds,
   ) async {
-    if (todoIds.isEmpty) return;
-    final allocations = await (db.select(
-      db.taskAllocations,
-    )..where((row) => row.todoId.isIn(todoIds))).get();
+    final allocations = await _allocationsForTodos(db, todoIds, todoSyncIds);
     if (allocations.isEmpty) return;
+    final allocationIds = allocations.map((row) => row.id).toList();
     await (db.delete(
       db.taskAllocations,
-    )..where((row) => row.todoId.isIn(todoIds))).go();
+    )..where((row) => row.id.isIn(allocationIds))).go();
     for (final allocation in allocations) {
+      tx.taskAllocationChanged(allocation.id);
+    }
+  }
+
+  static Future<List<TaskAllocation>> _allocationsForTodos(
+    AppDatabase db,
+    List<int> todoIds,
+    List<String> todoSyncIds,
+  ) {
+    if (todoIds.isEmpty && todoSyncIds.isEmpty) {
+      return Future.value(const <TaskAllocation>[]);
+    }
+    return (db.select(db.taskAllocations)..where(
+          (row) =>
+              (todoIds.isEmpty
+                  ? const Constant(false)
+                  : row.todoId.isIn(todoIds)) |
+              (todoSyncIds.isEmpty
+                  ? const Constant(false)
+                  : row.todoSyncId.isIn(todoSyncIds)),
+        ))
+        .get();
+  }
+
+  static Future<void> _resolveTaskAllocations(
+    AppDatabase db,
+    RecordScope tx,
+    int todoId,
+  ) async {
+    final todo = await _row(db, todoId);
+    final syncId = todo?.syncId;
+    if (todo == null || syncId == null) return;
+    final allocations =
+        await (db.select(db.taskAllocations)..where(
+              (row) => row.todoSyncId.equals(syncId) & row.todoId.isNull(),
+            ))
+            .get();
+    for (final allocation in allocations) {
+      final invalidated =
+          todo.status == 'COMPLETED' &&
+          todo.completedAt != null &&
+          allocation.state == 'active' &&
+          allocation.startAt.toUtc().millisecondsSinceEpoch >=
+              todo.completedAt!.toUtc().millisecondsSinceEpoch;
+      await (db.update(
+        db.taskAllocations,
+      )..where((row) => row.id.equals(allocation.id))).write(
+        TaskAllocationsCompanion(
+          todoId: Value(todoId),
+          state: invalidated
+              ? const Value('invalidatedByCompletion')
+              : const Value.absent(),
+        ),
+      );
       tx.taskAllocationChanged(allocation.id);
     }
   }
@@ -329,8 +466,9 @@ final class TodoWriter {
   static Future<void> _invalidateAllocationsAfterCompletion(
     AppDatabase db,
     RecordScope tx,
-    int todoId,
-  ) async {
+    int todoId, {
+    bool queueSync = true,
+  }) async {
     final todo = await _row(db, todoId);
     final completedAt = todo?.completedAt;
     if (todo == null || todo.status != 'COMPLETED' || completedAt == null) {
@@ -353,6 +491,13 @@ final class TodoWriter {
           updatedAt: Value(now),
         ),
       );
+      if (queueSync) {
+        await SyncOutbox.enqueueUpsert(
+          db,
+          RecordType.taskAllocation,
+          allocation.id,
+        );
+      }
       tx.taskAllocationChanged(allocation.id);
     }
   }

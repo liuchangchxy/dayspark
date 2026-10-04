@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -106,6 +108,21 @@ void main() {
         db.events,
       )..where((row) => row.id.equals(eventId))).getSingle();
       expect(eventAfter, eventBefore);
+
+      final allocationOps = await (db.select(
+        db.syncOutbox,
+      )..where((row) => row.type.equals('task_allocation'))).get();
+      expect(allocationOps, hasLength(2));
+      expect(allocationOps.every((op) => op.op == 'upsert'), isTrue);
+      final payloadById = {
+        for (final op in allocationOps)
+          op.recordId: jsonDecode(op.payloadJson!) as Map<String, dynamic>,
+      };
+      final afterSync = await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.todoId.equals(todoId))).get();
+      expect(payloadById[afterSync.first.syncId]!['state'], 'cancelledByUser');
+      expect(payloadById[afterSync.last.syncId]!['startAt'], isA<String>());
     },
   );
 
@@ -150,6 +167,12 @@ void main() {
           );
       final permanentTodoId = await createTodo('Permanent');
       final permanentAllocationId = await allocate(permanentTodoId);
+      final permanentAllocation = await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.id.equals(permanentAllocationId))).getSingle();
+      final permanentTodo = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(permanentTodoId))).getSingle();
       await container.read(permanentDeleteTodoProvider)(permanentTodoId);
       expect(
         await (db.select(
@@ -157,9 +180,32 @@ void main() {
         )..where((row) => row.id.equals(permanentAllocationId))).get(),
         isEmpty,
       );
+      final permanentOps = await db.select(db.syncOutbox).get();
+      expect(
+        permanentOps.any(
+          (op) =>
+              op.type == 'task_allocation' &&
+              op.recordId == permanentAllocation.syncId &&
+              op.op == 'delete',
+        ),
+        isTrue,
+      );
+      expect(
+        permanentOps.any(
+          (op) =>
+              op.type == 'todo' &&
+              op.recordId == permanentTodo.syncId &&
+              op.op == 'delete' &&
+              jsonDecode(op.payloadJson!)['hardDelete'] == true,
+        ),
+        isTrue,
+      );
 
       final trashedTodoId = await createTodo('Trash');
       final trashedAllocationId = await allocate(trashedTodoId);
+      final trashedAllocation = await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.id.equals(trashedAllocationId))).getSingle();
       await container.read(deleteTodoProvider)(trashedTodoId);
       expect(
         await (db.select(
@@ -174,75 +220,88 @@ void main() {
         )..where((row) => row.id.equals(trashedAllocationId))).get(),
         isEmpty,
       );
+      final emptyTrashOps = await db.select(db.syncOutbox).get();
+      expect(
+        emptyTrashOps.any(
+          (op) =>
+              op.type == 'task_allocation' &&
+              op.recordId == trashedAllocation.syncId &&
+              op.op == 'delete',
+        ),
+        isTrue,
+      );
     },
   );
 
-  test('restoring a Todo projects only allocations that remain active', () async {
-    final todoId = await db
-        .into(db.todos)
-        .insert(
-          TodosCompanion.insert(calendarId: calendarId, summary: 'Restore'),
-        );
-    final create = container.read(createTaskAllocationProvider);
-    final activeId = await create(
-      todoId: todoId,
-      startAt: DateTime.utc(2026, 10, 7, 8),
-      endAt: DateTime.utc(2026, 10, 7, 9),
-    );
-    final cancelledId = await create(
-      todoId: todoId,
-      startAt: DateTime.utc(2026, 10, 7, 10),
-      endAt: DateTime.utc(2026, 10, 7, 11),
-    );
-    final invalidatedId = await create(
-      todoId: todoId,
-      startAt: DateTime.utc(2026, 10, 7, 12),
-      endAt: DateTime.utc(2026, 10, 7, 13),
-    );
-    await container.read(cancelTaskAllocationProvider)(cancelledId);
-    await container.read(updateTodoProvider)(
-      todoId,
-      TodosCompanion(
-        status: const Value('COMPLETED'),
-        completedAt: Value(DateTime.utc(2026, 10, 7, 11)),
-      ),
-    );
-    await container.read(updateTodoProvider)(
-      todoId,
-      const TodosCompanion(
-        status: Value('NEEDS-ACTION'),
-        completedAt: Value(null),
-      ),
-    );
-
-    final rangeStart = DateTime.utc(2026, 10, 7).millisecondsSinceEpoch;
-    final rangeEnd = DateTime.utc(2026, 10, 8).millisecondsSinceEpoch;
-    final rangeKey = '$rangeStart-$rangeEnd';
-    Future<Set<int>> projectedIds() async {
-      container.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
-      final items = await container.read(
-        taskAllocationsInDateRangeProvider(rangeKey).future,
+  test(
+    'restoring a Todo projects only allocations that remain active',
+    () async {
+      final todoId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(calendarId: calendarId, summary: 'Restore'),
+          );
+      final create = container.read(createTaskAllocationProvider);
+      final activeId = await create(
+        todoId: todoId,
+        startAt: DateTime.utc(2026, 10, 7, 8),
+        endAt: DateTime.utc(2026, 10, 7, 9),
       );
-      return items.map((item) => item.allocation.id).toSet();
-    }
+      final cancelledId = await create(
+        todoId: todoId,
+        startAt: DateTime.utc(2026, 10, 7, 10),
+        endAt: DateTime.utc(2026, 10, 7, 11),
+      );
+      final invalidatedId = await create(
+        todoId: todoId,
+        startAt: DateTime.utc(2026, 10, 7, 12),
+        endAt: DateTime.utc(2026, 10, 7, 13),
+      );
+      await container.read(cancelTaskAllocationProvider)(cancelledId);
+      await container.read(updateTodoProvider)(
+        todoId,
+        TodosCompanion(
+          status: const Value('COMPLETED'),
+          completedAt: Value(DateTime.utc(2026, 10, 7, 11)),
+        ),
+      );
+      await container.read(updateTodoProvider)(
+        todoId,
+        const TodosCompanion(
+          status: Value('NEEDS-ACTION'),
+          completedAt: Value(null),
+        ),
+      );
 
-    await container.read(deleteTodoProvider)(todoId);
-    expect(await projectedIds(), isEmpty);
-    final retained = await (db.select(
-      db.taskAllocations,
-    )..where((row) => row.todoId.equals(todoId))).get();
-    expect(retained, hasLength(3));
+      final rangeStart = DateTime.utc(2026, 10, 7).millisecondsSinceEpoch;
+      final rangeEnd = DateTime.utc(2026, 10, 8).millisecondsSinceEpoch;
+      final rangeKey = '$rangeStart-$rangeEnd';
+      Future<Set<int>> projectedIds() async {
+        container.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
+        final items = await container.read(
+          taskAllocationsInDateRangeProvider(rangeKey).future,
+        );
+        return items.map((item) => item.allocation.id).toSet();
+      }
 
-    await container.read(restoreTodoProvider)(todoId);
-    expect(await projectedIds(), {activeId});
-    final restored = await (db.select(
-      db.taskAllocations,
-    )..where((row) => row.todoId.equals(todoId))).get();
-    final byId = {for (final row in restored) row.id: row};
-    expect(byId[activeId]!.state, 'active');
-    expect(byId[cancelledId]!.state, 'cancelledByUser');
-    expect(byId[invalidatedId]!.state, 'invalidatedByCompletion');
-  });
+      await container.read(deleteTodoProvider)(todoId);
+      expect(await projectedIds(), isEmpty);
+      final retained = await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.todoId.equals(todoId))).get();
+      expect(retained, hasLength(3));
+
+      await container.read(restoreTodoProvider)(todoId);
+      expect(await projectedIds(), {activeId});
+      final restored = await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.todoId.equals(todoId))).get();
+      final byId = {for (final row in restored) row.id: row};
+      expect(byId[activeId]!.state, 'active');
+      expect(byId[cancelledId]!.state, 'cancelledByUser');
+      expect(byId[invalidatedId]!.state, 'invalidatedByCompletion');
+    },
+  );
 
   test(
     'stores allocation bounds as UTC instants at millisecond precision',
@@ -420,6 +479,21 @@ void main() {
       expect(byId[equalBoundary]!.state, 'invalidatedByCompletion');
       expect(byId[future]!.state, 'invalidatedByCompletion');
       expect(byId[cancelled]!.state, 'cancelledByUser');
+      final queuedInvalidations = await (db.select(
+        db.syncOutbox,
+      )..where((row) => row.type.equals('task_allocation'))).get();
+      final queuedPayloads = {
+        for (final op in queuedInvalidations)
+          op.recordId: jsonDecode(op.payloadJson!) as Map<String, dynamic>,
+      };
+      expect(
+        queuedPayloads[byId[equalBoundary]!.syncId]!['state'],
+        'invalidatedByCompletion',
+      );
+      expect(
+        queuedPayloads[byId[future]!.syncId]!['state'],
+        'invalidatedByCompletion',
+      );
       await container.read(cancelTaskAllocationProvider)(cancelled);
       await expectLater(
         container.read(rescheduleTaskAllocationProvider)(

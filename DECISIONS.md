@@ -314,3 +314,15 @@
 - **代价与边界**：Phase 1 暂不验证 Allocation 的同步或 busy-time 效果，不能据此宣称跨设备与空闲时段功能完成；后续阶段必须在开放外部写入前完成对应契约与兼容测试。
 - **对应 SPEC 章节**：SPEC.md §3.1、§3.2、§3.5。
 - **实施计划**：`docs/superpowers/plans/2026-10-04-task-allocation.md`。
+
+### [2026-10-04] TaskAllocation 同步协议与删除/完成收敛
+- **触发背景**：Phase 2 需要把本地 TaskAllocation 扩展到跨设备；现有 RecordType 解码对未知类型 fail-fast，pull 原始分页 cursor 与 capability 过滤尚未存在；Todo 软删和永久删除都用同一种未区分的 delete tombstone。
+- **核心裁定**：
+  1. 能力名固定为 `task_allocation_v1`。客户端通过认证的 `/sync/capabilities` discovery 确认服务端支持后才发送 Allocation outbox；push 与 pull 均声明 capabilities。旧服务端 discovery 404 时客户端仍同步 Event/Todo，并保留 Allocation outbox。服务端缺省 capabilities 视为空集合，未知 capability 忽略。
+  2. 服务端在原始有界 seq 页上先读后过滤；pull `nextCursor`、`hasMore` 与 push piggyback watermark 都按扫描到的原始记录推进，不按过滤后列表推进，确保旧客户端越过隐藏 Allocation。
+  3. 为 Todo hard-delete op 增加 `hardDelete: true` tombstone payload marker；历史无标记 tombstone 仍进回收站。只有显式标记才在新客户端物理删除 Todo 及关联 Allocation。Todo 永久删除/清空回收站先捕获 Allocation sync identity、再在同一 DB transaction 内 enqueue Allocation 与 Todo tombstone，最后删本地行。
+  4. TaskAllocation 保留 `todoSyncId` 为逻辑父引用，`todoId` 可空；父项先到时允许 unresolved 行存在，Calendar 查询通过父 Todo inner join 隐藏，父项到达后按 UUID 解析绑定。
+  5. 服务端对已完成父 Todo 的 Allocation upsert 强制执行 UTC 毫秒完成边界；父 Todo 完成时同事务为未来 active Allocation 写失效状态。服务端对 terminal `state` 保持单调，避免迟到改期激活取消/失效项；hard-delete 父项对相关 Allocation 写 tombstone，后到 upsert 不得复活。
+- **并发边界**：字段级 LWW 继续合并独立时间字段与单字段状态；终态单调与 completed-parent invariant 是领域约束，不依赖客户端时钟或请求抵达“正常顺序”。
+- **对应 SPEC 章节**：SPEC.md §3.5 规则 6、§4.1.1、§4.2、§5。
+- **实施计划**：`docs/superpowers/plans/2026-10-04-task-allocation.md` Phase 2。

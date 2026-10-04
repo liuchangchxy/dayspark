@@ -8,6 +8,9 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
 import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:dayspark_server/server.dart' as srv;
 
@@ -98,7 +101,10 @@ class _GatedTransport implements SyncTransport {
 /// stably idle (several consecutive polls) so a coalesced follow-up round
 /// cannot still be in flight when assertions run. Also pins cursor
 /// monotonicity on every driven round.
-Future<void> _round(_Device d, {Duration timeout = const Duration(seconds: 10)}) async {
+Future<void> _round(
+  _Device d, {
+  Duration timeout = const Duration(seconds: 10),
+}) async {
   final before = d.cursors.value ?? 0;
   await d.engine.requestRound();
   var stable = 0;
@@ -114,7 +120,8 @@ Future<void> _round(_Device d, {Duration timeout = const Duration(seconds: 10)})
   expect(
     status.phase == SyncPhase.idle && status.lastError == null,
     isTrue,
-    reason: '${d.name} round must settle idle (phase=${status.phase}, '
+    reason:
+        '${d.name} round must settle idle (phase=${status.phase}, '
         'error=${status.lastError})',
   );
   expect(
@@ -135,7 +142,9 @@ Future<int> _createEvent(
   String? description,
 }) {
   return d.db.transaction(() async {
-    final id = await d.db.into(d.db.events).insert(
+    final id = await d.db
+        .into(d.db.events)
+        .insert(
           EventsCompanion.insert(
             calendarId: d.calendarId,
             summary: summary,
@@ -163,8 +172,9 @@ Future<void> _editEvent(
         summary: summary == null ? const Value.absent() : Value(summary),
         startDt: start == null ? const Value.absent() : Value(start),
         endDt: end == null ? const Value.absent() : Value(end),
-        description:
-            description == null ? const Value.absent() : Value(description),
+        description: description == null
+            ? const Value.absent()
+            : Value(description),
         updatedAt: Value(DateTime.now()),
       ),
     );
@@ -175,24 +185,25 @@ Future<void> _editEvent(
 Future<void> _deleteEvent(_Device d, int localId) {
   return d.db.transaction(() async {
     final now = DateTime.now();
-    await (d.db.update(d.db.events)..where((t) => t.id.equals(localId)))
-        .write(EventsCompanion(deletedAt: Value(now), updatedAt: Value(now)));
+    await (d.db.update(d.db.events)..where((t) => t.id.equals(localId))).write(
+      EventsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
     await SyncOutbox.enqueueDelete(d.db, RecordType.event, localId);
   });
 }
 
 Future<Event> _eventBySyncId(AppDatabase db, String syncId) async {
-  final row = await (db.select(db.events)
-        ..where((t) => t.syncId.equals(syncId)))
-      .getSingleOrNull();
+  final row = await (db.select(
+    db.events,
+  )..where((t) => t.syncId.equals(syncId))).getSingleOrNull();
   expect(row, isNotNull, reason: 'record $syncId must exist');
   return row!;
 }
 
 Future<String> _syncIdOf(AppDatabase db, int localId) async {
-  final row =
-      await (db.select(db.events)..where((t) => t.id.equals(localId)))
-          .getSingle();
+  final row = await (db.select(
+    db.events,
+  )..where((t) => t.id.equals(localId))).getSingle();
   expect(row.syncId, isNotNull, reason: 'row must be enqueued at least once');
   return row.syncId!;
 }
@@ -293,36 +304,253 @@ void main() {
     _expectConverged(onA, onB, reason: 'case 1 create');
   });
 
-  test('edit title+time on A converges to the same merged truth on B',
-      () async {
-    final localId = await _createEvent(
-      a,
-      summary: 'planning',
-      start: DateTime(2026, 9, 25, 9),
-      end: DateTime(2026, 9, 25, 10),
-    );
-    await _round(a);
-    final syncId = await _syncIdOf(a.db, localId);
-    await _round(b);
+  test(
+    'TaskAllocation create and completion invalidation converge over sync',
+    () async {
+      final todoId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: a.calendarId,
+            summary: 'focus block',
+          ),
+        ),
+      );
+      final todo = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      final allocationId = await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.create(
+          a.db,
+          tx,
+          todoId: todoId,
+          startAt: DateTime.utc(2035, 5, 1, 10),
+          endAt: DateTime.utc(2035, 5, 1, 11),
+        ),
+      );
+      await _round(a);
+      final allocationA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(allocationId))).getSingle();
+      expect(todo.syncId, isNotNull);
+      expect(allocationA.syncId, isNotNull);
+      await _round(b);
 
-    await _editEvent(
-      a,
-      localId,
-      summary: 'planning (moved)',
-      start: DateTime(2026, 9, 25, 14),
-      end: DateTime(2026, 9, 25, 15, 30),
-    );
-    await _round(a);
-    await _round(b);
+      final remoteTodo = await (b.db.select(
+        b.db.todos,
+      )..where((row) => row.syncId.equals(todo.syncId!))).getSingle();
+      final remoteAllocation = await (b.db.select(
+        b.db.taskAllocations,
+      )..where((row) => row.syncId.equals(allocationA.syncId!))).getSingle();
+      expect(remoteAllocation.todoId, remoteTodo.id);
+      expect(remoteAllocation.state, 'active');
 
-    final onA = await _eventBySyncId(a.db, syncId);
-    final onB = await _eventBySyncId(b.db, syncId);
-    expect(onB.summary, 'planning (moved)');
-    expect(onB.startDt, DateTime(2026, 9, 25, 14));
-    expect(onB.endDt, DateTime(2026, 9, 25, 15, 30));
-    expect(onB.serverRev, 2, reason: 'edit bumps rev once');
-    _expectConverged(onA, onB, reason: 'case 2 edit');
-  });
+      // A moves the interval while B is offline. B then cancels from its
+      // older snapshot; the server must merge both independent field edits.
+      b.transport.online = false;
+      await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.reschedule(
+          a.db,
+          tx,
+          id: allocationId,
+          startAt: DateTime.utc(2035, 5, 1, 12),
+          endAt: DateTime.utc(2035, 5, 1, 13),
+        ),
+      );
+      await _round(a);
+      final rescheduledB = await (b.db.select(
+        b.db.taskAllocations,
+      )..where((row) => row.syncId.equals(allocationA.syncId!))).getSingle();
+      expect(rescheduledB.startAt, DateTime.utc(2035, 5, 1, 10));
+
+      await RecordScope.run(
+        b.db,
+        (tx) => TaskAllocationWriter.cancel(b.db, tx, rescheduledB.id),
+      );
+      await b.engine.requestRound();
+      expect(b.engine.status.phase, SyncPhase.error);
+      b.transport.online = true;
+      await _round(b);
+      await _round(a);
+      final cancelledA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(allocationId))).getSingle();
+      expect(cancelledA.state, 'cancelledByUser');
+      expect(cancelledA.startAt, DateTime.utc(2035, 5, 1, 12));
+
+      final futureAllocationId = await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.create(
+          a.db,
+          tx,
+          todoId: todoId,
+          startAt: DateTime.utc(2035, 5, 2, 10),
+          endAt: DateTime.utc(2035, 5, 2, 11),
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final futureA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(futureAllocationId))).getSingle();
+
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.setCompletion(a.db, tx, todoId, isCompleted: true),
+      );
+      await _round(a);
+      await _round(b);
+      final completedA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(futureAllocationId))).getSingle();
+      final completedB = await (b.db.select(
+        b.db.taskAllocations,
+      )..where((row) => row.syncId.equals(futureA.syncId!))).getSingle();
+      expect(completedA.state, 'invalidatedByCompletion');
+      expect(completedB.state, 'invalidatedByCompletion');
+
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.permanentDelete(a.db, tx, todoId),
+      );
+      await _round(a);
+      await _round(b);
+      expect(
+        await (b.db.select(
+          b.db.todos,
+        )..where((row) => row.syncId.equals(todo.syncId!))).get(),
+        isEmpty,
+      );
+      expect(
+        await (b.db.select(
+          b.db.taskAllocations,
+        )..where((row) => row.todoSyncId.equals(todo.syncId!))).get(),
+        isEmpty,
+      );
+      expect(await (a.db.select(a.db.syncOutbox)).get(), isEmpty);
+      expect(await (b.db.select(b.db.syncOutbox)).get(), isEmpty);
+    },
+  );
+
+  test(
+    'Allocation arriving before its Todo remains unresolved and later binds',
+    () async {
+      const todoSyncId = 'remote-parent-before-todo';
+      const allocationSyncId = 'remote-allocation-before-todo';
+      final allocationPayload = <String, dynamic>{
+        'todoSyncId': todoSyncId,
+        'occurrenceId': null,
+        'startAt': '2035-06-01T10:00:00.000Z',
+        'endAt': '2035-06-01T11:00:00.000Z',
+        'state': 'active',
+        'createdAt': '2035-01-01T00:00:00.000Z',
+        'updatedAt': '2035-01-01T00:00:00.000Z',
+      };
+      final allocationResult = await b.api.push(
+        PushRequest(
+          deviceId: 'device-B',
+          capabilities: const [SyncCapability.taskAllocationV1],
+          ops: [
+            PushOp(
+              opId: 'push-orphan-allocation',
+              op: OpType.upsert,
+              recordId: allocationSyncId,
+              type: RecordType.taskAllocation,
+              fields: allocationPayload,
+              baseRev: 0,
+            ),
+          ],
+        ),
+      );
+      expect(allocationResult.results.single.status, OpStatus.applied);
+      await _round(b);
+      final unresolved = await (b.db.select(
+        b.db.taskAllocations,
+      )..where((row) => row.syncId.equals(allocationSyncId))).getSingle();
+      expect(unresolved.todoId, isNull);
+      expect(unresolved.todoSyncId, todoSyncId);
+
+      final todoResult = await b.api.push(
+        PushRequest(
+          deviceId: 'device-B',
+          ops: [
+            PushOp(
+              opId: 'push-parent-todo',
+              op: OpType.upsert,
+              recordId: todoSyncId,
+              type: RecordType.todo,
+              fields: {
+                'calendarId': b.calendarId,
+                'summary': 'Late parent',
+                'dueDate': null,
+                'startDate': null,
+                'priority': 0,
+                'status': 'NEEDS-ACTION',
+                'description': null,
+                'rrule': null,
+                'completedAt': null,
+                'percentComplete': 0,
+                'deletedAt': null,
+                'createdAt': '2035-01-01T00:00:00.000Z',
+                'updatedAt': '2035-01-01T00:00:00.000Z',
+                'sortOrder': 0,
+                'parentSyncId': null,
+              },
+              baseRev: 0,
+            ),
+          ],
+        ),
+      );
+      expect(todoResult.results.single.status, OpStatus.applied);
+      await _round(b);
+      final resolvedTodo = await (b.db.select(
+        b.db.todos,
+      )..where((row) => row.syncId.equals(todoSyncId))).getSingle();
+      final resolvedAllocation = await (b.db.select(
+        b.db.taskAllocations,
+      )..where((row) => row.syncId.equals(allocationSyncId))).getSingle();
+      expect(resolvedAllocation.todoId, resolvedTodo.id);
+      expect(resolvedAllocation.state, 'active');
+      expect(await (b.db.select(b.db.syncOutbox)).get(), isEmpty);
+    },
+  );
+
+  test(
+    'edit title+time on A converges to the same merged truth on B',
+    () async {
+      final localId = await _createEvent(
+        a,
+        summary: 'planning',
+        start: DateTime(2026, 9, 25, 9),
+        end: DateTime(2026, 9, 25, 10),
+      );
+      await _round(a);
+      final syncId = await _syncIdOf(a.db, localId);
+      await _round(b);
+
+      await _editEvent(
+        a,
+        localId,
+        summary: 'planning (moved)',
+        start: DateTime(2026, 9, 25, 14),
+        end: DateTime(2026, 9, 25, 15, 30),
+      );
+      await _round(a);
+      await _round(b);
+
+      final onA = await _eventBySyncId(a.db, syncId);
+      final onB = await _eventBySyncId(b.db, syncId);
+      expect(onB.summary, 'planning (moved)');
+      expect(onB.startDt, DateTime(2026, 9, 25, 14));
+      expect(onB.endDt, DateTime(2026, 9, 25, 15, 30));
+      expect(onB.serverRev, 2, reason: 'edit bumps rev once');
+      _expectConverged(onA, onB, reason: 'case 2 edit');
+    },
+  );
 
   test('delete on A tombstones the record on B', () async {
     final localId = await _createEvent(
@@ -376,10 +604,16 @@ void main() {
 
     // A round while offline must fail cleanly and keep the pending op.
     await b.engine.requestRound();
-    expect(b.engine.status.phase, SyncPhase.error,
-        reason: 'offline round surfaces a transport error');
-    expect(await (b.db.select(b.db.syncOutbox)).get(), isNotEmpty,
-        reason: 'failed round must not drop the pending op');
+    expect(
+      b.engine.status.phase,
+      SyncPhase.error,
+      reason: 'offline round surfaces a transport error',
+    );
+    expect(
+      await (b.db.select(b.db.syncOutbox)).get(),
+      isNotEmpty,
+      reason: 'failed round must not drop the pending op',
+    );
 
     // --- B comes back online. ---
     b.transport.online = true;
@@ -400,67 +634,79 @@ void main() {
     _expectConverged(onA, onB, reason: 'case 4 offline conflict');
     expect(a.engine.status.lastRejected, isEmpty);
     expect(b.engine.status.lastRejected, isEmpty);
-    expect(await (b.db.select(b.db.syncOutbox)).get(), isEmpty,
-        reason: 'B outbox drained after reconnect');
+    expect(
+      await (b.db.select(b.db.syncOutbox)).get(),
+      isEmpty,
+      reason: 'B outbox drained after reconnect',
+    );
   });
 
-  test('two rounds of alternating edits converge; cursors stay monotonic',
-      () async {
-    final localId = await _createEvent(
-      a,
-      summary: 'round 0',
-      start: DateTime(2026, 9, 28, 8),
-      end: DateTime(2026, 9, 28, 9),
-    );
-    await _round(a);
-    final syncId = await _syncIdOf(a.db, localId);
-    await _round(b);
-    final localB = (await _eventBySyncId(b.db, syncId)).id;
+  test(
+    'two rounds of alternating edits converge; cursors stay monotonic',
+    () async {
+      final localId = await _createEvent(
+        a,
+        summary: 'round 0',
+        start: DateTime(2026, 9, 28, 8),
+        end: DateTime(2026, 9, 28, 9),
+      );
+      await _round(a);
+      final syncId = await _syncIdOf(a.db, localId);
+      await _round(b);
+      final localB = (await _eventBySyncId(b.db, syncId)).id;
 
-    final trace = <String, List<int>>{
-      'A': [a.cursors.value ?? 0],
-      'B': [b.cursors.value ?? 0],
-    };
+      final trace = <String, List<int>>{
+        'A': [a.cursors.value ?? 0],
+        'B': [b.cursors.value ?? 0],
+      };
 
-    // Round 1: A edits, B follows.
-    await _editEvent(a, localId, summary: 'round 1 (A)');
-    await _round(a);
-    trace['A']!.add(a.cursors.value ?? 0);
-    await _round(b);
-    trace['B']!.add(b.cursors.value ?? 0);
-    var onA = await _eventBySyncId(a.db, syncId);
-    var onB = await _eventBySyncId(b.db, syncId);
-    expect(onB.summary, 'round 1 (A)');
-    _expectConverged(onA, onB, reason: 'alternating round 1');
+      // Round 1: A edits, B follows.
+      await _editEvent(a, localId, summary: 'round 1 (A)');
+      await _round(a);
+      trace['A']!.add(a.cursors.value ?? 0);
+      await _round(b);
+      trace['B']!.add(b.cursors.value ?? 0);
+      var onA = await _eventBySyncId(a.db, syncId);
+      var onB = await _eventBySyncId(b.db, syncId);
+      expect(onB.summary, 'round 1 (A)');
+      _expectConverged(onA, onB, reason: 'alternating round 1');
 
-    // Round 2: B edits back, A follows.
-    await _editEvent(
-      b,
-      localB,
-      summary: 'round 2 (B)',
-      start: DateTime(2026, 9, 28, 18),
-      end: DateTime(2026, 9, 28, 19),
-    );
-    await _round(b);
-    trace['B']!.add(b.cursors.value ?? 0);
-    await _round(a);
-    trace['A']!.add(a.cursors.value ?? 0);
-    onA = await _eventBySyncId(a.db, syncId);
-    onB = await _eventBySyncId(b.db, syncId);
-    expect(onA.summary, 'round 2 (B)');
-    expect(onB.startDt, DateTime(2026, 9, 28, 18));
-    _expectConverged(onA, onB, reason: 'alternating round 2');
-    expect(onA.serverRev, 3);
+      // Round 2: B edits back, A follows.
+      await _editEvent(
+        b,
+        localB,
+        summary: 'round 2 (B)',
+        start: DateTime(2026, 9, 28, 18),
+        end: DateTime(2026, 9, 28, 19),
+      );
+      await _round(b);
+      trace['B']!.add(b.cursors.value ?? 0);
+      await _round(a);
+      trace['A']!.add(a.cursors.value ?? 0);
+      onA = await _eventBySyncId(a.db, syncId);
+      onB = await _eventBySyncId(b.db, syncId);
+      expect(onA.summary, 'round 2 (B)');
+      expect(onB.startDt, DateTime(2026, 9, 28, 18));
+      _expectConverged(onA, onB, reason: 'alternating round 2');
+      expect(onA.serverRev, 3);
 
-    for (final entry in trace.entries) {
-      final values = entry.value;
-      for (var i = 1; i < values.length; i++) {
-        expect(values[i], greaterThanOrEqualTo(values[i - 1]),
-            reason: '${entry.key} cursor must never go backwards: $values');
+      for (final entry in trace.entries) {
+        final values = entry.value;
+        for (var i = 1; i < values.length; i++) {
+          expect(
+            values[i],
+            greaterThanOrEqualTo(values[i - 1]),
+            reason: '${entry.key} cursor must never go backwards: $values',
+          );
+        }
+        expect(
+          values.last,
+          greaterThan(values.first),
+          reason:
+              '${entry.key} cursor must advance across the rounds: '
+              '$values',
+        );
       }
-      expect(values.last, greaterThan(values.first),
-          reason: '${entry.key} cursor must advance across the rounds: '
-              '$values');
-    }
-  });
+    },
+  );
 }

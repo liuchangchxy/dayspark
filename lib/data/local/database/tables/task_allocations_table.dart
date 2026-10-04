@@ -16,11 +16,18 @@ class TaskAllocationInstantConverter extends TypeConverter<DateTime, int> {
 
 @DataClassName('TaskAllocation')
 @TableIndex(name: 'task_allocations_todo_id', columns: {#todoId})
+@TableIndex(name: 'task_allocations_todo_sync_id', columns: {#todoSyncId})
+@TableIndex(name: 'task_allocations_sync_id', columns: {#syncId})
 @TableIndex(name: 'task_allocations_time_range', columns: {#startAt, #endAt})
 class TaskAllocations extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get todoId =>
-      integer().references(Todos, #id, onDelete: KeyAction.cascade)();
+  IntColumn get todoId => integer().nullable().references(
+    Todos,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get todoSyncId => text().nullable()();
+  TextColumn get occurrenceId => text().nullable()();
   IntColumn get startAt =>
       integer().map(const TaskAllocationInstantConverter())();
   IntColumn get endAt =>
@@ -28,4 +35,6 @@ class TaskAllocations extends Table {
   TextColumn get state => text().withDefault(const Constant('active'))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  TextColumn get syncId => text().nullable()();
+  IntColumn get serverRev => integer().withDefault(const Constant(0))();
 }

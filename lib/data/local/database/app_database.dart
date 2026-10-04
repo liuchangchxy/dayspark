@@ -44,7 +44,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -110,6 +110,50 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(taskAllocations);
         await m.createIndex(taskAllocationsTodoId);
         await m.createIndex(taskAllocationsTimeRange);
+      }
+      if (from < 11) {
+        await customStatement('DROP INDEX IF EXISTS task_allocations_todo_id');
+        await customStatement(
+          'DROP INDEX IF EXISTS task_allocations_time_range',
+        );
+        await customStatement(
+          'ALTER TABLE task_allocations RENAME TO task_allocations_v10',
+        );
+        await customStatement('''
+          CREATE TABLE IF NOT EXISTS "task_allocations" (
+            "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            "todo_id" INTEGER NULL REFERENCES todos (id) ON DELETE CASCADE,
+            "todo_sync_id" TEXT NULL,
+            "occurrence_id" TEXT NULL,
+            "start_at" INTEGER NOT NULL,
+            "end_at" INTEGER NOT NULL,
+            "state" TEXT NOT NULL DEFAULT 'active',
+            "created_at" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)),
+            "updated_at" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)),
+            "sync_id" TEXT NULL,
+            "server_rev" INTEGER NOT NULL DEFAULT 0
+          );
+        ''');
+        await customStatement('''
+          INSERT INTO task_allocations (
+            id, todo_id, start_at, end_at, state, created_at, updated_at
+          )
+          SELECT id, todo_id, start_at, end_at, state, created_at, updated_at
+          FROM task_allocations_v10
+        ''');
+        await customStatement('DROP TABLE task_allocations_v10');
+        await customStatement(
+          'CREATE INDEX task_allocations_todo_id ON task_allocations (todo_id)',
+        );
+        await customStatement(
+          'CREATE INDEX task_allocations_todo_sync_id ON task_allocations (todo_sync_id)',
+        );
+        await customStatement(
+          'CREATE INDEX task_allocations_sync_id ON task_allocations (sync_id)',
+        );
+        await customStatement(
+          'CREATE INDEX task_allocations_time_range ON task_allocations (start_at, end_at)',
+        );
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

@@ -169,6 +169,16 @@ Todo 的 `recurrenceTimeZone` 是重复系列的 IANA 时区，必须写入 Todo
 | `GET /sync/pull` | `cursor, limit` | `{changes[], nextCursor, hasMore}` | cursor 单调不透明 |
 | `GET /sync/stream` | SSE | `{cursor}` 信号 | 只发信号不发载荷 |
 
+TaskAllocation 同步使用 `RecordType.task_allocation` 和正式 capability `task_allocation_v1`。客户端每次 push body 与 pull 查询均声明 capabilities；缺失按空集合处理，未知字符串忽略。服务端 capability discovery 返回当前受支持集合；新客户端在 discovery 不可用（旧服务端 404）时继续同步 Event/Todo，但保留 Allocation outbox，不发送未被服务端声明支持的类型。旧客户端不声明该 capability 时，服务端不得向其 push piggyback 或 pull 返回 TaskAllocation。
+
+capability 过滤先按原始 `records.seq` 读取有界页，再过滤响应记录；`nextCursor` 总推进到该原始页最后一条记录的 seq，`hasMore` 也按原始页判断。Push piggyback watermark 同理推进到最后扫描 seq，即使该页的记录因 capability 未返回。这样被过滤的记录不会卡住旧客户端游标，Event/Todo 后续页仍可到达。SSE 只发送 cursor 信号，不携带记录类型或 payload。
+
+TaskAllocation payload 只包含 `todoSyncId`、可空 `occurrenceId`、`startAt`、`endAt`、`state`、`createdAt`、`updatedAt`；记录 UUID、rev、deleted、serverTs 留在同步 envelope。父 Todo 尚未到达时，客户端保留带 `todoSyncId` 的 unresolved Allocation，Calendar 与忙碌投影隐藏 unresolved 项；父项到达后按 sync UUID 绑定，不以本地整数 ID 猜测。
+
+永久删除 Todo 的 delete op 显式带 `hardDelete: true` tombstone 标记；不带标记的历史 Todo tombstone 继续按回收站软删兼容。单项永久删除与清空回收站必须在删本地 Allocation/Todo 行之前，捕获每个已同步 Allocation/Todo 的 sync UUID 和 rev，并在同一事务 enqueue 对应 tombstone。远端收到标记 tombstone 后物理清除本地 Todo 与其 Allocation；这与普通 Todo 软删（未标记 tombstone，Allocation 保留并由父项状态隐藏）区分。不得依赖 SQLite FK cascade 生成同步删除事实。
+
+服务端 Todo 完成写入口必须与 Allocation completion invariant 收敛：完成 Todo 时，已结束/进行中的 Allocation 保持原状态，`startAt >= completedAt` 的 active Allocation 写入 `invalidatedByCompletion`；之后到达的 Allocation upsert 也必须按服务端 Todo 当前状态校验，不能复活出 `Todo=completed + future Allocation=active`。用户取消的终态不得被完成失效或普通改期覆盖。Allocation tombstone 与父 Todo hard-delete 并发时，父删除获胜；后到的 Allocation upsert 不得留下永久 orphan。
+
 ---
 
 ## 5. 边缘情况与边界防御 (Edge Cases)

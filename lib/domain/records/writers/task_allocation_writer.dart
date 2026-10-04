@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/sync/sync_outbox.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 final class TaskAllocationWriter {
   const TaskAllocationWriter._();
@@ -19,13 +21,14 @@ final class TaskAllocationWriter {
         .into(db.taskAllocations)
         .insert(
           TaskAllocationsCompanion.insert(
-            todoId: todoId,
+            todoId: Value(todoId),
             startAt: range.$1,
             endAt: range.$2,
             createdAt: Value(now),
             updatedAt: Value(now),
           ),
         );
+    await SyncOutbox.enqueueUpsert(db, RecordType.taskAllocation, id);
     tx.taskAllocationChanged(id);
     return id;
   }
@@ -44,7 +47,11 @@ final class TaskAllocationWriter {
     if (allocation == null || allocation.state != 'active') {
       throw StateError('Only active TaskAllocations can be rescheduled.');
     }
-    await _requireSchedulableTodo(db, allocation.todoId);
+    final todoId = allocation.todoId;
+    if (todoId == null) {
+      throw StateError('Unresolved TaskAllocation cannot be rescheduled.');
+    }
+    await _requireSchedulableTodo(db, todoId);
     await (db.update(
       db.taskAllocations,
     )..where((row) => row.id.equals(id))).write(
@@ -54,6 +61,7 @@ final class TaskAllocationWriter {
         updatedAt: Value(DateTime.now()),
       ),
     );
+    await SyncOutbox.enqueueUpsert(db, RecordType.taskAllocation, id);
     tx.taskAllocationChanged(id);
   }
 
@@ -74,6 +82,35 @@ final class TaskAllocationWriter {
         updatedAt: Value(DateTime.now()),
       ),
     );
+    await SyncOutbox.enqueueUpsert(db, RecordType.taskAllocation, id);
+    tx.taskAllocationChanged(id);
+  }
+
+  static Future<void> applyRemote(
+    AppDatabase db,
+    RecordScope tx, {
+    required int? existingId,
+    required TaskAllocationsCompanion data,
+  }) async {
+    if (existingId == null) {
+      final id = await db.into(db.taskAllocations).insert(data);
+      tx.taskAllocationChanged(id);
+      return;
+    }
+    await (db.update(
+      db.taskAllocations,
+    )..where((row) => row.id.equals(existingId))).write(data);
+    tx.taskAllocationChanged(existingId);
+  }
+
+  static Future<void> applyRemoteDelete(
+    AppDatabase db,
+    RecordScope tx,
+    int id,
+  ) async {
+    await (db.delete(
+      db.taskAllocations,
+    )..where((row) => row.id.equals(id))).go();
     tx.taskAllocationChanged(id);
   }
 

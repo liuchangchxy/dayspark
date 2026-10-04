@@ -16,11 +16,13 @@ class OutboxTarget {
     required this.type,
     required this.recordId,
     required this.baseRev,
+    this.fields,
   });
 
   final RecordType type;
   final String recordId;
   final int baseRev;
+  final Map<String, Object?>? fields;
 }
 
 /// Explicit outbox write seam. Every event/todo mutation provider wraps its
@@ -55,24 +57,24 @@ class SyncOutbox {
     final String payloadJson;
     final int baseRev;
     if (type == RecordType.event) {
-      final row = await (db.select(db.events)
-            ..where((t) => t.id.equals(localId)))
-          .getSingleOrNull();
+      final row = await (db.select(
+        db.events,
+      )..where((t) => t.id.equals(localId))).getSingleOrNull();
       if (row == null) return;
       recordId = await _ensureSyncId(db, RecordType.event, localId, row.syncId);
       payloadJson = jsonEncode(eventToPayload(row));
       baseRev = row.serverRev;
-    } else {
-      final row = await (db.select(db.todos)
-            ..where((t) => t.id.equals(localId)))
-          .getSingleOrNull();
+    } else if (type == RecordType.todo) {
+      final row = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(localId))).getSingleOrNull();
       if (row == null) return;
       recordId = await _ensureSyncId(db, RecordType.todo, localId, row.syncId);
       final parentId = row.parentId;
       if (parentId != null) {
-        final parent = await (db.select(db.todos)
-              ..where((t) => t.id.equals(parentId)))
-            .getSingleOrNull();
+        final parent = await (db.select(
+          db.todos,
+        )..where((t) => t.id.equals(parentId))).getSingleOrNull();
         // Pre-configure parents never got an identity; queue one now so
         // this child's parentSyncId can resolve on other devices.
         if (parent != null && parent.syncId == null) {
@@ -81,14 +83,49 @@ class SyncOutbox {
       }
       payloadJson = jsonEncode(await todoToPayload(db, row));
       baseRev = row.serverRev;
+    } else {
+      final row = await (db.select(
+        db.taskAllocations,
+      )..where((t) => t.id.equals(localId))).getSingleOrNull();
+      if (row == null) return;
+      if (row.todoId != null) {
+        await enqueueUpsert(db, RecordType.todo, row.todoId!);
+      }
+      final todo = row.todoId == null
+          ? null
+          : await (db.select(
+              db.todos,
+            )..where((t) => t.id.equals(row.todoId!))).getSingleOrNull();
+      final parentSyncId = todo?.syncId ?? row.todoSyncId;
+      if (parentSyncId == null || parentSyncId.isEmpty) {
+        throw StateError('TaskAllocation has no parent Todo sync identity.');
+      }
+      if (row.todoSyncId != parentSyncId) {
+        await (db.update(db.taskAllocations)
+              ..where((t) => t.id.equals(localId)))
+            .write(TaskAllocationsCompanion(todoSyncId: Value(parentSyncId)));
+      }
+      recordId = await _ensureSyncId(
+        db,
+        RecordType.taskAllocation,
+        localId,
+        row.syncId,
+      );
+      final refreshed = await (db.select(
+        db.taskAllocations,
+      )..where((t) => t.id.equals(localId))).getSingle();
+      payloadJson = jsonEncode(taskAllocationToPayload(refreshed));
+      baseRev = refreshed.serverRev;
     }
     final oldest = await _existingCreatedAt(db, recordId);
     await _collapse(db, recordId);
-    await db.into(db.syncOutbox).insert(
+    await db
+        .into(db.syncOutbox)
+        .insert(
           SyncOutboxCompanion.insert(
             opId: _uuid.v7(),
             recordId: recordId,
-            type: type.name,
+            type: type.wireName,
             op: OpType.upsert.name,
             payloadJson: Value(payloadJson),
             baseRev: Value(baseRev),
@@ -114,13 +151,14 @@ class SyncOutbox {
   static Future<List<OutboxTarget>> captureDeletes(
     AppDatabase db,
     RecordType type,
-    List<int> localIds,
-  ) async {
+    List<int> localIds, {
+    bool hardDelete = false,
+  }) async {
     if (localIds.isEmpty) return const [];
     if (type == RecordType.event) {
-      final rows = await (db.select(db.events)
-            ..where((t) => t.id.isIn(localIds)))
-          .get();
+      final rows = await (db.select(
+        db.events,
+      )..where((t) => t.id.isIn(localIds))).get();
       return [
         for (final row in rows)
           if (row.syncId != null)
@@ -131,9 +169,23 @@ class SyncOutbox {
             ),
       ];
     }
-    final rows = await (db.select(db.todos)
-          ..where((t) => t.id.isIn(localIds)))
-        .get();
+    if (type == RecordType.taskAllocation) {
+      final rows = await (db.select(
+        db.taskAllocations,
+      )..where((t) => t.id.isIn(localIds))).get();
+      return [
+        for (final row in rows)
+          if (row.syncId != null)
+            OutboxTarget(
+              type: RecordType.taskAllocation,
+              recordId: row.syncId!,
+              baseRev: row.serverRev,
+            ),
+      ];
+    }
+    final rows = await (db.select(
+      db.todos,
+    )..where((t) => t.id.isIn(localIds))).get();
     return [
       for (final row in rows)
         if (row.syncId != null)
@@ -141,6 +193,7 @@ class SyncOutbox {
             type: RecordType.todo,
             recordId: row.syncId!,
             baseRev: row.serverRev,
+            fields: hardDelete ? const {'hardDelete': true} : null,
           ),
     ];
   }
@@ -152,12 +205,17 @@ class SyncOutbox {
     for (final target in targets) {
       final oldest = await _existingCreatedAt(db, target.recordId);
       await _collapse(db, target.recordId);
-      await db.into(db.syncOutbox).insert(
+      await db
+          .into(db.syncOutbox)
+          .insert(
             SyncOutboxCompanion.insert(
               opId: _uuid.v7(),
               recordId: target.recordId,
-              type: target.type.name,
+              type: target.type.wireName,
               op: OpType.delete.name,
+              payloadJson: Value(
+                target.fields == null ? null : jsonEncode(target.fields),
+              ),
               baseRev: Value(target.baseRev),
               createdAt: oldest ?? DateTime.now(),
             ),
@@ -174,25 +232,34 @@ class SyncOutbox {
     if (current != null) return current;
     final syncId = _uuid.v7();
     if (type == RecordType.event) {
-      await (db.update(db.events)..where((t) => t.id.equals(localId)))
-          .write(EventsCompanion(syncId: Value(syncId)));
+      await (db.update(db.events)..where((t) => t.id.equals(localId))).write(
+        EventsCompanion(syncId: Value(syncId)),
+      );
+    } else if (type == RecordType.todo) {
+      await (db.update(db.todos)..where((t) => t.id.equals(localId))).write(
+        TodosCompanion(syncId: Value(syncId)),
+      );
     } else {
-      await (db.update(db.todos)..where((t) => t.id.equals(localId)))
-          .write(TodosCompanion(syncId: Value(syncId)));
+      await (db.update(db.taskAllocations)..where((t) => t.id.equals(localId)))
+          .write(TaskAllocationsCompanion(syncId: Value(syncId)));
     }
     return syncId;
   }
 
-  static Future<DateTime?> _existingCreatedAt(AppDatabase db, String recordId) async {
-    final rows = await (db.select(db.syncOutbox)
-          ..where((t) => t.recordId.equals(recordId)))
-        .get();
+  static Future<DateTime?> _existingCreatedAt(
+    AppDatabase db,
+    String recordId,
+  ) async {
+    final rows = await (db.select(
+      db.syncOutbox,
+    )..where((t) => t.recordId.equals(recordId))).get();
     if (rows.isEmpty) return null;
     return rows.map((r) => r.createdAt).reduce((a, b) => a.isBefore(b) ? a : b);
   }
 
   static Future<void> _collapse(AppDatabase db, String recordId) async {
-    await (db.delete(db.syncOutbox)..where((t) => t.recordId.equals(recordId)))
-        .go();
+    await (db.delete(
+      db.syncOutbox,
+    )..where((t) => t.recordId.equals(recordId))).go();
   }
 }

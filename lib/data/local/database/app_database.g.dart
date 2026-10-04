@@ -4248,12 +4248,34 @@ class $TaskAllocationsTable extends TaskAllocations
   late final GeneratedColumn<int> todoId = GeneratedColumn<int>(
     'todo_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES todos (id) ON DELETE CASCADE',
     ),
+  );
+  static const VerificationMeta _todoSyncIdMeta = const VerificationMeta(
+    'todoSyncId',
+  );
+  @override
+  late final GeneratedColumn<String> todoSyncId = GeneratedColumn<String>(
+    'todo_sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _occurrenceIdMeta = const VerificationMeta(
+    'occurrenceId',
+  );
+  @override
+  late final GeneratedColumn<String> occurrenceId = GeneratedColumn<String>(
+    'occurrence_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   @override
   late final GeneratedColumnWithTypeConverter<DateTime, int> startAt =
@@ -4307,15 +4329,40 @@ class $TaskAllocationsTable extends TaskAllocations
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverRevMeta = const VerificationMeta(
+    'serverRev',
+  );
+  @override
+  late final GeneratedColumn<int> serverRev = GeneratedColumn<int>(
+    'server_rev',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     todoId,
+    todoSyncId,
+    occurrenceId,
     startAt,
     endAt,
     state,
     createdAt,
     updatedAt,
+    syncId,
+    serverRev,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4337,8 +4384,24 @@ class $TaskAllocationsTable extends TaskAllocations
         _todoIdMeta,
         todoId.isAcceptableOrUnknown(data['todo_id']!, _todoIdMeta),
       );
-    } else if (isInserting) {
-      context.missing(_todoIdMeta);
+    }
+    if (data.containsKey('todo_sync_id')) {
+      context.handle(
+        _todoSyncIdMeta,
+        todoSyncId.isAcceptableOrUnknown(
+          data['todo_sync_id']!,
+          _todoSyncIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('occurrence_id')) {
+      context.handle(
+        _occurrenceIdMeta,
+        occurrenceId.isAcceptableOrUnknown(
+          data['occurrence_id']!,
+          _occurrenceIdMeta,
+        ),
+      );
     }
     if (data.containsKey('state')) {
       context.handle(
@@ -4358,6 +4421,18 @@ class $TaskAllocationsTable extends TaskAllocations
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('server_rev')) {
+      context.handle(
+        _serverRevMeta,
+        serverRev.isAcceptableOrUnknown(data['server_rev']!, _serverRevMeta),
+      );
+    }
     return context;
   }
 
@@ -4374,7 +4449,15 @@ class $TaskAllocationsTable extends TaskAllocations
       todoId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}todo_id'],
-      )!,
+      ),
+      todoSyncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}todo_sync_id'],
+      ),
+      occurrenceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}occurrence_id'],
+      ),
       startAt: $TaskAllocationsTable.$converterstartAt.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
@@ -4399,6 +4482,14 @@ class $TaskAllocationsTable extends TaskAllocations
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      serverRev: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_rev'],
+      )!,
     );
   }
 
@@ -4415,26 +4506,42 @@ class $TaskAllocationsTable extends TaskAllocations
 
 class TaskAllocation extends DataClass implements Insertable<TaskAllocation> {
   final int id;
-  final int todoId;
+  final int? todoId;
+  final String? todoSyncId;
+  final String? occurrenceId;
   final DateTime startAt;
   final DateTime endAt;
   final String state;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? syncId;
+  final int serverRev;
   const TaskAllocation({
     required this.id,
-    required this.todoId,
+    this.todoId,
+    this.todoSyncId,
+    this.occurrenceId,
     required this.startAt,
     required this.endAt,
     required this.state,
     required this.createdAt,
     required this.updatedAt,
+    this.syncId,
+    required this.serverRev,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['todo_id'] = Variable<int>(todoId);
+    if (!nullToAbsent || todoId != null) {
+      map['todo_id'] = Variable<int>(todoId);
+    }
+    if (!nullToAbsent || todoSyncId != null) {
+      map['todo_sync_id'] = Variable<String>(todoSyncId);
+    }
+    if (!nullToAbsent || occurrenceId != null) {
+      map['occurrence_id'] = Variable<String>(occurrenceId);
+    }
     {
       map['start_at'] = Variable<int>(
         $TaskAllocationsTable.$converterstartAt.toSql(startAt),
@@ -4448,18 +4555,34 @@ class TaskAllocation extends DataClass implements Insertable<TaskAllocation> {
     map['state'] = Variable<String>(state);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['server_rev'] = Variable<int>(serverRev);
     return map;
   }
 
   TaskAllocationsCompanion toCompanion(bool nullToAbsent) {
     return TaskAllocationsCompanion(
       id: Value(id),
-      todoId: Value(todoId),
+      todoId: todoId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(todoId),
+      todoSyncId: todoSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(todoSyncId),
+      occurrenceId: occurrenceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(occurrenceId),
       startAt: Value(startAt),
       endAt: Value(endAt),
       state: Value(state),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      serverRev: Value(serverRev),
     );
   }
 
@@ -4470,12 +4593,16 @@ class TaskAllocation extends DataClass implements Insertable<TaskAllocation> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return TaskAllocation(
       id: serializer.fromJson<int>(json['id']),
-      todoId: serializer.fromJson<int>(json['todoId']),
+      todoId: serializer.fromJson<int?>(json['todoId']),
+      todoSyncId: serializer.fromJson<String?>(json['todoSyncId']),
+      occurrenceId: serializer.fromJson<String?>(json['occurrenceId']),
       startAt: serializer.fromJson<DateTime>(json['startAt']),
       endAt: serializer.fromJson<DateTime>(json['endAt']),
       state: serializer.fromJson<String>(json['state']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      serverRev: serializer.fromJson<int>(json['serverRev']),
     );
   }
   @override
@@ -4483,41 +4610,61 @@ class TaskAllocation extends DataClass implements Insertable<TaskAllocation> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'todoId': serializer.toJson<int>(todoId),
+      'todoId': serializer.toJson<int?>(todoId),
+      'todoSyncId': serializer.toJson<String?>(todoSyncId),
+      'occurrenceId': serializer.toJson<String?>(occurrenceId),
       'startAt': serializer.toJson<DateTime>(startAt),
       'endAt': serializer.toJson<DateTime>(endAt),
       'state': serializer.toJson<String>(state),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncId': serializer.toJson<String?>(syncId),
+      'serverRev': serializer.toJson<int>(serverRev),
     };
   }
 
   TaskAllocation copyWith({
     int? id,
-    int? todoId,
+    Value<int?> todoId = const Value.absent(),
+    Value<String?> todoSyncId = const Value.absent(),
+    Value<String?> occurrenceId = const Value.absent(),
     DateTime? startAt,
     DateTime? endAt,
     String? state,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<String?> syncId = const Value.absent(),
+    int? serverRev,
   }) => TaskAllocation(
     id: id ?? this.id,
-    todoId: todoId ?? this.todoId,
+    todoId: todoId.present ? todoId.value : this.todoId,
+    todoSyncId: todoSyncId.present ? todoSyncId.value : this.todoSyncId,
+    occurrenceId: occurrenceId.present ? occurrenceId.value : this.occurrenceId,
     startAt: startAt ?? this.startAt,
     endAt: endAt ?? this.endAt,
     state: state ?? this.state,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    serverRev: serverRev ?? this.serverRev,
   );
   TaskAllocation copyWithCompanion(TaskAllocationsCompanion data) {
     return TaskAllocation(
       id: data.id.present ? data.id.value : this.id,
       todoId: data.todoId.present ? data.todoId.value : this.todoId,
+      todoSyncId: data.todoSyncId.present
+          ? data.todoSyncId.value
+          : this.todoSyncId,
+      occurrenceId: data.occurrenceId.present
+          ? data.occurrenceId.value
+          : this.occurrenceId,
       startAt: data.startAt.present ? data.startAt.value : this.startAt,
       endAt: data.endAt.present ? data.endAt.value : this.endAt,
       state: data.state.present ? data.state.value : this.state,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
     );
   }
 
@@ -4526,96 +4673,142 @@ class TaskAllocation extends DataClass implements Insertable<TaskAllocation> {
     return (StringBuffer('TaskAllocation(')
           ..write('id: $id, ')
           ..write('todoId: $todoId, ')
+          ..write('todoSyncId: $todoSyncId, ')
+          ..write('occurrenceId: $occurrenceId, ')
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
           ..write('state: $state, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, todoId, startAt, endAt, state, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    todoId,
+    todoSyncId,
+    occurrenceId,
+    startAt,
+    endAt,
+    state,
+    createdAt,
+    updatedAt,
+    syncId,
+    serverRev,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is TaskAllocation &&
           other.id == this.id &&
           other.todoId == this.todoId &&
+          other.todoSyncId == this.todoSyncId &&
+          other.occurrenceId == this.occurrenceId &&
           other.startAt == this.startAt &&
           other.endAt == this.endAt &&
           other.state == this.state &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncId == this.syncId &&
+          other.serverRev == this.serverRev);
 }
 
 class TaskAllocationsCompanion extends UpdateCompanion<TaskAllocation> {
   final Value<int> id;
-  final Value<int> todoId;
+  final Value<int?> todoId;
+  final Value<String?> todoSyncId;
+  final Value<String?> occurrenceId;
   final Value<DateTime> startAt;
   final Value<DateTime> endAt;
   final Value<String> state;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String?> syncId;
+  final Value<int> serverRev;
   const TaskAllocationsCompanion({
     this.id = const Value.absent(),
     this.todoId = const Value.absent(),
+    this.todoSyncId = const Value.absent(),
+    this.occurrenceId = const Value.absent(),
     this.startAt = const Value.absent(),
     this.endAt = const Value.absent(),
     this.state = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
   });
   TaskAllocationsCompanion.insert({
     this.id = const Value.absent(),
-    required int todoId,
+    this.todoId = const Value.absent(),
+    this.todoSyncId = const Value.absent(),
+    this.occurrenceId = const Value.absent(),
     required DateTime startAt,
     required DateTime endAt,
     this.state = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
-  }) : todoId = Value(todoId),
-       startAt = Value(startAt),
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
+  }) : startAt = Value(startAt),
        endAt = Value(endAt);
   static Insertable<TaskAllocation> custom({
     Expression<int>? id,
     Expression<int>? todoId,
+    Expression<String>? todoSyncId,
+    Expression<String>? occurrenceId,
     Expression<int>? startAt,
     Expression<int>? endAt,
     Expression<String>? state,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncId,
+    Expression<int>? serverRev,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (todoId != null) 'todo_id': todoId,
+      if (todoSyncId != null) 'todo_sync_id': todoSyncId,
+      if (occurrenceId != null) 'occurrence_id': occurrenceId,
       if (startAt != null) 'start_at': startAt,
       if (endAt != null) 'end_at': endAt,
       if (state != null) 'state': state,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncId != null) 'sync_id': syncId,
+      if (serverRev != null) 'server_rev': serverRev,
     });
   }
 
   TaskAllocationsCompanion copyWith({
     Value<int>? id,
-    Value<int>? todoId,
+    Value<int?>? todoId,
+    Value<String?>? todoSyncId,
+    Value<String?>? occurrenceId,
     Value<DateTime>? startAt,
     Value<DateTime>? endAt,
     Value<String>? state,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String?>? syncId,
+    Value<int>? serverRev,
   }) {
     return TaskAllocationsCompanion(
       id: id ?? this.id,
       todoId: todoId ?? this.todoId,
+      todoSyncId: todoSyncId ?? this.todoSyncId,
+      occurrenceId: occurrenceId ?? this.occurrenceId,
       startAt: startAt ?? this.startAt,
       endAt: endAt ?? this.endAt,
       state: state ?? this.state,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncId: syncId ?? this.syncId,
+      serverRev: serverRev ?? this.serverRev,
     );
   }
 
@@ -4627,6 +4820,12 @@ class TaskAllocationsCompanion extends UpdateCompanion<TaskAllocation> {
     }
     if (todoId.present) {
       map['todo_id'] = Variable<int>(todoId.value);
+    }
+    if (todoSyncId.present) {
+      map['todo_sync_id'] = Variable<String>(todoSyncId.value);
+    }
+    if (occurrenceId.present) {
+      map['occurrence_id'] = Variable<String>(occurrenceId.value);
     }
     if (startAt.present) {
       map['start_at'] = Variable<int>(
@@ -4647,6 +4846,12 @@ class TaskAllocationsCompanion extends UpdateCompanion<TaskAllocation> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (serverRev.present) {
+      map['server_rev'] = Variable<int>(serverRev.value);
+    }
     return map;
   }
 
@@ -4655,11 +4860,15 @@ class TaskAllocationsCompanion extends UpdateCompanion<TaskAllocation> {
     return (StringBuffer('TaskAllocationsCompanion(')
           ..write('id: $id, ')
           ..write('todoId: $todoId, ')
+          ..write('todoSyncId: $todoSyncId, ')
+          ..write('occurrenceId: $occurrenceId, ')
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
           ..write('state: $state, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
@@ -4684,6 +4893,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'task_allocations_todo_id',
     'CREATE INDEX task_allocations_todo_id ON task_allocations (todo_id)',
   );
+  late final Index taskAllocationsTodoSyncId = Index(
+    'task_allocations_todo_sync_id',
+    'CREATE INDEX task_allocations_todo_sync_id ON task_allocations (todo_sync_id)',
+  );
+  late final Index taskAllocationsSyncId = Index(
+    'task_allocations_sync_id',
+    'CREATE INDEX task_allocations_sync_id ON task_allocations (sync_id)',
+  );
   late final Index taskAllocationsTimeRange = Index(
     'task_allocations_time_range',
     'CREATE INDEX task_allocations_time_range ON task_allocations (start_at, end_at)',
@@ -4707,6 +4924,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncOutbox,
     taskAllocations,
     taskAllocationsTodoId,
+    taskAllocationsTodoSyncId,
+    taskAllocationsSyncId,
     taskAllocationsTimeRange,
   ];
   @override
@@ -8158,22 +8377,30 @@ typedef $$SyncOutboxTableProcessedTableManager =
 typedef $$TaskAllocationsTableCreateCompanionBuilder =
     TaskAllocationsCompanion Function({
       Value<int> id,
-      required int todoId,
+      Value<int?> todoId,
+      Value<String?> todoSyncId,
+      Value<String?> occurrenceId,
       required DateTime startAt,
       required DateTime endAt,
       Value<String> state,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String?> syncId,
+      Value<int> serverRev,
     });
 typedef $$TaskAllocationsTableUpdateCompanionBuilder =
     TaskAllocationsCompanion Function({
       Value<int> id,
-      Value<int> todoId,
+      Value<int?> todoId,
+      Value<String?> todoSyncId,
+      Value<String?> occurrenceId,
       Value<DateTime> startAt,
       Value<DateTime> endAt,
       Value<String> state,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String?> syncId,
+      Value<int> serverRev,
     });
 
 final class $$TaskAllocationsTableReferences
@@ -8189,9 +8416,9 @@ final class $$TaskAllocationsTableReferences
     $_aliasNameGenerator(db.taskAllocations.todoId, db.todos.id),
   );
 
-  $$TodosTableProcessedTableManager get todoId {
-    final $_column = $_itemColumn<int>('todo_id')!;
-
+  $$TodosTableProcessedTableManager? get todoId {
+    final $_column = $_itemColumn<int>('todo_id');
+    if ($_column == null) return null;
     final manager = $$TodosTableTableManager(
       $_db,
       $_db.todos,
@@ -8215,6 +8442,16 @@ class $$TaskAllocationsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8242,6 +8479,16 @@ class $$TaskAllocationsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8283,6 +8530,16 @@ class $$TaskAllocationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get startAt => $composableBuilder(
     column: $table.startAt,
     builder: (column) => ColumnOrderings(column),
@@ -8305,6 +8562,16 @@ class $$TaskAllocationsTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8344,6 +8611,16 @@ class $$TaskAllocationsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
+    builder: (column) => column,
+  );
+
   GeneratedColumnWithTypeConverter<DateTime, int> get startAt =>
       $composableBuilder(column: $table.startAt, builder: (column) => column);
 
@@ -8358,6 +8635,12 @@ class $$TaskAllocationsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRev =>
+      $composableBuilder(column: $table.serverRev, builder: (column) => column);
 
   $$TodosTableAnnotationComposer get todoId {
     final $$TodosTableAnnotationComposer composer = $composerBuilder(
@@ -8414,38 +8697,54 @@ class $$TaskAllocationsTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> todoId = const Value.absent(),
+                Value<int?> todoId = const Value.absent(),
+                Value<String?> todoSyncId = const Value.absent(),
+                Value<String?> occurrenceId = const Value.absent(),
                 Value<DateTime> startAt = const Value.absent(),
                 Value<DateTime> endAt = const Value.absent(),
                 Value<String> state = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
               }) => TaskAllocationsCompanion(
                 id: id,
                 todoId: todoId,
+                todoSyncId: todoSyncId,
+                occurrenceId: occurrenceId,
                 startAt: startAt,
                 endAt: endAt,
                 state: state,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncId: syncId,
+                serverRev: serverRev,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required int todoId,
+                Value<int?> todoId = const Value.absent(),
+                Value<String?> todoSyncId = const Value.absent(),
+                Value<String?> occurrenceId = const Value.absent(),
                 required DateTime startAt,
                 required DateTime endAt,
                 Value<String> state = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
               }) => TaskAllocationsCompanion.insert(
                 id: id,
                 todoId: todoId,
+                todoSyncId: todoSyncId,
+                occurrenceId: occurrenceId,
                 startAt: startAt,
                 endAt: endAt,
                 state: state,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                syncId: syncId,
+                serverRev: serverRev,
               ),
           withReferenceMapper: (p0) => p0
               .map(

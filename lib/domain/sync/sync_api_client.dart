@@ -52,13 +52,16 @@ abstract class SyncTransport {
 
 class DioSyncTransport implements SyncTransport {
   DioSyncTransport({required String baseUrl, Dio? dio})
-      : _dio = dio ??
-            Dio(BaseOptions(
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
               baseUrl: baseUrl,
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(seconds: 30),
               responseType: ResponseType.plain,
-            ));
+            ),
+          );
 
   final Dio _dio;
 
@@ -69,7 +72,10 @@ class DioSyncTransport implements SyncTransport {
     Map<String, String> headers = const {},
     Object? body,
   }) async {
-    final options = Options(headers: {...headers}, responseType: ResponseType.plain);
+    final options = Options(
+      headers: {...headers},
+      responseType: ResponseType.plain,
+    );
     try {
       final Response<dynamic> response;
       if (method == 'GET') {
@@ -117,6 +123,8 @@ class DioSyncTransport implements SyncTransport {
 
 /// The seam the engine codes against: push / pull / SSE cursor signals.
 abstract class SyncApiClient {
+  Future<SyncCapabilitiesResponse> fetchServerCapabilities();
+
   Future<PushResponse> push(PushRequest request);
 
   Future<PullResponse> pull(int cursor, {int limit});
@@ -282,10 +290,17 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
     } on FormatException {
       // Fall through to the generic envelope below.
     }
-    return SyncApiException(response.statusCode, 'error', 'HTTP ${response.statusCode}');
+    return SyncApiException(
+      response.statusCode,
+      'error',
+      'HTTP ${response.statusCode}',
+    );
   }
 
-  T _decode<T>(SyncHttpResponse response, T Function(Map<String, dynamic>) parse) {
+  T _decode<T>(
+    SyncHttpResponse response,
+    T Function(Map<String, dynamic>) parse,
+  ) {
     if (response.statusCode != 200) throw _toException(response);
     return parse(jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -294,25 +309,23 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
   Future<AuthSession> login({
     required String email,
     required String password,
-  }) =>
-      _authCall(
-        path: '/auth/login',
-        email: email,
-        password: password,
-        okStatuses: const [200],
-      );
+  }) => _authCall(
+    path: '/auth/login',
+    email: email,
+    password: password,
+    okStatuses: const [200],
+  );
 
   @override
   Future<AuthSession> register({
     required String email,
     required String password,
-  }) =>
-      _authCall(
-        path: '/auth/register',
-        email: email,
-        password: password,
-        okStatuses: const [200, 201],
-      );
+  }) => _authCall(
+    path: '/auth/register',
+    email: email,
+    password: password,
+    okStatuses: const [200, 201],
+  );
 
   Future<AuthSession> _authCall({
     required String path,
@@ -348,6 +361,15 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
   }
 
   @override
+  Future<SyncCapabilitiesResponse> fetchServerCapabilities() async {
+    final response = await _send(method: 'GET', path: '/sync/capabilities');
+    if (response.statusCode == 404) {
+      return const SyncCapabilitiesResponse(capabilities: []);
+    }
+    return _decode(response, SyncCapabilitiesResponse.fromJson);
+  }
+
+  @override
   Future<PushResponse> push(PushRequest request) async {
     final response = await _send(
       method: 'POST',
@@ -361,7 +383,8 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
   Future<PullResponse> pull(int cursor, {int limit = 100}) async {
     final response = await _send(
       method: 'GET',
-      path: '/sync/pull?cursor=$cursor&limit=$limit',
+      path:
+          '/sync/pull?cursor=$cursor&limit=$limit&capabilities=${Uri.encodeQueryComponent(SyncCapability.taskAllocationV1)}',
     );
     return _decode(response, PullResponse.fromJson);
   }
@@ -376,10 +399,7 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
           path: '/sync/stream',
           headers: await _authHeaders(),
         );
-        final lines = utf8
-            .decoder
-            .bind(bytes)
-            .transform(const LineSplitter());
+        final lines = utf8.decoder.bind(bytes).transform(const LineSplitter());
         await for (final line in lines) {
           if (!line.startsWith('data: ')) continue;
           try {
