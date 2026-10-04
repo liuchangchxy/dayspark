@@ -1,5 +1,6 @@
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:drift/drift.dart' show OrderingTerm;
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 
 // Payload ↔ row mapping for P2 sync scope (event + todo + TaskAllocation;
 // tag, reminder and attachment payloads are P2.5). DateTimes travel as UTC
@@ -23,8 +24,22 @@ Map<String, dynamic> dirtyFields(
       dirty[field.key] = field.value;
     }
   }
+  if (dirty.keys.any(_isRecurrenceWireKey)) {
+    for (final key in const [
+      'recurrenceSpec',
+      'recurrenceRevision',
+      'recurrenceLegacyState',
+    ]) {
+      dirty[key] = current[key];
+    }
+  }
   return dirty;
 }
+
+bool _isRecurrenceWireKey(String key) =>
+    key == 'recurrenceSpec' ||
+    key == 'recurrenceRevision' ||
+    key == 'recurrenceLegacyState';
 
 DateTime? parseIso(Object? raw) {
   if (raw is! String) return null;
@@ -72,6 +87,7 @@ Future<Map<String, Object?>> todoToPayload(AppDatabase db, Todo t) async {
     // Local integer ids are device-scoped and cannot cross devices; the
     // parent travels as its sync UUID and is resolved back on apply.
     'parentSyncId': parentSyncId,
+    ...TodoRecurrence.fromTodo(t).toJson(),
   };
 }
 

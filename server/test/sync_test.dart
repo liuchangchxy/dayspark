@@ -158,7 +158,10 @@ void main() {
       token: token,
     );
     expect(discovery.statusCode, 200);
-    expect((await _json(discovery))['capabilities'], ['task_allocation_v1']);
+    expect((await _json(discovery))['capabilities'], [
+      'task_allocation_v1',
+      'todo_recurrence_v1',
+    ]);
 
     final unsupportedPush = await _push(
       app,
@@ -185,6 +188,53 @@ void main() {
       'rejected',
     );
     expect(await app.db.select(app.db.records).get(), isEmpty);
+
+    final recurrenceFields = {
+      'summary': 'Series',
+      'rrule': 'FREQ=DAILY;COUNT=2',
+      'recurrenceSpec': {
+        'anchor': {
+          'source': 'start',
+          'valueType': 'dateTime',
+          'value': '2026-10-05T09:00:00',
+        },
+        'timeZone': 'Asia/Shanghai',
+        'rrule': 'FREQ=DAILY;COUNT=2',
+      },
+      'recurrenceRevision': 1,
+      'recurrenceLegacyState': 'knownZoned',
+    };
+    final recurrenceWithoutCapability = await _push(
+      app,
+      token,
+      ops: [
+        _upsertOp(
+          opId: 'recurrence-without-capability',
+          recordId: 'recurrence-capability',
+          fields: recurrenceFields,
+        ),
+      ],
+    );
+    expect(
+      (_results(recurrenceWithoutCapability).single as Map)['status'],
+      'rejected',
+    );
+    final recurrenceWithCapability = await _push(
+      app,
+      token,
+      capabilities: ['todo_recurrence_v1'],
+      ops: [
+        _upsertOp(
+          opId: 'recurrence-with-capability',
+          recordId: 'recurrence-capability',
+          fields: recurrenceFields,
+        ),
+      ],
+    );
+    expect(
+      (_results(recurrenceWithCapability).single as Map)['status'],
+      'applied',
+    );
 
     await _push(
       app,
@@ -231,18 +281,18 @@ void main() {
       ],
     );
 
-    final first = await _pull(app, token, limit: 1);
-    expect(first['nextCursor'], 1);
-    final hiddenAllocation = await _pull(app, token, cursor: 1, limit: 1);
+    final first = await _pull(app, token, cursor: 1, limit: 1);
+    expect(first['nextCursor'], 2);
+    final hiddenAllocation = await _pull(app, token, cursor: 2, limit: 1);
     expect(hiddenAllocation['changes'], isEmpty);
-    expect(hiddenAllocation['nextCursor'], 2);
-    final followingVisible = await _pull(app, token, cursor: 2, limit: 1);
+    expect(hiddenAllocation['nextCursor'], 3);
+    final followingVisible = await _pull(app, token, cursor: 3, limit: 1);
     expect((followingVisible['changes'] as List).single['type'], 'event');
 
     final capable = await _pull(
       app,
       token,
-      cursor: 1,
+      cursor: 2,
       limit: 1,
       capabilities: ['task_allocation_v1'],
     );

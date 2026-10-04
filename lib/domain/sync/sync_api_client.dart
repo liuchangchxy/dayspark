@@ -384,7 +384,7 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
     final response = await _send(
       method: 'GET',
       path:
-          '/sync/pull?cursor=$cursor&limit=$limit&capabilities=${Uri.encodeQueryComponent(SyncCapability.taskAllocationV1)}',
+          '/sync/pull?cursor=$cursor&limit=$limit&capabilities=${Uri.encodeQueryComponent('${SyncCapability.taskAllocationV1},${SyncCapability.todoRecurrenceV1}')}',
     );
     return _decode(response, PullResponse.fromJson);
   }

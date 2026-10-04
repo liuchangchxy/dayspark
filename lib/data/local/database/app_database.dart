@@ -44,7 +44,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -154,6 +154,20 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           'CREATE INDEX task_allocations_time_range ON task_allocations (start_at, end_at)',
         );
+      }
+      if (from < 12) {
+        await m.addColumn(todos, todos.recurrenceAnchorSource);
+        await m.addColumn(todos, todos.recurrenceValueType);
+        await m.addColumn(todos, todos.recurrenceAnchorValue);
+        await m.addColumn(todos, todos.recurrenceTimeZone);
+        await m.addColumn(todos, todos.recurrenceRule);
+        await m.addColumn(todos, todos.recurrenceLegacyState);
+        await m.addColumn(todos, todos.recurrenceRevision);
+        await customStatement('''
+          UPDATE todos
+          SET recurrence_legacy_state = 'unknownLegacy', recurrence_revision = 0
+          WHERE rrule IS NOT NULL
+        ''');
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

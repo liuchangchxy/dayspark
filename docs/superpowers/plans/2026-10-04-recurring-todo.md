@@ -1,6 +1,6 @@
 # Recurring Todo — Implementation Plan
 
-Status: **R1 shared recurrence core complete; R2 remains separately scoped**
+Status: **R1 shared recurrence core complete; R2 persistence and atomic sync complete**
 Contract: `SPEC.md` §3.1.1
 Source audit: `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`
 
@@ -36,11 +36,13 @@ R1 implementation and verification are recorded in `DECISIONS.md` and `docs/ROAD
 
 ## Phase 2 — Atomic sync contract and persistence
 
-- Add `RecurrenceSpec` wire DTO and a whole-object recurrence revision to Todo payload. Non-repeating Todo carries no recurrence zone.
-- Update client Drift migration additively; do not infer a zone for existing RRULE rows.
-- Update server validation/storage/applier so a partial anchor/rule/zone tuple is rejected and concurrent recurrence changes are resolved as one unit. Keep unrelated Todo field LWW unchanged.
-- Add capability/version rollout rules so older clients safely preserve unknown recurrence objects and never rewrite them from old fields.
-- Add client/server/contracts serialization, migration, conflict, partial-update, and round-trip tests.
+R2 contract in this phase is `SPEC.md` §3.1.1. Persist `anchor_source`, `anchor_value_type`, `anchor_value`, `time_zone`, normalized `rrule`, `legacy_state`, and `recurrence_revision` as structured nullable columns on Todo. A complete `knownZoned` tuple is present together; `unknownLegacy` keeps tuple columns null and preserves old fields. Non-recurring rows have no recurrence state. Upgrade current client schema v11 to v12 additively and verify real v11→v12 close/reopen migration with Todo relations and TaskAllocation unchanged.
+
+Wire uses one nested `recurrenceSpec` object, `recurrenceRevision`, and `recurrenceLegacyState`. Ordinary Todo fields retain field-level LWW. Server validates and resolves the recurrence object atomically; equal revision ties use a deterministic whole-object winner. Legacy clients can omit new keys and read the compatibility projection, but cannot write legacy recurrence fields over an active new recurrence. Independent fields in that op remain eligible for LWW.
+
+New and edited series must flow through TodoWriter; remote apply validates without echo; legacy confirmation updates state, tuple, revision, projection, and outbox in one RecordScope transaction. New model recurrence creation requires a full spec. Old rrule-only MCP/service writes must be explicitly rejected until supplied a zone and local anchor. ICS imports without authoritative IANA wall-time evidence remain unknownLegacy; no converter-derived UTC instant is treated as an anchor.
+
+Acceptance includes migration cases for ordinary/start-only/due-only/start+due/completed/trashed/TaskAllocation-linked Todo and tags/attachments/reminders; DATE and DATE-TIME persistence; contract old-payload parsing; compatibility write rejection; and conflict cases A–E from the R2 brief. Recurrence tuple must never be field-merged, and remote apply must not create outbox echo.
 
 ## Phase 3 — Lazy legacy migration and ICS boundary
 

@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:drift/drift.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../db.dart';
 import '../sync/idempotency.dart';
@@ -152,6 +154,9 @@ Future<OpResult> _processUpsert(
       );
     }
     var payload = fields;
+    if (op.type == RecordType.todo) {
+      payload = _normalizeTodoPayload(payload);
+    }
     if (op.type == RecordType.taskAllocation) {
       final allocation = TaskAllocationPayload.fromJson(payload);
       if (await _todoIsHardDeleted(db, userId, allocation.todoSyncId)) {
@@ -210,10 +215,16 @@ Future<OpResult> _processUpsert(
     );
   }
 
-  var merged = mergeFields(
-    jsonDecode(row.payloadJson) as Map<String, dynamic>,
-    fields,
-  );
+  final existingPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+  var recurrenceConflict = false;
+  late Map<String, dynamic> merged;
+  if (op.type == RecordType.todo) {
+    final todoMerge = _mergeTodoPayload(existingPayload, fields, op.opId);
+    merged = todoMerge.payload;
+    recurrenceConflict = todoMerge.conflict;
+  } else {
+    merged = mergeFields(existingPayload, fields);
+  }
   if (op.type == RecordType.taskAllocation) {
     final allocation = TaskAllocationPayload.fromJson(merged);
     if (await _todoIsHardDeleted(db, userId, allocation.todoSyncId)) {
@@ -291,9 +302,133 @@ Future<OpResult> _processUpsert(
   }
   return OpResult(
     opId: op.opId,
-    status: OpStatus.applied,
+    status: recurrenceConflict ? OpStatus.conflict : OpStatus.applied,
+    code: recurrenceConflict ? errConflict : null,
     serverRecord: toSyncRecord(updated),
   );
+}
+
+const _recurrenceKeys = <String>{
+  'recurrenceSpec',
+  'recurrenceRevision',
+  'recurrenceLegacyState',
+};
+const _legacyRecurrenceKeys = <String>{'startDate', 'dueDate', 'rrule'};
+bool _recurrenceZoneDataReady = false;
+
+final class _TodoPayloadMerge {
+  const _TodoPayloadMerge(this.payload, this.conflict);
+
+  final Map<String, dynamic> payload;
+  final bool conflict;
+}
+
+Map<String, dynamic> _normalizeTodoPayload(Map<String, dynamic> payload) {
+  if (!_recurrenceKeys.any(payload.containsKey) &&
+      payload['rrule'] is! String) {
+    return Map<String, dynamic>.from(payload);
+  }
+  final recurrence = TodoRecurrenceDto.fromTodoPayload(payload);
+  final normalized = Map<String, dynamic>.from(payload)
+    ..addAll(recurrence.toJson());
+  _validateTodoRecurrenceProjection(normalized, recurrence);
+  return normalized;
+}
+
+_TodoPayloadMerge _mergeTodoPayload(
+  Map<String, dynamic> current,
+  Map<String, dynamic> incoming,
+  String opId,
+) {
+  final currentRecurrence = TodoRecurrenceDto.fromTodoPayload(current);
+  final merged = Map<String, dynamic>.from(current);
+  final groupTouched = _recurrenceKeys.any(incoming.containsKey);
+  var conflict = false;
+  if (groupTouched) {
+    if (!_recurrenceKeys.every(incoming.containsKey)) {
+      throw const FormatException(
+        'recurrence updates must include the full group',
+      );
+    }
+    final incomingState = incoming['recurrenceLegacyState'];
+    final candidateSpec = incoming['recurrenceSpec'];
+    final candidateRule = incoming.containsKey('rrule')
+        ? incoming['rrule']
+        : incomingState == 'knownZoned' && candidateSpec is Map
+        ? candidateSpec['rrule']
+        : incomingState == null
+        ? null
+        : current['rrule'];
+    final candidatePayload = <String, dynamic>{
+      ...incoming,
+      'rrule': candidateRule,
+    };
+    final candidate = TodoRecurrenceDto.fromTodoPayload(candidatePayload);
+    _validateTodoRecurrenceProjection(candidatePayload, candidate);
+    final comparison = _compareRecurrence(currentRecurrence, candidate);
+    final wins =
+        comparison < 0 ||
+        (comparison == 0 &&
+            opId.compareTo(current['recurrenceOpId'] as String? ?? '') > 0);
+    // Higher revisions win. At equal revision, compare the complete canonical
+    // tuple; the op id breaks only an identical revision-and-tuple tie.
+    final candidateWins =
+        candidate.revision > currentRecurrence.revision ||
+        (candidate.revision == currentRecurrence.revision && comparison < 0) ||
+        (candidate.revision == currentRecurrence.revision &&
+            comparison == 0 &&
+            wins);
+    if (candidateWins) {
+      merged.addAll(incoming);
+      merged['recurrenceOpId'] = opId;
+      merged['rrule'] =
+          candidate.spec?.rule.canonical ??
+          (candidate.legacyState == RecurrenceLegacyState.unknownLegacy
+              ? candidatePayload['rrule']
+              : null);
+      for (final key in _legacyRecurrenceKeys) {
+        if (incoming.containsKey(key)) merged[key] = incoming[key];
+      }
+    } else {
+      conflict = true;
+    }
+  } else {
+    if (currentRecurrence.spec != null &&
+        _legacyRecurrenceKeys.any(incoming.containsKey)) {
+      conflict = true;
+      merged.addAll(
+        Map<String, dynamic>.from(incoming)
+          ..removeWhere((key, _) => _legacyRecurrenceKeys.contains(key)),
+      );
+    } else {
+      merged.addAll(incoming);
+    }
+  }
+  final normalized = _normalizeTodoPayload(merged);
+  return _TodoPayloadMerge(normalized, conflict);
+}
+
+int _compareRecurrence(TodoRecurrenceDto left, TodoRecurrenceDto right) =>
+    jsonEncode(left.toJson()).compareTo(jsonEncode(right.toJson()));
+
+void _validateTodoRecurrenceProjection(
+  Map<String, dynamic> payload,
+  TodoRecurrenceDto recurrence,
+) {
+  if (recurrence.spec != null) {
+    if (payload['rrule'] != recurrence.spec!.rule.canonical) {
+      throw const FormatException('RRULE compatibility projection mismatch');
+    }
+    if (!_recurrenceZoneDataReady) {
+      tzdata.initializeTimeZones();
+      _recurrenceZoneDataReady = true;
+    }
+    try {
+      tz.getLocation(recurrence.spec!.timeZone);
+    } on tz.LocationNotFoundException {
+      throw const FormatException('unknown IANA recurrence timezone');
+    }
+  }
 }
 
 Future<OpResult> _processDelete(
@@ -336,7 +471,11 @@ Future<OpResult> _processDelete(
     );
   }
   if (row.type != op.type.wireName) {
-    return OpResult(opId: op.opId, status: OpStatus.rejected, code: errValidation);
+    return OpResult(
+      opId: op.opId,
+      status: OpStatus.rejected,
+      code: errValidation,
+    );
   }
   if (row.deleted) {
     final oldPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;

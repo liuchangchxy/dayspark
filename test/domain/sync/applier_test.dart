@@ -41,62 +41,69 @@ void main() {
     String? startDt = '2026-09-24T10:00:00.000Z',
     String? endDt = '2026-09-24T11:00:00.000Z',
     String? deletedAt,
-  }) =>
-      <String, Object?>{
-        'calendarId': calendarId,
-        'summary': summary,
-        'startDt': startDt,
-        'endDt': endDt,
-        'isAllDay': false,
-        'description': null,
-        'location': null,
-        'rrule': null,
-        'deletedAt': deletedAt,
-        'createdAt': '2026-09-01T00:00:00.000Z',
-        'updatedAt': '2026-09-22T00:00:00.000Z',
-      };
+  }) => <String, Object?>{
+    'calendarId': calendarId,
+    'summary': summary,
+    'startDt': startDt,
+    'endDt': endDt,
+    'isAllDay': false,
+    'description': null,
+    'location': null,
+    'rrule': null,
+    'deletedAt': deletedAt,
+    'createdAt': '2026-09-01T00:00:00.000Z',
+    'updatedAt': '2026-09-22T00:00:00.000Z',
+  };
 
-  test('server record overwrites the matching local row (server wins LWW)',
-      () async {
-    final localId = await db.into(db.events).insert(
-          EventsCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Local edit',
-            startDt: DateTime(2026, 9, 24, 10),
-            endDt: DateTime(2026, 9, 24, 11),
-            syncId: const Value('rec-1'),
-            serverRev: const Value(2),
-          ),
-        );
+  test(
+    'server record overwrites the matching local row (server wins LWW)',
+    () async {
+      final localId = await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Local edit',
+              startDt: DateTime(2026, 9, 24, 10),
+              endDt: DateTime(2026, 9, 24, 11),
+              syncId: const Value('rec-1'),
+              serverRev: const Value(2),
+            ),
+          );
 
-    final applied = await applyRecord(SyncRecord(
-      id: 'rec-1',
-      type: RecordType.event,
-      payload: eventPayload(summary: 'Server wins'),
-      rev: 9,
-      deleted: false,
-      serverTs: DateTime.utc(2026, 9, 23, 8),
-    ));
-    expect(applied, true);
+      final applied = await applyRecord(
+        SyncRecord(
+          id: 'rec-1',
+          type: RecordType.event,
+          payload: eventPayload(summary: 'Server wins'),
+          rev: 9,
+          deleted: false,
+          serverTs: DateTime.utc(2026, 9, 23, 8),
+        ),
+      );
+      expect(applied, true);
 
-    final row =
-        await (db.select(db.events)..where((t) => t.id.equals(localId)))
-            .getSingle();
-    expect(row.summary, 'Server wins');
-    expect(row.serverRev, 9);
-    expect(row.syncId, 'rec-1');
-    expect(row.startDt.toUtc(), DateTime.utc(2026, 9, 24, 10));
-  });
+      final row = await (db.select(
+        db.events,
+      )..where((t) => t.id.equals(localId))).getSingle();
+      expect(row.summary, 'Server wins');
+      expect(row.serverRev, 9);
+      expect(row.syncId, 'rec-1');
+      expect(row.startDt.toUtc(), DateTime.utc(2026, 9, 24, 10));
+    },
+  );
 
   test('unknown record is inserted with its syncId', () async {
-    await applyRecord(SyncRecord(
-      id: 'rec-new',
-      type: RecordType.event,
-      payload: eventPayload(summary: 'From other device'),
-      rev: 1,
-      deleted: false,
-      serverTs: DateTime.utc(2026, 9, 23, 8),
-    ));
+    await applyRecord(
+      SyncRecord(
+        id: 'rec-new',
+        type: RecordType.event,
+        payload: eventPayload(summary: 'From other device'),
+        rev: 1,
+        deleted: false,
+        serverTs: DateTime.utc(2026, 9, 23, 8),
+      ),
+    );
 
     final row = await (db.select(db.events)).getSingle();
     expect(row.summary, 'From other device');
@@ -105,23 +112,94 @@ void main() {
     expect(row.calendarId, calendarId);
   });
 
+  test(
+    'Todo RecurrenceSpec applies as one group without outbox echo',
+    () async {
+      final record = SyncRecord(
+        id: 'todo-recurring',
+        type: RecordType.todo,
+        payload: {
+          'calendarId': calendarId,
+          'summary': 'Remote series',
+          'rrule': 'FREQ=DAILY;COUNT=2',
+          'recurrenceSpec': {
+            'anchor': {
+              'source': 'due',
+              'valueType': 'date',
+              'value': '2026-10-05',
+            },
+            'timeZone': 'Asia/Shanghai',
+            'rrule': 'FREQ=DAILY;COUNT=2',
+          },
+          'recurrenceRevision': 3,
+          'recurrenceLegacyState': 'knownZoned',
+        },
+        rev: 8,
+        deleted: false,
+        serverTs: DateTime.utc(2026, 10, 5),
+      );
+      expect(await applyRecord(record), isTrue);
+      final todo = (await db.select(db.todos).get()).single;
+      expect(todo.recurrenceAnchorSource, 'due');
+      expect(todo.recurrenceValueType, 'date');
+      expect(todo.recurrenceAnchorValue, '2026-10-05');
+      expect(todo.recurrenceTimeZone, 'Asia/Shanghai');
+      expect(todo.recurrenceRule, 'FREQ=DAILY;COUNT=2');
+      expect(todo.recurrenceRevision, 3);
+      expect(todo.recurrenceLegacyState, 'knownZoned');
+      expect(await db.select(db.syncOutbox).get(), isEmpty);
+    },
+  );
+
+  test(
+    'old recurring Todo payload becomes unknownLegacy without timezone guess',
+    () async {
+      expect(
+        await applyRecord(
+          SyncRecord(
+            id: 'old-recurring',
+            type: RecordType.todo,
+            payload: {
+              'calendarId': calendarId,
+              'summary': 'Old series',
+              'rrule': 'FREQ=WEEKLY',
+              'startDate': '2026-10-05T09:00:00Z',
+            },
+            rev: 1,
+            deleted: false,
+            serverTs: DateTime.utc(2026, 10, 5),
+          ),
+        ),
+        isTrue,
+      );
+      final todo = (await db.select(db.todos).get()).single;
+      expect(todo.recurrenceLegacyState, 'unknownLegacy');
+      expect(todo.recurrenceRevision, 0);
+      expect(todo.recurrenceTimeZone, isNull);
+      expect(todo.recurrenceAnchorValue, isNull);
+    },
+  );
+
   test('payload calendarId that does not exist locally falls back', () async {
-    await applyRecord(SyncRecord(
-      id: 'rec-cal',
-      type: RecordType.event,
-      payload: eventPayload(calendarId: 999),
-      rev: 1,
-      deleted: false,
-      serverTs: DateTime.utc(2026, 9, 23, 8),
-    ));
+    await applyRecord(
+      SyncRecord(
+        id: 'rec-cal',
+        type: RecordType.event,
+        payload: eventPayload(calendarId: 999),
+        rev: 1,
+        deleted: false,
+        serverTs: DateTime.utc(2026, 9, 23, 8),
+      ),
+    );
 
     final row = await (db.select(db.events)).getSingle();
     expect(row.calendarId, calendarId);
   });
 
-  test('tombstone soft-deletes the local row instead of dropping it',
-      () async {
-    final localId = await db.into(db.events).insert(
+  test('tombstone soft-deletes the local row instead of dropping it', () async {
+    final localId = await db
+        .into(db.events)
+        .insert(
           EventsCompanion.insert(
             calendarId: calendarId,
             summary: 'Trashed remotely',
@@ -132,39 +210,45 @@ void main() {
         );
     final serverTs = DateTime.utc(2026, 9, 23, 9);
 
-    final applied = await applyRecord(SyncRecord(
-      id: 'rec-del',
-      type: RecordType.event,
-      payload: const {},
-      rev: 4,
-      deleted: true,
-      serverTs: serverTs,
-    ));
+    final applied = await applyRecord(
+      SyncRecord(
+        id: 'rec-del',
+        type: RecordType.event,
+        payload: const {},
+        rev: 4,
+        deleted: true,
+        serverTs: serverTs,
+      ),
+    );
     expect(applied, true);
 
-    final row =
-        await (db.select(db.events)..where((t) => t.id.equals(localId)))
-            .getSingle();
+    final row = await (db.select(
+      db.events,
+    )..where((t) => t.id.equals(localId))).getSingle();
     expect(row.deletedAt, isNotNull);
     expect(row.deletedAt!.toUtc(), serverTs);
     expect(row.serverRev, 4);
   });
 
   test('tombstone for an unknown record is a no-op', () async {
-    final applied = await applyRecord(SyncRecord(
-      id: 'rec-ghost',
-      type: RecordType.event,
-      payload: const {},
-      rev: 1,
-      deleted: true,
-      serverTs: DateTime.utc(2026, 9, 23, 9),
-    ));
+    final applied = await applyRecord(
+      SyncRecord(
+        id: 'rec-ghost',
+        type: RecordType.event,
+        payload: const {},
+        rev: 1,
+        deleted: true,
+        serverTs: DateTime.utc(2026, 9, 23, 9),
+      ),
+    );
     expect(applied, false);
     expect(await (db.select(db.events)).get(), isEmpty);
   });
 
   test('todo parentSyncId resolves to the local parent row', () async {
-    final parentId = await db.into(db.todos).insert(
+    final parentId = await db
+        .into(db.todos)
+        .insert(
           TodosCompanion.insert(
             calendarId: calendarId,
             summary: 'Parent',
@@ -172,86 +256,94 @@ void main() {
           ),
         );
 
-    await applyRecord(SyncRecord(
-      id: 'child-sync',
-      type: RecordType.todo,
-      payload: <String, Object?>{
-        'calendarId': calendarId,
-        'summary': 'Child',
-        'dueDate': null,
-        'startDate': null,
-        'priority': 0,
-        'status': 'NEEDS-ACTION',
-        'description': null,
-        'rrule': null,
-        'completedAt': null,
-        'percentComplete': 0,
-        'deletedAt': null,
-        'createdAt': '2026-09-01T00:00:00.000Z',
-        'updatedAt': '2026-09-22T00:00:00.000Z',
-        'sortOrder': 0,
-        'parentSyncId': 'parent-sync',
-      },
-      rev: 2,
-      deleted: false,
-      serverTs: DateTime.utc(2026, 9, 23, 8),
-    ));
+    await applyRecord(
+      SyncRecord(
+        id: 'child-sync',
+        type: RecordType.todo,
+        payload: <String, Object?>{
+          'calendarId': calendarId,
+          'summary': 'Child',
+          'dueDate': null,
+          'startDate': null,
+          'priority': 0,
+          'status': 'NEEDS-ACTION',
+          'description': null,
+          'rrule': null,
+          'completedAt': null,
+          'percentComplete': 0,
+          'deletedAt': null,
+          'createdAt': '2026-09-01T00:00:00.000Z',
+          'updatedAt': '2026-09-22T00:00:00.000Z',
+          'sortOrder': 0,
+          'parentSyncId': 'parent-sync',
+        },
+        rev: 2,
+        deleted: false,
+        serverTs: DateTime.utc(2026, 9, 23, 8),
+      ),
+    );
 
-    final child = await (db.select(db.todos)
-          ..where((t) => t.syncId.equals('child-sync')))
-        .getSingle();
+    final child = await (db.select(
+      db.todos,
+    )..where((t) => t.syncId.equals('child-sync'))).getSingle();
     expect(child.parentId, parentId);
     expect(child.serverRev, 2);
   });
 
   test('todo with a parentSyncId unknown locally stays top-level', () async {
-    await applyRecord(SyncRecord(
-      id: 'child-orphan',
-      type: RecordType.todo,
-      payload: <String, Object?>{
-        'calendarId': calendarId,
-        'summary': 'Orphan child',
-        'dueDate': null,
-        'startDate': null,
-        'priority': 0,
-        'status': 'NEEDS-ACTION',
-        'description': null,
-        'rrule': null,
-        'completedAt': null,
-        'percentComplete': 0,
-        'deletedAt': null,
-        'createdAt': '2026-09-01T00:00:00.000Z',
-        'updatedAt': '2026-09-22T00:00:00.000Z',
-        'sortOrder': 0,
-        'parentSyncId': 'missing-parent',
-      },
-      rev: 1,
-      deleted: false,
-      serverTs: DateTime.utc(2026, 9, 23, 8),
-    ));
+    await applyRecord(
+      SyncRecord(
+        id: 'child-orphan',
+        type: RecordType.todo,
+        payload: <String, Object?>{
+          'calendarId': calendarId,
+          'summary': 'Orphan child',
+          'dueDate': null,
+          'startDate': null,
+          'priority': 0,
+          'status': 'NEEDS-ACTION',
+          'description': null,
+          'rrule': null,
+          'completedAt': null,
+          'percentComplete': 0,
+          'deletedAt': null,
+          'createdAt': '2026-09-01T00:00:00.000Z',
+          'updatedAt': '2026-09-22T00:00:00.000Z',
+          'sortOrder': 0,
+          'parentSyncId': 'missing-parent',
+        },
+        rev: 1,
+        deleted: false,
+        serverTs: DateTime.utc(2026, 9, 23, 8),
+      ),
+    );
 
-    final child = await (db.select(db.todos)
-          ..where((t) => t.syncId.equals('child-orphan')))
-        .getSingle();
+    final child = await (db.select(
+      db.todos,
+    )..where((t) => t.syncId.equals('child-orphan'))).getSingle();
     expect(child.parentId, isNull);
   });
 
   test('malformed payload is skipped, not thrown', () async {
-    final applied = await applyRecord(SyncRecord(
-      id: 'rec-bad',
-      type: RecordType.event,
-      payload: const {'summary': 'no dates'},
-      rev: 1,
-      deleted: false,
-      serverTs: DateTime.utc(2026, 9, 23, 8),
-    ));
+    final applied = await applyRecord(
+      SyncRecord(
+        id: 'rec-bad',
+        type: RecordType.event,
+        payload: const {'summary': 'no dates'},
+        rev: 1,
+        deleted: false,
+        serverTs: DateTime.utc(2026, 9, 23, 8),
+      ),
+    );
     expect(applied, false);
     expect(await (db.select(db.events)).get(), isEmpty);
   });
 
   test('applier 登记 applied 时携带写前参考时间（重排器的位移基准）', () async {
     final start = DateTime(2026, 6, 10, 9);
-    final localId = await db.into(db.events).insert(
+    final localId = await db
+        .into(db.events)
+        .insert(
           EventsCompanion.insert(
             calendarId: calendarId,
             summary: '本机旧值',
@@ -261,18 +353,20 @@ void main() {
           ),
         );
 
-    await applyRecord(SyncRecord(
-      id: 'rec-ref',
-      type: RecordType.event,
-      payload: eventPayload(
-        summary: '远端改期',
-        startDt: DateTime(2026, 6, 10, 11).toUtc().toIso8601String(),
-        endDt: DateTime(2026, 6, 10, 12).toUtc().toIso8601String(),
+    await applyRecord(
+      SyncRecord(
+        id: 'rec-ref',
+        type: RecordType.event,
+        payload: eventPayload(
+          summary: '远端改期',
+          startDt: DateTime(2026, 6, 10, 11).toUtc().toIso8601String(),
+          endDt: DateTime(2026, 6, 10, 12).toUtc().toIso8601String(),
+        ),
+        rev: 5,
+        deleted: false,
+        serverTs: DateTime.utc(2026, 9, 23, 8),
       ),
-      rev: 5,
-      deleted: false,
-      serverTs: DateTime.utc(2026, 9, 23, 8),
-    ));
+    );
 
     await waitUntil(() => batches.length == 1, reason: '提交后必须发布一批');
     final applied = batches.single.single as RecordApplied;
@@ -287,7 +381,9 @@ void main() {
 
   test('applier 落地远端 tombstone：登记 removed + 该记录全部 reminder id', () async {
     final start = DateTime(2026, 6, 10, 9);
-    final localId = await db.into(db.events).insert(
+    final localId = await db
+        .into(db.events)
+        .insert(
           EventsCompanion.insert(
             calendarId: calendarId,
             summary: '远端要删',
@@ -296,14 +392,18 @@ void main() {
             syncId: const Value('rec-del'),
           ),
         );
-    final first = await db.into(db.reminders).insert(
+    final first = await db
+        .into(db.reminders)
+        .insert(
           RemindersCompanion.insert(
             parentType: 'event',
             parentId: localId,
             triggerTime: DateTime(2026, 6, 10, 8),
           ),
         );
-    final second = await db.into(db.reminders).insert(
+    final second = await db
+        .into(db.reminders)
+        .insert(
           RemindersCompanion.insert(
             parentType: 'event',
             parentId: localId,
@@ -311,14 +411,16 @@ void main() {
           ),
         );
 
-    await applyRecord(SyncRecord(
-      id: 'rec-del',
-      type: RecordType.event,
-      payload: const {},
-      rev: 6,
-      deleted: true,
-      serverTs: DateTime.utc(2026, 9, 23, 9),
-    ));
+    await applyRecord(
+      SyncRecord(
+        id: 'rec-del',
+        type: RecordType.event,
+        payload: const {},
+        rev: 6,
+        deleted: true,
+        serverTs: DateTime.utc(2026, 9, 23, 9),
+      ),
+    );
 
     await waitUntil(() => batches.length == 1, reason: '提交后必须发布一批');
     final removed = batches.single.single as RecordRemoved;
@@ -330,14 +432,16 @@ void main() {
       hasLength(2),
       reason: '远端删除不销毁本机数据：行留作惰性，OS 通知靠 removed 携带的 id 撤',
     );
-    final row =
-        await (db.select(db.events)..where((t) => t.id.equals(localId)))
-            .getSingle();
+    final row = await (db.select(
+      db.events,
+    )..where((t) => t.id.equals(localId))).getSingle();
     expect(row.deletedAt, isNotNull);
   });
 
   test('enqueue assigns syncId so later applies can find the row', () async {
-    final localId = await db.into(db.events).insert(
+    final localId = await db
+        .into(db.events)
+        .insert(
           EventsCompanion.insert(
             calendarId: calendarId,
             summary: 'Enqueue me',
@@ -346,9 +450,9 @@ void main() {
           ),
         );
     await SyncOutbox.enqueueUpsert(db, RecordType.event, localId);
-    final row =
-        await (db.select(db.events)..where((t) => t.id.equals(localId)))
-            .getSingle();
+    final row = await (db.select(
+      db.events,
+    )..where((t) => t.id.equals(localId))).getSingle();
     expect(row.syncId, isNotNull);
     final op = await (db.select(db.syncOutbox)).getSingle();
     expect(op.recordId, row.syncId);

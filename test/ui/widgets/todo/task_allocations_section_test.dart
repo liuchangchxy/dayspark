@@ -61,6 +61,7 @@ void main() {
             calendarId: calendarId,
             summary: 'Weekly review',
             rrule: const Value('FREQ=WEEKLY;BYDAY=MO'),
+            recurrenceLegacyState: const Value('unknownLegacy'),
           ),
         );
     final todo = await (db.select(
@@ -84,6 +85,7 @@ void main() {
             calendarId: calendarId,
             summary: 'Weekly review',
             rrule: const Value('FREQ=WEEKLY;BYDAY=MO'),
+            recurrenceLegacyState: const Value('unknownLegacy'),
           ),
         );
     final todo = await (db.select(

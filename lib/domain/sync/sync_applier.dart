@@ -3,6 +3,7 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/event_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
@@ -133,6 +134,14 @@ class SyncApplier {
       }
     }
 
+    final recurrence =
+        payload.containsKey('recurrenceSpec') ||
+            payload.containsKey('recurrenceRevision') ||
+            payload.containsKey('recurrenceLegacyState')
+        ? TodoRecurrence.fromWire(payload)
+        : (optionalString(payload['rrule']) == null
+              ? TodoRecurrence.none()
+              : TodoRecurrence.unknownLegacy());
     final companion = TodosCompanion(
       calendarId: Value(await resolveCalendarId(db, payload['calendarId'])),
       summary: Value(requireString(payload, 'summary')),
@@ -152,11 +161,16 @@ class SyncApplier {
       syncId: Value(record.id),
       serverRev: Value(record.rev),
     );
+    if (recurrence.spec != null &&
+        optionalString(payload['rrule']) != recurrence.spec!.rule.canonical) {
+      throw const FormatException('legacy recurrence projection mismatch');
+    }
     await TodoWriter.applyRemote(
       db,
       tx,
       existingId: existing?.id,
       data: companion,
+      recurrence: recurrence,
       previousReference: existing?.dueDate,
     );
     return true;

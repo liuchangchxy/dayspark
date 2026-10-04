@@ -679,4 +679,40 @@ await db
       );
     });
   });
+
+  test(
+    'RecurrenceSpec persistence fields only go through its adapter and TodoWriter',
+    () {
+      const protectedFields = <String>{
+        'recurrenceAnchorSource',
+        'recurrenceValueType',
+        'recurrenceAnchorValue',
+        'recurrenceTimeZone',
+        'recurrenceRule',
+        'recurrenceLegacyState',
+        'recurrenceRevision',
+      };
+      final fieldPattern = RegExp('\\b(?:${protectedFields.join('|')})\\s*:');
+      const allowed = <String>{
+        'lib/domain/records/todo_recurrence.dart',
+        'lib/domain/records/writers/todo_writer.dart',
+      };
+      final hits = <String>[];
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        if (entity.path.endsWith('.g.dart') ||
+            entity.path.endsWith('.steps.dart')) {
+          continue;
+        }
+        final path = entity.path.replaceAll('\\', '/');
+        if (allowed.contains(path)) continue;
+        final source = stripCommentsAndStrings(entity.readAsStringSync());
+        for (final match in fieldPattern.allMatches(source)) {
+          final line = source.substring(0, match.start).split('\n').length;
+          hits.add('$path:$line');
+        }
+      }
+      expect(hits, isEmpty, reason: hits.join('\n'));
+    },
+  );
 }

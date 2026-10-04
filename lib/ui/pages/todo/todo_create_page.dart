@@ -13,6 +13,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 
@@ -114,6 +115,11 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                 ? _descriptionController.text.trim()
                 : null,
             rrule: _rrule,
+            recurrenceSpec: recurrenceFromTodoFields(
+              startDate: _startDate,
+              dueDate: _dueDate,
+              rrule: _rrule,
+            ),
             parentId: widget.parentId,
           );
 

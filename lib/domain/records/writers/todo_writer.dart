@@ -2,7 +2,9 @@ import 'package:drift/drift.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/records/writers/reminder_writer.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 
@@ -13,25 +15,151 @@ final class TodoWriter {
     AppDatabase db,
     RecordScope tx,
     int id,
-    TodosCompanion data,
-  ) async {
+    TodosCompanion data, {
+    RecurrenceSpec? recurrenceSpec,
+    bool replaceRecurrence = false,
+  }) async {
     final existing = await _row(db, id);
-    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(data);
+    if (existing == null) throw StateError('Todo $id does not exist.');
+    final recurrence = TodoRecurrence.fromTodo(existing);
+    final touchesChangedProjection =
+        (data.rrule.present && data.rrule.value != existing.rrule) ||
+        (data.startDate.present &&
+            data.startDate.value != existing.startDate) ||
+        (data.dueDate.present && data.dueDate.value != existing.dueDate);
+    if (recurrenceSpec != null && !replaceRecurrence) {
+      throw ArgumentError('recurrenceSpec requires replaceRecurrence=true.');
+    }
+    if (!replaceRecurrence &&
+        touchesChangedProjection &&
+        recurrence.spec != null) {
+      throw StateError(
+        'Recurring Todo fields must be updated as one RecurrenceSpec.',
+      );
+    }
+    if (!replaceRecurrence &&
+        touchesChangedProjection &&
+        recurrence.isUnknownLegacy) {
+      throw StateError(
+        'Unknown legacy recurrence must be confirmed before editing recurrence fields.',
+      );
+    }
+    if (!replaceRecurrence &&
+        data.rrule.present &&
+        data.rrule.value != existing.rrule) {
+      throw StateError('RRULE changes require a complete RecurrenceSpec.');
+    }
+    final unchanged =
+        recurrence.spec == null &&
+        recurrenceSpec == null &&
+        recurrence.legacyState == null;
+    final sameSpec =
+        recurrence.spec != null &&
+        recurrenceSpec != null &&
+        _sameSpec(recurrence.spec!, recurrenceSpec);
+    final nextRevision = (unchanged || sameSpec)
+        ? recurrence.revision
+        : recurrence.revision + 1;
+    final effective = replaceRecurrence
+        ? _withRecurrence(data, recurrenceSpec, revision: nextRevision)
+        : data;
+    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(effective);
     await _invalidateAllocationsAfterCompletion(db, tx, id);
     await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
-    tx.applied(RecordType.todo, id, previousReference: existing?.dueDate);
+    tx.applied(RecordType.todo, id, previousReference: existing.dueDate);
   }
 
   static Future<int> create(
     AppDatabase db,
     RecordScope tx,
-    TodosCompanion data,
-  ) async {
-    final id = await db.into(db.todos).insert(data);
+    TodosCompanion data, {
+    RecurrenceSpec? recurrenceSpec,
+  }) async {
+    if (data.rrule.present &&
+        data.rrule.value != null &&
+        recurrenceSpec == null) {
+      throw StateError(
+        'Recurring Todo creation requires a complete RecurrenceSpec.',
+      );
+    }
+    final id = await db
+        .into(db.todos)
+        .insert(
+          recurrenceSpec == null
+              ? data
+              : _withRecurrence(data, recurrenceSpec, revision: 1),
+        );
     await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
     tx.applied(RecordType.todo, id);
     return id;
   }
+
+  static Future<void> confirmLegacyRecurrence(
+    AppDatabase db,
+    RecordScope tx, {
+    required int todoId,
+    required String chosenTimeZone,
+    required RecurrenceAnchor interpretation,
+    required String validatedRRule,
+  }) async {
+    final todo = await _row(db, todoId);
+    if (todo == null ||
+        todo.rrule == null ||
+        TodoRecurrence.fromTodo(todo).legacyState !=
+            TodoRecurrenceLegacyState.unknownLegacy) {
+      throw StateError('Todo is not an unknownLegacy recurring Todo.');
+    }
+    final spec = RecurrenceSpec.parse(
+      anchor: interpretation,
+      timeZone: chosenTimeZone,
+      rrule: validatedRRule,
+    );
+    final canonicalSpec = RecurrenceSpec.parse(
+      anchor: interpretation,
+      timeZone: chosenTimeZone,
+      rrule: todo.rrule!,
+    );
+    if (canonicalSpec.rule.canonical != spec.rule.canonical) {
+      throw StateError('Confirmed RRULE must match the legacy Todo RRULE.');
+    }
+    final recurrence = TodoRecurrence.known(
+      spec,
+      revision: todo.recurrenceRevision + 1,
+    );
+    await (db.update(
+      db.todos,
+    )..where((row) => row.id.equals(todoId))).write(recurrence.toCompanion());
+    await SyncOutbox.enqueueUpsert(db, RecordType.todo, todoId);
+    tx.applied(RecordType.todo, todoId, previousReference: todo.dueDate);
+  }
+
+  static TodosCompanion _withRecurrence(
+    TodosCompanion data,
+    RecurrenceSpec? spec, {
+    required int revision,
+  }) {
+    final recurrence = spec == null
+        ? TodoRecurrence.none(revision: revision)
+        : TodoRecurrence.known(spec, revision: revision);
+    final fields = recurrence.toCompanion();
+    return data.copyWith(
+      rrule: fields.rrule,
+      recurrenceAnchorSource: fields.recurrenceAnchorSource,
+      recurrenceValueType: fields.recurrenceValueType,
+      recurrenceAnchorValue: fields.recurrenceAnchorValue,
+      recurrenceTimeZone: fields.recurrenceTimeZone,
+      recurrenceRule: fields.recurrenceRule,
+      recurrenceLegacyState: fields.recurrenceLegacyState,
+      recurrenceRevision: fields.recurrenceRevision,
+    );
+  }
+
+  static bool _sameSpec(RecurrenceSpec left, RecurrenceSpec right) =>
+      left.anchor.source == right.anchor.source &&
+      left.anchor.valueType == right.anchor.valueType &&
+      left.anchor.value.canonical == right.anchor.value.canonical &&
+      left.timeZone == right.timeZone &&
+      left.rule.canonical == right.rule.canonical;
 
   // ICS 导入用：仍是裸 insert（outbox 与 syncId 回填属 P2.5#2，不在本次）。
   static Future<int> importRow(
@@ -39,7 +167,14 @@ final class TodoWriter {
     RecordScope tx,
     TodosCompanion data,
   ) async {
-    final id = await db.into(db.todos).insert(data);
+    final legacyRecurring = data.rrule.present && data.rrule.value != null;
+    final importData = legacyRecurring
+        ? data.copyWith(
+            recurrenceLegacyState: const Value('unknownLegacy'),
+            recurrenceRevision: const Value(0),
+          )
+        : data;
+    final id = await db.into(db.todos).insert(importData);
     tx.applied(RecordType.todo, id);
     return id;
   }
@@ -276,17 +411,28 @@ final class TodoWriter {
     RecordScope tx, {
     required int? existingId,
     required TodosCompanion data,
+    required TodoRecurrence recurrence,
     required DateTime? previousReference,
   }) async {
+    final recurrenceData = recurrence.recurrenceColumns();
+    final effective = data.copyWith(
+      recurrenceAnchorSource: recurrenceData.recurrenceAnchorSource,
+      recurrenceValueType: recurrenceData.recurrenceValueType,
+      recurrenceAnchorValue: recurrenceData.recurrenceAnchorValue,
+      recurrenceTimeZone: recurrenceData.recurrenceTimeZone,
+      recurrenceRule: recurrenceData.recurrenceRule,
+      recurrenceLegacyState: recurrenceData.recurrenceLegacyState,
+      recurrenceRevision: recurrenceData.recurrenceRevision,
+    );
     if (existingId == null) {
-      final id = await db.into(db.todos).insert(data);
+      final id = await db.into(db.todos).insert(effective);
       await _resolveTaskAllocations(db, tx, id);
       tx.applied(RecordType.todo, id);
       return;
     }
     await (db.update(
       db.todos,
-    )..where((t) => t.id.equals(existingId))).write(data);
+    )..where((t) => t.id.equals(existingId))).write(effective);
     await _invalidateAllocationsAfterCompletion(
       db,
       tx,

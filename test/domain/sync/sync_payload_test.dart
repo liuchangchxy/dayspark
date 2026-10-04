@@ -11,4 +11,30 @@ void main() {
     expect(serialized, local.toUtc().toIso8601String());
     expect(serialized, endsWith('Z'));
   });
+
+  test('a recurrence change always carries its whole revisioned group', () {
+    final dirty = dirtyFields(
+      {
+        'summary': 'Series',
+        'recurrenceSpec': {'timeZone': 'Asia/Tokyo'},
+        'recurrenceRevision': 2,
+        'recurrenceLegacyState': 'knownZoned',
+      },
+      {
+        'summary': 'Series',
+        'recurrenceSpec': {'timeZone': 'Asia/Shanghai'},
+        'recurrenceRevision': 1,
+        'recurrenceLegacyState': 'knownZoned',
+      },
+    );
+    expect(
+      dirty.keys,
+      containsAll([
+        'recurrenceSpec',
+        'recurrenceRevision',
+        'recurrenceLegacyState',
+      ]),
+    );
+    expect(dirty.keys, isNot(contains('summary')));
+  });
 }

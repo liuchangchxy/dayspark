@@ -26,8 +26,9 @@
 
 - **设计结论已落文档**：`SPEC.md` §3.1.1、`DECISIONS.md` 同日裁定；完整证据边界见 `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`。
 - **运行验收状态：PASS（spike vectors）**：SDK 从 `C:\src\flutter` 的绝对路径运行；RRULE、gap/fold、DATE-only、ICS parser/converter、client/server 临时 path package vectors 均已实测。`dart analyze .` 零 issue；全量 `flutter test` 414 项通过；`git diff --check` 通过。
-- **R1 Shared Recurrence Core：完成**：纯 Dart `packages/dayspark_recurrence` 已接入 client/server；两端统一 `timezone 0.11.1`。RRULE validator、DATE/DATE-TIME nominal occurrence、identity codec、显式 gap/fold resolver、有限窗口/结果/扫描上限均有同一份共享 golden fixtures；阶段 commit 见 Git 历史。未进入 R2 persistence/sync/UI/Allocation/ICS。
-- **下一阶段边界**：R2 仍需单独授权；R1 不实现数据库、同步、UI、legacy prompt、occurrence Allocation、ICS、MCP 或排程。计划见 `docs/superpowers/plans/2026-10-04-recurring-todo.md`。
+- **R1 Shared Recurrence Core：完成**：纯 Dart `packages/dayspark_recurrence` 已接入 client/server；两端统一 `timezone 0.11.1`。RRULE validator、DATE/DATE-TIME nominal occurrence、identity codec、显式 gap/fold resolver、有限窗口/结果/扫描上限均有同一份共享 golden fixtures；阶段 commit 见 Git 历史。
+- **R2 Recurrence Persistence + Atomic Sync + Legacy State：完成**：schema v12 结构化持久化 RecurrenceSpec；旧重复 Todo 迁为 `unknownLegacy` 且不猜时区；contracts、client outbox/apply、server revision 整组冲突及旧客户端保护已接通。没有 occurrence UI、Calendar projection 或 TaskAllocation occurrence binding。实现与门禁记录见 `docs/superpowers/plans/2026-10-04-recurring-todo.md`。
+- **下一阶段边界**：R3 occurrence UI/Calendar/Allocation 仍未开始，须另行授权并按计划执行；R2 不包含 per-occurrence completion、skip、edit-this/edit-future、orphan Allocation reconciliation 或 MCP recurring Todo 功能。
 
 ---
 

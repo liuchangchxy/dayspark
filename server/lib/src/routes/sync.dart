@@ -24,7 +24,10 @@ void registerSyncRoutes(
       return jsonResponse(
         200,
         const SyncCapabilitiesResponse(
-          capabilities: [SyncCapability.taskAllocationV1],
+          capabilities: [
+            SyncCapability.taskAllocationV1,
+            SyncCapability.todoRecurrenceV1,
+          ],
         ).toJson(),
       );
     }),
@@ -52,6 +55,27 @@ void registerSyncRoutes(
       await _touchDevice(db, userId: userId, deviceId: deviceId);
       final results = <OpResult>[];
       for (final op in push.ops) {
+        final hasRecurrenceUpdate =
+            op.type == RecordType.todo &&
+            op.fields?.keys.any(
+                  const {
+                    'recurrenceSpec',
+                    'recurrenceRevision',
+                    'recurrenceLegacyState',
+                  }.contains,
+                ) ==
+                true;
+        if (hasRecurrenceUpdate &&
+            !push.capabilities.contains(SyncCapability.todoRecurrenceV1)) {
+          results.add(
+            OpResult(
+              opId: op.opId,
+              status: OpStatus.rejected,
+              code: errValidation,
+            ),
+          );
+          continue;
+        }
         if (op.type == RecordType.taskAllocation &&
             !push.capabilities.contains(SyncCapability.taskAllocationV1)) {
           results.add(

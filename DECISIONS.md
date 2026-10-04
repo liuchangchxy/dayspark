@@ -355,3 +355,10 @@
 - **计算契约**：先生成 nominal local candidate 和 occurrenceId，再按 IANA timezone 求 instant；DATE 不解析成 instant。DATE-TIME UNTIL 按 resolved UTC instant 比较。Gap 显式采用 transition 前 offset，fold 取最早候选。
 - **输入与资源边界**：只接受严格白名单 RRULE；unknown part 返回 `unsupported`。COUNT 上限 10,000、INTERVAL 上限 1,000,000、每次 expansion 上限 10,000 输出、扫描上限 100,000 calendar periods。超界显式报错，不截断或降级。调用方必须初始化 timezone database，并提供有限且类型匹配的窗口及输出 limit。日期时间展开超出锁定 tzdata 的共同未来 transition horizon 时 fail-closed；当前 2025c 数据推导出的 horizon 是 2037，需通过同步升级两端 tzdata 扩展。
 - **客户端/服务端一致性**：package、client、server 执行同一 golden-vector fixture，不复制期望数据；tz database 和 app/server lockfile 版本固定一致。
+
+### [2026-10-05] R2 持久化 RecurrenceSpec 并整组收敛同步
+- **触发背景**：R1 引擎已冻结，但 Todo 仍只有 `startDate`、`dueDate`、`rrule`，无法持久表达 DATE/DATE-TIME、anchor source 与系列 timezone，也无法安全并发同步。
+- **核心决策**：schema v12 以结构化列保存完整 RecurrenceSpec 与 revision；旧 `rrule` 行归为 `unknownLegacy`，不猜时区。wire 上将 spec、revision、legacy state 作为一个同步组；revision 高者胜，同 revision 以规范化完整 tuple 的字典序固定破平，tuple 相同再以 opId 破平；普通字段继续字段级 LWW。旧客户端缺少 recurrence group 时仍能同步普通 Todo，但不能用旧 projection 改写 active RecurrenceSpec。ICS 无权威 IANA wall-time 证据时保留 unknownLegacy；Todo MCP 当前不提供 recurrence 写参数。
+- **代价**：旧重复 Todo 在用户确认 timezone 与 anchor interpretation 前不可编辑 recurrence 字段或进入正式 occurrence 语义；同 revision 的并发编辑可能由固定字典序选中一端，用户需在之后再次编辑才能覆盖。R2 不含 occurrence UI、Calendar expansion、Allocation occurrence binding 或 recurring Todo MCP。
+- **对应 SPEC 章节**：SPEC.md §3.1.1、§3.2。
+- **影响范围**：Todo schema/writer、sync contracts/client/server、ICS legacy import、migration tests、architecture guard 与 recurrence implementation plan。

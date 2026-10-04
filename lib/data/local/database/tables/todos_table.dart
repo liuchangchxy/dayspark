@@ -13,6 +13,14 @@ class Todos extends Table {
   TextColumn get status => text().withDefault(const Constant('NEEDS-ACTION'))();
   TextColumn get description => text().nullable()();
   TextColumn get rrule => text().nullable()();
+  TextColumn get recurrenceAnchorSource => text().nullable()();
+  TextColumn get recurrenceValueType => text().nullable()();
+  TextColumn get recurrenceAnchorValue => text().nullable()();
+  TextColumn get recurrenceTimeZone => text().nullable()();
+  TextColumn get recurrenceRule => text().nullable()();
+  TextColumn get recurrenceLegacyState => text().nullable()();
+  IntColumn get recurrenceRevision =>
+      integer().withDefault(const Constant(0))();
   DateTimeColumn get completedAt => dateTime().nullable()();
   IntColumn get percentComplete => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

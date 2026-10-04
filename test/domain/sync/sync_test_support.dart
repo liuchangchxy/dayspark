@@ -94,7 +94,10 @@ class FakeSyncApiClient implements SyncApiClient {
   final List<int> pullCalls = [];
   PushResponse Function(PushRequest request)? onPush;
   PullResponse Function(int cursor)? onPull;
-  List<String> serverCapabilities = const [SyncCapability.taskAllocationV1];
+  List<String> serverCapabilities = const [
+    SyncCapability.taskAllocationV1,
+    SyncCapability.todoRecurrenceV1,
+  ];
   final StreamController<int> cursorController =
       StreamController<int>.broadcast();
 
@@ -151,7 +154,10 @@ class FakeTransport implements SyncTransport {
         body: jsonEncode({
           'capabilities': capabilitiesEndpointMissing
               ? <String>[]
-              : <String>[SyncCapability.taskAllocationV1],
+              : <String>[
+                  SyncCapability.taskAllocationV1,
+                  SyncCapability.todoRecurrenceV1,
+                ],
         }),
       );
     }

@@ -13,6 +13,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
@@ -40,6 +41,8 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   String? _rrule;
 
   static const _priorityValues = [0, 9, 5, 1];
+
+  bool get _unknownLegacy => TodoRecurrence.fromTodo(_todo).isUnknownLegacy;
 
   @override
   void initState() {
@@ -85,6 +88,13 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
         );
       }
 
+      final recurrenceSpec = _unknownLegacy
+          ? null
+          : recurrenceFromTodoFields(
+              startDate: _startDate,
+              dueDate: _dueDate,
+              rrule: _rrule,
+            );
       await ref.read(updateTodoProvider)(
         _todo.id,
         TodosCompanion(
@@ -95,11 +105,13 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                 : null,
           ),
           priority: Value(_priority),
-          dueDate: Value(_dueDate),
-          startDate: Value(_startDate),
-          rrule: Value(_rrule),
+          dueDate: _unknownLegacy ? const Value.absent() : Value(_dueDate),
+          startDate: _unknownLegacy ? const Value.absent() : Value(_startDate),
+          rrule: _unknownLegacy ? const Value.absent() : Value(_rrule),
           updatedAt: Value(DateTime.now()),
         ),
+        recurrenceSpec: recurrenceSpec,
+        replaceRecurrence: !_unknownLegacy,
       );
 
       if (mounted) context.pop();
@@ -225,70 +237,72 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           ),
           const SizedBox(height: 16),
 
-          // Start date
-          ListTile(
-            leading: const Icon(CupertinoIcons.play),
-            title: Text(l.startDate),
-            subtitle: _startDate != null
-                ? Text(DateFormatters.formatDate(_startDate!))
-                : Text(l.notSet),
-            onTap: _pickStartDate,
-            trailing: _startDate != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _startDate = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
+          if (!_unknownLegacy) ...[
+            // Start date
+            ListTile(
+              leading: const Icon(CupertinoIcons.play),
+              title: Text(l.startDate),
+              subtitle: _startDate != null
+                  ? Text(DateFormatters.formatDate(_startDate!))
+                  : Text(l.notSet),
+              onTap: _pickStartDate,
+              trailing: _startDate != null
+                  ? IconButton(
+                      icon: const Icon(CupertinoIcons.clear, size: 18),
+                      onPressed: () => setState(() => _startDate = null),
+                    )
+                  : null,
+              contentPadding: EdgeInsets.zero,
+            ),
 
-          // Due date
-          const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(CupertinoIcons.calendar),
-            title: Text(l.dueDate),
-            subtitle: _dueDate != null
-                ? Text(DateFormatters.formatDate(_dueDate!))
-                : Text(l.notSet),
-            onTap: _pickDueDate,
-            trailing: _dueDate != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _dueDate = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 8),
+            // Due date
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(CupertinoIcons.calendar),
+              title: Text(l.dueDate),
+              subtitle: _dueDate != null
+                  ? Text(DateFormatters.formatDate(_dueDate!))
+                  : Text(l.notSet),
+              onTap: _pickDueDate,
+              trailing: _dueDate != null
+                  ? IconButton(
+                      icon: const Icon(CupertinoIcons.clear, size: 18),
+                      onPressed: () => setState(() => _dueDate = null),
+                    )
+                  : null,
+              contentPadding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 8),
 
-          // Quick date chips
-          _buildQuickDateChips(l, now),
-          const SizedBox(height: 8),
+            // Quick date chips
+            _buildQuickDateChips(l, now),
+            const SizedBox(height: 8),
 
-          // Due time
-          ListTile(
-            leading: const Icon(CupertinoIcons.clock),
-            title: Text(l.dueTime),
-            subtitle: _dueTime != null
-                ? Text(
-                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}',
-                  )
-                : Text(l.notSet),
-            onTap: () async {
-              final time = await showWheelTimePicker(
-                context,
-                initialTime: _dueTime ?? TimeOfDay.now(),
-              );
-              if (time != null) setState(() => _dueTime = time);
-            },
-            trailing: _dueTime != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _dueTime = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
+            // Due time
+            ListTile(
+              leading: const Icon(CupertinoIcons.clock),
+              title: Text(l.dueTime),
+              subtitle: _dueTime != null
+                  ? Text(
+                      '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}',
+                    )
+                  : Text(l.notSet),
+              onTap: () async {
+                final time = await showWheelTimePicker(
+                  context,
+                  initialTime: _dueTime ?? TimeOfDay.now(),
+                );
+                if (time != null) setState(() => _dueTime = time);
+              },
+              trailing: _dueTime != null
+                  ? IconButton(
+                      icon: const Icon(CupertinoIcons.clear, size: 18),
+                      onPressed: () => setState(() => _dueTime = null),
+                    )
+                  : null,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
           if (_rrule == null) ...[
             const SizedBox(height: 8),
             TaskAllocationsSection(todo: _todo),
@@ -361,17 +375,18 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           const SizedBox(height: 16),
 
           // Recurrence rule
-          RRuleGenerator(
-            localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
-            config: RRuleGeneratorConfig(),
-            initialRRule: _rrule ?? '',
-            withExcludeDates: false,
-            onChange: (String rrule) {
-              setState(() {
-                _rrule = rrule.isEmpty ? null : rrule;
-              });
-            },
-          ),
+          if (!_unknownLegacy)
+            RRuleGenerator(
+              localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
+              config: RRuleGeneratorConfig(),
+              initialRRule: _rrule ?? '',
+              withExcludeDates: false,
+              onChange: (String rrule) {
+                setState(() {
+                  _rrule = rrule.isEmpty ? null : rrule;
+                });
+              },
+            ),
         ],
       ),
     );

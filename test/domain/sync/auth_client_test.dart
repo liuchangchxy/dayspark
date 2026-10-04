@@ -89,6 +89,9 @@ void main() {
   test('capability discovery keeps the server-advertised capability', () async {
     final response = await client.fetchServerCapabilities();
 
-    expect(response.capabilities, [SyncCapability.taskAllocationV1]);
+    expect(response.capabilities, [
+      SyncCapability.taskAllocationV1,
+      SyncCapability.todoRecurrenceV1,
+    ]);
   });
 }

@@ -9,6 +9,7 @@ export 'src/record_dto.dart'
         TaskAllocationPayload,
         TaskAllocationState,
         TaskAllocationStateWireName;
+export 'src/todo_recurrence_dto.dart';
 export 'src/sync_api.dart'
     show
         OpResult,

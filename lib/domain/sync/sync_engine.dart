@@ -227,7 +227,10 @@ class SyncEngine {
           deviceId: deviceId,
           ops: ops,
           cursor: roundCursor,
-          capabilities: const [SyncCapability.taskAllocationV1],
+          capabilities: const [
+            SyncCapability.taskAllocationV1,
+            SyncCapability.todoRecurrenceV1,
+          ],
         ),
       );
 
@@ -350,11 +353,26 @@ class SyncEngine {
         final snapshot = await snapshots.read(entry.recordId);
         if (snapshot != null && fields != null) {
           final dirty = dirtyFields(fields, snapshot.payload);
+          if (type == RecordType.todo &&
+              !serverCapabilities.contains(SyncCapability.todoRecurrenceV1)) {
+            if (fields['recurrenceLegacyState'] == 'knownZoned') continue;
+            dirty.remove('recurrenceSpec');
+            dirty.remove('recurrenceRevision');
+            dirty.remove('recurrenceLegacyState');
+          }
           if (dirty.isEmpty) {
             converged.add(entry.opId);
             continue;
           }
           fields = dirty;
+        } else if (type == RecordType.todo &&
+            fields != null &&
+            !serverCapabilities.contains(SyncCapability.todoRecurrenceV1)) {
+          if (fields['recurrenceLegacyState'] == 'knownZoned') continue;
+          fields = Map<String, dynamic>.from(fields)
+            ..remove('recurrenceSpec')
+            ..remove('recurrenceRevision')
+            ..remove('recurrenceLegacyState');
         }
       }
       ops.add(
