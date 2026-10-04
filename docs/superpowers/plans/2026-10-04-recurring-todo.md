@@ -1,6 +1,6 @@
 # Recurring Todo — Implementation Plan
 
-Status: **ready for a separately scoped implementation Work; design spike final gates passed**
+Status: **R1 shared recurrence core complete; R2 remains separately scoped**
 Contract: `SPEC.md` §3.1.1
 Source audit: `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`
 
@@ -23,11 +23,14 @@ See captured outputs and boundaries in the source-audit report. Product implemen
 
 ## Phase 1 — Shared recurrence core
 
+R1 implementation and verification are recorded in `DECISIONS.md` and `docs/ROADMAP.md`.
+
 - Add pure Dart `packages/dayspark_recurrence`; consume from client and server.
 - Align client/server `timezone` package version and record tzdata version; keep engine zone resolution independent of `tz.local`.
 - Define `LocalDate`, `LocalDateTime`, `RecurrenceAnchor`, `RecurrenceSpec`, `OccurrenceKey`, and explicit validation/resolution results. Keep DTO serialization in `dayspark_contracts`.
 - Add canonical RRULE parser/allowlist; validate combinations and DATE restrictions; bound expansion.
 - Implement local-calendar candidate generation, DATE-only identity, explicit IANA zone lookup, explicit gap/fold resolution, and stable versioned keys.
+- Fail closed for DATE-TIME windows beyond the pinned tzdata's common future-transition horizon; refresh the shared dependency locks together to extend it.
 - Add golden vectors for anchors, recurrence dates, local keys, UTC instants, COUNT, UNTIL, month-end, DST, invalid/unsupported rules, and query-window edges.
 - Keep TZData initialization inside/injected through engine API; do not read `tz.local`.
 

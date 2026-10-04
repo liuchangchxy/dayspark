@@ -26,7 +26,8 @@
 
 - **设计结论已落文档**：`SPEC.md` §3.1.1、`DECISIONS.md` 同日裁定；完整证据边界见 `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`。
 - **运行验收状态：PASS（spike vectors）**：SDK 从 `C:\src\flutter` 的绝对路径运行；RRULE、gap/fold、DATE-only、ICS parser/converter、client/server 临时 path package vectors 均已实测。`dart analyze .` 零 issue；全量 `flutter test` 414 项通过；`git diff --check` 通过。
-- **实施状态：READY**：gap 采用 RFC gap-before-offset，fold-first；nominal key 与 resolved instant 分离。下一阶段计划 `docs/superpowers/plans/2026-10-04-recurring-todo.md`；实现前将 client timezone 对齐 server 0.11.1 并检查 `tz.local` 名称变化。
+- **R1 Shared Recurrence Core：完成**：纯 Dart `packages/dayspark_recurrence` 已接入 client/server；两端统一 `timezone 0.11.1`。RRULE validator、DATE/DATE-TIME nominal occurrence、identity codec、显式 gap/fold resolver、有限窗口/结果/扫描上限均有同一份共享 golden fixtures；阶段 commit 见 Git 历史。未进入 R2 persistence/sync/UI/Allocation/ICS。
+- **下一阶段边界**：R2 仍需单独授权；R1 不实现数据库、同步、UI、legacy prompt、occurrence Allocation、ICS、MCP 或排程。计划见 `docs/superpowers/plans/2026-10-04-recurring-todo.md`。
 
 ---
 

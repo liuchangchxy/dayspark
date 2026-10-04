@@ -12,7 +12,7 @@ This stage is a design spike, not a recurring Todo implementation. Evidence is s
 - **Runtime spike**: PASS on the installed absolute-path SDK `C:\src\flutter` (Flutter 3.47.3, Dart 3.13.3). App dependencies were run under `rrule 0.2.18` / `timezone 0.11.0` / `enough_icalendar 0.17.0`; server dependencies under `rrule 0.2.18` / `timezone 0.11.1`. Executable evidence is recorded below; full `dart analyze .` and `flutter test` passed at final closeout.
 - **Standards check**: RFC 5545 and verified Erratum 4271 were checked at RFC Editor pages; this is separate from package runtime evidence.
 
-The runnable RRULE/DST/DATE/ICS prototypes are retained as minimal reproducible spike harnesses. The ICS converter test was temporary and removed after it passed.
+The RRULE, DST, DATE, and identity vectors from the temporary harness have moved into `packages/dayspark_recurrence/test`; the redundant spike scripts were removed in R1. The ICS parser/converter observations remain recorded here, while the one-off converter test was removed after it passed.
 
 ## 1. Current recurrence technical facts
 
@@ -99,7 +99,7 @@ Keep field-level LWW for unrelated Todo data. Add one nested `recurrenceSpec` ob
 
 ## 10. Shared recurrence architecture
 
-Recommended target: a new pure Dart `packages/dayspark_recurrence` package, consumed at a pinned compatible version by Flutter client and server. A temporary pure package depending on `rrule` and `timezone` was path-added to both apps; offline dependency resolution passed on each, and the exact same package source emitted identical RRULE nominal candidates, gap/fold/Shanghai keys, and UTC instants. This confirms shared-package feasibility without production manifest changes. Keep `dayspark_contracts` for wire DTOs/envelopes; the engine emits nominal keys and explicit resolution results. Align timezone to 0.11.1 in both before product implementation; the only source difference is the default local name `Etc/UTC` vs `UTC`, while both tzdata are 2025c and the explicit-IANA vectors matched. CI should continue checking vectors and tzdata version drift.
+R1 implemented the pure Dart `packages/dayspark_recurrence` package and added it to both Flutter client and Dart server. Both dependency graphs resolve `rrule 0.2.18` and `timezone 0.11.1`; the app lockfile change was limited to the new path package and expected timezone version/hash. The same golden-vector fixture runs from client, server, and package tests. Keep `dayspark_contracts` for wire DTOs/envelopes; the engine emits nominal keys and explicit resolution results. Both timezone package variants use tzdata 2025c; 0.11.1 changes the default local name from `UTC` to `Etc/UTC`. No recurrence code reads `tz.local`, and a compatibility test verifies identical output under either local name. The common future transition horizon in this tzdata is 2037; DATE-TIME expansion beyond it fails closed instead of using a stale final offset. CI should continue checking vectors and tzdata version drift.
 
 ## 11. Initial RRULE support set
 
@@ -137,7 +137,7 @@ More complex imported rules may be read-only only if reliably expanded. If their
 
 ## 14. Implementation readiness
 
-**Design spike is complete.** Final gates: `dart analyze .` reported no issues; full `flutter test` passed all 414 tests; `git diff --check` passed. Temporary client/server path dependency changes were restored, and only the documented spike harness remains. No recurring Todo product code was implemented. The user has resolved gap semantics. Implementing recurrence product behavior remains a separate explicitly scoped Work conversation after final gates pass.
+**Design spike is complete.** Before R1, final gates reported no `dart analyze .` issues, 414 passing Flutter tests, and a clean `git diff --check`. R1 subsequently implemented and tested the shared core; see its commit and ROADMAP status. The user has resolved gap semantics. No R2 product integration is included in this report.
 
 ## 15. Open user ruling
 

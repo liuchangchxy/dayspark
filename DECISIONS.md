@@ -348,3 +348,10 @@
 - **后续**：设计 spike 已完成；实现仍属于单独授权范围。下一阶段按 `docs/superpowers/plans/2026-10-04-recurring-todo.md` 执行，并在产品实现中保留 strict RRULE allowlist、ICS metadata wrapper、跨端向量与时区版本对齐。
 - **对应规范/报告**：`SPEC.md` §3.1.1；`docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`；下一阶段计划 `docs/superpowers/plans/2026-10-04-recurring-todo.md`。
 - **判错代价**：若接受本轮静态源码判断为运行证明，可能冻结一个实际 package 行为不兼容的 DST/ICS 协议，并导致不同设备产生不同 occurrence identity；因此必须保留可复现运行 spike 与全仓门禁作为本阶段完成条件；本轮均已通过。
+
+### [2026-10-05] R1 建立共享 Recurrence Core
+- **实现边界**：新建纯 Dart `packages/dayspark_recurrence`，client 与 server 依赖同一实现；`dayspark_contracts`、Todo persistence、sync、UI、legacy、ICS 与 Allocation 写入均未扩展。
+- **依赖裁定**：client/server timezone 统一到 0.11.1，tzdata 均为 2025c；全仓未发现依据 `tz.local.name` 做业务分支，recurrence engine 只使用显式 series TZID。local `UTC` / `Etc/UTC` 两种命名均有兼容测试。成本是约束两端后续依赖升级一致，并需继续检查 tzdata 漂移。
+- **计算契约**：先生成 nominal local candidate 和 occurrenceId，再按 IANA timezone 求 instant；DATE 不解析成 instant。DATE-TIME UNTIL 按 resolved UTC instant 比较。Gap 显式采用 transition 前 offset，fold 取最早候选。
+- **输入与资源边界**：只接受严格白名单 RRULE；unknown part 返回 `unsupported`。COUNT 上限 10,000、INTERVAL 上限 1,000,000、每次 expansion 上限 10,000 输出、扫描上限 100,000 calendar periods。超界显式报错，不截断或降级。调用方必须初始化 timezone database，并提供有限且类型匹配的窗口及输出 limit。日期时间展开超出锁定 tzdata 的共同未来 transition horizon 时 fail-closed；当前 2025c 数据推导出的 horizon 是 2037，需通过同步升级两端 tzdata 扩展。
+- **客户端/服务端一致性**：package、client、server 执行同一 golden-vector fixture，不复制期望数据；tz database 和 app/server lockfile 版本固定一致。
