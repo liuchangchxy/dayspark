@@ -386,7 +386,7 @@ String _reject(
 
 void main() {
   group('matcher selftest', () {
-    test('7 违规样本必须命中，合规样本必须不命中', () {
+    test('记录写入违规样本必须命中，合规样本必须不命中', () {
       const homePage = 'lib/ui/pages/home/home_page.dart';
       const provider = 'lib/domain/providers/other_provider.dart';
 
@@ -417,6 +417,20 @@ void main() {
         findViolations(
           provider,
           'await (db.delete(db.reminders)..where((r) => r.parentId.equals(id))).go();',
+        ),
+        hasLength(1),
+      );
+      expect(
+        findViolations(
+          provider,
+          'await db.into(db.taskAllocations).insert(companion);',
+        ),
+        hasLength(1),
+      );
+      expect(
+        findViolations(
+          provider,
+          'await db\n  .into(\n    db.taskAllocations,\n  ).insert(companion);',
         ),
         hasLength(1),
       );
