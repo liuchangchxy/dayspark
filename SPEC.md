@@ -72,6 +72,8 @@ flowchart LR
   - 规则 10：Calendar 是 Event occurrence、有效 TaskAllocation 和可选 Todo deadline marker 的时间投影，不是新的领域记录容器。截止标记不占 busy time。日历拖动 TaskAllocation 只修改该 Allocation 的时间，不修改 Todo 截止时间或 occurrence identity。
   - 规则 11：回收站为软删除；MCP/外部写入接口不提供物理硬删除，使用归档/软删姿态。永久清空按既有 tombstone 与保留期规则处理。
   - 规则 12：UI 文本必须 l10n 中英双语，禁止硬编码
+  - 规则 13：服务端 busy-time 是 Event occurrence 与有效 TaskAllocation 的统一只读投影，不是持久化实体。单次查询按半开区间 `[startAt, endAt)` 裁剪到请求窗口；空闲查询只消费裁剪、排序并合并后的区间。相邻和重叠 busy 区间合并，Event 与 Allocation 使用同一规则。Todo `dueDate` 及没有 Allocation 的 Todo 不占用时间。Event 沿用现有语义：查询排除 tombstone 与 `deletedAt` 软删行，按窗口展开 recurrence；Event 契约没有取消状态，故当前不额外过滤未定义的 status 值。All-day Event 使用既有有效结束时刻规则（正长度沿用 `endDt`，否则占用 24 小时）。
+  - 规则 14：TaskAllocation 的 busy 有效性同时检查 Allocation 自身未 tombstone 且 `state == active`，并检查父 Todo 已解析、未 tombstone、未软删除且未取消。未完成 Todo 的 active Allocation 正常占用；已完成 Todo 依 `completedAt` 校验：`startAt >= completedAt` 不占用，`startAt < completedAt < endAt` 仍占用至 `endAt`；在 `completedAt` 前已结束的 Allocation 保留为历史记录，但其过去区间不影响面向未来的 `find_free_time`。不得仅凭 Todo 完成状态抹掉历史记录，也不得仅凭持久化 active 状态阻塞完成后的未来时间。
 
 #### TaskAllocation 生命周期状态
 

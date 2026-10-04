@@ -112,3 +112,34 @@ Phase 1 验收：migration、创建/改期/取消、dueDate 不变量、重复 T
 - Client：各本地行为 outbox、远端 apply 无回声、remote tombstone、unresolved 父绑定、父完成后到的 Allocation 失效。
 - 两端 E2E：创建、改期、取消、完成失效、父+Allocation 永久删除、Allocation 先到、旧 capability 客户端同步 Event/Todo。
 - 门禁：`dart analyze .`、`flutter test`、contracts 与 server 全量测试、CLI/MCP 回归、`git diff --check`。
+
+## Phase 3 — Busy-Time projection
+
+**状态：2026-10-04 已实现。** 本阶段只定义“哪些实际记录占用区间”，不增加持久化表或外部写工具。
+
+### 目标与规则
+
+- 服务端数据层提供统一只读 BusyInterval projection，`find_free_time` 只做工作窗口与 busy 区间求差。
+- Projection 展开既有 Event occurrence，并加入有效 TaskAllocation；统一执行窗口裁剪、排序、半开区间合并。相邻区间按原 Event merger 规则合并，并保留合并来源。
+- Effective Allocation：Allocation 未 tombstone 且 state 为 active；父 Todo 必须解析、未 tombstone、未软删除、未取消且为当前阶段支持的非重复 Todo。
+- 完成 Todo 按 D6 与 `completedAt` 再验证：`startAt >= completedAt` 不 busy；`startAt < completedAt < endAt` 保持到 `endAt`；完成前已结束的区间作为历史，仅与历史查询窗口相交时出现。missing `completedAt` 的异常 completed 父项排除。
+- dueDate 与实际 Allocation 分离；只设 dueDate 的 Todo 不 busy。客户端 Calendar 仍使用本地表，但其状态边界与服务端 invariant cases 成对核对。
+
+### Named invariant cases
+
+`active_parent_active`、`cancelled_allocation`、`invalidated_allocation`、`unresolved_parent`、`soft_deleted_parent`、`restored_parent`、`completed_before_start`、`completed_during_block`、`historical_block`、`allocation_tombstone`、`parent_tombstone`、`dueDate_only`。
+
+### 验证结果
+
+- `dart analyze .`：PASS，No issues found。
+- `flutter test`：PASS，413 项。
+- Contracts `dart test`：PASS，48 项。
+- Server `dart test`：PASS，225 项；busy-time MCP 测试子集 PASS，61 项。
+- MCP stdio wrapper `dart test`：PASS，9 项。
+- CLI `test/args_test.dart`：PASS，7 项。CLI 全套 `dart test` 在本 Windows shell FAIL：现有凭证实现调用系统 `chmod`，该环境没有 `chmod`，造成 CLI 集成测试无法完成；与本次 Busy-Time 代码无关。
+- `git diff --check`：PASS；Git 提示该既有计划文件行尾会按 Windows 配置归一化，无 whitespace error。
+- Event 现有 recurrence / all-day 展开及 busy-only 行为未发现回归；Event payload 没有正式取消状态，本阶段未添加取消过滤。
+
+### 不包含
+
+重复 Todo occurrence、recurrenceTimeZone / DST、`get_agenda`、Widget、Reminder、deadline marker、Today / Timeline、自动排程、estimateMin、Allocation MCP 写工具、sync 架构重构。

@@ -4,6 +4,7 @@ import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../data/busy_intervals.dart';
 import '../data/record_query.dart';
 import '../data/record_writer.dart';
 import '../data/rrule_window.dart';
@@ -675,8 +676,9 @@ final List<McpTool> mcpTools = <McpTool>[
   McpTool(
     name: 'find_free_time',
     description:
-        'Find the earliest free slots in a window. v1 busy set = calendar events only '
-        '(expanded); working defaults 09:00-18:00 Mon-Fri in the given IANA timezone; '
+        'Find the earliest free slots in a window. Busy time includes expanded '
+        'calendar events and effective task allocations; working defaults '
+        '09:00-18:00 Mon-Fri in the given IANA timezone; '
         'returns up to 10 slots.',
     readOnly: true,
     destructive: false,
@@ -753,39 +755,12 @@ final List<McpTool> mcpTools = <McpTool>[
         for (final code in rawDays) dayCodes.indexOf(code) + 1,
       };
 
-      final page = await queryRecords(
+      final merged = await getBusyIntervals(
         ctx.db,
         userId: ctx.userId,
-        type: RecordType.event,
-        from: from,
-        to: to,
-        timezone: 'UTC',
-        limit: _maxListLimit,
-      );
-      final expansion = expandRecordsInWindow(
-        page.records,
         from: from,
         to: to,
       );
-      final busy = <(DateTime, DateTime)>[
-        for (final instance in expansion.instances)
-          (
-            instance.start.isBefore(from) ? from : instance.start,
-            instance.end.isAfter(to) ? to : instance.end,
-          ),
-      ].where((interval) => interval.$2.isAfter(interval.$1)).toList()
-        ..sort((a, b) => a.$1.compareTo(b.$1));
-
-      final merged = <(DateTime, DateTime)>[];
-      for (final interval in busy) {
-        if (merged.isEmpty || interval.$1.isAfter(merged.last.$2)) {
-          merged.add(interval);
-          continue;
-        }
-        if (interval.$2.isAfter(merged.last.$2)) {
-          merged[merged.length - 1] = (merged.last.$1, interval.$2);
-        }
-      }
 
       final slots = <Map<String, Object?>>[];
       final fromLocal = tz.TZDateTime.from(from, location);
@@ -827,17 +802,18 @@ final List<McpTool> mcpTools = <McpTool>[
             if (slots.length >= 10) {
               break;
             }
-            if (interval.$2.isBefore(windowStart) ||
-                interval.$1.isAfter(windowEnd)) {
+            if (!interval.endAt.isAfter(windowStart) ||
+                !interval.startAt.isBefore(windowEnd)) {
               continue;
             }
-            if (interval.$1.isAfter(cursor)) {
-              final gapEnd =
-                  interval.$1.isBefore(windowEnd) ? interval.$1 : windowEnd;
+            if (interval.startAt.isAfter(cursor)) {
+              final gapEnd = interval.startAt.isBefore(windowEnd)
+                  ? interval.startAt
+                  : windowEnd;
               _fillSlots(slots, cursor, gapEnd, duration);
             }
-            if (interval.$2.isAfter(cursor)) {
-              cursor = interval.$2;
+            if (interval.endAt.isAfter(cursor)) {
+              cursor = interval.endAt;
             }
             if (!cursor.isBefore(windowEnd)) {
               break;

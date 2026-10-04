@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:dayspark_server/src/data/busy_intervals.dart';
 import 'package:dayspark_server/server.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:test/test.dart';
@@ -576,6 +577,102 @@ void main() {
   });
 
   group('find_free_time', () {
+    final busyStart = DateTime.utc(2030, 1, 7, 10);
+    final busyEnd = busyStart.add(const Duration(hours: 1));
+
+    Future<List<DateTime>> slotStarts({
+      required DateTime from,
+      required DateTime to,
+      int durationMinutes = 60,
+    }) async {
+      final data = await _toolData(app, token, 'find_free_time', {
+        'from': iso(from),
+        'to': iso(to),
+        'duration_minutes': durationMinutes,
+        'timezone': 'UTC',
+        'working_hours_start': '09:00',
+        'working_hours_end': '12:00',
+        'working_days': ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
+      });
+      return (data['slots'] as List)
+          .map((slot) => DateTime.parse((slot as Map)['start'] as String))
+          .toList();
+    }
+
+    Future<bool> allocationBlocks({
+      required String todoId,
+      String allocationState = 'active',
+      String? allocationStartAt,
+      String? allocationEndAt,
+      Map<String, Object?> todoFields = const {},
+      bool unresolved = false,
+      bool allocationTombstone = false,
+      bool parentTombstone = false,
+      bool forceActive = false,
+    }) async {
+      if (!unresolved) {
+        await _seed(
+          app,
+          userId,
+          todoId,
+          type: RecordType.todo,
+          fields: {
+            'summary': 'Busy time parent',
+            'status': 'NEEDS-ACTION',
+            'deletedAt': null,
+            'completedAt': null,
+            ...todoFields,
+          },
+        );
+      }
+      await _seed(
+        app,
+        userId,
+        'allocation-$todoId',
+        type: RecordType.taskAllocation,
+        fields: {
+          'todoSyncId': todoId,
+          'occurrenceId': null,
+          'startAt': allocationStartAt ?? iso(busyStart),
+          'endAt': allocationEndAt ?? iso(busyEnd),
+          'state': allocationState,
+          'createdAt': iso(busyStart.subtract(const Duration(days: 1))),
+          'updatedAt': iso(busyStart.subtract(const Duration(days: 1))),
+        },
+      );
+      if (forceActive) {
+        final row = (await _row(app, userId, 'allocation-$todoId'))!;
+        final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>
+          ..['state'] = 'active';
+        await (app.db.update(app.db.records)..where(
+              (record) =>
+                  record.userId.equals(userId) & record.id.equals(row.id),
+            ))
+            .write(row.copyWith(payloadJson: jsonEncode(payload)));
+      }
+      if (allocationTombstone) {
+        final row = (await _row(app, userId, 'allocation-$todoId'))!;
+        await (app.db.update(app.db.records)..where(
+              (record) =>
+                  record.userId.equals(userId) & record.id.equals(row.id),
+            ))
+            .write(row.copyWith(deleted: true));
+      }
+      if (parentTombstone) {
+        final row = (await _row(app, userId, todoId))!;
+        await (app.db.update(app.db.records)..where(
+              (record) =>
+                  record.userId.equals(userId) & record.id.equals(row.id),
+            ))
+            .write(row.copyWith(deleted: true));
+      }
+      final starts = await slotStarts(
+        from: DateTime.utc(2030, 1, 7, 9),
+        to: DateTime.utc(2030, 1, 7, 12),
+      );
+      return starts.contains(busyEnd);
+    }
+
     test('returns slots inside working hours that avoid busy events', () async {
       final busyStart = now();
       final busyEnd = busyStart.add(const Duration(minutes: 30));
@@ -613,19 +710,345 @@ void main() {
         final end = DateTime.parse(slot['end'] as String);
         expect(end.difference(start), const Duration(minutes: 60));
         expect(start.isBefore(end), isTrue);
-        final overlapsBusy =
-            start.isBefore(busyEnd) && end.isAfter(busyStart);
+        final overlapsBusy = start.isBefore(busyEnd) && end.isAfter(busyStart);
         expect(overlapsBusy, isFalse, reason: 'slot must avoid busy events');
       }
       final starts = slots
           .map((s) => DateTime.parse((s as Map)['start'] as String))
           .toList();
       for (var i = 1; i < starts.length; i++) {
-        expect(starts[i].isAfter(starts[i - 1]), isTrue,
-            reason: 'slots are earliest-first and non-decreasing');
+        expect(
+          starts[i].isAfter(starts[i - 1]),
+          isTrue,
+          reason: 'slots are earliest-first and non-decreasing',
+        );
       }
       expect(data['timezone'], 'Asia/Shanghai');
     });
+
+    test(
+      'active_parent_active: allocation excludes its time from free slots',
+      () async {
+        expect(await allocationBlocks(todoId: 'todo-active'), isTrue);
+      },
+    );
+
+    test('offset allocation crossing local date still blocks its UTC instant',
+        () async {
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-offset-allocation',
+          allocationStartAt: '2030-01-06T20:00:00-14:00',
+          allocationEndAt: '2030-01-06T21:00:00-14:00',
+        ),
+        isTrue,
+      );
+    });
+
+    test('cancelled_allocation: cancelled allocation does not block', () async {
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-cancelled-allocation',
+          allocationState: 'cancelledByUser',
+        ),
+        isFalse,
+      );
+    });
+
+    test('cancelled parent Todo does not make its allocation busy', () async {
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-cancelled-parent',
+          todoFields: {'status': 'CANCELLED'},
+        ),
+        isFalse,
+      );
+    });
+
+    test(
+      'invalidated_allocation: completed allocation does not block',
+      () async {
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-invalidated-allocation',
+            allocationState: 'invalidatedByCompletion',
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'unresolved_parent: allocation without its Todo does not block',
+      () async {
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-not-yet-synced',
+            unresolved: true,
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'soft_deleted_parent: trashed Todo allocation does not block',
+      () async {
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-soft-deleted',
+            todoFields: {'deletedAt': iso(busyStart)},
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test('restored parent: original active allocation blocks again', () async {
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-restored',
+          todoFields: {'deletedAt': iso(busyStart)},
+        ),
+        isFalse,
+      );
+      final row = (await _row(app, userId, 'todo-restored'))!;
+      final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>
+        ..['deletedAt'] = null;
+      await (app.db.update(app.db.records)..where(
+            (record) => record.userId.equals(userId) & record.id.equals(row.id),
+          ))
+          .write(row.copyWith(payloadJson: jsonEncode(payload)));
+      final starts = await slotStarts(
+        from: DateTime.utc(2030, 1, 7, 9),
+        to: DateTime.utc(2030, 1, 7, 12),
+      );
+      expect(starts, isNot(contains(busyStart)));
+    });
+
+    test(
+      'completed_before_start: defensive filter rejects illegal active row',
+      () async {
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-completed-before-start',
+            todoFields: {
+              'status': 'COMPLETED',
+              'completedAt': iso(
+                busyStart.subtract(const Duration(minutes: 1)),
+              ),
+            },
+            forceActive: true,
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'completed_during_block: active allocation remains busy to end',
+      () async {
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-completed-during-block',
+            todoFields: {
+              'status': 'COMPLETED',
+              'completedAt': iso(busyStart.add(const Duration(minutes: 30))),
+            },
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'repeating Todo allocation is excluded in the current phase',
+      () async {
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-repeating',
+            todoFields: {'rrule': 'RRULE:FREQ=DAILY'},
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'historical_block: completed Todo keeps a past allocation busy in history',
+      () async {
+        final historicalStart = DateTime.utc(2030, 1, 7, 10);
+        await _seed(
+          app,
+          userId,
+          'todo-history',
+          type: RecordType.todo,
+          fields: {
+            'summary': 'Historical Todo',
+            'status': 'COMPLETED',
+            'completedAt': iso(historicalStart.add(const Duration(hours: 2))),
+            'deletedAt': null,
+          },
+        );
+        await _seed(
+          app,
+          userId,
+          'allocation-history',
+          type: RecordType.taskAllocation,
+          fields: {
+            'todoSyncId': 'todo-history',
+            'occurrenceId': null,
+            'startAt': iso(historicalStart),
+            'endAt': iso(historicalStart.add(const Duration(hours: 1))),
+            'state': 'active',
+            'createdAt': iso(historicalStart.subtract(const Duration(days: 1))),
+            'updatedAt': iso(historicalStart.subtract(const Duration(days: 1))),
+          },
+        );
+        final starts = await slotStarts(
+          from: DateTime.utc(2030, 1, 7, 9),
+          to: DateTime.utc(2030, 1, 7, 12),
+        );
+        expect(starts, contains(historicalStart.add(const Duration(hours: 1))));
+      },
+    );
+
+    test('tombstoned allocation or parent does not block', () async {
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-parent-tombstone',
+          parentTombstone: true,
+        ),
+        isFalse,
+      );
+      expect(
+        await allocationBlocks(
+          todoId: 'todo-allocation-tombstone',
+          allocationTombstone: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('dueDate-only Todo does not block free time', () async {
+      await _seed(
+        app,
+        userId,
+        'todo-due-only',
+        type: RecordType.todo,
+        fields: {
+          'summary': 'Deadline only',
+          'status': 'NEEDS-ACTION',
+          'dueDate': iso(busyStart),
+          'deletedAt': null,
+        },
+      );
+      final starts = await slotStarts(
+        from: DateTime.utc(2030, 1, 7, 9),
+        to: DateTime.utc(2030, 1, 7, 12),
+      );
+      expect(starts, isNot(contains(busyEnd)));
+    });
+
+    test(
+      'busy projection clips and merges cross-source nested adjacent intervals',
+      () async {
+        await _seed(
+          app,
+          userId,
+          'ev-projection',
+          type: RecordType.event,
+          fields: {
+            'summary': 'Event overlap',
+            'startDt': iso(busyStart.subtract(const Duration(hours: 1))),
+            'endDt': iso(busyEnd),
+            'isAllDay': false,
+            'rrule': null,
+            'deletedAt': null,
+          },
+        );
+
+        Future<void> seedAllocation(
+          String id,
+          DateTime start,
+          DateTime end,
+        ) async {
+          await _seed(
+            app,
+            userId,
+            'todo-$id',
+            type: RecordType.todo,
+            fields: {
+              'summary': 'Todo $id',
+              'status': 'NEEDS-ACTION',
+              'deletedAt': null,
+            },
+          );
+          await _seed(
+            app,
+            userId,
+            'allocation-$id',
+            type: RecordType.taskAllocation,
+            fields: {
+              'todoSyncId': 'todo-$id',
+              'occurrenceId': null,
+              'startAt': iso(start),
+              'endAt': iso(end),
+              'state': 'active',
+              'createdAt': iso(start.subtract(const Duration(days: 1))),
+              'updatedAt': iso(start.subtract(const Duration(days: 1))),
+            },
+          );
+        }
+
+        await seedAllocation(
+          'overlap',
+          busyStart.add(const Duration(minutes: 30)),
+          busyEnd.add(const Duration(hours: 1)),
+        );
+        await seedAllocation(
+          'nested',
+          busyStart.add(const Duration(minutes: 40)),
+          busyStart.add(const Duration(minutes: 50)),
+        );
+        await seedAllocation(
+          'adjacent',
+          busyEnd.add(const Duration(hours: 1)),
+          busyEnd.add(const Duration(hours: 2)),
+        );
+      await seedAllocation(
+        'touches-window-start',
+        busyStart.subtract(const Duration(hours: 2)),
+        busyStart.subtract(const Duration(minutes: 15)),
+      );
+      await seedAllocation(
+        'touches-window-end',
+        busyEnd.add(const Duration(hours: 1, minutes: 30)),
+        busyEnd.add(const Duration(hours: 2)),
+      );
+
+        final intervals = await getBusyIntervals(
+          app.db,
+          userId: userId,
+          from: busyStart.subtract(const Duration(minutes: 15)),
+          to: busyEnd.add(const Duration(hours: 1, minutes: 30)),
+        );
+        expect(intervals, hasLength(1));
+        expect(
+          intervals.single.startAt,
+          busyStart.subtract(const Duration(minutes: 15)),
+        );
+        expect(
+          intervals.single.endAt,
+          busyEnd.add(const Duration(hours: 1, minutes: 30)),
+        );
+        expect(intervals.single.sources, hasLength(4));
+        expect(intervals.single.sources.map((source) => source.type).toSet(), {
+          BusyIntervalSource.event,
+          BusyIntervalSource.taskAllocation,
+        });
+      },
+    );
 
     test('rejects a duration longer than the window', () async {
       final payload = await _toolError(app, token, 'find_free_time', {

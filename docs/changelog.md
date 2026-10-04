@@ -10,6 +10,15 @@
 
 ---
 
+## Unreleased / 未发布
+
+**用户反馈原文节选 / User feedback excerpt:** “建立一个明确、唯一的‘哪些记录实际占用用户时间’的读模型。”
+
+- **TaskAllocation Busy-Time**：服务端 `find_free_time` 通过统一只读 BusyInterval 投影读取 Event occurrence 与有效 TaskAllocation；按半开窗口裁剪并合并，且不把 Todo `dueDate` 当作时间占用。完成 Todo 保留历史及进行中的有效安排，完成后的未来安排不会阻塞空闲时段。
+- **TaskAllocation busy-time projection**: `find_free_time` now consumes one read-only projection of Event occurrences and effective TaskAllocations. It clips and merges half-open intervals, keeps valid history and in-progress blocks after Todo completion, and never treats `dueDate` as reserved time.
+
+---
+
 ## v0.27.0+28 — Connected Devices + Localization Guards / 设备注册与本地化护栏
 
 **用户反馈原文 / User feedback:** 「加一个双语切换和日夜切换功能。要写进我们的需求文档里」→「我要的不是那种非常简单的双语设计，而是从根本上就是一键双语，彻底的双语那种」

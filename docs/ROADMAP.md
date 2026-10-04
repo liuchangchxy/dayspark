@@ -15,6 +15,15 @@
 
 ---
 
+## TaskAllocation Workstream / TaskAllocation 阶段状态 (2026-10-04)
+
+- **Phase 1 / 1.5 本地领域与 Calendar 投影**：已完成。
+- **Phase 2 跨设备同步与完成/删除收敛**：已完成；本次未重新审查或改动该架构。
+- **Busy-Time**：已完成统一服务端 BusyInterval 只读投影，并使 `find_free_time` 消费 Event occurrence 与有效 Allocation；父 Todo、D6、墓碑、回收站和半开区间规则见 `SPEC.md` §3.1。dueDate 不贡献 busy。
+- **后续边界**：重复 Todo occurrence、`get_agenda`、Widget、Reminder、deadline marker、自动排程及 Allocation MCP 写工具仍未进入范围。实施记录与测试矩阵见 `docs/superpowers/plans/2026-10-04-task-allocation.md`。
+
+---
+
 ## 一、Current Features / 当前功能清单
 
 ### v0.1 — v0.7 | 2026-04-16 ~ 04-28 | Project Skeleton / 项目骨架

@@ -150,6 +150,30 @@ Future<RecordQueryPage> queryRecords(
   );
 }
 
+Future<List<RecordRow>> queryTaskAllocationRecordsInWindow(
+  AppDatabase db, {
+  required String userId,
+  required DateTime from,
+  required DateTime to,
+}) async {
+  final rows = await db
+      .customSelect(
+        'SELECT * FROM records WHERE user_id = ? AND type = ? AND deleted = 0 '
+        'AND ((${_padIso('startAt')} < ? AND ${_padIso('endAt')} > ?) '
+        "OR substr(json_extract(payload_json, '\$.startAt'), -1) != 'Z' "
+        "OR substr(json_extract(payload_json, '\$.endAt'), -1) != 'Z')",
+        variables: [
+          Variable.withString(userId),
+          Variable.withString(RecordType.taskAllocation.wireName),
+          Variable.withString(_canonical(to)),
+          Variable.withString(_canonical(from)),
+        ],
+        readsFrom: {db.records},
+      )
+      .get();
+  return rows.map((row) => db.records.map(row.data)).toList();
+}
+
 // Local-day bounds of a 'YYYY-MM-DD' date in [timezone] (IANA, default via
 // the caller) expressed as the half-open UTC instant range
 // [00:00, next-day 00:00). DST-safe: both edges are built from calendar

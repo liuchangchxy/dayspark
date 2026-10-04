@@ -327,3 +327,12 @@
 - **并发边界**：字段级 LWW 继续合并独立时间字段与单字段状态；终态单调与 completed-parent invariant 是领域约束，不依赖客户端时钟或请求抵达“正常顺序”。
 - **对应 SPEC 章节**：SPEC.md §3.5 规则 6、§4.1.1、§4.2、§5。
 - **实施计划**：`docs/superpowers/plans/2026-10-04-task-allocation.md` Phase 2。
+
+### [2026-10-04] Busy time 使用统一只读区间投影
+- **触发背景**：Phase 2 后，`find_free_time` 仍只在 MCP handler 内展开 Event 并合并时间；TaskAllocation 与 Calendar、未来调度会因此各自维护有效性判断，完成边界或回收站规则容易漂移。
+- **核心裁定**：服务端在数据层提供统一 BusyInterval 读模型；它在单次查询中展开 Event occurrence、过滤有效 TaskAllocation、按请求窗口裁剪并合并。合并结果携带 event / taskAllocation 来源引用，供未来读者解释区间来源。它不是数据库实体，也不改变同步记录。
+- **有效性边界**：Allocation 行未 tombstone 且 state 为 active；父 Todo 必须能解析且未 tombstone、未软删除、未取消。完成 Todo 按 `completedAt` 防御性校验：`startAt >= completedAt` 不影响未来安排；开始早于完成时刻的安排仍维持至原 `endAt`，过去部分仅在历史窗口重叠时出现。无 `completedAt` 的异常 completed 组合不占 busy。dueDate 单独不占时段。
+- **时间裁定**：统一使用半开 `[startAt,endAt)` 窗口；按既有 Event merger 规则，重叠与相邻 interval 归并。Event 展开、all-day 有效结束时刻及软删除查询继续复用原实现。
+- **Event 现状核对**：原 `find_free_time` 通过 Event 查询排除 tombstone 与 `deletedAt` 软删行，再按查询窗口展开 recurrence；all-day 正长度使用 `endDt`，非正长度使用 24 小时兜底。Event payload 契约没有取消状态，故本次不新增 `status == CANCELLED` 过滤。
+- **代价与边界**：来源位于合并 interval 上而非分别暴露重叠片段；未来若需要按来源切分可用时间，需要另定义消费 API。重复 Todo Allocation 仍不在本阶段范围内。
+- **对应 SPEC 章节**：SPEC.md §3.1 规则 13–14、§3.3 `find_free_time`。
