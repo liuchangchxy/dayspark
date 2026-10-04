@@ -91,12 +91,14 @@ Future<void> saveCredentials(
 ) async {
   final file = File(credentialsPath(environment));
   await file.parent.create(recursive: true);
-  // Create + chmod BEFORE writing tokens so the secret never lands on disk
-  // world-readable, even for the window between create and chmod.
+  // POSIX permissions are meaningful only on POSIX hosts. Windows applies
+  // inherited ACLs to this user-owned directory instead.
   await file.writeAsString('');
-  final chmod = await Process.run('chmod', <String>['600', file.path]);
-  if (chmod.exitCode != 0) {
-    throw AuthFailure('failed to restrict permissions on ${file.path}');
+  if (!Platform.isWindows) {
+    final chmod = await Process.run('chmod', <String>['600', file.path]);
+    if (chmod.exitCode != 0) {
+      throw AuthFailure('failed to restrict permissions on ${file.path}');
+    }
   }
   await file.writeAsString(jsonEncode(credentials.toJson()));
 }
