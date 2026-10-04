@@ -50,7 +50,11 @@ Map<String, List<String>> platformHits(String root) {
   if (!libDir.existsSync()) return hits;
   for (final entity in libDir.listSync(recursive: true)) {
     if (entity is! File || !entity.path.endsWith('.dart')) continue;
-    final rel = entity.path.substring(root.length + 1);
+    final normalizedRoot = root
+        .replaceAll('\\', '/')
+        .replaceFirst(RegExp(r'/$'), '');
+    final normalizedPath = entity.path.replaceAll('\\', '/');
+    final rel = normalizedPath.substring(normalizedRoot.length + 1);
     if (rel == _allowlistRelativePath) continue;
     final found = <String>[];
     final lines = entity.readAsLinesSync();
