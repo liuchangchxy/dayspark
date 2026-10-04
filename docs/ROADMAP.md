@@ -22,6 +22,12 @@
 - **Busy-Time**：已完成统一服务端 BusyInterval 只读投影，并使 `find_free_time` 消费 Event occurrence 与有效 Allocation；父 Todo、D6、墓碑、回收站和半开区间规则见 `SPEC.md` §3.1。dueDate 不贡献 busy。
 - **后续边界**：重复 Todo occurrence、`get_agenda`、Widget、Reminder、deadline marker、自动排程及 Allocation MCP 写工具仍未进入范围。实施记录与测试矩阵见 `docs/superpowers/plans/2026-10-04-task-allocation.md`。
 
+## Recurring Todo / Occurrence Design Spike (2026-10-04)
+
+- **设计结论已落文档**：`SPEC.md` §3.1.1、`DECISIONS.md` 同日裁定；完整证据边界见 `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`。
+- **运行验收状态：PASS（spike vectors）**：SDK 从 `C:\src\flutter` 的绝对路径运行；RRULE、gap/fold、DATE-only、ICS parser/converter、client/server 临时 path package vectors 均已实测。`dart analyze .` 零 issue；全量 `flutter test` 414 项通过；`git diff --check` 通过。
+- **实施状态：READY**：gap 采用 RFC gap-before-offset，fold-first；nominal key 与 resolved instant 分离。下一阶段计划 `docs/superpowers/plans/2026-10-04-recurring-todo.md`；实现前将 client timezone 对齐 server 0.11.1 并检查 `tz.local` 名称变化。
+
 ---
 
 ## 一、Current Features / 当前功能清单

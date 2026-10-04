@@ -87,6 +87,20 @@ TaskAllocation 的领域状态为单一字段：
 
 这三种领域状态不等同于同步记录的 `deleted` tombstone。Allocation 仅在永久删除时使用 tombstone；Todo 软删除期间，Allocation 保持原领域状态，由父 Todo 的回收站状态决定是否投影。
 
+#### 3.1.1 重复 Todo 系列与 occurrence 契约
+
+- **领域真值**：正式重复 Todo 使用原子 `RecurrenceSpec`：`anchor { source: start|due, valueType: date|localDateTime, value: offset-free local value }`、IANA `timeZone`、规范化 `rrule`。只有 `startDate` 时 anchor 来源为 `start`；否则使用 `dueDate`；两者均无时不展开 occurrence，也不允许 occurrence-bound Allocation。`startDate` 决定 occurrence identity，`dueDate` 是相应 Todo 的 deadline。DATE-only 值始终是日历日期，不是午夜 instant。
+- **时区**：新重复 Todo 固化创建表单选定的 IANA 时区；设备时区只能作为新建表单默认值。旅行、服务器配置和客户端默认时区不得改变 series zone。非重复 Todo 不保存 recurrence timezone。
+- **Occurrence key 与解析两阶段**：`RecurrenceSpec + query window` 先生成 nominal local occurrence（DATE 或 DATE-TIME），据此产生带版本/类型/series zone 的 key，例如 `v1:DT:2026-11-02T09:00:00@America/New_York` 与 `v1:DATE:2026-11-02@Asia/Shanghai`；随后才将 nominal 值按 IANA 时区规则解析为 resolved instant。DST gap 即使解析成显示当地 03:30，identity 仍使用规则产生的 nominal 02:30。键不重复编码 Todo ID，因为 Allocation 已携带 `todoSyncId`。Allocation 的 `startAt/endAt` 是独立的实际 UTC 安排时间；改期不改 key，series anchor/rule/zone 改动都不重写旧 key。
+- **DST**：gap 使用 gap 发生前的 UTC offset 解释（例如纽约名义 02:30 解析为 07:30Z / 当地 03:30）；fold 有两个候选 instant 时取较早 instant（第一次出现）。occurrence identity 保留 RRULE 产生的名义 local 值（gap 示例仍为 `02:30`），与解析后的实际 local 显示时间和 resolved instant 分离。不得依赖 `TZDateTime` 构造器隐式选择策略；引擎显式找出候选 instant，并应用上述规则。
+- **Series 编辑**：RRULE 修改后不再被规则包含的旧 Allocation、anchor 或 timezone 修改后的旧身份、以及删除 recurrence 后的 occurrence-bound Allocation 均保留原 identity，进入 orphan/historical 语义；不得猜测重绑。首版不迁移 Allocation，用户显式重新安排。
+- **Legacy**：首次需要正式展开、occurrence Allocation 或修改 recurrence 时才触发 lazy migration 确认。旧重复 Todo 不根据设备时区、所在地、服务器时区或 UTC payload 猜 zone。持久化分类首版收敛为 `knownZoned` 与 `unknownLegacy`；ICS 导入时的 `floating`、`legacyInstantBased` 是来源证据分类，只有有可靠显式证据时才可升级为 known；否则映射到 unknown 并保留原始内容/来源。完成一次明确解释后写入完整 RecurrenceSpec。
+- **RRULE 能力**：新建首版白名单为 `DAILY/WEEKLY/MONTHLY/YEARLY`、`INTERVAL >= 1`、`BYDAY`、`BYMONTHDAY`、`COUNT`、`UNTIL`，并校验各 FREQ 的 RFC 交叉约束、COUNT/UNTIL 互斥及上限。`BYDAY` 序号仅在白名单明确允许的 MONTHLY/YEARLY 场景开放。其他 RFC parts 可由只读导入/展示层单独处理，但不代表可分配 occurrence。解析失败和未知 part 必须返回显式 unsupported/invalid；严禁降级普通 Todo或回退原始 DTSTART。
+- **ICS**：导入必须读取原始 DTSTART/DUE property 的 `TZID`、`VALUE`、值、VTIMEZONE 与 RRULE。已识别 IANA TZID 可映射 known-zoned；floating 不得套用设备 zone；UTC instant 不代表已知的原系列 wall-clock zone；VALUE=DATE 保留 DATE。自定义 VTIMEZONE 不能无损映射至 IANA 时保留未知分类并阻止 occurrence Allocation。导出须按 RecurrenceSpec 输出相应 DATE、floating 或 TZID 属性。
+- **同步原子性**：RecurrenceSpec 是一个逻辑原子。单独字段的 Todo LWW 更新不得分别合并 anchor、RRULE、zone。首选在 Todo payload 内写入整体 `recurrenceSpec` + 单调 `recurrenceRevision`，客户端整对象校验并替换；并发以该整体版本作冲突单位。普通 Todo 字段继续字段级 LWW。旧 `rrule/startDate/dueDate` 字段在过渡期只能经单一适配器生成候选，不可与新对象混成正式真值。
+- **共享实现**：正式引擎应为纯 Dart shared package（优先评估独立 `dayspark_recurrence`，由 app 与 server 同版本依赖），依赖锁定的 `rrule` 与 `timezone`、同份 tzdata 初始化策略。引擎输出 local occurrence key、解析状态和可选 UTC instant；date 不产生 instant。无效/unsupported 必须显式失败，客户端/服务端不得复制 DST 算法。
+- **首版排除**：per-occurrence completion、skip-one、edit-this、edit-this-and-future、detached override、EXDATE/RDATE/THISANDFUTURE、完整 RECURRENCE-ID 图、自动迁移 orphan Allocation、自动猜 legacy zone、整条 series 批量生成 Allocation。
+
 ### 3.2 核心功能 B：跨设备同步（P2）
 - **业务描述**：自托管后端的双向同步
 - **业务规则契约**：

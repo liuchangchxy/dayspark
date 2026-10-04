@@ -336,3 +336,15 @@
 - **Event 现状核对**：原 `find_free_time` 通过 Event 查询排除 tombstone 与 `deletedAt` 软删行，再按查询窗口展开 recurrence；all-day 正长度使用 `endDt`，非正长度使用 24 小时兜底。Event payload 契约没有取消状态，故本次不新增 `status == CANCELLED` 过滤。
 - **代价与边界**：来源位于合并 interval 上而非分别暴露重叠片段；未来若需要按来源切分可用时间，需要另定义消费 API。重复 Todo Allocation 仍不在本阶段范围内。
 - **对应 SPEC 章节**：SPEC.md §3.1 规则 13–14、§3.3 `find_free_time`。
+
+### [2026-10-04] Recurring Todo 设计收敛与运行 spike 验收边界
+- **触发背景**：Recurring Todo / occurrence identity / timezone / DST 设计 spike。保留已冻结的 local-calendar series 语义，不把 TaskAllocation 阶段已完成内容重新打开。
+- **设计裁定**：正式领域对象为 `RecurrenceSpec(anchor{source,valueType,value}, timeZone, rrule)`；anchor 为 offset-free local DATE 或 local DATE-TIME。新建重复 Todo 固化 IANA zone。DATE-only occurrence 身份不转换成午夜 instant。先产生 nominal local occurrence key，再独立解析 resolved instant；identity 不随 DST normalization 改写。gap 按 RFC gap-before-offset 解析；fold 取最早 instant。RRULE 编辑、anchor/zone 编辑和删除 recurrence 都保留旧 Allocation identity，首版 orphan 后由用户重排。
+- **Legacy 裁定**：旧数据首次进入需要正式 recurrence 语义的操作时才 lazy migration。首版持久分类压缩为 `knownZoned` / `unknownLegacy`；floating 与 legacy-instant 是导入/取证阶段的来源分类，证据不足均归 unknown，不按任何当前机器/服务器 zone 推断。
+- **同步与架构裁定**：RecurrenceSpec 整体作为 Todo 同步 payload 的一个 revisioned object 更新；普通字段继续 LWW。正式 recurrence engine 应由 client/server 共同依赖的纯 Dart package 提供，避免在 `dayspark_contracts` DTO 包塞入时区计算职责。
+- **本轮证据边界**：锁定版本为 client `rrule 0.2.18` / `timezone 0.11.0` / `enough_icalendar 0.17.0`，server `rrule 0.2.18` / `timezone 0.11.1`；两端 tz 版本已分叉。现有 Event recurrence 把锚点转成 UTC instant，客户端/服务端各自调用 `rrule`；没有 Todo series zone 字段。`enough_icalendar` 的 property 层保留 TZID/VALUE/raw definition，且 VTIMEZONE 是组件树；当前 converter 只取 DateTime getter 并丢弃这些元数据。RRULE decoder 对未知 rule part 没有拒绝分支；服务端 invalid RRULE 记录后仍把 DTSTART 原始区间当普通实例返回，均不得复用于正式 Todo allocation。
+- **DST 补充裁定**：用户撤销 gap-skip，采用 RFC 5545 §3.3.5 + Verified Erratum 4271 的 gap-before-offset；fold 取第一次出现。Occurrence key 使用 RRULE 产生的 nominal local occurrence，不因 gap normalization 变成实际当地显示时间。实测 gap occurrence 为 nominal `02:30` identity + `07:30Z` instant / 当地 `03:30` 展示。
+- **运行 spike 结果**：以 `C:\src\flutter` 的 Flutter 3.47.3 / Dart 3.13.3 直接执行。RRULE vectors、DST prototype、DATE-only adapter、ICS parser 四类 fixture 与 converter tests、临时纯 Dart path package 在 client/server 两个依赖图的 vectors 均通过。timezone 两边 tzdata 都为 2025c，显式 zone 输出一致；0.11.1 相比 0.11.0 仅更改默认 `tz.local` 名称 `UTC`→`Etc/UTC`。最终门禁：`dart analyze .` 零 issue；全量 `flutter test` 414 项通过；`git diff --check` 通过。临时 client/server path dependency 已恢复，保留最小复现 spike harness。
+- **后续**：设计 spike 已完成；实现仍属于单独授权范围。下一阶段按 `docs/superpowers/plans/2026-10-04-recurring-todo.md` 执行，并在产品实现中保留 strict RRULE allowlist、ICS metadata wrapper、跨端向量与时区版本对齐。
+- **对应规范/报告**：`SPEC.md` §3.1.1；`docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`；下一阶段计划 `docs/superpowers/plans/2026-10-04-recurring-todo.md`。
+- **判错代价**：若接受本轮静态源码判断为运行证明，可能冻结一个实际 package 行为不兼容的 DST/ICS 协议，并导致不同设备产生不同 occurrence identity；因此必须保留可复现运行 spike 与全仓门禁作为本阶段完成条件；本轮均已通过。
