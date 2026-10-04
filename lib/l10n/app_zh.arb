@@ -389,5 +389,10 @@
   "devicesEmpty": "还没有设备上报过。",
   "deviceUnknownName": "未命名设备",
   "deviceLastSeen": "最后活跃 {time}",
-  "devicesLoadFailed": "设备列表加载失败"
+  "devicesLoadFailed": "设备列表加载失败",
+  "taskAllocations": "时间安排",
+  "addTaskAllocation": "安排时间",
+  "noTaskAllocations": "暂无时间安排",
+  "cancelTaskAllocation": "取消安排",
+  "cancelledTaskAllocation": "已取消"
 }

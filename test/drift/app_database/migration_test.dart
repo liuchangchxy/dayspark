@@ -8,6 +8,7 @@ import 'generated/schema.dart';
 
 import 'generated/schema_v8.dart' as v8;
 import 'generated/schema_v9.dart' as v9;
+import 'generated/schema_v10.dart' as v10;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -190,4 +191,234 @@ void main() {
       },
     );
   });
+
+  test(
+    'real v9 to v10 migration preserves records, indexes and FK behavior',
+    () async {
+      final now = DateTime.utc(2026, 10, 4, 12).millisecondsSinceEpoch ~/ 1000;
+      final trigger = now + 3600;
+      await verifier.testWithDataIntegrity(
+        oldVersion: 9,
+        newVersion: 10,
+        createOld: v9.DatabaseAtV9.new,
+        createNew: v10.DatabaseAtV10.new,
+        openTestedDatabase: AppDatabase.new,
+        createItems: (batch, oldDb) {
+          batch.insert(
+            oldDb.calendars,
+            v9.CalendarsCompanion.insert(
+              name: 'Work',
+              color: const Value('#123456'),
+              timezone: const Value('Asia/Hong_Kong'),
+              isActive: const Value(0),
+              sortOrder: const Value(7),
+            ),
+          );
+          batch.insert(
+            oldDb.events,
+            v9.EventsCompanion.insert(
+              calendarId: 1,
+              summary: 'v9 event',
+              startDt: now,
+              endDt: now + 3600,
+              isAllDay: const Value(1),
+              description: const Value('Event description'),
+              location: const Value('Office'),
+              rrule: const Value('FREQ=WEEKLY'),
+              deletedAt: const Value(12345),
+              createdAt: Value(now - 100),
+              updatedAt: Value(now - 50),
+              syncId: const Value('event-sync-id'),
+              serverRev: const Value(8),
+            ),
+          );
+          batch.insert(
+            oldDb.todos,
+            v9.TodosCompanion.insert(
+              calendarId: 1,
+              summary: 'v9 todo',
+              dueDate: Value(now + 86400),
+              startDate: Value(now - 3600),
+              priority: const Value(3),
+              status: const Value('NEEDS-ACTION'),
+              description: const Value('Keep this field'),
+              rrule: const Value('FREQ=MONTHLY'),
+              completedAt: const Value(23456),
+              percentComplete: const Value(25),
+              createdAt: Value(now - 200),
+              updatedAt: Value(now - 100),
+              deletedAt: const Value(34567),
+              sortOrder: const Value(12),
+              parentId: const Value(9),
+              syncId: const Value('todo-sync-id'),
+              serverRev: const Value(9),
+            ),
+          );
+          batch.insert(
+            oldDb.tags,
+            v9.TagsCompanion.insert(
+              name: 'preserved',
+              color: const Value('#654321'),
+            ),
+          );
+          batch.insert(
+            oldDb.eventTags,
+            const v9.EventTagsCompanion(eventId: Value(1), tagId: Value(1)),
+          );
+          batch.insert(
+            oldDb.todoTags,
+            const v9.TodoTagsCompanion(todoId: Value(1), tagId: Value(1)),
+          );
+          batch.insert(
+            oldDb.attachments,
+            v9.AttachmentsCompanion.insert(
+              parentType: 'todo',
+              parentId: 1,
+              filePath: '/data/keep.txt',
+              fileName: 'keep.txt',
+              fileSize: const Value(123),
+              mimeType: const Value('text/plain'),
+              createdAt: Value(now - 300),
+            ),
+          );
+          batch.insert(
+            oldDb.reminders,
+            v9.RemindersCompanion.insert(
+              parentType: 'todo',
+              parentId: 1,
+              triggerTime: trigger,
+              isTriggered: const Value(1),
+            ),
+          );
+        },
+        validateItems: (newDb) async {
+          expect(newDb.schemaVersion, 10);
+          final calendars = await newDb.select(newDb.calendars).get();
+          final events = await newDb.select(newDb.events).get();
+          final todos = await newDb.select(newDb.todos).get();
+          final reminders = await newDb.select(newDb.reminders).get();
+          expect(
+            calendars.single,
+            const v10.CalendarsData(
+              id: 1,
+              name: 'Work',
+              color: '#123456',
+              timezone: 'Asia/Hong_Kong',
+              isActive: 0,
+              sortOrder: 7,
+            ),
+          );
+          expect(
+            events.single,
+            v10.EventsData(
+              id: 1,
+              calendarId: 1,
+              summary: 'v9 event',
+              startDt: now,
+              endDt: now + 3600,
+              isAllDay: 1,
+              description: 'Event description',
+              location: 'Office',
+              rrule: 'FREQ=WEEKLY',
+              deletedAt: 12345,
+              createdAt: now - 100,
+              updatedAt: now - 50,
+              syncId: 'event-sync-id',
+              serverRev: 8,
+            ),
+          );
+          expect(
+            todos.single,
+            v10.TodosData(
+              id: 1,
+              calendarId: 1,
+              summary: 'v9 todo',
+              dueDate: now + 86400,
+              startDate: now - 3600,
+              priority: 3,
+              status: 'NEEDS-ACTION',
+              description: 'Keep this field',
+              rrule: 'FREQ=MONTHLY',
+              completedAt: 23456,
+              percentComplete: 25,
+              createdAt: now - 200,
+              updatedAt: now - 100,
+              deletedAt: 34567,
+              sortOrder: 12,
+              parentId: 9,
+              syncId: 'todo-sync-id',
+              serverRev: 9,
+            ),
+          );
+          expect(
+            reminders.single,
+            v10.RemindersData(
+              id: 1,
+              parentType: 'todo',
+              parentId: 1,
+              triggerTime: trigger,
+              isTriggered: 1,
+            ),
+          );
+          expect(
+            (await newDb.select(newDb.tags).get()).single,
+            const v10.TagsData(id: 1, name: 'preserved', color: '#654321'),
+          );
+          expect(await newDb.select(newDb.eventTags).get(), hasLength(1));
+          expect(await newDb.select(newDb.todoTags).get(), hasLength(1));
+          expect(await newDb.select(newDb.attachments).get(), [
+            v10.AttachmentsData(
+              id: 1,
+              parentType: 'todo',
+              parentId: 1,
+              filePath: '/data/keep.txt',
+              fileName: 'keep.txt',
+              fileSize: 123,
+              mimeType: 'text/plain',
+              createdAt: now - 300,
+            ),
+          ]);
+          expect(await newDb.select(newDb.taskAllocations).get(), isEmpty);
+          final indexes = await newDb
+              .customSelect(
+                "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'task_allocations_%'",
+              )
+              .get();
+          expect(indexes.map((row) => row.read<String>('name')).toSet(), {
+            'task_allocations_todo_id',
+            'task_allocations_time_range',
+          });
+          final todoId = todos.single.id;
+          await newDb.customStatement('PRAGMA foreign_keys = ON');
+          final foreignKeys = await newDb
+              .customSelect('PRAGMA foreign_key_list(task_allocations)')
+              .get();
+          expect(foreignKeys, hasLength(1));
+          expect(foreignKeys.single.read<String>('table'), 'todos');
+          expect(foreignKeys.single.read<String>('on_delete'), 'CASCADE');
+          await (newDb.delete(
+            newDb.todoTags,
+          )..where((row) => row.todoId.equals(todoId))).go();
+          final allocationId = await newDb
+              .into(newDb.taskAllocations)
+              .insert(
+                v10.TaskAllocationsCompanion.insert(
+                  todoId: todoId,
+                  startAt: DateTime.utc(2026, 10, 5, 9).millisecondsSinceEpoch,
+                  endAt: DateTime.utc(2026, 10, 5, 10).millisecondsSinceEpoch,
+                ),
+              );
+          await (newDb.delete(
+            newDb.todos,
+          )..where((row) => row.id.equals(todoId))).go();
+          expect(
+            await (newDb.select(
+              newDb.taskAllocations,
+            )..where((row) => row.id.equals(allocationId))).get(),
+            isEmpty,
+          );
+        },
+      );
+    },
+  );
 }

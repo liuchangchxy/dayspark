@@ -290,3 +290,27 @@
 - **据实披露的边界**：C 是"尽力而为"，iOS `BGAppRefreshTask` 由系统决定配额，可能数小时一次，**UI 不得承诺"实时"**；桌面三平台本就常驻，D 基本够用；Web 关掉标签页同样只能靠 D。
 - **顺带补齐**：服务端此前**没有任何迁移测试**（客户端早有 `migration_test.dart`），而 v4 是服务端第一次被迫迁移。已补 `server/test/migration_test.dart`：用裸 sqlite3 把库倒回 v3 形状再打开，验数据保留、新列补上且旧行为空串（不凭空造归属）、迁移后写入仍可用、重复打开幂等。
 - **影响范围**：`server/lib/src/{schema,db,routes/devices,routes/sync,sync/idempotency,data/record_writer}.dart`、`server/lib/server.dart`、`packages/dayspark_contracts/lib/src/device_dto.dart` + barrel、`lib/core/utils/device_label.dart`、`lib/domain/sync/sync_api_client.dart`、`lib/domain/providers/sync_client_provider.dart`、`lib/main.dart`、`lib/ui/pages/settings/settings_sections/account_section.dart`、`lib/l10n/*.arb`（+5 键）；新增测试 4 个文件。**版本号未动**（发版另行确认）。
+
+### [2026-10-04] Todo 时间安排采用 TaskAllocation 与 occurrence 级本地时区语义
+- **触发背景**：用户确认日历与 Todo 通过独立时间安排连接；需冻结 `dueDate` 与执行安排的边界、完成/取消生命周期、busy-time 语义及重复 Todo 跨设备身份，避免把 UI 或同步实现误当产品契约。
+- **核心决策**：
+  1. 保留现有 `Todo` 与 `Event` 为独立一等领域记录；新增概念命名 `TaskAllocation`。不改名、不合并现有实体；Calendar 是时间投影，首页导航不由本决策规定，Todo 页面仍是任务状态管理主要入口。
+  2. 一个 Todo 可拥有多个 Allocation；`dueDate` 与 Allocation 完全独立。改期/取消 Allocation 不修改 `dueDate`；单独取消 Allocation 不影响 Todo。
+  3. Allocation 状态为 `active`、`cancelledByUser`、`invalidatedByCompletion`。用户取消保留历史、普通 Calendar 隐藏；Todo 完成时，已结束与进行中的 Allocation 保持原状态，满足 `startAt >= completedAt` 的未来安排改为 `invalidatedByCompletion`。完成撤销不自动恢复这些安排，用户须显式重新安排。
+  4. Todo 进回收站期间 Allocation 及状态保留，但隐藏且不占 busy time；恢复后仅原 `active` Allocation 恢复投影。Todo 永久删除时 Allocation 随父项永久删除并同步 tombstone。
+  5. 仅 `active` Allocation 且父 Todo 未取消、未进回收站时占用 busy time；Todo 已完成时按完成时刻执行失效边界校验，正在进行的 Allocation 仍占用至原结束时刻。首版 Allocation 无独立 Reminder；Todo Reminder 维持现有语义。
+  6. 重复 Todo 的 Allocation 绑定单一 occurrence，不自动套用整个系列。occurrence 使用本地钟点语义；有 `startDate` 时优先作为 recurrence anchor，否则以 `dueDate` 为 anchor；两者均无则不允许创建 occurrence 级 Allocation。跨设备 identity 由 Todo 同步 ID、本地 recurrence 日期时间和系列 IANA 时区确定；UTC recurrence-id 仅为迁移过渡，不是长期协议。
+- **对应 SPEC 章节**：SPEC.md §1.1 第 1 条、§3.1–§3.3、§3.5、§4.1、§5。
+- **影响范围**：后续实施需覆盖客户端 Drift schema / migration、Todo 与 Allocation Writers/Providers、Calendar Projection、outbox/applier、`dayspark_contracts` RecordType、服务端记录解析与 LWW、MCP `find_free_time` 和 Allocation 工作流。首版不改首页导航、Reminder 结构或 Widget JSON/原生消费端。
+- **重要实现约束**：现有 Todo 未保存重复系列 IANA 时区。新重复 Todo 必须持久化该值并同步；旧重复 Todo 不得按设备当前时区静默推断，未明确保存时不得创建 occurrence Allocation。服务端 generic per-field LWW 不能单独保证跨记录完成失效；完成 Todo 与未来 Allocation 状态变更必须有原子、可收敛的写入路径。
+
+### [2026-10-04] TaskAllocation 分阶段实施、兼容门控与完成边界精度
+- **触发背景**：TaskAllocation 产品契约已冻结；先用普通非重复 Todo 验证本地领域模型和 Calendar 投影，避免重复规则、同步协议及外部写入口扩大第一条纵切片。
+- **核心裁定**：
+  1. Phase 1 只实现普通非重复 Todo → 创建 TaskAllocation → Calendar 显示 → 改期 → 取消。范围不含重复 Todo、`recurrenceTimeZone`、occurrence identity、跨设备同步、Allocation MCP 写工具、Widget、Allocation Reminder、Today/Timeline、自动排程、estimate 或 actual duration；不改首页导航。
+  2. Phase 1 的重复 Todo 安排入口必须隐藏或明确拒绝。新建、改期、取消 Allocation 均不得改写 Todo `dueDate`；用户取消保留 Allocation 记录并置为 `cancelledByUser`；普通 Calendar 只投影 `active` 项。
+  3. 旧客户端兼容采用服务端 capability 门控。服务端不得向未声明支持 `task_allocation` 的客户端返回该 RecordType；旧客户端仍可同步 Event/Todo，但不能读写 Allocation。capability / protocol contract 必须进入 `dayspark_contracts` 与测试，不以散落的版本号分支替代。发布顺序：支持解析的新客户端 → 服务端按 capability 开启下发 → 开放 MCP/外部写入口。
+  4. Allocation `startAt/endAt` 与 Todo `completedAt` 比较前统一为 UTC instant 并截断到毫秒，禁止四舍五入。`endAt <= completedAt` 保留历史；`startAt < completedAt < endAt` 保持 active 至原结束；`startAt >= completedAt` 失效，包含相等边界。
+- **代价与边界**：Phase 1 暂不验证 Allocation 的同步或 busy-time 效果，不能据此宣称跨设备与空闲时段功能完成；后续阶段必须在开放外部写入前完成对应契约与兼容测试。
+- **对应 SPEC 章节**：SPEC.md §3.1、§3.2、§3.5。
+- **实施计划**：`docs/superpowers/plans/2026-10-04-task-allocation.md`。

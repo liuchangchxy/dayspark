@@ -47,11 +47,13 @@ final class ReminderReconciler {
   // 才敢拿锚点当位移基准；行内值是写入路径建的（新建/后挂提醒行）时只能退回
   // 事件自述的 previousReference——那正是 §2.1 规则 2/3 的原意。
   final Map<int, DateTime> _materialized = <int, DateTime>{};
-  final Map<_ParentKey, _ParentState> _parentStates = <_ParentKey, _ParentState>{};
+  final Map<_ParentKey, _ParentState> _parentStates =
+      <_ParentKey, _ParentState>{};
 
   Future<void> _tail = Future<void>.value();
 
-  Future<void> handle(List<RecordChange> batch) => _enqueue(() => _handle(batch));
+  Future<void> handle(List<RecordChange> batch) =>
+      _enqueue(() => _handle(batch));
 
   Future<void> reconcileAll() => _enqueue(_reconcileAll);
 
@@ -78,11 +80,9 @@ final class ReminderReconciler {
   // 两个入口共用一条串行链：批与批、重算与批都不得交错重排同一个父，否则会拿
   // 半更新的 _applied/父状态去求差。catchError 保证一次意外异常不会堵死整条链。
   Future<void> _enqueue(Future<void> Function() action) {
-    final guarded = _tail
-        .then((_) => action())
-        .catchError((Object e) {
-          debugPrint('reminder_reconciler: $e');
-        });
+    final guarded = _tail.then((_) => action()).catchError((Object e) {
+      debugPrint('reminder_reconciler: $e');
+    });
     _tail = guarded;
     return guarded;
   }
@@ -94,6 +94,8 @@ final class ReminderReconciler {
       switch (change) {
         case RecordsBulkChanged():
           // 身份/baseline 重写只动同步标识，参考时间与父状态不变 → 零动作。
+          break;
+        case TaskAllocationChanged():
           break;
         case RecordRemoved(:final type, :final localId, :final reminderIds):
           final key = _keyOf(type, localId);
@@ -135,10 +137,9 @@ final class ReminderReconciler {
   }
 
   Future<void> _reconcileAll({bool force = false}) async {
-    final rows =
-        await (_db.select(_db.reminders)
-              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-            .get();
+    final rows = await (_db.select(
+      _db.reminders,
+    )..orderBy([(t) => OrderingTerm.asc(t.id)])).get();
     final parents = <_ParentKey>[];
     for (final row in rows) {
       final key = (row.parentType, row.parentId);
@@ -176,7 +177,9 @@ final class ReminderReconciler {
     // 早退是常规优化：父状态与参考时间都没变 → 这一父没有任何事要做。
     // force 绕过它，用于「数据没变但平台侧必须重做」的场景——目前只有语言
     // 切换（通知文案已烘焙进 OS）。
-    if (!force && _parentStates[key] == state && previousReference == reference) {
+    if (!force &&
+        _parentStates[key] == state &&
+        previousReference == reference) {
       return;
     }
 
@@ -203,9 +206,7 @@ final class ReminderReconciler {
               storedTrigger: reminder.triggerTime,
             )
           : null;
-      final desired = computed == null
-          ? null
-          : _atStoragePrecision(computed);
+      final desired = computed == null ? null : _atStoragePrecision(computed);
       if (desired != null && !desired.isAtSameMomentAs(reminder.triggerTime)) {
         // 先物化再对外动作：行内值是下一次位移的锚。物化失败时本趟对外动作
         // 会被 _safely 记日志后跳过，且本父不写状态缓存 → 下一次事件（同 reference
@@ -301,17 +302,15 @@ final class ReminderReconciler {
 
   Future<_ParentState?> _readParent(String parentType, int parentId) async {
     if (parentType == 'event') {
-      final event =
-          await (_db.select(_db.events)
-                ..where((t) => t.id.equals(parentId)))
-              .getSingleOrNull();
+      final event = await (_db.select(
+        _db.events,
+      )..where((t) => t.id.equals(parentId))).getSingleOrNull();
       if (event == null) return null;
       return (reference: event.startDt, active: event.deletedAt == null);
     }
-    final todo =
-        await (_db.select(_db.todos)
-              ..where((t) => t.id.equals(parentId)))
-            .getSingleOrNull();
+    final todo = await (_db.select(
+      _db.todos,
+    )..where((t) => t.id.equals(parentId))).getSingleOrNull();
     if (todo == null) return null;
     return (
       reference: todo.dueDate,
@@ -325,7 +324,8 @@ final class ReminderReconciler {
   Future<List<Reminder>> _readReminders(String parentType, int parentId) {
     return (_db.select(_db.reminders)
           ..where(
-            (t) => t.parentType.equals(parentType) & t.parentId.equals(parentId),
+            (t) =>
+                t.parentType.equals(parentType) & t.parentId.equals(parentId),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.id)]))
         .get();

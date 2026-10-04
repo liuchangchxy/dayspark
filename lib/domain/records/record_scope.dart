@@ -64,6 +64,10 @@ final class RecordScope {
     _register(RecordsBulkChanged(type, reason: reason));
   }
 
+  void taskAllocationChanged(int localId) {
+    _register(TaskAllocationChanged(localId));
+  }
+
   void _register(RecordChange change) {
     if (_closed) {
       throw StateError(

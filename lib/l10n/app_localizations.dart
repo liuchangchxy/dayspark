@@ -1768,6 +1768,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load the device list'**
   String get devicesLoadFailed;
+
+  /// No description provided for @taskAllocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled time'**
+  String get taskAllocations;
+
+  /// No description provided for @addTaskAllocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule time'**
+  String get addTaskAllocation;
+
+  /// No description provided for @noTaskAllocations.
+  ///
+  /// In en, this message translates to:
+  /// **'No scheduled time'**
+  String get noTaskAllocations;
+
+  /// No description provided for @cancelTaskAllocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel schedule'**
+  String get cancelTaskAllocation;
+
+  /// No description provided for @cancelledTaskAllocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get cancelledTaskAllocation;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

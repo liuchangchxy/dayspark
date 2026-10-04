@@ -898,4 +898,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get devicesLoadFailed => 'Couldn\'t load the device list';
+
+  @override
+  String get taskAllocations => 'Scheduled time';
+
+  @override
+  String get addTaskAllocation => 'Schedule time';
+
+  @override
+  String get noTaskAllocations => 'No scheduled time';
+
+  @override
+  String get cancelTaskAllocation => 'Cancel schedule';
+
+  @override
+  String get cancelledTaskAllocation => 'Cancelled';
 }

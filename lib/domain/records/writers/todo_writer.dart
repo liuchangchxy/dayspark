@@ -17,6 +17,7 @@ final class TodoWriter {
   ) async {
     final existing = await _row(db, id);
     await (db.update(db.todos)..where((t) => t.id.equals(id))).write(data);
+    await _invalidateAllocationsAfterCompletion(db, tx, id);
     await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
     tx.applied(RecordType.todo, id, previousReference: existing?.dueDate);
   }
@@ -55,15 +56,15 @@ final class TodoWriter {
     } else {
       await db.todosDao.markIncomplete(id);
     }
+    await _invalidateAllocationsAfterCompletion(db, tx, id);
     await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
     tx.applied(RecordType.todo, id, previousReference: existing?.dueDate);
   }
 
   static Future<void> softDelete(AppDatabase db, RecordScope tx, int id) async {
-    final children = await (db.select(db.todos)..where(
-          (t) => t.parentId.equals(id) & t.deletedAt.isNull(),
-        ))
-        .get();
+    final children = await (db.select(
+      db.todos,
+    )..where((t) => t.parentId.equals(id) & t.deletedAt.isNull())).get();
     final ids = <int>[id, ...children.map((c) => c.id)];
     final previous = await _dueDates(db, ids);
     final targets = await SyncOutbox.captureDeletes(db, RecordType.todo, ids);
@@ -73,9 +74,8 @@ final class TodoWriter {
     await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
       TodosCompanion(deletedAt: Value(now), updatedAt: Value(now)),
     );
-    await (db.update(db.todos)..where(
-          (t) => t.parentId.equals(id) & t.deletedAt.isNull(),
-        ))
+    await (db.update(db.todos)
+          ..where((t) => t.parentId.equals(id) & t.deletedAt.isNull()))
         .write(TodosCompanion(deletedAt: Value(now), updatedAt: Value(now)));
     await SyncOutbox.enqueueDeletes(db, targets);
     for (final tid in ids) {
@@ -122,10 +122,11 @@ final class TodoWriter {
     }
     // Mirror cascade-delete: restoring a parent must also pull its direct
     // children out of the trash, or they stay orphaned there.
-    await (db.update(db.todos)..where(
-          (t) => t.parentId.equals(id) & t.deletedAt.isNotNull(),
-        ))
-        .write(TodosCompanion(deletedAt: const Value(null), updatedAt: Value(now)));
+    await (db.update(
+      db.todos,
+    )..where((t) => t.parentId.equals(id) & t.deletedAt.isNotNull())).write(
+      TodosCompanion(deletedAt: const Value(null), updatedAt: Value(now)),
+    );
     for (final tid in restored) {
       await SyncOutbox.enqueueUpsert(db, RecordType.todo, tid);
     }
@@ -164,14 +165,13 @@ final class TodoWriter {
     for (final tid in ids) {
       await (db.delete(db.todoTags)..where((t) => t.todoId.equals(tid))).go();
     }
-    await (db.delete(db.attachments)..where(
-          (t) => t.parentType.equals('todo') & t.parentId.isIn(ids),
-        ))
-        .go();
-    await (db.delete(db.reminders)..where(
-          (t) => t.parentType.equals('todo') & t.parentId.isIn(ids),
-        ))
-        .go();
+    await (db.delete(
+      db.attachments,
+    )..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
+    await (db.delete(
+      db.reminders,
+    )..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
+    await _deleteTaskAllocations(db, tx, ids);
     await (db.delete(db.todos)..where((t) => t.id.isIn(ids))).go();
     await SyncOutbox.enqueueDeletes(db, targets);
     for (final tid in ids) {
@@ -190,6 +190,7 @@ final class TodoWriter {
     final ids = deleted.map((t) => t.id).toList();
     final reminderIds = await ReminderWriter.idsByParent(db, 'todo', ids);
     final targets = await SyncOutbox.captureDeletes(db, RecordType.todo, ids);
+    await _deleteTaskAllocations(db, tx, ids);
     await db.todosDao.emptyTrash();
     await SyncOutbox.enqueueDeletes(db, targets);
     for (final id in ids) {
@@ -225,9 +226,11 @@ final class TodoWriter {
   }
 
   static Future<void> clearSyncState(AppDatabase db, RecordScope tx) async {
-    await db.update(db.todos).write(
-      TodosCompanion(serverRev: const Value(0), syncId: const Value(null)),
-    );
+    await db
+        .update(db.todos)
+        .write(
+          TodosCompanion(serverRev: const Value(0), syncId: const Value(null)),
+        );
     tx.bulkChanged(RecordType.todo, reason: 'identity-reset');
   }
 
@@ -248,6 +251,7 @@ final class TodoWriter {
     await (db.update(
       db.todos,
     )..where((t) => t.id.equals(existingId))).write(data);
+    await _invalidateAllocationsAfterCompletion(db, tx, existingId);
     tx.applied(
       RecordType.todo,
       existingId,
@@ -288,8 +292,9 @@ final class TodoWriter {
   }
 
   static Future<Todo?> _row(AppDatabase db, int id) {
-    return (db.select(db.todos)..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (db.select(
+      db.todos,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   static Future<Map<int, DateTime?>> _dueDates(
@@ -301,5 +306,54 @@ final class TodoWriter {
       db.todos,
     )..where((t) => t.id.isIn(ids))).get();
     return <int, DateTime?>{for (final row in rows) row.id: row.dueDate};
+  }
+
+  static Future<void> _deleteTaskAllocations(
+    AppDatabase db,
+    RecordScope tx,
+    List<int> todoIds,
+  ) async {
+    if (todoIds.isEmpty) return;
+    final allocations = await (db.select(
+      db.taskAllocations,
+    )..where((row) => row.todoId.isIn(todoIds))).get();
+    if (allocations.isEmpty) return;
+    await (db.delete(
+      db.taskAllocations,
+    )..where((row) => row.todoId.isIn(todoIds))).go();
+    for (final allocation in allocations) {
+      tx.taskAllocationChanged(allocation.id);
+    }
+  }
+
+  static Future<void> _invalidateAllocationsAfterCompletion(
+    AppDatabase db,
+    RecordScope tx,
+    int todoId,
+  ) async {
+    final todo = await _row(db, todoId);
+    final completedAt = todo?.completedAt;
+    if (todo == null || todo.status != 'COMPLETED' || completedAt == null) {
+      return;
+    }
+    final completionMs = completedAt.toUtc().millisecondsSinceEpoch;
+    final allocations = await (db.select(
+      db.taskAllocations,
+    )..where((a) => a.todoId.equals(todoId) & a.state.equals('active'))).get();
+    final now = DateTime.now();
+    for (final allocation in allocations) {
+      if (allocation.startAt.toUtc().millisecondsSinceEpoch < completionMs) {
+        continue;
+      }
+      await (db.update(
+        db.taskAllocations,
+      )..where((a) => a.id.equals(allocation.id))).write(
+        TaskAllocationsCompanion(
+          state: const Value('invalidatedByCompletion'),
+          updatedAt: Value(now),
+        ),
+      );
+      tx.taskAllocationChanged(allocation.id);
+    }
   }
 }

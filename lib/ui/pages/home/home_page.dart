@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
@@ -432,51 +434,83 @@ class _HomePageState extends ConsumerState<HomePage>
     final rangeKey =
         '${range.start.millisecondsSinceEpoch}-${range.end.millisecondsSinceEpoch}';
     final eventsAsync = ref.watch(eventsInDateRangeProvider(rangeKey));
+    final allocationsAsync = ref.watch(
+      taskAllocationsInDateRangeProvider(rangeKey),
+    );
     final viewed = ref.watch(viewedDateProvider);
 
     final calendar = eventsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text(l.error('$e'))),
-      data: (events) {
-        // Visible-window expansion: month grid reaches ~6 weeks around the
-        // anchor ([-7, +34] days); ±45d covers it with margin.
-        final adapters = expandRecurringEvents(
-          events,
-          before: viewed.subtract(const Duration(days: 45)),
-          after: viewed.add(const Duration(days: 45)),
-        );
-        return CalendarSection(
-          events: adapters,
-          hideHeader: true,
-          onHeaderChanged: (title, subtitle) {
-            if (title == _calendarTitle && subtitle == _calendarSubtitle) {
-              return;
-            }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              setState(() {
-                _calendarTitle = title;
-                _calendarSubtitle = subtitle;
+      data: (events) => allocationsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text(l.error('$e'))),
+        data: (allocationItems) {
+          // Visible-window expansion: month grid reaches ~6 weeks around the
+          // anchor ([-7, +34] days); ±45d covers it with margin.
+          final adapters = expandRecurringEvents(
+            events,
+            before: viewed.subtract(const Duration(days: 45)),
+            after: viewed.add(const Duration(days: 45)),
+          );
+          return CalendarSection(
+            events: adapters,
+            allocations: allocationItems
+                .map(TaskAllocationCalendarAdapter.fromItem)
+                .toList(),
+            hideHeader: true,
+            onHeaderChanged: (title, subtitle) {
+              if (title == _calendarTitle && subtitle == _calendarSubtitle) {
+                return;
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() {
+                  _calendarTitle = title;
+                  _calendarSubtitle = subtitle;
+                });
               });
-            });
-          },
-          onEventTapped: (event) => context.push('/event/edit', extra: event),
-          onTimeSlotTapped: (range) {
-            context.push(
-              '/event/new?start=${range.start.millisecondsSinceEpoch}'
-              '&end=${range.end.millisecondsSinceEpoch}',
-            );
-          },
-          // 拖拽改期只走 provider：重排提醒由提交后的领域事件接管
-          // （旧的内联补丁与重排器并存会互相争抢）。
-          onEventChanged: (event) async {
-            await ref.read(updateEventProvider)(
-              event.drifId,
-              event.toUpdateCompanion(),
-            );
-          },
-        );
-      },
+            },
+            onEventTapped: (event) => context.push('/event/edit', extra: event),
+            onTaskAllocationTapped: (allocation) async {
+              final db = ref.read(databaseProvider);
+              final todo =
+                  await (db.select(db.todos)
+                        ..where((row) => row.id.equals(allocation.todoId)))
+                      .getSingleOrNull();
+              if (mounted && todo != null) {
+                context.push('/todo/edit', extra: todo);
+              }
+            },
+            onTimeSlotTapped: (range) {
+              context.push(
+                '/event/new?start=${range.start.millisecondsSinceEpoch}'
+                '&end=${range.end.millisecondsSinceEpoch}',
+              );
+            },
+            // 拖拽改期只走 provider：重排提醒由提交后的领域事件接管
+            // （旧的内联补丁与重排器并存会互相争抢）。
+            onEventChanged: (event) async {
+              await ref.read(updateEventProvider)(
+                event.drifId,
+                event.toUpdateCompanion(),
+              );
+            },
+            onTaskAllocationChanged: (allocation) async {
+              try {
+                await ref.read(rescheduleTaskAllocationProvider)(
+                  id: allocation.id,
+                  startAt: allocation.start,
+                  endAt: allocation.end,
+                );
+              } catch (error) {
+                ref.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
+                rethrow;
+              }
+            },
+          );
+        },
+      ),
     );
 
     return calendar;

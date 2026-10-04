@@ -898,4 +898,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get devicesLoadFailed => '设备列表加载失败';
+
+  @override
+  String get taskAllocations => '时间安排';
+
+  @override
+  String get addTaskAllocation => '安排时间';
+
+  @override
+  String get noTaskAllocations => '暂无时间安排';
+
+  @override
+  String get cancelTaskAllocation => '取消安排';
+
+  @override
+  String get cancelledTaskAllocation => '已取消';
 }

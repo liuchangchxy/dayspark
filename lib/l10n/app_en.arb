@@ -504,5 +504,10 @@
       }
     }
   },
-  "devicesLoadFailed": "Couldn't load the device list"
+  "devicesLoadFailed": "Couldn't load the device list",
+  "taskAllocations": "Scheduled time",
+  "addTaskAllocation": "Schedule time",
+  "noTaskAllocations": "No scheduled time",
+  "cancelTaskAllocation": "Cancel schedule",
+  "cancelledTaskAllocation": "Cancelled"
 }

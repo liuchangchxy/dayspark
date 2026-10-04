@@ -4224,6 +4224,447 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxEntry> {
   }
 }
 
+class $TaskAllocationsTable extends TaskAllocations
+    with TableInfo<$TaskAllocationsTable, TaskAllocation> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskAllocationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _todoIdMeta = const VerificationMeta('todoId');
+  @override
+  late final GeneratedColumn<int> todoId = GeneratedColumn<int>(
+    'todo_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES todos (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> startAt =
+      GeneratedColumn<int>(
+        'start_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($TaskAllocationsTable.$converterstartAt);
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> endAt =
+      GeneratedColumn<int>(
+        'end_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($TaskAllocationsTable.$converterendAt);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    todoId,
+    startAt,
+    endAt,
+    state,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_allocations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskAllocation> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('todo_id')) {
+      context.handle(
+        _todoIdMeta,
+        todoId.isAcceptableOrUnknown(data['todo_id']!, _todoIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_todoIdMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TaskAllocation map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskAllocation(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      todoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}todo_id'],
+      )!,
+      startAt: $TaskAllocationsTable.$converterstartAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}start_at'],
+        )!,
+      ),
+      endAt: $TaskAllocationsTable.$converterendAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}end_at'],
+        )!,
+      ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskAllocationsTable createAlias(String alias) {
+    return $TaskAllocationsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterstartAt =
+      const TaskAllocationInstantConverter();
+  static TypeConverter<DateTime, int> $converterendAt =
+      const TaskAllocationInstantConverter();
+}
+
+class TaskAllocation extends DataClass implements Insertable<TaskAllocation> {
+  final int id;
+  final int todoId;
+  final DateTime startAt;
+  final DateTime endAt;
+  final String state;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const TaskAllocation({
+    required this.id,
+    required this.todoId,
+    required this.startAt,
+    required this.endAt,
+    required this.state,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['todo_id'] = Variable<int>(todoId);
+    {
+      map['start_at'] = Variable<int>(
+        $TaskAllocationsTable.$converterstartAt.toSql(startAt),
+      );
+    }
+    {
+      map['end_at'] = Variable<int>(
+        $TaskAllocationsTable.$converterendAt.toSql(endAt),
+      );
+    }
+    map['state'] = Variable<String>(state);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TaskAllocationsCompanion toCompanion(bool nullToAbsent) {
+    return TaskAllocationsCompanion(
+      id: Value(id),
+      todoId: Value(todoId),
+      startAt: Value(startAt),
+      endAt: Value(endAt),
+      state: Value(state),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TaskAllocation.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskAllocation(
+      id: serializer.fromJson<int>(json['id']),
+      todoId: serializer.fromJson<int>(json['todoId']),
+      startAt: serializer.fromJson<DateTime>(json['startAt']),
+      endAt: serializer.fromJson<DateTime>(json['endAt']),
+      state: serializer.fromJson<String>(json['state']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'todoId': serializer.toJson<int>(todoId),
+      'startAt': serializer.toJson<DateTime>(startAt),
+      'endAt': serializer.toJson<DateTime>(endAt),
+      'state': serializer.toJson<String>(state),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TaskAllocation copyWith({
+    int? id,
+    int? todoId,
+    DateTime? startAt,
+    DateTime? endAt,
+    String? state,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => TaskAllocation(
+    id: id ?? this.id,
+    todoId: todoId ?? this.todoId,
+    startAt: startAt ?? this.startAt,
+    endAt: endAt ?? this.endAt,
+    state: state ?? this.state,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  TaskAllocation copyWithCompanion(TaskAllocationsCompanion data) {
+    return TaskAllocation(
+      id: data.id.present ? data.id.value : this.id,
+      todoId: data.todoId.present ? data.todoId.value : this.todoId,
+      startAt: data.startAt.present ? data.startAt.value : this.startAt,
+      endAt: data.endAt.present ? data.endAt.value : this.endAt,
+      state: data.state.present ? data.state.value : this.state,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskAllocation(')
+          ..write('id: $id, ')
+          ..write('todoId: $todoId, ')
+          ..write('startAt: $startAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, todoId, startAt, endAt, state, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskAllocation &&
+          other.id == this.id &&
+          other.todoId == this.todoId &&
+          other.startAt == this.startAt &&
+          other.endAt == this.endAt &&
+          other.state == this.state &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TaskAllocationsCompanion extends UpdateCompanion<TaskAllocation> {
+  final Value<int> id;
+  final Value<int> todoId;
+  final Value<DateTime> startAt;
+  final Value<DateTime> endAt;
+  final Value<String> state;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const TaskAllocationsCompanion({
+    this.id = const Value.absent(),
+    this.todoId = const Value.absent(),
+    this.startAt = const Value.absent(),
+    this.endAt = const Value.absent(),
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  TaskAllocationsCompanion.insert({
+    this.id = const Value.absent(),
+    required int todoId,
+    required DateTime startAt,
+    required DateTime endAt,
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : todoId = Value(todoId),
+       startAt = Value(startAt),
+       endAt = Value(endAt);
+  static Insertable<TaskAllocation> custom({
+    Expression<int>? id,
+    Expression<int>? todoId,
+    Expression<int>? startAt,
+    Expression<int>? endAt,
+    Expression<String>? state,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (todoId != null) 'todo_id': todoId,
+      if (startAt != null) 'start_at': startAt,
+      if (endAt != null) 'end_at': endAt,
+      if (state != null) 'state': state,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  TaskAllocationsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? todoId,
+    Value<DateTime>? startAt,
+    Value<DateTime>? endAt,
+    Value<String>? state,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return TaskAllocationsCompanion(
+      id: id ?? this.id,
+      todoId: todoId ?? this.todoId,
+      startAt: startAt ?? this.startAt,
+      endAt: endAt ?? this.endAt,
+      state: state ?? this.state,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (todoId.present) {
+      map['todo_id'] = Variable<int>(todoId.value);
+    }
+    if (startAt.present) {
+      map['start_at'] = Variable<int>(
+        $TaskAllocationsTable.$converterstartAt.toSql(startAt.value),
+      );
+    }
+    if (endAt.present) {
+      map['end_at'] = Variable<int>(
+        $TaskAllocationsTable.$converterendAt.toSql(endAt.value),
+      );
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskAllocationsCompanion(')
+          ..write('id: $id, ')
+          ..write('todoId: $todoId, ')
+          ..write('startAt: $startAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4236,6 +4677,17 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AttachmentsTable attachments = $AttachmentsTable(this);
   late final $RemindersTable reminders = $RemindersTable(this);
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
+  late final $TaskAllocationsTable taskAllocations = $TaskAllocationsTable(
+    this,
+  );
+  late final Index taskAllocationsTodoId = Index(
+    'task_allocations_todo_id',
+    'CREATE INDEX task_allocations_todo_id ON task_allocations (todo_id)',
+  );
+  late final Index taskAllocationsTimeRange = Index(
+    'task_allocations_time_range',
+    'CREATE INDEX task_allocations_time_range ON task_allocations (start_at, end_at)',
+  );
   late final CalendarsDao calendarsDao = CalendarsDao(this as AppDatabase);
   late final EventsDao eventsDao = EventsDao(this as AppDatabase);
   late final TodosDao todosDao = TodosDao(this as AppDatabase);
@@ -4253,7 +4705,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     attachments,
     reminders,
     syncOutbox,
+    taskAllocations,
+    taskAllocationsTodoId,
+    taskAllocationsTimeRange,
   ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'todos',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('task_allocations', kind: UpdateKind.delete)],
+    ),
+  ]);
 }
 
 typedef $$CalendarsTableCreateCompanionBuilder =
@@ -5311,6 +5776,26 @@ final class $$TodosTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$TaskAllocationsTable, List<TaskAllocation>>
+  _taskAllocationsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.taskAllocations,
+    aliasName: $_aliasNameGenerator(db.todos.id, db.taskAllocations.todoId),
+  );
+
+  $$TaskAllocationsTableProcessedTableManager get taskAllocationsRefs {
+    final manager = $$TaskAllocationsTableTableManager(
+      $_db,
+      $_db.taskAllocations,
+    ).filter((f) => f.todoId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _taskAllocationsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
@@ -5445,6 +5930,31 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
           }) => $$TodoTagsTableFilterComposer(
             $db: $db,
             $table: $db.todoTags,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> taskAllocationsRefs(
+    Expression<bool> Function($$TaskAllocationsTableFilterComposer f) f,
+  ) {
+    final $$TaskAllocationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskAllocations,
+      getReferencedColumn: (t) => t.todoId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskAllocationsTableFilterComposer(
+            $db: $db,
+            $table: $db.taskAllocations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5686,6 +6196,31 @@ class $$TodosTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> taskAllocationsRefs<T extends Object>(
+    Expression<T> Function($$TaskAllocationsTableAnnotationComposer a) f,
+  ) {
+    final $$TaskAllocationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskAllocations,
+      getReferencedColumn: (t) => t.todoId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskAllocationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.taskAllocations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TodosTableTableManager
@@ -5701,7 +6236,11 @@ class $$TodosTableTableManager
           $$TodosTableUpdateCompanionBuilder,
           (Todo, $$TodosTableReferences),
           Todo,
-          PrefetchHooks Function({bool calendarId, bool todoTagsRefs})
+          PrefetchHooks Function({
+            bool calendarId,
+            bool todoTagsRefs,
+            bool taskAllocationsRefs,
+          })
         > {
   $$TodosTableTableManager(_$AppDatabase db, $TodosTable table)
     : super(
@@ -5800,59 +6339,94 @@ class $$TodosTableTableManager
                     (e.readTable(table), $$TodosTableReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({calendarId = false, todoTagsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (todoTagsRefs) db.todoTags],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (calendarId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.calendarId,
-                                referencedTable: $$TodosTableReferences
-                                    ._calendarIdTable(db),
-                                referencedColumn: $$TodosTableReferences
-                                    ._calendarIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                calendarId = false,
+                todoTagsRefs = false,
+                taskAllocationsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (todoTagsRefs) db.todoTags,
+                    if (taskAllocationsRefs) db.taskAllocations,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (calendarId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.calendarId,
+                                    referencedTable: $$TodosTableReferences
+                                        ._calendarIdTable(db),
+                                    referencedColumn: $$TodosTableReferences
+                                        ._calendarIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (todoTagsRefs)
+                        await $_getPrefetchedData<Todo, $TodosTable, TodoTag>(
+                          currentTable: table,
+                          referencedTable: $$TodosTableReferences
+                              ._todoTagsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TodosTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).todoTagsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.todoId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (taskAllocationsRefs)
+                        await $_getPrefetchedData<
+                          Todo,
+                          $TodosTable,
+                          TaskAllocation
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TodosTableReferences
+                              ._taskAllocationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TodosTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).taskAllocationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.todoId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (todoTagsRefs)
-                    await $_getPrefetchedData<Todo, $TodosTable, TodoTag>(
-                      currentTable: table,
-                      referencedTable: $$TodosTableReferences
-                          ._todoTagsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$TodosTableReferences(db, table, p0).todoTagsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.todoId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -5869,7 +6443,11 @@ typedef $$TodosTableProcessedTableManager =
       $$TodosTableUpdateCompanionBuilder,
       (Todo, $$TodosTableReferences),
       Todo,
-      PrefetchHooks Function({bool calendarId, bool todoTagsRefs})
+      PrefetchHooks Function({
+        bool calendarId,
+        bool todoTagsRefs,
+        bool taskAllocationsRefs,
+      })
     >;
 typedef $$TagsTableCreateCompanionBuilder =
     TagsCompanion Function({
@@ -7577,6 +8155,367 @@ typedef $$SyncOutboxTableProcessedTableManager =
       SyncOutboxEntry,
       PrefetchHooks Function()
     >;
+typedef $$TaskAllocationsTableCreateCompanionBuilder =
+    TaskAllocationsCompanion Function({
+      Value<int> id,
+      required int todoId,
+      required DateTime startAt,
+      required DateTime endAt,
+      Value<String> state,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+typedef $$TaskAllocationsTableUpdateCompanionBuilder =
+    TaskAllocationsCompanion Function({
+      Value<int> id,
+      Value<int> todoId,
+      Value<DateTime> startAt,
+      Value<DateTime> endAt,
+      Value<String> state,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$TaskAllocationsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $TaskAllocationsTable, TaskAllocation> {
+  $$TaskAllocationsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TodosTable _todoIdTable(_$AppDatabase db) => db.todos.createAlias(
+    $_aliasNameGenerator(db.taskAllocations.todoId, db.todos.id),
+  );
+
+  $$TodosTableProcessedTableManager get todoId {
+    final $_column = $_itemColumn<int>('todo_id')!;
+
+    final manager = $$TodosTableTableManager(
+      $_db,
+      $_db.todos,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_todoIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TaskAllocationsTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskAllocationsTable> {
+  $$TaskAllocationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get startAt =>
+      $composableBuilder(
+        column: $table.startAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get endAt =>
+      $composableBuilder(
+        column: $table.endAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TodosTableFilterComposer get todoId {
+    final $$TodosTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.todoId,
+      referencedTable: $db.todos,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TodosTableFilterComposer(
+            $db: $db,
+            $table: $db.todos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskAllocationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskAllocationsTable> {
+  $$TaskAllocationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startAt => $composableBuilder(
+    column: $table.startAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endAt => $composableBuilder(
+    column: $table.endAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TodosTableOrderingComposer get todoId {
+    final $$TodosTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.todoId,
+      referencedTable: $db.todos,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TodosTableOrderingComposer(
+            $db: $db,
+            $table: $db.todos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskAllocationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskAllocationsTable> {
+  $$TaskAllocationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get startAt =>
+      $composableBuilder(column: $table.startAt, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get endAt =>
+      $composableBuilder(column: $table.endAt, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$TodosTableAnnotationComposer get todoId {
+    final $$TodosTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.todoId,
+      referencedTable: $db.todos,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TodosTableAnnotationComposer(
+            $db: $db,
+            $table: $db.todos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskAllocationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskAllocationsTable,
+          TaskAllocation,
+          $$TaskAllocationsTableFilterComposer,
+          $$TaskAllocationsTableOrderingComposer,
+          $$TaskAllocationsTableAnnotationComposer,
+          $$TaskAllocationsTableCreateCompanionBuilder,
+          $$TaskAllocationsTableUpdateCompanionBuilder,
+          (TaskAllocation, $$TaskAllocationsTableReferences),
+          TaskAllocation,
+          PrefetchHooks Function({bool todoId})
+        > {
+  $$TaskAllocationsTableTableManager(
+    _$AppDatabase db,
+    $TaskAllocationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskAllocationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskAllocationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskAllocationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> todoId = const Value.absent(),
+                Value<DateTime> startAt = const Value.absent(),
+                Value<DateTime> endAt = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => TaskAllocationsCompanion(
+                id: id,
+                todoId: todoId,
+                startAt: startAt,
+                endAt: endAt,
+                state: state,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int todoId,
+                required DateTime startAt,
+                required DateTime endAt,
+                Value<String> state = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => TaskAllocationsCompanion.insert(
+                id: id,
+                todoId: todoId,
+                startAt: startAt,
+                endAt: endAt,
+                state: state,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TaskAllocationsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({todoId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (todoId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.todoId,
+                                referencedTable:
+                                    $$TaskAllocationsTableReferences
+                                        ._todoIdTable(db),
+                                referencedColumn:
+                                    $$TaskAllocationsTableReferences
+                                        ._todoIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TaskAllocationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskAllocationsTable,
+      TaskAllocation,
+      $$TaskAllocationsTableFilterComposer,
+      $$TaskAllocationsTableOrderingComposer,
+      $$TaskAllocationsTableAnnotationComposer,
+      $$TaskAllocationsTableCreateCompanionBuilder,
+      $$TaskAllocationsTableUpdateCompanionBuilder,
+      (TaskAllocation, $$TaskAllocationsTableReferences),
+      TaskAllocation,
+      PrefetchHooks Function({bool todoId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7598,4 +8537,6 @@ class $AppDatabaseManager {
       $$RemindersTableTableManager(_db, _db.reminders);
   $$SyncOutboxTableTableManager get syncOutbox =>
       $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
+  $$TaskAllocationsTableTableManager get taskAllocations =>
+      $$TaskAllocationsTableTableManager(_db, _db.taskAllocations);
 }

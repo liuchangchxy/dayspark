@@ -15,6 +15,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 
@@ -220,9 +221,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           // Title
           TextField(
             controller: _summaryController,
-            decoration: InputDecoration(
-              labelText: l.title,
-            ),
+            decoration: InputDecoration(labelText: l.title),
           ),
           const SizedBox(height: 16),
 
@@ -290,6 +289,10 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                 : null,
             contentPadding: EdgeInsets.zero,
           ),
+          if (_rrule == null) ...[
+            const SizedBox(height: 8),
+            TaskAllocationsSection(todo: _todo),
+          ],
           const SizedBox(height: 16),
 
           // Priority
@@ -305,7 +308,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                   (v) => ChoiceChip(
                     label: Text(
                       priorityLabels[v]!,
-                      style: TextStyle(fontSize: AppTypography.caption.fontSize),
+                      style: TextStyle(
+                        fontSize: AppTypography.caption.fontSize,
+                      ),
                     ),
                     selected: _priority == v,
                     onSelected: (_) => setState(() => _priority = v),
@@ -320,9 +325,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           // Description
           TextField(
             controller: _descriptionController,
-            decoration: InputDecoration(
-              labelText: l.description,
-            ),
+            decoration: InputDecoration(labelText: l.description),
             maxLines: 3,
           ),
           const SizedBox(height: 16),

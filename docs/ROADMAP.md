@@ -588,6 +588,7 @@
 
 | # | Item / 项 | Note / 说明 |
 |---|------|------|
+| 6 | **TaskAllocation permanent-delete tombstones / TaskAllocation 永久删除 tombstone** — before enabling Allocation sync, replace reliance on `ON DELETE CASCADE` with an explicit domain delete path that captures/emits a tombstone for every Allocation before deleting its Todo. / 开启 Allocation 同步前，必须将依赖 `ON DELETE CASCADE` 改为显式领域删除路径，在删除 Todo 前为每条 Allocation 捕获并发出 tombstone。Phase 1 is local-only and does not provide this sync propagation. / Phase 1 仅本地使用，不提供此同步传播。 | 前置于 Allocation sync / prerequisite for Allocation sync |
 | 1 | ~~**Web 端白屏 — v0.25.0 已发布产物在浏览器里不可用**~~ ✅ **修复于 v0.25.1** | 根因：`main.dart` 在 `runApp` 之前调 `AlarmService.init()` → `alarm_service.dart` 的 `Platform.isAndroid` 在 dart2js 产物里**一调用就抛** → `main()` 中断 → 白屏（事故证据链见 `DECISIONS.md`、规则见 `CONSTRAINTS.md` Web 章节）。交付：`lib/core/utils/platform_target.dart` 唯一读点（5+1 处调用点收敛、设置页补守卫）+ 静态守卫测试 + CI 冒烟断言 `tool/web_smoke.dart`；反证已跑通（抽掉守卫 → 守卫红 + 产物冒烟判白屏）。**队列现已清空** | ✅ 已关单 (v0.25.1) |
 
 ### P3 — 同步 / 派生态遗留（2026-09-24 债务2 收尾登记）

@@ -7,12 +7,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kalender/kalender.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_day_header.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_hour_lines.dart';
 import 'package:dayspark/ui/widgets/calendar/kalender_calendar_event.dart';
+import 'package:dayspark/ui/widgets/calendar/kalender_task_allocation.dart';
+import 'package:dayspark/ui/widgets/calendar/task_allocation_tile.dart';
 import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
@@ -21,9 +24,14 @@ import 'package:dayspark/core/theme/app_typography.dart';
 
 class CalendarSection extends ConsumerStatefulWidget {
   final List<CalendaEventAdapter> events;
+  final List<TaskAllocationCalendarAdapter> allocations;
   final void Function(CalendaEventAdapter event)? onEventTapped;
   final void Function(DateTimeRange range)? onTimeSlotTapped;
   final void Function(CalendaEventAdapter event)? onEventChanged;
+  final void Function(TaskAllocationCalendarAdapter allocation)?
+  onTaskAllocationTapped;
+  final Future<void> Function(TaskAllocationCalendarAdapter allocation)?
+  onTaskAllocationChanged;
   final void Function(DateTime anchor)? onAnchorChanged;
 
   /// When true the section drops its inline date-range title (the host shows
@@ -38,9 +46,12 @@ class CalendarSection extends ConsumerStatefulWidget {
   const CalendarSection({
     super.key,
     required this.events,
+    this.allocations = const [],
     this.onEventTapped,
     this.onTimeSlotTapped,
     this.onEventChanged,
+    this.onTaskAllocationTapped,
+    this.onTaskAllocationChanged,
     this.onAnchorChanged,
     this.hideHeader = false,
     this.onHeaderChanged,
@@ -108,22 +119,60 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
     }
   }
 
-  void _syncEvents() {
-    final events = widget.events
-        .map(KalenderCalendarEvent.fromAdapter)
-        .toList();
-    final signature = events
-        .map(
-          (e) =>
-              '${e.id}|${e.start.microsecondsSinceEpoch}|${e.end.microsecondsSinceEpoch}'
-              '|${e.adapter.title}|${e.adapter.color}|${e.adapter.isAllDay}|${e.adapter.rrule}',
-        )
-        .join(',');
-    if (signature == _eventsSignature) return;
+  void _syncEvents({bool force = false}) {
+    final calendarEvents = <CalendarEvent>[
+      ...widget.events.map(KalenderCalendarEvent.fromAdapter),
+      ...widget.allocations.map(KalenderTaskAllocation.fromAdapter),
+    ];
+    final signature = calendarEvents.map(_eventSignature).join(',');
+    if (!force && signature == _eventsSignature) return;
     _eventsSignature = signature;
     _eventsController
       ..clearEvents()
-      ..addEvents(events);
+      ..addEvents(calendarEvents);
+  }
+
+  Future<void> _persistTaskAllocationChange(
+    TaskAllocationCalendarAdapter allocation,
+  ) async {
+    try {
+      await widget.onTaskAllocationChanged?.call(allocation);
+    } catch (error) {
+      if (!mounted) return;
+      _syncEvents(force: true);
+      final l = AppLocalizations.of(context)!;
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(l.error('$error'))));
+    }
+  }
+
+  String _eventSignature(CalendarEvent event) {
+    if (event is KalenderCalendarEvent) {
+      final adapter = event.adapter;
+      return <Object?>[
+        event.id,
+        adapter.drifId,
+        adapter.calendarId,
+        adapter.title,
+        adapter.description,
+        adapter.location,
+        adapter.color?.toARGB32(),
+        adapter.isAllDay,
+        adapter.rrule,
+        adapter.start.microsecondsSinceEpoch,
+        adapter.end.microsecondsSinceEpoch,
+      ].join('|');
+    }
+    final allocation = (event as KalenderTaskAllocation).allocation;
+    return <Object?>[
+      event.id,
+      allocation.id,
+      allocation.todoId,
+      allocation.todoTitle,
+      allocation.start.microsecondsSinceEpoch,
+      allocation.end.microsecondsSinceEpoch,
+    ].join('|');
   }
 
   DateTime _anchorFromRange(DateTimeRange range, CalendarViewMode mode) {
@@ -308,6 +357,12 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   }
 
   Widget _buildTile(CalendarEvent event, DateTimeRange tileRange) {
+    if (event is KalenderTaskAllocation) {
+      return TaskAllocationTile(
+        allocation: event.allocation,
+        onTap: () => widget.onTaskAllocationTapped?.call(event.allocation),
+      );
+    }
     if (event is KalenderCalendarEvent) {
       return EventTile(
         event: event.adapter,
@@ -320,6 +375,17 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   CalendarCallbacks _buildCallbacks() {
     return CalendarCallbacks(
       onEventChanged: (event, updatedEvent) {
+        if (event is KalenderTaskAllocation) {
+          unawaited(
+            _persistTaskAllocationChange(
+              event.allocation.copyWith(
+                start: updatedEvent.dateTimeRange.start.toLocal(),
+                end: updatedEvent.dateTimeRange.end.toLocal(),
+              ),
+            ),
+          );
+          return;
+        }
         if (event is! KalenderCalendarEvent) return;
         final adapter = event.adapter;
         // S1 guard: never persist drags onto recurring/all-day events.

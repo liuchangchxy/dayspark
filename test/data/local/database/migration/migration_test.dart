@@ -161,9 +161,7 @@ File _createV1Database() {
     "VALUES (1, 'td-001', 'Buy milk', $now, $now)",
   );
 
-  raw.execute(
-    "INSERT INTO tags (name) VALUES ('urgent')",
-  );
+  raw.execute("INSERT INTO tags (name) VALUES ('urgent')");
 
   raw.execute('INSERT INTO event_tags (event_id, tag_id) VALUES (1, 1)');
   raw.execute('INSERT INTO todo_tags (todo_id, tag_id) VALUES (1, 1)');
@@ -242,6 +240,27 @@ Future<void> _runAndVerify(File file) async {
     // v8: accounts table gone; v5: sync_queue gone
     expect(await tableExists('accounts'), false);
     expect(await tableExists('sync_queue'), false);
+    expect(await tableExists('task_allocations'), true);
+    expect(
+      (await db
+              .customSelect('SELECT COUNT(*) AS count FROM task_allocations')
+              .getSingle())
+          .data['count'],
+      0,
+    );
+    final allocationCols = await columnsOf('task_allocations');
+    expect(
+      allocationCols,
+      containsAll([
+        'id',
+        'todo_id',
+        'start_at',
+        'end_at',
+        'state',
+        'created_at',
+        'updated_at',
+      ]),
+    );
 
     // v9: sync columns exist with correct defaults
     final eventSyncCols = await columnsOf('events');
@@ -255,15 +274,15 @@ Future<void> _runAndVerify(File file) async {
     // Columns added by v3/v4/v6/v7 migrations exist with correct defaults
     final todos = await (db.select(db.todos)).get();
     expect(todos.first.deletedAt, isNull); // v3: add deleted_at
-    expect(todos.first.sortOrder, 0);      // v4: add sort_order
-    expect(todos.first.parentId, isNull);  // v7: add parent_id
-    expect(todos.first.syncId, isNull);    // v9: never enqueued yet
-    expect(todos.first.serverRev, 0);      // v9: default rev
+    expect(todos.first.sortOrder, 0); // v4: add sort_order
+    expect(todos.first.parentId, isNull); // v7: add parent_id
+    expect(todos.first.syncId, isNull); // v9: never enqueued yet
+    expect(todos.first.serverRev, 0); // v9: default rev
 
     final events = await (db.select(db.events)).get();
     expect(events.first.deletedAt, isNull); // v6: add deleted_at
-    expect(events.first.syncId, isNull);    // v9: never enqueued yet
-    expect(events.first.serverRev, 0);      // v9: default rev
+    expect(events.first.syncId, isNull); // v9: never enqueued yet
+    expect(events.first.serverRev, 0); // v9: default rev
 
     // Original data values intact on surviving columns
     final calendars = await (db.select(db.calendars)).get();
@@ -274,23 +293,27 @@ Future<void> _runAndVerify(File file) async {
     expect(todos.first.summary, 'Buy milk');
 
     // New rows work with current schema
-    final newCalId = await db.into(db.calendars).insert(
-      CalendarsCompanion.insert(name: 'Work'),
-    );
+    final newCalId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Work'));
     expect(newCalId, greaterThan(0));
 
-    await db.into(db.events).insert(
-      EventsCompanion.insert(
-        calendarId: newCalId,
-        summary: 'New event',
-        startDt: DateTime(2026, 6, 1),
-        endDt: DateTime(2026, 6, 1),
-      ),
-    );
+    await db
+        .into(db.events)
+        .insert(
+          EventsCompanion.insert(
+            calendarId: newCalId,
+            summary: 'New event',
+            startDt: DateTime(2026, 6, 1),
+            endDt: DateTime(2026, 6, 1),
+          ),
+        );
 
-    await db.into(db.todos).insert(
-      TodosCompanion.insert(calendarId: newCalId, summary: 'New todo'),
-    );
+    await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(calendarId: newCalId, summary: 'New todo'),
+        );
   } finally {
     await db.close();
   }
@@ -298,7 +321,7 @@ Future<void> _runAndVerify(File file) async {
 
 void main() {
   group('Database migration', () {
-    test('v1 → v9 full migration preserves data integrity', () async {
+    test('v1 → v10 full migration preserves data integrity', () async {
       final file = _createV1Database();
       try {
         await _runAndVerify(file);
@@ -307,10 +330,10 @@ void main() {
       }
     });
 
-    test('fresh database at v9 initializes correctly', () async {
+    test('fresh database at v10 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 9);
+        expect(db.schemaVersion, 10);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
@@ -322,10 +345,15 @@ void main() {
       }
     });
 
-    test('schema snapshot exists for v9', () async {
-      final schemaFile = File('drift_schemas/app_database/drift_schema_v9.json');
-      expect(await schemaFile.exists(), true,
-          reason: 'Run `dart run drift_dev make-migrations` to generate');
+    test('schema snapshot exists for v10', () async {
+      final schemaFile = File(
+        'drift_schemas/app_database/drift_schema_v10.json',
+      );
+      expect(
+        await schemaFile.exists(),
+        true,
+        reason: 'Run `dart run drift_dev make-migrations` to generate',
+      );
     });
   });
 }
