@@ -29,6 +29,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectTodoOccurrence => '选择重复事项';
 
   @override
+  String get earlierThirtyDays => '更早 30 天';
+
+  @override
+  String get newerOccurrences => '较新的实例';
+
+  @override
   String get legacyRecurrenceRequiresConfirmation => '请先确认此重复规则，再安排某一次重复事项。';
 
   @override

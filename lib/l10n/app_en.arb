@@ -6,6 +6,8 @@
   "legacyVTimezonePresent": "The calendar includes VTIMEZONE data.",
   "legacyRecurrenceEvidenceMissing": "No import evidence is available for this legacy record.",
   "selectTodoOccurrence": "Select occurrence",
+  "earlierThirtyDays": "Earlier 30 days",
+  "newerOccurrences": "Newer",
   "legacyRecurrenceRequiresConfirmation": "Confirm this recurrence before scheduling an occurrence.",
   "unsupportedRecurrence": "This recurrence rule cannot be expanded for scheduling.",
   "unsupportedLegacyRecurrence": "This imported recurrence rule uses unsupported or invalid syntax and cannot be scheduled.",

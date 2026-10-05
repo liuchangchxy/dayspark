@@ -131,6 +131,18 @@ abstract class AppLocalizations {
   /// **'Select occurrence'**
   String get selectTodoOccurrence;
 
+  /// No description provided for @earlierThirtyDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier 30 days'**
+  String get earlierThirtyDays;
+
+  /// No description provided for @newerOccurrences.
+  ///
+  /// In en, this message translates to:
+  /// **'Newer'**
+  String get newerOccurrences;
+
   /// No description provided for @legacyRecurrenceRequiresConfirmation.
   ///
   /// In en, this message translates to:

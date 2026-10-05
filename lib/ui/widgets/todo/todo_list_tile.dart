@@ -323,7 +323,7 @@ class TodoListTile extends ConsumerWidget {
                             historyPage++;
                             pageFuture = loadPage(historyPage);
                           }),
-                          child: const Text('Earlier 30 days'),
+                          child: Text(l.earlierThirtyDays),
                         ),
                         if (historyPage > 1)
                           TextButton(
@@ -331,7 +331,7 @@ class TodoListTile extends ConsumerWidget {
                               historyPage--;
                               pageFuture = loadPage(historyPage);
                             }),
-                            child: const Text('Newer'),
+                            child: Text(l.newerOccurrences),
                           ),
                       ],
                     ),
