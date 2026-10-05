@@ -59,7 +59,7 @@ flowchart LR
 ### 3.1 核心功能 A：Todo、Event 与任务时间安排
 - **业务描述**：Todo 与 Event 是两个独立的一等领域记录；TaskAllocation 将一个 Todo 或某次重复 Todo occurrence 与一段执行时间关联。Calendar 可将这些记录投影到同一时间视图，具体页面导航不由领域模型规定。
 - **业务规则契约**：
-  - 规则 1：Todo 表达需要完成的事项，保留其现有状态、截止时间、重复及父子任务语义；Event 表达特定时间发生的事项，保留其现有时间区间、全天、地点及重复语义。两者可独立创建、编辑、查看及管理。
+  - 规则 1：Todo 表达需要完成的事项，保留其现有状态、截止时间、重复及父子任务语义；Event 表达特定时间发生的事项，保留其现有时间区间、全天、地点及重复语义。两者可独立创建、编辑、查看及管理。Todo 列表行的完成控件只切换完成状态；标题/内容区域打开 Todo 编辑页，二者的点击区域必须彼此独立。
   - 规则 2：`Todo.dueDate` 是截止时间，不是执行时段。创建、改期或取消 TaskAllocation 不得自动修改 Todo 的 `dueDate`。
   - 规则 3：一个 Todo 可关联零个或多个 TaskAllocation；重复 Todo 的每个 TaskAllocation 绑定一个 occurrence，不自动应用到整个重复系列。
   - 规则 4：TaskAllocation 表达为 Todo 预留的一段执行时间，具有独立身份和生命周期；可单独改期或取消。取消一个 Allocation 不删除或取消 Todo。

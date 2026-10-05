@@ -12,6 +12,80 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 
 void main() {
+  testWidgets('inbox suggestion checkbox toggles independently of navigation', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final todo = Todo(
+      id: 1,
+      calendarId: 1,
+      summary: 'GUI验收-普通Todo-Edit',
+      priority: 5,
+      status: 'NEEDS-ACTION',
+      recurrenceRevision: 0,
+      percentComplete: 0,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+      sortOrder: 0,
+      serverRev: 0,
+    );
+    final router = GoRouter(
+      initialLocation: '/search',
+      routes: [
+        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+        GoRoute(
+          path: '/todo/edit',
+          builder: (_, __) => const Scaffold(body: Text('Todo edit route')),
+        ),
+      ],
+    );
+    var completionCalls = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inboxTodosProvider.overrideWith((ref) => Stream.value([todo])),
+          todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
+          toggleTodoProvider.overrideWith(
+            (ref) => ({required int id, required bool isCompleted}) async {
+              expect(id, todo.id);
+              expect(isCompleted, isTrue);
+              completionCalls++;
+            },
+          ),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final checkboxRect = tester.getRect(find.byType(Checkbox));
+    await tester.tapAt(checkboxRect.center);
+    await tester.pump();
+
+    expect(completionCalls, 1);
+    expect(find.text('Todo edit route'), findsNothing);
+    expect(router.routeInformationProvider.value.uri.path, '/search');
+
+    await tester.tap(find.text(todo.summary));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Todo edit route'), findsOneWidget);
+    expect(completionCalls, 1);
+    debugDefaultTargetPlatformOverride = null;
+    router.dispose();
+  });
+
   testWidgets('search result checkbox completes without opening edit', (
     tester,
   ) async {
