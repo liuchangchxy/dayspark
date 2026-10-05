@@ -1447,6 +1447,72 @@ void main() {
   );
 
   test(
+    'list_task_occurrences exposes canonical ids for exact completion and reopen',
+    () async {
+      const taskId = 'recurring-readable';
+      await _seed(
+        app,
+        userId,
+        taskId,
+        type: RecordType.todo,
+        fields: {
+          'summary': 'Dose',
+          'status': 'NEEDS-ACTION',
+          'rrule': 'FREQ=DAILY;COUNT=3',
+          'recurrenceSpec': {
+            'anchor': {
+              'source': 'start',
+              'valueType': 'dateTime',
+              'value': '2035-05-01T09:00:00',
+            },
+            'timeZone': 'Asia/Shanghai',
+            'rrule': 'FREQ=DAILY;COUNT=3',
+          },
+          'recurrenceRevision': 1,
+          'recurrenceLegacyState': 'knownZoned',
+        },
+      );
+      final read = await _toolData(app, token, 'list_task_occurrences', {
+        'task_id': taskId,
+        'from': '2035-05-01T00:00:00Z',
+        'to': '2035-05-04T00:00:00Z',
+      });
+      final occurrences = read['occurrences'] as List;
+      expect(occurrences, hasLength(3));
+      final first = occurrences.first as Map<String, dynamic>;
+      final firstId = first['occurrence_id'] as String;
+      expect(first['status'], 'pending');
+      final completed = await _toolData(app, token, 'complete_task', {
+        'task_id': taskId,
+        'occurrence_id': firstId,
+      });
+      expect(completed['occurrence_id'], firstId);
+      final reopened = await _toolData(app, token, 'reopen_task', {
+        'task_id': taskId,
+        'occurrence_id': firstId,
+      });
+      expect(reopened['occurrence_id'], firstId);
+      final after = await _toolData(app, token, 'list_task_occurrences', {
+        'task_id': taskId,
+        'from': '2035-05-01T00:00:00Z',
+        'to': '2035-05-04T00:00:00Z',
+      });
+      expect((after['occurrences'] as List).first['status'], 'pending');
+      await _toolError(app, token, 'complete_task', {
+        'task_id': taskId,
+        'occurrence_id': 'v2:DATE:2035-05-09',
+      });
+      final states = await app.db.select(app.db.records).get();
+      expect(
+        states.where(
+          (row) => row.type == RecordType.taskInstanceState.wireName,
+        ),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
     'structured recurrence round-trips through the RFC payload and expands',
     () async {
       final start = now().add(const Duration(days: 2));

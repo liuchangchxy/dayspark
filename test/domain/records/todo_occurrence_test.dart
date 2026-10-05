@@ -86,6 +86,30 @@ void main() {
     expect(result.occurrences.first.resolvedStartInstant, isNull);
   });
 
+  test('missed recurrence stays a lazy pending occurrence after midnight', () async {
+    final today = DateTime.now();
+    final yesterday = DateTime(today.year, today.month, today.day - 1);
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDateTime(yesterday.year, yesterday.month, yesterday.day, 9, 0, 0),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=3',
+    );
+    final id = await createSeries(spec);
+    final todo = await (db.select(db.todos)..where((row) => row.id.equals(id))).getSingle();
+    final expansion = expandTodoOccurrences(
+      todo,
+      startInclusive: yesterday,
+      endExclusive: DateTime(today.year, today.month, today.day + 1),
+    );
+    expect(expansion.status, TodoOccurrenceExpansionStatus.expanded);
+    expect(expansion.occurrences.first.nominalAnchor.canonical, startsWith('${yesterday.year}-'));
+    expect(await db.select(db.taskInstanceStates).get(), isEmpty,
+        reason: 'crossing midnight must not synthesize completion or skip state');
+  });
+
   test(
     'one occurrence accepts multiple allocations and rescheduling keeps key',
     () async {

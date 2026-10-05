@@ -11,6 +11,7 @@ import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
+import 'package:dayspark/domain/records/writers/task_instance_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
@@ -1023,6 +1024,73 @@ void main() {
       expect(
         TodoRecurrence.fromTodo(recovered).spec!.rule.canonical,
         spec.rule.canonical,
+      );
+    },
+  );
+
+  test(
+    'hard deleting a recurring Todo clears its instance state on both devices',
+    () async {
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2035, 5, 1, 9, 0, 0),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=2',
+      );
+      final todoId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(calendarId: a.calendarId, summary: 'Dose'),
+          recurrenceSpec: spec,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final todo = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      final occurrence = OccurrenceId.forNominal(
+        LocalDateTime(2035, 5, 1, 9, 0, 0),
+        'Asia/Shanghai',
+      );
+      await RecordScope.run(
+        a.db,
+        (tx) => TaskInstanceWriter.setCompletion(
+          a.db,
+          tx,
+          todoId: todoId,
+          occurrenceId: occurrence.value,
+          completed: true,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      expect(await b.db.select(b.db.taskInstanceStates).get(), hasLength(1));
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.permanentDelete(a.db, tx, todoId),
+      );
+      await _round(a);
+      await _round(b);
+      expect(
+        await (b.db.select(
+          b.db.taskInstanceStates,
+        )..where((state) => state.todoSyncId.equals(todo.syncId!))).get(),
+        isEmpty,
+      );
+      expect(await a.db.select(a.db.taskInstanceStates).get(), isEmpty);
+      b.cursors.value = 0;
+      await _round(b);
+      expect(
+        await (b.db.select(
+          b.db.taskInstanceStates,
+        )..where((state) => state.todoSyncId.equals(todo.syncId!))).get(),
+        isEmpty,
+        reason: 'cursor-zero backfill must not resurrect hard-deleted state',
       );
     },
   );

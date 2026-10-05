@@ -18,7 +18,7 @@ An open-source, calendar & todo app with self-hosted sync and first-class AI con
 - **日历 / Calendar** — 月/周/日视图（kalender 库），RRULE 重复日程，节气/调休标记，点日期直接建事件 / Month/week/day views, recurring events, solar-term & work-shift markers
 - **待办 / Todos** — 子任务、标签、优先级、回收站、**六件事收敛视图**（Ivy Lee）、隐藏已完成 / Subtasks, tags, priorities, trash, six-things convergence view
 - **自托管同步 / Self-hosted Sync** — 自研 Dart 同步后端（Docker 单容器），多设备一致：幂等推送、字段级冲突合并、断线重连 / Own Dart sync backend in Docker: idempotent push, field-level merge, auto-reconnect
-- **AI 接口 / MCP Server** — 后端内置 MCP：17 个日历/任务工具，OAuth 2.1 双轨（本地 Agent 走登录令牌，ChatGPT/Codex 走 OAuth）；配套 stdio 桥与 `dayspark` CLI / Built-in MCP with 17 tools, OAuth 2.1, stdio bridge and CLI
+- **AI 接口 / MCP Server** — 后端内置 MCP：18 个日历/任务工具（含有界 recurring occurrence 查询），OAuth 2.1 双轨（本地 Agent 走登录令牌，ChatGPT/Codex 走 OAuth）；配套 stdio 桥与 `dayspark` CLI / Built-in MCP with 18 tools including bounded recurring occurrence discovery, OAuth 2.1, stdio bridge and CLI
 - **桌面小组件 / Widgets** — Android 三变体（今日/近七日/月点阵）+ iOS/macOS WidgetKit，勾选与快速添加 / Three Android variants + iOS/macOS widgets with quick-add
 - **提醒 / Reminders** — 本地通知与精确闹钟，完成/改期/恢复全生命周期调度 / Full lifecycle scheduling (complete, reschedule, restore)
 - **标签与搜索 / Tags & Search** — 彩色标签组织，全文搜索 / Colored tags, full-text search

@@ -57,7 +57,14 @@ void main() {
       'jsonrpc': '2.0',
       'id': 3,
       'method': 'tools/call',
-      'params': <String, Object?>{'name': 'list_tasks', 'arguments': {}},
+      'params': <String, Object?>{
+        'name': 'list_task_occurrences',
+        'arguments': {
+          'task_id': 'series-1',
+          'from': '2035-05-01T00:00:00Z',
+          'to': '2035-05-02T00:00:00Z',
+        },
+      },
     });
     const serverLine =
         '{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{}"}]}}';

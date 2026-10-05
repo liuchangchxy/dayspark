@@ -656,6 +656,7 @@ Future<OpResult> _processDelete(
     );
     if (hardDeleteTodo) {
       await _deleteAllocationsForTodo(db, userId, op.recordId, now);
+      await _deleteTaskInstanceStatesForTodo(db, userId, op.recordId, now);
     }
     return OpResult(
       opId: op.opId,
@@ -687,6 +688,7 @@ Future<OpResult> _processDelete(
         now: now,
       );
       await _deleteAllocationsForTodo(db, userId, op.recordId, now);
+      await _deleteTaskInstanceStatesForTodo(db, userId, op.recordId, now);
       return OpResult(
         opId: op.opId,
         status: OpStatus.applied,
@@ -717,6 +719,7 @@ Future<OpResult> _processDelete(
   );
   if (hardDeleteTodo) {
     await _deleteAllocationsForTodo(db, userId, op.recordId, now);
+    await _deleteTaskInstanceStatesForTodo(db, userId, op.recordId, now);
   }
   return OpResult(
     opId: op.opId,
@@ -939,6 +942,38 @@ Future<void> _deleteAllocationsForTodo(
                 t.userId.equals(userId) &
                 t.type.equals(RecordType.taskAllocation.wireName) &
                 t.deleted.equals(false),
+          ))
+          .get();
+  for (final row in rows) {
+    final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+    if (payload['todoSyncId'] != todoSyncId) continue;
+    await _writeRecord(
+      db,
+      userId,
+      row.id,
+      row.copyWith(
+        rev: row.rev + 1,
+        deleted: true,
+        serverTs: now,
+        lastOpId: newOpId(),
+      ),
+      now: now,
+    );
+  }
+}
+
+Future<void> _deleteTaskInstanceStatesForTodo(
+  AppDatabase db,
+  String userId,
+  String todoSyncId,
+  DateTime now,
+) async {
+  final rows =
+      await (db.select(db.records)..where(
+            (row) =>
+                row.userId.equals(userId) &
+                row.type.equals(RecordType.taskInstanceState.wireName) &
+                row.deleted.equals(false),
           ))
           .get();
   for (final row in rows) {

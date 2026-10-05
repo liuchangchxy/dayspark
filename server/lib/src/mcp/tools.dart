@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -11,7 +12,7 @@ import '../data/rrule_window.dart';
 import '../db.dart';
 import 'schemas.dart';
 
-// The frozen MCP tool surface (Task-2 brief): 7 read + 10 write tools over
+// The MCP tool surface: 8 read + 10 write tools over
 // record_query / record_writer / rrule_window. Handlers never see JSON-RPC —
 // they throw McpToolException and endpoint.dart renders errors-as-tool-results.
 
@@ -66,6 +67,7 @@ class McpTool {
 const int _maxWindowDays = 366;
 const int _defaultListLimit = 50;
 const int _maxListLimit = 200;
+const int _maxOccurrenceWindowDays = 90;
 
 Map<String, Object?> _objectSchema(
   Map<String, Object?> properties, {
@@ -612,6 +614,101 @@ final List<McpTool> mcpTools = <McpTool>[
         type: 'todo',
       );
       return {'task': taskJson(row)};
+    },
+  ),
+  McpTool(
+    name: 'list_task_occurrences',
+    description:
+        'Expand one known recurring task in a bounded UTC window (maximum 90 days) and return canonical occurrence_id values and sparse instance status.',
+    readOnly: true,
+    destructive: false,
+    inputSchema: _objectSchema(
+      {
+        'task_id': _idSchema,
+        'from': {'type': 'string', 'description': 'ISO 8601 UTC datetime'},
+        'to': {'type': 'string', 'description': 'ISO 8601 UTC datetime'},
+      },
+      required: ['task_id', 'from', 'to'],
+    ),
+    handler: (ctx, args) async {
+      final row = await _requireVisible(
+        ctx,
+        id: args['task_id']! as String,
+        type: 'todo',
+      );
+      final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+      final recurrence = TodoRecurrenceDto.fromTodoPayload(payload);
+      final spec = recurrence.spec;
+      if (spec == null) {
+        throw mcpValidation(
+          'task is not a known recurring series',
+          hint:
+              'Unknown legacy recurrence cannot be expanded until explicitly confirmed.',
+        );
+      }
+      final from = parseStrictUtc(args['from'], 'from');
+      final to = parseStrictUtc(args['to'], 'to');
+      if (!to.isAfter(from) ||
+          to.difference(from) >
+              const Duration(days: _maxOccurrenceWindowDays)) {
+        throw mcpValidation(
+          'occurrence window must be positive and at most 90 days',
+        );
+      }
+      final stateRows =
+          await (ctx.db.select(ctx.db.records)..where(
+                (record) =>
+                    record.userId.equals(ctx.userId) &
+                    record.type.equals(RecordType.taskInstanceState.wireName) &
+                    record.deleted.equals(false),
+              ))
+              .get();
+      final stateById = <String, Map<String, dynamic>>{};
+      for (final stateRow in stateRows) {
+        final state = jsonDecode(stateRow.payloadJson) as Map<String, dynamic>;
+        if (state['todoSyncId'] == row.id) {
+          stateById[state['occurrenceId'] as String] = state;
+        }
+      }
+      final List<RecurrenceOccurrence> occurrences;
+      try {
+        occurrences = const RecurrenceEngine().expand(
+          spec,
+          window: spec.anchor.valueType == RecurrenceValueType.date
+              ? LocalDateWindow(
+                  startInclusive: LocalDate(from.year, from.month, from.day),
+                  endExclusive: LocalDate(to.year, to.month, to.day).addDays(1),
+                )
+              : InstantWindow(startInclusive: from, endExclusive: to),
+          limit: 10000,
+        );
+      } on Object catch (error) {
+        throw mcpValidation('occurrence expansion failed: $error');
+      }
+      final occurrencesJson = occurrences.map((occurrence) {
+        final state = stateById[occurrence.occurrenceId.value];
+        return <String, Object?>{
+          'task_id': row.id,
+          'occurrence_id': occurrence.occurrenceId.value,
+          'nominal': occurrence.nominal.canonical,
+          'resolved_at': occurrence.resolvedInstant == null
+              ? null
+              : isoZ(occurrence.resolvedInstant!),
+          'status': state?['status'] ?? 'pending',
+          'actionable': state?['status'] != 'skipped',
+          'time_zone': spec.timeZone,
+        };
+      }).toList();
+      return {
+        'task_id': row.id,
+        'recurrence': {
+          'anchor': spec.anchor.value.canonical,
+          'time_zone': spec.timeZone,
+          'rrule': spec.rule.canonical,
+        },
+        'occurrences': occurrencesJson,
+        'window': {'from': isoZ(from), 'to': isoZ(to)},
+      };
     },
   ),
   McpTool(

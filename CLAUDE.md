@@ -12,7 +12,7 @@
 
 ## 项目总览 / Project Overview
 
-Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | lunar (solar terms/holidays) | home_widget | alarm | flutter_local_notifications | Dart server (shelf/drift/SQLite) + dayspark_contracts | Server MCP (`POST /mcp`, 17 tools, OAuth 2.1) + `tool/mcp_stdio_wrapper` + `tool/dayspark_cli`
+Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | lunar (solar terms/holidays) | home_widget | alarm | flutter_local_notifications | Dart server (shelf/drift/SQLite) + dayspark_contracts | Server MCP (`POST /mcp`, 18 tools, OAuth 2.1) + `tool/mcp_stdio_wrapper` + `tool/dayspark_cli`
 
 - 开源日历待办 App + AI 助手（BYO key 客户端 AI）；自托管同步后端（P2, v0.22.0 落地）与服务端 MCP（P3, v0.23.0 落地）
 - GitHub: https://github.com/liuchangchxy/dayspark
@@ -102,7 +102,7 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | lunar (solar
 | l10n | `lib/l10n/app_en.arb` + `app_zh.arb` | 中英双语同步，改后 `flutter gen-l10n` |
 | Sync engine | `lib/domain/sync/` | outbox + applier + SyncEngine + SSE（P2） |
 | Records seam | `lib/domain/records/` | 单写入口 `RecordScope.run`（写入即登记、提交后发布）+ `writers/` 是记录行的唯一写点 + 消费端（重排器 / 组件刷新）；守卫 `test/architecture/record_seam_guard_test.dart` |
-| Server | `server/` | Dart shelf 同步后端（auth/JWT、push/pull/SSE、drift/SQLite、Docker）+ MCP 端点（`POST /mcp` 17 工具 + 3 资源）与 OAuth 2.1 授权服务器 |
+| Server | `server/` | Dart shelf 同步后端（auth/JWT、push/pull/SSE、drift/SQLite、Docker）+ MCP 端点（`POST /mcp` 18 工具 + 3 资源）与 OAuth 2.1 授权服务器 |
 | Contracts | `packages/dayspark_contracts/` | 客户端/服务端共享协议 DTO（SSOT） |
 | MCP tooling | `tool/mcp_stdio_wrapper/`、`tool/dayspark_cli/` | stdio↔HTTP 桥（本地 Agent）与 `dayspark` CLI（HTTP MCP 客户端） |
 

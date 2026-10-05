@@ -346,6 +346,16 @@ final class TodoWriter {
       RecordType.taskAllocation,
       allocations.map((row) => row.id).toList(),
     );
+    final instanceStates = await _taskInstanceStatesForTodos(
+      db,
+      ids,
+      todoSyncIds,
+    );
+    final instanceStateTargets = await SyncOutbox.captureDeletes(
+      db,
+      RecordType.taskInstanceState,
+      instanceStates.map((row) => row.id).toList(),
+    );
     final targets = await SyncOutbox.captureDeletes(
       db,
       RecordType.todo,
@@ -353,6 +363,7 @@ final class TodoWriter {
       hardDelete: true,
     );
     await SyncOutbox.enqueueDeletes(db, allocationTargets);
+    await SyncOutbox.enqueueDeletes(db, instanceStateTargets);
     await SyncOutbox.enqueueDeletes(db, targets);
     // FK-safe delete order (mirrors emptyTrash): child-rows first, todo rows
     // last, all in one transaction.
@@ -366,6 +377,7 @@ final class TodoWriter {
       db.reminders,
     )..where((t) => t.parentType.equals('todo') & t.parentId.isIn(ids))).go();
     await _deleteTaskAllocations(db, tx, ids, todoSyncIds);
+    await _deleteTaskInstanceStates(db, tx, instanceStates);
     await (db.delete(db.todos)..where((t) => t.id.isIn(ids))).go();
     for (final tid in ids) {
       tx.removed(
@@ -392,6 +404,16 @@ final class TodoWriter {
       RecordType.taskAllocation,
       allocations.map((row) => row.id).toList(),
     );
+    final instanceStates = await _taskInstanceStatesForTodos(
+      db,
+      ids,
+      todoSyncIds,
+    );
+    final instanceStateTargets = await SyncOutbox.captureDeletes(
+      db,
+      RecordType.taskInstanceState,
+      instanceStates.map((row) => row.id).toList(),
+    );
     final targets = await SyncOutbox.captureDeletes(
       db,
       RecordType.todo,
@@ -399,8 +421,10 @@ final class TodoWriter {
       hardDelete: true,
     );
     await SyncOutbox.enqueueDeletes(db, allocationTargets);
+    await SyncOutbox.enqueueDeletes(db, instanceStateTargets);
     await SyncOutbox.enqueueDeletes(db, targets);
     await _deleteTaskAllocations(db, tx, ids, todoSyncIds);
+    await _deleteTaskInstanceStates(db, tx, instanceStates);
     await db.todosDao.emptyTrash();
     for (final id in ids) {
       tx.removed(
@@ -522,6 +546,15 @@ final class TodoWriter {
     required String syncId,
     required int? localId,
   }) async {
+    final states =
+        await (db.select(db.taskInstanceStates)..where(
+              (row) =>
+                  row.todoSyncId.equals(syncId) |
+                  (localId == null
+                      ? const Constant(false)
+                      : row.todoId.equals(localId)),
+            ))
+            .get();
     final allocations =
         await (db.select(db.taskAllocations)..where(
               (row) =>
@@ -540,7 +573,8 @@ final class TodoWriter {
         tx.taskAllocationChanged(allocation.id);
       }
     }
-    if (localId == null) return allocations.isNotEmpty;
+    await _deleteTaskInstanceStates(db, tx, states);
+    if (localId == null) return allocations.isNotEmpty || states.isNotEmpty;
     final reminderIds = await ReminderWriter.idsOfParent(db, 'todo', localId);
     await (db.delete(
       db.todoTags,
@@ -556,6 +590,37 @@ final class TodoWriter {
     await (db.delete(db.todos)..where((row) => row.id.equals(localId))).go();
     tx.removed(RecordType.todo, localId, reminderIds: reminderIds);
     return true;
+  }
+
+  static Future<List<TaskInstanceState>> _taskInstanceStatesForTodos(
+    AppDatabase db,
+    List<int> todoIds,
+    List<String> todoSyncIds,
+  ) {
+    if (todoIds.isEmpty) return Future.value(const []);
+    return (db.select(db.taskInstanceStates)..where(
+          (row) =>
+              row.todoId.isIn(todoIds) |
+              (todoSyncIds.isEmpty
+                  ? const Constant(false)
+                  : row.todoSyncId.isIn(todoSyncIds)),
+        ))
+        .get();
+  }
+
+  static Future<void> _deleteTaskInstanceStates(
+    AppDatabase db,
+    RecordScope tx,
+    List<TaskInstanceState> states,
+  ) async {
+    if (states.isEmpty) return;
+    final ids = states.map((row) => row.id).toList();
+    await (db.delete(
+      db.taskInstanceStates,
+    )..where((row) => row.id.isIn(ids))).go();
+    for (final state in states) {
+      tx.taskInstanceStateChanged(state.id);
+    }
   }
 
   // 只推进 rev，有意空登记（同 event_writer 的 applyRemoteRev）。

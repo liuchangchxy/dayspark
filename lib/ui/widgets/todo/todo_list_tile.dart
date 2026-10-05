@@ -325,33 +325,81 @@ class TodoListTile extends ConsumerWidget {
       };
       final items = labels.entries.toList()
         ..sort((left, right) => left.value.compareTo(right.value));
+      var historyPage = 1;
       final selected = await showDialog<String>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text(l.selectTodoOccurrence),
-          content: SizedBox(
-            width: 360,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return ListTile(
-                  title: Text(item.value),
-                  trailing: completedIds.contains(item.key)
-                      ? const Icon(Icons.check)
-                      : null,
-                  onTap: () => Navigator.of(context).pop(item.key),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(l.cancel),
-            ),
-          ],
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) {
+            final today = DateTime(now.year, now.month, now.day);
+            final past = expandTodoOccurrences(
+              identifiedTodo,
+              startInclusive: today.subtract(Duration(days: 30 * historyPage)),
+              endExclusive: today.subtract(
+                Duration(days: 30 * (historyPage - 1)),
+              ),
+              maxOccurrences: 100,
+            );
+            final pageLabels = <String, String>{
+              for (final occurrence in past.occurrences)
+                if (!states.any(
+                  (state) =>
+                      state.occurrenceId == occurrence.occurrenceId &&
+                      state.status == 'skipped',
+                ))
+                  occurrence.occurrenceId: occurrence.nominalAnchor.canonical
+                      .replaceFirst('T', '  '),
+              for (final item in items) item.key: item.value,
+            };
+            final pageItems = pageLabels.entries.toList()
+              ..sort((left, right) => left.value.compareTo(right.value));
+            return AlertDialog(
+              title: Text(l.selectTodoOccurrence),
+              content: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => setDialogState(() => historyPage++),
+                          child: const Text('Earlier 30 days'),
+                        ),
+                        if (historyPage > 1)
+                          TextButton(
+                            onPressed: () =>
+                                setDialogState(() => historyPage--),
+                            child: const Text('Newer'),
+                          ),
+                      ],
+                    ),
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: pageItems.length,
+                        itemBuilder: (context, index) {
+                          final item = pageItems[index];
+                          return ListTile(
+                            title: Text(item.value),
+                            trailing: completedIds.contains(item.key)
+                                ? const Icon(Icons.check)
+                                : null,
+                            onTap: () => Navigator.of(context).pop(item.key),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(l.cancel),
+                ),
+              ],
+            );
+          },
         ),
       );
       if (!context.mounted) return;

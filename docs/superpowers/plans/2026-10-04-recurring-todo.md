@@ -8,7 +8,7 @@ Source audit: `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`
 
 Implement local-calendar recurring Todo series with stable occurrence identities and safe occurrence-bound TaskAllocation, using one client/server recurrence engine. Preserve existing TaskAllocation behavior and Todo/Event separation.
 
-Correction scope: sparse per-instance completion state, bounded actionable-instance Todo projection, and compatible client/server/MCP synchronization. Still out of scope: skip-one UI, edit-this, edit-this-and-future, detached overrides, EXDATE/RDATE/THISANDFUTURE, automatic orphan migration, automatic legacy-zone inference, and bulk Allocation generation.
+Correction scope: sparse per-instance completion state, a series-row UI with bounded/paged occurrence selection, and compatible client/server/MCP synchronization. Missed occurrences remain pending and actionable; UI history is paged in 30-day windows. Still out of scope: skip-one UI, edit-this, edit-this-and-future, detached overrides, EXDATE/RDATE/THISANDFUTURE, automatic orphan migration, automatic legacy-zone inference, and bulk Allocation generation.
 
 ## Architecture correction — instance completion
 
@@ -92,7 +92,7 @@ R3 completion on 2026-10-05:
 - Implemented sparse `TaskInstanceState` persistence (schema v14), explicit occurrence completion/undo, finite Todo-list selection, series-safe widget/notification behavior, matching Allocation invalidation, Calendar/Busy projections, capability-gated sync and server validation, and MCP occurrence arguments.
 - Migration preserves legacy recurring `COMPLETED` series without fabricating instance rows; schema v11 and fresh-database migration tests pass.
 - Local gates: `dart analyze .` and `flutter analyze` clean; root `flutter test` 469 passed; recurrence 20, contracts 53, server 236, wrapper 9, CLI 20 passed; whitespace/path scans clean. `git diff --check` clean after closeout edits.
-- Version consistency shell gate could not run: this Windows host resolves `bash` to the WSL launcher, which failed to connect to its local WSL service; no Git Bash installation is present. GitHub fetch was also blocked by the configured proxy, so latest `origin/main`, push, PR creation, and hosted CI remain pending.
+- Historical execution note superseded 2026-10-06: GitHub connectivity was restored by correcting the user-level Git proxy; PR #2 exists. The current remediation's gates and Hosted CI are tracked on the PR, not in this implementation-plan status note.
 - Manual UI/platform acceptance and all hosted build jobs remain NOT RUN.
 
 R4 work started 2026-10-05:

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:dayspark_server/server.dart';
 import 'package:test/test.dart';
 
@@ -460,6 +461,132 @@ void main() {
       expect(allocationChanges.every((row) => row['deleted'] == true), isTrue);
     },
   );
+
+  test('hard deleting a Todo tombstones only its instance states', () async {
+    final account = await _register(app, 'instance-hard-delete@example.com');
+    final token = account['token']!;
+    final caps = ['task_instance_state_v1'];
+    Map<String, Object?> recurringTodo(String id, String opId) => _upsertOp(
+      opId: opId,
+      recordId: id,
+      fields: {
+        'summary': id,
+        'status': 'NEEDS-ACTION',
+        'rrule': 'FREQ=DAILY;COUNT=2',
+        'recurrenceSpec': {
+          'anchor': {
+            'source': 'start',
+            'valueType': 'dateTime',
+            'value': '2035-05-01T09:00:00',
+          },
+          'timeZone': 'Asia/Shanghai',
+          'rrule': 'FREQ=DAILY;COUNT=2',
+        },
+        'recurrenceRevision': 1,
+        'recurrenceLegacyState': 'knownZoned',
+      },
+    );
+    final firstOccurrence = OccurrenceId.forNominal(
+      LocalDateTime(2035, 5, 1, 9, 0, 0),
+      'Asia/Shanghai',
+    ).value;
+    final secondOccurrence = OccurrenceId.forNominal(
+      LocalDateTime(2035, 5, 2, 9, 0, 0),
+      'Asia/Shanghai',
+    ).value;
+    final unrelatedOccurrence = OccurrenceId.forNominal(
+      LocalDateTime(2035, 5, 1, 10, 0, 0),
+      'Asia/Shanghai',
+    ).value;
+    Map<String, Object?> stateOp(
+      String opId,
+      String todoId,
+      String occurrenceId,
+    ) {
+      final state = TaskInstanceStatePayload(
+        todoSyncId: todoId,
+        occurrenceId: occurrenceId,
+        status: 'completed',
+        completedAt: DateTime.utc(2035, 5, 1, 2),
+        updatedAt: DateTime.utc(2035, 5, 1, 2),
+      );
+      return _upsertOp(
+        opId: opId,
+        recordId: taskInstanceStateRecordId(todoId, occurrenceId),
+        type: 'task_instance_state',
+        fields: state.toJson(),
+      );
+    }
+
+    await _push(
+      app,
+      token,
+      ops: [
+        recurringTodo('series-hard-delete', 'create-series-hard-delete'),
+        recurringTodo('series-unrelated', 'create-series-unrelated'),
+      ],
+    );
+    await _push(
+      app,
+      token,
+      capabilities: caps,
+      ops: [
+        stateOp('state-a1', 'series-hard-delete', firstOccurrence),
+        stateOp('state-a2', 'series-hard-delete', secondOccurrence),
+        stateOp('state-other', 'series-unrelated', unrelatedOccurrence),
+      ],
+    );
+
+    final before = await _pull(app, token, cursor: 0, capabilities: caps);
+    final beforeRows = (before['changes'] as List)
+        .where((row) => row['type'] == 'task_instance_state')
+        .toList();
+    expect(beforeRows, hasLength(3));
+    final delete = await _push(
+      app,
+      token,
+      capabilities: caps,
+      ops: [
+        _deleteOp(
+          opId: 'hard-delete-series',
+          recordId: 'series-hard-delete',
+          fields: {'hardDelete': true},
+        ),
+      ],
+    );
+    expect((_results(delete).single as Map)['status'], 'applied');
+
+    final after = await _pull(app, token, cursor: 0, capabilities: caps);
+    final states = (after['changes'] as List)
+        .where((row) => row['type'] == 'task_instance_state')
+        .toList();
+    expect(states, hasLength(3));
+    final byOccurrence = {
+      for (final row in states) row['payload']['occurrenceId']: row,
+    };
+    expect(byOccurrence[firstOccurrence]['deleted'], isTrue);
+    expect(byOccurrence[secondOccurrence]['deleted'], isTrue);
+    expect(byOccurrence[unrelatedOccurrence]['deleted'], isFalse);
+
+    final lateState = await _push(
+      app,
+      token,
+      capabilities: caps,
+      ops: [
+        stateOp(
+          'late-state-resurrection',
+          'series-hard-delete',
+          firstOccurrence,
+        ),
+      ],
+    );
+    expect((_results(lateState).single as Map)['status'], 'rejected');
+    final finalPull = await _pull(app, token, cursor: 0, capabilities: caps);
+    final finalStates = (finalPull['changes'] as List)
+        .where((row) => row['type'] == 'task_instance_state')
+        .toList();
+    expect(finalStates.where((row) => row['deleted'] == false), hasLength(1));
+  });
 
   test(
     'push replay with same opId returns stored result verbatim, no state change',

@@ -7,7 +7,7 @@ DaySpark's MCP server lives **inside the self-hosted backend** (same process, sa
 
 ## 能力 / Capabilities
 
-- **17 个工具 / 17 tools** — 查询/创建/更新事件（含 RRULE 结构化重复）、任务的列表/完成/重开/暂缓、批量建任务、找空档、回收站只读等
+- **18 个工具 / 18 tools** — 包含有界 recurring occurrence 查询（`list_task_occurrences`），用返回的 canonical `occurrence_id` 精确完成或重开；其余包含事件与任务读写、找空档、回收站只读等
 - **3 个资源 / 3 resources** — `dayspark://today`、`dayspark://overdue`、`dayspark://inbox`
 - **安全姿态** — 无永久删除工具（trash 软删=可恢复，与回收站一致）；读工具 `mcp:read`、写工具 `mcp:write` 分域授权；错误以工具结果返回并带 hint（不吐堆栈）
 
@@ -66,7 +66,7 @@ args = ["run", "/path/to/dayspark/tool/mcp_stdio_wrapper/bin/mcp_stdio_wrapper.d
 
 ## 验证 / Verify
 
-1. MCP Inspector：`npx @modelcontextprotocol/inspector` → 传输选 HTTP → URL `http://<host>:8787/mcp` → 填 Bearer → `tools/list` 应见 17 个工具
+1. MCP Inspector：`npx @modelcontextprotocol/inspector` → 传输选 HTTP → URL `http://<host>:8787/mcp` → 填 Bearer → `tools/list` 应见 18 个工具
 2. 完整手工清单（含各客户端连通、OAuth 全链路、双轨互斥）见 [docs/qa/p3-mcp-qa.md](../qa/p3-mcp-qa.md)
 
 ## 硬性约束 / Hard Rules（详见 CONSTRAINTS.md「MCP / AI 接口」）

@@ -190,6 +190,17 @@ class SyncApplier {
     SyncRecord record,
     RecordScope tx,
   ) async {
+    final existing = await (db.select(
+      db.taskInstanceStates,
+    )..where((row) => row.syncId.equals(record.id))).getSingleOrNull();
+    if (record.deleted) {
+      if (existing == null) return false;
+      await (db.delete(
+        db.taskInstanceStates,
+      )..where((row) => row.id.equals(existing.id))).go();
+      tx.taskInstanceStateChanged(existing.id);
+      return true;
+    }
     final payload = TaskInstanceStatePayload.fromJson(record.payload);
     if (record.id !=
         taskInstanceStateRecordId(payload.todoSyncId, payload.occurrenceId)) {
@@ -198,9 +209,6 @@ class SyncApplier {
     final todo = await (db.select(
       db.todos,
     )..where((row) => row.syncId.equals(payload.todoSyncId))).getSingleOrNull();
-    final existing = await (db.select(
-      db.taskInstanceStates,
-    )..where((row) => row.syncId.equals(record.id))).getSingleOrNull();
     final companion = TaskInstanceStatesCompanion(
       syncId: Value(record.id),
       todoSyncId: Value(payload.todoSyncId),

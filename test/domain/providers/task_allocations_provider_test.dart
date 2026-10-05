@@ -176,11 +176,27 @@ void main() {
       final permanentTodo = await (db.select(
         db.todos,
       )..where((row) => row.id.equals(permanentTodoId))).getSingle();
+      final permanentStateId = await db
+          .into(db.taskInstanceStates)
+          .insert(
+            TaskInstanceStatesCompanion.insert(
+              syncId: 'permanent-instance-state',
+              todoSyncId: permanentTodo.syncId ?? 'unassigned-series',
+              todoId: Value(permanentTodoId),
+              occurrenceId: 'v2:DATE:2026-10-07',
+            ),
+          );
       await container.read(permanentDeleteTodoProvider)(permanentTodoId);
       expect(
         await (db.select(
           db.taskAllocations,
         )..where((row) => row.id.equals(permanentAllocationId))).get(),
+        isEmpty,
+      );
+      expect(
+        await (db.select(
+          db.taskInstanceStates,
+        )..where((row) => row.id.equals(permanentStateId))).get(),
         isEmpty,
       );
       final permanentOps = await db.select(db.syncOutbox).get();
@@ -209,11 +225,30 @@ void main() {
       final trashedAllocation = await (db.select(
         db.taskAllocations,
       )..where((row) => row.id.equals(trashedAllocationId))).getSingle();
+      final trashedTodo = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(trashedTodoId))).getSingle();
+      final trashedStateId = await db
+          .into(db.taskInstanceStates)
+          .insert(
+            TaskInstanceStatesCompanion.insert(
+              syncId: 'trashed-instance-state',
+              todoSyncId: trashedTodo.syncId ?? 'unassigned-trash-series',
+              todoId: Value(trashedTodoId),
+              occurrenceId: 'v2:DATE:2026-10-08',
+            ),
+          );
       await container.read(deleteTodoProvider)(trashedTodoId);
       expect(
         await (db.select(
           db.taskAllocations,
         )..where((row) => row.id.equals(trashedAllocationId))).get(),
+        hasLength(1),
+      );
+      expect(
+        await (db.select(
+          db.taskInstanceStates,
+        )..where((row) => row.id.equals(trashedStateId))).get(),
         hasLength(1),
       );
       await container.read(emptyTrashProvider)();
@@ -232,6 +267,12 @@ void main() {
               op.op == 'delete',
         ),
         isTrue,
+      );
+      expect(
+        await (db.select(
+          db.taskInstanceStates,
+        )..where((row) => row.id.equals(trashedStateId))).get(),
+        isEmpty,
       );
     },
   );
