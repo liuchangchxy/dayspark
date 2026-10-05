@@ -89,8 +89,8 @@ void main() {
       id: 71,
       todoId: 19,
       todoTitle: 'Prepare slides',
-      start: today.add(const Duration(hours: 10)),
-      end: today.add(const Duration(hours: 11)),
+      start: today.add(const Duration(hours: 10)).toUtc(),
+      end: today.add(const Duration(hours: 11)).toUtc(),
     );
 
     await _pumpCalendar(
@@ -101,6 +101,7 @@ void main() {
     );
 
     expect(find.text('Prepare slides'), findsWidgets);
+    expect(find.text('10:00 – 11:00'), findsOneWidget);
     await tester.tap(find.text('Prepare slides').first);
     expect(tapped?.id, allocation.id);
   });

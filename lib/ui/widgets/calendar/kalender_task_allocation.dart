@@ -14,12 +14,19 @@ class KalenderTaskAllocation extends CalendarEvent {
 
   factory KalenderTaskAllocation.fromAdapter(
     TaskAllocationCalendarAdapter allocation,
-  ) => KalenderTaskAllocation(
-    allocation: allocation,
-    dateTimeRange: DateTimeRange(start: allocation.start, end: allocation.end),
-    interaction: EventInteraction.allowAll(),
-    id: 'task-allocation-${allocation.id}',
-  );
+  ) {
+    // Kalender lays out wall-clock dates; the adapter retains UTC instants
+    // for persistence and sync.
+    return KalenderTaskAllocation(
+      allocation: allocation,
+      dateTimeRange: DateTimeRange(
+        start: allocation.start.toLocal(),
+        end: allocation.end.toLocal(),
+      ),
+      interaction: EventInteraction.allowAll(),
+      id: 'task-allocation-${allocation.id}',
+    );
+  }
 
   @override
   bool layoutEquals(CalendarEvent other) =>

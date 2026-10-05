@@ -45,7 +45,11 @@ class TaskAllocationTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              '${DateFormatters.formatTime(allocation.start)} – ${DateFormatters.formatTime(allocation.end)}',
+              DateFormatters.formatTaskAllocationRange(
+                allocation.start,
+                allocation.end,
+                includeDate: false,
+              ),
               style: AppTypography.overline.copyWith(
                 color: theme.colorScheme.onSecondaryContainer,
               ),

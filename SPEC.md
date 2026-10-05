@@ -147,6 +147,7 @@ TaskAllocation 的领域状态为单一字段：
 
 - **业务描述**：记录（事件/待办/TaskAllocation）的派生副作用——本地通知/闹钟的重排、桌面小组件快照的刷新——必须在每次记录写入后收敛到当前行状态，不因写入入口不同而静默失效
 - **TaskAllocation 规则**：首版 Allocation 不创建独立 Reminder，不接入 `ReminderReconciler` 的时间参考字段，也不修改 Todo Reminder。Allocation 变化可触发既有 Widget 快照刷新总线，但首版 Widget JSON 与原生消费端不增加 Allocation 项。
+- **时间展示规则**：`TaskAllocation.startAt/endAt` 始终是绝对 instant，DB 与 sync wire 保持 UTC；Todo 安排摘要、Calendar tile 和 Calendar 布局均按查看设备本地时区呈现。跨本地日期的区间必须显示开始与结束日期；同日 Calendar tile 保持紧凑时刻范围。展示转换不得改变持久化 instant 或重复 Todo 的 occurrence identity。
 - **Phase 1 范围**：仅交付普通非重复 Todo 的本地 TaskAllocation 创建、Calendar 显示、改期与取消，以及 Todo 完成时本地事务内的未来 Allocation 失效；本阶段不实现 Allocation 同步/outbox、busy-time、重复 Todo 或 occurrence identity。重复 Todo 的安排入口应隐藏或明确拒绝，不得推测 occurrence。`task_allocations.todo_id` 当前使用本地 FK cascade；永久删除引起的 Allocation tombstone 传播是同步阶段的前置工作，本地 cascade 不代表已实现同步删除。
 - **业务规则契约**：
   - **规则 1**：进程内一切记录写入（用户操作、ICS 导入、账号重置、同步应用）必须经单写入口 `RecordScope.run`；写入即登记，**提交后**发布；对不存在的 localId 仍会发出一条 `applied`（`previousReference` 为 null），消费端必须容忍"重读无此 id"并按 inactive 处理。**例外（派生文物化写）**：`reminders.triggerTime` 的回写经单写入口但**登记为空**——它不改变领域事实，只物化派生结果（重排器算出的触发时刻），故不发领域事件（空批被 `publish` 直接丢弃），避免事件在总线上转一圈回到重排器自己

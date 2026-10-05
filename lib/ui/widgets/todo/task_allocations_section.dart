@@ -67,9 +67,10 @@ class TaskAllocationsSection extends ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(CupertinoIcons.time),
                   title: Text(
-                    '${DateFormatters.formatDate(allocation.startAt)}  '
-                    '${DateFormatters.formatTime(allocation.startAt)} – '
-                    '${DateFormatters.formatTime(allocation.endAt)}',
+                    DateFormatters.formatTaskAllocationRange(
+                      allocation.startAt,
+                      allocation.endAt,
+                    ),
                   ),
                   subtitle: orphan
                       ? Text(l.orphanTaskAllocation)

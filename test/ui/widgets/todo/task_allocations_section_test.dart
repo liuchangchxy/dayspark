@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -56,6 +57,43 @@ void main() {
     await pumpSection(tester, todo);
 
     expect(find.text('Schedule time'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('renders TaskAllocation instants in local time with both dates', (
+    tester,
+  ) async {
+    final id = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(calendarId: calendarId, summary: 'Draft'),
+        );
+    final localStart = DateTime(2026, 10, 5, 16);
+    final todo = await (db.select(
+      db.todos,
+    )..where((row) => row.id.equals(id))).getSingle();
+    await db
+        .into(db.taskAllocations)
+        .insert(
+          TaskAllocationsCompanion.insert(
+            todoId: Value(id),
+            startAt: localStart.toUtc(),
+            endAt: localStart.add(const Duration(days: 1)).toUtc(),
+          ),
+        );
+
+    await pumpSection(tester, todo);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.text(
+        DateFormatters.formatTaskAllocationRange(
+          localStart.toUtc(),
+          localStart.add(const Duration(days: 1)).toUtc(),
+        ),
+      ),
+      findsOneWidget,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
   });

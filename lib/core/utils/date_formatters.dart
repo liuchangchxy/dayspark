@@ -17,8 +17,33 @@ class DateFormatters {
       '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
   /// Returns `M/D` (short locale-friendly date).
-  static String formatShortDate(DateTime dt) =>
-      '${dt.month}/${dt.day}';
+  static String formatShortDate(DateTime dt) => '${dt.month}/${dt.day}';
+
+  /// Formats an absolute TaskAllocation interval in the viewer's local time.
+  /// Dates are shown for the Todo summary and whenever the interval crosses
+  /// midnight, so equal clock times cannot hide a 24-hour/multi-day range.
+  static String formatTaskAllocationRange(
+    DateTime startAt,
+    DateTime endAt, {
+    bool includeDate = true,
+    DateTime Function(DateTime)? toLocal,
+  }) {
+    final localize = toLocal ?? (value) => value.toLocal();
+    final start = localize(startAt);
+    final end = localize(endAt);
+    final startTime = formatTime(start);
+    final endTime = formatTime(end);
+    final sameDate =
+        start.year == end.year &&
+        start.month == end.month &&
+        start.day == end.day;
+    if (sameDate) {
+      final prefix = includeDate ? '${formatDate(start)}  ' : '';
+      return '$prefix$startTime – $endTime';
+    }
+    return '${formatShortDate(start)} $startTime – '
+        '${formatShortDate(end)} $endTime';
+  }
 
   /// "just now" / "Nm ago" / "Nh ago", older falls back to `M/D HH:MM`.
   static String formatRelativeTime(DateTime time, AppLocalizations l) {
