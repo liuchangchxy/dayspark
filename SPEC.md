@@ -27,7 +27,7 @@
 2. **统一五平台客户端**：单一 Flutter 代码库覆盖 Android / iOS / macOS / Windows / Linux（含 Web），功能对齐、体验一致
 3. **跨设备同步**：多设备间日程与待办双向同步，离线优先，冲突可预期（字段级 LWW）
 4. **AI 可读写 MCP**：暴露 MCP（Model Context Protocol）接口，AI 助手可读取与写入 Event/Todo，并通过工作流工具管理 TaskAllocation（工具面见 P3 及增量扩展契约）
-5. **双端小组件**：Android 桌面小组件 + iOS/macOS WidgetKit 小组件，展示今日事件与待办并支持快速操作
+5. **双端小组件**：Android 桌面小组件 + iOS WidgetKit 小组件，展示今日事件与待办并支持快速操作；macOS、Windows、Linux 与 Web 不调用 `home_widget` 平台 API
 6. **自托管 NAS 优先**：同步后端以 Docker 单容器部署在用户自己的 NAS 上（SQLite 单文件 + volume），官方云非必需
 7. **开源 GPLv3**：项目以 GPLv3 开源
 8. **对标 Todo清单简洁体验**：UX 基准是"Todo清单"的简洁克制，而非功能堆砌型日历应用

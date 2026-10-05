@@ -8,6 +8,7 @@ import 'package:home_widget/home_widget.dart';
 import 'l10n/app_localizations.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/platform_target.dart';
 import 'core/utils/platform_scroll_behavior.dart';
 import 'domain/providers/home_widget_provider.dart';
 import 'domain/providers/record_bus_provider.dart';
@@ -20,14 +21,11 @@ import 'infrastructure/platform/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Must run before the first saveWidgetData: Apple widgets read
+  // Must run before the first saveWidgetData: iOS widgets read
   // UserDefaults(suiteName:) — without this the host app writes to the
-  // wrong defaults and iOS/macOS widgets stay empty. Apple-only call;
-  // guarded because home_widget has no macOS plugin implementation, and a
-  // missing platform handler must never block app startup.
-  if (!kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.iOS ||
-          defaultTargetPlatform == TargetPlatform.macOS)) {
+  // wrong defaults and widgets stay empty. home_widget supports iOS here;
+  // a missing platform handler must never block app startup.
+  if (isIOS) {
     try {
       await HomeWidget.setAppGroupId('group.com.dayspark.app');
     } catch (e) {
@@ -35,12 +33,9 @@ void main() async {
     }
   }
   // Widget-button taps reach Dart through the interactivity callback
-  // (T3 wires native buttons to `dayspark://` URIs). Platforms home_widget
-  // actually implements; desktop/web have no widget host to call it.
-  if (!kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.iOS ||
-          defaultTargetPlatform == TargetPlatform.macOS ||
-          defaultTargetPlatform == TargetPlatform.android)) {
+  // (T3 wires native buttons to `dayspark://` URIs). Only Android/iOS have
+  // a supported home_widget implementation.
+  if (supportsHomeWidget) {
     try {
       await HomeWidget.registerInteractivityCallback(
         widgetInteractivityCallback,

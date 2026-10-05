@@ -182,10 +182,16 @@
 ## Home Widget / 小组件
 
 ### App Group 固定 `group.com.dayspark.app`，宿主与组件必须同组
-- iOS/macOS 宿主与 widget extension 的 entitlements `application-groups` 都必须含 `group.com.dayspark.app`（**macOS Runner 的 DebugProfile/Release 曾整段缺失**，沙盒宿主写不进组件读的 suite）
-- `lib/main.dart` 在 `WidgetsFlutterBinding.ensureInitialized()` 后立即 `HomeWidget.setAppGroupId('group.com.dayspark.app')`（仅 iOS/macOS，`!kIsWeb` 守卫），必须在任何 `saveWidgetData` 之前
+- iOS 宿主与 widget extension 的 entitlements `application-groups` 都必须含 `group.com.dayspark.app`；**macOS Runner 的 DebugProfile/Release 曾整段缺失**，沙盒宿主写不进组件读的 suite
+- `lib/main.dart` 在 `WidgetsFlutterBinding.ensureInitialized()` 后立即 `HomeWidget.setAppGroupId('group.com.dayspark.app')`（仅 iOS），必须在任何 `saveWidgetData` 之前
 - **Why**: 不同组 = 静默写入失败，组件永远显示旧数据；改组名需同时改 5 个 entitlements + Swift/Kotlin 读取端，禁止单边改
 - **Date**: 2026-09-24（P4 资产统一群组从 `group.com.calendarTodoApp` 迁移到 `group.com.dayspark.app`，宿主/组件/代码三处必须原子同改）
+
+### `home_widget` 平台 API 仅允许 Android/iOS
+- 所有 `HomeWidget.*` MethodChannel 调用必须受 `lib/core/utils/platform_target.dart` 的 `homeWidgetPlatform` 守卫；Android/iOS 保持原路径，macOS/Windows/Linux/Web 安全 no-op
+- Web 判断必须先于 `defaultTargetPlatform` 能力判断，避免移动浏览器 UA 被误当作原生插件实现
+- **Why**: home_widget 官方平台 API 仅支持 Android/iOS；桌面/web 调用会抛 `MissingPluginException`
+- **Date**: 2026-10-05
 
 ### 小组件刷新由领域事件总线驱动，不再挂 `tableUpdates`
 - `homeWidgetAutoRefreshProvider` 订阅 `RecordBus.of(db).changes`（**领域事件总线**，不再是 `db.tableUpdates`），合并去重后调 `HomeWidgetService.updateWidget`（同一时刻最多一个 in-flight，写入期间只补一次 trailing run）；闹钟侧由 `ReminderReconciler` 订阅同一条总线
@@ -203,7 +209,7 @@
   - `ui`：按当前 locale **预本地化**的全部组件文案（gen-l10n arb 生成，Kotlin/Swift 零硬编码英文）；locale 切换靠下一次快照写入生效
   - `theme`：`{dark, colors{background,surface,textPrimary,textSecondary,accent,border}}`（`#RRGGBB`），dark 由 `theme_mode` prefs + 平台亮度解析
   - `monthDots`：`List<[int day, bool hasEvent]>`（仅 `hasEvent=true` 对写入；当前自然月），月点阵变体数据源——**T4 评审时的 9 键清单已过期，golden 断言以 10 键为准**
-- 删除/改名任何一侧前必须先迁移全部三个原生读取端（Android SharedPreferences + iOS/macOS UserDefaults suite）
+- 删除/改名任何一侧前必须先迁移所有仍由 app 刷新的原生读取端（Android SharedPreferences + iOS UserDefaults suite）；macOS 原生读取端当前不接入 `home_widget` API 刷新
 - **Why**: 单写新键会让现网组件立刻空白；单写旧键则 P4 无迁移目标
 - **Date**: 2026-09-22（v2 契约补全 2026-09-24：upcoming/pendingTaps/ui/theme；`monthDots` 第 10 键 2026-09-24 随 T3 原生端落地）
 

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dayspark/core/utils/platform_target.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
@@ -135,6 +135,8 @@ class HomeWidgetService {
     AppDatabase db, {
     Future<void> Function(List<WidgetPendingTap> taps)? onPendingTaps,
   }) async {
+    if (!supportsHomeWidget) return;
+
     try {
       final events = await todayEvents(db);
       final todos = await pendingTodos(db);
@@ -191,31 +193,25 @@ class HomeWidgetService {
   }
 
   // Fans the refresh out over every registered widget: Android needs one
-  // APPWIDGET_UPDATE broadcast per provider class, iOS one reloadTimelines
-  // per WidgetKit kind (home_widget reloads a single kind per call), and
-  // the macOS shim treats any call as reloadAllTimelines. Branching by
-  // platform keeps each call valid there — a name unknown to a platform
-  // completes with an error that would abort the remaining fan-out.
+  // APPWIDGET_UPDATE broadcast per provider class, while iOS needs one
+  // reloadTimelines call per WidgetKit kind.
   static Future<void> refreshNativeWidgets() async {
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      for (final name in [
-        androidProviderName,
-        androidUpcomingProviderName,
-        androidMonthProviderName,
-      ]) {
-        await HomeWidget.updateWidget(qualifiedAndroidName: name);
-      }
-      return;
+    switch (homeWidgetPlatform) {
+      case TargetPlatform.android:
+        for (final name in [
+          androidProviderName,
+          androidUpcomingProviderName,
+          androidMonthProviderName,
+        ]) {
+          await HomeWidget.updateWidget(qualifiedAndroidName: name);
+        }
+      case TargetPlatform.iOS:
+        for (final kind in appleWidgetKinds) {
+          await HomeWidget.updateWidget(iOSName: kind);
+        }
+      default:
+        return;
     }
-    if (!kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.iOS ||
-            defaultTargetPlatform == TargetPlatform.macOS)) {
-      for (final kind in appleWidgetKinds) {
-        await HomeWidget.updateWidget(iOSName: kind);
-      }
-      return;
-    }
-    await HomeWidget.updateWidget(qualifiedAndroidName: androidProviderName);
   }
 
   static Future<List<Event>> todayEvents(AppDatabase db) {
