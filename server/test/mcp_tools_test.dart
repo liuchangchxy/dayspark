@@ -1487,17 +1487,43 @@ void main() {
         'occurrence_id': firstId,
       });
       expect(completed['occurrence_id'], firstId);
+      final completedProjection =
+          await _toolData(app, token, 'list_task_occurrences', {
+            'task_id': taskId,
+            'from': '2035-05-01T00:00:00Z',
+            'to': '2035-05-04T00:00:00Z',
+          });
+      expect(
+        (completedProjection['occurrences'] as List).first['actionable'],
+        isFalse,
+      );
       final reopened = await _toolData(app, token, 'reopen_task', {
         'task_id': taskId,
         'occurrence_id': firstId,
       });
       expect(reopened['occurrence_id'], firstId);
+      final skippedId = occurrences[1]['occurrence_id'] as String;
+      await _seed(
+        app,
+        userId,
+        taskInstanceStateRecordId(taskId, skippedId),
+        type: RecordType.taskInstanceState,
+        fields: TaskInstanceStatePayload(
+          todoSyncId: taskId,
+          occurrenceId: skippedId,
+          status: 'skipped',
+          completedAt: null,
+          updatedAt: DateTime.utc(2035, 5, 1),
+        ).toJson(),
+      );
       final after = await _toolData(app, token, 'list_task_occurrences', {
         'task_id': taskId,
         'from': '2035-05-01T00:00:00Z',
         'to': '2035-05-04T00:00:00Z',
       });
       expect((after['occurrences'] as List).first['status'], 'pending');
+      expect((after['occurrences'] as List).first['actionable'], isTrue);
+      expect((after['occurrences'] as List)[1]['actionable'], isFalse);
       await _toolError(app, token, 'complete_task', {
         'task_id': taskId,
         'occurrence_id': 'v2:DATE:2035-05-09',
@@ -1507,7 +1533,7 @@ void main() {
         states.where(
           (row) => row.type == RecordType.taskInstanceState.wireName,
         ),
-        hasLength(1),
+        hasLength(2),
       );
     },
   );

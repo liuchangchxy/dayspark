@@ -619,7 +619,7 @@ final List<McpTool> mcpTools = <McpTool>[
   McpTool(
     name: 'list_task_occurrences',
     description:
-        'Expand one known recurring task in a bounded UTC window (maximum 90 days) and return canonical occurrence_id values and sparse instance status.',
+        'Expand one known recurring task in a bounded UTC window (maximum 90 days) and return canonical occurrence_id values and sparse instance status. actionable is true only while the obligation is pending; completed and skipped occurrences are not actionable.',
     readOnly: true,
     destructive: false,
     inputSchema: _objectSchema(
@@ -655,21 +655,6 @@ final List<McpTool> mcpTools = <McpTool>[
           'occurrence window must be positive and at most 90 days',
         );
       }
-      final stateRows =
-          await (ctx.db.select(ctx.db.records)..where(
-                (record) =>
-                    record.userId.equals(ctx.userId) &
-                    record.type.equals(RecordType.taskInstanceState.wireName) &
-                    record.deleted.equals(false),
-              ))
-              .get();
-      final stateById = <String, Map<String, dynamic>>{};
-      for (final stateRow in stateRows) {
-        final state = jsonDecode(stateRow.payloadJson) as Map<String, dynamic>;
-        if (state['todoSyncId'] == row.id) {
-          stateById[state['occurrenceId'] as String] = state;
-        }
-      }
       final List<RecurrenceOccurrence> occurrences;
       try {
         occurrences = const RecurrenceEngine().expand(
@@ -685,6 +670,31 @@ final List<McpTool> mcpTools = <McpTool>[
       } on Object catch (error) {
         throw mcpValidation('occurrence expansion failed: $error');
       }
+      final stateIds = occurrences
+          .map(
+            (occurrence) => taskInstanceStateRecordId(
+              row.id,
+              occurrence.occurrenceId.value,
+            ),
+          )
+          .toSet();
+      final stateRows = stateIds.isEmpty
+          ? const <RecordRow>[]
+          : await (ctx.db.select(ctx.db.records)..where(
+                  (record) =>
+                      record.userId.equals(ctx.userId) &
+                      record.type.equals(
+                        RecordType.taskInstanceState.wireName,
+                      ) &
+                      record.deleted.equals(false) &
+                      record.id.isIn(stateIds),
+                ))
+                .get();
+      final stateById = <String, Map<String, dynamic>>{};
+      for (final stateRow in stateRows) {
+        final state = jsonDecode(stateRow.payloadJson) as Map<String, dynamic>;
+        stateById[state['occurrenceId'] as String] = state;
+      }
       final occurrencesJson = occurrences.map((occurrence) {
         final state = stateById[occurrence.occurrenceId.value];
         return <String, Object?>{
@@ -695,7 +705,7 @@ final List<McpTool> mcpTools = <McpTool>[
               ? null
               : isoZ(occurrence.resolvedInstant!),
           'status': state?['status'] ?? 'pending',
-          'actionable': state?['status'] != 'skipped',
+          'actionable': state == null || state['status'] == 'pending',
           'time_zone': spec.timeZone,
         };
       }).toList();

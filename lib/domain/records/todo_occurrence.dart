@@ -1,6 +1,7 @@
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:drift/drift.dart';
 
 enum TodoOccurrenceExpansionStatus {
   expanded,
@@ -30,6 +31,48 @@ final class TodoOccurrenceExpansion {
 
   final TodoOccurrenceExpansionStatus status;
   final List<TodoOccurrence> occurrences;
+}
+
+/// One page's virtual occurrence joined to its sparse persisted state.
+final class TodoOccurrenceStateProjection {
+  const TodoOccurrenceStateProjection({
+    required this.occurrence,
+    required this.status,
+  });
+
+  final TodoOccurrence occurrence;
+  final String status;
+}
+
+/// Loads only sparse states whose canonical IDs occur in [expansion].
+/// Call once for each bounded page; never infer state from a recent-N query.
+Future<List<TodoOccurrenceStateProjection>> projectTodoOccurrenceStates(
+  AppDatabase db,
+  TodoOccurrenceExpansion expansion,
+) async {
+  if (expansion.occurrences.isEmpty) return const [];
+  final syncId = expansion.occurrences.first.todoSyncId;
+  final occurrenceIds = expansion.occurrences
+      .map((occurrence) => occurrence.occurrenceId)
+      .toSet();
+  final states =
+      await (db.select(db.taskInstanceStates)..where(
+            (state) =>
+                state.todoSyncId.equals(syncId) &
+                state.occurrenceId.isIn(occurrenceIds),
+          ))
+          .get();
+  final stateByOccurrence = {
+    for (final state in states) state.occurrenceId: state,
+  };
+  return List.unmodifiable(
+    expansion.occurrences.map(
+      (occurrence) => TodoOccurrenceStateProjection(
+        occurrence: occurrence,
+        status: stateByOccurrence[occurrence.occurrenceId]?.status ?? 'pending',
+      ),
+    ),
+  );
 }
 
 TodoOccurrenceExpansion expandTodoOccurrences(

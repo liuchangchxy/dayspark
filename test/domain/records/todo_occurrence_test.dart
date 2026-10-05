@@ -86,29 +86,138 @@ void main() {
     expect(result.occurrences.first.resolvedStartInstant, isNull);
   });
 
-  test('missed recurrence stays a lazy pending occurrence after midnight', () async {
-    final today = DateTime.now();
-    final yesterday = DateTime(today.year, today.month, today.day - 1);
-    final spec = RecurrenceSpec.parse(
-      anchor: RecurrenceAnchor(
-        source: RecurrenceAnchorSource.start,
-        value: LocalDateTime(yesterday.year, yesterday.month, yesterday.day, 9, 0, 0),
-      ),
-      timeZone: 'Asia/Shanghai',
-      rrule: 'FREQ=DAILY;COUNT=3',
-    );
-    final id = await createSeries(spec);
-    final todo = await (db.select(db.todos)..where((row) => row.id.equals(id))).getSingle();
-    final expansion = expandTodoOccurrences(
-      todo,
-      startInclusive: yesterday,
-      endExclusive: DateTime(today.year, today.month, today.day + 1),
-    );
-    expect(expansion.status, TodoOccurrenceExpansionStatus.expanded);
-    expect(expansion.occurrences.first.nominalAnchor.canonical, startsWith('${yesterday.year}-'));
-    expect(await db.select(db.taskInstanceStates).get(), isEmpty,
-        reason: 'crossing midnight must not synthesize completion or skip state');
-  });
+  test(
+    'missed recurrence stays a lazy pending occurrence after midnight',
+    () async {
+      final today = DateTime.now();
+      final yesterday = DateTime(today.year, today.month, today.day - 1);
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(
+            yesterday.year,
+            yesterday.month,
+            yesterday.day,
+            9,
+            0,
+            0,
+          ),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=3',
+      );
+      final id = await createSeries(spec);
+      final todo = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(id))).getSingle();
+      final expansion = expandTodoOccurrences(
+        todo,
+        startInclusive: yesterday,
+        endExclusive: DateTime(today.year, today.month, today.day + 1),
+      );
+      expect(expansion.status, TodoOccurrenceExpansionStatus.expanded);
+      expect(
+        expansion.occurrences.first.nominalAnchor.canonical,
+        startsWith('${yesterday.year}-'),
+      );
+      expect(
+        await db.select(db.taskInstanceStates).get(),
+        isEmpty,
+        reason:
+            'crossing midnight must not synthesize completion or skip state',
+      );
+    },
+  );
+
+  test(
+    'history page joins state by its occurrence ids beyond the latest 100',
+    () async {
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2030, 1, 1, 9, 0, 0),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=150',
+      );
+      final todoId = await createSeries(spec);
+      final todo = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      final all = expandTodoOccurrences(
+        todo,
+        startInclusive: DateTime.utc(2030, 1, 1),
+        endExclusive: DateTime.utc(2030, 6, 1),
+        maxOccurrences: 200,
+      ).occurrences;
+      expect(all, hasLength(150));
+      final fixedTime = DateTime.utc(2029);
+      for (var index = 0; index < all.length; index++) {
+        if (index == 10) continue; // Sparse absence is still pending.
+        await db
+            .into(db.taskInstanceStates)
+            .insert(
+              TaskInstanceStatesCompanion.insert(
+                syncId: 'historical-state-$index',
+                todoSyncId: todo.syncId!,
+                occurrenceId: all[index].occurrenceId,
+                status: Value(
+                  index == 5 || index == 120 ? 'skipped' : 'completed',
+                ),
+                updatedAt: Value(fixedTime.add(Duration(days: index))),
+              ),
+            );
+      }
+
+      Future<TodoOccurrenceExpansion> page(int index) async =>
+          TodoOccurrenceExpansion(TodoOccurrenceExpansionStatus.expanded, [
+            all[index],
+          ]);
+      final oldCompleted = await projectTodoOccurrenceStates(db, await page(4));
+      expect(oldCompleted, hasLength(1));
+      expect(oldCompleted.single.status, 'completed');
+      final oldSkipped = await projectTodoOccurrenceStates(db, await page(5));
+      expect(oldSkipped.single.status, 'skipped');
+      final stillPending = await projectTodoOccurrenceStates(
+        db,
+        await page(10),
+      );
+      expect(stillPending.single.status, 'pending');
+      final anotherPage = await projectTodoOccurrenceStates(
+        db,
+        await page(120),
+      );
+      expect(anotherPage.single.status, 'skipped');
+      final unpersisted = await projectTodoOccurrenceStates(
+        db,
+        await page(149),
+      );
+      expect(unpersisted.single.status, 'completed');
+      expect(await db.select(db.taskInstanceStates).get(), hasLength(149));
+      expect(
+        oldCompleted.length,
+        1,
+        reason: 'projection result is bounded to the requested occurrence page',
+      );
+
+      final ordinaryId = await RecordScope.run(
+        db,
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(calendarId: calendarId, summary: 'ordinary'),
+        ),
+      );
+      await RecordScope.run(
+        db,
+        (tx) => TodoWriter.setCompletion(db, tx, ordinaryId, isCompleted: true),
+      );
+      final ordinary = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(ordinaryId))).getSingle();
+      expect(ordinary.status, 'COMPLETED');
+    },
+  );
 
   test(
     'one occurrence accepts multiple allocations and rescheduling keeps key',
