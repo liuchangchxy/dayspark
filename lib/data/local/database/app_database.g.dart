@@ -1413,6 +1413,17 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _recurrenceEvidenceMeta =
+      const VerificationMeta('recurrenceEvidence');
+  @override
+  late final GeneratedColumn<String> recurrenceEvidence =
+      GeneratedColumn<String>(
+        'recurrence_evidence',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _recurrenceRevisionMeta =
       const VerificationMeta('recurrenceRevision');
   @override
@@ -1543,6 +1554,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     recurrenceTimeZone,
     recurrenceRule,
     recurrenceLegacyState,
+    recurrenceEvidence,
     recurrenceRevision,
     completedAt,
     percentComplete,
@@ -1675,6 +1687,15 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         recurrenceLegacyState.isAcceptableOrUnknown(
           data['recurrence_legacy_state']!,
           _recurrenceLegacyStateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_evidence')) {
+      context.handle(
+        _recurrenceEvidenceMeta,
+        recurrenceEvidence.isAcceptableOrUnknown(
+          data['recurrence_evidence']!,
+          _recurrenceEvidenceMeta,
         ),
       );
     }
@@ -1816,6 +1837,10 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.string,
         data['${effectivePrefix}recurrence_legacy_state'],
       ),
+      recurrenceEvidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_evidence'],
+      ),
       recurrenceRevision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}recurrence_revision'],
@@ -1881,6 +1906,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   final String? recurrenceTimeZone;
   final String? recurrenceRule;
   final String? recurrenceLegacyState;
+  final String? recurrenceEvidence;
   final int recurrenceRevision;
   final DateTime? completedAt;
   final int percentComplete;
@@ -1907,6 +1933,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     this.recurrenceTimeZone,
     this.recurrenceRule,
     this.recurrenceLegacyState,
+    this.recurrenceEvidence,
     required this.recurrenceRevision,
     this.completedAt,
     required this.percentComplete,
@@ -1957,6 +1984,9 @@ class Todo extends DataClass implements Insertable<Todo> {
     }
     if (!nullToAbsent || recurrenceLegacyState != null) {
       map['recurrence_legacy_state'] = Variable<String>(recurrenceLegacyState);
+    }
+    if (!nullToAbsent || recurrenceEvidence != null) {
+      map['recurrence_evidence'] = Variable<String>(recurrenceEvidence);
     }
     map['recurrence_revision'] = Variable<int>(recurrenceRevision);
     if (!nullToAbsent || completedAt != null) {
@@ -2016,6 +2046,9 @@ class Todo extends DataClass implements Insertable<Todo> {
       recurrenceLegacyState: recurrenceLegacyState == null && nullToAbsent
           ? const Value.absent()
           : Value(recurrenceLegacyState),
+      recurrenceEvidence: recurrenceEvidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceEvidence),
       recurrenceRevision: Value(recurrenceRevision),
       completedAt: completedAt == null && nullToAbsent
           ? const Value.absent()
@@ -2068,6 +2101,9 @@ class Todo extends DataClass implements Insertable<Todo> {
       recurrenceLegacyState: serializer.fromJson<String?>(
         json['recurrenceLegacyState'],
       ),
+      recurrenceEvidence: serializer.fromJson<String?>(
+        json['recurrenceEvidence'],
+      ),
       recurrenceRevision: serializer.fromJson<int>(json['recurrenceRevision']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       percentComplete: serializer.fromJson<int>(json['percentComplete']),
@@ -2105,6 +2141,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       'recurrenceLegacyState': serializer.toJson<String?>(
         recurrenceLegacyState,
       ),
+      'recurrenceEvidence': serializer.toJson<String?>(recurrenceEvidence),
       'recurrenceRevision': serializer.toJson<int>(recurrenceRevision),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'percentComplete': serializer.toJson<int>(percentComplete),
@@ -2134,6 +2171,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     Value<String?> recurrenceTimeZone = const Value.absent(),
     Value<String?> recurrenceRule = const Value.absent(),
     Value<String?> recurrenceLegacyState = const Value.absent(),
+    Value<String?> recurrenceEvidence = const Value.absent(),
     int? recurrenceRevision,
     Value<DateTime?> completedAt = const Value.absent(),
     int? percentComplete,
@@ -2172,6 +2210,9 @@ class Todo extends DataClass implements Insertable<Todo> {
     recurrenceLegacyState: recurrenceLegacyState.present
         ? recurrenceLegacyState.value
         : this.recurrenceLegacyState,
+    recurrenceEvidence: recurrenceEvidence.present
+        ? recurrenceEvidence.value
+        : this.recurrenceEvidence,
     recurrenceRevision: recurrenceRevision ?? this.recurrenceRevision,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     percentComplete: percentComplete ?? this.percentComplete,
@@ -2216,6 +2257,9 @@ class Todo extends DataClass implements Insertable<Todo> {
       recurrenceLegacyState: data.recurrenceLegacyState.present
           ? data.recurrenceLegacyState.value
           : this.recurrenceLegacyState,
+      recurrenceEvidence: data.recurrenceEvidence.present
+          ? data.recurrenceEvidence.value
+          : this.recurrenceEvidence,
       recurrenceRevision: data.recurrenceRevision.present
           ? data.recurrenceRevision.value
           : this.recurrenceRevision,
@@ -2253,6 +2297,7 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('recurrenceTimeZone: $recurrenceTimeZone, ')
           ..write('recurrenceRule: $recurrenceRule, ')
           ..write('recurrenceLegacyState: $recurrenceLegacyState, ')
+          ..write('recurrenceEvidence: $recurrenceEvidence, ')
           ..write('recurrenceRevision: $recurrenceRevision, ')
           ..write('completedAt: $completedAt, ')
           ..write('percentComplete: $percentComplete, ')
@@ -2284,6 +2329,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     recurrenceTimeZone,
     recurrenceRule,
     recurrenceLegacyState,
+    recurrenceEvidence,
     recurrenceRevision,
     completedAt,
     percentComplete,
@@ -2314,6 +2360,7 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.recurrenceTimeZone == this.recurrenceTimeZone &&
           other.recurrenceRule == this.recurrenceRule &&
           other.recurrenceLegacyState == this.recurrenceLegacyState &&
+          other.recurrenceEvidence == this.recurrenceEvidence &&
           other.recurrenceRevision == this.recurrenceRevision &&
           other.completedAt == this.completedAt &&
           other.percentComplete == this.percentComplete &&
@@ -2342,6 +2389,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<String?> recurrenceTimeZone;
   final Value<String?> recurrenceRule;
   final Value<String?> recurrenceLegacyState;
+  final Value<String?> recurrenceEvidence;
   final Value<int> recurrenceRevision;
   final Value<DateTime?> completedAt;
   final Value<int> percentComplete;
@@ -2368,6 +2416,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.recurrenceTimeZone = const Value.absent(),
     this.recurrenceRule = const Value.absent(),
     this.recurrenceLegacyState = const Value.absent(),
+    this.recurrenceEvidence = const Value.absent(),
     this.recurrenceRevision = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.percentComplete = const Value.absent(),
@@ -2395,6 +2444,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.recurrenceTimeZone = const Value.absent(),
     this.recurrenceRule = const Value.absent(),
     this.recurrenceLegacyState = const Value.absent(),
+    this.recurrenceEvidence = const Value.absent(),
     this.recurrenceRevision = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.percentComplete = const Value.absent(),
@@ -2423,6 +2473,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<String>? recurrenceTimeZone,
     Expression<String>? recurrenceRule,
     Expression<String>? recurrenceLegacyState,
+    Expression<String>? recurrenceEvidence,
     Expression<int>? recurrenceRevision,
     Expression<DateTime>? completedAt,
     Expression<int>? percentComplete,
@@ -2455,6 +2506,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (recurrenceRule != null) 'recurrence_rule': recurrenceRule,
       if (recurrenceLegacyState != null)
         'recurrence_legacy_state': recurrenceLegacyState,
+      if (recurrenceEvidence != null) 'recurrence_evidence': recurrenceEvidence,
       if (recurrenceRevision != null) 'recurrence_revision': recurrenceRevision,
       if (completedAt != null) 'completed_at': completedAt,
       if (percentComplete != null) 'percent_complete': percentComplete,
@@ -2484,6 +2536,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<String?>? recurrenceTimeZone,
     Value<String?>? recurrenceRule,
     Value<String?>? recurrenceLegacyState,
+    Value<String?>? recurrenceEvidence,
     Value<int>? recurrenceRevision,
     Value<DateTime?>? completedAt,
     Value<int>? percentComplete,
@@ -2514,6 +2567,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       recurrenceRule: recurrenceRule ?? this.recurrenceRule,
       recurrenceLegacyState:
           recurrenceLegacyState ?? this.recurrenceLegacyState,
+      recurrenceEvidence: recurrenceEvidence ?? this.recurrenceEvidence,
       recurrenceRevision: recurrenceRevision ?? this.recurrenceRevision,
       completedAt: completedAt ?? this.completedAt,
       percentComplete: percentComplete ?? this.percentComplete,
@@ -2583,6 +2637,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
         recurrenceLegacyState.value,
       );
     }
+    if (recurrenceEvidence.present) {
+      map['recurrence_evidence'] = Variable<String>(recurrenceEvidence.value);
+    }
     if (recurrenceRevision.present) {
       map['recurrence_revision'] = Variable<int>(recurrenceRevision.value);
     }
@@ -2634,6 +2691,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('recurrenceTimeZone: $recurrenceTimeZone, ')
           ..write('recurrenceRule: $recurrenceRule, ')
           ..write('recurrenceLegacyState: $recurrenceLegacyState, ')
+          ..write('recurrenceEvidence: $recurrenceEvidence, ')
           ..write('recurrenceRevision: $recurrenceRevision, ')
           ..write('completedAt: $completedAt, ')
           ..write('percentComplete: $percentComplete, ')
@@ -6350,6 +6408,7 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<String?> recurrenceTimeZone,
       Value<String?> recurrenceRule,
       Value<String?> recurrenceLegacyState,
+      Value<String?> recurrenceEvidence,
       Value<int> recurrenceRevision,
       Value<DateTime?> completedAt,
       Value<int> percentComplete,
@@ -6378,6 +6437,7 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<String?> recurrenceTimeZone,
       Value<String?> recurrenceRule,
       Value<String?> recurrenceLegacyState,
+      Value<String?> recurrenceEvidence,
       Value<int> recurrenceRevision,
       Value<DateTime?> completedAt,
       Value<int> percentComplete,
@@ -6526,6 +6586,11 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
 
   ColumnFilters<String> get recurrenceLegacyState => $composableBuilder(
     column: $table.recurrenceLegacyState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceEvidence => $composableBuilder(
+    column: $table.recurrenceEvidence,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6732,6 +6797,11 @@ class $$TodosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get recurrenceEvidence => $composableBuilder(
+    column: $table.recurrenceEvidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get recurrenceRevision => $composableBuilder(
     column: $table.recurrenceRevision,
     builder: (column) => ColumnOrderings(column),
@@ -6868,6 +6938,11 @@ class $$TodosTableAnnotationComposer
 
   GeneratedColumn<String> get recurrenceLegacyState => $composableBuilder(
     column: $table.recurrenceLegacyState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recurrenceEvidence => $composableBuilder(
+    column: $table.recurrenceEvidence,
     builder: (column) => column,
   );
 
@@ -7028,6 +7103,7 @@ class $$TodosTableTableManager
                 Value<String?> recurrenceTimeZone = const Value.absent(),
                 Value<String?> recurrenceRule = const Value.absent(),
                 Value<String?> recurrenceLegacyState = const Value.absent(),
+                Value<String?> recurrenceEvidence = const Value.absent(),
                 Value<int> recurrenceRevision = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int> percentComplete = const Value.absent(),
@@ -7054,6 +7130,7 @@ class $$TodosTableTableManager
                 recurrenceTimeZone: recurrenceTimeZone,
                 recurrenceRule: recurrenceRule,
                 recurrenceLegacyState: recurrenceLegacyState,
+                recurrenceEvidence: recurrenceEvidence,
                 recurrenceRevision: recurrenceRevision,
                 completedAt: completedAt,
                 percentComplete: percentComplete,
@@ -7082,6 +7159,7 @@ class $$TodosTableTableManager
                 Value<String?> recurrenceTimeZone = const Value.absent(),
                 Value<String?> recurrenceRule = const Value.absent(),
                 Value<String?> recurrenceLegacyState = const Value.absent(),
+                Value<String?> recurrenceEvidence = const Value.absent(),
                 Value<int> recurrenceRevision = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int> percentComplete = const Value.absent(),
@@ -7108,6 +7186,7 @@ class $$TodosTableTableManager
                 recurrenceTimeZone: recurrenceTimeZone,
                 recurrenceRule: recurrenceRule,
                 recurrenceLegacyState: recurrenceLegacyState,
+                recurrenceEvidence: recurrenceEvidence,
                 recurrenceRevision: recurrenceRevision,
                 completedAt: completedAt,
                 percentComplete: percentComplete,

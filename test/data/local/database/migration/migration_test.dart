@@ -413,7 +413,7 @@ Future<void> _runAndVerify(File file) async {
 
 void main() {
   group('Database migration', () {
-    test('v1 → v12 full migration preserves data integrity', () async {
+    test('v1 → v13 full migration preserves data integrity', () async {
       final file = _createV1Database();
       try {
         await _runAndVerify(file);
@@ -423,13 +423,13 @@ void main() {
     });
 
     test(
-      'v11 → v12 marks legacy recurrence without inferring timezone',
+      'v11 → v13 marks legacy recurrence without inferring timezone',
       () async {
         final file = _createV11Database();
         try {
           final db = AppDatabase.forExecutor(NativeDatabase(file));
           try {
-            expect(db.schemaVersion, 12);
+            expect(db.schemaVersion, 13);
             final todos = await (db.select(
               db.todos,
             )..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
@@ -442,6 +442,7 @@ void main() {
               expect(todo.recurrenceTimeZone, isNull);
               expect(todo.recurrenceAnchorValue, isNull);
               expect(todo.recurrenceRule, isNull);
+              expect(todo.recurrenceEvidence, isNull);
             }
             expect(
               todos[1].startDate,
@@ -482,10 +483,10 @@ void main() {
       },
     );
 
-    test('fresh database at v12 initializes correctly', () async {
+    test('fresh database at v13 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 12);
+        expect(db.schemaVersion, 13);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
@@ -497,9 +498,9 @@ void main() {
       }
     });
 
-    test('schema snapshot exists for v12', () async {
+    test('schema snapshot exists for v13', () async {
       final schemaFile = File(
-        'drift_schemas/app_database/drift_schema_v12.json',
+        'drift_schemas/app_database/drift_schema_v13.json',
       );
       expect(
         await schemaFile.exists(),

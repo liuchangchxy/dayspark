@@ -203,11 +203,20 @@ class SyncEngine {
       final taskAllocationEnabled = serverCapabilities.contains(
         SyncCapability.taskAllocationV1,
       );
+      final todoRecurrenceEnabled = serverCapabilities.contains(
+        SyncCapability.todoRecurrenceV1,
+      );
       final priorTaskAllocationEnabled = await cursorStore
           .readTaskAllocationCapabilityState();
       final capabilityBackfill =
           taskAllocationEnabled && priorTaskAllocationEnabled != true;
-      final roundCursor = capabilityBackfill ? 0 : cursor;
+      final priorTodoRecurrenceEnabled = await cursorStore
+          .readTodoRecurrenceCapabilityState();
+      final todoRecurrenceBackfill =
+          todoRecurrenceEnabled && priorTodoRecurrenceEnabled != true;
+      final roundCursor = capabilityBackfill || todoRecurrenceBackfill
+          ? 0
+          : cursor;
 
       // --- push ---
       final entries = await (db.select(
@@ -305,6 +314,9 @@ class SyncEngine {
       // the server's current snapshot (including tombstones).
       await cursorStore.writeTaskAllocationCapabilityState(
         taskAllocationEnabled,
+      );
+      await cursorStore.writeTodoRecurrenceCapabilityState(
+        todoRecurrenceEnabled,
       );
 
       _backoffSeconds = 1;

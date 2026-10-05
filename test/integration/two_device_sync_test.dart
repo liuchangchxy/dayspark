@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -11,6 +12,8 @@ import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:dayspark_server/server.dart' as srv;
@@ -72,6 +75,7 @@ class _GatedTransport implements SyncTransport {
 
   final SyncTransport _inner;
   bool online = true;
+  bool legacyClient = false;
 
   @override
   Future<SyncHttpResponse> send({
@@ -79,14 +83,85 @@ class _GatedTransport implements SyncTransport {
     required String path,
     Map<String, String> headers = const {},
     Object? body,
-  }) {
+  }) async {
     if (!online) return Future.error(const SyncTransportException(0));
-    return _inner.send(
+    var requestPath = path;
+    var requestBody = body;
+    if (legacyClient && method == 'GET' && path.startsWith('/sync/pull?')) {
+      requestPath = path.replaceAll(
+        RegExp(r'capabilities=[^&]*'),
+        'capabilities=task_allocation_v1',
+      );
+    }
+    if (legacyClient &&
+        method == 'POST' &&
+        path == '/sync/push' &&
+        body is String) {
+      final request = jsonDecode(body) as Map<String, dynamic>;
+      final capabilities = request['capabilities'];
+      if (capabilities is List) {
+        request['capabilities'] = capabilities
+            .where((value) => value != 'todo_recurrence_v1')
+            .toList();
+      }
+      final ops = request['ops'];
+      if (ops is List) {
+        for (final op in ops.whereType<Map<String, dynamic>>()) {
+          final fields = op['fields'];
+          if (fields is Map) {
+            fields.remove('recurrenceSpec');
+            fields.remove('recurrenceRevision');
+            fields.remove('recurrenceLegacyState');
+          }
+        }
+      }
+      requestBody = jsonEncode(request);
+    }
+    final response = await _inner.send(
       method: method,
-      path: path,
+      path: requestPath,
       headers: headers,
-      body: body,
+      body: requestBody,
     );
+    if (!legacyClient) return response;
+    if (method == 'GET' && path == '/sync/capabilities') {
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final capabilities = payload['capabilities'];
+      if (capabilities is List) {
+        payload['capabilities'] = capabilities
+            .where((value) => value != 'todo_recurrence_v1')
+            .toList();
+      }
+      return SyncHttpResponse(
+        statusCode: response.statusCode,
+        body: jsonEncode(payload),
+      );
+    }
+    if ((method == 'POST' && path == '/sync/push') ||
+        (method == 'GET' && path.startsWith('/sync/pull?'))) {
+      final payload = jsonDecode(response.body);
+      _stripRecurrenceGroup(payload);
+      return SyncHttpResponse(
+        statusCode: response.statusCode,
+        body: jsonEncode(payload),
+      );
+    }
+    return response;
+  }
+
+  void _stripRecurrenceGroup(Object? value) {
+    if (value is Map) {
+      value.remove('recurrenceSpec');
+      value.remove('recurrenceRevision');
+      value.remove('recurrenceLegacyState');
+      for (final child in value.values) {
+        _stripRecurrenceGroup(child);
+      }
+    } else if (value is List) {
+      for (final child in value) {
+        _stripRecurrenceGroup(child);
+      }
+    }
   }
 
   @override
@@ -364,6 +439,473 @@ void main() {
       expect(todoB.syncId, todo.syncId);
       expect(allocationB.todoSyncId, todo.syncId);
       expect(allocationB.occurrenceId, occurrenceId);
+    },
+  );
+
+  test(
+    'R4 real sync path covers series edits, confirmations, and removal',
+    () async {
+      RecurrenceSpec spec(String zone, String rule) => RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2035, 5, 1, 9, 0, 0),
+        ),
+        timeZone: zone,
+        rrule: rule,
+      );
+
+      Future<Todo> todoBySyncId(AppDatabase db, String syncId) async =>
+          (await (db.select(
+            db.todos,
+          )..where((row) => row.syncId.equals(syncId))).getSingle());
+
+      Future<TaskAllocation> allocationBySyncId(
+        AppDatabase db,
+        String syncId,
+      ) async => (await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.syncId.equals(syncId))).getSingle());
+
+      Future<int> createLegacy(String summary) =>
+          RecordScope.run(a.db, (tx) async {
+            final id = await a.db
+                .into(a.db.todos)
+                .insert(
+                  TodosCompanion.insert(
+                    calendarId: a.calendarId,
+                    summary: summary,
+                    startDate: Value(DateTime.utc(2035, 5, 1, 9)),
+                    rrule: const Value('FREQ=WEEKLY;COUNT=4'),
+                    recurrenceLegacyState: const Value('unknownLegacy'),
+                    recurrenceEvidence: Value(
+                      const LegacyRecurrenceEvidence(
+                        source: 'ics',
+                        timeSemantic: 'floating',
+                      ).encode(),
+                    ),
+                  ),
+                );
+            await SyncOutbox.enqueueUpsert(a.db, RecordType.todo, id);
+            tx.applied(RecordType.todo, id);
+            return id;
+          });
+
+      final initialSpec = spec('Asia/Shanghai', 'FREQ=WEEKLY;COUNT=4');
+      final seriesId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: a.calendarId,
+            summary: 'R4 series',
+            rrule: Value(initialSpec.rule.canonical),
+          ),
+          recurrenceSpec: initialSpec,
+        ),
+      );
+      final seriesA = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(seriesId))).getSingle();
+      final syncId = seriesA.syncId!;
+      await _round(a);
+      await _round(b);
+      var seriesB = await todoBySyncId(b.db, syncId);
+      final seriesSpecB = TodoRecurrence.fromTodo(seriesB).spec!;
+      expect(seriesSpecB.timeZone, 'Asia/Shanghai');
+      final initialWindow = InstantWindow(
+        startInclusive: DateTime.utc(2035, 5, 1),
+        endExclusive: DateTime.utc(2035, 6, 1),
+      );
+      expect(
+        const RecurrenceEngine()
+            .expand(initialSpec, window: initialWindow, limit: 10)
+            .map((item) => item.occurrenceId.value),
+        const RecurrenceEngine()
+            .expand(seriesSpecB, window: initialWindow, limit: 10)
+            .map((item) => item.occurrenceId.value),
+      );
+
+      final secondNominal = (initialSpec.anchor.value as LocalDateTime)
+          .addCalendarDays(7);
+      final oldId = OccurrenceId.forNominal(
+        secondNominal,
+        initialSpec.timeZone,
+      ).value;
+      final firstAllocationId = await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.create(
+          a.db,
+          tx,
+          todoId: seriesId,
+          occurrenceId: oldId,
+          startAt: DateTime.utc(2035, 5, 8, 1),
+          endAt: DateTime.utc(2035, 5, 8, 2),
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final firstAllocationA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(firstAllocationId))).getSingle();
+      final firstAllocationB = await allocationBySyncId(
+        b.db,
+        firstAllocationA.syncId!,
+      );
+      expect(firstAllocationB.occurrenceId, oldId);
+
+      final zoneEdited = spec('Asia/Tokyo', 'FREQ=WEEKLY;COUNT=4');
+      await RecordScope.run(
+        b.db,
+        (tx) => TodoWriter.updateTodo(
+          b.db,
+          tx,
+          seriesB.id,
+          TodosCompanion(updatedAt: Value(DateTime.now())),
+          recurrenceSpec: zoneEdited,
+          replaceRecurrence: true,
+        ),
+      );
+      await _round(b);
+      await _round(a);
+      final afterZoneA = await todoBySyncId(a.db, syncId);
+      seriesB = await todoBySyncId(b.db, syncId);
+      expect(TodoRecurrence.fromTodo(afterZoneA).spec!.timeZone, 'Asia/Tokyo');
+      expect(isOccurrenceStillValidForSeries(afterZoneA, oldId), isFalse);
+      expect(isOccurrenceStillValidForSeries(seriesB, oldId), isFalse);
+      final unchangedFirstA = await allocationBySyncId(
+        a.db,
+        firstAllocationA.syncId!,
+      );
+      final unchangedFirstB = await allocationBySyncId(
+        b.db,
+        firstAllocationA.syncId!,
+      );
+      expect(unchangedFirstA.startAt, firstAllocationA.startAt);
+      expect(unchangedFirstA.endAt, firstAllocationA.endAt);
+      expect(unchangedFirstA.occurrenceId, oldId);
+      expect(unchangedFirstB.startAt, firstAllocationB.startAt);
+      expect(unchangedFirstB.endAt, firstAllocationB.endAt);
+      expect(unchangedFirstB.occurrenceId, oldId);
+
+      final tokyoSecondId = OccurrenceId.forNominal(
+        secondNominal,
+        'Asia/Tokyo',
+      ).value;
+      final secondAllocationId = await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.create(
+          a.db,
+          tx,
+          todoId: afterZoneA.id,
+          occurrenceId: tokyoSecondId,
+          startAt: DateTime.utc(2035, 5, 8, 3),
+          endAt: DateTime.utc(2035, 5, 8, 4),
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final secondAllocationA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(secondAllocationId))).getSingle();
+      final monthly = spec('Asia/Tokyo', 'FREQ=MONTHLY;COUNT=3');
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.updateTodo(
+          a.db,
+          tx,
+          afterZoneA.id,
+          TodosCompanion(updatedAt: Value(DateTime.now())),
+          recurrenceSpec: monthly,
+          replaceRecurrence: true,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final afterRuleB = await todoBySyncId(b.db, syncId);
+      expect(
+        TodoRecurrence.fromTodo(afterRuleB).spec!.rule.canonical,
+        'FREQ=MONTHLY;COUNT=3',
+      );
+      expect(
+        isOccurrenceStillValidForSeries(afterRuleB, tokyoSecondId),
+        isFalse,
+      );
+      final unchangedSecondB = await allocationBySyncId(
+        b.db,
+        secondAllocationA.syncId!,
+      );
+      expect(unchangedSecondB.startAt, secondAllocationA.startAt);
+      expect(unchangedSecondB.endAt, secondAllocationA.endAt);
+      expect(unchangedSecondB.occurrenceId, tokyoSecondId);
+
+      final legacyId = await createLegacy('Confirmed from A');
+      await _round(a);
+      final legacyA = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(legacyId))).getSingle();
+      await _round(b);
+      final legacyB = await todoBySyncId(b.db, legacyA.syncId!);
+      expect(legacyB.recurrenceLegacyState, 'unknownLegacy');
+      final syncedEvidence = LegacyRecurrenceEvidence.decode(
+        legacyB.recurrenceEvidence,
+      );
+      expect(syncedEvidence?.source, 'sync');
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.confirmLegacyRecurrence(
+          a.db,
+          tx,
+          todoId: legacyA.id,
+          chosenTimeZone: 'Asia/Tokyo',
+          interpretation: RecurrenceAnchor(
+            source: RecurrenceAnchorSource.start,
+            value: LocalDateTime(2035, 5, 1, 9, 0, 0),
+          ),
+          validatedRRule: legacyA.rrule!,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final confirmedA = await todoBySyncId(a.db, legacyA.syncId!);
+      final confirmedB = await todoBySyncId(b.db, legacyA.syncId!);
+      final confirmedSpecA = TodoRecurrence.fromTodo(confirmedA).spec!;
+      final confirmedSpecB = TodoRecurrence.fromTodo(confirmedB).spec!;
+      expect(confirmedSpecA.timeZone, 'Asia/Tokyo');
+      expect(confirmedSpecA.timeZone, confirmedSpecB.timeZone);
+      expect(confirmedSpecA.rule.canonical, confirmedSpecB.rule.canonical);
+      final recurrenceWindow = InstantWindow(
+        startInclusive: DateTime.utc(2035, 5, 1),
+        endExclusive: DateTime.utc(2035, 7, 1),
+      );
+      expect(
+        const RecurrenceEngine()
+            .expand(confirmedSpecA, window: recurrenceWindow, limit: 10)
+            .map((row) => row.occurrenceId.value),
+        const RecurrenceEngine()
+            .expand(confirmedSpecB, window: recurrenceWindow, limit: 10)
+            .map((row) => row.occurrenceId.value),
+      );
+
+      final conflictId = await createLegacy('Concurrent confirmations');
+      await _round(a);
+      final conflictA = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(conflictId))).getSingle();
+      await _round(b);
+      final conflictB = await todoBySyncId(b.db, conflictA.syncId!);
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.confirmLegacyRecurrence(
+          a.db,
+          tx,
+          todoId: conflictA.id,
+          chosenTimeZone: 'America/New_York',
+          interpretation: RecurrenceAnchor(
+            source: RecurrenceAnchorSource.start,
+            value: LocalDateTime(2035, 5, 1, 9, 0, 0),
+          ),
+          validatedRRule: conflictA.rrule!,
+        ),
+      );
+      await RecordScope.run(
+        b.db,
+        (tx) => TodoWriter.confirmLegacyRecurrence(
+          b.db,
+          tx,
+          todoId: conflictB.id,
+          chosenTimeZone: 'Asia/Tokyo',
+          interpretation: RecurrenceAnchor(
+            source: RecurrenceAnchorSource.start,
+            value: LocalDateTime(2035, 5, 1, 9, 0, 0),
+          ),
+          validatedRRule: conflictB.rrule!,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      await _round(a);
+      final conflictFinalA = await todoBySyncId(a.db, conflictA.syncId!);
+      final conflictFinalB = await todoBySyncId(b.db, conflictA.syncId!);
+      final conflictSpecA = TodoRecurrence.fromTodo(conflictFinalA).spec!;
+      final conflictSpecB = TodoRecurrence.fromTodo(conflictFinalB).spec!;
+      expect(conflictSpecA.timeZone, conflictSpecB.timeZone);
+      expect(conflictSpecA.rule.canonical, conflictSpecB.rule.canonical);
+      expect(
+        conflictFinalA.recurrenceRevision,
+        conflictFinalB.recurrenceRevision,
+      );
+
+      final removeSpec = spec('Asia/Shanghai', 'FREQ=WEEKLY;COUNT=3');
+      final removeId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: a.calendarId,
+            summary: 'Remove recurrence',
+            rrule: Value(removeSpec.rule.canonical),
+          ),
+          recurrenceSpec: removeSpec,
+        ),
+      );
+      final removeA = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(removeId))).getSingle();
+      final removeOccurrenceId = OccurrenceId.forNominal(
+        removeSpec.anchor.value,
+        removeSpec.timeZone,
+      ).value;
+      final removeAllocationId = await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.create(
+          a.db,
+          tx,
+          todoId: removeId,
+          occurrenceId: removeOccurrenceId,
+          startAt: DateTime.utc(2035, 5, 1, 1),
+          endAt: DateTime.utc(2035, 5, 1, 2),
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final removeAllocationA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(removeAllocationId))).getSingle();
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.updateTodo(
+          a.db,
+          tx,
+          removeId,
+          TodosCompanion(updatedAt: Value(DateTime.now())),
+          replaceRecurrence: true,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final removedB = await todoBySyncId(b.db, removeA.syncId!);
+      final retainedAllocationB = await allocationBySyncId(
+        b.db,
+        removeAllocationA.syncId!,
+      );
+      expect(TodoRecurrence.fromTodo(removedB).spec, isNull);
+      expect(retainedAllocationB.occurrenceId, removeOccurrenceId);
+      expect(
+        isOccurrenceStillValidForSeries(removedB, removeOccurrenceId),
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'old-client projection preserves RecurrenceSpec and capability recovery backfills',
+    () async {
+      b.transport.legacyClient = true;
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2036, 2, 2, 10, 0, 0),
+        ),
+        timeZone: 'America/New_York',
+        rrule: 'FREQ=WEEKLY;COUNT=6',
+      );
+      final recurringId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: a.calendarId,
+            summary: 'New recurring Todo',
+            rrule: Value(spec.rule.canonical),
+          ),
+          recurrenceSpec: spec,
+        ),
+      );
+      final ordinaryId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: a.calendarId,
+            summary: 'Ordinary Todo',
+          ),
+        ),
+      );
+      final eventId = await _createEvent(
+        a,
+        summary: 'Ordinary Event',
+        start: DateTime.utc(2036, 2, 2, 12),
+        end: DateTime.utc(2036, 2, 2, 13),
+      );
+      await _round(a);
+      await _round(b);
+      final recurringA = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(recurringId))).getSingle();
+      final recurringB = await (b.db.select(
+        b.db.todos,
+      )..where((row) => row.syncId.equals(recurringA.syncId!))).getSingle();
+      final ordinaryA = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(ordinaryId))).getSingle();
+      final ordinaryB = await (b.db.select(
+        b.db.todos,
+      )..where((row) => row.syncId.equals(ordinaryA.syncId!))).getSingle();
+      final eventA = await (a.db.select(
+        a.db.events,
+      )..where((row) => row.id.equals(eventId))).getSingle();
+      final eventB = await (b.db.select(
+        b.db.events,
+      )..where((row) => row.syncId.equals(eventA.syncId!))).getSingle();
+      expect(ordinaryB.summary, 'Ordinary Todo');
+      expect(eventB.summary, 'Ordinary Event');
+      expect(recurringB.rrule, spec.rule.canonical);
+      expect(recurringB.recurrenceLegacyState, 'unknownLegacy');
+      expect(TodoRecurrence.fromTodo(recurringB).spec, isNull);
+      final oldCursor = b.cursors.value!;
+
+      await b.db.transaction(() async {
+        await (b.db.update(
+          b.db.todos,
+        )..where((row) => row.id.equals(recurringB.id))).write(
+          TodosCompanion(
+            summary: const Value('Edited by old client'),
+            description: const Value('Old notes'),
+            rrule: const Value('FREQ=DAILY;COUNT=9'),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+        await SyncOutbox.enqueueUpsert(b.db, RecordType.todo, recurringB.id);
+      });
+      await _round(b);
+      await _round(a);
+      final preservedA = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.syncId.equals(recurringA.syncId!))).getSingle();
+      final preservedSpec = TodoRecurrence.fromTodo(preservedA).spec!;
+      expect(preservedA.summary, 'Edited by old client');
+      expect(preservedA.description, 'Old notes');
+      expect(preservedA.rrule, spec.rule.canonical);
+      expect(preservedSpec.timeZone, spec.timeZone);
+      expect(preservedSpec.rule.canonical, spec.rule.canonical);
+      expect(b.cursors.value, greaterThan(oldCursor));
+
+      b.transport.legacyClient = false;
+      final beforeRecovery = b.cursors.value!;
+      await _round(b);
+      final recovered = await (b.db.select(
+        b.db.todos,
+      )..where((row) => row.syncId.equals(recurringA.syncId!))).getSingle();
+      expect(b.cursors.value, greaterThanOrEqualTo(beforeRecovery));
+      expect(TodoRecurrence.fromTodo(recovered).spec!.timeZone, spec.timeZone);
+      expect(
+        TodoRecurrence.fromTodo(recovered).spec!.rule.canonical,
+        spec.rule.canonical,
+      );
     },
   );
 

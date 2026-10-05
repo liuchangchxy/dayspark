@@ -44,7 +44,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -168,6 +168,9 @@ class AppDatabase extends _$AppDatabase {
           SET recurrence_legacy_state = 'unknownLegacy', recurrence_revision = 0
           WHERE rrule IS NOT NULL
         ''');
+      }
+      if (from < 13) {
+        await m.addColumn(todos, todos.recurrenceEvidence);
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

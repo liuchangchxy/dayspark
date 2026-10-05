@@ -68,9 +68,9 @@ List<RecurrenceParityVector> recurrenceParityVectors() => [
       endExclusive: LocalDate(2027, 1, 1),
     ),
     expected: [
-      'v1:DATE:2026-10-05@Asia/Shanghai|DATE',
-      'v1:DATE:2026-11-05@Asia/Shanghai|DATE',
-      'v1:DATE:2026-12-05@Asia/Shanghai|DATE',
+      'v2:DATE:2026-10-05|DATE',
+      'v2:DATE:2026-11-05|DATE',
+      'v2:DATE:2026-12-05|DATE',
     ],
   ),
   RecurrenceParityVector(
@@ -85,10 +85,10 @@ List<RecurrenceParityVector> recurrenceParityVectors() => [
       endExclusive: LocalDate(2026, 8, 1),
     ),
     expected: [
-      'v1:DATE:2026-01-31@Etc/UTC|DATE',
-      'v1:DATE:2026-03-31@Etc/UTC|DATE',
-      'v1:DATE:2026-05-31@Etc/UTC|DATE',
-      'v1:DATE:2026-07-31@Etc/UTC|DATE',
+      'v2:DATE:2026-01-31|DATE',
+      'v2:DATE:2026-03-31|DATE',
+      'v2:DATE:2026-05-31|DATE',
+      'v2:DATE:2026-07-31|DATE',
     ],
   ),
   RecurrenceParityVector(
@@ -103,9 +103,9 @@ List<RecurrenceParityVector> recurrenceParityVectors() => [
       endExclusive: LocalDate(2026, 10, 5),
     ),
     expected: [
-      'v1:DATE:2026-10-01@America/New_York|DATE',
-      'v1:DATE:2026-10-02@America/New_York|DATE',
-      'v1:DATE:2026-10-03@America/New_York|DATE',
+      'v2:DATE:2026-10-01|DATE',
+      'v2:DATE:2026-10-02|DATE',
+      'v2:DATE:2026-10-03|DATE',
     ],
   ),
   RecurrenceParityVector(

@@ -9,6 +9,23 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get preview => 'Preview';
+
+  @override
+  String get legacyRecurrencePreview => 'Next occurrences (preview)';
+
+  @override
+  String legacyRecurrenceEvidence(Object source, Object semantic, Object tzid) {
+    return 'Import evidence: $source; time meaning: $semantic$tzid';
+  }
+
+  @override
+  String get legacyVTimezonePresent => 'The calendar includes VTIMEZONE data.';
+
+  @override
+  String get legacyRecurrenceEvidenceMissing => 'No import evidence is available for this legacy record.';
+
+  @override
   String get selectTodoOccurrence => 'Select occurrence';
 
   @override
@@ -18,10 +35,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unsupportedRecurrence => 'This recurrence rule cannot be expanded for scheduling.';
 
   @override
+  String get unsupportedLegacyRecurrence => 'This imported recurrence rule uses unsupported or invalid syntax and cannot be scheduled.';
+
+  @override
   String get noOccurrencesAvailable => 'No occurrences are available in the next 90 days.';
 
   @override
+  String get occurrenceWindowHint => 'Showing matches only within the next 90 days. The series may continue outside this window.';
+
+  @override
   String get orphanTaskAllocation => 'Its recurring occurrence no longer exists. The scheduled time is retained.';
+
+  @override
+  String get confirmLegacyRecurrenceTitle => 'Confirm recurring Todo';
+
+  @override
+  String get confirmLegacyRecurrenceBody => 'This older recurring Todo has no reliable time zone. Choose how to interpret it. Your device time zone is only a suggestion and will be saved only after confirmation.';
+
+  @override
+  String get recurrenceTimeZone => 'Series time zone';
+
+  @override
+  String get recurrenceTimeZoneSuggested => 'Suggested from this device; verify before confirming.';
+
+  @override
+  String get legacyAnchorEvidence => 'Stored date and time';
+
+  @override
+  String get legacyAnchorValue => 'Series anchor date and time';
+
+  @override
+  String get legacyDateFormatHint => 'Enter a date as YYYY-MM-DD.';
+
+  @override
+  String get legacyDateTimeFormatHint => 'Enter a local date and time as YYYY-MM-DDTHH:mm:ss.';
+
+  @override
+  String get dateOnly => 'Date only';
+
+  @override
+  String get dateAndTime => 'Date and time';
+
+  @override
+  String get recurrenceRule => 'Repeat rule';
+
+  @override
+  String get recurrenceZoneBelongsToSeries => 'This time zone belongs to the whole series.';
+
+  @override
+  String get recurrenceAnchor => 'Series anchor';
+
+  @override
+  String get recurrenceEditAllocationWarning => 'Changing the repeat rule, anchor, or time zone will not move existing scheduled time blocks. Some may no longer match this series.';
+
+  @override
+  String get recurrenceTimezoneHorizonError => 'The current time-zone data cannot calculate this date range yet.';
+
+  @override
+  String get recurrenceOccurrenceLimitError => 'There are more matching occurrences than this selector can show. Narrow the date range.';
 
   @override
   String get appName => 'DaySpark';

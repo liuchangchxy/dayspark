@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:drift/drift.dart';
@@ -13,6 +15,53 @@ void ensureTodoRecurrenceTimeZonesInitialized() {
 }
 
 enum TodoRecurrenceLegacyState { knownZoned, unknownLegacy }
+
+final class LegacyRecurrenceEvidence {
+  const LegacyRecurrenceEvidence({
+    required this.source,
+    required this.timeSemantic,
+    this.rawTzid,
+    this.hasVTimezone = false,
+  });
+
+  final String source;
+  final String timeSemantic;
+  final String? rawTzid;
+  final bool hasVTimezone;
+
+  String encode() => jsonEncode(<String, Object?>{
+    'source': source,
+    'timeSemantic': timeSemantic,
+    if (rawTzid != null) 'rawTzid': rawTzid,
+    if (hasVTimezone) 'hasVTimezone': true,
+  });
+
+  static LegacyRecurrenceEvidence? decode(String? raw) {
+    if (raw == null) return null;
+    final value = jsonDecode(raw);
+    if (value is! Map<String, dynamic> ||
+        !const {'ics', 'legacyApp', 'sync'}.contains(value['source']) ||
+        !const {
+          'floating',
+          'utcInstant',
+          'unknownTzid',
+          'unsupportedRrule',
+          'vtimezoneUnsupported',
+          'vtimezoneConflict',
+          'unknown',
+        }.contains(value['timeSemantic']) ||
+        (value['rawTzid'] != null && value['rawTzid'] is! String) ||
+        (value['hasVTimezone'] != null && value['hasVTimezone'] is! bool)) {
+      throw const FormatException('invalid legacy recurrence evidence');
+    }
+    return LegacyRecurrenceEvidence(
+      source: value['source'] as String,
+      timeSemantic: value['timeSemantic'] as String,
+      rawTzid: value['rawTzid'] as String?,
+      hasVTimezone: value['hasVTimezone'] as bool? ?? false,
+    );
+  }
+}
 
 extension TodoRecurrenceLegacyStateWire on TodoRecurrenceLegacyState {
   String get wireName => switch (this) {

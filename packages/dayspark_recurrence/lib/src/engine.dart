@@ -36,7 +36,7 @@ final class RecurrenceEngine {
       throw ArgumentError('Window type must match the recurrence anchor.');
     }
 
-    final location = _getLocation(spec.timeZone);
+    final location = isDate ? null : _getLocation(spec.timeZone);
     final start = spec.anchor.value._calendarCandidate;
     final candidateBounds = _candidateBounds(
       spec.anchor.value,
@@ -47,7 +47,7 @@ final class RecurrenceEngine {
     if (spec.anchor.valueType == RecurrenceValueType.dateTime &&
         spec.rule.until != null) {
       final untilLocal = _calendarFields(
-        tz.TZDateTime.from(spec.rule.until!, location),
+        tz.TZDateTime.from(spec.rule.until!, location!),
       ).add(_offsetSafetyMargin);
       if (untilLocal.isBefore(before)) before = untilLocal;
     }
@@ -89,7 +89,7 @@ final class RecurrenceEngine {
               candidate.second,
             );
       final resolvedInstant = switch (nominal) {
-        LocalDateTime value => _resolveLocalDateTime(value, location),
+        LocalDateTime value => _resolveLocalDateTime(value, location!),
         LocalDate() => null,
       };
       if (!_insideWindow(nominal, resolvedInstant, window)) continue;
@@ -136,7 +136,7 @@ final class RecurrenceEngine {
   _CandidateBounds _candidateBounds(
     RecurrenceLocalValue anchor,
     RecurrenceWindow window,
-    tz.Location location,
+    tz.Location? location,
   ) {
     if (window case final LocalDateWindow dateWindow) {
       final after = dateWindow.startInclusive.addDays(-1)._calendarCandidate;
@@ -148,7 +148,7 @@ final class RecurrenceEngine {
     }
     final instantWindow = window as InstantWindow;
     final localStart = _calendarFields(
-      tz.TZDateTime.from(instantWindow.startInclusive, location),
+      tz.TZDateTime.from(instantWindow.startInclusive, location!),
     );
     final localEnd = _calendarFields(
       tz.TZDateTime.from(instantWindow.endExclusive, location),

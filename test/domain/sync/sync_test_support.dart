@@ -10,6 +10,7 @@ import 'package:dayspark_contracts/dayspark_contracts.dart';
 class MemoryCursorStore implements SyncCursorStore {
   int? value;
   bool? taskAllocationCapabilityEnabled = true;
+  bool? todoRecurrenceCapabilityEnabled = true;
 
   MemoryCursorStore([this.value]);
 
@@ -31,9 +32,19 @@ class MemoryCursorStore implements SyncCursorStore {
   }
 
   @override
+  Future<bool?> readTodoRecurrenceCapabilityState() async =>
+      todoRecurrenceCapabilityEnabled;
+
+  @override
+  Future<void> writeTodoRecurrenceCapabilityState(bool enabled) async {
+    todoRecurrenceCapabilityEnabled = enabled;
+  }
+
+  @override
   Future<void> clear() async {
     value = null;
     taskAllocationCapabilityEnabled = null;
+    todoRecurrenceCapabilityEnabled = null;
   }
 }
 

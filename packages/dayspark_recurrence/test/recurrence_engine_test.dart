@@ -106,10 +106,15 @@ void main() {
         LocalDate(2026, 11, 2),
         'Asia/Shanghai',
       );
-      expect(dateId.value, 'v1:DATE:2026-11-02@Asia/Shanghai');
+      expect(dateId.value, 'v2:DATE:2026-11-02');
       expect(OccurrenceId.parse(dateId.value), dateId);
+      final legacyDateId = OccurrenceId.parse(
+        'v1:DATE:2026-11-02@Asia/Shanghai',
+      );
+      expect(legacyDateId.nominal, dateId.nominal);
+      expect(legacyDateId.timeZone?.id, 'Asia/Shanghai');
       expect(
-        () => OccurrenceId.parse('v1:DATE:2026-02-30@Asia/Shanghai'),
+        () => OccurrenceId.parse('v2:DATE:2026-02-30'),
         throwsFormatException,
       );
     });
@@ -336,7 +341,7 @@ void main() {
     });
 
     test(
-      'rejects unknown timezones and excessively distant unbounded scans',
+      'DATE identity ignores timezone metadata and bounds unbounded scans',
       () {
         const engine = RecurrenceEngine();
         final unknownZone = _spec(
@@ -345,15 +350,19 @@ void main() {
           'FREQ=DAILY;COUNT=1',
         );
         expect(
-          () => engine.expand(
-            unknownZone,
-            window: LocalDateWindow(
-              startInclusive: LocalDate(2026, 1, 1),
-              endExclusive: LocalDate(2026, 1, 2),
-            ),
-            limit: 1,
-          ),
-          throwsA(isA<RecurrenceRuleException>()),
+          engine
+              .expand(
+                unknownZone,
+                window: LocalDateWindow(
+                  startInclusive: LocalDate(2026, 1, 1),
+                  endExclusive: LocalDate(2026, 1, 2),
+                ),
+                limit: 1,
+              )
+              .single
+              .occurrenceId
+              .value,
+          'v2:DATE:2026-01-01',
         );
 
         final unbounded = _spec(
@@ -372,6 +381,26 @@ void main() {
           ),
           throwsA(isA<RecurrenceExpansionException>()),
         );
+      },
+    );
+
+    test(
+      'legacy v1 DATE allocation identities remain valid for their series',
+      () {
+        final spec = _spec(
+          LocalDate(2026, 1, 1),
+          'Asia/Shanghai',
+          'FREQ=DAILY;COUNT=2',
+        );
+        expect(
+          isOccurrenceValidForSpec(spec, 'v1:DATE:2026-01-02@Asia/Shanghai'),
+          isTrue,
+        );
+        expect(
+          isOccurrenceValidForSpec(spec, 'v1:DATE:2026-01-02@Asia/Tokyo'),
+          isFalse,
+        );
+        expect(isOccurrenceValidForSpec(spec, 'v2:DATE:2026-01-02'), isTrue);
       },
     );
 

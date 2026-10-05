@@ -165,15 +165,23 @@ final class TodoWriter {
   static Future<int> importRow(
     AppDatabase db,
     RecordScope tx,
-    TodosCompanion data,
-  ) async {
+    TodosCompanion data, {
+    RecurrenceSpec? recurrenceSpec,
+    LegacyRecurrenceEvidence? recurrenceEvidence,
+  }) async {
     final legacyRecurring = data.rrule.present && data.rrule.value != null;
-    final importData = legacyRecurring
-        ? data.copyWith(
-            recurrenceLegacyState: const Value('unknownLegacy'),
-            recurrenceRevision: const Value(0),
-          )
-        : data;
+    final TodosCompanion importData;
+    if (recurrenceSpec != null) {
+      importData = _withRecurrence(data, recurrenceSpec, revision: 1);
+    } else if (legacyRecurring) {
+      importData = data.copyWith(
+        recurrenceLegacyState: const Value('unknownLegacy'),
+        recurrenceRevision: const Value(0),
+        recurrenceEvidence: Value(recurrenceEvidence?.encode()),
+      );
+    } else {
+      importData = data;
+    }
     final id = await db.into(db.todos).insert(importData);
     tx.applied(RecordType.todo, id);
     return id;
@@ -415,6 +423,15 @@ final class TodoWriter {
     required DateTime? previousReference,
   }) async {
     final recurrenceData = recurrence.recurrenceColumns();
+    final legacyEvidence =
+        recurrence.isUnknownLegacy && !data.recurrenceEvidence.present
+        ? Value(
+            const LegacyRecurrenceEvidence(
+              source: 'sync',
+              timeSemantic: 'unknown',
+            ).encode(),
+          )
+        : data.recurrenceEvidence;
     final effective = data.copyWith(
       recurrenceAnchorSource: recurrenceData.recurrenceAnchorSource,
       recurrenceValueType: recurrenceData.recurrenceValueType,
@@ -423,6 +440,7 @@ final class TodoWriter {
       recurrenceRule: recurrenceData.recurrenceRule,
       recurrenceLegacyState: recurrenceData.recurrenceLegacyState,
       recurrenceRevision: recurrenceData.recurrenceRevision,
+      recurrenceEvidence: legacyEvidence,
     );
     if (existingId == null) {
       final id = await db.into(db.todos).insert(effective);

@@ -30,7 +30,7 @@ final class OccurrenceId {
   OccurrenceId._(this.nominal, this.timeZone, this.value);
 
   final RecurrenceLocalValue nominal;
-  final IanaTimeZone timeZone;
+  final IanaTimeZone? timeZone;
   final String value;
 
   factory OccurrenceId.forNominal(
@@ -38,10 +38,10 @@ final class OccurrenceId {
     String timeZone,
   ) {
     final zone = IanaTimeZone(timeZone);
-    final prefix = switch (nominal.valueType) {
-      RecurrenceValueType.date => 'v1:DATE:',
-      RecurrenceValueType.dateTime => 'v1:DT:',
-    };
+    if (nominal.valueType == RecurrenceValueType.date) {
+      return OccurrenceId._(nominal, null, 'v2:DATE:${nominal.canonical}');
+    }
+    const prefix = 'v1:DT:';
     return OccurrenceId._(
       nominal,
       zone,
@@ -50,6 +50,11 @@ final class OccurrenceId {
   }
 
   factory OccurrenceId.parse(String value) {
+    final dateOnly = RegExp(r'^v2:DATE:(\d{4}-\d{2}-\d{2})$').firstMatch(value);
+    if (dateOnly != null) {
+      final nominal = _parseDate(dateOnly.group(1)!);
+      return OccurrenceId._(nominal, null, value);
+    }
     final match = RegExp(
       r'^v1:(DATE|DT):([^@]+)@([A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)*)$',
     ).firstMatch(value);
@@ -61,7 +66,10 @@ final class OccurrenceId {
       'DT' => _parseDateTime(match.group(2)!),
       _ => throw FormatException('Unknown occurrenceId value type: $value'),
     };
-    final result = OccurrenceId.forNominal(nominal, match.group(3)!);
+    final legacyDate = match.group(1) == 'DATE';
+    final result = legacyDate
+        ? OccurrenceId._(nominal, IanaTimeZone(match.group(3)!), value)
+        : OccurrenceId.forNominal(nominal, match.group(3)!);
     if (result.value != value) {
       throw FormatException('Non-canonical occurrenceId: $value');
     }

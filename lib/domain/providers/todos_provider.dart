@@ -128,6 +128,34 @@ final updateTodoProvider =
       );
     });
 
+final confirmLegacyRecurrenceProvider =
+    Provider<
+      Future<void> Function({
+        required int todoId,
+        required String timeZone,
+        required RecurrenceAnchor interpretation,
+        required String rrule,
+      })
+    >((ref) {
+      final db = ref.read(databaseProvider);
+      return ({
+        required todoId,
+        required timeZone,
+        required interpretation,
+        required rrule,
+      }) => RecordScope.run(
+        db,
+        (tx) => TodoWriter.confirmLegacyRecurrence(
+          db,
+          tx,
+          todoId: todoId,
+          chosenTimeZone: timeZone,
+          interpretation: interpretation,
+          validatedRRule: rrule,
+        ),
+      );
+    });
+
 final toggleTodoProvider =
     Provider<
       Future<void> Function({required int id, required bool isCompleted})

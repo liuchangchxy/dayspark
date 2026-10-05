@@ -9,6 +9,23 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get preview => '预览';
+
+  @override
+  String get legacyRecurrencePreview => '后续日期预览';
+
+  @override
+  String legacyRecurrenceEvidence(Object source, Object semantic, Object tzid) {
+    return '导入来源：$source；时间语义：$semantic$tzid';
+  }
+
+  @override
+  String get legacyVTimezonePresent => '原日历包含 VTIMEZONE 时区定义。';
+
+  @override
+  String get legacyRecurrenceEvidenceMissing => '此旧记录没有可用的导入来源证据。';
+
+  @override
   String get selectTodoOccurrence => '选择重复事项';
 
   @override
@@ -18,10 +35,64 @@ class AppLocalizationsZh extends AppLocalizations {
   String get unsupportedRecurrence => '此重复规则暂不支持展开和安排。';
 
   @override
+  String get unsupportedLegacyRecurrence => '导入的重复规则语法无效或暂不支持，不能安排其实例。';
+
+  @override
   String get noOccurrencesAvailable => '未来 90 天内没有可选的重复事项。';
 
   @override
+  String get occurrenceWindowHint => '这里只显示未来 90 天内的实例；重复系列可能仍会在此范围之外继续。';
+
+  @override
   String get orphanTaskAllocation => '对应的重复事项已不存在，原安排时间仍予保留。';
+
+  @override
+  String get confirmLegacyRecurrenceTitle => '确认重复待办';
+
+  @override
+  String get confirmLegacyRecurrenceBody => '这条旧重复待办没有可靠的时区信息。请选择解释方式。设备时区仅作建议，只有确认后才会保存。';
+
+  @override
+  String get recurrenceTimeZone => '重复系列时区';
+
+  @override
+  String get recurrenceTimeZoneSuggested => '设备提供的建议值；确认前请核对。';
+
+  @override
+  String get legacyAnchorEvidence => '已保存的日期和时间';
+
+  @override
+  String get legacyAnchorValue => '重复系列锚点日期和时间';
+
+  @override
+  String get legacyDateFormatHint => '日期格式：YYYY-MM-DD。';
+
+  @override
+  String get legacyDateTimeFormatHint => '本地日期时间格式：YYYY-MM-DDTHH:mm:ss。';
+
+  @override
+  String get dateOnly => '仅日期';
+
+  @override
+  String get dateAndTime => '日期和时间';
+
+  @override
+  String get recurrenceRule => '重复规则';
+
+  @override
+  String get recurrenceZoneBelongsToSeries => '此时区属于整个重复系列。';
+
+  @override
+  String get recurrenceAnchor => '重复系列锚点';
+
+  @override
+  String get recurrenceEditAllocationWarning => '修改重复规则、锚点或时区不会移动已有时间安排；部分安排可能不再属于当前系列。';
+
+  @override
+  String get recurrenceTimezoneHorizonError => '当前时区数据暂不支持计算该日期范围。';
+
+  @override
+  String get recurrenceOccurrenceLimitError => '符合条件的重复实例超出当前选择器上限，请缩小日期范围。';
 
   @override
   String get appName => '灵光';

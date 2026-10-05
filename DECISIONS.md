@@ -373,3 +373,21 @@
   - occurrence selector 默认 90 日、最多 100 项 → 判错代价：窗口外 occurrence 需要稍后再安排，且极密集规则会因显式上限失败而不是静默截断。
 - **对应 SPEC 章节**：SPEC.md §3.1.1、§3.1 规则 3/6/8/10/13/14。
 - **实施与验证**：`docs/superpowers/plans/2026-10-04-recurring-todo.md`；package/root/contracts/server/wrapper/CLI 门禁均通过；root Flutter 436 tests、server 233 tests，另有真实双设备 TaskAllocation occurrenceId round-trip。
+
+### [2026-10-05] R4 实施中的 ICS 与 legacy 确认策略（尚未最终验收）
+- **ICS 策略**：UTC `Z` recurring Todo 不推测原地区时区，导入 `unknownLegacy`；不支持/未知 RRULE、未知 TZID 也不降级成可安排 series。DATE identity 使用版本化、无时区的 `v2:DATE:YYYY-MM-DD`；旧 v1 DATE IDs 保留解析与验证兼容。无 TZID DATE 的 `RecurrenceSpec.timeZone=Etc/UTC` 仅满足现有必需 metadata schema，不进入 identity，也不参与 DATE 展开。已知 IANA zone 的 TZID recurrence 使用 DaySpark 锁定 tzdata。
+- **确认策略**：首次从 occurrence Allocation 入口使用 `unknownLegacy` 时弹确认；设备时区只预填建议，保存前不写库；用户可编辑 anchor、选择 DATE/DATE-TIME 与 anchor source，提交仍调用 `TodoWriter.confirmLegacyRecurrence`。
+- **判错代价**：DATE-only ICS 缺少地区时区时，固定 namespace 确保两设备生成同一 identity，但不会反映任何原始地区 zone；若后续产品要求 DATE series 也保留用户地区 zone，需新增明确导入/确认信息，不能事后猜测。UTC Z 归 unknown 会增加一次用户确认，但避免把 instant 假装成地区 wall-time。
+- **状态边界**：本条记录实施期作出的策略裁定；R4 最终审查和自动门禁结果见下方「R4 最终收口」。Windows build/GUI smoke 仍未验收。
+
+### [2026-10-05] R4 DATE identity 与导入证据修订
+- **identity 修订**：DATE 新 key 为 `v2:DATE:YYYY-MM-DD`；旧 v1 DATE key 保留读取和按原 series TZID 验证，不迁写已有 Allocation。RecurrenceSpec 的 timeZone 仍是现有 metadata 字段；无 TZID DATE 使用 `Etc/UTC` 只填该字段，不再进入 key 或 DATE 展开。
+- **导入证据**：schema v13 增加可空 `recurrence_evidence`，记录 ICS 来源、时间语义及原 TZID。该列只供解释/审计，不进入引擎、RecurrenceSpec 或 occurrence identity。同步到另一台设备的 unknownLegacy 用 `source=sync,timeSemantic=unknown` 标记，不假称掌握原始 ICS 证据；成本：原始 TZID 与 ICS 分类仍只在导入设备保留。
+- **确认预览**：首次确认前必须以 shared engine 在未来 90 天有限窗口成功预览最多 5 项。成本：距离当前窗口外的 recurrence 暂时无法通过此预览确认；窗口/上限边界尚未独立验收。
+- **旧客户端恢复**：recurrence capability 从缺失恢复时 cursor 回扫一次，以恢复 capability projection 隐藏的 RecurrenceSpec；共享游标状态增加独立 recurrence capability 标志，不引入客户端版本判断。成本：恢复能力的首轮同步会从头扫描服务端记录，增加一次有界同步量。
+
+### [2026-10-05] R4 最终收口
+- **独立终审**：delta review `VERDICT: PASS`；原 P1 resolved，无新增 P0/P1、P2/P3。R4 最终本地 commit 获准并已创建；没有 push 或创建 PR。
+- **自动门禁**：`dart analyze .`、`flutter analyze` 零 issue；root `flutter test` 453 项通过；recurrence 20、contracts 53、server 233、MCP wrapper 9（CI 正式 `dart test`）、CLI 20 项通过；version guard 与 17-case selftest、whitespace/path scan、`git diff --check` 通过。
+- **未完成的外部验收**：Windows release build 与 GUI smoke 未运行。Build Tools 18 缺少 ATL；第三方 `connectivity_plus` 在 code page 936 下触发 C4819，并被 `/WX` 升级为错误。成本：当前 Windows 原生 build/launch 行为仍没有本轮证据，补齐构建环境后需完成清单。
+- **范围裁定 → 判错代价**：保持 Windows GUI smoke 为未验收并停止于 R4 已授权的本地提交 → 若把自动门禁或独立代码审查误当成 Windows 端到端验收，会漏掉平台构建/启动问题；若继续扩展则超出本次 R4 commit 收口授权。

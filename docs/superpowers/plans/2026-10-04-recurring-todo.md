@@ -1,6 +1,6 @@
 # Recurring Todo — Implementation Plan
 
-Status: **R1, R2 and R3 complete locally; R4 not started**
+Status: **R1–R4 committed locally; R4 independent delta review PASS. Windows GUI smoke remains pending.**
 Contract: `SPEC.md` §3.1.1
 Source audit: `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`
 
@@ -76,6 +76,19 @@ R3 completion on 2026-10-05:
 - Run migration tests against existing databases and sync tests against old/new client capability combinations.
 - Perform manual UI/platform acceptance for timezone selection and lazy legacy prompt on mobile and desktop.
 - Release order: protocol-capable server and clients behind explicit capability; only then expose occurrence Allocation creation.
+
+R4 work started 2026-10-05:
+
+- Added raw-property-aware VTODO recurrence import. Explicit IANA TZID + supported strict RRULE can produce knownZoned while preserving the nominal local anchor; floating, UTC, invalid/unsupported RRULE and invalid/unknown IANA zone remain unknownLegacy. DTSTART wins over DUE; DUE remains imported independently.
+- Added knownZoned recurrence export using local DATE/TZID property and canonical RRULE; unknownLegacy continues through legacy fields.
+- Added first-arrange legacy confirmation dialog and provider call through `TodoWriter.confirmLegacyRecurrence`; it requires explicit save, lets the user enter/choose anchor interpretation and DATE/DATE-TIME, and presents device timezone only as a suggestion.
+- ICS import receives the original VCALENDAR while classifying each VTODO. A same-TZID VTIMEZONE is never promoted from matching offset values alone: declared offsets outside the IANA zone's tzdata are recorded as a conflict; otherwise the definition remains unverified and the Todo stays `unknownLegacy`. DATE ignores timezone metadata for identity and uses timezone-free v2 keys.
+- Known series edit UI now displays the canonical anchor/type and allows series timezone/value-type edits while preserving the prior nominal anchor when only rule/zone changes. It warns that existing allocations do not move.
+- Occurrence picker explains its 90-day window; selector limit and 2037 transition horizon have dedicated localized errors.
+- DATE-only occurrence IDs now use a timezone-free v2 identity while accepting the legacy v1 DATE form; timezone remains series metadata. ICS evidence is stored separately from `RecurrenceSpec`. The confirmation flow previews up to five occurrences through the shared engine over a bounded 90-day/100-result window, and `TodoEditPage` exposes the same confirmation path for unknownLegacy records. A semantic ICS round-trip matrix and real-server A–G plus old-client capability recovery tests are present.
+- Latest gates (2026-10-05 R4 closeout): root `dart analyze .` and `flutter analyze` clean; root `flutter test` 453 passed; recurrence 20, contracts 53, server 233, wrapper 9 and CLI 20 passed; wrapper used CI's `dart test`; migration tests passed in root suite; version guard and 17-case selftest passed; whitespace/path scans and `git diff --check` clean.
+- Wrapper timeout was caused by invoking its pure Dart tests through `flutter test`, which makes `Platform.resolvedExecutable` point at the Flutter test runner, not the Dart CLI expected by `dart run`. No wrapper source or POSIX behavior change was needed. Windows build was rechecked: Build Tools 18 lacks the ATL component needed by third-party `flutter_secure_storage_windows`; third-party `connectivity_plus` UTF-8 source triggers C4819 under code page 936, then existing `/WX` makes it fatal. See `docs/ROADMAP.md` for the Windows release smoke checklist.
+- R4 independent delta review: **PASS** (original P1 resolved; no new P0/P1 or P2/P3); R4 was committed locally after all listed automatic gates passed. Windows release build and GUI manual acceptance remain **NOT RUN**: local Build Tools 18 lacks ATL, and the third-party `connectivity_plus` source triggers C4819 under code page 936 with `/WX`. See `docs/ROADMAP.md` for the remaining Windows build/launch smoke checklist. No push or PR was created.
 
 ## Stop conditions
 

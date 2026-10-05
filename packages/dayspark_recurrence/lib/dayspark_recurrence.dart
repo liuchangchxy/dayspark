@@ -9,7 +9,7 @@ part 'src/resolver.dart';
 
 bool isOccurrenceValidForSpec(RecurrenceSpec spec, String occurrenceId) {
   final id = OccurrenceId.parse(occurrenceId);
-  if (id.timeZone.id != spec.timeZone ||
+  if ((id.timeZone != null && id.timeZone!.id != spec.timeZone) ||
       id.nominal.valueType != spec.anchor.valueType) {
     return false;
   }
@@ -36,5 +36,9 @@ bool isOccurrenceValidForSpec(RecurrenceSpec spec, String occurrenceId) {
   }
   return const RecurrenceEngine()
       .expand(spec, window: window, limit: 10000)
-      .any((occurrence) => occurrence.occurrenceId == id);
+      .any(
+        (occurrence) =>
+            occurrence.nominal == id.nominal &&
+            (id.timeZone == null || id.timeZone!.id == spec.timeZone),
+      );
 }

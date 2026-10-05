@@ -19,6 +19,7 @@ class Todos extends Table {
   TextColumn get recurrenceTimeZone => text().nullable()();
   TextColumn get recurrenceRule => text().nullable()();
   TextColumn get recurrenceLegacyState => text().nullable()();
+  TextColumn get recurrenceEvidence => text().nullable()();
   IntColumn get recurrenceRevision =>
       integer().withDefault(const Constant(0))();
   DateTimeColumn get completedAt => dateTime().nullable()();

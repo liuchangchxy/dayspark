@@ -95,6 +95,36 @@ abstract class AppLocalizations {
     Locale('zh')
   ];
 
+  /// No description provided for @preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get preview;
+
+  /// No description provided for @legacyRecurrencePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Next occurrences (preview)'**
+  String get legacyRecurrencePreview;
+
+  /// No description provided for @legacyRecurrenceEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Import evidence: {source}; time meaning: {semantic}{tzid}'**
+  String legacyRecurrenceEvidence(Object source, Object semantic, Object tzid);
+
+  /// No description provided for @legacyVTimezonePresent.
+  ///
+  /// In en, this message translates to:
+  /// **'The calendar includes VTIMEZONE data.'**
+  String get legacyVTimezonePresent;
+
+  /// No description provided for @legacyRecurrenceEvidenceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No import evidence is available for this legacy record.'**
+  String get legacyRecurrenceEvidenceMissing;
+
   /// No description provided for @selectTodoOccurrence.
   ///
   /// In en, this message translates to:
@@ -113,17 +143,125 @@ abstract class AppLocalizations {
   /// **'This recurrence rule cannot be expanded for scheduling.'**
   String get unsupportedRecurrence;
 
+  /// No description provided for @unsupportedLegacyRecurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'This imported recurrence rule uses unsupported or invalid syntax and cannot be scheduled.'**
+  String get unsupportedLegacyRecurrence;
+
   /// No description provided for @noOccurrencesAvailable.
   ///
   /// In en, this message translates to:
   /// **'No occurrences are available in the next 90 days.'**
   String get noOccurrencesAvailable;
 
+  /// No description provided for @occurrenceWindowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing matches only within the next 90 days. The series may continue outside this window.'**
+  String get occurrenceWindowHint;
+
   /// No description provided for @orphanTaskAllocation.
   ///
   /// In en, this message translates to:
   /// **'Its recurring occurrence no longer exists. The scheduled time is retained.'**
   String get orphanTaskAllocation;
+
+  /// No description provided for @confirmLegacyRecurrenceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm recurring Todo'**
+  String get confirmLegacyRecurrenceTitle;
+
+  /// No description provided for @confirmLegacyRecurrenceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This older recurring Todo has no reliable time zone. Choose how to interpret it. Your device time zone is only a suggestion and will be saved only after confirmation.'**
+  String get confirmLegacyRecurrenceBody;
+
+  /// No description provided for @recurrenceTimeZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Series time zone'**
+  String get recurrenceTimeZone;
+
+  /// No description provided for @recurrenceTimeZoneSuggested.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested from this device; verify before confirming.'**
+  String get recurrenceTimeZoneSuggested;
+
+  /// No description provided for @legacyAnchorEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored date and time'**
+  String get legacyAnchorEvidence;
+
+  /// No description provided for @legacyAnchorValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Series anchor date and time'**
+  String get legacyAnchorValue;
+
+  /// No description provided for @legacyDateFormatHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a date as YYYY-MM-DD.'**
+  String get legacyDateFormatHint;
+
+  /// No description provided for @legacyDateTimeFormatHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a local date and time as YYYY-MM-DDTHH:mm:ss.'**
+  String get legacyDateTimeFormatHint;
+
+  /// No description provided for @dateOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Date only'**
+  String get dateOnly;
+
+  /// No description provided for @dateAndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Date and time'**
+  String get dateAndTime;
+
+  /// No description provided for @recurrenceRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat rule'**
+  String get recurrenceRule;
+
+  /// No description provided for @recurrenceZoneBelongsToSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'This time zone belongs to the whole series.'**
+  String get recurrenceZoneBelongsToSeries;
+
+  /// No description provided for @recurrenceAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'Series anchor'**
+  String get recurrenceAnchor;
+
+  /// No description provided for @recurrenceEditAllocationWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing the repeat rule, anchor, or time zone will not move existing scheduled time blocks. Some may no longer match this series.'**
+  String get recurrenceEditAllocationWarning;
+
+  /// No description provided for @recurrenceTimezoneHorizonError.
+  ///
+  /// In en, this message translates to:
+  /// **'The current time-zone data cannot calculate this date range yet.'**
+  String get recurrenceTimezoneHorizonError;
+
+  /// No description provided for @recurrenceOccurrenceLimitError.
+  ///
+  /// In en, this message translates to:
+  /// **'There are more matching occurrences than this selector can show. Narrow the date range.'**
+  String get recurrenceOccurrenceLimitError;
 
   /// No description provided for @appName.
   ///
