@@ -11,6 +11,7 @@ class MemoryCursorStore implements SyncCursorStore {
   int? value;
   bool? taskAllocationCapabilityEnabled = true;
   bool? todoRecurrenceCapabilityEnabled = true;
+  bool? taskInstanceStateCapabilityEnabled = true;
 
   MemoryCursorStore([this.value]);
 
@@ -41,10 +42,20 @@ class MemoryCursorStore implements SyncCursorStore {
   }
 
   @override
+  Future<bool?> readTaskInstanceStateCapabilityState() async =>
+      taskInstanceStateCapabilityEnabled;
+
+  @override
+  Future<void> writeTaskInstanceStateCapabilityState(bool enabled) async {
+    taskInstanceStateCapabilityEnabled = enabled;
+  }
+
+  @override
   Future<void> clear() async {
     value = null;
     taskAllocationCapabilityEnabled = null;
     todoRecurrenceCapabilityEnabled = null;
+    taskInstanceStateCapabilityEnabled = null;
   }
 }
 

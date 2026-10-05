@@ -10,6 +10,7 @@ import 'tables/attachments_table.dart';
 import 'tables/reminders_table.dart';
 import 'tables/sync_outbox_table.dart';
 import 'tables/task_allocations_table.dart';
+import 'tables/task_instance_states_table.dart';
 
 import 'daos/calendars_dao.dart';
 import 'daos/events_dao.dart';
@@ -29,6 +30,7 @@ part 'app_database.g.dart';
     Reminders,
     SyncOutbox,
     TaskAllocations,
+    TaskInstanceStates,
   ],
   daos: [CalendarsDao, EventsDao, TodosDao],
 )
@@ -44,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -171,6 +173,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 13) {
         await m.addColumn(todos, todos.recurrenceEvidence);
+      }
+      if (from < 14) {
+        await m.createTable(taskInstanceStates);
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

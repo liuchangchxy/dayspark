@@ -1,5 +1,7 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
+> 2026-10-06 update: per-instance completion implementation and local verification are complete on `fix/recurring-task-instance-completion`; remote freshness, push, PR, and hosted CI remain pending because GitHub is unreachable from this environment. See `docs/superpowers/plans/2026-10-04-recurring-todo.md`.
+
 > Last updated / 最后更新: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Previous: v0.27.0+28 | 2026-10-01 | Sync devices +全双语护栏: every account can now see its connected devices (`POST /devices/register`, `GET /devices`, `x-device-id` actually sent, in-app device list), the AI answers in the app language instead of guessing, switching language now re-issues already-scheduled reminders, and four new guards cover the localization surface (dictionary parity, raw-text scan, outlet inventory, gate ledger). Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。

@@ -27,6 +27,7 @@ void registerSyncRoutes(
           capabilities: [
             SyncCapability.taskAllocationV1,
             SyncCapability.todoRecurrenceV1,
+            SyncCapability.taskInstanceStateV1,
           ],
         ).toJson(),
       );
@@ -78,6 +79,17 @@ void registerSyncRoutes(
         }
         if (op.type == RecordType.taskAllocation &&
             !push.capabilities.contains(SyncCapability.taskAllocationV1)) {
+          results.add(
+            OpResult(
+              opId: op.opId,
+              status: OpStatus.rejected,
+              code: errValidation,
+            ),
+          );
+          continue;
+        }
+        if (op.type == RecordType.taskInstanceState &&
+            !push.capabilities.contains(SyncCapability.taskInstanceStateV1)) {
           results.add(
             OpResult(
               opId: op.opId,
@@ -180,10 +192,17 @@ List<RecordRow> _filterCapabilities(
   List<RecordRow> rows,
   Iterable<String> capabilities,
 ) {
-  if (capabilities.contains(SyncCapability.taskAllocationV1)) return rows;
-  return rows
-      .where((row) => row.type != RecordType.taskAllocation.wireName)
-      .toList();
+  return rows.where((row) {
+    if (row.type == RecordType.taskAllocation.wireName &&
+        !capabilities.contains(SyncCapability.taskAllocationV1)) {
+      return false;
+    }
+    if (row.type == RecordType.taskInstanceState.wireName &&
+        !capabilities.contains(SyncCapability.taskInstanceStateV1)) {
+      return false;
+    }
+    return true;
+  }).toList();
 }
 
 Future<List<RecordRow>> _changesSince(

@@ -5,6 +5,7 @@ class SyncCapability {
 
   static const taskAllocationV1 = 'task_allocation_v1';
   static const todoRecurrenceV1 = 'todo_recurrence_v1';
+  static const taskInstanceStateV1 = 'task_instance_state_v1';
 }
 
 class SyncCapabilitiesResponse {

@@ -211,4 +211,31 @@ void main() {
       expect(TaskAllocationPayload.fromJson(payload).occurrenceId, isNull);
     });
   });
+
+  group('TaskInstanceStatePayload', () {
+    test('has stable identity and roundtrips sparse completion state', () {
+      const occurrenceId = 'v1:DT:2026-10-05T09:00:00@Asia/Shanghai';
+      final id = taskInstanceStateRecordId('todo-uuid', occurrenceId);
+      expect(id, taskInstanceStateRecordId('todo-uuid', occurrenceId));
+      expect(id, isNot(taskInstanceStateRecordId('todo-uuid', 'next')));
+      final payload = TaskInstanceStatePayload(
+        todoSyncId: 'todo-uuid',
+        occurrenceId: occurrenceId,
+        status: 'completed',
+        completedAt: DateTime.utc(2026, 10, 5, 1),
+        updatedAt: DateTime.utc(2026, 10, 5, 1),
+      );
+      expect(
+        TaskInstanceStatePayload.fromJson(payload.toJson()).toJson(),
+        payload.toJson(),
+      );
+      expect(
+        () => TaskInstanceStatePayload.fromJson({
+          ...payload.toJson(),
+          'completedAt': null,
+        }),
+        throwsFormatException,
+      );
+    });
+  });
 }

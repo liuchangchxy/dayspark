@@ -5,7 +5,7 @@ import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 import 'sync_payload.dart';
@@ -35,6 +35,10 @@ class SyncApplier {
         RecordType.event => await _applyEvent(record, tx),
         RecordType.todo => await _applyTodo(record, tx),
         RecordType.taskAllocation => await _applyTaskAllocation(record, tx),
+        RecordType.taskInstanceState => await _applyTaskInstanceState(
+          record,
+          tx,
+        ),
       };
     } on FormatException catch (e) {
       debugPrint('sync applier: skip ${record.id}: $e');
@@ -173,6 +177,50 @@ class SyncApplier {
       recurrence: recurrence,
       previousReference: existing?.dueDate,
     );
+    final appliedTodo = await (db.select(
+      db.todos,
+    )..where((row) => row.syncId.equals(record.id))).getSingleOrNull();
+    await (db.update(db.taskInstanceStates)
+          ..where((row) => row.todoSyncId.equals(record.id)))
+        .write(TaskInstanceStatesCompanion(todoId: Value(appliedTodo?.id)));
+    return true;
+  }
+
+  Future<bool> _applyTaskInstanceState(
+    SyncRecord record,
+    RecordScope tx,
+  ) async {
+    final payload = TaskInstanceStatePayload.fromJson(record.payload);
+    if (record.id !=
+        taskInstanceStateRecordId(payload.todoSyncId, payload.occurrenceId)) {
+      throw const FormatException('TaskInstanceState identity mismatch');
+    }
+    final todo = await (db.select(
+      db.todos,
+    )..where((row) => row.syncId.equals(payload.todoSyncId))).getSingleOrNull();
+    final existing = await (db.select(
+      db.taskInstanceStates,
+    )..where((row) => row.syncId.equals(record.id))).getSingleOrNull();
+    final companion = TaskInstanceStatesCompanion(
+      syncId: Value(record.id),
+      todoSyncId: Value(payload.todoSyncId),
+      todoId: Value(todo?.id),
+      occurrenceId: Value(payload.occurrenceId),
+      status: Value(payload.status),
+      completedAt: Value(payload.completedAt),
+      updatedAt: Value(payload.updatedAt),
+      serverRev: Value(record.rev),
+    );
+    final int localId;
+    if (existing == null) {
+      localId = await db.into(db.taskInstanceStates).insert(companion);
+    } else {
+      await (db.update(
+        db.taskInstanceStates,
+      )..where((row) => row.id.equals(existing.id))).write(companion);
+      localId = existing.id;
+    }
+    tx.taskInstanceStateChanged(localId);
     return true;
   }
 
@@ -192,11 +240,31 @@ class SyncApplier {
     )..where((row) => row.syncId.equals(payload.todoSyncId))).getSingleOrNull();
     var state = payload.state.wireName;
     final completedAt = todo?.completedAt;
+    var instanceCompletedAt = completedAt;
+    if (todo?.rrule != null && payload.occurrenceId != null) {
+      final instance =
+          await (db.select(db.taskInstanceStates)..where(
+                (row) =>
+                    row.todoSyncId.equals(payload.todoSyncId) &
+                    row.occurrenceId.equals(payload.occurrenceId!),
+              ))
+              .getSingleOrNull();
+      instanceCompletedAt = instance?.status == 'completed'
+          ? instance?.completedAt
+          : null;
+    }
     if (state == 'active' &&
-        todo?.status == 'COMPLETED' &&
-        completedAt != null &&
-        payload.startAt.toUtc().millisecondsSinceEpoch >=
-            completedAt.toUtc().millisecondsSinceEpoch) {
+            todo?.status == 'COMPLETED' &&
+            todo?.rrule == null &&
+            completedAt != null &&
+            payload.startAt.toUtc().millisecondsSinceEpoch >=
+                completedAt.toUtc().millisecondsSinceEpoch ||
+        state == 'active' &&
+            todo?.rrule != null &&
+            todo?.status != 'COMPLETED' &&
+            instanceCompletedAt != null &&
+            payload.startAt.toUtc().millisecondsSinceEpoch >=
+                instanceCompletedAt.toUtc().millisecondsSinceEpoch) {
       state = 'invalidatedByCompletion';
     }
     await TaskAllocationWriter.applyRemote(

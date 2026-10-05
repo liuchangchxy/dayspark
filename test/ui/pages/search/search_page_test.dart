@@ -47,11 +47,16 @@ void main() {
           inboxTodosProvider.overrideWith((ref) => Stream.value([todo])),
           todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
           toggleTodoProvider.overrideWith(
-            (ref) => ({required int id, required bool isCompleted}) async {
-              expect(id, todo.id);
-              expect(isCompleted, isTrue);
-              completionCalls++;
-            },
+            (ref) =>
+                ({
+                  required int id,
+                  required bool isCompleted,
+                  String? occurrenceId,
+                }) async {
+                  expect(id, todo.id);
+                  expect(isCompleted, isTrue);
+                  completionCalls++;
+                },
           ),
         ],
         child: MaterialApp.router(
@@ -120,11 +125,16 @@ void main() {
         overrides: [
           todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
           toggleTodoProvider.overrideWith(
-            (ref) => ({required int id, required bool isCompleted}) async {
-              expect(id, todo.id);
-              expect(isCompleted, isTrue);
-              completionCalls++;
-            },
+            (ref) =>
+                ({
+                  required int id,
+                  required bool isCompleted,
+                  String? occurrenceId,
+                }) async {
+                  expect(id, todo.id);
+                  expect(isCompleted, isTrue);
+                  completionCalls++;
+                },
           ),
           searchResultsProvider(
             'GUI验收-普通Todo-Edit',

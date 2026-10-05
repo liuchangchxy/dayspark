@@ -41,6 +41,19 @@ final class TaskAllocationWriter {
           !isOccurrenceStillValidForSeries(todo, occurrenceId)) {
         throw StateError('Occurrence does not belong to the current series.');
       }
+      if (todo.syncId != null) {
+        final instanceState = await (db.select(db.taskInstanceStates)
+              ..where(
+                (row) =>
+                    row.todoSyncId.equals(todo.syncId!) &
+                    row.occurrenceId.equals(occurrenceId),
+              ))
+            .getSingleOrNull();
+        if (instanceState?.status == 'completed' ||
+            instanceState?.status == 'skipped') {
+          throw StateError('A completed occurrence cannot receive a new allocation.');
+        }
+      }
     }
     final now = DateTime.now();
     final id = await db

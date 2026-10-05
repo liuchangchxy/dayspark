@@ -8,7 +8,17 @@ Source audit: `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`
 
 Implement local-calendar recurring Todo series with stable occurrence identities and safe occurrence-bound TaskAllocation, using one client/server recurrence engine. Preserve existing TaskAllocation behavior and Todo/Event separation.
 
-Out of scope: per-occurrence completion, skip-one, edit-this, edit-this-and-future, detached overrides, EXDATE/RDATE/THISANDFUTURE, automatic orphan migration, automatic legacy-zone inference, and bulk Allocation generation.
+Correction scope: sparse per-instance completion state, bounded actionable-instance Todo projection, and compatible client/server/MCP synchronization. Still out of scope: skip-one UI, edit-this, edit-this-and-future, detached overrides, EXDATE/RDATE/THISANDFUTURE, automatic orphan migration, automatic legacy-zone inference, and bulk Allocation generation.
+
+## Architecture correction — instance completion
+
+- Keep the Todo row as the series definition and keep the existing RecurrenceSpec/occurrence identity engine unchanged.
+- Persist only changed TaskInstance state under the stable `(todoSyncId, occurrenceId)` identity; virtualize unchanged instances.
+- Instance completion/reopen requires an explicit occurrenceId. The Todo series status is not changed by completing one instance.
+- Keep TaskAllocation as a separate entity. Completion invalidation only applies to active allocations with the matching parent and occurrenceId; ordinary Todo behavior is unchanged.
+- Existing recurring rows with `status=COMPLETED` remain explicit legacy series completions because their occurrence cannot be inferred. Do not fabricate a completion record; reopening the series is required before new instance completion.
+- Todo List may materialize a bounded, lazy window for actionable instances. Calendar continues to project Events and valid TaskAllocations, not bare recurrence instances as timed blocks.
+- Sync, server validation, BusyInterval, MCP complete/reopen, and migration must ship as one semantic closure behind explicit capability support.
 
 ## Gate 0 — Resolve design and toolchain blockers (must pass first)
 
@@ -76,6 +86,14 @@ R3 completion on 2026-10-05:
 - Run migration tests against existing databases and sync tests against old/new client capability combinations.
 - Perform manual UI/platform acceptance for timezone selection and lazy legacy prompt on mobile and desktop.
 - Release order: protocol-capable server and clients behind explicit capability; only then expose occurrence Allocation creation.
+
+## Architecture correction completion — 2026-10-06
+
+- Implemented sparse `TaskInstanceState` persistence (schema v14), explicit occurrence completion/undo, finite Todo-list selection, series-safe widget/notification behavior, matching Allocation invalidation, Calendar/Busy projections, capability-gated sync and server validation, and MCP occurrence arguments.
+- Migration preserves legacy recurring `COMPLETED` series without fabricating instance rows; schema v11 and fresh-database migration tests pass.
+- Local gates: `dart analyze .` and `flutter analyze` clean; root `flutter test` 469 passed; recurrence 20, contracts 53, server 236, wrapper 9, CLI 20 passed; whitespace/path scans clean. `git diff --check` clean after closeout edits.
+- Version consistency shell gate could not run: this Windows host resolves `bash` to the WSL launcher, which failed to connect to its local WSL service; no Git Bash installation is present. GitHub fetch was also blocked by the configured proxy, so latest `origin/main`, push, PR creation, and hosted CI remain pending.
+- Manual UI/platform acceptance and all hosted build jobs remain NOT RUN.
 
 R4 work started 2026-10-05:
 

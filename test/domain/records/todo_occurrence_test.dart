@@ -140,12 +140,19 @@ void main() {
       );
       await RecordScope.run(
         db,
-        (tx) => TodoWriter.setCompletion(db, tx, todoId, isCompleted: true),
+        (tx) => TodoWriter.setCompletion(
+          db,
+          tx,
+          todoId,
+          isCompleted: true,
+          occurrenceId: occurrenceId,
+        ),
       );
       final rows = await db.select(db.taskAllocations).get();
       expect(rows, hasLength(2));
       expect(rows.map((row) => row.occurrenceId), [occurrenceId, occurrenceId]);
       expect(rows.first.startAt, DateTime.utc(2026, 10, 11, 20));
+      expect(rows.first.state, 'invalidatedByCompletion');
       expect(rows.last.id, second);
       expect(rows.last.state, 'cancelledByUser');
     },
@@ -177,6 +184,95 @@ void main() {
     );
     expect(await db.select(db.taskAllocations).get(), isEmpty);
   });
+
+  test(
+    'instance completion leaves the series and sibling allocation active',
+    () async {
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2026, 10, 5, 9, 0, 0),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=2',
+      );
+      final todoId = await createSeries(spec);
+      final firstId = OccurrenceId.forNominal(
+        spec.anchor.value,
+        spec.timeZone,
+      ).value;
+      final secondId = OccurrenceId.forNominal(
+        LocalDateTime(2026, 10, 6, 9, 0, 0),
+        spec.timeZone,
+      ).value;
+      final firstAllocation = await RecordScope.run(
+        db,
+        (tx) => TaskAllocationWriter.create(
+          db,
+          tx,
+          todoId: todoId,
+          occurrenceId: firstId,
+          startAt: DateTime.now().toUtc().add(const Duration(days: 1)),
+          endAt: DateTime.now().toUtc().add(const Duration(days: 1, hours: 1)),
+        ),
+      );
+      final secondAllocation = await RecordScope.run(
+        db,
+        (tx) => TaskAllocationWriter.create(
+          db,
+          tx,
+          todoId: todoId,
+          occurrenceId: secondId,
+          startAt: DateTime.now().toUtc().add(const Duration(days: 2)),
+          endAt: DateTime.now().toUtc().add(const Duration(days: 2, hours: 1)),
+        ),
+      );
+      await RecordScope.run(
+        db,
+        (tx) => TodoWriter.setCompletion(
+          db,
+          tx,
+          todoId,
+          isCompleted: true,
+          occurrenceId: firstId,
+        ),
+      );
+
+      final todo = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      final first = await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.id.equals(firstAllocation))).getSingle();
+      final second = await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.id.equals(secondAllocation))).getSingle();
+      final state = await db.select(db.taskInstanceStates).getSingle();
+      expect(todo.status, 'NEEDS-ACTION');
+      expect(state.occurrenceId, firstId);
+      expect(first.state, 'invalidatedByCompletion');
+      expect(second.state, 'active');
+
+      await RecordScope.run(
+        db,
+        (tx) => TodoWriter.setCompletion(
+          db,
+          tx,
+          todoId,
+          isCompleted: false,
+          occurrenceId: firstId,
+        ),
+      );
+      final reopened = await (db.select(
+        db.taskInstanceStates,
+      )..where((row) => row.occurrenceId.equals(firstId))).getSingle();
+      final stillInvalidated = await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.id.equals(firstAllocation))).getSingle();
+      expect(reopened.status, 'pending');
+      expect(stillInvalidated.state, 'invalidatedByCompletion');
+    },
+  );
 
   test('unknown legacy is a distinct non-expanded result', () async {
     final id = await RecordScope.run(

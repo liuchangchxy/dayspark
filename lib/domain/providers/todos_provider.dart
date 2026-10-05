@@ -4,7 +4,9 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 final completedTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);
@@ -158,14 +160,38 @@ final confirmLegacyRecurrenceProvider =
 
 final toggleTodoProvider =
     Provider<
-      Future<void> Function({required int id, required bool isCompleted})
+      Future<void> Function({
+        required int id,
+        required bool isCompleted,
+        String? occurrenceId,
+      })
     >((ref) {
       final db = ref.read(databaseProvider);
-      return ({required int id, required bool isCompleted}) => RecordScope.run(
-        db,
-        (tx) => TodoWriter.setCompletion(db, tx, id, isCompleted: isCompleted),
-      );
+      return ({required int id, required bool isCompleted, occurrenceId}) =>
+          RecordScope.run(
+            db,
+            (tx) => TodoWriter.setCompletion(
+              db,
+              tx,
+              id,
+              isCompleted: isCompleted,
+              occurrenceId: occurrenceId,
+            ),
+          );
     });
+
+final ensureTodoSyncIdentityProvider = Provider<Future<Todo> Function(int)>((
+  ref,
+) {
+  final db = ref.read(databaseProvider);
+  return (int todoId) => RecordScope.run(db, (tx) async {
+    await SyncOutbox.enqueueUpsert(db, RecordType.todo, todoId);
+    tx.applied(RecordType.todo, todoId);
+    return (db.select(
+      db.todos,
+    )..where((row) => row.id.equals(todoId))).getSingle();
+  });
+});
 
 final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);

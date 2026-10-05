@@ -63,9 +63,9 @@ flowchart LR
   - 规则 2：`Todo.dueDate` 是截止时间，不是执行时段。创建、改期或取消 TaskAllocation 不得自动修改 Todo 的 `dueDate`。
   - 规则 3：一个 Todo 可关联零个或多个 TaskAllocation；重复 Todo 的每个 TaskAllocation 绑定一个 occurrence，不自动应用到整个重复系列。
   - 规则 4：TaskAllocation 表达为 Todo 预留的一段执行时间，具有独立身份和生命周期；可单独改期或取消。取消一个 Allocation 不删除或取消 Todo。
-  - 规则 5：用户取消的 Allocation 保留历史，普通 Calendar 不显示；Todo 历史可查看。Todo 完成时，所有 `startAt >= completedAt` 的 Allocation 转为 `invalidatedByCompletion` 并保留记录；已结束与正在进行的 Allocation 保持原状态。取消 Todo 完成不会自动恢复已失效 Allocation，用户须显式重新安排。
+  - 规则 5：用户取消的 Allocation 保留历史，普通 Calendar 不显示；Todo 历史可查看。普通（非重复）Todo 完成时，所有 `startAt >= completedAt` 的 Allocation 转为 `invalidatedByCompletion` 并保留记录；已结束与正在进行的 Allocation 保持原状态。重复 Todo 的完成依规则 15 限定到单个 occurrence。撤销完成不会自动恢复已失效 Allocation，用户须显式重新安排。
     - 完成边界比较统一使用 UTC instant：比较前将 `startAt`、`endAt`、`completedAt` 转为 UTC 并截断至毫秒，不四舍五入。`endAt <= completedAt` 保留为历史；`startAt < completedAt < endAt` 保持 active 至原定结束；`startAt >= completedAt` 转为 `invalidatedByCompletion`（包括相等边界）。
-  - 规则 6：TaskAllocation 仅在自身状态为 `active`、父 Todo 未取消且未进入回收站时显示并占用 busy time。若 Todo 已完成，按 `completedAt` 防御性校验：`startAt >= completedAt` 的 Allocation 不显示为有效安排且不占 busy；`startAt < completedAt < endAt` 的进行中 Allocation 保留并继续占用至原 `endAt`。已结束时段不影响未来空闲查询。`cancelledByUser` 与 `invalidatedByCompletion` 不占 busy time。
+  - 规则 6：TaskAllocation 仅在自身状态为 `active`、父 Todo 未取消且未进入回收站时显示并占用 busy time。普通 Todo 完成时依其 `completedAt` 防御性校验边界；重复 Todo 则依对应 occurrence 的稀疏实例状态校验，不得读取父 series 的完成字段来隐藏其他实例安排。已结束时段不影响未来空闲查询。`cancelledByUser` 与 `invalidatedByCompletion` 不占 busy time。
   - 规则 7：Todo 进入回收站期间，其 Allocation 记录与状态保留，但不显示且不占用 busy time；恢复 Todo 后，原本为 `active` 的 Allocation 恢复显示和占用，其他状态不变。永久删除 Todo 时，其 Allocation 一并永久删除并按同步 tombstone 传播。
   - 规则 8：重复 Todo 的 occurrence 采用本地钟点语义。存在 `startDate` 时以其作为 recurrence anchor；无 `startDate` 但有 `dueDate` 时以 `dueDate` 为 anchor；两者都没有时不允许创建 occurrence 级 Allocation。重复 Todo 必须持久化并同步其 `recurrenceTimeZone`（IANA 时区）；不得用接收设备当前时区替代。跨设备 occurrence identity 必须包含稳定的系列身份、本地日期时间和 IANA 时区。UTC recurrence-id 仅可作为迁移过渡实现，不得冻结为长期协议。既有重复 Todo 若无法可靠恢复其系列时区，不得静默推断；在时区被明确保存前，不允许为该系列创建 occurrence 级 Allocation。
   - 规则 9：首版 TaskAllocation 不独立支持提醒；Todo 自身现有 Reminder 语义保持不变。Allocation 改期或取消不改变 Todo Reminder 的参考时间。
@@ -73,7 +73,8 @@ flowchart LR
   - 规则 11：回收站为软删除；MCP/外部写入接口不提供物理硬删除，使用归档/软删姿态。永久清空按既有 tombstone 与保留期规则处理。
   - 规则 12：UI 文本必须 l10n 中英双语，禁止硬编码
   - 规则 13：服务端 busy-time 是 Event occurrence 与有效 TaskAllocation 的统一只读投影，不是持久化实体。单次查询按半开区间 `[startAt, endAt)` 裁剪到请求窗口；空闲查询只消费裁剪、排序并合并后的区间。相邻和重叠 busy 区间合并，Event 与 Allocation 使用同一规则。Todo `dueDate` 及没有 Allocation 的 Todo 不占用时间。Event 沿用现有语义：查询排除 tombstone 与 `deletedAt` 软删行，按窗口展开 recurrence；Event 契约没有取消状态，故当前不额外过滤未定义的 status 值。All-day Event 使用既有有效结束时刻规则（正长度沿用 `endDt`，否则占用 24 小时）。
-  - 规则 14：TaskAllocation 的 busy 有效性同时检查 Allocation 自身未 tombstone 且 `state == active`，并检查父 Todo 已解析、未 tombstone、未软删除且未取消。未完成 Todo 的 active Allocation 正常占用；已完成 Todo 依 `completedAt` 校验：`startAt >= completedAt` 不占用，`startAt < completedAt < endAt` 仍占用至 `endAt`；在 `completedAt` 前已结束的 Allocation 保留为历史记录，但其过去区间不影响面向未来的 `find_free_time`。不得仅凭 Todo 完成状态抹掉历史记录，也不得仅凭持久化 active 状态阻塞完成后的未来时间。
+  - 规则 14：TaskAllocation 的 busy 有效性同时检查 Allocation 自身未 tombstone 且 `state == active`，并检查父 Todo 已解析、未 tombstone、未软删除且未取消。普通 Todo 依其 `completedAt` 校验；重复 Todo 必须解析 Allocation 的 `occurrenceId` 与对应实例状态，仅该实例的完成边界可使其安排不占用，其他 occurrence 不受影响。无法解析实例状态时 fail closed，且不得从旧 series 完成字段推断具体实例。
+  - 规则 15：重复 Todo 的父 Todo 定义 TaskSeries，RecurrenceSpec 与稳定 `occurrenceId` 定义虚拟 TaskInstance。完成与撤销完成属于 `(todoSyncId, occurrenceId)`，调用必须提供有效 `occurrenceId`；缺少时拒绝。完成实例不将父 Todo 标为 `COMPLETED`，也不改变其他实例。该实例完成边界后开始的 active Allocation 失效；已结束或正在执行的 Allocation 保持原状态。撤销只清除同一实例状态，不自动恢复已失效 Allocation。Series 取消/归档与实例完成分离。仅持久化发生状态变化的实例；其他未来实例由 RecurrenceSpec 有界、惰性生成。Todo 清单可在明确有限窗口中列出可操作实例；通用原生小组件只有 series ID 时不得替用户选 occurrence，也不得把重复系列当成普通单次任务完成。Rule 修改后不再匹配的已完成实例仍按旧 key 保留为历史 orphan。既有 `rrule != null && status == COMPLETED` 无法定位到具体 occurrence，必须保留为 legacy series completion，不伪造实例状态；用户显式重开 series 后才允许新的实例级操作。
 
 #### TaskAllocation 生命周期状态
 
@@ -109,17 +110,17 @@ TaskAllocation 的领域状态为单一字段：
 - **旧客户端兼容**：缺少 recurrence 字段的旧 payload 仍可读写普通 Todo。旧客户端修改已启用 RecurrenceSpec 的 recurrence 投影字段时，服务端拒绝这些字段更新并保留当前系列；同一请求中独立的 title/status 等字段可继续应用。旧客户端读取时可忽略未知字段，并看到旧字段兼容投影。新协议 Todo recurrence capability 仅用于明确声明解析/写入新对象的客户端；服务端不得把新对象的投影反向解释为 RecurrenceSpec。客户端从缺少 recurrence capability 恢复到具备该能力时，必须从 cursor 0 做一次 capability backfill，以收回窗口内被投影隐藏的 RecurrenceSpec，再恢复增量 cursor。
 - **Legacy 确认入口**：领域入口 `confirmLegacyRecurrence` 必须要求 Todo ID、用户选择的 IANA timezone、anchor interpretation 与严格验证的 RRULE；一个 RecordScope/数据库事务内验证目标仍为 unknownLegacy recurring Todo、写入完整 knownZoned spec、增加 recurrence revision、更新兼容投影并登记 outbox。远端 apply 不回声。并发确认按 RecurrenceSpec 整组收敛。
 - **服务端 invariant**：non-recurring 为 spec=null 且 legacy state=null；knownZoned 必须具备有效 anchor、IANA timezone、RRULE 和 revision；unknownLegacy 允许保留旧 rrule/start/due，但 spec 必须 absent。任何 partial spec 均拒绝，不能落为正式 series。
-- **首版排除**：per-occurrence completion、skip-one、edit-this、edit-this-and-future、detached override、EXDATE/RDATE/THISANDFUTURE、完整 RECURRENCE-ID 图、自动迁移 orphan Allocation、自动猜 legacy zone、整条 series 批量生成 Allocation。
+- **首版排除**：skip-one、edit-this、edit-this-and-future、detached override、EXDATE/RDATE/THISANDFUTURE、完整 RECURRENCE-ID 图、自动迁移 orphan Allocation、自动猜 legacy zone、整条 series 批量生成 Allocation。实例完成使用独立稀疏状态记录，不改变 RecurrenceSpec、occurrence identity 或时区语义。
 
 ### 3.2 核心功能 B：跨设备同步（P2）
 - **业务描述**：自托管后端的双向同步
 - **业务规则契约**：
-  - 规则 1：记录 `{id: UUIDv7, type, payload, rev, deleted(tombstone), serverTs}`；`type` 包含 `event`、`todo`、`task_allocation`
+  - 规则 1：记录 `{id, type, payload, rev, deleted(tombstone), serverTs}`；`type` 包含 `event`、`todo`、`task_allocation`、`task_instance_state`。Instance state ID 是 `todoSyncId + occurrenceId` 的稳定确定性 ID。
   - 规则 2：push 幂等（opId 唯一约束），逐条结果返回，绝不整批回滚
   - 规则 3：pull 走服务器单调不透明 cursor（禁用时间戳当游标）；tombstone 走 pull，保留 ≥45 天
   - 规则 4：冲突 = 服务器时间戳字段级 LWW；同秒用 opId 字典序破平。TaskAllocation 的生命周期状态以一个字段同步；Calendar 与 busy-time 投影还必须校验父 Todo 回收站/取消状态及 `completedAt` 边界，不能仅凭 Allocation 行判定有效。
   - 规则 5：SSE 只发 `{cursor}` 信号，不发载荷
-  - 规则 6：新增 RecordType 必须有显式客户端 capability / protocol contract。服务端只能向声明支持该类型的客户端返回 `task_allocation`；未声明支持的旧客户端继续同步 `event` / `todo`，不得收到其无法解析的类型，也不得创建或修改 Allocation。能力字段及 wire contract 必须定义在 `dayspark_contracts` 并由测试校验，不得散落硬编码版本号判断。发布顺序为：先发布可解析 Allocation 的客户端，再启用服务端按 capability 下发，最后开放 MCP 或其他会创建 Allocation 的外部写接口。禁止以要求所有旧客户端全量升级代替兼容门控。
+  - 规则 6：新增 RecordType 必须有显式客户端 capability / protocol contract。服务端只能向声明支持类型的客户端返回 `task_allocation` 与 `task_instance_state`；未声明支持的旧客户端继续同步 `event` / `todo`，不得收到无法解析的类型，也不得创建或修改这些记录。能力及 wire contract 定义在 `dayspark_contracts` 并由测试校验。新能力启用时客户端必须 cursor-0 backfill。发布顺序为：先发布能解析新记录的客户端，再启用服务端按 capability 下发，最后开放 MCP 或其他外部完成入口。禁止以要求所有旧客户端全量升级代替兼容门控。
 
 ### 3.3 核心功能 C：MCP AI 读写（P3）
 - **业务规则契约**：

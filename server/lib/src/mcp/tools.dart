@@ -49,17 +49,18 @@ class McpTool {
   final Future<Map<String, Object?>> Function(
     McpToolContext ctx,
     Map<String, Object?> args,
-  ) handler;
+  )
+  handler;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'name': name,
-        'description': description,
-        'inputSchema': inputSchema,
-        'annotations': <String, Object?>{
-          'readOnlyHint': readOnly,
-          'destructiveHint': destructive,
-        },
-      };
+    'name': name,
+    'description': description,
+    'inputSchema': inputSchema,
+    'annotations': <String, Object?>{
+      'readOnlyHint': readOnly,
+      'destructiveHint': destructive,
+    },
+  };
 }
 
 const int _maxWindowDays = 366;
@@ -70,14 +71,13 @@ Map<String, Object?> _objectSchema(
   Map<String, Object?> properties, {
   List<String> required = const [],
   String? description,
-}) =>
-    <String, Object?>{
-      'type': 'object',
-      'additionalProperties': false,
-      if (required.isNotEmpty) 'required': required,
-      if (description != null) 'description': description,
-      'properties': properties,
-    };
+}) => <String, Object?>{
+  'type': 'object',
+  'additionalProperties': false,
+  if (required.isNotEmpty) 'required': required,
+  if (description != null) 'description': description,
+  'properties': properties,
+};
 
 final Map<String, Object?> _limitSchema = {
   'type': 'integer',
@@ -86,10 +86,7 @@ final Map<String, Object?> _limitSchema = {
   'description': 'page size (default $_defaultListLimit, max $_maxListLimit)',
 };
 
-final Map<String, Object?> _idSchema = {
-  'type': 'string',
-  'minLength': 1,
-};
+final Map<String, Object?> _idSchema = {'type': 'string', 'minLength': 1};
 
 bool _trashed(RecordRow row) {
   if (row.deleted) {
@@ -112,11 +109,10 @@ Future<RecordRow?> _findRow(
   String id, {
   required String type,
 }) {
-  return (ctx.db.select(ctx.db.records)
-        ..where((t) =>
-            t.userId.equals(ctx.userId) &
-            t.id.equals(id) &
-            t.type.equals(type)))
+  return (ctx.db.select(ctx.db.records)..where(
+        (t) =>
+            t.userId.equals(ctx.userId) & t.id.equals(id) & t.type.equals(type),
+      ))
       .getSingleOrNull();
 }
 
@@ -421,7 +417,6 @@ Map<String, Object?> _eventPayloadCreate({
   };
 }
 
-
 final List<McpTool> mcpTools = <McpTool>[
   McpTool(
     name: 'get_events',
@@ -441,7 +436,8 @@ final List<McpTool> mcpTools = <McpTool>[
       },
       'timezone': {
         'type': 'string',
-        'description': 'IANA timezone name (validated; window is instant-based)',
+        'description':
+            'IANA timezone name (validated; window is instant-based)',
       },
       'limit': _limitSchema,
     }),
@@ -468,11 +464,7 @@ final List<McpTool> mcpTools = <McpTool>[
         timezone: args['timezone'] as String? ?? 'UTC',
         limit: _maxListLimit,
       );
-      final expansion = expandRecordsInWindow(
-        page.records,
-        from: from,
-        to: to,
-      );
+      final expansion = expandRecordsInWindow(page.records, from: from, to: to);
       final all = expansion.instances;
       final events = <Map<String, Object?>>[];
       var truncated = expansion.truncated || page.hasMore;
@@ -493,7 +485,8 @@ final List<McpTool> mcpTools = <McpTool>[
           'description': payload['description'],
           'location': payload['location'],
           'recurrence': payload['rrule'],
-          'is_recurrence': payload['rrule'] is String &&
+          'is_recurrence':
+              payload['rrule'] is String &&
               (payload['rrule'] as String).isNotEmpty,
         });
       }
@@ -507,13 +500,11 @@ final List<McpTool> mcpTools = <McpTool>[
   ),
   McpTool(
     name: 'get_event',
-    description: 'Fetch one event by id (live records only; see list_trash for discarded ones).',
+    description:
+        'Fetch one event by id (live records only; see list_trash for discarded ones).',
     readOnly: true,
     destructive: false,
-    inputSchema: _objectSchema(
-      {'event_id': _idSchema},
-      required: ['event_id'],
-    ),
+    inputSchema: _objectSchema({'event_id': _idSchema}, required: ['event_id']),
     handler: (ctx, args) async {
       final row = await _requireVisible(
         ctx,
@@ -556,7 +547,8 @@ final List<McpTool> mcpTools = <McpTool>[
       final filter = args['filter'] as String?;
       switch (filter) {
         case 'today':
-          dueOn = '${now.year.toString().padLeft(4, '0')}-'
+          dueOn =
+              '${now.year.toString().padLeft(4, '0')}-'
               '${now.month.toString().padLeft(2, '0')}-'
               '${now.day.toString().padLeft(2, '0')}';
         case 'upcoming':
@@ -608,13 +600,11 @@ final List<McpTool> mcpTools = <McpTool>[
   ),
   McpTool(
     name: 'get_task',
-    description: 'Fetch one task by id (live records only; see list_trash for discarded ones).',
+    description:
+        'Fetch one task by id (live records only; see list_trash for discarded ones).',
     readOnly: true,
     destructive: false,
-    inputSchema: _objectSchema(
-      {'task_id': _idSchema},
-      required: ['task_id'],
-    ),
+    inputSchema: _objectSchema({'task_id': _idSchema}, required: ['task_id']),
     handler: (ctx, args) async {
       final row = await _requireVisible(
         ctx,
@@ -626,7 +616,8 @@ final List<McpTool> mcpTools = <McpTool>[
   ),
   McpTool(
     name: 'search',
-    description: 'Case-insensitive search over title and description of events and/or tasks.',
+    description:
+        'Case-insensitive search over title and description of events and/or tasks.',
     readOnly: true,
     destructive: false,
     inputSchema: _objectSchema({
@@ -667,10 +658,7 @@ final List<McpTool> mcpTools = <McpTool>[
           results.add({'kind': 'task', ...taskJson(row)});
         }
       }
-      return <String, Object?>{
-        'results': results,
-        'count': results.length,
-      };
+      return <String, Object?>{'results': results, 'count': results.length};
     },
   ),
   McpTool(
@@ -682,29 +670,30 @@ final List<McpTool> mcpTools = <McpTool>[
         'returns up to 10 slots.',
     readOnly: true,
     destructive: false,
-    inputSchema: _objectSchema({
-      'from': {'type': 'string'},
-      'to': {'type': 'string'},
-      'duration_minutes': {'type': 'integer', 'minimum': 1, 'maximum': 1440},
-      'timezone': {'type': 'string'},
-      'working_hours_start': {
-        'type': 'string',
-        'description': 'HH:MM local (default 09:00)',
-      },
-      'working_hours_end': {
-        'type': 'string',
-        'description': 'HH:MM local (default 18:00)',
-      },
-      'working_days': {
-        'type': 'array',
-        'items': {
+    inputSchema: _objectSchema(
+      {
+        'from': {'type': 'string'},
+        'to': {'type': 'string'},
+        'duration_minutes': {'type': 'integer', 'minimum': 1, 'maximum': 1440},
+        'timezone': {'type': 'string'},
+        'working_hours_start': {
           'type': 'string',
-          'enum': ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
+          'description': 'HH:MM local (default 09:00)',
         },
-        'minItems': 1,
-        'maxItems': 7,
+        'working_hours_end': {
+          'type': 'string',
+          'description': 'HH:MM local (default 18:00)',
+        },
+        'working_days': {
+          'type': 'array',
+          'items': {
+            'type': 'string',
+            'enum': ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
+          },
+          'minItems': 1,
+          'maxItems': 7,
+        },
       },
-    },
       required: ['from', 'to', 'duration_minutes', 'timezone'],
     ),
     handler: (ctx, args) async {
@@ -726,9 +715,7 @@ final List<McpTool> mcpTools = <McpTool>[
         final text = raw as String? ?? '';
         final match = RegExp(r'^(\d{2}):(\d{2})$').firstMatch(text);
         if (match == null) {
-          throw mcpValidation(
-            '$field must be HH:MM (24h), e.g. 09:00',
-          );
+          throw mcpValidation('$field must be HH:MM (24h), e.g. 09:00');
         }
         final hour = int.parse(match.group(1)!);
         final minute = int.parse(match.group(2)!);
@@ -738,10 +725,14 @@ final List<McpTool> mcpTools = <McpTool>[
         return (hour, minute);
       }
 
-      final (startHour, startMinute) =
-          parseHours(args['working_hours_start'], 'working_hours_start');
-      final (endHour, endMinute) =
-          parseHours(args['working_hours_end'], 'working_hours_end');
+      final (startHour, startMinute) = parseHours(
+        args['working_hours_start'],
+        'working_hours_start',
+      );
+      final (endHour, endMinute) = parseHours(
+        args['working_hours_end'],
+        'working_hours_end',
+      );
       if (endHour < startHour ||
           (endHour == startHour && endMinute <= startMinute)) {
         throw mcpValidation(
@@ -749,7 +740,8 @@ final List<McpTool> mcpTools = <McpTool>[
         );
       }
       const dayCodes = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
-      final rawDays = (args['working_days'] as List?)?.cast<String>().toSet() ??
+      final rawDays =
+          (args['working_days'] as List?)?.cast<String>().toSet() ??
           {'MO', 'TU', 'WE', 'TH', 'FR'};
       final workingDayNumbers = <int>{
         for (final code in rawDays) dayCodes.indexOf(code) + 1,
@@ -895,17 +887,22 @@ final List<McpTool> mcpTools = <McpTool>[
         'recurrence is a structured object.',
     readOnly: false,
     destructive: false,
-    inputSchema: _objectSchema({
-      'title': {'type': 'string', 'minLength': 1},
-      'start': {'type': 'string'},
-      'end': {'type': 'string'},
-      'timezone': {'type': 'string'},
-      'all_day': {'type': 'boolean'},
-      'description': {'type': ['string', 'null']},
-      'location': {'type': ['string', 'null']},
-      'recurrence': recurrenceSchema(),
-      'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
-    },
+    inputSchema: _objectSchema(
+      {
+        'title': {'type': 'string', 'minLength': 1},
+        'start': {'type': 'string'},
+        'end': {'type': 'string'},
+        'timezone': {'type': 'string'},
+        'all_day': {'type': 'boolean'},
+        'description': {
+          'type': ['string', 'null'],
+        },
+        'location': {
+          'type': ['string', 'null'],
+        },
+        'recurrence': recurrenceSchema(),
+        'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
+      },
       required: ['title', 'start', 'end'],
     ),
     handler: (ctx, args) async {
@@ -942,8 +939,11 @@ final List<McpTool> mcpTools = <McpTool>[
       );
       // An idempotent replay carries the FIRST call's record id — always
       // resolve through the op result, never through a freshly generated id.
-      final created =
-          await _findRow(ctx, result.serverRecord!.id, type: 'event');
+      final created = await _findRow(
+        ctx,
+        result.serverRecord!.id,
+        type: 'event',
+      );
       return <String, Object?>{
         'event': eventJson(created!),
         'op': await _opJson(result),
@@ -957,18 +957,23 @@ final List<McpTool> mcpTools = <McpTool>[
         'description/location/recurrence.',
     readOnly: false,
     destructive: false,
-    inputSchema: _objectSchema({
-      'event_id': _idSchema,
-      'title': {'type': 'string', 'minLength': 1},
-      'start': {'type': 'string'},
-      'end': {'type': 'string'},
-      'timezone': {'type': 'string'},
-      'all_day': {'type': 'boolean'},
-      'description': {'type': ['string', 'null']},
-      'location': {'type': ['string', 'null']},
-      'recurrence': recurrenceSchema(),
-      'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
-    },
+    inputSchema: _objectSchema(
+      {
+        'event_id': _idSchema,
+        'title': {'type': 'string', 'minLength': 1},
+        'start': {'type': 'string'},
+        'end': {'type': 'string'},
+        'timezone': {'type': 'string'},
+        'all_day': {'type': 'boolean'},
+        'description': {
+          'type': ['string', 'null'],
+        },
+        'location': {
+          'type': ['string', 'null'],
+        },
+        'recurrence': recurrenceSchema(),
+        'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
+      },
       required: ['event_id'],
     ),
     handler: (ctx, args) async {
@@ -995,9 +1000,15 @@ final List<McpTool> mcpTools = <McpTool>[
         fields['endDt'] = isoZ(end);
       }
       final effectiveStart =
-          start ?? (payload['startDt'] == null ? null : DateTime.tryParse(payload['startDt'] as String));
+          start ??
+          (payload['startDt'] == null
+              ? null
+              : DateTime.tryParse(payload['startDt'] as String));
       final effectiveEnd =
-          end ?? (payload['endDt'] == null ? null : DateTime.tryParse(payload['endDt'] as String));
+          end ??
+          (payload['endDt'] == null
+              ? null
+              : DateTime.tryParse(payload['endDt'] as String));
       if (effectiveStart != null && effectiveEnd != null) {
         if (!effectiveEnd.toUtc().isAfter(effectiveStart.toUtc())) {
           throw mcpValidation('end must be after start');
@@ -1023,7 +1034,8 @@ final List<McpTool> mcpTools = <McpTool>[
       if (fields.isEmpty) {
         throw mcpValidation(
           'no updatable fields supplied',
-          hint: 'Pass at least one of title, start, end, description, location, recurrence, all_day.',
+          hint:
+              'Pass at least one of title, start, end, description, location, recurrence, all_day.',
         );
       }
       fields['updatedAt'] = isoZ(now);
@@ -1049,10 +1061,7 @@ final List<McpTool> mcpTools = <McpTool>[
         'Not a permanent delete.',
     readOnly: false,
     destructive: true,
-    inputSchema: _objectSchema(
-      {'event_id': _idSchema},
-      required: ['event_id'],
-    ),
+    inputSchema: _objectSchema({'event_id': _idSchema}, required: ['event_id']),
     handler: (ctx, args) async {
       final row = await _findRow(
         ctx,
@@ -1078,10 +1087,7 @@ final List<McpTool> mcpTools = <McpTool>[
         ctx,
         recordId: row.id,
         type: RecordType.event,
-        fields: {
-          'deletedAt': isoZ(now),
-          'updatedAt': isoZ(now),
-        },
+        fields: {'deletedAt': isoZ(now), 'updatedAt': isoZ(now)},
         requestArgs: args,
       );
       final updated = await _findRow(ctx, row.id, type: 'event');
@@ -1100,23 +1106,27 @@ final List<McpTool> mcpTools = <McpTool>[
         'record (tag entities sync in a later phase).',
     readOnly: false,
     destructive: false,
-    inputSchema: _objectSchema({
-      'title': {'type': 'string', 'minLength': 1},
-      'due': {'type': 'string'},
-      'priority': {'type': 'integer', 'minimum': 0, 'maximum': 9},
-      'description': {'type': ['string', 'null']},
-      'tags': {
-        'type': 'array',
-        'items': {'type': 'string', 'minLength': 1},
+    inputSchema: _objectSchema(
+      {
+        'title': {'type': 'string', 'minLength': 1},
+        'due': {'type': 'string'},
+        'priority': {'type': 'integer', 'minimum': 0, 'maximum': 9},
+        'description': {
+          'type': ['string', 'null'],
+        },
+        'tags': {
+          'type': 'array',
+          'items': {'type': 'string', 'minLength': 1},
+        },
+        'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
       },
-      'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
-    },
       required: ['title'],
     ),
     handler: (ctx, args) async {
       final title = _requireTitle(args['title'], 'title');
-      final due =
-          args['due'] == null ? null : parseStrictUtc(args['due'], 'due');
+      final due = args['due'] == null
+          ? null
+          : parseStrictUtc(args['due'], 'due');
       final now = ctx.now.toUtc();
       final fields = _taskPayloadCreate(
         title: title,
@@ -1134,8 +1144,11 @@ final List<McpTool> mcpTools = <McpTool>[
         requestArgs: args,
         idempotencyKey: args['idempotency_key'] as String?,
       );
-      final created =
-          await _findRow(ctx, result.serverRecord!.id, type: 'todo');
+      final created = await _findRow(
+        ctx,
+        result.serverRecord!.id,
+        type: 'todo',
+      );
       return <String, Object?>{
         'task': taskJson(created!),
         'op': await _opJson(result),
@@ -1149,18 +1162,27 @@ final List<McpTool> mcpTools = <McpTool>[
         'due/description. Use complete_task/reopen_task for status.',
     readOnly: false,
     destructive: false,
-    inputSchema: _objectSchema({
-      'task_id': _idSchema,
-      'title': {'type': 'string', 'minLength': 1},
-      'due': {'type': ['string', 'null']},
-      'priority': {'type': ['integer', 'null'], 'minimum': 0, 'maximum': 9},
-      'description': {'type': ['string', 'null']},
-      'tags': {
-        'type': ['array', 'null'],
-        'items': {'type': 'string', 'minLength': 1},
+    inputSchema: _objectSchema(
+      {
+        'task_id': _idSchema,
+        'title': {'type': 'string', 'minLength': 1},
+        'due': {
+          'type': ['string', 'null'],
+        },
+        'priority': {
+          'type': ['integer', 'null'],
+          'minimum': 0,
+          'maximum': 9,
+        },
+        'description': {
+          'type': ['string', 'null'],
+        },
+        'tags': {
+          'type': ['array', 'null'],
+          'items': {'type': 'string', 'minLength': 1},
+        },
+        'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
       },
-      'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
-    },
       required: ['task_id'],
     ),
     handler: (ctx, args) async {
@@ -1212,11 +1234,15 @@ final List<McpTool> mcpTools = <McpTool>[
   ),
   McpTool(
     name: 'complete_task',
-    description: 'Mark a task completed (status COMPLETED, percent 100, completedAt set).',
+    description:
+        'Complete an ordinary task, or one recurring task instance identified by occurrence_id.',
     readOnly: false,
     destructive: false,
     inputSchema: _objectSchema(
-      {'task_id': _idSchema},
+      {
+        'task_id': _idSchema,
+        'occurrence_id': {'type': 'string'},
+      },
       required: ['task_id'],
     ),
     handler: (ctx, args) async {
@@ -1226,6 +1252,45 @@ final List<McpTool> mcpTools = <McpTool>[
         type: 'todo',
       );
       final now = ctx.now.toUtc();
+      final taskPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+      if (taskPayload['rrule'] != null) {
+        final occurrenceId = args['occurrence_id'];
+        if (occurrenceId is! String || occurrenceId.isEmpty) {
+          throw McpToolException(
+            'invalid_params',
+            'occurrence_id is required to complete a recurring task instance.',
+            'Choose one occurrence from the recurring series.',
+          );
+        }
+        if (taskPayload['status'] == 'COMPLETED') {
+          throw McpToolException(
+            'invalid_state',
+            'Reopen this legacy completed series before completing an instance.',
+            'The old completion has no occurrence identity.',
+          );
+        }
+        final state = TaskInstanceStatePayload(
+          todoSyncId: row.id,
+          occurrenceId: occurrenceId,
+          status: 'completed',
+          completedAt: now,
+          updatedAt: now,
+        );
+        final result = await _writeChecked(
+          ctx,
+          recordId: taskInstanceStateRecordId(row.id, occurrenceId),
+          type: RecordType.taskInstanceState,
+          fields: state.toJson(),
+          requestArgs: args,
+        );
+        return <String, Object?>{
+          'task_id': row.id,
+          'occurrence_id': occurrenceId,
+          'status': 'completed',
+          'completed_at': isoZ(now),
+          'op': await _opJson(result),
+        };
+      }
       final result = await _writeChecked(
         ctx,
         recordId: row.id,
@@ -1247,11 +1312,15 @@ final List<McpTool> mcpTools = <McpTool>[
   ),
   McpTool(
     name: 'reopen_task',
-    description: 'Reopen a completed task (status NEEDS-ACTION, percent 0, completedAt cleared).',
+    description:
+        'Reopen an ordinary task, or one recurring task instance identified by occurrence_id.',
     readOnly: false,
     destructive: false,
     inputSchema: _objectSchema(
-      {'task_id': _idSchema},
+      {
+        'task_id': _idSchema,
+        'occurrence_id': {'type': 'string'},
+      },
       required: ['task_id'],
     ),
     handler: (ctx, args) async {
@@ -1261,6 +1330,39 @@ final List<McpTool> mcpTools = <McpTool>[
         type: 'todo',
       );
       final now = ctx.now.toUtc();
+      final taskPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+      if (taskPayload['rrule'] != null &&
+          !(taskPayload['status'] == 'COMPLETED' &&
+              args['occurrence_id'] == null)) {
+        final occurrenceId = args['occurrence_id'];
+        if (occurrenceId is! String || occurrenceId.isEmpty) {
+          throw McpToolException(
+            'invalid_params',
+            'occurrence_id is required to reopen a recurring task instance.',
+            'Choose one occurrence from the recurring series.',
+          );
+        }
+        final state = TaskInstanceStatePayload(
+          todoSyncId: row.id,
+          occurrenceId: occurrenceId,
+          status: 'pending',
+          completedAt: null,
+          updatedAt: now,
+        );
+        final result = await _writeChecked(
+          ctx,
+          recordId: taskInstanceStateRecordId(row.id, occurrenceId),
+          type: RecordType.taskInstanceState,
+          fields: state.toJson(),
+          requestArgs: args,
+        );
+        return <String, Object?>{
+          'task_id': row.id,
+          'occurrence_id': occurrenceId,
+          'status': 'pending',
+          'op': await _opJson(result),
+        };
+      }
       final result = await _writeChecked(
         ctx,
         recordId: row.id,
@@ -1306,10 +1408,7 @@ final List<McpTool> mcpTools = <McpTool>[
         ctx,
         recordId: row.id,
         type: RecordType.todo,
-        fields: {
-          'dueDate': isoZ(until),
-          'updatedAt': isoZ(now),
-        },
+        fields: {'dueDate': isoZ(until), 'updatedAt': isoZ(now)},
         requestArgs: args,
       );
       final updated = await _findRow(ctx, row.id, type: 'todo');
@@ -1326,16 +1425,9 @@ final List<McpTool> mcpTools = <McpTool>[
         'Not a permanent delete.',
     readOnly: false,
     destructive: true,
-    inputSchema: _objectSchema(
-      {'task_id': _idSchema},
-      required: ['task_id'],
-    ),
+    inputSchema: _objectSchema({'task_id': _idSchema}, required: ['task_id']),
     handler: (ctx, args) async {
-      final row = await _findRow(
-        ctx,
-        args['task_id']! as String,
-        type: 'todo',
-      );
+      final row = await _findRow(ctx, args['task_id']! as String, type: 'todo');
       if (row == null) {
         throw McpToolException(
           mcpCodeTaskNotFound,
@@ -1355,10 +1447,7 @@ final List<McpTool> mcpTools = <McpTool>[
         ctx,
         recordId: row.id,
         type: RecordType.todo,
-        fields: {
-          'deletedAt': isoZ(now),
-          'updatedAt': isoZ(now),
-        },
+        fields: {'deletedAt': isoZ(now), 'updatedAt': isoZ(now)},
         requestArgs: args,
       );
       final updated = await _findRow(ctx, row.id, type: 'todo');
@@ -1377,28 +1466,34 @@ final List<McpTool> mcpTools = <McpTool>[
         'idempotency_key; schema validation runs before any write.',
     readOnly: false,
     destructive: false,
-    inputSchema: _objectSchema({
-      'tasks': {
-        'type': 'array',
-        'minItems': 1,
-        'maxItems': 100,
-        'items': _objectSchema({
-          'title': {'type': 'string', 'minLength': 1},
-          'due': {'type': 'string'},
-          'priority': {'type': 'integer', 'minimum': 0, 'maximum': 9},
-          'description': {'type': ['string', 'null']},
-          'tags': {
-            'type': 'array',
-            'items': {'type': 'string', 'minLength': 1},
-          },
-          'idempotency_key': {
-            'type': 'string',
-            'minLength': 1,
-            'maxLength': 128,
-          },
-        }, required: ['title']),
+    inputSchema: _objectSchema(
+      {
+        'tasks': {
+          'type': 'array',
+          'minItems': 1,
+          'maxItems': 100,
+          'items': _objectSchema(
+            {
+              'title': {'type': 'string', 'minLength': 1},
+              'due': {'type': 'string'},
+              'priority': {'type': 'integer', 'minimum': 0, 'maximum': 9},
+              'description': {
+                'type': ['string', 'null'],
+              },
+              'tags': {
+                'type': 'array',
+                'items': {'type': 'string', 'minLength': 1},
+              },
+              'idempotency_key': {
+                'type': 'string',
+                'minLength': 1,
+                'maxLength': 128,
+              },
+            },
+            required: ['title'],
+          ),
+        },
       },
-    },
       required: ['tasks'],
     ),
     handler: (ctx, args) async {
@@ -1429,8 +1524,11 @@ final List<McpTool> mcpTools = <McpTool>[
             requestArgs: item,
             idempotencyKey: item['idempotency_key'] as String?,
           );
-          final row =
-              await _findRow(ctx, result.serverRecord!.id, type: 'todo');
+          final row = await _findRow(
+            ctx,
+            result.serverRecord!.id,
+            type: 'todo',
+          );
           created++;
           results.add(<String, Object?>{
             'index': i,

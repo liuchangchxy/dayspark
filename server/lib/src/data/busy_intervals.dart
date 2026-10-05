@@ -113,10 +113,37 @@ Future<List<BusyInterval>> getBusyIntervals(
           continue;
         }
         if (todo['status'] == 'COMPLETED') {
+          if (todo['rrule'] != null) continue;
           final rawCompletedAt = todo['completedAt'];
           if (rawCompletedAt is! String) continue;
           final completedAt = DateTime.parse(rawCompletedAt).toUtc();
           if (!startAt.isBefore(completedAt)) continue;
+        }
+        if (todo['rrule'] != null && payload['occurrenceId'] is String) {
+          final instanceId = taskInstanceStateRecordId(
+            todoSyncId,
+            payload['occurrenceId'] as String,
+          );
+          final instanceRow =
+              await (db.select(db.records)..where(
+                    (row) =>
+                        row.userId.equals(userId) &
+                        row.id.equals(instanceId) &
+                        row.type.equals(RecordType.taskInstanceState.wireName) &
+                        row.deleted.equals(false),
+                  ))
+                  .getSingleOrNull();
+          if (instanceRow != null) {
+            final instance = TaskInstanceStatePayload.fromJson(
+              jsonDecode(instanceRow.payloadJson) as Map<String, dynamic>,
+            );
+            if (instance.status == 'skipped') continue;
+            final completedAt = instance.completedAt;
+            if (instance.status == 'completed' &&
+                (completedAt == null || !startAt.isBefore(completedAt))) {
+              continue;
+            }
+          }
         }
       } on Object {
         continue;

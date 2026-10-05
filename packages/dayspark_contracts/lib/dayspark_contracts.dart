@@ -8,7 +8,9 @@ export 'src/record_dto.dart'
         SyncRecord,
         TaskAllocationPayload,
         TaskAllocationState,
-        TaskAllocationStateWireName;
+        TaskAllocationStateWireName,
+        TaskInstanceStatePayload,
+        taskInstanceStateRecordId;
 export 'src/todo_recurrence_dto.dart';
 export 'src/sync_api.dart'
     show

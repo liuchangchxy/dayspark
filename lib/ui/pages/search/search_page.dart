@@ -132,11 +132,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               isCompleted: todo.status == 'COMPLETED',
                               priority: todo.priority,
                               todoId: todo.id,
+                              todo: todo,
                               dueDate: todo.dueDate,
-                              onToggle: () => ref.read(toggleTodoProvider)(
-                                id: todo.id,
-                                isCompleted: todo.status != 'COMPLETED',
-                              ),
+                              onToggle: (occurrenceId, isCompleted) =>
+                                  ref.read(toggleTodoProvider)(
+                                    id: todo.id,
+                                    isCompleted: isCompleted,
+                                    occurrenceId: occurrenceId,
+                                  ),
                               onTap: () {
                                 context.push('/todo/edit', extra: todo);
                               },
@@ -172,11 +175,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             isCompleted: todo.status == 'COMPLETED',
             priority: todo.priority,
             todoId: todo.id,
+            todo: todo,
             dueDate: todo.dueDate,
-            onToggle: () => ref.read(toggleTodoProvider)(
-              id: todo.id,
-              isCompleted: todo.status != 'COMPLETED',
-            ),
+            onToggle: (occurrenceId, isCompleted) =>
+                ref.read(toggleTodoProvider)(
+                  id: todo.id,
+                  isCompleted: isCompleted,
+                  occurrenceId: occurrenceId,
+                ),
             onTap: () => context.push('/todo/edit', extra: todo),
           ),
       ],

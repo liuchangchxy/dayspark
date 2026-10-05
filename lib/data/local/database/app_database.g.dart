@@ -5352,6 +5352,567 @@ class TaskAllocationsCompanion extends UpdateCompanion<TaskAllocation> {
   }
 }
 
+class $TaskInstanceStatesTable extends TaskInstanceStates
+    with TableInfo<$TaskInstanceStatesTable, TaskInstanceState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskInstanceStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _todoSyncIdMeta = const VerificationMeta(
+    'todoSyncId',
+  );
+  @override
+  late final GeneratedColumn<String> todoSyncId = GeneratedColumn<String>(
+    'todo_sync_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _todoIdMeta = const VerificationMeta('todoId');
+  @override
+  late final GeneratedColumn<int> todoId = GeneratedColumn<int>(
+    'todo_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _occurrenceIdMeta = const VerificationMeta(
+    'occurrenceId',
+  );
+  @override
+  late final GeneratedColumn<String> occurrenceId = GeneratedColumn<String>(
+    'occurrence_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('completed'),
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _serverRevMeta = const VerificationMeta(
+    'serverRev',
+  );
+  @override
+  late final GeneratedColumn<int> serverRev = GeneratedColumn<int>(
+    'server_rev',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    syncId,
+    todoSyncId,
+    todoId,
+    occurrenceId,
+    status,
+    completedAt,
+    updatedAt,
+    serverRev,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_instance_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskInstanceState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_syncIdMeta);
+    }
+    if (data.containsKey('todo_sync_id')) {
+      context.handle(
+        _todoSyncIdMeta,
+        todoSyncId.isAcceptableOrUnknown(
+          data['todo_sync_id']!,
+          _todoSyncIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_todoSyncIdMeta);
+    }
+    if (data.containsKey('todo_id')) {
+      context.handle(
+        _todoIdMeta,
+        todoId.isAcceptableOrUnknown(data['todo_id']!, _todoIdMeta),
+      );
+    }
+    if (data.containsKey('occurrence_id')) {
+      context.handle(
+        _occurrenceIdMeta,
+        occurrenceId.isAcceptableOrUnknown(
+          data['occurrence_id']!,
+          _occurrenceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_occurrenceIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('server_rev')) {
+      context.handle(
+        _serverRevMeta,
+        serverRev.isAcceptableOrUnknown(data['server_rev']!, _serverRevMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {todoSyncId, occurrenceId},
+  ];
+  @override
+  TaskInstanceState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskInstanceState(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      )!,
+      todoSyncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}todo_sync_id'],
+      )!,
+      todoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}todo_id'],
+      ),
+      occurrenceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}occurrence_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      serverRev: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_rev'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskInstanceStatesTable createAlias(String alias) {
+    return $TaskInstanceStatesTable(attachedDatabase, alias);
+  }
+}
+
+class TaskInstanceState extends DataClass
+    implements Insertable<TaskInstanceState> {
+  final int id;
+  final String syncId;
+  final String todoSyncId;
+  final int? todoId;
+  final String occurrenceId;
+  final String status;
+  final DateTime? completedAt;
+  final DateTime updatedAt;
+  final int serverRev;
+  const TaskInstanceState({
+    required this.id,
+    required this.syncId,
+    required this.todoSyncId,
+    this.todoId,
+    required this.occurrenceId,
+    required this.status,
+    this.completedAt,
+    required this.updatedAt,
+    required this.serverRev,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['sync_id'] = Variable<String>(syncId);
+    map['todo_sync_id'] = Variable<String>(todoSyncId);
+    if (!nullToAbsent || todoId != null) {
+      map['todo_id'] = Variable<int>(todoId);
+    }
+    map['occurrence_id'] = Variable<String>(occurrenceId);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['server_rev'] = Variable<int>(serverRev);
+    return map;
+  }
+
+  TaskInstanceStatesCompanion toCompanion(bool nullToAbsent) {
+    return TaskInstanceStatesCompanion(
+      id: Value(id),
+      syncId: Value(syncId),
+      todoSyncId: Value(todoSyncId),
+      todoId: todoId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(todoId),
+      occurrenceId: Value(occurrenceId),
+      status: Value(status),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      updatedAt: Value(updatedAt),
+      serverRev: Value(serverRev),
+    );
+  }
+
+  factory TaskInstanceState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskInstanceState(
+      id: serializer.fromJson<int>(json['id']),
+      syncId: serializer.fromJson<String>(json['syncId']),
+      todoSyncId: serializer.fromJson<String>(json['todoSyncId']),
+      todoId: serializer.fromJson<int?>(json['todoId']),
+      occurrenceId: serializer.fromJson<String>(json['occurrenceId']),
+      status: serializer.fromJson<String>(json['status']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      serverRev: serializer.fromJson<int>(json['serverRev']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'syncId': serializer.toJson<String>(syncId),
+      'todoSyncId': serializer.toJson<String>(todoSyncId),
+      'todoId': serializer.toJson<int?>(todoId),
+      'occurrenceId': serializer.toJson<String>(occurrenceId),
+      'status': serializer.toJson<String>(status),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'serverRev': serializer.toJson<int>(serverRev),
+    };
+  }
+
+  TaskInstanceState copyWith({
+    int? id,
+    String? syncId,
+    String? todoSyncId,
+    Value<int?> todoId = const Value.absent(),
+    String? occurrenceId,
+    String? status,
+    Value<DateTime?> completedAt = const Value.absent(),
+    DateTime? updatedAt,
+    int? serverRev,
+  }) => TaskInstanceState(
+    id: id ?? this.id,
+    syncId: syncId ?? this.syncId,
+    todoSyncId: todoSyncId ?? this.todoSyncId,
+    todoId: todoId.present ? todoId.value : this.todoId,
+    occurrenceId: occurrenceId ?? this.occurrenceId,
+    status: status ?? this.status,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    serverRev: serverRev ?? this.serverRev,
+  );
+  TaskInstanceState copyWithCompanion(TaskInstanceStatesCompanion data) {
+    return TaskInstanceState(
+      id: data.id.present ? data.id.value : this.id,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      todoSyncId: data.todoSyncId.present
+          ? data.todoSyncId.value
+          : this.todoSyncId,
+      todoId: data.todoId.present ? data.todoId.value : this.todoId,
+      occurrenceId: data.occurrenceId.present
+          ? data.occurrenceId.value
+          : this.occurrenceId,
+      status: data.status.present ? data.status.value : this.status,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskInstanceState(')
+          ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
+          ..write('todoSyncId: $todoSyncId, ')
+          ..write('todoId: $todoId, ')
+          ..write('occurrenceId: $occurrenceId, ')
+          ..write('status: $status, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverRev: $serverRev')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    syncId,
+    todoSyncId,
+    todoId,
+    occurrenceId,
+    status,
+    completedAt,
+    updatedAt,
+    serverRev,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskInstanceState &&
+          other.id == this.id &&
+          other.syncId == this.syncId &&
+          other.todoSyncId == this.todoSyncId &&
+          other.todoId == this.todoId &&
+          other.occurrenceId == this.occurrenceId &&
+          other.status == this.status &&
+          other.completedAt == this.completedAt &&
+          other.updatedAt == this.updatedAt &&
+          other.serverRev == this.serverRev);
+}
+
+class TaskInstanceStatesCompanion extends UpdateCompanion<TaskInstanceState> {
+  final Value<int> id;
+  final Value<String> syncId;
+  final Value<String> todoSyncId;
+  final Value<int?> todoId;
+  final Value<String> occurrenceId;
+  final Value<String> status;
+  final Value<DateTime?> completedAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> serverRev;
+  const TaskInstanceStatesCompanion({
+    this.id = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.todoSyncId = const Value.absent(),
+    this.todoId = const Value.absent(),
+    this.occurrenceId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverRev = const Value.absent(),
+  });
+  TaskInstanceStatesCompanion.insert({
+    this.id = const Value.absent(),
+    required String syncId,
+    required String todoSyncId,
+    this.todoId = const Value.absent(),
+    required String occurrenceId,
+    this.status = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.serverRev = const Value.absent(),
+  }) : syncId = Value(syncId),
+       todoSyncId = Value(todoSyncId),
+       occurrenceId = Value(occurrenceId);
+  static Insertable<TaskInstanceState> custom({
+    Expression<int>? id,
+    Expression<String>? syncId,
+    Expression<String>? todoSyncId,
+    Expression<int>? todoId,
+    Expression<String>? occurrenceId,
+    Expression<String>? status,
+    Expression<DateTime>? completedAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? serverRev,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (syncId != null) 'sync_id': syncId,
+      if (todoSyncId != null) 'todo_sync_id': todoSyncId,
+      if (todoId != null) 'todo_id': todoId,
+      if (occurrenceId != null) 'occurrence_id': occurrenceId,
+      if (status != null) 'status': status,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (serverRev != null) 'server_rev': serverRev,
+    });
+  }
+
+  TaskInstanceStatesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? syncId,
+    Value<String>? todoSyncId,
+    Value<int?>? todoId,
+    Value<String>? occurrenceId,
+    Value<String>? status,
+    Value<DateTime?>? completedAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? serverRev,
+  }) {
+    return TaskInstanceStatesCompanion(
+      id: id ?? this.id,
+      syncId: syncId ?? this.syncId,
+      todoSyncId: todoSyncId ?? this.todoSyncId,
+      todoId: todoId ?? this.todoId,
+      occurrenceId: occurrenceId ?? this.occurrenceId,
+      status: status ?? this.status,
+      completedAt: completedAt ?? this.completedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      serverRev: serverRev ?? this.serverRev,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (todoSyncId.present) {
+      map['todo_sync_id'] = Variable<String>(todoSyncId.value);
+    }
+    if (todoId.present) {
+      map['todo_id'] = Variable<int>(todoId.value);
+    }
+    if (occurrenceId.present) {
+      map['occurrence_id'] = Variable<String>(occurrenceId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (serverRev.present) {
+      map['server_rev'] = Variable<int>(serverRev.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskInstanceStatesCompanion(')
+          ..write('id: $id, ')
+          ..write('syncId: $syncId, ')
+          ..write('todoSyncId: $todoSyncId, ')
+          ..write('todoId: $todoId, ')
+          ..write('occurrenceId: $occurrenceId, ')
+          ..write('status: $status, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('serverRev: $serverRev')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5367,6 +5928,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TaskAllocationsTable taskAllocations = $TaskAllocationsTable(
     this,
   );
+  late final $TaskInstanceStatesTable taskInstanceStates =
+      $TaskInstanceStatesTable(this);
   late final Index taskAllocationsTodoId = Index(
     'task_allocations_todo_id',
     'CREATE INDEX task_allocations_todo_id ON task_allocations (todo_id)',
@@ -5401,6 +5964,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     reminders,
     syncOutbox,
     taskAllocations,
+    taskInstanceStates,
     taskAllocationsTodoId,
     taskAllocationsTodoSyncId,
     taskAllocationsSyncId,
@@ -9461,6 +10025,295 @@ typedef $$TaskAllocationsTableProcessedTableManager =
       TaskAllocation,
       PrefetchHooks Function({bool todoId})
     >;
+typedef $$TaskInstanceStatesTableCreateCompanionBuilder =
+    TaskInstanceStatesCompanion Function({
+      Value<int> id,
+      required String syncId,
+      required String todoSyncId,
+      Value<int?> todoId,
+      required String occurrenceId,
+      Value<String> status,
+      Value<DateTime?> completedAt,
+      Value<DateTime> updatedAt,
+      Value<int> serverRev,
+    });
+typedef $$TaskInstanceStatesTableUpdateCompanionBuilder =
+    TaskInstanceStatesCompanion Function({
+      Value<int> id,
+      Value<String> syncId,
+      Value<String> todoSyncId,
+      Value<int?> todoId,
+      Value<String> occurrenceId,
+      Value<String> status,
+      Value<DateTime?> completedAt,
+      Value<DateTime> updatedAt,
+      Value<int> serverRev,
+    });
+
+class $$TaskInstanceStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskInstanceStatesTable> {
+  $$TaskInstanceStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get todoId => $composableBuilder(
+    column: $table.todoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TaskInstanceStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskInstanceStatesTable> {
+  $$TaskInstanceStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get todoId => $composableBuilder(
+    column: $table.todoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskInstanceStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskInstanceStatesTable> {
+  $$TaskInstanceStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get todoId =>
+      $composableBuilder(column: $table.todoId, builder: (column) => column);
+
+  GeneratedColumn<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRev =>
+      $composableBuilder(column: $table.serverRev, builder: (column) => column);
+}
+
+class $$TaskInstanceStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskInstanceStatesTable,
+          TaskInstanceState,
+          $$TaskInstanceStatesTableFilterComposer,
+          $$TaskInstanceStatesTableOrderingComposer,
+          $$TaskInstanceStatesTableAnnotationComposer,
+          $$TaskInstanceStatesTableCreateCompanionBuilder,
+          $$TaskInstanceStatesTableUpdateCompanionBuilder,
+          (
+            TaskInstanceState,
+            BaseReferences<
+              _$AppDatabase,
+              $TaskInstanceStatesTable,
+              TaskInstanceState
+            >,
+          ),
+          TaskInstanceState,
+          PrefetchHooks Function()
+        > {
+  $$TaskInstanceStatesTableTableManager(
+    _$AppDatabase db,
+    $TaskInstanceStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskInstanceStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskInstanceStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskInstanceStatesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> syncId = const Value.absent(),
+                Value<String> todoSyncId = const Value.absent(),
+                Value<int?> todoId = const Value.absent(),
+                Value<String> occurrenceId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
+              }) => TaskInstanceStatesCompanion(
+                id: id,
+                syncId: syncId,
+                todoSyncId: todoSyncId,
+                todoId: todoId,
+                occurrenceId: occurrenceId,
+                status: status,
+                completedAt: completedAt,
+                updatedAt: updatedAt,
+                serverRev: serverRev,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String syncId,
+                required String todoSyncId,
+                Value<int?> todoId = const Value.absent(),
+                required String occurrenceId,
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
+              }) => TaskInstanceStatesCompanion.insert(
+                id: id,
+                syncId: syncId,
+                todoSyncId: todoSyncId,
+                todoId: todoId,
+                occurrenceId: occurrenceId,
+                status: status,
+                completedAt: completedAt,
+                updatedAt: updatedAt,
+                serverRev: serverRev,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TaskInstanceStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskInstanceStatesTable,
+      TaskInstanceState,
+      $$TaskInstanceStatesTableFilterComposer,
+      $$TaskInstanceStatesTableOrderingComposer,
+      $$TaskInstanceStatesTableAnnotationComposer,
+      $$TaskInstanceStatesTableCreateCompanionBuilder,
+      $$TaskInstanceStatesTableUpdateCompanionBuilder,
+      (
+        TaskInstanceState,
+        BaseReferences<
+          _$AppDatabase,
+          $TaskInstanceStatesTable,
+          TaskInstanceState
+        >,
+      ),
+      TaskInstanceState,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9484,4 +10337,6 @@ class $AppDatabaseManager {
       $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
   $$TaskAllocationsTableTableManager get taskAllocations =>
       $$TaskAllocationsTableTableManager(_db, _db.taskAllocations);
+  $$TaskInstanceStatesTableTableManager get taskInstanceStates =>
+      $$TaskInstanceStatesTableTableManager(_db, _db.taskInstanceStates);
 }

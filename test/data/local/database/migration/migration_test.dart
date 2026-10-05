@@ -413,7 +413,7 @@ Future<void> _runAndVerify(File file) async {
 
 void main() {
   group('Database migration', () {
-    test('v1 → v13 full migration preserves data integrity', () async {
+    test('v1 → v14 full migration preserves data integrity', () async {
       final file = _createV1Database();
       try {
         await _runAndVerify(file);
@@ -423,13 +423,13 @@ void main() {
     });
 
     test(
-      'v11 → v13 marks legacy recurrence without inferring timezone',
+      'v11 → v14 marks legacy recurrence without inferring timezone or inventing instance state',
       () async {
         final file = _createV11Database();
         try {
           final db = AppDatabase.forExecutor(NativeDatabase(file));
           try {
-            expect(db.schemaVersion, 13);
+            expect(db.schemaVersion, 14);
             final todos = await (db.select(
               db.todos,
             )..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
@@ -465,6 +465,7 @@ void main() {
             expect(await (db.select(db.attachments)).get(), hasLength(1));
             expect(await (db.select(db.reminders)).get(), hasLength(1));
             expect(await (db.select(db.taskAllocations)).get(), hasLength(1));
+            expect(await (db.select(db.taskInstanceStates)).get(), isEmpty);
           } finally {
             await db.close();
           }
@@ -483,10 +484,10 @@ void main() {
       },
     );
 
-    test('fresh database at v13 initializes correctly', () async {
+    test('fresh database at v14 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 13);
+        expect(db.schemaVersion, 14);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
@@ -498,9 +499,9 @@ void main() {
       }
     });
 
-    test('schema snapshot exists for v13', () async {
+    test('schema snapshot exists for v14', () async {
       final schemaFile = File(
-        'drift_schemas/app_database/drift_schema_v13.json',
+        'drift_schemas/app_database/drift_schema_v14.json',
       );
       expect(
         await schemaFile.exists(),

@@ -29,7 +29,11 @@ final consumeWidgetPendingTapsProvider =
         final toggleTodo = ref.read(toggleTodoProvider);
         for (final tap in taps) {
           if (tap.action == 'complete') {
-            await toggleTodo(id: tap.todoId, isCompleted: true);
+            try {
+              await toggleTodo(id: tap.todoId, isCompleted: true);
+            } on StateError {
+              continue;
+            }
           }
         }
       };

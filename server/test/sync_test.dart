@@ -161,6 +161,7 @@ void main() {
     expect((await _json(discovery))['capabilities'], [
       'task_allocation_v1',
       'todo_recurrence_v1',
+      'task_instance_state_v1',
     ]);
 
     final unsupportedPush = await _push(
@@ -1146,4 +1147,135 @@ void main() {
     final error = body['error'] as Map<String, dynamic>;
     expect(error['message'], contains('256KB'));
   });
+
+  test(
+    'instance completion invalidates only matching occurrence allocations',
+    () async {
+      final account = await _register(app, 'instance-completion@example.com');
+      final token = account['token']!;
+      const todoId = 'series-instance-test';
+      const firstOccurrence = 'v1:DT:2026-10-05T09:00:00@Asia/Shanghai';
+      const secondOccurrence = 'v1:DT:2026-10-06T09:00:00@Asia/Shanghai';
+      final todoFields = {
+        'summary': 'Series',
+        'status': 'NEEDS-ACTION',
+        'rrule': 'FREQ=DAILY;COUNT=2',
+        'recurrenceSpec': {
+          'anchor': {
+            'source': 'start',
+            'valueType': 'dateTime',
+            'value': '2026-10-05T09:00:00',
+          },
+          'timeZone': 'Asia/Shanghai',
+          'rrule': 'FREQ=DAILY;COUNT=2',
+        },
+        'recurrenceRevision': 1,
+        'recurrenceLegacyState': 'knownZoned',
+      };
+      final capabilities = [
+        SyncCapability.todoRecurrenceV1,
+        SyncCapability.taskAllocationV1,
+        SyncCapability.taskInstanceStateV1,
+      ];
+      await _push(
+        app,
+        token,
+        capabilities: capabilities,
+        ops: [
+          _upsertOp(
+            opId: 'instance-series',
+            recordId: todoId,
+            fields: todoFields,
+          ),
+          for (final item in [
+            ('allocation-a', firstOccurrence, '2026-10-07T09:00:00.000Z'),
+            ('allocation-b', secondOccurrence, '2026-10-08T09:00:00.000Z'),
+          ])
+            _upsertOp(
+              opId: item.$1,
+              recordId: item.$1,
+              type: 'task_allocation',
+              fields: {
+                'todoSyncId': todoId,
+                'occurrenceId': item.$2,
+                'startAt': item.$3,
+                'endAt': item.$3.replaceFirst('09:00', '10:00'),
+                'state': 'active',
+                'createdAt': '2026-10-01T00:00:00.000Z',
+                'updatedAt': '2026-10-01T00:00:00.000Z',
+              },
+            ),
+        ],
+      );
+      final completedAt = DateTime.utc(2026, 10, 6, 12);
+      final state = TaskInstanceStatePayload(
+        todoSyncId: todoId,
+        occurrenceId: firstOccurrence,
+        status: 'completed',
+        completedAt: completedAt,
+        updatedAt: completedAt,
+      );
+      await _push(
+        app,
+        token,
+        capabilities: capabilities,
+        ops: [
+          _upsertOp(
+            opId: 'complete-first-instance',
+            recordId: taskInstanceStateRecordId(todoId, firstOccurrence),
+            type: 'task_instance_state',
+            fields: state.toJson(),
+          ),
+        ],
+      );
+      final allocations = await (app.db.select(
+        app.db.records,
+      )..where((row) => row.type.equals('task_allocation'))).get();
+      final states = {
+        for (final row in allocations)
+          row.id:
+              (jsonDecode(row.payloadJson) as Map<String, dynamic>)['state'],
+      };
+      expect(states['allocation-a'], 'invalidatedByCompletion');
+      expect(states['allocation-b'], 'active');
+      final todoRow = await (app.db.select(
+        app.db.records,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      final todo = jsonDecode(todoRow.payloadJson) as Map<String, dynamic>;
+      expect(todo['status'], 'NEEDS-ACTION');
+
+      final staleReopen = TaskInstanceStatePayload(
+        todoSyncId: todoId,
+        occurrenceId: firstOccurrence,
+        status: 'pending',
+        completedAt: null,
+        updatedAt: DateTime.utc(2026, 10, 5, 12),
+      );
+      await _push(
+        app,
+        token,
+        capabilities: capabilities,
+        ops: [
+          _upsertOp(
+            opId: 'a-stale-reopen',
+            recordId: taskInstanceStateRecordId(todoId, firstOccurrence),
+            type: 'task_instance_state',
+            fields: staleReopen.toJson(),
+            baseRev: 1,
+          ),
+        ],
+      );
+      final stateRow =
+          await (app.db.select(app.db.records)..where(
+                (row) => row.id.equals(
+                  taskInstanceStateRecordId(todoId, firstOccurrence),
+                ),
+              ))
+              .getSingle();
+      expect(
+        (jsonDecode(stateRow.payloadJson) as Map<String, dynamic>)['status'],
+        'completed',
+      );
+    },
+  );
 }

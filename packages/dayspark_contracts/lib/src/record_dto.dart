@@ -1,10 +1,21 @@
-enum RecordType { event, todo, taskAllocation }
+import 'package:uuid/uuid.dart';
+
+const Uuid _instanceUuid = Uuid();
+
+String taskInstanceStateRecordId(String todoSyncId, String occurrenceId) =>
+    _instanceUuid.v5(
+      Namespace.url.value,
+      'dayspark:task-instance:$todoSyncId:$occurrenceId',
+    );
+
+enum RecordType { event, todo, taskAllocation, taskInstanceState }
 
 extension RecordTypeWireName on RecordType {
   String get wireName => switch (this) {
     RecordType.event => 'event',
     RecordType.todo => 'todo',
     RecordType.taskAllocation => 'task_allocation',
+    RecordType.taskInstanceState => 'task_instance_state',
   };
 }
 
@@ -12,6 +23,7 @@ RecordType recordTypeFromJson(Object value, String field) => switch (value) {
   'event' => RecordType.event,
   'todo' => RecordType.todo,
   'task_allocation' => RecordType.taskAllocation,
+  'task_instance_state' => RecordType.taskInstanceState,
   _ => throw FormatException('invalid $field value: $value'),
 };
 
@@ -168,6 +180,67 @@ class TaskAllocationPayload {
     'endAt': _millisecondUtc(endAt),
     'state': state.wireName,
     'createdAt': _millisecondUtc(createdAt),
+    'updatedAt': _millisecondUtc(updatedAt),
+  };
+}
+
+class TaskInstanceStatePayload {
+  const TaskInstanceStatePayload({
+    required this.todoSyncId,
+    required this.occurrenceId,
+    required this.status,
+    required this.completedAt,
+    required this.updatedAt,
+  });
+
+  factory TaskInstanceStatePayload.fromJson(Map<String, dynamic> json) {
+    const allowedFields = <String>{
+      'todoSyncId',
+      'occurrenceId',
+      'status',
+      'completedAt',
+      'updatedAt',
+    };
+    if (json.keys.any((key) => !allowedFields.contains(key))) {
+      throw const FormatException('unknown TaskInstanceState payload field');
+    }
+    final todoSyncId = _requireField<String>(json, 'todoSyncId');
+    final occurrenceId = _requireField<String>(json, 'occurrenceId');
+    final status = _requireField<String>(json, 'status');
+    if (todoSyncId.isEmpty ||
+        occurrenceId.isEmpty ||
+        !const {'completed', 'pending', 'skipped'}.contains(status)) {
+      throw const FormatException('invalid TaskInstanceState payload');
+    }
+    final completedAt = json['completedAt'] == null
+        ? null
+        : _parseUtcDateTime(json['completedAt']!, 'completedAt');
+    if ((status == 'completed') != (completedAt != null)) {
+      throw const FormatException('invalid TaskInstanceState completion');
+    }
+    return TaskInstanceStatePayload(
+      todoSyncId: todoSyncId,
+      occurrenceId: occurrenceId,
+      status: status,
+      completedAt: completedAt,
+      updatedAt: _parseUtcDateTime(
+        _requireField<Object>(json, 'updatedAt'),
+        'updatedAt',
+      ),
+    );
+  }
+
+  final String todoSyncId;
+  final String occurrenceId;
+  final String status;
+  final DateTime? completedAt;
+  final DateTime updatedAt;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'todoSyncId': todoSyncId,
+    'occurrenceId': occurrenceId,
+    'status': status,
+    'completedAt': completedAt == null ? null : _millisecondUtc(completedAt!),
     'updatedAt': _millisecondUtc(updatedAt),
   };
 }

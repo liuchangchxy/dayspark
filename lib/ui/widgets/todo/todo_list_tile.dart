@@ -6,6 +6,12 @@ import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:drift/drift.dart' hide Column;
 
 class TodoListTile extends ConsumerWidget {
   final String summary;
@@ -15,8 +21,9 @@ class TodoListTile extends ConsumerWidget {
   final DateTime? dueDate;
   final DateTime? startDate;
   final int? index;
-  final VoidCallback onToggle;
+  final Future<void> Function(String? occurrenceId, bool isCompleted) onToggle;
   final VoidCallback onTap;
+  final Todo? todo;
 
   const TodoListTile({
     super.key,
@@ -29,6 +36,7 @@ class TodoListTile extends ConsumerWidget {
     this.index,
     required this.onToggle,
     required this.onTap,
+    this.todo,
   });
 
   Color _priorityColor(Brightness brightness) {
@@ -121,7 +129,7 @@ class TodoListTile extends ConsumerWidget {
                             label: l.markIncomplete,
                             child: Checkbox(
                               value: true,
-                              onChanged: (_) => onToggle(),
+                              onChanged: (_) => _toggle(context, ref),
                               materialTapTargetSize:
                                   MaterialTapTargetSize.shrinkWrap,
                               visualDensity: VisualDensity.compact,
@@ -132,7 +140,7 @@ class TodoListTile extends ConsumerWidget {
                             label: l.markComplete,
                             child: Checkbox(
                               value: false,
-                              onChanged: (_) => onToggle(),
+                              onChanged: (_) => _toggle(context, ref),
                               materialTapTargetSize:
                                   MaterialTapTargetSize.shrinkWrap,
                               visualDensity: VisualDensity.compact,
@@ -247,5 +255,115 @@ class TodoListTile extends ConsumerWidget {
         );
       }).toList(),
     );
+  }
+
+  Future<void> _toggle(BuildContext context, WidgetRef ref) async {
+    final row = todo;
+    if (row?.rrule == null) {
+      await onToggle(null, !isCompleted);
+      return;
+    }
+    if (row!.status == 'COMPLETED') {
+      await onToggle(null, false);
+      return;
+    }
+    final l = AppLocalizations.of(context)!;
+    try {
+      final identifiedTodo = row.syncId == null
+          ? await ref.read(ensureTodoSyncIdentityProvider)(todoId)
+          : row;
+      if (!context.mounted) return;
+      final now = DateTime.now();
+      final expansion = expandTodoOccurrences(
+        identifiedTodo,
+        startInclusive: DateTime(now.year, now.month, now.day),
+        endExclusive: DateTime(now.year, now.month, now.day + 91),
+        maxOccurrences: 100,
+      );
+      if (expansion.status != TodoOccurrenceExpansionStatus.expanded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.legacyRecurrenceRequiresConfirmation)),
+        );
+        return;
+      }
+      final db = ref.read(databaseProvider);
+      final statesQuery = db.select(db.taskInstanceStates)
+        ..where((state) => state.todoSyncId.equals(identifiedTodo.syncId!))
+        ..orderBy([(state) => OrderingTerm.desc(state.updatedAt)])
+        ..limit(100);
+      final states = await statesQuery.get();
+      if (!context.mounted) return;
+      final completedIds = states
+          .where((state) => state.status == 'completed')
+          .map((state) => state.occurrenceId)
+          .toSet();
+      final candidates = expansion.occurrences
+          .where(
+            (item) => !states.any(
+              (state) =>
+                  state.occurrenceId == item.occurrenceId &&
+                  state.status == 'skipped',
+            ),
+          )
+          .toList();
+      if (candidates.isEmpty && completedIds.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.noOccurrencesAvailable)));
+        return;
+      }
+      final labels = <String, String>{
+        for (final item in candidates)
+          item.occurrenceId: item.nominalAnchor.canonical.replaceFirst(
+            'T',
+            '  ',
+          ),
+        for (final state in states.where((row) => row.status == 'completed'))
+          state.occurrenceId: OccurrenceId.parse(
+            state.occurrenceId,
+          ).nominal.canonical.replaceFirst('T', '  '),
+      };
+      final items = labels.entries.toList()
+        ..sort((left, right) => left.value.compareTo(right.value));
+      final selected = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l.selectTodoOccurrence),
+          content: SizedBox(
+            width: 360,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return ListTile(
+                  title: Text(item.value),
+                  trailing: completedIds.contains(item.key)
+                      ? const Icon(Icons.check)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(item.key),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l.cancel),
+            ),
+          ],
+        ),
+      );
+      if (!context.mounted) return;
+      if (selected != null) {
+        await onToggle(selected, !completedIds.contains(selected));
+      }
+    } on Object catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$error')));
+      }
+    }
   }
 }

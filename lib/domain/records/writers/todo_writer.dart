@@ -4,6 +4,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/records/writers/reminder_writer.dart';
+import 'package:dayspark/domain/records/writers/task_instance_writer.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
@@ -21,6 +22,13 @@ final class TodoWriter {
   }) async {
     final existing = await _row(db, id);
     if (existing == null) throw StateError('Todo $id does not exist.');
+    if (existing.rrule != null &&
+        data.status.present &&
+        data.status.value == 'COMPLETED') {
+      throw StateError(
+        'Recurring Todo completion requires an explicit occurrenceId.',
+      );
+    }
     final recurrence = TodoRecurrence.fromTodo(existing);
     final touchesChangedProjection =
         (data.rrule.present && data.rrule.value != existing.rrule) ||
@@ -192,8 +200,31 @@ final class TodoWriter {
     RecordScope tx,
     int id, {
     required bool isCompleted,
+    String? occurrenceId,
   }) async {
     final existing = await _row(db, id);
+    if (existing == null) throw StateError('Todo $id does not exist.');
+    if (existing.rrule != null) {
+      if (!isCompleted &&
+          existing.status == 'COMPLETED' &&
+          occurrenceId == null) {
+        await db.todosDao.markIncomplete(id);
+        await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
+        tx.applied(RecordType.todo, id, previousReference: existing.dueDate);
+        return;
+      }
+      if (occurrenceId == null) {
+        throw StateError('Recurring Todo completion requires occurrenceId.');
+      }
+      await TaskInstanceWriter.setCompletion(
+        db,
+        tx,
+        todoId: id,
+        occurrenceId: occurrenceId,
+        completed: isCompleted,
+      );
+      return;
+    }
     if (isCompleted) {
       await db.todosDao.markComplete(id);
     } else {
@@ -201,7 +232,7 @@ final class TodoWriter {
     }
     await _invalidateAllocationsAfterCompletion(db, tx, id);
     await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
-    tx.applied(RecordType.todo, id, previousReference: existing?.dueDate);
+    tx.applied(RecordType.todo, id, previousReference: existing.dueDate);
   }
 
   static Future<void> softDelete(AppDatabase db, RecordScope tx, int id) async {
@@ -635,7 +666,10 @@ final class TodoWriter {
   }) async {
     final todo = await _row(db, todoId);
     final completedAt = todo?.completedAt;
-    if (todo == null || todo.status != 'COMPLETED' || completedAt == null) {
+    if (todo == null ||
+        todo.rrule != null ||
+        todo.status != 'COMPLETED' ||
+        completedAt == null) {
       return;
     }
     final completionMs = completedAt.toUtc().millisecondsSinceEpoch;

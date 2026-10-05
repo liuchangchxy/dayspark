@@ -102,6 +102,15 @@ Map<String, Object?> taskAllocationToPayload(TaskAllocation allocation) =>
       'updatedAt': isoOf(allocation.updatedAt),
     };
 
+Map<String, Object?> taskInstanceStateToPayload(TaskInstanceState state) =>
+    <String, Object?>{
+      'todoSyncId': state.todoSyncId,
+      'occurrenceId': state.occurrenceId,
+      'status': state.status,
+      'completedAt': isoOf(state.completedAt),
+      'updatedAt': isoOf(state.updatedAt),
+    };
+
 String requireString(Map<String, Object?> payload, String key) {
   final value = payload[key];
   if (value is! String) {

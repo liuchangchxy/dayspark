@@ -1,6 +1,7 @@
 # DaySpark User Feedback Log / 用户反馈记录
 
 **TL;DR / 快速了解**
+- 2026-10-06：重复 Todo 架构回正：实例完成状态按 `(series syncId, occurrenceId)` 稀疏存储；完成/撤销只影响选定 occurrence；新 schema v14 不推断旧 `COMPLETED` series 的实例；同步、Busy Time 与 MCP 同步接入。root analyze/test、recurrence/contracts/server/wrapper/CLI tests 与 whitespace/path gates 本地通过；GitHub unreachable，PR/hosted CI pending。
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
 - 最新版本 / Latest: **v0.27.0+28** — 设备注册 + 双语护栏：账号能看到自己的已连接设备（`POST /devices/register`、`GET /devices`、`x-device-id` 真正发出去、设置页设备列表），AI 按界面语言回答而不是碰运气，切换语言会重发已排期的提醒，另加四道本地化护栏（字典键对齐 / 裸文案扫描 / 文案出口清单 / 门禁总账） / Sync devices + localization guards: an account can now see its connected devices, the AI answers in the app language instead of guessing, switching language re-issues already-scheduled reminders, plus four guards over the localization surface
 - 上一版本 / Previous: **v0.26.0+27** — Web 白屏修复：平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言（白屏即红） / Web blank-screen fix: every `Platform.*` read funnels through one guarded helper, with a static guard test and a CI screenshot smoke gate (blank page = red)
