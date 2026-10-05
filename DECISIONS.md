@@ -290,3 +290,104 @@
 - **据实披露的边界**：C 是"尽力而为"，iOS `BGAppRefreshTask` 由系统决定配额，可能数小时一次，**UI 不得承诺"实时"**；桌面三平台本就常驻，D 基本够用；Web 关掉标签页同样只能靠 D。
 - **顺带补齐**：服务端此前**没有任何迁移测试**（客户端早有 `migration_test.dart`），而 v4 是服务端第一次被迫迁移。已补 `server/test/migration_test.dart`：用裸 sqlite3 把库倒回 v3 形状再打开，验数据保留、新列补上且旧行为空串（不凭空造归属）、迁移后写入仍可用、重复打开幂等。
 - **影响范围**：`server/lib/src/{schema,db,routes/devices,routes/sync,sync/idempotency,data/record_writer}.dart`、`server/lib/server.dart`、`packages/dayspark_contracts/lib/src/device_dto.dart` + barrel、`lib/core/utils/device_label.dart`、`lib/domain/sync/sync_api_client.dart`、`lib/domain/providers/sync_client_provider.dart`、`lib/main.dart`、`lib/ui/pages/settings/settings_sections/account_section.dart`、`lib/l10n/*.arb`（+5 键）；新增测试 4 个文件。**版本号未动**（发版另行确认）。
+
+### [2026-10-04] Todo 时间安排采用 TaskAllocation 与 occurrence 级本地时区语义
+- **触发背景**：用户确认日历与 Todo 通过独立时间安排连接；需冻结 `dueDate` 与执行安排的边界、完成/取消生命周期、busy-time 语义及重复 Todo 跨设备身份，避免把 UI 或同步实现误当产品契约。
+- **核心决策**：
+  1. 保留现有 `Todo` 与 `Event` 为独立一等领域记录；新增概念命名 `TaskAllocation`。不改名、不合并现有实体；Calendar 是时间投影，首页导航不由本决策规定，Todo 页面仍是任务状态管理主要入口。
+  2. 一个 Todo 可拥有多个 Allocation；`dueDate` 与 Allocation 完全独立。改期/取消 Allocation 不修改 `dueDate`；单独取消 Allocation 不影响 Todo。
+  3. Allocation 状态为 `active`、`cancelledByUser`、`invalidatedByCompletion`。用户取消保留历史、普通 Calendar 隐藏；Todo 完成时，已结束与进行中的 Allocation 保持原状态，满足 `startAt >= completedAt` 的未来安排改为 `invalidatedByCompletion`。完成撤销不自动恢复这些安排，用户须显式重新安排。
+  4. Todo 进回收站期间 Allocation 及状态保留，但隐藏且不占 busy time；恢复后仅原 `active` Allocation 恢复投影。Todo 永久删除时 Allocation 随父项永久删除并同步 tombstone。
+  5. 仅 `active` Allocation 且父 Todo 未取消、未进回收站时占用 busy time；Todo 已完成时按完成时刻执行失效边界校验，正在进行的 Allocation 仍占用至原结束时刻。首版 Allocation 无独立 Reminder；Todo Reminder 维持现有语义。
+  6. 重复 Todo 的 Allocation 绑定单一 occurrence，不自动套用整个系列。occurrence 使用本地钟点语义；有 `startDate` 时优先作为 recurrence anchor，否则以 `dueDate` 为 anchor；两者均无则不允许创建 occurrence 级 Allocation。跨设备 identity 由 Todo 同步 ID、本地 recurrence 日期时间和系列 IANA 时区确定；UTC recurrence-id 仅为迁移过渡，不是长期协议。
+- **对应 SPEC 章节**：SPEC.md §1.1 第 1 条、§3.1–§3.3、§3.5、§4.1、§5。
+- **影响范围**：后续实施需覆盖客户端 Drift schema / migration、Todo 与 Allocation Writers/Providers、Calendar Projection、outbox/applier、`dayspark_contracts` RecordType、服务端记录解析与 LWW、MCP `find_free_time` 和 Allocation 工作流。首版不改首页导航、Reminder 结构或 Widget JSON/原生消费端。
+- **重要实现约束**：现有 Todo 未保存重复系列 IANA 时区。新重复 Todo 必须持久化该值并同步；旧重复 Todo 不得按设备当前时区静默推断，未明确保存时不得创建 occurrence Allocation。服务端 generic per-field LWW 不能单独保证跨记录完成失效；完成 Todo 与未来 Allocation 状态变更必须有原子、可收敛的写入路径。
+
+### [2026-10-04] TaskAllocation 分阶段实施、兼容门控与完成边界精度
+- **触发背景**：TaskAllocation 产品契约已冻结；先用普通非重复 Todo 验证本地领域模型和 Calendar 投影，避免重复规则、同步协议及外部写入口扩大第一条纵切片。
+- **核心裁定**：
+  1. Phase 1 只实现普通非重复 Todo → 创建 TaskAllocation → Calendar 显示 → 改期 → 取消。范围不含重复 Todo、`recurrenceTimeZone`、occurrence identity、跨设备同步、Allocation MCP 写工具、Widget、Allocation Reminder、Today/Timeline、自动排程、estimate 或 actual duration；不改首页导航。
+  2. Phase 1 的重复 Todo 安排入口必须隐藏或明确拒绝。新建、改期、取消 Allocation 均不得改写 Todo `dueDate`；用户取消保留 Allocation 记录并置为 `cancelledByUser`；普通 Calendar 只投影 `active` 项。
+  3. 旧客户端兼容采用服务端 capability 门控。服务端不得向未声明支持 `task_allocation` 的客户端返回该 RecordType；旧客户端仍可同步 Event/Todo，但不能读写 Allocation。capability / protocol contract 必须进入 `dayspark_contracts` 与测试，不以散落的版本号分支替代。发布顺序：支持解析的新客户端 → 服务端按 capability 开启下发 → 开放 MCP/外部写入口。
+  4. Allocation `startAt/endAt` 与 Todo `completedAt` 比较前统一为 UTC instant 并截断到毫秒，禁止四舍五入。`endAt <= completedAt` 保留历史；`startAt < completedAt < endAt` 保持 active 至原结束；`startAt >= completedAt` 失效，包含相等边界。
+- **代价与边界**：Phase 1 暂不验证 Allocation 的同步或 busy-time 效果，不能据此宣称跨设备与空闲时段功能完成；后续阶段必须在开放外部写入前完成对应契约与兼容测试。
+- **对应 SPEC 章节**：SPEC.md §3.1、§3.2、§3.5。
+- **实施计划**：`docs/superpowers/plans/2026-10-04-task-allocation.md`。
+
+### [2026-10-04] TaskAllocation 同步协议与删除/完成收敛
+- **触发背景**：Phase 2 需要把本地 TaskAllocation 扩展到跨设备；现有 RecordType 解码对未知类型 fail-fast，pull 原始分页 cursor 与 capability 过滤尚未存在；Todo 软删和永久删除都用同一种未区分的 delete tombstone。
+- **核心裁定**：
+  1. 能力名固定为 `task_allocation_v1`。客户端通过认证的 `/sync/capabilities` discovery 确认服务端支持后才发送 Allocation outbox；push 与 pull 均声明 capabilities。旧服务端 discovery 404 时客户端仍同步 Event/Todo，并保留 Allocation outbox。服务端缺省 capabilities 视为空集合，未知 capability 忽略。
+  2. 服务端在原始有界 seq 页上先读后过滤；pull `nextCursor`、`hasMore` 与 push piggyback watermark 都按扫描到的原始记录推进，不按过滤后列表推进，确保旧客户端越过隐藏 Allocation。
+  3. 为 Todo hard-delete op 增加 `hardDelete: true` tombstone payload marker；历史无标记 tombstone 仍进回收站。只有显式标记才在新客户端物理删除 Todo 及关联 Allocation。Todo 永久删除/清空回收站先捕获 Allocation sync identity、再在同一 DB transaction 内 enqueue Allocation 与 Todo tombstone，最后删本地行。
+  4. TaskAllocation 保留 `todoSyncId` 为逻辑父引用，`todoId` 可空；父项先到时允许 unresolved 行存在，Calendar 查询通过父 Todo inner join 隐藏，父项到达后按 UUID 解析绑定。
+  5. 服务端对已完成父 Todo 的 Allocation upsert 强制执行 UTC 毫秒完成边界；父 Todo 完成时同事务为未来 active Allocation 写失效状态。服务端对 terminal `state` 保持单调，避免迟到改期激活取消/失效项；hard-delete 父项对相关 Allocation 写 tombstone，后到 upsert 不得复活。
+  6. 全局 seq cursor 在能力关闭时仍可越过隐藏 Allocation，因此客户端另存 capability 扫描标记；首次发现或重新发现 `task_allocation_v1` 时从 seq 0 回扫当前记录快照（含 tombstone），整轮成功后才记录已扫描。这样旧游标不会漏掉历史 Allocation，服务端保留当前 tombstone 使回扫可幂等收敛。
+- **并发边界**：字段级 LWW 继续合并独立时间字段与单字段状态；终态单调与 completed-parent invariant 是领域约束，不依赖客户端时钟或请求抵达“正常顺序”。
+- **对应 SPEC 章节**：SPEC.md §3.5 规则 6、§4.1.1、§4.2、§5。
+- **实施计划**：`docs/superpowers/plans/2026-10-04-task-allocation.md` Phase 2。
+
+### [2026-10-04] Busy time 使用统一只读区间投影
+- **触发背景**：Phase 2 后，`find_free_time` 仍只在 MCP handler 内展开 Event 并合并时间；TaskAllocation 与 Calendar、未来调度会因此各自维护有效性判断，完成边界或回收站规则容易漂移。
+- **核心裁定**：服务端在数据层提供统一 BusyInterval 读模型；它在单次查询中展开 Event occurrence、过滤有效 TaskAllocation、按请求窗口裁剪并合并。合并结果携带 event / taskAllocation 来源引用，供未来读者解释区间来源。它不是数据库实体，也不改变同步记录。
+- **有效性边界**：Allocation 行未 tombstone 且 state 为 active；父 Todo 必须能解析且未 tombstone、未软删除、未取消。完成 Todo 按 `completedAt` 防御性校验：`startAt >= completedAt` 不影响未来安排；开始早于完成时刻的安排仍维持至原 `endAt`，过去部分仅在历史窗口重叠时出现。无 `completedAt` 的异常 completed 组合不占 busy。dueDate 单独不占时段。
+- **时间裁定**：统一使用半开 `[startAt,endAt)` 窗口；按既有 Event merger 规则，重叠与相邻 interval 归并。Event 展开、all-day 有效结束时刻及软删除查询继续复用原实现。
+- **Event 现状核对**：原 `find_free_time` 通过 Event 查询排除 tombstone 与 `deletedAt` 软删行，再按查询窗口展开 recurrence；all-day 正长度使用 `endDt`，非正长度使用 24 小时兜底。Event payload 契约没有取消状态，故本次不新增 `status == CANCELLED` 过滤。
+- **代价与边界**：来源位于合并 interval 上而非分别暴露重叠片段；未来若需要按来源切分可用时间，需要另定义消费 API。重复 Todo Allocation 仍不在本阶段范围内。
+- **对应 SPEC 章节**：SPEC.md §3.1 规则 13–14、§3.3 `find_free_time`。
+
+### [2026-10-04] Recurring Todo 设计收敛与运行 spike 验收边界
+- **触发背景**：Recurring Todo / occurrence identity / timezone / DST 设计 spike。保留已冻结的 local-calendar series 语义，不把 TaskAllocation 阶段已完成内容重新打开。
+- **设计裁定**：正式领域对象为 `RecurrenceSpec(anchor{source,valueType,value}, timeZone, rrule)`；anchor 为 offset-free local DATE 或 local DATE-TIME。新建重复 Todo 固化 IANA zone。DATE-only occurrence 身份不转换成午夜 instant。先产生 nominal local occurrence key，再独立解析 resolved instant；identity 不随 DST normalization 改写。gap 按 RFC gap-before-offset 解析；fold 取最早 instant。RRULE 编辑、anchor/zone 编辑和删除 recurrence 都保留旧 Allocation identity，首版 orphan 后由用户重排。
+- **Legacy 裁定**：旧数据首次进入需要正式 recurrence 语义的操作时才 lazy migration。首版持久分类压缩为 `knownZoned` / `unknownLegacy`；floating 与 legacy-instant 是导入/取证阶段的来源分类，证据不足均归 unknown，不按任何当前机器/服务器 zone 推断。
+- **同步与架构裁定**：RecurrenceSpec 整体作为 Todo 同步 payload 的一个 revisioned object 更新；普通字段继续 LWW。正式 recurrence engine 应由 client/server 共同依赖的纯 Dart package 提供，避免在 `dayspark_contracts` DTO 包塞入时区计算职责。
+- **本轮证据边界**：锁定版本为 client `rrule 0.2.18` / `timezone 0.11.0` / `enough_icalendar 0.17.0`，server `rrule 0.2.18` / `timezone 0.11.1`；两端 tz 版本已分叉。现有 Event recurrence 把锚点转成 UTC instant，客户端/服务端各自调用 `rrule`；没有 Todo series zone 字段。`enough_icalendar` 的 property 层保留 TZID/VALUE/raw definition，且 VTIMEZONE 是组件树；当前 converter 只取 DateTime getter 并丢弃这些元数据。RRULE decoder 对未知 rule part 没有拒绝分支；服务端 invalid RRULE 记录后仍把 DTSTART 原始区间当普通实例返回，均不得复用于正式 Todo allocation。
+- **DST 补充裁定**：用户撤销 gap-skip，采用 RFC 5545 §3.3.5 + Verified Erratum 4271 的 gap-before-offset；fold 取第一次出现。Occurrence key 使用 RRULE 产生的 nominal local occurrence，不因 gap normalization 变成实际当地显示时间。实测 gap occurrence 为 nominal `02:30` identity + `07:30Z` instant / 当地 `03:30` 展示。
+- **运行 spike 结果**：以 `C:\src\flutter` 的 Flutter 3.47.3 / Dart 3.13.3 直接执行。RRULE vectors、DST prototype、DATE-only adapter、ICS parser 四类 fixture 与 converter tests、临时纯 Dart path package 在 client/server 两个依赖图的 vectors 均通过。timezone 两边 tzdata 都为 2025c，显式 zone 输出一致；0.11.1 相比 0.11.0 仅更改默认 `tz.local` 名称 `UTC`→`Etc/UTC`。最终门禁：`dart analyze .` 零 issue；全量 `flutter test` 414 项通过；`git diff --check` 通过。临时 client/server path dependency 已恢复，保留最小复现 spike harness。
+- **后续**：设计 spike 已完成；实现仍属于单独授权范围。下一阶段按 `docs/superpowers/plans/2026-10-04-recurring-todo.md` 执行，并在产品实现中保留 strict RRULE allowlist、ICS metadata wrapper、跨端向量与时区版本对齐。
+- **对应规范/报告**：`SPEC.md` §3.1.1；`docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`；下一阶段计划 `docs/superpowers/plans/2026-10-04-recurring-todo.md`。
+- **判错代价**：若接受本轮静态源码判断为运行证明，可能冻结一个实际 package 行为不兼容的 DST/ICS 协议，并导致不同设备产生不同 occurrence identity；因此必须保留可复现运行 spike 与全仓门禁作为本阶段完成条件；本轮均已通过。
+
+### [2026-10-05] R1 建立共享 Recurrence Core
+- **实现边界**：新建纯 Dart `packages/dayspark_recurrence`，client 与 server 依赖同一实现；`dayspark_contracts`、Todo persistence、sync、UI、legacy、ICS 与 Allocation 写入均未扩展。
+- **依赖裁定**：client/server timezone 统一到 0.11.1，tzdata 均为 2025c；全仓未发现依据 `tz.local.name` 做业务分支，recurrence engine 只使用显式 series TZID。local `UTC` / `Etc/UTC` 两种命名均有兼容测试。成本是约束两端后续依赖升级一致，并需继续检查 tzdata 漂移。
+- **计算契约**：先生成 nominal local candidate 和 occurrenceId，再按 IANA timezone 求 instant；DATE 不解析成 instant。DATE-TIME UNTIL 按 resolved UTC instant 比较。Gap 显式采用 transition 前 offset，fold 取最早候选。
+- **输入与资源边界**：只接受严格白名单 RRULE；unknown part 返回 `unsupported`。COUNT 上限 10,000、INTERVAL 上限 1,000,000、每次 expansion 上限 10,000 输出、扫描上限 100,000 calendar periods。超界显式报错，不截断或降级。调用方必须初始化 timezone database，并提供有限且类型匹配的窗口及输出 limit。日期时间展开超出锁定 tzdata 的共同未来 transition horizon 时 fail-closed；当前 2025c 数据推导出的 horizon 是 2037，需通过同步升级两端 tzdata 扩展。
+- **客户端/服务端一致性**：package、client、server 执行同一 golden-vector fixture，不复制期望数据；tz database 和 app/server lockfile 版本固定一致。
+
+### [2026-10-05] R2 持久化 RecurrenceSpec 并整组收敛同步
+- **触发背景**：R1 引擎已冻结，但 Todo 仍只有 `startDate`、`dueDate`、`rrule`，无法持久表达 DATE/DATE-TIME、anchor source 与系列 timezone，也无法安全并发同步。
+- **核心决策**：schema v12 以结构化列保存完整 RecurrenceSpec 与 revision；旧 `rrule` 行归为 `unknownLegacy`，不猜时区。wire 上将 spec、revision、legacy state 作为一个同步组；revision 高者胜，同 revision 以规范化完整 tuple 的字典序固定破平，tuple 相同再以 opId 破平；普通字段继续字段级 LWW。旧客户端缺少 recurrence group 时仍能同步普通 Todo，但不能用旧 projection 改写 active RecurrenceSpec。ICS 无权威 IANA wall-time 证据时保留 unknownLegacy；Todo MCP 当前不提供 recurrence 写参数。
+- **代价**：旧重复 Todo 在用户确认 timezone 与 anchor interpretation 前不可编辑 recurrence 字段或进入正式 occurrence 语义；同 revision 的并发编辑可能由固定字典序选中一端，用户需在之后再次编辑才能覆盖。R2 不含 occurrence UI、Calendar expansion、Allocation occurrence binding 或 recurring Todo MCP。
+- **对应 SPEC 章节**：SPEC.md §3.1.1、§3.2。
+- **影响范围**：Todo schema/writer、sync contracts/client/server、ICS legacy import、migration tests、architecture guard 与 recurrence implementation plan。
+
+### [2026-10-05] R3 Occurrence projection 与 TaskAllocation 绑定
+- **触发背景**：R2 已有稳定 RecurrenceSpec 与共享引擎，但尚无 occurrence projection、Allocation 验证、Calendar 投影或用户安排入口。
+- **核心决策**：Occurrence 仅由 `knownZoned` RecurrenceSpec 在显式有限窗口中按共享引擎确定性生成，不新增 occurrence 表；Allocation identity 通过 shared `isOccurrenceValidForSpec` 验证，实际 `[startAt,endAt)` 独立于 occurrence nominal time；每个 occurrence 可有多个 Allocation。Series 变化只派生 orphan 状态，不改 key、不重绑、不删除。正常 Calendar 隐藏 orphan，Todo 详情保留并提示；仍 active 且区间有效的 orphan 继续占 busy time。DATE occurrence 无 resolved instant，用户安排时另选执行时段。服务端同步写入在父系列已到达时验证 occurrence；unresolved parent 保留到端侧解析。
+- **Rulings 裁定披露**：
+  - occurrence due projection 暂缺 → 不投影 due；判错代价：用户暂时看不到重复 occurrence 的 deadline，避免 DST 跨越时把错误的固定 UTC duration 当作 due。
+  - 未来 orphan 不进入正常 Calendar、但详情可发现且 active 继续占 busy → 判错代价：系列修改后旧安排仍占据空闲时间，需用户显式取消/重新安排。
+  - unknownLegacy 显示安排入口但阻止选择并提示需确认，不在 R3 做确认向导 → 判错代价：legacy 用户需要到后续 R4 才能完成正式转换。
+  - occurrence selector 默认 90 日、最多 100 项 → 判错代价：窗口外 occurrence 需要稍后再安排，且极密集规则会因显式上限失败而不是静默截断。
+- **对应 SPEC 章节**：SPEC.md §3.1.1、§3.1 规则 3/6/8/10/13/14。
+- **实施与验证**：`docs/superpowers/plans/2026-10-04-recurring-todo.md`；package/root/contracts/server/wrapper/CLI 门禁均通过；root Flutter 436 tests、server 233 tests，另有真实双设备 TaskAllocation occurrenceId round-trip。
+
+### [2026-10-05] R4 实施中的 ICS 与 legacy 确认策略（尚未最终验收）
+- **ICS 策略**：UTC `Z` recurring Todo 不推测原地区时区，导入 `unknownLegacy`；不支持/未知 RRULE、未知 TZID 也不降级成可安排 series。DATE identity 使用版本化、无时区的 `v2:DATE:YYYY-MM-DD`；旧 v1 DATE IDs 保留解析与验证兼容。无 TZID DATE 的 `RecurrenceSpec.timeZone=Etc/UTC` 仅满足现有必需 metadata schema，不进入 identity，也不参与 DATE 展开。已知 IANA zone 的 TZID recurrence 使用 DaySpark 锁定 tzdata。
+- **确认策略**：首次从 occurrence Allocation 入口使用 `unknownLegacy` 时弹确认；设备时区只预填建议，保存前不写库；用户可编辑 anchor、选择 DATE/DATE-TIME 与 anchor source，提交仍调用 `TodoWriter.confirmLegacyRecurrence`。
+- **判错代价**：DATE-only ICS 缺少地区时区时，固定 namespace 确保两设备生成同一 identity，但不会反映任何原始地区 zone；若后续产品要求 DATE series 也保留用户地区 zone，需新增明确导入/确认信息，不能事后猜测。UTC Z 归 unknown 会增加一次用户确认，但避免把 instant 假装成地区 wall-time。
+- **状态边界**：本条记录实施期作出的策略裁定；R4 最终审查和自动门禁结果见下方「R4 最终收口」。Windows build/GUI smoke 仍未验收。
+
+### [2026-10-05] R4 DATE identity 与导入证据修订
+- **identity 修订**：DATE 新 key 为 `v2:DATE:YYYY-MM-DD`；旧 v1 DATE key 保留读取和按原 series TZID 验证，不迁写已有 Allocation。RecurrenceSpec 的 timeZone 仍是现有 metadata 字段；无 TZID DATE 使用 `Etc/UTC` 只填该字段，不再进入 key 或 DATE 展开。
+- **导入证据**：schema v13 增加可空 `recurrence_evidence`，记录 ICS 来源、时间语义及原 TZID。该列只供解释/审计，不进入引擎、RecurrenceSpec 或 occurrence identity。同步到另一台设备的 unknownLegacy 用 `source=sync,timeSemantic=unknown` 标记，不假称掌握原始 ICS 证据；成本：原始 TZID 与 ICS 分类仍只在导入设备保留。
+- **确认预览**：首次确认前必须以 shared engine 在未来 90 天有限窗口成功预览最多 5 项。成本：距离当前窗口外的 recurrence 暂时无法通过此预览确认；窗口/上限边界尚未独立验收。
+- **旧客户端恢复**：recurrence capability 从缺失恢复时 cursor 回扫一次，以恢复 capability projection 隐藏的 RecurrenceSpec；共享游标状态增加独立 recurrence capability 标志，不引入客户端版本判断。成本：恢复能力的首轮同步会从头扫描服务端记录，增加一次有界同步量。
+
+### [2026-10-05] R4 最终收口
+- **独立终审**：delta review `VERDICT: PASS`；原 P1 resolved，无新增 P0/P1、P2/P3。R4 最终本地 commit 获准并已创建；没有 push 或创建 PR。
+- **自动门禁**：`dart analyze .`、`flutter analyze` 零 issue；root `flutter test` 453 项通过；recurrence 20、contracts 53、server 233、MCP wrapper 9（CI 正式 `dart test`）、CLI 20 项通过；version guard 与 17-case selftest、whitespace/path scan、`git diff --check` 通过。
+- **未完成的外部验收**：Windows release build 与 GUI smoke 未运行。Build Tools 18 缺少 ATL；第三方 `connectivity_plus` 在 code page 936 下触发 C4819，并被 `/WX` 升级为错误。成本：当前 Windows 原生 build/launch 行为仍没有本轮证据，补齐构建环境后需完成清单。
+- **范围裁定 → 判错代价**：保持 Windows GUI smoke 为未验收并停止于 R4 已授权的本地提交 → 若把自动门禁或独立代码审查误当成 Windows 端到端验收，会漏掉平台构建/启动问题；若继续扩展则超出本次 R4 commit 收口授权。

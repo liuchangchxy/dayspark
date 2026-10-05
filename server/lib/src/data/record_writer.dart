@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:dayspark_contracts/dayspark_contracts.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:drift/drift.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../db.dart';
 import '../sync/idempotency.dart';
@@ -83,12 +86,16 @@ Future<OpResult> _applyOp(
     if (stored.userId != userId) {
       // PK collision with another tenant's opId: reject without touching
       // their stored verdict.
-      return OpResult(opId: op.opId, status: OpStatus.rejected, code: errConflict);
+      return OpResult(
+        opId: op.opId,
+        status: OpStatus.rejected,
+        code: errConflict,
+      );
     }
     return decodeStoredOpResult(stored);
   }
 
-  final result = await _processOp(db, userId, op);
+  final result = await _processOpOrReject(db, userId, op);
   await storeOpResult(
     db,
     opId: op.opId,
@@ -97,6 +104,22 @@ Future<OpResult> _applyOp(
     deviceId: deviceId,
   );
   return result;
+}
+
+Future<OpResult> _processOpOrReject(
+  AppDatabase db,
+  String userId,
+  PushOp op,
+) async {
+  try {
+    return await _processOp(db, userId, op);
+  } on FormatException {
+    return OpResult(
+      opId: op.opId,
+      status: OpStatus.rejected,
+      code: errValidation,
+    );
+  }
 }
 
 Future<OpResult> _processOp(AppDatabase db, String userId, PushOp op) async {
@@ -115,15 +138,68 @@ Future<OpResult> _processUpsert(
 ) async {
   final fields = op.fields;
   if (fields == null || fields.isEmpty) {
-    return OpResult(opId: op.opId, status: OpStatus.rejected, code: errValidation);
+    return OpResult(
+      opId: op.opId,
+      status: OpStatus.rejected,
+      code: errValidation,
+    );
   }
 
   final row = await _selectRecord(db, userId, op.recordId);
   if (row == null) {
     if (op.baseRev != null && op.baseRev! > 0) {
-      return OpResult(opId: op.opId, status: OpStatus.rejected, code: errValidation);
+      return OpResult(
+        opId: op.opId,
+        status: OpStatus.rejected,
+        code: errValidation,
+      );
     }
-    final record = await _insertRecord(db, userId, op, fields, now, deleted: false);
+    var payload = fields;
+    if (op.type == RecordType.todo) {
+      payload = _normalizeTodoPayload(payload);
+    }
+    if (op.type == RecordType.taskAllocation) {
+      final allocation = TaskAllocationPayload.fromJson(payload);
+      if (await _todoIsHardDeleted(db, userId, allocation.todoSyncId)) {
+        final tombstone = await _insertRecord(
+          db,
+          userId,
+          op,
+          payload,
+          now,
+          deleted: true,
+        );
+        return OpResult(
+          opId: op.opId,
+          status: OpStatus.conflict,
+          serverRecord: toSyncRecord(tombstone),
+          code: errConflict,
+        );
+      }
+      await _validateOccurrenceBinding(db, userId, allocation);
+      payload = (await _enforceAllocationState(
+        db,
+        userId,
+        allocation,
+      )).toJson();
+    }
+    final record = await _insertRecord(
+      db,
+      userId,
+      op,
+      payload,
+      now,
+      deleted: false,
+    );
+    if (op.type == RecordType.todo) {
+      await _invalidateAllocationsForCompletedTodo(
+        db,
+        userId,
+        op.recordId,
+        payload,
+        now,
+      );
+    }
     return OpResult(
       opId: op.opId,
       status: OpStatus.applied,
@@ -133,8 +209,59 @@ Future<OpResult> _processUpsert(
 
   // Type is part of the record's identity: an upsert must not silently
   // retag an event as a todo (or vice versa) on update or resurrect.
-  if (row.type != op.type.name) {
-    return OpResult(opId: op.opId, status: OpStatus.rejected, code: errValidation);
+  if (row.type != op.type.wireName) {
+    return OpResult(
+      opId: op.opId,
+      status: OpStatus.rejected,
+      code: errValidation,
+    );
+  }
+
+  final existingPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+  var recurrenceConflict = false;
+  late Map<String, dynamic> merged;
+  if (op.type == RecordType.todo) {
+    final todoMerge = _mergeTodoPayload(existingPayload, fields, op.opId);
+    merged = todoMerge.payload;
+    recurrenceConflict = todoMerge.conflict;
+  } else {
+    merged = mergeFields(existingPayload, fields);
+  }
+  if (op.type == RecordType.taskAllocation) {
+    final allocation = TaskAllocationPayload.fromJson(merged);
+    if (await _todoIsHardDeleted(db, userId, allocation.todoSyncId)) {
+      final tombstone = await _allocationTombstoneForUpsert(
+        db,
+        userId,
+        op,
+        row,
+        merged,
+        now,
+      );
+      return OpResult(
+        opId: op.opId,
+        status: OpStatus.conflict,
+        serverRecord: toSyncRecord(tombstone),
+        code: errConflict,
+      );
+    }
+    final existingPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+    final previousAllocation = TaskAllocationPayload.fromJson(existingPayload);
+    if (previousAllocation.occurrenceId != allocation.occurrenceId) {
+      await _validateOccurrenceBinding(db, userId, allocation);
+    }
+    final existingState = existingPayload['state'];
+    final state =
+        existingState == 'cancelledByUser' ||
+            existingState == 'invalidatedByCompletion'
+        ? _allocationState(existingState as String)
+        : allocation.state;
+    merged = (await _enforceAllocationState(
+      db,
+      userId,
+      allocation,
+      forcedState: state,
+    )).toJson();
   }
 
   if (row.deleted) {
@@ -157,10 +284,6 @@ Future<OpResult> _processUpsert(
   // Field-level LWW: keys the op sets win (arrival order = server order),
   // keys it does not set keep server values — for both matching and stale
   // baseRev, per the LWW ruling.
-  final merged = mergeFields(
-    jsonDecode(row.payloadJson) as Map<String, dynamic>,
-    fields,
-  );
   final updated = await _writeRecord(
     db,
     userId,
@@ -174,11 +297,177 @@ Future<OpResult> _processUpsert(
     ),
     now: now,
   );
+  if (op.type == RecordType.todo) {
+    await _invalidateAllocationsForCompletedTodo(
+      db,
+      userId,
+      op.recordId,
+      merged,
+      now,
+    );
+  }
   return OpResult(
     opId: op.opId,
-    status: OpStatus.applied,
+    status: recurrenceConflict ? OpStatus.conflict : OpStatus.applied,
+    code: recurrenceConflict ? errConflict : null,
     serverRecord: toSyncRecord(updated),
   );
+}
+
+Future<void> _validateOccurrenceBinding(
+  AppDatabase db,
+  String userId,
+  TaskAllocationPayload allocation,
+) async {
+  final parent = await _selectRecord(db, userId, allocation.todoSyncId);
+  if (parent == null) return;
+  if (parent.type != RecordType.todo.wireName || parent.deleted) {
+    throw const FormatException('TaskAllocation parent is unavailable');
+  }
+  final todo = jsonDecode(parent.payloadJson) as Map<String, dynamic>;
+  final recurrence = TodoRecurrenceDto.fromTodoPayload(todo);
+  final spec = recurrence.spec;
+  if (spec == null) {
+    if (recurrence.legacyState == RecurrenceLegacyState.unknownLegacy ||
+        todo['rrule'] != null) {
+      throw const FormatException('legacy recurrence must be confirmed');
+    }
+    if (allocation.occurrenceId != null) {
+      throw const FormatException('ordinary Todo cannot bind an occurrence');
+    }
+    return;
+  }
+  final occurrenceId = allocation.occurrenceId;
+  if (occurrenceId == null) {
+    throw const FormatException('recurring Todo requires occurrenceId');
+  }
+  tzdata.initializeTimeZones();
+  if (!isOccurrenceValidForSpec(spec, occurrenceId)) {
+    throw const FormatException('occurrenceId is not in the current series');
+  }
+}
+
+const _recurrenceKeys = <String>{
+  'recurrenceSpec',
+  'recurrenceRevision',
+  'recurrenceLegacyState',
+};
+const _legacyRecurrenceKeys = <String>{'startDate', 'dueDate', 'rrule'};
+bool _recurrenceZoneDataReady = false;
+
+final class _TodoPayloadMerge {
+  const _TodoPayloadMerge(this.payload, this.conflict);
+
+  final Map<String, dynamic> payload;
+  final bool conflict;
+}
+
+Map<String, dynamic> _normalizeTodoPayload(Map<String, dynamic> payload) {
+  if (!_recurrenceKeys.any(payload.containsKey) &&
+      payload['rrule'] is! String) {
+    return Map<String, dynamic>.from(payload);
+  }
+  final recurrence = TodoRecurrenceDto.fromTodoPayload(payload);
+  final normalized = Map<String, dynamic>.from(payload)
+    ..addAll(recurrence.toJson());
+  _validateTodoRecurrenceProjection(normalized, recurrence);
+  return normalized;
+}
+
+_TodoPayloadMerge _mergeTodoPayload(
+  Map<String, dynamic> current,
+  Map<String, dynamic> incoming,
+  String opId,
+) {
+  final currentRecurrence = TodoRecurrenceDto.fromTodoPayload(current);
+  final merged = Map<String, dynamic>.from(current);
+  final groupTouched = _recurrenceKeys.any(incoming.containsKey);
+  var conflict = false;
+  if (groupTouched) {
+    if (!_recurrenceKeys.every(incoming.containsKey)) {
+      throw const FormatException(
+        'recurrence updates must include the full group',
+      );
+    }
+    final incomingState = incoming['recurrenceLegacyState'];
+    final candidateSpec = incoming['recurrenceSpec'];
+    final candidateRule = incoming.containsKey('rrule')
+        ? incoming['rrule']
+        : incomingState == 'knownZoned' && candidateSpec is Map
+        ? candidateSpec['rrule']
+        : incomingState == null
+        ? null
+        : current['rrule'];
+    final candidatePayload = <String, dynamic>{
+      ...incoming,
+      'rrule': candidateRule,
+    };
+    final candidate = TodoRecurrenceDto.fromTodoPayload(candidatePayload);
+    _validateTodoRecurrenceProjection(candidatePayload, candidate);
+    final comparison = _compareRecurrence(currentRecurrence, candidate);
+    final wins =
+        comparison < 0 ||
+        (comparison == 0 &&
+            opId.compareTo(current['recurrenceOpId'] as String? ?? '') > 0);
+    // Higher revisions win. At equal revision, compare the complete canonical
+    // tuple; the op id breaks only an identical revision-and-tuple tie.
+    final candidateWins =
+        candidate.revision > currentRecurrence.revision ||
+        (candidate.revision == currentRecurrence.revision && comparison < 0) ||
+        (candidate.revision == currentRecurrence.revision &&
+            comparison == 0 &&
+            wins);
+    if (candidateWins) {
+      merged.addAll(incoming);
+      merged['recurrenceOpId'] = opId;
+      merged['rrule'] =
+          candidate.spec?.rule.canonical ??
+          (candidate.legacyState == RecurrenceLegacyState.unknownLegacy
+              ? candidatePayload['rrule']
+              : null);
+      for (final key in _legacyRecurrenceKeys) {
+        if (incoming.containsKey(key)) merged[key] = incoming[key];
+      }
+    } else {
+      conflict = true;
+    }
+  } else {
+    if (currentRecurrence.spec != null &&
+        _legacyRecurrenceKeys.any(incoming.containsKey)) {
+      conflict = true;
+      merged.addAll(
+        Map<String, dynamic>.from(incoming)
+          ..removeWhere((key, _) => _legacyRecurrenceKeys.contains(key)),
+      );
+    } else {
+      merged.addAll(incoming);
+    }
+  }
+  final normalized = _normalizeTodoPayload(merged);
+  return _TodoPayloadMerge(normalized, conflict);
+}
+
+int _compareRecurrence(TodoRecurrenceDto left, TodoRecurrenceDto right) =>
+    jsonEncode(left.toJson()).compareTo(jsonEncode(right.toJson()));
+
+void _validateTodoRecurrenceProjection(
+  Map<String, dynamic> payload,
+  TodoRecurrenceDto recurrence,
+) {
+  if (recurrence.spec != null) {
+    if (payload['rrule'] != recurrence.spec!.rule.canonical) {
+      throw const FormatException('RRULE compatibility projection mismatch');
+    }
+    if (!_recurrenceZoneDataReady) {
+      tzdata.initializeTimeZones();
+      _recurrenceZoneDataReady = true;
+    }
+    try {
+      tz.getLocation(recurrence.spec!.timeZone);
+    } on tz.LocationNotFoundException {
+      throw const FormatException('unknown IANA recurrence timezone');
+    }
+  }
 }
 
 Future<OpResult> _processDelete(
@@ -187,6 +476,18 @@ Future<OpResult> _processDelete(
   PushOp op,
   DateTime now,
 ) async {
+  final fields = op.fields ?? const <String, dynamic>{};
+  final hardDeleteTodo =
+      op.type == RecordType.todo && fields['hardDelete'] == true;
+  if (fields.keys.any((key) => key != 'hardDelete') ||
+      (fields.containsKey('hardDelete') && fields['hardDelete'] != true) ||
+      (fields.isNotEmpty && !hardDeleteTodo)) {
+    return OpResult(
+      opId: op.opId,
+      status: OpStatus.rejected,
+      code: errValidation,
+    );
+  }
   final row = await _selectRecord(db, userId, op.recordId);
   if (row == null) {
     // Deleting a record the server has never seen still materializes a
@@ -195,17 +496,49 @@ Future<OpResult> _processDelete(
       db,
       userId,
       op,
-      const <String, dynamic>{},
+      fields,
       now,
       deleted: true,
     );
+    if (hardDeleteTodo) {
+      await _deleteAllocationsForTodo(db, userId, op.recordId, now);
+    }
     return OpResult(
       opId: op.opId,
       status: OpStatus.applied,
       serverRecord: toSyncRecord(record),
     );
   }
+  if (row.type != op.type.wireName) {
+    return OpResult(
+      opId: op.opId,
+      status: OpStatus.rejected,
+      code: errValidation,
+    );
+  }
   if (row.deleted) {
+    final oldPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+    if (hardDeleteTodo && oldPayload['hardDelete'] != true) {
+      final payload = <String, dynamic>{...oldPayload, ...fields};
+      final updated = await _writeRecord(
+        db,
+        userId,
+        op.recordId,
+        row.copyWith(
+          payloadJson: jsonEncode(payload),
+          rev: row.rev + 1,
+          serverTs: now,
+          lastOpId: op.opId,
+        ),
+        now: now,
+      );
+      await _deleteAllocationsForTodo(db, userId, op.recordId, now);
+      return OpResult(
+        opId: op.opId,
+        status: OpStatus.applied,
+        serverRecord: toSyncRecord(updated),
+      );
+    }
     // Desired state already reached — no mutation, so no new seq.
     return OpResult(
       opId: op.opId,
@@ -213,13 +546,24 @@ Future<OpResult> _processDelete(
       serverRecord: toSyncRecord(row),
     );
   }
+  final oldPayload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
   final tombstone = row.copyWith(
+    payloadJson: jsonEncode(<String, dynamic>{...oldPayload, ...fields}),
     rev: row.rev + 1,
     deleted: true,
     serverTs: now,
     lastOpId: op.opId,
   );
-  final updated = await _writeRecord(db, userId, op.recordId, tombstone, now: now);
+  final updated = await _writeRecord(
+    db,
+    userId,
+    op.recordId,
+    tombstone,
+    now: now,
+  );
+  if (hardDeleteTodo) {
+    await _deleteAllocationsForTodo(db, userId, op.recordId, now);
+  }
   return OpResult(
     opId: op.opId,
     status: OpStatus.applied,
@@ -239,7 +583,7 @@ Future<RecordRow> _insertRecord(
   final record = RecordRow(
     userId: userId,
     id: op.recordId,
-    type: op.type.name,
+    type: op.type.wireName,
     payloadJson: jsonEncode(payload),
     rev: 1,
     deleted: deleted,
@@ -268,27 +612,198 @@ Future<RecordRow> _writeRecord(
 }
 
 Future<RecordRow?> _selectRecord(AppDatabase db, String userId, String id) {
-  return (db.select(db.records)
-        ..where((t) => t.userId.equals(userId) & t.id.equals(id)))
-      .getSingleOrNull();
+  return (db.select(
+    db.records,
+  )..where((t) => t.userId.equals(userId) & t.id.equals(id))).getSingleOrNull();
+}
+
+Future<bool> _todoIsHardDeleted(
+  AppDatabase db,
+  String userId,
+  String todoSyncId,
+) async {
+  final row = await _selectRecord(db, userId, todoSyncId);
+  if (row == null || row.type != RecordType.todo.wireName || !row.deleted) {
+    return false;
+  }
+  final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+  return payload['hardDelete'] == true;
+}
+
+Future<TaskAllocationPayload> _enforceAllocationState(
+  AppDatabase db,
+  String userId,
+  TaskAllocationPayload allocation, {
+  TaskAllocationState? forcedState,
+}) async {
+  final parent = await _selectRecord(db, userId, allocation.todoSyncId);
+  if (parent != null && parent.type != RecordType.todo.wireName) {
+    throw const FormatException('TaskAllocation parent must be a Todo');
+  }
+  var state = forcedState ?? allocation.state;
+  if (state == TaskAllocationState.active &&
+      parent != null &&
+      !parent.deleted) {
+    final payload = jsonDecode(parent.payloadJson) as Map<String, dynamic>;
+    final completedAtValue = payload['completedAt'];
+    final completedAt = completedAtValue is String
+        ? DateTime.tryParse(completedAtValue)?.toUtc()
+        : null;
+    if (payload['status'] == 'COMPLETED' &&
+        completedAt != null &&
+        !allocation.startAt.isBefore(completedAt)) {
+      state = TaskAllocationState.invalidatedByCompletion;
+    }
+  }
+  return TaskAllocationPayload(
+    todoSyncId: allocation.todoSyncId,
+    occurrenceId: allocation.occurrenceId,
+    startAt: allocation.startAt,
+    endAt: allocation.endAt,
+    state: state,
+    createdAt: allocation.createdAt,
+    updatedAt: allocation.updatedAt,
+  );
+}
+
+TaskAllocationState _allocationState(String value) => switch (value) {
+  'active' => TaskAllocationState.active,
+  'cancelledByUser' => TaskAllocationState.cancelledByUser,
+  'invalidatedByCompletion' => TaskAllocationState.invalidatedByCompletion,
+  _ => throw FormatException('invalid TaskAllocation state: $value'),
+};
+
+Future<RecordRow> _allocationTombstoneForUpsert(
+  AppDatabase db,
+  String userId,
+  PushOp op,
+  RecordRow? existing,
+  Map<String, dynamic> payload,
+  DateTime now,
+) async {
+  if (existing == null) {
+    return _insertRecord(db, userId, op, payload, now, deleted: true);
+  }
+  if (existing.deleted) return existing;
+  return _writeRecord(
+    db,
+    userId,
+    op.recordId,
+    existing.copyWith(
+      payloadJson: jsonEncode(payload),
+      rev: existing.rev + 1,
+      deleted: true,
+      serverTs: now,
+      lastOpId: op.opId,
+    ),
+    now: now,
+  );
+}
+
+Future<void> _invalidateAllocationsForCompletedTodo(
+  AppDatabase db,
+  String userId,
+  String todoSyncId,
+  Map<String, dynamic> todoPayload,
+  DateTime now,
+) async {
+  if (todoPayload['status'] != 'COMPLETED' ||
+      todoPayload['completedAt'] is! String) {
+    return;
+  }
+  final completedAt = DateTime.tryParse(
+    todoPayload['completedAt'] as String,
+  )?.toUtc();
+  if (completedAt == null) return;
+  final rows =
+      await (db.select(db.records)..where(
+            (t) =>
+                t.userId.equals(userId) &
+                t.type.equals(RecordType.taskAllocation.wireName) &
+                t.deleted.equals(false),
+          ))
+          .get();
+  for (final row in rows) {
+    final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+    final allocation = TaskAllocationPayload.fromJson(payload);
+    if (allocation.todoSyncId != todoSyncId ||
+        allocation.state != TaskAllocationState.active ||
+        allocation.startAt.isBefore(completedAt)) {
+      continue;
+    }
+    final invalidated = TaskAllocationPayload(
+      todoSyncId: allocation.todoSyncId,
+      occurrenceId: allocation.occurrenceId,
+      startAt: allocation.startAt,
+      endAt: allocation.endAt,
+      state: TaskAllocationState.invalidatedByCompletion,
+      createdAt: allocation.createdAt,
+      updatedAt: now,
+    );
+    await _writeRecord(
+      db,
+      userId,
+      row.id,
+      row.copyWith(
+        payloadJson: jsonEncode(invalidated.toJson()),
+        rev: row.rev + 1,
+        serverTs: now,
+        lastOpId: newOpId(),
+      ),
+      now: now,
+    );
+  }
+}
+
+Future<void> _deleteAllocationsForTodo(
+  AppDatabase db,
+  String userId,
+  String todoSyncId,
+  DateTime now,
+) async {
+  final rows =
+      await (db.select(db.records)..where(
+            (t) =>
+                t.userId.equals(userId) &
+                t.type.equals(RecordType.taskAllocation.wireName) &
+                t.deleted.equals(false),
+          ))
+          .get();
+  for (final row in rows) {
+    final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+    if (payload['todoSyncId'] != todoSyncId) continue;
+    await _writeRecord(
+      db,
+      userId,
+      row.id,
+      row.copyWith(
+        rev: row.rev + 1,
+        deleted: true,
+        serverTs: now,
+        lastOpId: newOpId(),
+      ),
+      now: now,
+    );
+  }
 }
 
 Future<int> currentSeq(AppDatabase db, String userId) async {
-  final row = await (db.select(db.revisions)
-        ..where((t) => t.userId.equals(userId)))
-      .getSingleOrNull();
+  final row = await (db.select(
+    db.revisions,
+  )..where((t) => t.userId.equals(userId))).getSingleOrNull();
   return row?.seq ?? 0;
 }
 
 SyncRecord toSyncRecord(RecordRow row) => SyncRecord(
-      id: row.id,
-      type: switch (row.type) {
-        'event' => RecordType.event,
-        'todo' => RecordType.todo,
-        _ => throw FormatException('invalid record type: ${row.type}'),
-      },
-      payload: jsonDecode(row.payloadJson) as Map<String, dynamic>,
-      rev: row.rev,
-      deleted: row.deleted,
-      serverTs: row.serverTs.toUtc(),
-    );
+  id: row.id,
+  type: switch (row.type) {
+    'event' => RecordType.event,
+    'todo' => RecordType.todo,
+    'task_allocation' => RecordType.taskAllocation,
+    _ => throw FormatException('invalid record type: ${row.type}'),
+  },
+  payload: jsonDecode(row.payloadJson) as Map<String, dynamic>,
+  rev: row.rev,
+  deleted: row.deleted,
+  serverTs: row.serverTs.toUtc(),
+);

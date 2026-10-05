@@ -16,11 +16,8 @@ void main() {
     client = AuthSyncApiClient(transport: transport, tokens: tokens);
   });
 
-  PushRequest emptyRequest() => PushRequest(
-        deviceId: 'dev-1',
-        ops: const [],
-        cursor: 0,
-      );
+  PushRequest emptyRequest() =>
+      PushRequest(deviceId: 'dev-1', ops: const [], cursor: 0);
 
   test('401 → refresh once → retried with the new bearer', () async {
     final response = await client.push(emptyRequest());
@@ -28,40 +25,73 @@ void main() {
     expect(response.cursor, 0);
     expect(transport.pushCalls, 2, reason: 'original + single retry');
     expect(transport.refreshCalls, 1);
-    expect(transport.authorizationHeaders, ['Bearer access-1', 'Bearer access-2']);
+    expect(transport.authorizationHeaders, [
+      'Bearer access-1',
+      'Bearer access-2',
+    ]);
     expect(tokens.access, 'access-2');
     expect(tokens.refresh, 'refresh-2');
   });
 
-  test('second 401 does not refresh again — retry happens exactly once',
-      () async {
-    transport.alwaysPush401 = true;
+  test(
+    'second 401 does not refresh again — retry happens exactly once',
+    () async {
+      transport.alwaysPush401 = true;
 
-    await expectLater(
-      client.push(emptyRequest()),
-      throwsA(isA<SyncApiException>()),
-    );
+      await expectLater(
+        client.push(emptyRequest()),
+        throwsA(isA<SyncApiException>()),
+      );
 
-    expect(transport.pushCalls, 2);
-    expect(transport.refreshCalls, 1,
-        reason: 'refreshed once, retried once, then gave up');
-  });
+      expect(transport.pushCalls, 2);
+      expect(
+        transport.refreshCalls,
+        1,
+        reason: 'refreshed once, retried once, then gave up',
+      );
+    },
+  );
 
-  test('missing refresh token surfaces as unauthorized without retry',
-      () async {
-    tokens.refresh = null;
+  test(
+    'missing refresh token surfaces as unauthorized without retry',
+    () async {
+      tokens.refresh = null;
 
-    await expectLater(
-      client.push(emptyRequest()),
-      throwsA(
-        isA<SyncApiException>()
-            .having((e) => e.statusCode, 'statusCode', 401)
-            .having((e) => e.code, 'code', 'unauthorized'),
-      ),
-    );
+      await expectLater(
+        client.push(emptyRequest()),
+        throwsA(
+          isA<SyncApiException>()
+              .having((e) => e.statusCode, 'statusCode', 401)
+              .having((e) => e.code, 'code', 'unauthorized'),
+        ),
+      );
 
-    expect(transport.pushCalls, 1,
-        reason: 'original attempt, then refresh aborted before retry');
-    expect(transport.refreshCalls, 0);
+      expect(
+        transport.pushCalls,
+        1,
+        reason: 'original attempt, then refresh aborted before retry',
+      );
+      expect(transport.refreshCalls, 0);
+    },
+  );
+
+  test(
+    'capability discovery treats an old server 404 as no extensions',
+    () async {
+      transport.capabilitiesEndpointMissing = true;
+
+      final response = await client.fetchServerCapabilities();
+
+      expect(response.capabilities, isEmpty);
+    },
+  );
+
+  test('capability discovery keeps the server-advertised capability', () async {
+    final response = await client.fetchServerCapabilities();
+
+    expect(response.capabilities, [
+      SyncCapability.taskAllocationV1,
+      SyncCapability.todoRecurrenceV1,
+    ]);
   });
 }

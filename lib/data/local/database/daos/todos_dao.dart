@@ -42,7 +42,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
     return (update(todos)..where((t) => t.id.equals(id))).write(
       TodosCompanion(
         status: const Value('NEEDS-ACTION'),
-        completedAt: const Value.absent(),
+        completedAt: const Value(null),
         percentComplete: const Value(0),
         updatedAt: Value(DateTime.now()),
       ),

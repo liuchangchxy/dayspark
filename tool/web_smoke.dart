@@ -339,7 +339,16 @@ Future<HttpServer> serveDir(String root) async {
     }
     var path = '/${segments.join('/')}';
     if (path.endsWith('/')) path = '${path}index.html';
-    final file = File('${rootDir.path}$path');
+    final relativeSegments = segments.isEmpty || segments.last.isEmpty
+        ? <String>[
+            ...segments.where((segment) => segment.isNotEmpty),
+            'index.html',
+          ]
+        : segments;
+    final file = File(
+      '${rootDir.path}${Platform.pathSeparator}'
+      '${relativeSegments.join(Platform.pathSeparator)}',
+    );
     // `%2e%2e` 解码成 `..`；`..%2f` 更阴：pathSegments 把 `%2f` 解成一个**段内**斜杠，
     // 于是段是 `../webX/secret.txt`（既非 `.` 也非 `..`），join 回路径后又变回穿越。
     // 而 `File.absolute` 不做 `..` 归一化，前缀比较因此挡不住 —— 故三段全拒。

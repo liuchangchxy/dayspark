@@ -27,6 +27,79 @@ Widget _wrap(Widget child) => ProviderScope(
 
 void main() {
   group('TodoListTile', () {
+    testWidgets('tapping completion control toggles without opening the row', (
+      tester,
+    ) async {
+      var toggles = 0;
+      var rowTaps = 0;
+      await tester.pumpWidget(
+        _wrap(
+          TodoListTile(
+            summary: 'Buy groceries',
+            isCompleted: false,
+            priority: 5,
+            todoId: 1,
+            onToggle: () => toggles++,
+            onTap: () => rowTaps++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+
+      expect(toggles, 1);
+      expect(rowTaps, 0);
+    });
+
+    testWidgets('tapping row body opens it without toggling completion', (
+      tester,
+    ) async {
+      var toggles = 0;
+      var rowTaps = 0;
+      await tester.pumpWidget(
+        _wrap(
+          TodoListTile(
+            summary: 'Buy groceries',
+            isCompleted: false,
+            priority: 5,
+            todoId: 1,
+            onToggle: () => toggles++,
+            onTap: () => rowTaps++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Buy groceries'));
+      await tester.pump();
+
+      expect(rowTaps, 1);
+      expect(toggles, 0);
+    });
+
+    testWidgets('tapping completed control restores the todo', (tester) async {
+      var toggles = 0;
+      var rowTaps = 0;
+      await tester.pumpWidget(
+        _wrap(
+          TodoListTile(
+            summary: 'Done task',
+            isCompleted: true,
+            priority: 5,
+            todoId: 2,
+            onToggle: () => toggles++,
+            onTap: () => rowTaps++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+
+      expect(toggles, 1);
+      expect(rowTaps, 0);
+    });
+
     testWidgets('renders summary and checkbox', (tester) async {
       await tester.pumpWidget(
         _wrap(

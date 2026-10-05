@@ -9,6 +9,8 @@ import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 class MemoryCursorStore implements SyncCursorStore {
   int? value;
+  bool? taskAllocationCapabilityEnabled = true;
+  bool? todoRecurrenceCapabilityEnabled = true;
 
   MemoryCursorStore([this.value]);
 
@@ -21,8 +23,28 @@ class MemoryCursorStore implements SyncCursorStore {
   }
 
   @override
+  Future<bool?> readTaskAllocationCapabilityState() async =>
+      taskAllocationCapabilityEnabled;
+
+  @override
+  Future<void> writeTaskAllocationCapabilityState(bool enabled) async {
+    taskAllocationCapabilityEnabled = enabled;
+  }
+
+  @override
+  Future<bool?> readTodoRecurrenceCapabilityState() async =>
+      todoRecurrenceCapabilityEnabled;
+
+  @override
+  Future<void> writeTodoRecurrenceCapabilityState(bool enabled) async {
+    todoRecurrenceCapabilityEnabled = enabled;
+  }
+
+  @override
   Future<void> clear() async {
     value = null;
+    taskAllocationCapabilityEnabled = null;
+    todoRecurrenceCapabilityEnabled = null;
   }
 }
 
@@ -83,8 +105,16 @@ class FakeSyncApiClient implements SyncApiClient {
   final List<int> pullCalls = [];
   PushResponse Function(PushRequest request)? onPush;
   PullResponse Function(int cursor)? onPull;
+  List<String> serverCapabilities = const [
+    SyncCapability.taskAllocationV1,
+    SyncCapability.todoRecurrenceV1,
+  ];
   final StreamController<int> cursorController =
       StreamController<int>.broadcast();
+
+  @override
+  Future<SyncCapabilitiesResponse> fetchServerCapabilities() async =>
+      SyncCapabilitiesResponse(capabilities: serverCapabilities);
 
   @override
   Future<PushResponse> push(PushRequest request) async {
@@ -106,11 +136,7 @@ class FakeSyncApiClient implements SyncApiClient {
     pullCalls.add(cursor);
     final handler = onPull;
     if (handler != null) return handler(cursor);
-    return PullResponse(
-      changes: const [],
-      nextCursor: cursor,
-      hasMore: false,
-    );
+    return PullResponse(changes: const [], nextCursor: cursor, hasMore: false);
   }
 
   @override
@@ -124,6 +150,7 @@ class FakeTransport implements SyncTransport {
 
   /// When true every /sync/push response is 401 (even after refresh).
   bool alwaysPush401 = false;
+  bool capabilitiesEndpointMissing = false;
 
   @override
   Future<SyncHttpResponse> send({
@@ -132,6 +159,19 @@ class FakeTransport implements SyncTransport {
     Map<String, String> headers = const {},
     Object? body,
   }) async {
+    if (path == '/sync/capabilities') {
+      return SyncHttpResponse(
+        statusCode: capabilitiesEndpointMissing ? 404 : 200,
+        body: jsonEncode({
+          'capabilities': capabilitiesEndpointMissing
+              ? <String>[]
+              : <String>[
+                  SyncCapability.taskAllocationV1,
+                  SyncCapability.todoRecurrenceV1,
+                ],
+        }),
+      );
+    }
     if (path.startsWith('/auth/refresh')) {
       refreshCalls++;
       final decoded = body is String

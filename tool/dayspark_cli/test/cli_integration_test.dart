@@ -212,15 +212,6 @@ class FakeDaySpark {
   }
 }
 
-Future<String> _fileMode(String path) async {
-  if (Platform.isMacOS || Platform.isIOS) {
-    final result = await Process.run('stat', <String>['-f', '%Lp', path]);
-    return (result.stdout as String).trim();
-  }
-  final result = await Process.run('stat', <String>['-c', '%a', path]);
-  return (result.stdout as String).trim();
-}
-
 void main() {
   late FakeDaySpark server;
   late Directory home;
@@ -276,8 +267,7 @@ void main() {
     expect(code, 0, reason: err.toString());
   }
 
-  test('login stores credentials.json with mode 600 and never the password',
-      () async {
+  test('login stores private credentials and never the password', () async {
     final code = await run(
       <String>['login', '--server', server.base, '--email', 'user@example.com'],
       readPassword: () async => 'hunter22',
@@ -287,7 +277,13 @@ void main() {
     expect(raw, contains('access-1'));
     expect(raw, contains('refresh-1'));
     expect(raw, isNot(contains('hunter22')), reason: 'password must not be stored');
-    expect(await _fileMode(credentialsPath()), '600');
+    if (Platform.isWindows) {
+      expect(await File(credentialsPath()).exists(), isTrue);
+      expect(await File(credentialsPath()).readAsString(), contains('access-1'));
+    } else {
+      final mode = (await FileStat.stat(credentialsPath())).mode & 0x1ff;
+      expect(mode.toRadixString(8), '600');
+    }
     expect(out.toString(), contains('user-1'));
     expect(out.toString(), isNot(contains('access-1')), reason: 'tokens must not be printed');
   });

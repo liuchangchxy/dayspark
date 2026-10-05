@@ -32,10 +32,12 @@ Future<Map<String, dynamic>> _json(Response response) async {
 }
 
 Future<Map<String, String>> _register(AppServer app, String email) async {
-  final response = await _request(app.handler, 'POST', '/auth/register', body: {
-    'email': email,
-    'password': 'password123',
-  });
+  final response = await _request(
+    app.handler,
+    'POST',
+    '/auth/register',
+    body: {'email': email, 'password': 'password123'},
+  );
   expect(response.statusCode, 201, reason: 'register must succeed');
   final body = await _json(response);
   return {
@@ -51,24 +53,26 @@ Map<String, Object?> _upsertOp({
   int? baseRev,
   String type = 'todo',
 }) => {
-      'opId': opId,
-      'op': 'upsert',
-      'recordId': recordId,
-      'type': type,
-      'fields': fields,
-      'baseRev': baseRev,
-    };
+  'opId': opId,
+  'op': 'upsert',
+  'recordId': recordId,
+  'type': type,
+  'fields': fields,
+  'baseRev': baseRev,
+};
 
 Map<String, Object?> _deleteOp({
   required String opId,
   required String recordId,
   String type = 'todo',
+  Map<String, Object?>? fields,
 }) => {
-      'opId': opId,
-      'op': 'delete',
-      'recordId': recordId,
-      'type': type,
-    };
+  'opId': opId,
+  'op': 'delete',
+  'recordId': recordId,
+  'type': type,
+  'fields': fields,
+};
 
 Future<Map<String, dynamic>> _push(
   AppServer app,
@@ -76,12 +80,20 @@ Future<Map<String, dynamic>> _push(
   required List<Map<String, Object?>> ops,
   int? cursor,
   String deviceId = 'device-1',
+  List<String> capabilities = const [],
 }) async {
-  final response = await _request(app.handler, 'POST', '/sync/push', token: token, body: {
-    'deviceId': deviceId,
-    'ops': ops,
-    if (cursor != null) 'cursor': cursor,
-  });
+  final response = await _request(
+    app.handler,
+    'POST',
+    '/sync/push',
+    token: token,
+    body: {
+      'deviceId': deviceId,
+      'ops': ops,
+      'capabilities': capabilities,
+      if (cursor != null) 'cursor': cursor,
+    },
+  );
   final text = await response.readAsString();
   expect(response.statusCode, 200, reason: text);
   return jsonDecode(text) as Map<String, dynamic>;
@@ -92,10 +104,12 @@ Future<Map<String, dynamic>> _pull(
   String token, {
   int? cursor,
   int? limit,
+  List<String> capabilities = const [],
 }) async {
   final query = <String, String>{
     if (cursor != null) 'cursor': '$cursor',
     if (limit != null) 'limit': '$limit',
+    if (capabilities.isNotEmpty) 'capabilities': capabilities.join(','),
   };
   final path = query.isEmpty
       ? '/sync/pull'
@@ -134,291 +148,663 @@ void main() {
     await app.close();
   });
 
-  test(
-      'push replay with same opId returns stored result verbatim, no state change',
-      () async {
-    final account = await _register(app, 'idem@example.com');
+  test('capability discovery and pull filter advance by raw seq', () async {
+    final account = await _register(app, 'alloc-cursor@example.com');
     final token = account['token']!;
-    final userId = account['userId']!;
-    final seqCalls = <(String, int)>[];
-    app.onSeqAdvanced = (id, seq) => seqCalls.add((id, seq));
-
-    final op = _upsertOp(
-      opId: 'op-idem-1',
-      recordId: 'rec-1',
-      fields: {'title': 'hello'},
+    final discovery = await _request(
+      app.handler,
+      'GET',
+      '/sync/capabilities',
+      token: token,
     );
-    final first = await _push(app, token, ops: [op]);
-    final firstResult = _results(first).single as Map<String, dynamic>;
-    expect(firstResult['status'], 'applied');
-    expect(first['cursor'], 1);
-    expect(seqCalls, [(userId, 1)]);
-
-    final second = await _push(app, token, ops: [op]);
-    final secondResult = _results(second).single as Map<String, dynamic>;
-    // Original stored status is replayed as-is; the client retry sees the
-    // exact same answer it got the first time.
-    expect(secondResult['status'], 'applied');
-    expect(secondResult, firstResult);
-    expect(second['cursor'], 1);
-
-    final pull = await _pull(app, token, cursor: 0);
-    final changes = pull['changes'] as List<dynamic>;
-    expect(changes, hasLength(1));
-    final record = changes.single as Map<String, dynamic>;
-    expect(record['rev'], 1);
-    expect(record['payload'], {'title': 'hello'});
-
-    // No mutation happened on replay, so the SSE seam must not fire again.
-    expect(seqCalls, [(userId, 1)]);
-    final storedOps = await app.db.select(app.db.syncOps).get();
-    expect(storedOps, hasLength(1));
-  });
-
-  test(
-      'stale baseRev upsert merges fields: set fields win, unset fields kept',
-      () async {
-    final token = (await _register(app, 'merge@example.com'))['token']!;
-
-    final create = await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-m-create',
-        recordId: 'rec-m',
-        fields: {'title': 'base title', 'start': 'base start'},
-      ),
+    expect(discovery.statusCode, 200);
+    expect((await _json(discovery))['capabilities'], [
+      'task_allocation_v1',
+      'todo_recurrence_v1',
     ]);
-    expect(_results(create).single['status'], 'applied');
 
-    // Device A bumps rev to 2 with a title change.
-    final deviceA = await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-m-a',
-        recordId: 'rec-m',
-        fields: {'title': 'from A'},
-        baseRev: 1,
-      ),
-    ]);
-    final aResult = _results(deviceA).single as Map<String, dynamic>;
-    expect(aResult['status'], 'applied');
-    expect((aResult['serverRecord'] as Map<String, dynamic>)['rev'], 2);
-
-    // Device B still holds baseRev 1 and only touches start — stale baseRev
-    // must not clobber A's title (field-level LWW, arrival order wins).
-    final deviceB = await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-m-b',
-        recordId: 'rec-m',
-        fields: {'start': 'from B'},
-        baseRev: 1,
-      ),
-    ]);
-    final bResult = _results(deviceB).single as Map<String, dynamic>;
-    expect(bResult['status'], 'applied');
-    final merged = bResult['serverRecord'] as Map<String, dynamic>;
-    expect(merged['rev'], 3);
-    expect(merged['payload'], {'title': 'from A', 'start': 'from B'});
-
-    final pull = await _pull(app, token, cursor: 0);
-    final changes = pull['changes'] as List<dynamic>;
-    expect(changes, hasLength(1));
+    final unsupportedPush = await _push(
+      app,
+      token,
+      ops: [
+        _upsertOp(
+          opId: 'allocation-without-capability',
+          recordId: 'allocation-without-capability',
+          type: 'task_allocation',
+          fields: {
+            'todoSyncId': 'some-todo',
+            'occurrenceId': null,
+            'startAt': '2030-01-01T10:00:00.000Z',
+            'endAt': '2030-01-01T11:00:00.000Z',
+            'state': 'active',
+            'createdAt': '2029-01-01T00:00:00.000Z',
+            'updatedAt': '2029-01-01T00:00:00.000Z',
+          },
+        ),
+      ],
+    );
     expect(
-      (changes.single as Map<String, dynamic>)['payload'],
-      {'title': 'from A', 'start': 'from B'},
+      (_results(unsupportedPush).single as Map<String, dynamic>)['status'],
+      'rejected',
     );
-  });
+    expect(await app.db.select(app.db.records).get(), isEmpty);
 
-  test(
-      'delete vs update: delete wins by arrival, later upsert resurrects tombstone',
-      () async {
-    final token = (await _register(app, 'race@example.com'))['token']!;
+    final recurrenceFields = {
+      'summary': 'Series',
+      'rrule': 'FREQ=DAILY;COUNT=2',
+      'recurrenceSpec': {
+        'anchor': {
+          'source': 'start',
+          'valueType': 'dateTime',
+          'value': '2026-10-05T09:00:00',
+        },
+        'timeZone': 'Asia/Shanghai',
+        'rrule': 'FREQ=DAILY;COUNT=2',
+      },
+      'recurrenceRevision': 1,
+      'recurrenceLegacyState': 'knownZoned',
+    };
+    final recurrenceWithoutCapability = await _push(
+      app,
+      token,
+      ops: [
+        _upsertOp(
+          opId: 'recurrence-without-capability',
+          recordId: 'recurrence-capability',
+          fields: recurrenceFields,
+        ),
+      ],
+    );
+    expect(
+      (_results(recurrenceWithoutCapability).single as Map)['status'],
+      'rejected',
+    );
+    final recurrenceWithCapability = await _push(
+      app,
+      token,
+      capabilities: ['todo_recurrence_v1'],
+      ops: [
+        _upsertOp(
+          opId: 'recurrence-with-capability',
+          recordId: 'recurrence-capability',
+          fields: recurrenceFields,
+        ),
+      ],
+    );
+    expect(
+      (_results(recurrenceWithCapability).single as Map)['status'],
+      'applied',
+    );
 
-    await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-r-create',
-        recordId: 'rec-r',
-        fields: {'title': 't0', 'start': 's0'},
-      ),
-    ]);
-    await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-r-update',
-        recordId: 'rec-r',
-        fields: {'title': 't1'},
-        baseRev: 1,
-      ),
-    ]);
-
-    final deleted = await _push(app, token, ops: [
-      _deleteOp(opId: 'op-r-delete', recordId: 'rec-r'),
-    ]);
-    final deleteResult = _results(deleted).single as Map<String, dynamic>;
-    expect(deleteResult['status'], 'applied');
-    final tombstone = deleteResult['serverRecord'] as Map<String, dynamic>;
-    expect(tombstone['deleted'], true);
-    expect(tombstone['rev'], 3);
-
-    // Arrival order rule: an update whose server receive time falls in a
-    // later second than the tombstone applies (server clock only).
-    await _awaitNextSecond(DateTime.parse(tombstone['serverTs'] as String));
-    final resurrect = await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-r-resurrect',
-        recordId: 'rec-r',
-        fields: {'title': 't2', 'start': 's1'},
-        baseRev: 2,
-      ),
-    ]);
-    final resurrectResult = _results(resurrect).single as Map<String, dynamic>;
-    expect(resurrectResult['status'], 'applied');
-    final revived = resurrectResult['serverRecord'] as Map<String, dynamic>;
-    expect(revived['deleted'], false);
-    expect(revived['rev'], 4);
-    expect(revived['payload'], {'title': 't2', 'start': 's1'});
-
-    final pull = await _pull(app, token, cursor: 0);
-    final changes = pull['changes'] as List<dynamic>;
-    expect(changes, hasLength(1));
-    expect((changes.single as Map<String, dynamic>)['deleted'], false);
-  });
-
-  test('partial failure: middle op rejected, neighbors applied and persisted',
-      () async {
-    final account = await _register(app, 'partial@example.com');
-    final token = account['token']!;
-    final seqCalls = <(String, int)>[];
-    app.onSeqAdvanced = (id, seq) => seqCalls.add((id, seq));
-
-    final ops = [
-      _upsertOp(opId: 'op-p-1', recordId: 'rec-p1', fields: {'title': 'one'}),
-      // Invalid: upsert carries no fields to apply.
-      _upsertOp(opId: 'op-p-2', recordId: 'rec-p2', fields: null),
-      _upsertOp(opId: 'op-p-3', recordId: 'rec-p3', fields: {'title': 'three'}),
-    ];
-    final push = await _push(app, token, ops: ops);
-    final results = _results(push);
-    expect(results, hasLength(3));
-    expect(results[0]['opId'], 'op-p-1');
-    expect(results[0]['status'], 'applied');
-    expect(results[1]['opId'], 'op-p-2');
-    expect(results[1]['status'], 'rejected');
-    expect(results[1]['code'], errValidation);
-    expect(results[2]['opId'], 'op-p-3');
-    expect(results[2]['status'], 'applied');
-    expect(push['cursor'], 2);
-
-    final pull = await _pull(app, token, cursor: 0);
-    final changes = pull['changes'] as List<dynamic>;
-    expect(changes, hasLength(2));
-    final ids = changes.map((c) => (c as Map<String, dynamic>)['id']).toSet();
-    expect(ids, {'rec-p1', 'rec-p3'});
-
-    // Replaying the whole batch keeps every stored verdict and mutates nothing.
-    final seqCallsAfterFirst = [...seqCalls];
-    final replay = await _push(app, token, ops: ops, cursor: 2);
-    final replayResults = _results(replay);
-    expect(replayResults[0]['status'], 'applied');
-    expect(replayResults[1]['status'], 'rejected');
-    expect(replayResults[2]['status'], 'applied');
-    expect(replay['cursor'], 2);
-    expect(seqCalls, seqCallsAfterFirst);
-  });
-
-  test('push piggyback carries other-device changes and reports current cursor',
-      () async {
-    final token = (await _register(app, 'piggy@example.com'))['token']!;
-
-    final first = await _push(app, token, ops: [
-      _upsertOp(opId: 'op-pig-1', recordId: 'rec-pig-1', fields: {'title': '1'}),
-    ]);
-    expect(first['cursor'], 1);
-
-    // Another device writes while device-1 still holds cursor 1.
     await _push(
       app,
       token,
-      deviceId: 'device-2',
       ops: [
         _upsertOp(
-          opId: 'op-pig-2',
-          recordId: 'rec-pig-2',
-          fields: {'title': '2'},
+          opId: 'todo-cursor',
+          recordId: 'todo-cursor',
+          fields: {'title': 'T'},
+        ),
+      ],
+    );
+    await _push(
+      app,
+      token,
+      capabilities: ['task_allocation_v1'],
+      ops: [
+        _upsertOp(
+          opId: 'allocation-cursor',
+          recordId: 'allocation-cursor',
+          type: 'task_allocation',
+          fields: {
+            'todoSyncId': 'todo-cursor',
+            'occurrenceId': null,
+            'startAt': '2030-01-01T10:00:00.000Z',
+            'endAt': '2030-01-01T11:00:00.000Z',
+            'state': 'active',
+            'createdAt': '2029-01-01T00:00:00.000Z',
+            'updatedAt': '2029-01-01T00:00:00.000Z',
+          },
+        ),
+      ],
+    );
+    await _push(
+      app,
+      token,
+      ops: [
+        _upsertOp(
+          opId: 'event-cursor',
+          recordId: 'event-cursor',
+          type: 'event',
+          fields: {'title': 'E'},
         ),
       ],
     );
 
-    final push = await _push(
+    final first = await _pull(app, token, cursor: 1, limit: 1);
+    expect(first['nextCursor'], 2);
+    final hiddenAllocation = await _pull(app, token, cursor: 2, limit: 1);
+    expect(hiddenAllocation['changes'], isEmpty);
+    expect(hiddenAllocation['nextCursor'], 3);
+    final followingVisible = await _pull(app, token, cursor: 3, limit: 1);
+    expect((followingVisible['changes'] as List).single['type'], 'event');
+
+    final capable = await _pull(
       app,
       token,
-      cursor: 1,
-      ops: [
+      cursor: 2,
+      limit: 1,
+      capabilities: ['task_allocation_v1'],
+    );
+    expect((capable['changes'] as List).single['type'], 'task_allocation');
+  });
+
+  test(
+    'completion invalidates only future active allocations; hard delete tombstones them',
+    () async {
+      final account = await _register(app, 'alloc-lifecycle@example.com');
+      final token = account['token']!;
+      final capabilities = ['task_allocation_v1'];
+      await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'todo-life-create',
+            recordId: 'todo-life',
+            fields: {'title': 'T', 'status': 'ACTIVE'},
+          ),
+        ],
+      );
+      Map<String, Object?> allocationOp(
+        String id,
+        String start,
+        String state,
+      ) => _upsertOp(
+        opId: 'create-$id',
+        recordId: id,
+        type: 'task_allocation',
+        fields: {
+          'todoSyncId': 'todo-life',
+          'occurrenceId': null,
+          'startAt': start,
+          'endAt': '2030-01-01T12:00:00.000Z',
+          'state': state,
+          'createdAt': '2029-01-01T00:00:00.000Z',
+          'updatedAt': '2029-01-01T00:00:00.000Z',
+        },
+      );
+      await _push(
+        app,
+        token,
+        capabilities: capabilities,
+        ops: [
+          allocationOp('future-active', '2030-01-01T10:00:00.000Z', 'active'),
+          allocationOp('already-ended', '2029-01-01T10:00:00.000Z', 'active'),
+          allocationOp(
+            'user-cancelled',
+            '2030-01-01T10:00:00.000Z',
+            'cancelledByUser',
+          ),
+        ],
+      );
+      await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'todo-life-complete',
+            recordId: 'todo-life',
+            fields: {
+              'status': 'COMPLETED',
+              'completedAt': '2030-01-01T09:00:00.000Z',
+            },
+            baseRev: 1,
+          ),
+        ],
+      );
+      await _push(
+        app,
+        token,
+        capabilities: capabilities,
+        ops: [
+          _upsertOp(
+            opId: 'move-after-complete',
+            recordId: 'future-active',
+            type: 'task_allocation',
+            fields: {
+              'startAt': '2030-01-02T10:00:00.000Z',
+              'endAt': '2030-01-02T12:00:00.000Z',
+              'updatedAt': '2030-01-01T00:00:00.000Z',
+            },
+            baseRev: 1,
+          ),
+          _upsertOp(
+            opId: 'reschedule-cancelled',
+            recordId: 'user-cancelled',
+            type: 'task_allocation',
+            fields: {
+              'startAt': '2030-01-03T10:00:00.000Z',
+              'endAt': '2030-01-03T12:00:00.000Z',
+              'updatedAt': '2030-01-01T00:00:00.000Z',
+            },
+            baseRev: 1,
+          ),
+        ],
+      );
+      var changes =
+          (await _pull(app, token, capabilities: capabilities))['changes']
+              as List;
+      final byId = {for (final row in changes) row['id']: row};
+      expect(
+        byId['future-active']['payload']['state'],
+        'invalidatedByCompletion',
+      );
+      expect(byId['already-ended']['payload']['state'], 'active');
+      expect(byId['user-cancelled']['payload']['state'], 'cancelledByUser');
+      expect(
+        byId['future-active']['payload']['startAt'],
+        '2030-01-02T10:00:00.000Z',
+      );
+      expect(
+        byId['user-cancelled']['payload']['startAt'],
+        '2030-01-03T10:00:00.000Z',
+      );
+
+      await _push(
+        app,
+        token,
+        ops: [
+          _deleteOp(
+            opId: 'hard-delete-life',
+            recordId: 'todo-life',
+            fields: {'hardDelete': true},
+          ),
+        ],
+        capabilities: capabilities,
+      );
+      final lateEdit = await _push(
+        app,
+        token,
+        capabilities: capabilities,
+        ops: [
+          _upsertOp(
+            opId: 'late-allocation-edit',
+            recordId: 'future-active',
+            type: 'task_allocation',
+            fields: {
+              'startAt': '2031-01-01T10:00:00.000Z',
+              'endAt': '2031-01-01T12:00:00.000Z',
+            },
+            baseRev: 2,
+          ),
+        ],
+      );
+      expect(
+        (_results(lateEdit).single as Map<String, dynamic>)['status'],
+        'conflict',
+      );
+      changes =
+          (await _pull(
+                app,
+                token,
+                cursor: 0,
+                capabilities: capabilities,
+              ))['changes']
+              as List;
+      final allocationChanges = changes.where(
+        (row) => row['type'] == 'task_allocation',
+      );
+      expect(allocationChanges, hasLength(3));
+      expect(allocationChanges.every((row) => row['deleted'] == true), isTrue);
+    },
+  );
+
+  test(
+    'push replay with same opId returns stored result verbatim, no state change',
+    () async {
+      final account = await _register(app, 'idem@example.com');
+      final token = account['token']!;
+      final userId = account['userId']!;
+      final seqCalls = <(String, int)>[];
+      app.onSeqAdvanced = (id, seq) => seqCalls.add((id, seq));
+
+      final op = _upsertOp(
+        opId: 'op-idem-1',
+        recordId: 'rec-1',
+        fields: {'title': 'hello'},
+      );
+      final first = await _push(app, token, ops: [op]);
+      final firstResult = _results(first).single as Map<String, dynamic>;
+      expect(firstResult['status'], 'applied');
+      expect(first['cursor'], 1);
+      expect(seqCalls, [(userId, 1)]);
+
+      final second = await _push(app, token, ops: [op]);
+      final secondResult = _results(second).single as Map<String, dynamic>;
+      // Original stored status is replayed as-is; the client retry sees the
+      // exact same answer it got the first time.
+      expect(secondResult['status'], 'applied');
+      expect(secondResult, firstResult);
+      expect(second['cursor'], 1);
+
+      final pull = await _pull(app, token, cursor: 0);
+      final changes = pull['changes'] as List<dynamic>;
+      expect(changes, hasLength(1));
+      final record = changes.single as Map<String, dynamic>;
+      expect(record['rev'], 1);
+      expect(record['payload'], {'title': 'hello'});
+
+      // No mutation happened on replay, so the SSE seam must not fire again.
+      expect(seqCalls, [(userId, 1)]);
+      final storedOps = await app.db.select(app.db.syncOps).get();
+      expect(storedOps, hasLength(1));
+    },
+  );
+
+  test(
+    'stale baseRev upsert merges fields: set fields win, unset fields kept',
+    () async {
+      final token = (await _register(app, 'merge@example.com'))['token']!;
+
+      final create = await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-m-create',
+            recordId: 'rec-m',
+            fields: {'title': 'base title', 'start': 'base start'},
+          ),
+        ],
+      );
+      expect(_results(create).single['status'], 'applied');
+
+      // Device A bumps rev to 2 with a title change.
+      final deviceA = await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-m-a',
+            recordId: 'rec-m',
+            fields: {'title': 'from A'},
+            baseRev: 1,
+          ),
+        ],
+      );
+      final aResult = _results(deviceA).single as Map<String, dynamic>;
+      expect(aResult['status'], 'applied');
+      expect((aResult['serverRecord'] as Map<String, dynamic>)['rev'], 2);
+
+      // Device B still holds baseRev 1 and only touches start — stale baseRev
+      // must not clobber A's title (field-level LWW, arrival order wins).
+      final deviceB = await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-m-b',
+            recordId: 'rec-m',
+            fields: {'start': 'from B'},
+            baseRev: 1,
+          ),
+        ],
+      );
+      final bResult = _results(deviceB).single as Map<String, dynamic>;
+      expect(bResult['status'], 'applied');
+      final merged = bResult['serverRecord'] as Map<String, dynamic>;
+      expect(merged['rev'], 3);
+      expect(merged['payload'], {'title': 'from A', 'start': 'from B'});
+
+      final pull = await _pull(app, token, cursor: 0);
+      final changes = pull['changes'] as List<dynamic>;
+      expect(changes, hasLength(1));
+      expect((changes.single as Map<String, dynamic>)['payload'], {
+        'title': 'from A',
+        'start': 'from B',
+      });
+    },
+  );
+
+  test(
+    'delete vs update: delete wins by arrival, later upsert resurrects tombstone',
+    () async {
+      final token = (await _register(app, 'race@example.com'))['token']!;
+
+      await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-r-create',
+            recordId: 'rec-r',
+            fields: {'title': 't0', 'start': 's0'},
+          ),
+        ],
+      );
+      await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-r-update',
+            recordId: 'rec-r',
+            fields: {'title': 't1'},
+            baseRev: 1,
+          ),
+        ],
+      );
+
+      final deleted = await _push(
+        app,
+        token,
+        ops: [_deleteOp(opId: 'op-r-delete', recordId: 'rec-r')],
+      );
+      final deleteResult = _results(deleted).single as Map<String, dynamic>;
+      expect(deleteResult['status'], 'applied');
+      final tombstone = deleteResult['serverRecord'] as Map<String, dynamic>;
+      expect(tombstone['deleted'], true);
+      expect(tombstone['rev'], 3);
+
+      // Arrival order rule: an update whose server receive time falls in a
+      // later second than the tombstone applies (server clock only).
+      await _awaitNextSecond(DateTime.parse(tombstone['serverTs'] as String));
+      final resurrect = await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-r-resurrect',
+            recordId: 'rec-r',
+            fields: {'title': 't2', 'start': 's1'},
+            baseRev: 2,
+          ),
+        ],
+      );
+      final resurrectResult =
+          _results(resurrect).single as Map<String, dynamic>;
+      expect(resurrectResult['status'], 'applied');
+      final revived = resurrectResult['serverRecord'] as Map<String, dynamic>;
+      expect(revived['deleted'], false);
+      expect(revived['rev'], 4);
+      expect(revived['payload'], {'title': 't2', 'start': 's1'});
+
+      final pull = await _pull(app, token, cursor: 0);
+      final changes = pull['changes'] as List<dynamic>;
+      expect(changes, hasLength(1));
+      expect((changes.single as Map<String, dynamic>)['deleted'], false);
+    },
+  );
+
+  test(
+    'partial failure: middle op rejected, neighbors applied and persisted',
+    () async {
+      final account = await _register(app, 'partial@example.com');
+      final token = account['token']!;
+      final seqCalls = <(String, int)>[];
+      app.onSeqAdvanced = (id, seq) => seqCalls.add((id, seq));
+
+      final ops = [
+        _upsertOp(opId: 'op-p-1', recordId: 'rec-p1', fields: {'title': 'one'}),
+        // Invalid: upsert carries no fields to apply.
+        _upsertOp(opId: 'op-p-2', recordId: 'rec-p2', fields: null),
         _upsertOp(
-          opId: 'op-pig-3',
-          recordId: 'rec-pig-3',
-          fields: {'title': '3'},
+          opId: 'op-p-3',
+          recordId: 'rec-p3',
+          fields: {'title': 'three'},
         ),
-      ],
-    );
-    final piggyback = push['piggyback'] as List<dynamic>;
-    final piggyIds = piggyback
-        .map((r) => (r as Map<String, dynamic>)['id'] as String)
-        .toSet();
-    expect(piggyIds, {'rec-pig-2', 'rec-pig-3'});
-    expect(push['cursor'], 3);
+      ];
+      final push = await _push(app, token, ops: ops);
+      final results = _results(push);
+      expect(results, hasLength(3));
+      expect(results[0]['opId'], 'op-p-1');
+      expect(results[0]['status'], 'applied');
+      expect(results[1]['opId'], 'op-p-2');
+      expect(results[1]['status'], 'rejected');
+      expect(results[1]['code'], errValidation);
+      expect(results[2]['opId'], 'op-p-3');
+      expect(results[2]['status'], 'applied');
+      expect(push['cursor'], 2);
 
-    // Piggyback is capped at 100 changes; cursor is the watermark of what
-    // THIS response delivered (seq 100), never the head — adopting the head
-    // here would silently skip seqs 101-104.
-    final bulk = List.generate(
-      100,
-      (i) => _upsertOp(
-        opId: 'op-bulk-$i',
-        recordId: 'rec-bulk-$i',
-        fields: {'title': 'b$i'},
-      ),
-    );
-    await _push(app, token, ops: bulk);
-    final capped = await _push(
-      app,
-      token,
-      cursor: 0,
-      ops: [
-        _upsertOp(opId: 'op-tail', recordId: 'rec-tail', fields: {'title': 'x'}),
-      ],
-    );
-    expect((capped['piggyback'] as List<dynamic>), hasLength(100));
-    expect(capped['cursor'], 100);
+      final pull = await _pull(app, token, cursor: 0);
+      final changes = pull['changes'] as List<dynamic>;
+      expect(changes, hasLength(2));
+      final ids = changes.map((c) => (c as Map<String, dynamic>)['id']).toSet();
+      expect(ids, {'rec-p1', 'rec-p3'});
 
-    // Lossless continuation: resuming from the delivered watermark brings
-    // exactly the undelivered tail (seqs 101-104).
-    final tail = await _pull(app, token, cursor: capped['cursor'] as int);
-    final tailChanges = tail['changes'] as List<dynamic>;
-    expect(tailChanges, hasLength(4));
-    expect(
-      tailChanges.map((c) => (c as Map<String, dynamic>)['id']).toSet(),
-      {'rec-bulk-97', 'rec-bulk-98', 'rec-bulk-99', 'rec-tail'},
-    );
-    expect(tail['hasMore'], isFalse);
-  });
+      // Replaying the whole batch keeps every stored verdict and mutates nothing.
+      final seqCallsAfterFirst = [...seqCalls];
+      final replay = await _push(app, token, ops: ops, cursor: 2);
+      final replayResults = _results(replay);
+      expect(replayResults[0]['status'], 'applied');
+      expect(replayResults[1]['status'], 'rejected');
+      expect(replayResults[2]['status'], 'applied');
+      expect(replay['cursor'], 2);
+      expect(seqCalls, seqCallsAfterFirst);
+    },
+  );
 
-  test('push cursor edge: empty piggyback keeps request cursor or returns head',
-      () async {
-    final token = (await _register(app, 'watermark@example.com'))['token']!;
+  test(
+    'push piggyback carries other-device changes and reports current cursor',
+    () async {
+      final token = (await _register(app, 'piggy@example.com'))['token']!;
 
-    // Empty + omitted: fresh account, head is 0.
-    final fresh = await _push(app, token, ops: []);
-    expect(fresh['piggyback'], isEmpty);
-    expect(fresh['cursor'], 0);
+      final first = await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-pig-1',
+            recordId: 'rec-pig-1',
+            fields: {'title': '1'},
+          ),
+        ],
+      );
+      expect(first['cursor'], 1);
 
-    await _push(app, token, ops: [
-      _upsertOp(opId: 'op-wm-1', recordId: 'rec-wm-1', fields: {'title': '1'}),
-    ]);
+      // Another device writes while device-1 still holds cursor 1.
+      await _push(
+        app,
+        token,
+        deviceId: 'device-2',
+        ops: [
+          _upsertOp(
+            opId: 'op-pig-2',
+            recordId: 'rec-pig-2',
+            fields: {'title': '2'},
+          ),
+        ],
+      );
 
-    // Empty + provided: no changes above the (ahead) request cursor — the
-    // watermark stays where the client put it, never rewinds to head.
-    final ahead = await _push(app, token, ops: [], cursor: 99);
-    expect(ahead['piggyback'], isEmpty);
-    expect(ahead['cursor'], 99);
-  });
+      final push = await _push(
+        app,
+        token,
+        cursor: 1,
+        ops: [
+          _upsertOp(
+            opId: 'op-pig-3',
+            recordId: 'rec-pig-3',
+            fields: {'title': '3'},
+          ),
+        ],
+      );
+      final piggyback = push['piggyback'] as List<dynamic>;
+      final piggyIds = piggyback
+          .map((r) => (r as Map<String, dynamic>)['id'] as String)
+          .toSet();
+      expect(piggyIds, {'rec-pig-2', 'rec-pig-3'});
+      expect(push['cursor'], 3);
+
+      // Piggyback is capped at 100 changes; cursor is the watermark of what
+      // THIS response delivered (seq 100), never the head — adopting the head
+      // here would silently skip seqs 101-104.
+      final bulk = List.generate(
+        100,
+        (i) => _upsertOp(
+          opId: 'op-bulk-$i',
+          recordId: 'rec-bulk-$i',
+          fields: {'title': 'b$i'},
+        ),
+      );
+      await _push(app, token, ops: bulk);
+      final capped = await _push(
+        app,
+        token,
+        cursor: 0,
+        ops: [
+          _upsertOp(
+            opId: 'op-tail',
+            recordId: 'rec-tail',
+            fields: {'title': 'x'},
+          ),
+        ],
+      );
+      expect((capped['piggyback'] as List<dynamic>), hasLength(100));
+      expect(capped['cursor'], 100);
+
+      // Lossless continuation: resuming from the delivered watermark brings
+      // exactly the undelivered tail (seqs 101-104).
+      final tail = await _pull(app, token, cursor: capped['cursor'] as int);
+      final tailChanges = tail['changes'] as List<dynamic>;
+      expect(tailChanges, hasLength(4));
+      expect(
+        tailChanges.map((c) => (c as Map<String, dynamic>)['id']).toSet(),
+        {'rec-bulk-97', 'rec-bulk-98', 'rec-bulk-99', 'rec-tail'},
+      );
+      expect(tail['hasMore'], isFalse);
+    },
+  );
+
+  test(
+    'push cursor edge: empty piggyback keeps request cursor or returns head',
+    () async {
+      final token = (await _register(app, 'watermark@example.com'))['token']!;
+
+      // Empty + omitted: fresh account, head is 0.
+      final fresh = await _push(app, token, ops: []);
+      expect(fresh['piggyback'], isEmpty);
+      expect(fresh['cursor'], 0);
+
+      await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-wm-1',
+            recordId: 'rec-wm-1',
+            fields: {'title': '1'},
+          ),
+        ],
+      );
+
+      // Empty + provided: no changes above the (ahead) request cursor — the
+      // watermark stays where the client put it, never rewinds to head.
+      final ahead = await _push(app, token, ops: [], cursor: 99);
+      expect(ahead['piggyback'], isEmpty);
+      expect(ahead['cursor'], 99);
+    },
+  );
 
   test('pull paginates with hasMore and advances cursor', () async {
     final token = (await _register(app, 'page@example.com'))['token']!;
@@ -445,8 +831,9 @@ void main() {
         expect(hasMore, isFalse);
         break;
       }
-      final seqs =
-          changes.map((c) => (c as Map<String, dynamic>)['id'] as String);
+      final seqs = changes.map(
+        (c) => (c as Map<String, dynamic>)['id'] as String,
+      );
       seen.addAll(seqs);
       cursor = page['nextCursor'] as int;
       pages++;
@@ -477,22 +864,29 @@ void main() {
   test('tombstone propagates through pull', () async {
     final token = (await _register(app, 'tomb@example.com'))['token']!;
 
-    await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-t-create',
-        recordId: 'rec-t',
-        fields: {'title': 'keep me'},
-      ),
-    ]);
+    await _push(
+      app,
+      token,
+      ops: [
+        _upsertOp(
+          opId: 'op-t-create',
+          recordId: 'rec-t',
+          fields: {'title': 'keep me'},
+        ),
+      ],
+    );
     final before = await _pull(app, token, cursor: 0);
-    final live = (before['changes'] as List<dynamic>).single as Map<String, dynamic>;
+    final live =
+        (before['changes'] as List<dynamic>).single as Map<String, dynamic>;
     expect(live['deleted'], false);
     expect(live['rev'], 1);
     final cursorBeforeDelete = before['nextCursor'] as int;
 
-    await _push(app, token, ops: [
-      _deleteOp(opId: 'op-t-delete', recordId: 'rec-t'),
-    ]);
+    await _push(
+      app,
+      token,
+      ops: [_deleteOp(opId: 'op-t-delete', recordId: 'rec-t')],
+    );
 
     final after = await _pull(app, token, cursor: cursorBeforeDelete);
     final changes = after['changes'] as List<dynamic>;
@@ -504,59 +898,77 @@ void main() {
     expect(after['hasMore'], isFalse);
   });
 
-  test('same-second tie-break: lower incoming opId loses to tombstone',
-      () async {
-    final token = (await _register(app, 'tie@example.com'))['token']!;
+  test(
+    'same-second tie-break: lower incoming opId loses to tombstone',
+    () async {
+      final token = (await _register(app, 'tie@example.com'))['token']!;
 
-    // The second boundary can fall between the delete write and the upsert
-    // receive; retry with fresh records until both land in the same second.
-    // Crossing chance per attempt is ~1% of a 10ms gap, so 8 attempts is
-    // effectively certain to pin the tie-break branch at least once.
-    var pinned = false;
-    for (var attempt = 0; attempt < 8 && !pinned; attempt++) {
-      final recordId = 'rec-tie-$attempt';
-      await _push(app, token, ops: [
-        _upsertOp(
-          opId: 'op-tie-create-$attempt',
-          recordId: recordId,
-          fields: {'title': 'tie'},
-        ),
-      ]);
-      final deleted = await _push(app, token, ops: [
-        _deleteOp(opId: 'zzzzzzzzzzzzzzzzzz-$attempt', recordId: recordId),
-      ]);
-      final tombstone =
-          _results(deleted).single['serverRecord'] as Map<String, dynamic>;
-      expect(tombstone['deleted'], true);
+      // The second boundary can fall between the delete write and the upsert
+      // receive; retry with fresh records until both land in the same second.
+      // Crossing chance per attempt is ~1% of a 10ms gap, so 8 attempts is
+      // effectively certain to pin the tie-break branch at least once.
+      var pinned = false;
+      for (var attempt = 0; attempt < 8 && !pinned; attempt++) {
+        final recordId = 'rec-tie-$attempt';
+        await _push(
+          app,
+          token,
+          ops: [
+            _upsertOp(
+              opId: 'op-tie-create-$attempt',
+              recordId: recordId,
+              fields: {'title': 'tie'},
+            ),
+          ],
+        );
+        final deleted = await _push(
+          app,
+          token,
+          ops: [
+            _deleteOp(opId: 'zzzzzzzzzzzzzzzzzz-$attempt', recordId: recordId),
+          ],
+        );
+        final tombstone =
+            _results(deleted).single['serverRecord'] as Map<String, dynamic>;
+        expect(tombstone['deleted'], true);
 
-      final upserted = await _push(app, token, ops: [
-        _upsertOp(
-          opId: 'aaaaaaaaaaaaaaaaaa-$attempt',
-          recordId: recordId,
-          fields: {'title': 'late'},
-          baseRev: 2,
-        ),
-      ]);
-      final result = _results(upserted).single as Map<String, dynamic>;
-      if (result['status'] == 'conflict') {
-        final returned = result['serverRecord'] as Map<String, dynamic>;
-        expect(returned['deleted'], true);
-        expect(returned['rev'], tombstone['rev']);
-        expect(result['code'], errConflict);
-        pinned = true;
-      } else {
-        // Applied only means the upsert landed in a later second.
-        expect(result['status'], 'applied');
+        final upserted = await _push(
+          app,
+          token,
+          ops: [
+            _upsertOp(
+              opId: 'aaaaaaaaaaaaaaaaaa-$attempt',
+              recordId: recordId,
+              fields: {'title': 'late'},
+              baseRev: 2,
+            ),
+          ],
+        );
+        final result = _results(upserted).single as Map<String, dynamic>;
+        if (result['status'] == 'conflict') {
+          final returned = result['serverRecord'] as Map<String, dynamic>;
+          expect(returned['deleted'], true);
+          expect(returned['rev'], tombstone['rev']);
+          expect(result['code'], errConflict);
+          pinned = true;
+        } else {
+          // Applied only means the upsert landed in a later second.
+          expect(result['status'], 'applied');
+        }
       }
-    }
-    expect(pinned, isTrue,
-        reason: 'never landed delete+upsert in the same second');
+      expect(
+        pinned,
+        isTrue,
+        reason: 'never landed delete+upsert in the same second',
+      );
 
-    final pull = await _pull(app, token, cursor: 0);
-    final stillDeleted = (pull['changes'] as List<dynamic>)
-        .where((c) => (c as Map<String, dynamic>)['deleted'] == true);
-    expect(stillDeleted, isNotEmpty);
-  });
+      final pull = await _pull(app, token, cursor: 0);
+      final stillDeleted = (pull['changes'] as List<dynamic>).where(
+        (c) => (c as Map<String, dynamic>)['deleted'] == true,
+      );
+      expect(stillDeleted, isNotEmpty);
+    },
+  );
 
   group('lww decideTombstoneVsUpsert', () {
     final sameSecond = DateTime.utc(2026, 9, 23, 10, 0, 0);
@@ -625,14 +1037,18 @@ void main() {
   test('upsert for unknown record with positive baseRev is rejected', () async {
     final token = (await _register(app, 'unknown@example.com'))['token']!;
 
-    final push = await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-ghost',
-        recordId: 'rec-ghost',
-        fields: {'title': 'ghost'},
-        baseRev: 5,
-      ),
-    ]);
+    final push = await _push(
+      app,
+      token,
+      ops: [
+        _upsertOp(
+          opId: 'op-ghost',
+          recordId: 'rec-ghost',
+          fields: {'title': 'ghost'},
+          baseRev: 5,
+        ),
+      ],
+    );
     final result = _results(push).single as Map<String, dynamic>;
     expect(result['status'], 'rejected');
     expect(result['code'], errValidation);
@@ -642,46 +1058,59 @@ void main() {
     expect(pull['changes'], isEmpty);
   });
 
-  test('upsert with mismatched type is rejected and record unchanged',
-      () async {
-    final token = (await _register(app, 'retag@example.com'))['token']!;
+  test(
+    'upsert with mismatched type is rejected and record unchanged',
+    () async {
+      final token = (await _register(app, 'retag@example.com'))['token']!;
 
-    await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-type-create',
-        recordId: 'rec-type',
-        fields: {'title': 'event title'},
-        type: 'event',
-      ),
-    ]);
+      await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-type-create',
+            recordId: 'rec-type',
+            fields: {'title': 'event title'},
+            type: 'event',
+          ),
+        ],
+      );
 
-    final retag = await _push(app, token, ops: [
-      _upsertOp(
-        opId: 'op-type-retag',
-        recordId: 'rec-type',
-        fields: {'title': 'sneaky todo'},
-        baseRev: 1,
-        type: 'todo',
-      ),
-    ]);
-    final result = _results(retag).single as Map<String, dynamic>;
-    expect(result['status'], 'rejected');
-    expect(result['code'], errValidation);
-    expect(retag['cursor'], 1);
+      final retag = await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'op-type-retag',
+            recordId: 'rec-type',
+            fields: {'title': 'sneaky todo'},
+            baseRev: 1,
+            type: 'todo',
+          ),
+        ],
+      );
+      final result = _results(retag).single as Map<String, dynamic>;
+      expect(result['status'], 'rejected');
+      expect(result['code'], errValidation);
+      expect(retag['cursor'], 1);
 
-    final pull = await _pull(app, token, cursor: 0);
-    final record = (pull['changes'] as List<dynamic>).single as Map<String, dynamic>;
-    expect(record['type'], 'event');
-    expect(record['payload'], {'title': 'event title'});
-    expect(record['rev'], 1);
-    expect(record['deleted'], false);
-  });
+      final pull = await _pull(app, token, cursor: 0);
+      final record =
+          (pull['changes'] as List<dynamic>).single as Map<String, dynamic>;
+      expect(record['type'], 'event');
+      expect(record['payload'], {'title': 'event title'});
+      expect(record['rev'], 1);
+      expect(record['deleted'], false);
+    },
+  );
 
   test('sync routes are auth-gated and reject malformed envelope', () async {
-    final anonymousPush = await _request(app.handler, 'POST', '/sync/push', body: {
-      'deviceId': 'device-1',
-      'ops': <Object>[],
-    });
+    final anonymousPush = await _request(
+      app.handler,
+      'POST',
+      '/sync/push',
+      body: {'deviceId': 'device-1', 'ops': <Object>[]},
+    );
     expect(anonymousPush.statusCode, 401);
     expect(_errorCode(await _json(anonymousPush)), errUnauthorized);
 

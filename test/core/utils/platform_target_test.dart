@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dayspark/core/utils/platform_target.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -13,6 +14,27 @@ void main() {
       expect(isAndroid, Platform.isAndroid);
       expect(isIOS, Platform.isIOS);
       expect(isNativeMobile, Platform.isAndroid || Platform.isIOS);
+    });
+
+    test('home_widget 仅支持非 Web Android 和 iOS', () {
+      for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+        expect(
+          homeWidgetPlatformOn(isWeb: false, platform: platform),
+          platform,
+        );
+      }
+      for (final platform in [
+        TargetPlatform.linux,
+        TargetPlatform.macOS,
+        TargetPlatform.windows,
+        TargetPlatform.fuchsia,
+      ]) {
+        expect(homeWidgetPlatformOn(isWeb: false, platform: platform), isNull);
+      }
+      expect(
+        homeWidgetPlatformOn(isWeb: true, platform: TargetPlatform.android),
+        isNull,
+      );
     });
   });
 }

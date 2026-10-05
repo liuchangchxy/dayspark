@@ -1347,6 +1347,94 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _recurrenceAnchorSourceMeta =
+      const VerificationMeta('recurrenceAnchorSource');
+  @override
+  late final GeneratedColumn<String> recurrenceAnchorSource =
+      GeneratedColumn<String>(
+        'recurrence_anchor_source',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _recurrenceValueTypeMeta =
+      const VerificationMeta('recurrenceValueType');
+  @override
+  late final GeneratedColumn<String> recurrenceValueType =
+      GeneratedColumn<String>(
+        'recurrence_value_type',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _recurrenceAnchorValueMeta =
+      const VerificationMeta('recurrenceAnchorValue');
+  @override
+  late final GeneratedColumn<String> recurrenceAnchorValue =
+      GeneratedColumn<String>(
+        'recurrence_anchor_value',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _recurrenceTimeZoneMeta =
+      const VerificationMeta('recurrenceTimeZone');
+  @override
+  late final GeneratedColumn<String> recurrenceTimeZone =
+      GeneratedColumn<String>(
+        'recurrence_time_zone',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _recurrenceRuleMeta = const VerificationMeta(
+    'recurrenceRule',
+  );
+  @override
+  late final GeneratedColumn<String> recurrenceRule = GeneratedColumn<String>(
+    'recurrence_rule',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _recurrenceLegacyStateMeta =
+      const VerificationMeta('recurrenceLegacyState');
+  @override
+  late final GeneratedColumn<String> recurrenceLegacyState =
+      GeneratedColumn<String>(
+        'recurrence_legacy_state',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _recurrenceEvidenceMeta =
+      const VerificationMeta('recurrenceEvidence');
+  @override
+  late final GeneratedColumn<String> recurrenceEvidence =
+      GeneratedColumn<String>(
+        'recurrence_evidence',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _recurrenceRevisionMeta =
+      const VerificationMeta('recurrenceRevision');
+  @override
+  late final GeneratedColumn<int> recurrenceRevision = GeneratedColumn<int>(
+    'recurrence_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _completedAtMeta = const VerificationMeta(
     'completedAt',
   );
@@ -1460,6 +1548,14 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     status,
     description,
     rrule,
+    recurrenceAnchorSource,
+    recurrenceValueType,
+    recurrenceAnchorValue,
+    recurrenceTimeZone,
+    recurrenceRule,
+    recurrenceLegacyState,
+    recurrenceEvidence,
+    recurrenceRevision,
     completedAt,
     percentComplete,
     createdAt,
@@ -1538,6 +1634,78 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
       context.handle(
         _rruleMeta,
         rrule.isAcceptableOrUnknown(data['rrule']!, _rruleMeta),
+      );
+    }
+    if (data.containsKey('recurrence_anchor_source')) {
+      context.handle(
+        _recurrenceAnchorSourceMeta,
+        recurrenceAnchorSource.isAcceptableOrUnknown(
+          data['recurrence_anchor_source']!,
+          _recurrenceAnchorSourceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_value_type')) {
+      context.handle(
+        _recurrenceValueTypeMeta,
+        recurrenceValueType.isAcceptableOrUnknown(
+          data['recurrence_value_type']!,
+          _recurrenceValueTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_anchor_value')) {
+      context.handle(
+        _recurrenceAnchorValueMeta,
+        recurrenceAnchorValue.isAcceptableOrUnknown(
+          data['recurrence_anchor_value']!,
+          _recurrenceAnchorValueMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_time_zone')) {
+      context.handle(
+        _recurrenceTimeZoneMeta,
+        recurrenceTimeZone.isAcceptableOrUnknown(
+          data['recurrence_time_zone']!,
+          _recurrenceTimeZoneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_rule')) {
+      context.handle(
+        _recurrenceRuleMeta,
+        recurrenceRule.isAcceptableOrUnknown(
+          data['recurrence_rule']!,
+          _recurrenceRuleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_legacy_state')) {
+      context.handle(
+        _recurrenceLegacyStateMeta,
+        recurrenceLegacyState.isAcceptableOrUnknown(
+          data['recurrence_legacy_state']!,
+          _recurrenceLegacyStateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_evidence')) {
+      context.handle(
+        _recurrenceEvidenceMeta,
+        recurrenceEvidence.isAcceptableOrUnknown(
+          data['recurrence_evidence']!,
+          _recurrenceEvidenceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('recurrence_revision')) {
+      context.handle(
+        _recurrenceRevisionMeta,
+        recurrenceRevision.isAcceptableOrUnknown(
+          data['recurrence_revision']!,
+          _recurrenceRevisionMeta,
+        ),
       );
     }
     if (data.containsKey('completed_at')) {
@@ -1645,6 +1813,38 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.string,
         data['${effectivePrefix}rrule'],
       ),
+      recurrenceAnchorSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_anchor_source'],
+      ),
+      recurrenceValueType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_value_type'],
+      ),
+      recurrenceAnchorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_anchor_value'],
+      ),
+      recurrenceTimeZone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_time_zone'],
+      ),
+      recurrenceRule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_rule'],
+      ),
+      recurrenceLegacyState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_legacy_state'],
+      ),
+      recurrenceEvidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence_evidence'],
+      ),
+      recurrenceRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}recurrence_revision'],
+      )!,
       completedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}completed_at'],
@@ -1700,6 +1900,14 @@ class Todo extends DataClass implements Insertable<Todo> {
   final String status;
   final String? description;
   final String? rrule;
+  final String? recurrenceAnchorSource;
+  final String? recurrenceValueType;
+  final String? recurrenceAnchorValue;
+  final String? recurrenceTimeZone;
+  final String? recurrenceRule;
+  final String? recurrenceLegacyState;
+  final String? recurrenceEvidence;
+  final int recurrenceRevision;
   final DateTime? completedAt;
   final int percentComplete;
   final DateTime createdAt;
@@ -1719,6 +1927,14 @@ class Todo extends DataClass implements Insertable<Todo> {
     required this.status,
     this.description,
     this.rrule,
+    this.recurrenceAnchorSource,
+    this.recurrenceValueType,
+    this.recurrenceAnchorValue,
+    this.recurrenceTimeZone,
+    this.recurrenceRule,
+    this.recurrenceLegacyState,
+    this.recurrenceEvidence,
+    required this.recurrenceRevision,
     this.completedAt,
     required this.percentComplete,
     required this.createdAt,
@@ -1749,6 +1965,30 @@ class Todo extends DataClass implements Insertable<Todo> {
     if (!nullToAbsent || rrule != null) {
       map['rrule'] = Variable<String>(rrule);
     }
+    if (!nullToAbsent || recurrenceAnchorSource != null) {
+      map['recurrence_anchor_source'] = Variable<String>(
+        recurrenceAnchorSource,
+      );
+    }
+    if (!nullToAbsent || recurrenceValueType != null) {
+      map['recurrence_value_type'] = Variable<String>(recurrenceValueType);
+    }
+    if (!nullToAbsent || recurrenceAnchorValue != null) {
+      map['recurrence_anchor_value'] = Variable<String>(recurrenceAnchorValue);
+    }
+    if (!nullToAbsent || recurrenceTimeZone != null) {
+      map['recurrence_time_zone'] = Variable<String>(recurrenceTimeZone);
+    }
+    if (!nullToAbsent || recurrenceRule != null) {
+      map['recurrence_rule'] = Variable<String>(recurrenceRule);
+    }
+    if (!nullToAbsent || recurrenceLegacyState != null) {
+      map['recurrence_legacy_state'] = Variable<String>(recurrenceLegacyState);
+    }
+    if (!nullToAbsent || recurrenceEvidence != null) {
+      map['recurrence_evidence'] = Variable<String>(recurrenceEvidence);
+    }
+    map['recurrence_revision'] = Variable<int>(recurrenceRevision);
     if (!nullToAbsent || completedAt != null) {
       map['completed_at'] = Variable<DateTime>(completedAt);
     }
@@ -1788,6 +2028,28 @@ class Todo extends DataClass implements Insertable<Todo> {
       rrule: rrule == null && nullToAbsent
           ? const Value.absent()
           : Value(rrule),
+      recurrenceAnchorSource: recurrenceAnchorSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceAnchorSource),
+      recurrenceValueType: recurrenceValueType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceValueType),
+      recurrenceAnchorValue: recurrenceAnchorValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceAnchorValue),
+      recurrenceTimeZone: recurrenceTimeZone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceTimeZone),
+      recurrenceRule: recurrenceRule == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceRule),
+      recurrenceLegacyState: recurrenceLegacyState == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceLegacyState),
+      recurrenceEvidence: recurrenceEvidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceEvidence),
+      recurrenceRevision: Value(recurrenceRevision),
       completedAt: completedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(completedAt),
@@ -1823,6 +2085,26 @@ class Todo extends DataClass implements Insertable<Todo> {
       status: serializer.fromJson<String>(json['status']),
       description: serializer.fromJson<String?>(json['description']),
       rrule: serializer.fromJson<String?>(json['rrule']),
+      recurrenceAnchorSource: serializer.fromJson<String?>(
+        json['recurrenceAnchorSource'],
+      ),
+      recurrenceValueType: serializer.fromJson<String?>(
+        json['recurrenceValueType'],
+      ),
+      recurrenceAnchorValue: serializer.fromJson<String?>(
+        json['recurrenceAnchorValue'],
+      ),
+      recurrenceTimeZone: serializer.fromJson<String?>(
+        json['recurrenceTimeZone'],
+      ),
+      recurrenceRule: serializer.fromJson<String?>(json['recurrenceRule']),
+      recurrenceLegacyState: serializer.fromJson<String?>(
+        json['recurrenceLegacyState'],
+      ),
+      recurrenceEvidence: serializer.fromJson<String?>(
+        json['recurrenceEvidence'],
+      ),
+      recurrenceRevision: serializer.fromJson<int>(json['recurrenceRevision']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       percentComplete: serializer.fromJson<int>(json['percentComplete']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1847,6 +2129,20 @@ class Todo extends DataClass implements Insertable<Todo> {
       'status': serializer.toJson<String>(status),
       'description': serializer.toJson<String?>(description),
       'rrule': serializer.toJson<String?>(rrule),
+      'recurrenceAnchorSource': serializer.toJson<String?>(
+        recurrenceAnchorSource,
+      ),
+      'recurrenceValueType': serializer.toJson<String?>(recurrenceValueType),
+      'recurrenceAnchorValue': serializer.toJson<String?>(
+        recurrenceAnchorValue,
+      ),
+      'recurrenceTimeZone': serializer.toJson<String?>(recurrenceTimeZone),
+      'recurrenceRule': serializer.toJson<String?>(recurrenceRule),
+      'recurrenceLegacyState': serializer.toJson<String?>(
+        recurrenceLegacyState,
+      ),
+      'recurrenceEvidence': serializer.toJson<String?>(recurrenceEvidence),
+      'recurrenceRevision': serializer.toJson<int>(recurrenceRevision),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'percentComplete': serializer.toJson<int>(percentComplete),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1869,6 +2165,14 @@ class Todo extends DataClass implements Insertable<Todo> {
     String? status,
     Value<String?> description = const Value.absent(),
     Value<String?> rrule = const Value.absent(),
+    Value<String?> recurrenceAnchorSource = const Value.absent(),
+    Value<String?> recurrenceValueType = const Value.absent(),
+    Value<String?> recurrenceAnchorValue = const Value.absent(),
+    Value<String?> recurrenceTimeZone = const Value.absent(),
+    Value<String?> recurrenceRule = const Value.absent(),
+    Value<String?> recurrenceLegacyState = const Value.absent(),
+    Value<String?> recurrenceEvidence = const Value.absent(),
+    int? recurrenceRevision,
     Value<DateTime?> completedAt = const Value.absent(),
     int? percentComplete,
     DateTime? createdAt,
@@ -1888,6 +2192,28 @@ class Todo extends DataClass implements Insertable<Todo> {
     status: status ?? this.status,
     description: description.present ? description.value : this.description,
     rrule: rrule.present ? rrule.value : this.rrule,
+    recurrenceAnchorSource: recurrenceAnchorSource.present
+        ? recurrenceAnchorSource.value
+        : this.recurrenceAnchorSource,
+    recurrenceValueType: recurrenceValueType.present
+        ? recurrenceValueType.value
+        : this.recurrenceValueType,
+    recurrenceAnchorValue: recurrenceAnchorValue.present
+        ? recurrenceAnchorValue.value
+        : this.recurrenceAnchorValue,
+    recurrenceTimeZone: recurrenceTimeZone.present
+        ? recurrenceTimeZone.value
+        : this.recurrenceTimeZone,
+    recurrenceRule: recurrenceRule.present
+        ? recurrenceRule.value
+        : this.recurrenceRule,
+    recurrenceLegacyState: recurrenceLegacyState.present
+        ? recurrenceLegacyState.value
+        : this.recurrenceLegacyState,
+    recurrenceEvidence: recurrenceEvidence.present
+        ? recurrenceEvidence.value
+        : this.recurrenceEvidence,
+    recurrenceRevision: recurrenceRevision ?? this.recurrenceRevision,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     percentComplete: percentComplete ?? this.percentComplete,
     createdAt: createdAt ?? this.createdAt,
@@ -1913,6 +2239,30 @@ class Todo extends DataClass implements Insertable<Todo> {
           ? data.description.value
           : this.description,
       rrule: data.rrule.present ? data.rrule.value : this.rrule,
+      recurrenceAnchorSource: data.recurrenceAnchorSource.present
+          ? data.recurrenceAnchorSource.value
+          : this.recurrenceAnchorSource,
+      recurrenceValueType: data.recurrenceValueType.present
+          ? data.recurrenceValueType.value
+          : this.recurrenceValueType,
+      recurrenceAnchorValue: data.recurrenceAnchorValue.present
+          ? data.recurrenceAnchorValue.value
+          : this.recurrenceAnchorValue,
+      recurrenceTimeZone: data.recurrenceTimeZone.present
+          ? data.recurrenceTimeZone.value
+          : this.recurrenceTimeZone,
+      recurrenceRule: data.recurrenceRule.present
+          ? data.recurrenceRule.value
+          : this.recurrenceRule,
+      recurrenceLegacyState: data.recurrenceLegacyState.present
+          ? data.recurrenceLegacyState.value
+          : this.recurrenceLegacyState,
+      recurrenceEvidence: data.recurrenceEvidence.present
+          ? data.recurrenceEvidence.value
+          : this.recurrenceEvidence,
+      recurrenceRevision: data.recurrenceRevision.present
+          ? data.recurrenceRevision.value
+          : this.recurrenceRevision,
       completedAt: data.completedAt.present
           ? data.completedAt.value
           : this.completedAt,
@@ -1941,6 +2291,14 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('status: $status, ')
           ..write('description: $description, ')
           ..write('rrule: $rrule, ')
+          ..write('recurrenceAnchorSource: $recurrenceAnchorSource, ')
+          ..write('recurrenceValueType: $recurrenceValueType, ')
+          ..write('recurrenceAnchorValue: $recurrenceAnchorValue, ')
+          ..write('recurrenceTimeZone: $recurrenceTimeZone, ')
+          ..write('recurrenceRule: $recurrenceRule, ')
+          ..write('recurrenceLegacyState: $recurrenceLegacyState, ')
+          ..write('recurrenceEvidence: $recurrenceEvidence, ')
+          ..write('recurrenceRevision: $recurrenceRevision, ')
           ..write('completedAt: $completedAt, ')
           ..write('percentComplete: $percentComplete, ')
           ..write('createdAt: $createdAt, ')
@@ -1955,7 +2313,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     calendarId,
     summary,
@@ -1965,6 +2323,14 @@ class Todo extends DataClass implements Insertable<Todo> {
     status,
     description,
     rrule,
+    recurrenceAnchorSource,
+    recurrenceValueType,
+    recurrenceAnchorValue,
+    recurrenceTimeZone,
+    recurrenceRule,
+    recurrenceLegacyState,
+    recurrenceEvidence,
+    recurrenceRevision,
     completedAt,
     percentComplete,
     createdAt,
@@ -1974,7 +2340,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     parentId,
     syncId,
     serverRev,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1988,6 +2354,14 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.status == this.status &&
           other.description == this.description &&
           other.rrule == this.rrule &&
+          other.recurrenceAnchorSource == this.recurrenceAnchorSource &&
+          other.recurrenceValueType == this.recurrenceValueType &&
+          other.recurrenceAnchorValue == this.recurrenceAnchorValue &&
+          other.recurrenceTimeZone == this.recurrenceTimeZone &&
+          other.recurrenceRule == this.recurrenceRule &&
+          other.recurrenceLegacyState == this.recurrenceLegacyState &&
+          other.recurrenceEvidence == this.recurrenceEvidence &&
+          other.recurrenceRevision == this.recurrenceRevision &&
           other.completedAt == this.completedAt &&
           other.percentComplete == this.percentComplete &&
           other.createdAt == this.createdAt &&
@@ -2009,6 +2383,14 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<String> status;
   final Value<String?> description;
   final Value<String?> rrule;
+  final Value<String?> recurrenceAnchorSource;
+  final Value<String?> recurrenceValueType;
+  final Value<String?> recurrenceAnchorValue;
+  final Value<String?> recurrenceTimeZone;
+  final Value<String?> recurrenceRule;
+  final Value<String?> recurrenceLegacyState;
+  final Value<String?> recurrenceEvidence;
+  final Value<int> recurrenceRevision;
   final Value<DateTime?> completedAt;
   final Value<int> percentComplete;
   final Value<DateTime> createdAt;
@@ -2028,6 +2410,14 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.status = const Value.absent(),
     this.description = const Value.absent(),
     this.rrule = const Value.absent(),
+    this.recurrenceAnchorSource = const Value.absent(),
+    this.recurrenceValueType = const Value.absent(),
+    this.recurrenceAnchorValue = const Value.absent(),
+    this.recurrenceTimeZone = const Value.absent(),
+    this.recurrenceRule = const Value.absent(),
+    this.recurrenceLegacyState = const Value.absent(),
+    this.recurrenceEvidence = const Value.absent(),
+    this.recurrenceRevision = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.percentComplete = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -2048,6 +2438,14 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.status = const Value.absent(),
     this.description = const Value.absent(),
     this.rrule = const Value.absent(),
+    this.recurrenceAnchorSource = const Value.absent(),
+    this.recurrenceValueType = const Value.absent(),
+    this.recurrenceAnchorValue = const Value.absent(),
+    this.recurrenceTimeZone = const Value.absent(),
+    this.recurrenceRule = const Value.absent(),
+    this.recurrenceLegacyState = const Value.absent(),
+    this.recurrenceEvidence = const Value.absent(),
+    this.recurrenceRevision = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.percentComplete = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -2069,6 +2467,14 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<String>? status,
     Expression<String>? description,
     Expression<String>? rrule,
+    Expression<String>? recurrenceAnchorSource,
+    Expression<String>? recurrenceValueType,
+    Expression<String>? recurrenceAnchorValue,
+    Expression<String>? recurrenceTimeZone,
+    Expression<String>? recurrenceRule,
+    Expression<String>? recurrenceLegacyState,
+    Expression<String>? recurrenceEvidence,
+    Expression<int>? recurrenceRevision,
     Expression<DateTime>? completedAt,
     Expression<int>? percentComplete,
     Expression<DateTime>? createdAt,
@@ -2089,6 +2495,19 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (status != null) 'status': status,
       if (description != null) 'description': description,
       if (rrule != null) 'rrule': rrule,
+      if (recurrenceAnchorSource != null)
+        'recurrence_anchor_source': recurrenceAnchorSource,
+      if (recurrenceValueType != null)
+        'recurrence_value_type': recurrenceValueType,
+      if (recurrenceAnchorValue != null)
+        'recurrence_anchor_value': recurrenceAnchorValue,
+      if (recurrenceTimeZone != null)
+        'recurrence_time_zone': recurrenceTimeZone,
+      if (recurrenceRule != null) 'recurrence_rule': recurrenceRule,
+      if (recurrenceLegacyState != null)
+        'recurrence_legacy_state': recurrenceLegacyState,
+      if (recurrenceEvidence != null) 'recurrence_evidence': recurrenceEvidence,
+      if (recurrenceRevision != null) 'recurrence_revision': recurrenceRevision,
       if (completedAt != null) 'completed_at': completedAt,
       if (percentComplete != null) 'percent_complete': percentComplete,
       if (createdAt != null) 'created_at': createdAt,
@@ -2111,6 +2530,14 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<String>? status,
     Value<String?>? description,
     Value<String?>? rrule,
+    Value<String?>? recurrenceAnchorSource,
+    Value<String?>? recurrenceValueType,
+    Value<String?>? recurrenceAnchorValue,
+    Value<String?>? recurrenceTimeZone,
+    Value<String?>? recurrenceRule,
+    Value<String?>? recurrenceLegacyState,
+    Value<String?>? recurrenceEvidence,
+    Value<int>? recurrenceRevision,
     Value<DateTime?>? completedAt,
     Value<int>? percentComplete,
     Value<DateTime>? createdAt,
@@ -2131,6 +2558,17 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       status: status ?? this.status,
       description: description ?? this.description,
       rrule: rrule ?? this.rrule,
+      recurrenceAnchorSource:
+          recurrenceAnchorSource ?? this.recurrenceAnchorSource,
+      recurrenceValueType: recurrenceValueType ?? this.recurrenceValueType,
+      recurrenceAnchorValue:
+          recurrenceAnchorValue ?? this.recurrenceAnchorValue,
+      recurrenceTimeZone: recurrenceTimeZone ?? this.recurrenceTimeZone,
+      recurrenceRule: recurrenceRule ?? this.recurrenceRule,
+      recurrenceLegacyState:
+          recurrenceLegacyState ?? this.recurrenceLegacyState,
+      recurrenceEvidence: recurrenceEvidence ?? this.recurrenceEvidence,
+      recurrenceRevision: recurrenceRevision ?? this.recurrenceRevision,
       completedAt: completedAt ?? this.completedAt,
       percentComplete: percentComplete ?? this.percentComplete,
       createdAt: createdAt ?? this.createdAt,
@@ -2172,6 +2610,38 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     }
     if (rrule.present) {
       map['rrule'] = Variable<String>(rrule.value);
+    }
+    if (recurrenceAnchorSource.present) {
+      map['recurrence_anchor_source'] = Variable<String>(
+        recurrenceAnchorSource.value,
+      );
+    }
+    if (recurrenceValueType.present) {
+      map['recurrence_value_type'] = Variable<String>(
+        recurrenceValueType.value,
+      );
+    }
+    if (recurrenceAnchorValue.present) {
+      map['recurrence_anchor_value'] = Variable<String>(
+        recurrenceAnchorValue.value,
+      );
+    }
+    if (recurrenceTimeZone.present) {
+      map['recurrence_time_zone'] = Variable<String>(recurrenceTimeZone.value);
+    }
+    if (recurrenceRule.present) {
+      map['recurrence_rule'] = Variable<String>(recurrenceRule.value);
+    }
+    if (recurrenceLegacyState.present) {
+      map['recurrence_legacy_state'] = Variable<String>(
+        recurrenceLegacyState.value,
+      );
+    }
+    if (recurrenceEvidence.present) {
+      map['recurrence_evidence'] = Variable<String>(recurrenceEvidence.value);
+    }
+    if (recurrenceRevision.present) {
+      map['recurrence_revision'] = Variable<int>(recurrenceRevision.value);
     }
     if (completedAt.present) {
       map['completed_at'] = Variable<DateTime>(completedAt.value);
@@ -2215,6 +2685,14 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('status: $status, ')
           ..write('description: $description, ')
           ..write('rrule: $rrule, ')
+          ..write('recurrenceAnchorSource: $recurrenceAnchorSource, ')
+          ..write('recurrenceValueType: $recurrenceValueType, ')
+          ..write('recurrenceAnchorValue: $recurrenceAnchorValue, ')
+          ..write('recurrenceTimeZone: $recurrenceTimeZone, ')
+          ..write('recurrenceRule: $recurrenceRule, ')
+          ..write('recurrenceLegacyState: $recurrenceLegacyState, ')
+          ..write('recurrenceEvidence: $recurrenceEvidence, ')
+          ..write('recurrenceRevision: $recurrenceRevision, ')
           ..write('completedAt: $completedAt, ')
           ..write('percentComplete: $percentComplete, ')
           ..write('createdAt: $createdAt, ')
@@ -4224,6 +4702,656 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxEntry> {
   }
 }
 
+class $TaskAllocationsTable extends TaskAllocations
+    with TableInfo<$TaskAllocationsTable, TaskAllocation> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskAllocationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _todoIdMeta = const VerificationMeta('todoId');
+  @override
+  late final GeneratedColumn<int> todoId = GeneratedColumn<int>(
+    'todo_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES todos (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _todoSyncIdMeta = const VerificationMeta(
+    'todoSyncId',
+  );
+  @override
+  late final GeneratedColumn<String> todoSyncId = GeneratedColumn<String>(
+    'todo_sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _occurrenceIdMeta = const VerificationMeta(
+    'occurrenceId',
+  );
+  @override
+  late final GeneratedColumn<String> occurrenceId = GeneratedColumn<String>(
+    'occurrence_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> startAt =
+      GeneratedColumn<int>(
+        'start_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($TaskAllocationsTable.$converterstartAt);
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> endAt =
+      GeneratedColumn<int>(
+        'end_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($TaskAllocationsTable.$converterendAt);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverRevMeta = const VerificationMeta(
+    'serverRev',
+  );
+  @override
+  late final GeneratedColumn<int> serverRev = GeneratedColumn<int>(
+    'server_rev',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    todoId,
+    todoSyncId,
+    occurrenceId,
+    startAt,
+    endAt,
+    state,
+    createdAt,
+    updatedAt,
+    syncId,
+    serverRev,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_allocations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskAllocation> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('todo_id')) {
+      context.handle(
+        _todoIdMeta,
+        todoId.isAcceptableOrUnknown(data['todo_id']!, _todoIdMeta),
+      );
+    }
+    if (data.containsKey('todo_sync_id')) {
+      context.handle(
+        _todoSyncIdMeta,
+        todoSyncId.isAcceptableOrUnknown(
+          data['todo_sync_id']!,
+          _todoSyncIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('occurrence_id')) {
+      context.handle(
+        _occurrenceIdMeta,
+        occurrenceId.isAcceptableOrUnknown(
+          data['occurrence_id']!,
+          _occurrenceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('server_rev')) {
+      context.handle(
+        _serverRevMeta,
+        serverRev.isAcceptableOrUnknown(data['server_rev']!, _serverRevMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TaskAllocation map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskAllocation(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      todoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}todo_id'],
+      ),
+      todoSyncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}todo_sync_id'],
+      ),
+      occurrenceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}occurrence_id'],
+      ),
+      startAt: $TaskAllocationsTable.$converterstartAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}start_at'],
+        )!,
+      ),
+      endAt: $TaskAllocationsTable.$converterendAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}end_at'],
+        )!,
+      ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      serverRev: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_rev'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskAllocationsTable createAlias(String alias) {
+    return $TaskAllocationsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterstartAt =
+      const TaskAllocationInstantConverter();
+  static TypeConverter<DateTime, int> $converterendAt =
+      const TaskAllocationInstantConverter();
+}
+
+class TaskAllocation extends DataClass implements Insertable<TaskAllocation> {
+  final int id;
+  final int? todoId;
+  final String? todoSyncId;
+  final String? occurrenceId;
+  final DateTime startAt;
+  final DateTime endAt;
+  final String state;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? syncId;
+  final int serverRev;
+  const TaskAllocation({
+    required this.id,
+    this.todoId,
+    this.todoSyncId,
+    this.occurrenceId,
+    required this.startAt,
+    required this.endAt,
+    required this.state,
+    required this.createdAt,
+    required this.updatedAt,
+    this.syncId,
+    required this.serverRev,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || todoId != null) {
+      map['todo_id'] = Variable<int>(todoId);
+    }
+    if (!nullToAbsent || todoSyncId != null) {
+      map['todo_sync_id'] = Variable<String>(todoSyncId);
+    }
+    if (!nullToAbsent || occurrenceId != null) {
+      map['occurrence_id'] = Variable<String>(occurrenceId);
+    }
+    {
+      map['start_at'] = Variable<int>(
+        $TaskAllocationsTable.$converterstartAt.toSql(startAt),
+      );
+    }
+    {
+      map['end_at'] = Variable<int>(
+        $TaskAllocationsTable.$converterendAt.toSql(endAt),
+      );
+    }
+    map['state'] = Variable<String>(state);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['server_rev'] = Variable<int>(serverRev);
+    return map;
+  }
+
+  TaskAllocationsCompanion toCompanion(bool nullToAbsent) {
+    return TaskAllocationsCompanion(
+      id: Value(id),
+      todoId: todoId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(todoId),
+      todoSyncId: todoSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(todoSyncId),
+      occurrenceId: occurrenceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(occurrenceId),
+      startAt: Value(startAt),
+      endAt: Value(endAt),
+      state: Value(state),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      serverRev: Value(serverRev),
+    );
+  }
+
+  factory TaskAllocation.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskAllocation(
+      id: serializer.fromJson<int>(json['id']),
+      todoId: serializer.fromJson<int?>(json['todoId']),
+      todoSyncId: serializer.fromJson<String?>(json['todoSyncId']),
+      occurrenceId: serializer.fromJson<String?>(json['occurrenceId']),
+      startAt: serializer.fromJson<DateTime>(json['startAt']),
+      endAt: serializer.fromJson<DateTime>(json['endAt']),
+      state: serializer.fromJson<String>(json['state']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      serverRev: serializer.fromJson<int>(json['serverRev']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'todoId': serializer.toJson<int?>(todoId),
+      'todoSyncId': serializer.toJson<String?>(todoSyncId),
+      'occurrenceId': serializer.toJson<String?>(occurrenceId),
+      'startAt': serializer.toJson<DateTime>(startAt),
+      'endAt': serializer.toJson<DateTime>(endAt),
+      'state': serializer.toJson<String>(state),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncId': serializer.toJson<String?>(syncId),
+      'serverRev': serializer.toJson<int>(serverRev),
+    };
+  }
+
+  TaskAllocation copyWith({
+    int? id,
+    Value<int?> todoId = const Value.absent(),
+    Value<String?> todoSyncId = const Value.absent(),
+    Value<String?> occurrenceId = const Value.absent(),
+    DateTime? startAt,
+    DateTime? endAt,
+    String? state,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<String?> syncId = const Value.absent(),
+    int? serverRev,
+  }) => TaskAllocation(
+    id: id ?? this.id,
+    todoId: todoId.present ? todoId.value : this.todoId,
+    todoSyncId: todoSyncId.present ? todoSyncId.value : this.todoSyncId,
+    occurrenceId: occurrenceId.present ? occurrenceId.value : this.occurrenceId,
+    startAt: startAt ?? this.startAt,
+    endAt: endAt ?? this.endAt,
+    state: state ?? this.state,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    serverRev: serverRev ?? this.serverRev,
+  );
+  TaskAllocation copyWithCompanion(TaskAllocationsCompanion data) {
+    return TaskAllocation(
+      id: data.id.present ? data.id.value : this.id,
+      todoId: data.todoId.present ? data.todoId.value : this.todoId,
+      todoSyncId: data.todoSyncId.present
+          ? data.todoSyncId.value
+          : this.todoSyncId,
+      occurrenceId: data.occurrenceId.present
+          ? data.occurrenceId.value
+          : this.occurrenceId,
+      startAt: data.startAt.present ? data.startAt.value : this.startAt,
+      endAt: data.endAt.present ? data.endAt.value : this.endAt,
+      state: data.state.present ? data.state.value : this.state,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskAllocation(')
+          ..write('id: $id, ')
+          ..write('todoId: $todoId, ')
+          ..write('todoSyncId: $todoSyncId, ')
+          ..write('occurrenceId: $occurrenceId, ')
+          ..write('startAt: $startAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    todoId,
+    todoSyncId,
+    occurrenceId,
+    startAt,
+    endAt,
+    state,
+    createdAt,
+    updatedAt,
+    syncId,
+    serverRev,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskAllocation &&
+          other.id == this.id &&
+          other.todoId == this.todoId &&
+          other.todoSyncId == this.todoSyncId &&
+          other.occurrenceId == this.occurrenceId &&
+          other.startAt == this.startAt &&
+          other.endAt == this.endAt &&
+          other.state == this.state &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncId == this.syncId &&
+          other.serverRev == this.serverRev);
+}
+
+class TaskAllocationsCompanion extends UpdateCompanion<TaskAllocation> {
+  final Value<int> id;
+  final Value<int?> todoId;
+  final Value<String?> todoSyncId;
+  final Value<String?> occurrenceId;
+  final Value<DateTime> startAt;
+  final Value<DateTime> endAt;
+  final Value<String> state;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<String?> syncId;
+  final Value<int> serverRev;
+  const TaskAllocationsCompanion({
+    this.id = const Value.absent(),
+    this.todoId = const Value.absent(),
+    this.todoSyncId = const Value.absent(),
+    this.occurrenceId = const Value.absent(),
+    this.startAt = const Value.absent(),
+    this.endAt = const Value.absent(),
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
+  });
+  TaskAllocationsCompanion.insert({
+    this.id = const Value.absent(),
+    this.todoId = const Value.absent(),
+    this.todoSyncId = const Value.absent(),
+    this.occurrenceId = const Value.absent(),
+    required DateTime startAt,
+    required DateTime endAt,
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
+  }) : startAt = Value(startAt),
+       endAt = Value(endAt);
+  static Insertable<TaskAllocation> custom({
+    Expression<int>? id,
+    Expression<int>? todoId,
+    Expression<String>? todoSyncId,
+    Expression<String>? occurrenceId,
+    Expression<int>? startAt,
+    Expression<int>? endAt,
+    Expression<String>? state,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? syncId,
+    Expression<int>? serverRev,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (todoId != null) 'todo_id': todoId,
+      if (todoSyncId != null) 'todo_sync_id': todoSyncId,
+      if (occurrenceId != null) 'occurrence_id': occurrenceId,
+      if (startAt != null) 'start_at': startAt,
+      if (endAt != null) 'end_at': endAt,
+      if (state != null) 'state': state,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncId != null) 'sync_id': syncId,
+      if (serverRev != null) 'server_rev': serverRev,
+    });
+  }
+
+  TaskAllocationsCompanion copyWith({
+    Value<int>? id,
+    Value<int?>? todoId,
+    Value<String?>? todoSyncId,
+    Value<String?>? occurrenceId,
+    Value<DateTime>? startAt,
+    Value<DateTime>? endAt,
+    Value<String>? state,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<String?>? syncId,
+    Value<int>? serverRev,
+  }) {
+    return TaskAllocationsCompanion(
+      id: id ?? this.id,
+      todoId: todoId ?? this.todoId,
+      todoSyncId: todoSyncId ?? this.todoSyncId,
+      occurrenceId: occurrenceId ?? this.occurrenceId,
+      startAt: startAt ?? this.startAt,
+      endAt: endAt ?? this.endAt,
+      state: state ?? this.state,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncId: syncId ?? this.syncId,
+      serverRev: serverRev ?? this.serverRev,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (todoId.present) {
+      map['todo_id'] = Variable<int>(todoId.value);
+    }
+    if (todoSyncId.present) {
+      map['todo_sync_id'] = Variable<String>(todoSyncId.value);
+    }
+    if (occurrenceId.present) {
+      map['occurrence_id'] = Variable<String>(occurrenceId.value);
+    }
+    if (startAt.present) {
+      map['start_at'] = Variable<int>(
+        $TaskAllocationsTable.$converterstartAt.toSql(startAt.value),
+      );
+    }
+    if (endAt.present) {
+      map['end_at'] = Variable<int>(
+        $TaskAllocationsTable.$converterendAt.toSql(endAt.value),
+      );
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (serverRev.present) {
+      map['server_rev'] = Variable<int>(serverRev.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskAllocationsCompanion(')
+          ..write('id: $id, ')
+          ..write('todoId: $todoId, ')
+          ..write('todoSyncId: $todoSyncId, ')
+          ..write('occurrenceId: $occurrenceId, ')
+          ..write('startAt: $startAt, ')
+          ..write('endAt: $endAt, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4236,6 +5364,25 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AttachmentsTable attachments = $AttachmentsTable(this);
   late final $RemindersTable reminders = $RemindersTable(this);
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
+  late final $TaskAllocationsTable taskAllocations = $TaskAllocationsTable(
+    this,
+  );
+  late final Index taskAllocationsTodoId = Index(
+    'task_allocations_todo_id',
+    'CREATE INDEX task_allocations_todo_id ON task_allocations (todo_id)',
+  );
+  late final Index taskAllocationsTodoSyncId = Index(
+    'task_allocations_todo_sync_id',
+    'CREATE INDEX task_allocations_todo_sync_id ON task_allocations (todo_sync_id)',
+  );
+  late final Index taskAllocationsSyncId = Index(
+    'task_allocations_sync_id',
+    'CREATE INDEX task_allocations_sync_id ON task_allocations (sync_id)',
+  );
+  late final Index taskAllocationsTimeRange = Index(
+    'task_allocations_time_range',
+    'CREATE INDEX task_allocations_time_range ON task_allocations (start_at, end_at)',
+  );
   late final CalendarsDao calendarsDao = CalendarsDao(this as AppDatabase);
   late final EventsDao eventsDao = EventsDao(this as AppDatabase);
   late final TodosDao todosDao = TodosDao(this as AppDatabase);
@@ -4253,7 +5400,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     attachments,
     reminders,
     syncOutbox,
+    taskAllocations,
+    taskAllocationsTodoId,
+    taskAllocationsTodoSyncId,
+    taskAllocationsSyncId,
+    taskAllocationsTimeRange,
   ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'todos',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('task_allocations', kind: UpdateKind.delete)],
+    ),
+  ]);
 }
 
 typedef $$CalendarsTableCreateCompanionBuilder =
@@ -5240,6 +6402,14 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<String> status,
       Value<String?> description,
       Value<String?> rrule,
+      Value<String?> recurrenceAnchorSource,
+      Value<String?> recurrenceValueType,
+      Value<String?> recurrenceAnchorValue,
+      Value<String?> recurrenceTimeZone,
+      Value<String?> recurrenceRule,
+      Value<String?> recurrenceLegacyState,
+      Value<String?> recurrenceEvidence,
+      Value<int> recurrenceRevision,
       Value<DateTime?> completedAt,
       Value<int> percentComplete,
       Value<DateTime> createdAt,
@@ -5261,6 +6431,14 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<String> status,
       Value<String?> description,
       Value<String?> rrule,
+      Value<String?> recurrenceAnchorSource,
+      Value<String?> recurrenceValueType,
+      Value<String?> recurrenceAnchorValue,
+      Value<String?> recurrenceTimeZone,
+      Value<String?> recurrenceRule,
+      Value<String?> recurrenceLegacyState,
+      Value<String?> recurrenceEvidence,
+      Value<int> recurrenceRevision,
       Value<DateTime?> completedAt,
       Value<int> percentComplete,
       Value<DateTime> createdAt,
@@ -5307,6 +6485,26 @@ final class $$TodosTableReferences
     ).filter((f) => f.todoId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_todoTagsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$TaskAllocationsTable, List<TaskAllocation>>
+  _taskAllocationsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.taskAllocations,
+    aliasName: $_aliasNameGenerator(db.todos.id, db.taskAllocations.todoId),
+  );
+
+  $$TaskAllocationsTableProcessedTableManager get taskAllocationsRefs {
+    final manager = $$TaskAllocationsTableTableManager(
+      $_db,
+      $_db.taskAllocations,
+    ).filter((f) => f.todoId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _taskAllocationsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -5358,6 +6556,46 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
 
   ColumnFilters<String> get rrule => $composableBuilder(
     column: $table.rrule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceAnchorSource => $composableBuilder(
+    column: $table.recurrenceAnchorSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceValueType => $composableBuilder(
+    column: $table.recurrenceValueType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceAnchorValue => $composableBuilder(
+    column: $table.recurrenceAnchorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceTimeZone => $composableBuilder(
+    column: $table.recurrenceTimeZone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceRule => $composableBuilder(
+    column: $table.recurrenceRule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceLegacyState => $composableBuilder(
+    column: $table.recurrenceLegacyState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrenceEvidence => $composableBuilder(
+    column: $table.recurrenceEvidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get recurrenceRevision => $composableBuilder(
+    column: $table.recurrenceRevision,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5453,6 +6691,31 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
     );
     return f(composer);
   }
+
+  Expression<bool> taskAllocationsRefs(
+    Expression<bool> Function($$TaskAllocationsTableFilterComposer f) f,
+  ) {
+    final $$TaskAllocationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskAllocations,
+      getReferencedColumn: (t) => t.todoId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskAllocationsTableFilterComposer(
+            $db: $db,
+            $table: $db.taskAllocations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TodosTableOrderingComposer
@@ -5501,6 +6764,46 @@ class $$TodosTableOrderingComposer
 
   ColumnOrderings<String> get rrule => $composableBuilder(
     column: $table.rrule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceAnchorSource => $composableBuilder(
+    column: $table.recurrenceAnchorSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceValueType => $composableBuilder(
+    column: $table.recurrenceValueType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceAnchorValue => $composableBuilder(
+    column: $table.recurrenceAnchorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceTimeZone => $composableBuilder(
+    column: $table.recurrenceTimeZone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceRule => $composableBuilder(
+    column: $table.recurrenceRule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceLegacyState => $composableBuilder(
+    column: $table.recurrenceLegacyState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrenceEvidence => $composableBuilder(
+    column: $table.recurrenceEvidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get recurrenceRevision => $composableBuilder(
+    column: $table.recurrenceRevision,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5608,6 +6911,46 @@ class $$TodosTableAnnotationComposer
   GeneratedColumn<String> get rrule =>
       $composableBuilder(column: $table.rrule, builder: (column) => column);
 
+  GeneratedColumn<String> get recurrenceAnchorSource => $composableBuilder(
+    column: $table.recurrenceAnchorSource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recurrenceValueType => $composableBuilder(
+    column: $table.recurrenceValueType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recurrenceAnchorValue => $composableBuilder(
+    column: $table.recurrenceAnchorValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recurrenceTimeZone => $composableBuilder(
+    column: $table.recurrenceTimeZone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recurrenceRule => $composableBuilder(
+    column: $table.recurrenceRule,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recurrenceLegacyState => $composableBuilder(
+    column: $table.recurrenceLegacyState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recurrenceEvidence => $composableBuilder(
+    column: $table.recurrenceEvidence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get recurrenceRevision => $composableBuilder(
+    column: $table.recurrenceRevision,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
     builder: (column) => column,
@@ -5686,6 +7029,31 @@ class $$TodosTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> taskAllocationsRefs<T extends Object>(
+    Expression<T> Function($$TaskAllocationsTableAnnotationComposer a) f,
+  ) {
+    final $$TaskAllocationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskAllocations,
+      getReferencedColumn: (t) => t.todoId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskAllocationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.taskAllocations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TodosTableTableManager
@@ -5701,7 +7069,11 @@ class $$TodosTableTableManager
           $$TodosTableUpdateCompanionBuilder,
           (Todo, $$TodosTableReferences),
           Todo,
-          PrefetchHooks Function({bool calendarId, bool todoTagsRefs})
+          PrefetchHooks Function({
+            bool calendarId,
+            bool todoTagsRefs,
+            bool taskAllocationsRefs,
+          })
         > {
   $$TodosTableTableManager(_$AppDatabase db, $TodosTable table)
     : super(
@@ -5725,6 +7097,14 @@ class $$TodosTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
+                Value<String?> recurrenceAnchorSource = const Value.absent(),
+                Value<String?> recurrenceValueType = const Value.absent(),
+                Value<String?> recurrenceAnchorValue = const Value.absent(),
+                Value<String?> recurrenceTimeZone = const Value.absent(),
+                Value<String?> recurrenceRule = const Value.absent(),
+                Value<String?> recurrenceLegacyState = const Value.absent(),
+                Value<String?> recurrenceEvidence = const Value.absent(),
+                Value<int> recurrenceRevision = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int> percentComplete = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -5744,6 +7124,14 @@ class $$TodosTableTableManager
                 status: status,
                 description: description,
                 rrule: rrule,
+                recurrenceAnchorSource: recurrenceAnchorSource,
+                recurrenceValueType: recurrenceValueType,
+                recurrenceAnchorValue: recurrenceAnchorValue,
+                recurrenceTimeZone: recurrenceTimeZone,
+                recurrenceRule: recurrenceRule,
+                recurrenceLegacyState: recurrenceLegacyState,
+                recurrenceEvidence: recurrenceEvidence,
+                recurrenceRevision: recurrenceRevision,
                 completedAt: completedAt,
                 percentComplete: percentComplete,
                 createdAt: createdAt,
@@ -5765,6 +7153,14 @@ class $$TodosTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
+                Value<String?> recurrenceAnchorSource = const Value.absent(),
+                Value<String?> recurrenceValueType = const Value.absent(),
+                Value<String?> recurrenceAnchorValue = const Value.absent(),
+                Value<String?> recurrenceTimeZone = const Value.absent(),
+                Value<String?> recurrenceRule = const Value.absent(),
+                Value<String?> recurrenceLegacyState = const Value.absent(),
+                Value<String?> recurrenceEvidence = const Value.absent(),
+                Value<int> recurrenceRevision = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<int> percentComplete = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -5784,6 +7180,14 @@ class $$TodosTableTableManager
                 status: status,
                 description: description,
                 rrule: rrule,
+                recurrenceAnchorSource: recurrenceAnchorSource,
+                recurrenceValueType: recurrenceValueType,
+                recurrenceAnchorValue: recurrenceAnchorValue,
+                recurrenceTimeZone: recurrenceTimeZone,
+                recurrenceRule: recurrenceRule,
+                recurrenceLegacyState: recurrenceLegacyState,
+                recurrenceEvidence: recurrenceEvidence,
+                recurrenceRevision: recurrenceRevision,
                 completedAt: completedAt,
                 percentComplete: percentComplete,
                 createdAt: createdAt,
@@ -5800,59 +7204,94 @@ class $$TodosTableTableManager
                     (e.readTable(table), $$TodosTableReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({calendarId = false, todoTagsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (todoTagsRefs) db.todoTags],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (calendarId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.calendarId,
-                                referencedTable: $$TodosTableReferences
-                                    ._calendarIdTable(db),
-                                referencedColumn: $$TodosTableReferences
-                                    ._calendarIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                calendarId = false,
+                todoTagsRefs = false,
+                taskAllocationsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (todoTagsRefs) db.todoTags,
+                    if (taskAllocationsRefs) db.taskAllocations,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (calendarId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.calendarId,
+                                    referencedTable: $$TodosTableReferences
+                                        ._calendarIdTable(db),
+                                    referencedColumn: $$TodosTableReferences
+                                        ._calendarIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (todoTagsRefs)
+                        await $_getPrefetchedData<Todo, $TodosTable, TodoTag>(
+                          currentTable: table,
+                          referencedTable: $$TodosTableReferences
+                              ._todoTagsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TodosTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).todoTagsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.todoId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (taskAllocationsRefs)
+                        await $_getPrefetchedData<
+                          Todo,
+                          $TodosTable,
+                          TaskAllocation
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TodosTableReferences
+                              ._taskAllocationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TodosTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).taskAllocationsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.todoId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (todoTagsRefs)
-                    await $_getPrefetchedData<Todo, $TodosTable, TodoTag>(
-                      currentTable: table,
-                      referencedTable: $$TodosTableReferences
-                          ._todoTagsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$TodosTableReferences(db, table, p0).todoTagsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.todoId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -5869,7 +7308,11 @@ typedef $$TodosTableProcessedTableManager =
       $$TodosTableUpdateCompanionBuilder,
       (Todo, $$TodosTableReferences),
       Todo,
-      PrefetchHooks Function({bool calendarId, bool todoTagsRefs})
+      PrefetchHooks Function({
+        bool calendarId,
+        bool todoTagsRefs,
+        bool taskAllocationsRefs,
+      })
     >;
 typedef $$TagsTableCreateCompanionBuilder =
     TagsCompanion Function({
@@ -7577,6 +9020,447 @@ typedef $$SyncOutboxTableProcessedTableManager =
       SyncOutboxEntry,
       PrefetchHooks Function()
     >;
+typedef $$TaskAllocationsTableCreateCompanionBuilder =
+    TaskAllocationsCompanion Function({
+      Value<int> id,
+      Value<int?> todoId,
+      Value<String?> todoSyncId,
+      Value<String?> occurrenceId,
+      required DateTime startAt,
+      required DateTime endAt,
+      Value<String> state,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<String?> syncId,
+      Value<int> serverRev,
+    });
+typedef $$TaskAllocationsTableUpdateCompanionBuilder =
+    TaskAllocationsCompanion Function({
+      Value<int> id,
+      Value<int?> todoId,
+      Value<String?> todoSyncId,
+      Value<String?> occurrenceId,
+      Value<DateTime> startAt,
+      Value<DateTime> endAt,
+      Value<String> state,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<String?> syncId,
+      Value<int> serverRev,
+    });
+
+final class $$TaskAllocationsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $TaskAllocationsTable, TaskAllocation> {
+  $$TaskAllocationsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TodosTable _todoIdTable(_$AppDatabase db) => db.todos.createAlias(
+    $_aliasNameGenerator(db.taskAllocations.todoId, db.todos.id),
+  );
+
+  $$TodosTableProcessedTableManager? get todoId {
+    final $_column = $_itemColumn<int>('todo_id');
+    if ($_column == null) return null;
+    final manager = $$TodosTableTableManager(
+      $_db,
+      $_db.todos,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_todoIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TaskAllocationsTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskAllocationsTable> {
+  $$TaskAllocationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get startAt =>
+      $composableBuilder(
+        column: $table.startAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get endAt =>
+      $composableBuilder(
+        column: $table.endAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TodosTableFilterComposer get todoId {
+    final $$TodosTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.todoId,
+      referencedTable: $db.todos,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TodosTableFilterComposer(
+            $db: $db,
+            $table: $db.todos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskAllocationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskAllocationsTable> {
+  $$TaskAllocationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startAt => $composableBuilder(
+    column: $table.startAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endAt => $composableBuilder(
+    column: $table.endAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TodosTableOrderingComposer get todoId {
+    final $$TodosTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.todoId,
+      referencedTable: $db.todos,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TodosTableOrderingComposer(
+            $db: $db,
+            $table: $db.todos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskAllocationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskAllocationsTable> {
+  $$TaskAllocationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get todoSyncId => $composableBuilder(
+    column: $table.todoSyncId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get occurrenceId => $composableBuilder(
+    column: $table.occurrenceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get startAt =>
+      $composableBuilder(column: $table.startAt, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get endAt =>
+      $composableBuilder(column: $table.endAt, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRev =>
+      $composableBuilder(column: $table.serverRev, builder: (column) => column);
+
+  $$TodosTableAnnotationComposer get todoId {
+    final $$TodosTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.todoId,
+      referencedTable: $db.todos,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TodosTableAnnotationComposer(
+            $db: $db,
+            $table: $db.todos,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskAllocationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskAllocationsTable,
+          TaskAllocation,
+          $$TaskAllocationsTableFilterComposer,
+          $$TaskAllocationsTableOrderingComposer,
+          $$TaskAllocationsTableAnnotationComposer,
+          $$TaskAllocationsTableCreateCompanionBuilder,
+          $$TaskAllocationsTableUpdateCompanionBuilder,
+          (TaskAllocation, $$TaskAllocationsTableReferences),
+          TaskAllocation,
+          PrefetchHooks Function({bool todoId})
+        > {
+  $$TaskAllocationsTableTableManager(
+    _$AppDatabase db,
+    $TaskAllocationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskAllocationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskAllocationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskAllocationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> todoId = const Value.absent(),
+                Value<String?> todoSyncId = const Value.absent(),
+                Value<String?> occurrenceId = const Value.absent(),
+                Value<DateTime> startAt = const Value.absent(),
+                Value<DateTime> endAt = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
+              }) => TaskAllocationsCompanion(
+                id: id,
+                todoId: todoId,
+                todoSyncId: todoSyncId,
+                occurrenceId: occurrenceId,
+                startAt: startAt,
+                endAt: endAt,
+                state: state,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                syncId: syncId,
+                serverRev: serverRev,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> todoId = const Value.absent(),
+                Value<String?> todoSyncId = const Value.absent(),
+                Value<String?> occurrenceId = const Value.absent(),
+                required DateTime startAt,
+                required DateTime endAt,
+                Value<String> state = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
+              }) => TaskAllocationsCompanion.insert(
+                id: id,
+                todoId: todoId,
+                todoSyncId: todoSyncId,
+                occurrenceId: occurrenceId,
+                startAt: startAt,
+                endAt: endAt,
+                state: state,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                syncId: syncId,
+                serverRev: serverRev,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TaskAllocationsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({todoId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (todoId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.todoId,
+                                referencedTable:
+                                    $$TaskAllocationsTableReferences
+                                        ._todoIdTable(db),
+                                referencedColumn:
+                                    $$TaskAllocationsTableReferences
+                                        ._todoIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TaskAllocationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskAllocationsTable,
+      TaskAllocation,
+      $$TaskAllocationsTableFilterComposer,
+      $$TaskAllocationsTableOrderingComposer,
+      $$TaskAllocationsTableAnnotationComposer,
+      $$TaskAllocationsTableCreateCompanionBuilder,
+      $$TaskAllocationsTableUpdateCompanionBuilder,
+      (TaskAllocation, $$TaskAllocationsTableReferences),
+      TaskAllocation,
+      PrefetchHooks Function({bool todoId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7598,4 +9482,6 @@ class $AppDatabaseManager {
       $$RemindersTableTableManager(_db, _db.reminders);
   $$SyncOutboxTableTableManager get syncOutbox =>
       $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
+  $$TaskAllocationsTableTableManager get taskAllocations =>
+      $$TaskAllocationsTableTableManager(_db, _db.taskAllocations);
 }

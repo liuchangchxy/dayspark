@@ -9,6 +9,7 @@ import 'tables/todo_tags_table.dart';
 import 'tables/attachments_table.dart';
 import 'tables/reminders_table.dart';
 import 'tables/sync_outbox_table.dart';
+import 'tables/task_allocations_table.dart';
 
 import 'daos/calendars_dao.dart';
 import 'daos/events_dao.dart';
@@ -27,6 +28,7 @@ part 'app_database.g.dart';
     Attachments,
     Reminders,
     SyncOutbox,
+    TaskAllocations,
   ],
   daos: [CalendarsDao, EventsDao, TodosDao],
 )
@@ -42,7 +44,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -103,6 +105,72 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(todos, todos.syncId);
         await m.addColumn(todos, todos.serverRev);
         await m.createTable(syncOutbox);
+      }
+      if (from < 10) {
+        await m.createTable(taskAllocations);
+        await m.createIndex(taskAllocationsTodoId);
+        await m.createIndex(taskAllocationsTimeRange);
+      }
+      if (from < 11) {
+        await customStatement('DROP INDEX IF EXISTS task_allocations_todo_id');
+        await customStatement(
+          'DROP INDEX IF EXISTS task_allocations_time_range',
+        );
+        await customStatement(
+          'ALTER TABLE task_allocations RENAME TO task_allocations_v10',
+        );
+        await customStatement('''
+          CREATE TABLE IF NOT EXISTS "task_allocations" (
+            "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            "todo_id" INTEGER NULL REFERENCES todos (id) ON DELETE CASCADE,
+            "todo_sync_id" TEXT NULL,
+            "occurrence_id" TEXT NULL,
+            "start_at" INTEGER NOT NULL,
+            "end_at" INTEGER NOT NULL,
+            "state" TEXT NOT NULL DEFAULT 'active',
+            "created_at" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)),
+            "updated_at" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)),
+            "sync_id" TEXT NULL,
+            "server_rev" INTEGER NOT NULL DEFAULT 0
+          );
+        ''');
+        await customStatement('''
+          INSERT INTO task_allocations (
+            id, todo_id, start_at, end_at, state, created_at, updated_at
+          )
+          SELECT id, todo_id, start_at, end_at, state, created_at, updated_at
+          FROM task_allocations_v10
+        ''');
+        await customStatement('DROP TABLE task_allocations_v10');
+        await customStatement(
+          'CREATE INDEX task_allocations_todo_id ON task_allocations (todo_id)',
+        );
+        await customStatement(
+          'CREATE INDEX task_allocations_todo_sync_id ON task_allocations (todo_sync_id)',
+        );
+        await customStatement(
+          'CREATE INDEX task_allocations_sync_id ON task_allocations (sync_id)',
+        );
+        await customStatement(
+          'CREATE INDEX task_allocations_time_range ON task_allocations (start_at, end_at)',
+        );
+      }
+      if (from < 12) {
+        await m.addColumn(todos, todos.recurrenceAnchorSource);
+        await m.addColumn(todos, todos.recurrenceValueType);
+        await m.addColumn(todos, todos.recurrenceAnchorValue);
+        await m.addColumn(todos, todos.recurrenceTimeZone);
+        await m.addColumn(todos, todos.recurrenceRule);
+        await m.addColumn(todos, todos.recurrenceLegacyState);
+        await m.addColumn(todos, todos.recurrenceRevision);
+        await customStatement('''
+          UPDATE todos
+          SET recurrence_legacy_state = 'unknownLegacy', recurrence_revision = 0
+          WHERE rrule IS NOT NULL
+        ''');
+      }
+      if (from < 13) {
+        await m.addColumn(todos, todos.recurrenceEvidence);
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

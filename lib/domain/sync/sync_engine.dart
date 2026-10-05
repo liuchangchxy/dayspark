@@ -42,7 +42,8 @@ class SyncStatus {
           _listEq(other.lastRejected, lastRejected));
 
   @override
-  int get hashCode => Object.hash(phase, lastError, lastSyncAt, Object.hashAll(lastRejected));
+  int get hashCode =>
+      Object.hash(phase, lastError, lastSyncAt, Object.hashAll(lastRejected));
 
   static bool _listEq(List<String> a, List<String> b) {
     if (a.length != b.length) return false;
@@ -180,11 +181,13 @@ class SyncEngine {
 
   Future<bool> _runRound() async {
     try {
-      _emit(SyncStatus(
-        phase: SyncPhase.pushing,
-        lastSyncAt: _status.lastSyncAt,
-        lastRejected: _status.lastRejected,
-      ));
+      _emit(
+        SyncStatus(
+          phase: SyncPhase.pushing,
+          lastSyncAt: _status.lastSyncAt,
+          lastRejected: _status.lastRejected,
+        ),
+      );
 
       final storedCursor = await cursorStore.read();
       if (storedCursor == null) {
@@ -194,21 +197,51 @@ class SyncEngine {
       }
       final cursor = storedCursor ?? 0;
 
+      final serverCapabilities = (await api.fetchServerCapabilities())
+          .capabilities
+          .toSet();
+      final taskAllocationEnabled = serverCapabilities.contains(
+        SyncCapability.taskAllocationV1,
+      );
+      final todoRecurrenceEnabled = serverCapabilities.contains(
+        SyncCapability.todoRecurrenceV1,
+      );
+      final priorTaskAllocationEnabled = await cursorStore
+          .readTaskAllocationCapabilityState();
+      final capabilityBackfill =
+          taskAllocationEnabled && priorTaskAllocationEnabled != true;
+      final priorTodoRecurrenceEnabled = await cursorStore
+          .readTodoRecurrenceCapabilityState();
+      final todoRecurrenceBackfill =
+          todoRecurrenceEnabled && priorTodoRecurrenceEnabled != true;
+      final roundCursor = capabilityBackfill || todoRecurrenceBackfill
+          ? 0
+          : cursor;
+
       // --- push ---
-      final entries = await (db.select(db.syncOutbox)
-            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
-          .get();
-      final (ops, converged) = await _buildOps(entries);
+      final entries = await (db.select(
+        db.syncOutbox,
+      )..orderBy([(t) => OrderingTerm.asc(t.createdAt)])).get();
+      final (ops, converged) = await _buildOps(
+        entries,
+        serverCapabilities: serverCapabilities,
+      );
       if (converged.isNotEmpty) {
         // Local row already equals the last-known server truth — nothing
         // to send (an empty upsert would be rejected by the server).
         await _dropOps(converged);
       }
-      final push = await api.push(PushRequest(
-        deviceId: deviceId,
-        ops: ops,
-        cursor: cursor,
-      ));
+      final push = await api.push(
+        PushRequest(
+          deviceId: deviceId,
+          ops: ops,
+          cursor: roundCursor,
+          capabilities: const [
+            SyncCapability.taskAllocationV1,
+            SyncCapability.todoRecurrenceV1,
+          ],
+        ),
+      );
 
       final rejected = <String>[];
       await RecordScope.run(db, (tx) async {
@@ -229,16 +262,16 @@ class SyncEngine {
               if (result.serverRecord != null) {
                 await _applyRemote(result.serverRecord!, tx);
               }
-              final recordId = recordIdByOp[result.opId] ??
-                  result.serverRecord?.id;
+              final recordId =
+                  recordIdByOp[result.opId] ?? result.serverRecord?.id;
               final snapshotIds = [
                 if (recordId != null)
                   for (final e in entries)
                     if (e.recordId == recordId) e.opId,
               ];
-              await _dropOps(snapshotIds.isNotEmpty
-                  ? snapshotIds
-                  : [result.opId]);
+              await _dropOps(
+                snapshotIds.isNotEmpty ? snapshotIds : [result.opId],
+              );
             case OpStatus.rejected:
               await _dropOps([result.opId]);
               rejected.add(result.code ?? 'rejected');
@@ -253,11 +286,13 @@ class SyncEngine {
       });
 
       // --- pull ---
-      _emit(SyncStatus(
-        phase: SyncPhase.pulling,
-        lastSyncAt: _status.lastSyncAt,
-        lastRejected: rejected,
-      ));
+      _emit(
+        SyncStatus(
+          phase: SyncPhase.pulling,
+          lastSyncAt: _status.lastSyncAt,
+          lastRejected: rejected,
+        ),
+      );
       while (true) {
         final before = await cursorStore.read() ?? 0;
         final pull = await api.pull(before);
@@ -274,32 +309,51 @@ class SyncEngine {
         }
       }
 
+      // Commit only after the complete push/pull round succeeds. If the
+      // capability was newly enabled, the round started at zero and scanned
+      // the server's current snapshot (including tombstones).
+      await cursorStore.writeTaskAllocationCapabilityState(
+        taskAllocationEnabled,
+      );
+      await cursorStore.writeTodoRecurrenceCapabilityState(
+        todoRecurrenceEnabled,
+      );
+
       _backoffSeconds = 1;
-      _emit(SyncStatus(
-        phase: SyncPhase.idle,
-        lastSyncAt: DateTime.now(),
-        lastRejected: rejected,
-      ));
+      _emit(
+        SyncStatus(
+          phase: SyncPhase.idle,
+          lastSyncAt: DateTime.now(),
+          lastRejected: rejected,
+        ),
+      );
       return true;
     } catch (e) {
-      _emit(SyncStatus(
-        phase: SyncPhase.error,
-        lastError: '$e',
-        lastSyncAt: _status.lastSyncAt,
-        lastRejected: _status.lastRejected,
-      ));
+      _emit(
+        SyncStatus(
+          phase: SyncPhase.error,
+          lastError: '$e',
+          lastSyncAt: _status.lastSyncAt,
+          lastRejected: _status.lastRejected,
+        ),
+      );
       _scheduleRetry();
       return false;
     }
   }
 
   Future<(List<PushOp>, List<String>)> _buildOps(
-    List<SyncOutboxEntry> entries,
-  ) async {
+    List<SyncOutboxEntry> entries, {
+    required Set<String> serverCapabilities,
+  }) async {
     final ops = <PushOp>[];
     final converged = <String>[];
     for (final entry in entries) {
-      final type = RecordType.values.byName(entry.type);
+      final type = recordTypeFromJson(entry.type, 'outbox type');
+      if (type == RecordType.taskAllocation &&
+          !serverCapabilities.contains(SyncCapability.taskAllocationV1)) {
+        continue;
+      }
       var baseRev = entry.baseRev;
       var fields = entry.payloadJson == null
           ? null
@@ -311,21 +365,38 @@ class SyncEngine {
         final snapshot = await snapshots.read(entry.recordId);
         if (snapshot != null && fields != null) {
           final dirty = dirtyFields(fields, snapshot.payload);
+          if (type == RecordType.todo &&
+              !serverCapabilities.contains(SyncCapability.todoRecurrenceV1)) {
+            if (fields['recurrenceLegacyState'] == 'knownZoned') continue;
+            dirty.remove('recurrenceSpec');
+            dirty.remove('recurrenceRevision');
+            dirty.remove('recurrenceLegacyState');
+          }
           if (dirty.isEmpty) {
             converged.add(entry.opId);
             continue;
           }
           fields = dirty;
+        } else if (type == RecordType.todo &&
+            fields != null &&
+            !serverCapabilities.contains(SyncCapability.todoRecurrenceV1)) {
+          if (fields['recurrenceLegacyState'] == 'knownZoned') continue;
+          fields = Map<String, dynamic>.from(fields)
+            ..remove('recurrenceSpec')
+            ..remove('recurrenceRevision')
+            ..remove('recurrenceLegacyState');
         }
       }
-      ops.add(PushOp(
-        opId: entry.opId,
-        op: OpType.values.byName(entry.op),
-        recordId: entry.recordId,
-        type: type,
-        fields: fields,
-        baseRev: baseRev,
-      ));
+      ops.add(
+        PushOp(
+          opId: entry.opId,
+          op: OpType.values.byName(entry.op),
+          recordId: entry.recordId,
+          type: type,
+          fields: fields,
+          baseRev: baseRev,
+        ),
+      );
     }
     return (ops, converged);
   }
@@ -346,14 +417,20 @@ class SyncEngine {
 
   Future<int?> _liveServerRev(RecordType type, String recordId) async {
     if (type == RecordType.event) {
-      final row = await (db.select(db.events)
-            ..where((t) => t.syncId.equals(recordId)))
-          .getSingleOrNull();
+      final row = await (db.select(
+        db.events,
+      )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
       return row?.serverRev;
     }
-    final row = await (db.select(db.todos)
-          ..where((t) => t.syncId.equals(recordId)))
-        .getSingleOrNull();
+    if (type == RecordType.taskAllocation) {
+      final row = await (db.select(
+        db.taskAllocations,
+      )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
+      return row?.serverRev;
+    }
+    final row = await (db.select(
+      db.todos,
+    )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
     return row?.serverRev;
   }
 
@@ -366,19 +443,25 @@ class SyncEngine {
   // 丢弃，不发事件）。仍经 RecordScope 开事务：SPEC §3.5 规则 1 的口径是"一切
   // events/todos 行写入都在缝里"，与要不要发事件是两回事。
   Future<void> _baselineSweep() => RecordScope.run(db, (_) async {
-        final events = await (db.select(db.events)
-              ..where((t) => t.syncId.isNull() & t.deletedAt.isNull()))
-            .get();
-        for (final row in events) {
-          await SyncOutbox.enqueueUpsert(db, RecordType.event, row.id);
-        }
-        final todos = await (db.select(db.todos)
-              ..where((t) => t.syncId.isNull() & t.deletedAt.isNull()))
-            .get();
-        for (final row in todos) {
-          await SyncOutbox.enqueueUpsert(db, RecordType.todo, row.id);
-        }
-      });
+    final events = await (db.select(
+      db.events,
+    )..where((t) => t.syncId.isNull() & t.deletedAt.isNull())).get();
+    for (final row in events) {
+      await SyncOutbox.enqueueUpsert(db, RecordType.event, row.id);
+    }
+    final todos = await (db.select(
+      db.todos,
+    )..where((t) => t.syncId.isNull() & t.deletedAt.isNull())).get();
+    for (final row in todos) {
+      await SyncOutbox.enqueueUpsert(db, RecordType.todo, row.id);
+    }
+    final allocations = await (db.select(
+      db.taskAllocations,
+    )..where((t) => t.syncId.isNull())).get();
+    for (final row in allocations) {
+      await SyncOutbox.enqueueUpsert(db, RecordType.taskAllocation, row.id);
+    }
+  });
 
   void _scheduleRetry() {
     _retryTimer?.cancel();

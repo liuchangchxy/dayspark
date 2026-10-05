@@ -11,12 +11,17 @@ import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class TodoEditPage extends ConsumerStatefulWidget {
   final Todo todo;
@@ -37,8 +42,12 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   DateTime? _startDate;
   bool _saving = false;
   String? _rrule;
+  bool _recurrenceIsDate = false;
+  final _recurrenceTimeZoneController = TextEditingController();
 
   static const _priorityValues = [0, 9, 5, 1];
+
+  bool get _unknownLegacy => TodoRecurrence.fromTodo(_todo).isUnknownLegacy;
 
   @override
   void initState() {
@@ -53,12 +62,18 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     }
     _startDate = _todo.startDate;
     _rrule = _todo.rrule;
+    _recurrenceIsDate =
+        TodoRecurrence.fromTodo(_todo).spec?.anchor.valueType ==
+        RecurrenceValueType.date;
+    _recurrenceTimeZoneController.text =
+        TodoRecurrence.fromTodo(_todo).spec?.timeZone ?? tz.local.name;
   }
 
   @override
   void dispose() {
     _summaryController.dispose();
     _descriptionController.dispose();
+    _recurrenceTimeZoneController.dispose();
     super.dispose();
   }
 
@@ -84,6 +99,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
         );
       }
 
+      final recurrenceSpec = _unknownLegacy ? null : _recurrenceSpecForSave();
       await ref.read(updateTodoProvider)(
         _todo.id,
         TodosCompanion(
@@ -94,11 +110,13 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                 : null,
           ),
           priority: Value(_priority),
-          dueDate: Value(_dueDate),
-          startDate: Value(_startDate),
-          rrule: Value(_rrule),
+          dueDate: _unknownLegacy ? const Value.absent() : Value(_dueDate),
+          startDate: _unknownLegacy ? const Value.absent() : Value(_startDate),
+          rrule: _unknownLegacy ? const Value.absent() : Value(_rrule),
           updatedAt: Value(DateTime.now()),
         ),
+        recurrenceSpec: recurrenceSpec,
+        replaceRecurrence: !_unknownLegacy,
       );
 
       if (mounted) context.pop();
@@ -111,6 +129,139 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  RecurrenceSpec? _recurrenceSpecForSave() {
+    final rule = _rrule;
+    if (rule == null) return null;
+    final recurrence = TodoRecurrence.fromTodo(_todo);
+    final existing = recurrence.spec;
+    if (existing == null) {
+      final date = _startDate ?? _dueDate;
+      if (date == null) {
+        throw StateError('Recurring Todo requires an anchor date.');
+      }
+      final local = date.toLocal();
+      return RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: _startDate == null
+              ? RecurrenceAnchorSource.due
+              : RecurrenceAnchorSource.start,
+          value: _recurrenceIsDate
+              ? LocalDate(local.year, local.month, local.day)
+              : LocalDateTime(
+                  local.year,
+                  local.month,
+                  local.day,
+                  local.hour,
+                  local.minute,
+                  local.second,
+                ),
+        ),
+        timeZone: _recurrenceTimeZoneController.text.trim(),
+        rrule: rule.startsWith('RRULE:') ? rule.substring(6) : rule,
+      );
+    }
+    final canonicalRule = rule.startsWith('RRULE:') ? rule.substring(6) : rule;
+    if (canonicalRule == existing.rule.canonical &&
+        existing.anchor.valueType ==
+            (_recurrenceIsDate
+                ? RecurrenceValueType.date
+                : RecurrenceValueType.dateTime) &&
+        _startDate == _todo.startDate &&
+        _dueDate == _todo.dueDate &&
+        _recurrenceTimeZoneController.text.trim() == existing.timeZone) {
+      return existing;
+    }
+    final source = existing.anchor.source;
+    final date = source == RecurrenceAnchorSource.start ? _startDate : _dueDate;
+    if (date == null) {
+      throw StateError('Recurring Todo requires an anchor date.');
+    }
+    final sourceProjectionUnchanged = source == RecurrenceAnchorSource.start
+        ? _startDate == _todo.startDate
+        : _dueDate == _todo.dueDate;
+    final RecurrenceLocalValue value;
+    if (sourceProjectionUnchanged &&
+        ((existing.anchor.value is LocalDate) == _recurrenceIsDate)) {
+      value = existing.anchor.value;
+    } else if (_recurrenceIsDate) {
+      final fields = sourceProjectionUnchanged
+          ? existing.anchor.value is LocalDate
+                ? existing.anchor.value as LocalDate
+                : (existing.anchor.value as LocalDateTime).date
+          : _localDate(date);
+      value = fields;
+    } else {
+      final previous = existing.anchor.value;
+      final fields = sourceProjectionUnchanged
+          ? existing.anchor.value is LocalDate
+                ? existing.anchor.value as LocalDate
+                : (existing.anchor.value as LocalDateTime).date
+          : _localDate(date);
+      final useEditedTime = source == RecurrenceAnchorSource.due;
+      final editedLocal = date.toLocal();
+      value = LocalDateTime(
+        fields.year,
+        fields.month,
+        fields.day,
+        useEditedTime
+            ? editedLocal.hour
+            : previous is LocalDateTime
+            ? previous.hour
+            : 0,
+        useEditedTime
+            ? editedLocal.minute
+            : previous is LocalDateTime
+            ? previous.minute
+            : 0,
+        useEditedTime
+            ? editedLocal.second
+            : previous is LocalDateTime
+            ? previous.second
+            : 0,
+      );
+    }
+    return RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(source: source, value: value),
+      timeZone: _recurrenceTimeZoneController.text.trim(),
+      rrule: canonicalRule,
+    );
+  }
+
+  LocalDate _localDate(DateTime value) {
+    final local = value.toLocal();
+    return LocalDate(local.year, local.month, local.day);
+  }
+
+  Future<void> _confirmLegacyRecurrence() async {
+    final l = AppLocalizations.of(context)!;
+    if (!TaskAllocationsSection.legacyRuleIsSupported(_todo.rrule ?? '')) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.unsupportedLegacyRecurrence)));
+      return;
+    }
+    final confirmed = await TaskAllocationsSection.confirmLegacyRecurrence(
+      context,
+      ref,
+      _todo,
+    );
+    if (!confirmed || !mounted) return;
+    final db = ref.read(databaseProvider);
+    final refreshed = await (db.select(
+      db.todos,
+    )..where((row) => row.id.equals(_todo.id))).getSingle();
+    if (!mounted) return;
+    setState(() {
+      _todo = refreshed;
+      _rrule = refreshed.rrule;
+      final recurrence = TodoRecurrence.fromTodo(refreshed);
+      _recurrenceIsDate =
+          recurrence.spec?.anchor.valueType == RecurrenceValueType.date;
+      _recurrenceTimeZoneController.text =
+          recurrence.spec?.timeZone ?? tz.local.name;
+    });
   }
 
   Future<void> _delete() async {
@@ -181,6 +332,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final recurrenceSpec = TodoRecurrence.fromTodo(_todo).spec;
     final priorityLabels = {
       0: l.priorityNone,
       9: l.priorityLow,
@@ -220,76 +372,88 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           // Title
           TextField(
             controller: _summaryController,
-            decoration: InputDecoration(
-              labelText: l.title,
-            ),
+            decoration: InputDecoration(labelText: l.title),
           ),
           const SizedBox(height: 16),
 
-          // Start date
-          ListTile(
-            leading: const Icon(CupertinoIcons.play),
-            title: Text(l.startDate),
-            subtitle: _startDate != null
-                ? Text(DateFormatters.formatDate(_startDate!))
-                : Text(l.notSet),
-            onTap: _pickStartDate,
-            trailing: _startDate != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _startDate = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
+          if (_unknownLegacy && _todo.rrule != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OutlinedButton.icon(
+                key: const ValueKey('confirm-legacy-recurrence'),
+                onPressed: _saving ? null : _confirmLegacyRecurrence,
+                icon: const Icon(CupertinoIcons.arrow_2_circlepath),
+                label: Text(l.confirmLegacyRecurrenceTitle),
+              ),
+            ),
+          if (!_unknownLegacy) ...[
+            // Start date
+            ListTile(
+              leading: const Icon(CupertinoIcons.play),
+              title: Text(l.startDate),
+              subtitle: _startDate != null
+                  ? Text(DateFormatters.formatDate(_startDate!))
+                  : Text(l.notSet),
+              onTap: _pickStartDate,
+              trailing: _startDate != null
+                  ? IconButton(
+                      icon: const Icon(CupertinoIcons.clear, size: 18),
+                      onPressed: () => setState(() => _startDate = null),
+                    )
+                  : null,
+              contentPadding: EdgeInsets.zero,
+            ),
 
-          // Due date
-          const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(CupertinoIcons.calendar),
-            title: Text(l.dueDate),
-            subtitle: _dueDate != null
-                ? Text(DateFormatters.formatDate(_dueDate!))
-                : Text(l.notSet),
-            onTap: _pickDueDate,
-            trailing: _dueDate != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _dueDate = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 8),
+            // Due date
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(CupertinoIcons.calendar),
+              title: Text(l.dueDate),
+              subtitle: _dueDate != null
+                  ? Text(DateFormatters.formatDate(_dueDate!))
+                  : Text(l.notSet),
+              onTap: _pickDueDate,
+              trailing: _dueDate != null
+                  ? IconButton(
+                      icon: const Icon(CupertinoIcons.clear, size: 18),
+                      onPressed: () => setState(() => _dueDate = null),
+                    )
+                  : null,
+              contentPadding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 8),
 
-          // Quick date chips
-          _buildQuickDateChips(l, now),
-          const SizedBox(height: 8),
+            // Quick date chips
+            _buildQuickDateChips(l, now),
+            const SizedBox(height: 8),
 
-          // Due time
-          ListTile(
-            leading: const Icon(CupertinoIcons.clock),
-            title: Text(l.dueTime),
-            subtitle: _dueTime != null
-                ? Text(
-                    '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}',
-                  )
-                : Text(l.notSet),
-            onTap: () async {
-              final time = await showWheelTimePicker(
-                context,
-                initialTime: _dueTime ?? TimeOfDay.now(),
-              );
-              if (time != null) setState(() => _dueTime = time);
-            },
-            trailing: _dueTime != null
-                ? IconButton(
-                    icon: const Icon(CupertinoIcons.clear, size: 18),
-                    onPressed: () => setState(() => _dueTime = null),
-                  )
-                : null,
-            contentPadding: EdgeInsets.zero,
-          ),
+            // Due time
+            ListTile(
+              leading: const Icon(CupertinoIcons.clock),
+              title: Text(l.dueTime),
+              subtitle: _dueTime != null
+                  ? Text(
+                      '${_dueTime!.hour.toString().padLeft(2, '0')}:${_dueTime!.minute.toString().padLeft(2, '0')}',
+                    )
+                  : Text(l.notSet),
+              onTap: () async {
+                final time = await showWheelTimePicker(
+                  context,
+                  initialTime: _dueTime ?? TimeOfDay.now(),
+                );
+                if (time != null) setState(() => _dueTime = time);
+              },
+              trailing: _dueTime != null
+                  ? IconButton(
+                      icon: const Icon(CupertinoIcons.clear, size: 18),
+                      onPressed: () => setState(() => _dueTime = null),
+                    )
+                  : null,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
+          const SizedBox(height: 8),
+          TaskAllocationsSection(todo: _todo),
           const SizedBox(height: 16),
 
           // Priority
@@ -305,7 +469,9 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
                   (v) => ChoiceChip(
                     label: Text(
                       priorityLabels[v]!,
-                      style: TextStyle(fontSize: AppTypography.caption.fontSize),
+                      style: TextStyle(
+                        fontSize: AppTypography.caption.fontSize,
+                      ),
                     ),
                     selected: _priority == v,
                     onSelected: (_) => setState(() => _priority = v),
@@ -320,9 +486,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           // Description
           TextField(
             controller: _descriptionController,
-            decoration: InputDecoration(
-              labelText: l.description,
-            ),
+            decoration: InputDecoration(labelText: l.description),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
@@ -358,17 +522,54 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           const SizedBox(height: 16),
 
           // Recurrence rule
-          RRuleGenerator(
-            localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
-            config: RRuleGeneratorConfig(),
-            initialRRule: _rrule ?? '',
-            withExcludeDates: false,
-            onChange: (String rrule) {
-              setState(() {
-                _rrule = rrule.isEmpty ? null : rrule;
-              });
-            },
-          ),
+          if (!_unknownLegacy)
+            RRuleGenerator(
+              localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
+              config: RRuleGeneratorConfig(),
+              initialRRule: _rrule ?? '',
+              withExcludeDates: false,
+              onChange: (String rrule) {
+                setState(() {
+                  _rrule = rrule.isEmpty ? null : rrule;
+                });
+              },
+            ),
+          if (!_unknownLegacy && _rrule != null) ...[
+            if (recurrenceSpec != null)
+              Text(
+                '${l.recurrenceAnchor}: '
+                '${recurrenceSpec.anchor.source == RecurrenceAnchorSource.start ? l.startDate : l.dueDate} · '
+                '${recurrenceSpec.anchor.value.canonical} · '
+                '${recurrenceSpec.anchor.valueType == RecurrenceValueType.date ? l.dateOnly : l.dateAndTime}',
+              ),
+            TextField(
+              key: const ValueKey('recurrence-time-zone'),
+              decoration: InputDecoration(
+                labelText: l.recurrenceTimeZone,
+                helperText: l.recurrenceZoneBelongsToSeries,
+              ),
+              controller: _recurrenceTimeZoneController,
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: Text(l.dateOnly),
+                  selected: _recurrenceIsDate,
+                  onSelected: (_) => setState(() => _recurrenceIsDate = true),
+                ),
+                ChoiceChip(
+                  label: Text(l.dateAndTime),
+                  selected: !_recurrenceIsDate,
+                  onSelected: (_) => setState(() => _recurrenceIsDate = false),
+                ),
+              ],
+            ),
+            Text(
+              l.recurrenceEditAllocationWarning,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
         ],
       ),
     );

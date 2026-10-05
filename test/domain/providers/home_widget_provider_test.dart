@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,13 +47,17 @@ void main() {
   // One snapshot write per flush: counting them counts refreshes, not the
   // fan-out of platform-channel calls inside a single refresh.
   late int flushes;
+  late List<MethodCall> methodCalls;
 
   setUp(() async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
     SharedPreferences.setMockInitialValues({'app_locale': 'en'});
     store = <String, Object?>{};
     flushes = 0;
+    methodCalls = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
+          methodCalls.add(call);
           final args = (call.arguments as Map).cast<String, dynamic>();
           switch (call.method) {
             case 'getWidgetData':
@@ -93,6 +99,7 @@ void main() {
   });
 
   tearDown(() async {
+    debugDefaultTargetPlatformOverride = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
     container.dispose();
@@ -113,6 +120,28 @@ void main() {
 
   String storedSnapshot() =>
       store[HomeWidgetService.snapshotKey] as String? ?? '';
+
+  test('unsupported platform skips all HomeWidget channel calls', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+
+    await HomeWidgetService.updateWidget(testDb);
+    await HomeWidgetService.refreshNativeWidgets();
+
+    expect(methodCalls, isEmpty);
+    expect(flushes, 0);
+  });
+
+  test('iOS platform keeps native widget refresh path reachable', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+
+    await HomeWidgetService.refreshNativeWidgets();
+
+    expect(methodCalls.map((call) => call.method), [
+      'updateWidget',
+      'updateWidget',
+      'updateWidget',
+    ]);
+  });
 
   test(
     'flush consumes pendingTaps via toggle path, clears channel, lands sync op',

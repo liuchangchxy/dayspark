@@ -2,13 +2,15 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/event_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 
 import 'sync_payload.dart';
 
-/// Writes server truth onto local rows (P2 scope: event + todo).
+/// Writes server truth onto local rows (P2 scope: event + todo + TaskAllocation).
 ///
 /// Protocol: applies unconditionally — push rounds run before pull, so
 /// pending local ops were already resolved against the server; pull never
@@ -32,6 +34,7 @@ class SyncApplier {
       return switch (record.type) {
         RecordType.event => await _applyEvent(record, tx),
         RecordType.todo => await _applyTodo(record, tx),
+        RecordType.taskAllocation => await _applyTaskAllocation(record, tx),
       };
     } on FormatException catch (e) {
       debugPrint('sync applier: skip ${record.id}: $e');
@@ -41,9 +44,9 @@ class SyncApplier {
 
   Future<bool> _applyEvent(SyncRecord record, RecordScope tx) async {
     final payload = record.payload;
-    final existing = await (db.select(db.events)
-          ..where((t) => t.syncId.equals(record.id)))
-        .getSingleOrNull();
+    final existing = await (db.select(
+      db.events,
+    )..where((t) => t.syncId.equals(record.id))).getSingleOrNull();
 
     if (record.deleted) {
       if (existing == null) return false;
@@ -90,11 +93,19 @@ class SyncApplier {
 
   Future<bool> _applyTodo(SyncRecord record, RecordScope tx) async {
     final payload = record.payload;
-    final existing = await (db.select(db.todos)
-          ..where((t) => t.syncId.equals(record.id)))
-        .getSingleOrNull();
+    final existing = await (db.select(
+      db.todos,
+    )..where((t) => t.syncId.equals(record.id))).getSingleOrNull();
 
     if (record.deleted) {
+      if (payload['hardDelete'] == true) {
+        return TodoWriter.applyRemoteHardDelete(
+          db,
+          tx,
+          syncId: record.id,
+          localId: existing?.id,
+        );
+      }
       if (existing == null) return false;
       if (existing.deletedAt != null) {
         await TodoWriter.applyRemoteRev(db, tx, existing.id, record.rev);
@@ -114,15 +125,23 @@ class SyncApplier {
     if (payload.containsKey('parentSyncId')) {
       final raw = payload['parentSyncId'];
       if (raw is String) {
-        final parent = await (db.select(db.todos)
-              ..where((t) => t.syncId.equals(raw)))
-            .getSingleOrNull();
+        final parent = await (db.select(
+          db.todos,
+        )..where((t) => t.syncId.equals(raw))).getSingleOrNull();
         // Parent not on this device yet → keep the child top-level rather
         // than dangling a local integer id that means nothing here.
         parentId = parent?.id;
       }
     }
 
+    final recurrence =
+        payload.containsKey('recurrenceSpec') ||
+            payload.containsKey('recurrenceRevision') ||
+            payload.containsKey('recurrenceLegacyState')
+        ? TodoRecurrence.fromWire(payload)
+        : (optionalString(payload['rrule']) == null
+              ? TodoRecurrence.none()
+              : TodoRecurrence.unknownLegacy());
     final companion = TodosCompanion(
       calendarId: Value(await resolveCalendarId(db, payload['calendarId'])),
       summary: Value(requireString(payload, 'summary')),
@@ -142,12 +161,60 @@ class SyncApplier {
       syncId: Value(record.id),
       serverRev: Value(record.rev),
     );
+    if (recurrence.spec != null &&
+        optionalString(payload['rrule']) != recurrence.spec!.rule.canonical) {
+      throw const FormatException('legacy recurrence projection mismatch');
+    }
     await TodoWriter.applyRemote(
       db,
       tx,
       existingId: existing?.id,
       data: companion,
+      recurrence: recurrence,
       previousReference: existing?.dueDate,
+    );
+    return true;
+  }
+
+  Future<bool> _applyTaskAllocation(SyncRecord record, RecordScope tx) async {
+    final existing = await (db.select(
+      db.taskAllocations,
+    )..where((row) => row.syncId.equals(record.id))).getSingleOrNull();
+    if (record.deleted) {
+      if (existing == null) return false;
+      await TaskAllocationWriter.applyRemoteDelete(db, tx, existing.id);
+      return true;
+    }
+
+    final payload = TaskAllocationPayload.fromJson(record.payload);
+    final todo = await (db.select(
+      db.todos,
+    )..where((row) => row.syncId.equals(payload.todoSyncId))).getSingleOrNull();
+    var state = payload.state.wireName;
+    final completedAt = todo?.completedAt;
+    if (state == 'active' &&
+        todo?.status == 'COMPLETED' &&
+        completedAt != null &&
+        payload.startAt.toUtc().millisecondsSinceEpoch >=
+            completedAt.toUtc().millisecondsSinceEpoch) {
+      state = 'invalidatedByCompletion';
+    }
+    await TaskAllocationWriter.applyRemote(
+      db,
+      tx,
+      existingId: existing?.id,
+      data: TaskAllocationsCompanion(
+        todoId: Value(todo?.id),
+        todoSyncId: Value(payload.todoSyncId),
+        occurrenceId: Value(payload.occurrenceId),
+        startAt: Value(payload.startAt),
+        endAt: Value(payload.endAt),
+        state: Value(state),
+        createdAt: Value(payload.createdAt),
+        updatedAt: Value(payload.updatedAt),
+        syncId: Value(record.id),
+        serverRev: Value(record.rev),
+      ),
     );
     return true;
   }

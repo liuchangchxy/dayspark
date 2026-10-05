@@ -4,14 +4,15 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 final completedTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.todosDao.watchCompleted();
 });
 
-final pendingTodosByTagsProvider =
-    StreamProvider.autoDispose.family<List<Todo>, String>((ref, tagIdsKey) {
+final pendingTodosByTagsProvider = StreamProvider.autoDispose
+    .family<List<Todo>, String>((ref, tagIdsKey) {
       final db = ref.watch(databaseProvider);
       if (tagIdsKey.isEmpty) {
         return db.todosDao.watchPending();
@@ -54,6 +55,7 @@ final createTodoProvider =
         DateTime? startDate,
         String? description,
         String? rrule,
+        RecurrenceSpec? recurrenceSpec,
         int? parentId,
       })
     >((ref) {
@@ -67,6 +69,7 @@ final createTodoProvider =
         startDate,
         description,
         rrule,
+        recurrenceSpec,
         parentId,
       }) {
         return RecordScope.run(
@@ -79,9 +82,7 @@ final createTodoProvider =
               summary: summary,
               priority: Value(priority),
               status: Value(status),
-              dueDate: dueDate != null
-                  ? Value(dueDate)
-                  : const Value.absent(),
+              dueDate: dueDate != null ? Value(dueDate) : const Value.absent(),
               startDate: startDate != null
                   ? Value(startDate)
                   : const Value.absent(),
@@ -93,17 +94,65 @@ final createTodoProvider =
                   ? Value(parentId)
                   : const Value.absent(),
             ),
+            recurrenceSpec: recurrenceSpec,
           ),
         );
       };
     });
 
 final updateTodoProvider =
-    Provider<Future<void> Function(int id, TodosCompanion data)>((ref) {
+    Provider<
+      Future<void> Function(
+        int id,
+        TodosCompanion data, {
+        RecurrenceSpec? recurrenceSpec,
+        bool replaceRecurrence,
+      })
+    >((ref) {
       final db = ref.read(databaseProvider);
-      return (int id, TodosCompanion data) => RecordScope.run(
+      return (
+        int id,
+        TodosCompanion data, {
+        RecurrenceSpec? recurrenceSpec,
+        bool replaceRecurrence = false,
+      }) => RecordScope.run(
         db,
-        (tx) => TodoWriter.updateTodo(db, tx, id, data),
+        (tx) => TodoWriter.updateTodo(
+          db,
+          tx,
+          id,
+          data,
+          recurrenceSpec: recurrenceSpec,
+          replaceRecurrence: replaceRecurrence,
+        ),
+      );
+    });
+
+final confirmLegacyRecurrenceProvider =
+    Provider<
+      Future<void> Function({
+        required int todoId,
+        required String timeZone,
+        required RecurrenceAnchor interpretation,
+        required String rrule,
+      })
+    >((ref) {
+      final db = ref.read(databaseProvider);
+      return ({
+        required todoId,
+        required timeZone,
+        required interpretation,
+        required rrule,
+      }) => RecordScope.run(
+        db,
+        (tx) => TodoWriter.confirmLegacyRecurrence(
+          db,
+          tx,
+          todoId: todoId,
+          chosenTimeZone: timeZone,
+          interpretation: interpretation,
+          validatedRRule: rrule,
+        ),
       );
     });
 
@@ -112,16 +161,10 @@ final toggleTodoProvider =
       Future<void> Function({required int id, required bool isCompleted})
     >((ref) {
       final db = ref.read(databaseProvider);
-      return ({required int id, required bool isCompleted}) =>
-          RecordScope.run(
-            db,
-            (tx) => TodoWriter.setCompletion(
-              db,
-              tx,
-              id,
-              isCompleted: isCompleted,
-            ),
-          );
+      return ({required int id, required bool isCompleted}) => RecordScope.run(
+        db,
+        (tx) => TodoWriter.setCompletion(db, tx, id, isCompleted: isCompleted),
+      );
     });
 
 final deleteTodoProvider = Provider<Future<void> Function(int)>((ref) {
@@ -163,8 +206,11 @@ final subtasksProvider = StreamProvider.autoDispose.family<List<Todo>, int>((
 });
 
 /// Set parent for a todo (null to remove parent).
-final setParentProvider = Provider<Future<void> Function(int todoId, int? parentId)>((ref) {
-  final db = ref.read(databaseProvider);
-  return (int todoId, int? parentId) =>
-      RecordScope.run(db, (tx) => TodoWriter.setParent(db, tx, todoId, parentId));
-});
+final setParentProvider =
+    Provider<Future<void> Function(int todoId, int? parentId)>((ref) {
+      final db = ref.read(databaseProvider);
+      return (int todoId, int? parentId) => RecordScope.run(
+        db,
+        (tx) => TodoWriter.setParent(db, tx, todoId, parentId),
+      );
+    });

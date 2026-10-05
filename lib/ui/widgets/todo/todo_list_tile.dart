@@ -90,87 +90,89 @@ class TodoListTile extends ConsumerWidget {
         : theme.textTheme.bodyMedium?.color;
     final tagsAsync = ref.watch(todoTagsProvider(todoId));
 
-    return Semantics(
-      button: true,
-      hint: l.openTodoDetails,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                if (_priorityColor(theme.brightness) != Colors.transparent)
-                  Semantics(
-                    label: priority == 1 ? l.highPriority : l.mediumPriority,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          if (_priorityColor(theme.brightness) != Colors.transparent)
+            Semantics(
+              label: priority == 1 ? l.highPriority : l.mediumPriority,
+              child: Container(
+                width: 4,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: _priorityColor(theme.brightness),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            )
+          else
+            const SizedBox(width: 4),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: isCompleted || index == null
+                ? MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: isCompleted
+                        ? Semantics(
+                            button: true,
+                            label: l.markIncomplete,
+                            child: Checkbox(
+                              value: true,
+                              onChanged: (_) => onToggle(),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          )
+                        : Semantics(
+                            button: true,
+                            label: l.markComplete,
+                            child: Checkbox(
+                              value: false,
+                              onChanged: (_) => onToggle(),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                  )
+                : Center(
                     child: Container(
-                      width: 4,
-                      height: 32,
+                      width: 22,
+                      height: 22,
                       decoration: BoxDecoration(
-                        color: _priorityColor(theme.brightness),
+                        color: Colors.transparent,
+                        border: Border.all(
+                          color: theme.colorScheme.outline,
+                          width: 1.5,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                    ),
-                  )
-                else
-                  const SizedBox(width: 4),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: isCompleted
-                      ? Semantics(
-                          button: true,
-                          label: l.markIncomplete,
-                          child: Checkbox(
-                            value: true,
-                            onChanged: (_) => onToggle(),
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
+                      child: Center(
+                        child: Text(
+                          '${index! + 1}',
+                          style: TextStyle(
+                            fontSize: AppTypography.overline.fontSize,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
-                        )
-                      : (index != null
-                            ? Center(
-                                child: Container(
-                                  width: 22,
-                                  height: 22,
-                                  decoration: BoxDecoration(
-                                    color: Colors.transparent,
-                                    border: Border.all(
-                                      color: theme.colorScheme.outline,
-                                      width: 1.5,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '${index! + 1}',
-                                      style: TextStyle(
-                                        fontSize: AppTypography.overline.fontSize,
-                                        fontWeight: FontWeight.w600,
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : Semantics(
-                                button: true,
-                                label: l.markComplete,
-                                child: Checkbox(
-                                  value: false,
-                                  onChanged: (_) => onToggle(),
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              )),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Semantics(
+              button: true,
+              hint: l.openTodoDetails,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: InkWell(
+                  onTap: onTap,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -215,10 +217,10 @@ class TodoListTile extends ConsumerWidget {
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

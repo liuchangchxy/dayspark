@@ -192,6 +192,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  dayspark_recurrence:
+    dependency: "direct main"
+    description:
+      path: "../packages/dayspark_recurrence"
+      relative: true
+    source: path
+    version: "0.1.0"
   drift:
     dependency: "direct main"
     description:

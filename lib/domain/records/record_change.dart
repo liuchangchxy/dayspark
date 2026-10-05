@@ -1,31 +1,40 @@
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 sealed class RecordChange {
-  const RecordChange(this.type, this.localId);
+  const RecordChange(this.localId);
 
-  final RecordType type;
   final int localId;
+  RecordType? get type => null;
 }
 
 final class RecordApplied extends RecordChange {
   const RecordApplied(
-    super.type,
+    this.type,
     super.localId, {
     required this.previousReference,
   });
 
+  @override
+  final RecordType type;
   final DateTime? previousReference;
 }
 
 final class RecordRemoved extends RecordChange {
-  const RecordRemoved(super.type, super.localId, {required this.reminderIds});
+  const RecordRemoved(this.type, super.localId, {required this.reminderIds});
 
+  @override
+  final RecordType type;
   final List<int> reminderIds;
 }
 
 final class RecordsBulkChanged extends RecordChange {
-  const RecordsBulkChanged(RecordType type, {required this.reason})
-    : super(type, 0);
+  const RecordsBulkChanged(this.type, {required this.reason}) : super(0);
 
+  @override
+  final RecordType type;
   final String reason;
+}
+
+final class TaskAllocationChanged extends RecordChange {
+  const TaskAllocationChanged(super.localId);
 }

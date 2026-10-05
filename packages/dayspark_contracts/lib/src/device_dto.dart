@@ -27,33 +27,29 @@ DateTime _parseUtcDateTime(Object value, String field) {
 }
 
 class DeviceDto {
-  const DeviceDto({
-    required this.deviceId,
-    required this.lastSeen,
-    this.name,
-  });
+  const DeviceDto({required this.deviceId, required this.lastSeen, this.name});
 
   factory DeviceDto.fromJson(Map<String, dynamic> json) => DeviceDto(
-        deviceId: _requireField<String>(json, 'deviceId'),
-        name: json['name'] as String?,
-        // _requireField first: handing a missing key straight to a
-        // non-nullable Object parameter throws a raw _TypeError, not the
-        // FormatException this package promises callers.
-        lastSeen: _parseUtcDateTime(
-          _requireField<String>(json, 'lastSeen'),
-          'lastSeen',
-        ),
-      );
+    deviceId: _requireField<String>(json, 'deviceId'),
+    name: json['name'] as String?,
+    // _requireField first: handing a missing key straight to a
+    // non-nullable Object parameter throws a raw _TypeError, not the
+    // FormatException this package promises callers.
+    lastSeen: _parseUtcDateTime(
+      _requireField<String>(json, 'lastSeen'),
+      'lastSeen',
+    ),
+  );
 
   final String deviceId;
   final String? name;
   final DateTime lastSeen;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'deviceId': deviceId,
-        'name': name,
-        'lastSeen': lastSeen.toUtc().toIso8601String(),
-      };
+    'deviceId': deviceId,
+    'name': name,
+    'lastSeen': lastSeen.toUtc().toIso8601String(),
+  };
 }
 
 class DeviceListResponse {
@@ -72,6 +68,6 @@ class DeviceListResponse {
   final List<DeviceDto> devices;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'devices': [for (final d in devices) d.toJson()],
-      };
+    'devices': [for (final d in devices) d.toJson()],
+  };
 }

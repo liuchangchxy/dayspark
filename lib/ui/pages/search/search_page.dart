@@ -97,9 +97,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                             child: Text(
                               l.events,
-                              style: Theme.of(
-                                context,
-                              ).textTheme.titleMedium,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
                           ),
                           ...results.events.map((event) {
@@ -125,9 +123,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                             child: Text(
                               l.todos,
-                              style: Theme.of(
-                                context,
-                              ).textTheme.titleMedium,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
                           ),
                           ...results.todos.map(
@@ -153,6 +149,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 ),
     );
   }
+
   /// Search starts blank otherwise; the inbox is the closest thing to "your
   /// recent stuff" without storing a query history (DESIGN 空状态模板).
   Widget _suggestions(BuildContext context, WidgetRef ref, AppLocalizations l) {
@@ -170,15 +167,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         ),
         const SizedBox(height: AppSpacing.sm),
         for (final todo in top)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: const Icon(CupertinoIcons.circle, size: 18),
-            title: Text(todo.summary, style: AppTypography.body),
+          TodoListTile(
+            summary: todo.summary,
+            isCompleted: todo.status == 'COMPLETED',
+            priority: todo.priority,
+            todoId: todo.id,
+            dueDate: todo.dueDate,
+            onToggle: () => ref.read(toggleTodoProvider)(
+              id: todo.id,
+              isCompleted: todo.status != 'COMPLETED',
+            ),
             onTap: () => context.push('/todo/edit', extra: todo),
           ),
       ],
     );
   }
-
 }

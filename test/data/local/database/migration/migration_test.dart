@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
 
@@ -161,9 +162,7 @@ File _createV1Database() {
     "VALUES (1, 'td-001', 'Buy milk', $now, $now)",
   );
 
-  raw.execute(
-    "INSERT INTO tags (name) VALUES ('urgent')",
-  );
+  raw.execute("INSERT INTO tags (name) VALUES ('urgent')");
 
   raw.execute('INSERT INTO event_tags (event_id, tag_id) VALUES (1, 1)');
   raw.execute('INSERT INTO todo_tags (todo_id, tag_id) VALUES (1, 1)');
@@ -187,6 +186,97 @@ File _createV1Database() {
   raw.execute('PRAGMA user_version = 1');
   raw.dispose();
 
+  return file;
+}
+
+File _createV11Database() {
+  final file = File(
+    '${Directory.systemTemp.path}/test_migrate_v11_${DateTime.now().microsecondsSinceEpoch}.db',
+  );
+  final raw = sqlite3.open(file.path);
+  raw.execute('''
+    CREATE TABLE calendars (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#2563EB',
+      timezone TEXT NOT NULL DEFAULT 'UTC',
+      last_synced_at INTEGER,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  ''');
+  raw.execute('''
+    CREATE TABLE todos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      calendar_id INTEGER NOT NULL,
+      summary TEXT NOT NULL,
+      due_date INTEGER,
+      start_date INTEGER,
+      priority INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'NEEDS-ACTION',
+      description TEXT,
+      rrule TEXT,
+      completed_at INTEGER,
+      percent_complete INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      parent_id INTEGER,
+      sync_id TEXT,
+      server_rev INTEGER NOT NULL DEFAULT 0
+    )
+  ''');
+  raw.execute(
+    'CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL)',
+  );
+  raw.execute(
+    'CREATE TABLE todo_tags (todo_id INTEGER NOT NULL, tag_id INTEGER NOT NULL, PRIMARY KEY(todo_id, tag_id))',
+  );
+  raw.execute(
+    'CREATE TABLE attachments (id INTEGER PRIMARY KEY, parent_type TEXT NOT NULL, parent_id INTEGER NOT NULL, file_path TEXT NOT NULL, file_name TEXT NOT NULL, file_size INTEGER NOT NULL DEFAULT 0, mime_type TEXT, created_at INTEGER NOT NULL)',
+  );
+  raw.execute(
+    'CREATE TABLE reminders (id INTEGER PRIMARY KEY, parent_type TEXT NOT NULL, parent_id INTEGER NOT NULL, trigger_time INTEGER NOT NULL, is_triggered INTEGER NOT NULL DEFAULT 0)',
+  );
+  raw.execute(
+    'CREATE TABLE task_allocations (id INTEGER PRIMARY KEY, todo_id INTEGER, todo_sync_id TEXT, occurrence_id TEXT, start_at INTEGER NOT NULL, end_at INTEGER NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, sync_id TEXT, server_rev INTEGER NOT NULL DEFAULT 0)',
+  );
+  raw.execute("INSERT INTO calendars (id,name) VALUES (1,'Personal')");
+  final now = _ts(DateTime.utc(2026, 10, 5));
+  final date = _ts(DateTime.utc(2026, 10, 6, 9));
+  final due = _ts(DateTime.utc(2026, 10, 7, 17));
+  raw.execute(
+    "INSERT INTO todos (id,calendar_id,summary,created_at,updated_at) VALUES (1,1,'plain',$now,$now)",
+  );
+  raw.execute(
+    "INSERT INTO todos (id,calendar_id,summary,start_date,rrule,created_at,updated_at,sync_id) VALUES (2,1,'start only',$date,'FREQ=DAILY',$now,$now,'todo-sync-2')",
+  );
+  raw.execute(
+    "INSERT INTO todos (id,calendar_id,summary,due_date,rrule,created_at,updated_at) VALUES (3,1,'due only',$due,'FREQ=WEEKLY',$now,$now)",
+  );
+  raw.execute(
+    "INSERT INTO todos (id,calendar_id,summary,start_date,due_date,rrule,status,completed_at,created_at,updated_at) VALUES (4,1,'both completed',$date,$due,'FREQ=MONTHLY','COMPLETED',$now,$now,$now)",
+  );
+  raw.execute(
+    "INSERT INTO todos (id,calendar_id,summary,start_date,rrule,deleted_at,created_at,updated_at) VALUES (5,1,'trashed',$date,'FREQ=YEARLY',$now,$now,$now)",
+  );
+  raw.execute(
+    "INSERT INTO todos (id,calendar_id,summary,due_date,rrule,created_at,updated_at) VALUES (6,1,'allocation linked',$due,'FREQ=DAILY',$now,$now)",
+  );
+  raw.execute("INSERT INTO tags (id,name,color) VALUES (1,'keep','#123456')");
+  raw.execute('INSERT INTO todo_tags (todo_id,tag_id) VALUES (2,1)');
+  raw.execute(
+    "INSERT INTO attachments (id,parent_type,parent_id,file_path,file_name,created_at) VALUES (1,'todo',2,'/tmp/a','a.pdf',$now)",
+  );
+  raw.execute(
+    "INSERT INTO reminders (id,parent_type,parent_id,trigger_time) VALUES (1,'todo',2,$due)",
+  );
+  raw.execute(
+    "INSERT INTO task_allocations (id,todo_id,todo_sync_id,start_at,end_at,state,created_at,updated_at) VALUES (1,6,'parent-sync',${date * 1000},${(date + 3600) * 1000},'active',$now,$now)",
+  );
+  raw.execute('PRAGMA user_version = 11');
+  raw.dispose();
   return file;
 }
 
@@ -242,6 +332,27 @@ Future<void> _runAndVerify(File file) async {
     // v8: accounts table gone; v5: sync_queue gone
     expect(await tableExists('accounts'), false);
     expect(await tableExists('sync_queue'), false);
+    expect(await tableExists('task_allocations'), true);
+    expect(
+      (await db
+              .customSelect('SELECT COUNT(*) AS count FROM task_allocations')
+              .getSingle())
+          .data['count'],
+      0,
+    );
+    final allocationCols = await columnsOf('task_allocations');
+    expect(
+      allocationCols,
+      containsAll([
+        'id',
+        'todo_id',
+        'start_at',
+        'end_at',
+        'state',
+        'created_at',
+        'updated_at',
+      ]),
+    );
 
     // v9: sync columns exist with correct defaults
     final eventSyncCols = await columnsOf('events');
@@ -255,15 +366,15 @@ Future<void> _runAndVerify(File file) async {
     // Columns added by v3/v4/v6/v7 migrations exist with correct defaults
     final todos = await (db.select(db.todos)).get();
     expect(todos.first.deletedAt, isNull); // v3: add deleted_at
-    expect(todos.first.sortOrder, 0);      // v4: add sort_order
-    expect(todos.first.parentId, isNull);  // v7: add parent_id
-    expect(todos.first.syncId, isNull);    // v9: never enqueued yet
-    expect(todos.first.serverRev, 0);      // v9: default rev
+    expect(todos.first.sortOrder, 0); // v4: add sort_order
+    expect(todos.first.parentId, isNull); // v7: add parent_id
+    expect(todos.first.syncId, isNull); // v9: never enqueued yet
+    expect(todos.first.serverRev, 0); // v9: default rev
 
     final events = await (db.select(db.events)).get();
     expect(events.first.deletedAt, isNull); // v6: add deleted_at
-    expect(events.first.syncId, isNull);    // v9: never enqueued yet
-    expect(events.first.serverRev, 0);      // v9: default rev
+    expect(events.first.syncId, isNull); // v9: never enqueued yet
+    expect(events.first.serverRev, 0); // v9: default rev
 
     // Original data values intact on surviving columns
     final calendars = await (db.select(db.calendars)).get();
@@ -274,23 +385,27 @@ Future<void> _runAndVerify(File file) async {
     expect(todos.first.summary, 'Buy milk');
 
     // New rows work with current schema
-    final newCalId = await db.into(db.calendars).insert(
-      CalendarsCompanion.insert(name: 'Work'),
-    );
+    final newCalId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Work'));
     expect(newCalId, greaterThan(0));
 
-    await db.into(db.events).insert(
-      EventsCompanion.insert(
-        calendarId: newCalId,
-        summary: 'New event',
-        startDt: DateTime(2026, 6, 1),
-        endDt: DateTime(2026, 6, 1),
-      ),
-    );
+    await db
+        .into(db.events)
+        .insert(
+          EventsCompanion.insert(
+            calendarId: newCalId,
+            summary: 'New event',
+            startDt: DateTime(2026, 6, 1),
+            endDt: DateTime(2026, 6, 1),
+          ),
+        );
 
-    await db.into(db.todos).insert(
-      TodosCompanion.insert(calendarId: newCalId, summary: 'New todo'),
-    );
+    await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(calendarId: newCalId, summary: 'New todo'),
+        );
   } finally {
     await db.close();
   }
@@ -298,7 +413,7 @@ Future<void> _runAndVerify(File file) async {
 
 void main() {
   group('Database migration', () {
-    test('v1 → v9 full migration preserves data integrity', () async {
+    test('v1 → v13 full migration preserves data integrity', () async {
       final file = _createV1Database();
       try {
         await _runAndVerify(file);
@@ -307,10 +422,71 @@ void main() {
       }
     });
 
-    test('fresh database at v9 initializes correctly', () async {
+    test(
+      'v11 → v13 marks legacy recurrence without inferring timezone',
+      () async {
+        final file = _createV11Database();
+        try {
+          final db = AppDatabase.forExecutor(NativeDatabase(file));
+          try {
+            expect(db.schemaVersion, 13);
+            final todos = await (db.select(
+              db.todos,
+            )..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
+            expect(todos, hasLength(6));
+            expect(todos.first.rrule, isNull);
+            expect(todos.first.recurrenceLegacyState, isNull);
+            for (final todo in todos.skip(1)) {
+              expect(todo.recurrenceLegacyState, 'unknownLegacy');
+              expect(todo.recurrenceRevision, 0);
+              expect(todo.recurrenceTimeZone, isNull);
+              expect(todo.recurrenceAnchorValue, isNull);
+              expect(todo.recurrenceRule, isNull);
+              expect(todo.recurrenceEvidence, isNull);
+            }
+            expect(
+              todos[1].startDate,
+              DateTime.fromMillisecondsSinceEpoch(
+                _ts(DateTime.utc(2026, 10, 6, 9)) * 1000,
+              ),
+            );
+            expect(
+              todos[2].dueDate,
+              DateTime.fromMillisecondsSinceEpoch(
+                _ts(DateTime.utc(2026, 10, 7, 17)) * 1000,
+              ),
+            );
+            expect(todos[3].status, 'COMPLETED');
+            expect(todos[3].startDate, isNotNull);
+            expect(todos[3].dueDate, isNotNull);
+            expect(todos[4].deletedAt, isNotNull);
+            expect(todos[1].syncId, 'todo-sync-2');
+            expect(await (db.select(db.todoTags)).get(), hasLength(1));
+            expect(await (db.select(db.attachments)).get(), hasLength(1));
+            expect(await (db.select(db.reminders)).get(), hasLength(1));
+            expect(await (db.select(db.taskAllocations)).get(), hasLength(1));
+          } finally {
+            await db.close();
+          }
+          final reopened = AppDatabase.forExecutor(NativeDatabase(file));
+          try {
+            expect(
+              (await (reopened.select(reopened.todos)).get()),
+              hasLength(6),
+            );
+          } finally {
+            await reopened.close();
+          }
+        } finally {
+          if (await file.exists()) await file.delete();
+        }
+      },
+    );
+
+    test('fresh database at v13 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 9);
+        expect(db.schemaVersion, 13);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
@@ -322,10 +498,15 @@ void main() {
       }
     });
 
-    test('schema snapshot exists for v9', () async {
-      final schemaFile = File('drift_schemas/app_database/drift_schema_v9.json');
-      expect(await schemaFile.exists(), true,
-          reason: 'Run `dart run drift_dev make-migrations` to generate');
+    test('schema snapshot exists for v13', () async {
+      final schemaFile = File(
+        'drift_schemas/app_database/drift_schema_v13.json',
+      );
+      expect(
+        await schemaFile.exists(),
+        true,
+        reason: 'Run `dart run drift_dev make-migrations` to generate',
+      );
     });
   });
 }

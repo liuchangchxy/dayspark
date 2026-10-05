@@ -31,7 +31,8 @@ class PrefsSyncConfigStore implements SyncConfigStore {
   }
 
   @override
-  Future<void> save(SyncConfig config) => _prefs.setString(_key, config.baseUrl);
+  Future<void> save(SyncConfig config) =>
+      _prefs.setString(_key, config.baseUrl);
 
   @override
   Future<void> clear() => _prefs.remove(_key);
@@ -43,6 +44,14 @@ abstract class SyncCursorStore {
   Future<int?> read();
   Future<void> write(int cursor);
 
+  /// Whether the current server dataset has been fully scanned with
+  /// TaskAllocation enabled. Null means this client predates capability-aware
+  /// cursor tracking and must perform a compatibility backfill.
+  Future<bool?> readTaskAllocationCapabilityState();
+  Future<void> writeTaskAllocationCapabilityState(bool enabled);
+  Future<bool?> readTodoRecurrenceCapabilityState();
+  Future<void> writeTodoRecurrenceCapabilityState(bool enabled);
+
   /// Identity/server switch: a watermark only means anything relative to
   /// the dataset it was raised against (account_provider resets it there).
   Future<void> clear();
@@ -52,6 +61,10 @@ class PrefsSyncCursorStore implements SyncCursorStore {
   PrefsSyncCursorStore(this._prefs);
 
   static const _key = 'sync_pull_cursor';
+  static const _taskAllocationCapabilityKey =
+      'sync_task_allocation_capability_enabled';
+  static const _todoRecurrenceCapabilityKey =
+      'sync_todo_recurrence_capability_enabled';
 
   final SharedPreferences _prefs;
 
@@ -62,15 +75,36 @@ class PrefsSyncCursorStore implements SyncCursorStore {
   Future<void> write(int cursor) => _prefs.setInt(_key, cursor);
 
   @override
+  Future<bool?> readTaskAllocationCapabilityState() async =>
+      _prefs.getBool(_taskAllocationCapabilityKey);
+
+  @override
+  Future<void> writeTaskAllocationCapabilityState(bool enabled) =>
+      _prefs.setBool(_taskAllocationCapabilityKey, enabled);
+
+  @override
+  Future<bool?> readTodoRecurrenceCapabilityState() async =>
+      _prefs.getBool(_todoRecurrenceCapabilityKey);
+
+  @override
+  Future<void> writeTodoRecurrenceCapabilityState(bool enabled) =>
+      _prefs.setBool(_todoRecurrenceCapabilityKey, enabled);
+
+  @override
   Future<void> clear() async {
     await _prefs.remove(_key);
+    await _prefs.remove(_taskAllocationCapabilityKey);
+    await _prefs.remove(_todoRecurrenceCapabilityKey);
   }
 }
 
 abstract class SyncTokenStore {
   Future<String?> readAccessToken();
   Future<String?> readRefreshToken();
-  Future<void> saveTokens({required String accessToken, required String refreshToken});
+  Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  });
   Future<void> clear();
 }
 
@@ -82,7 +116,7 @@ extension SyncTokenStoreX on SyncTokenStore {
 
 class SecureSyncTokenStore implements SyncTokenStore {
   const SecureSyncTokenStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _accessKey = 'accessToken';
   static const _refreshKey = 'refreshToken';

@@ -1,6 +1,6 @@
 # DaySpark Feature Evolution / 功能演进全景图
 
-> Last updated / 最后更新: v0.27.0+28 | 2026-10-01 | Sync devices +全双语护栏: every account can now see its connected devices (`POST /devices/register`, `GET /devices`, `x-device-id` actually sent, in-app device list), the AI answers in the app language instead of guessing, switching language now re-issues already-scheduled reminders, and four new guards cover the localization surface (dictionary parity, raw-text scan, outlet inventory, gate ledger). Previous: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
+> Last updated / 最后更新: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Previous: v0.27.0+28 | 2026-10-01 | Sync devices +全双语护栏: every account can now see its connected devices (`POST /devices/register`, `GET /devices`, `x-device-id` actually sent, in-app device list), the AI answers in the app language instead of guessing, switching language now re-issues already-scheduled reminders, and four new guards cover the localization surface (dictionary parity, raw-text scan, outlet inventory, gate ledger). Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
@@ -12,6 +12,27 @@
 - 更早：**债务2 统一事件缝（v0.25.0）** — 派生态失效从三条临时通道收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂
 - 更早：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）；Web 缺口见 Pending **#9（ICS 导出不可用）/#10（通知静默未初始化）**
+
+---
+
+## TaskAllocation Workstream / TaskAllocation 阶段状态 (2026-10-04)
+
+- **Phase 1 / 1.5 本地领域与 Calendar 投影**：已完成。
+- **Phase 2 跨设备同步与完成/删除收敛**：已完成；本次未重新审查或改动该架构。
+- **Busy-Time**：已完成统一服务端 BusyInterval 只读投影，并使 `find_free_time` 消费 Event occurrence 与有效 Allocation；父 Todo、D6、墓碑、回收站和半开区间规则见 `SPEC.md` §3.1。dueDate 不贡献 busy。
+- **后续边界**：重复 Todo occurrence、`get_agenda`、Widget、Reminder、deadline marker、自动排程及 Allocation MCP 写工具仍未进入范围。实施记录与测试矩阵见 `docs/superpowers/plans/2026-10-04-task-allocation.md`。
+
+## Recurring Todo / Occurrence Design Spike (2026-10-04)
+
+- **设计结论已落文档**：`SPEC.md` §3.1.1、`DECISIONS.md` 同日裁定；完整证据边界见 `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`。
+- **运行验收状态：PASS（spike vectors）**：SDK 从 `C:\src\flutter` 的绝对路径运行；RRULE、gap/fold、DATE-only、ICS parser/converter、client/server 临时 path package vectors 均已实测。`dart analyze .` 零 issue；全量 `flutter test` 414 项通过；`git diff --check` 通过。
+- **R1 Shared Recurrence Core：完成**：纯 Dart `packages/dayspark_recurrence` 已接入 client/server；两端统一 `timezone 0.11.1`。RRULE validator、DATE/DATE-TIME nominal occurrence、identity codec、显式 gap/fold resolver、有限窗口/结果/扫描上限均有同一份共享 golden fixtures；阶段 commit 见 Git 历史。
+- **R2 Recurrence Persistence + Atomic Sync + Legacy State：完成**：schema v12 结构化持久化 RecurrenceSpec；旧重复 Todo 迁为 `unknownLegacy` 且不猜时区；contracts、client outbox/apply、server revision 整组冲突及旧客户端保护已接通。
+- **R3 Todo Occurrence + Allocation Binding：已完成（本地提交 b18bab0）**：只读有限窗口 projection、共享 occurrence 校验、Calendar/Busy 投影、orphan 派生规则、90 日选择入口及双设备 occurrenceId round-trip。
+- **R4 Final acceptance：PASS，已本地提交**：DATE identity 使用不带 timezone 的 v2 DATE namespace，同时兼容旧 v1 DATE identity；ICS 保留 legacy 来源证据；首次安排和 TodoEditPage unknownLegacy 流程均需成功 preview 后才能确认；semantic round-trip 覆盖 Shanghai、New York、DST gap/fold、DATE、DUE anchors 与保守导入；真实 sync E2E 覆盖 A–G、旧客户端 capability 恢复及 busy/orphan 矩阵。独立 delta review：原 P1 resolved，无新增 P0/P1、P2/P3。`SPEC.md` 与 `DECISIONS.md` 已记录契约。
+- **R4 自动门禁通过；Windows 手工验收仍待环境补齐**：wrapper 超时已归因于使用 `flutter test` 执行纯 Dart 子进程测试：该 runner 下 `Platform.resolvedExecutable` 不是 Dart CLI；按 CI 正式命令 `dart test` 后 wrapper 9 项通过，无需产品代码变更。最终门禁：根 `dart analyze .`、`flutter analyze` 零 issue，根 `flutter test` 453 项通过；recurrence 20、contracts 53、server 233、wrapper 9、CLI 20 项全通过；version guard + 17 个 selftest、whitespace/path scans、`git diff --check` 全通过。Windows release build 与 GUI smoke **NOT RUN**：Build Tools 18 缺少 ATL，第三方 `connectivity_plus` 在代码页 936 下触发 C4819 并被 `/WX` 升级失败；具体 checklist 如下。未 push、未创建 PR。
+- **Windows release/manual smoke checklist（待环境补齐）**：本机 Visual Studio Build Tools 18 缺 `Microsoft.VisualStudio.Component.VC.ATL`（C++ ATL x64/x86，latest MSVC）；第三方 `connectivity_plus` 的无 BOM UTF-8 `connectivity_plus_plugin.cpp` 含 U+2014 注释字符，在 Windows code page 936 触发 C4819，并被既有 `windows/CMakeLists.txt` `/WX` 升级为 C2220。第三方 `flutter_secure_storage_windows` 依赖 `atlstr.h`。这两项均非 R4 源码回归；安装 ATL、在 MSVC 源字符集按 UTF-8 编译（如 `/utf-8`），再实际 build + launch 并完成 Windows GUI smoke。Recurring due projection 仍按 SPEC 不实现。
+- **首版排除**：不含 per-occurrence completion、skip、edit-this/edit-future、EXDATE/RDATE、detached overrides、MCP recurring Todo 写入或自动排程。
 
 ---
 
@@ -411,7 +432,7 @@
 | 2 | **统一五平台客户端** (single Flutter codebase, feature parity) / **统一五平台客户端**（单一代码库、功能对齐） | ✅ 完成 (v0.24.0) — five-platform parity verified (six-suite + Kotlin); caveats: iOS device/TestFlight builds gated on time-sensitive provisioning, Windows notifications stubbed / 五平台对齐已验证；caveat：iOS 真机/TestFlight 受 time-sensitive provisioning 门限制、Windows 通知仍为 stub |
 | 3 | **Cross-device sync** (offline-first, field-level LWW) / **跨设备同步**（离线优先、字段级 LWW） | ✅ 完成 (v0.22.0) — sync backend + client engine + dual-device e2e / 同步后端 + 客户端引擎 + 双设备 e2e |
 | 4 | **AI 可读写 MCP** (AI reads/writes events & todos) / **AI 可读写 MCP**（AI 读写事件/待办） | ✅ 完成 (v0.23.0) — server MCP 17 tools + 3 resources, OAuth 2.1 two-track, stdio wrapper + CLI / 服务端 MCP 17 工具 + 3 资源、OAuth 2.1 双轨、stdio 桥 + CLI |
-| 5 | **双端小组件** (Android + iOS/macOS widgets, quick actions) / **双端小组件**（Android + iOS/macOS，支持快速操作） | ✅ 完成 (v0.24.0) — widget v2 three variants (Today/Upcoming/月点阵) × Android/iOS/macOS, pendingTaps + quick-add; caveat: iOS widget device QA needs a provisioned signed build (sim OK) / 小组件 v2 三变体 + 勾选/快速添加；caveat：iOS 真机组件验收需 provisioning 通过的签名包（模拟器可验） |
+| 5 | **双端小组件** (Android + iOS widgets, quick actions) / **双端小组件**（Android + iOS，支持快速操作） | ✅ 完成 (v0.24.0) — widget v2 three variants (Today/Upcoming/月点阵) × Android/iOS, pendingTaps + quick-add; macOS host calls disabled because home_widget APIs are unsupported there; caveat: iOS widget device QA needs a provisioned signed build (sim OK) / 小组件 v2 三变体 + 勾选/快速添加；home_widget 不支持 macOS，宿主侧调用已关闭；iOS 真机验收需签名包（模拟器可验） |
 | 1, 6–8 | Remaining frozen requirements / 其余冻结需求 | See `SPEC.md` 1.1; tracked by phase plan below / 见 SPEC 1.1，由下方阶段规划跟踪 |
 
 ### Scheme Changes / 方案级变更
@@ -588,6 +609,7 @@
 
 | # | Item / 项 | Note / 说明 |
 |---|------|------|
+| 6 | **TaskAllocation permanent-delete tombstones / TaskAllocation 永久删除 tombstone** — before enabling Allocation sync, replace reliance on `ON DELETE CASCADE` with an explicit domain delete path that captures/emits a tombstone for every Allocation before deleting its Todo. / 开启 Allocation 同步前，必须将依赖 `ON DELETE CASCADE` 改为显式领域删除路径，在删除 Todo 前为每条 Allocation 捕获并发出 tombstone。Phase 1 is local-only and does not provide this sync propagation. / Phase 1 仅本地使用，不提供此同步传播。 | 前置于 Allocation sync / prerequisite for Allocation sync |
 | 1 | ~~**Web 端白屏 — v0.25.0 已发布产物在浏览器里不可用**~~ ✅ **修复于 v0.25.1** | 根因：`main.dart` 在 `runApp` 之前调 `AlarmService.init()` → `alarm_service.dart` 的 `Platform.isAndroid` 在 dart2js 产物里**一调用就抛** → `main()` 中断 → 白屏（事故证据链见 `DECISIONS.md`、规则见 `CONSTRAINTS.md` Web 章节）。交付：`lib/core/utils/platform_target.dart` 唯一读点（5+1 处调用点收敛、设置页补守卫）+ 静态守卫测试 + CI 冒烟断言 `tool/web_smoke.dart`；反证已跑通（抽掉守卫 → 守卫红 + 产物冒烟判白屏）。**队列现已清空** | ✅ 已关单 (v0.25.1) |
 
 ### P3 — 同步 / 派生态遗留（2026-09-24 债务2 收尾登记）

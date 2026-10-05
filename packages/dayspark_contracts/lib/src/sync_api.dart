@@ -1,22 +1,47 @@
 import 'record_dto.dart';
 
+class SyncCapability {
+  const SyncCapability._();
+
+  static const taskAllocationV1 = 'task_allocation_v1';
+  static const todoRecurrenceV1 = 'todo_recurrence_v1';
+}
+
+class SyncCapabilitiesResponse {
+  const SyncCapabilitiesResponse({required this.capabilities});
+
+  factory SyncCapabilitiesResponse.fromJson(Map<String, dynamic> json) {
+    final raw = _requireField<List>(json, 'capabilities');
+    if (raw.any((value) => value is! String)) {
+      throw const FormatException('invalid field: capabilities');
+    }
+    return SyncCapabilitiesResponse(capabilities: raw.cast<String>());
+  }
+
+  final List<String> capabilities;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'capabilities': capabilities,
+  };
+}
+
 enum OpType { upsert, delete }
 
 enum OpStatus { applied, conflict, rejected, duplicate }
 
 OpType _opTypeFromJson(Object value, String field) => switch (value) {
-      'upsert' => OpType.upsert,
-      'delete' => OpType.delete,
-      _ => throw FormatException('invalid $field value: $value'),
-    };
+  'upsert' => OpType.upsert,
+  'delete' => OpType.delete,
+  _ => throw FormatException('invalid $field value: $value'),
+};
 
 OpStatus _opStatusFromJson(Object value, String field) => switch (value) {
-      'applied' => OpStatus.applied,
-      'conflict' => OpStatus.conflict,
-      'rejected' => OpStatus.rejected,
-      'duplicate' => OpStatus.duplicate,
-      _ => throw FormatException('invalid $field value: $value'),
-    };
+  'applied' => OpStatus.applied,
+  'conflict' => OpStatus.conflict,
+  'rejected' => OpStatus.rejected,
+  'duplicate' => OpStatus.duplicate,
+  _ => throw FormatException('invalid $field value: $value'),
+};
 
 T _requireField<T>(Map<String, dynamic> json, String field) {
   if (!json.containsKey(field)) {
@@ -40,7 +65,8 @@ T? _optionalField<T>(Map<String, dynamic> json, String field) {
   return value;
 }
 
-Map<String, dynamic> _asJsonMap(Object value) => Map<String, dynamic>.from(value as Map);
+Map<String, dynamic> _asJsonMap(Object value) =>
+    Map<String, dynamic>.from(value as Map);
 
 class PushOp {
   const PushOp({
@@ -72,13 +98,13 @@ class PushOp {
   final int? baseRev;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'opId': opId,
-        'op': op.name,
-        'recordId': recordId,
-        'type': type.name,
-        'fields': fields,
-        'baseRev': baseRev,
-      };
+    'opId': opId,
+    'op': op.name,
+    'recordId': recordId,
+    'type': type.wireName,
+    'fields': fields,
+    'baseRev': baseRev,
+  };
 }
 
 class PushRequest {
@@ -86,27 +112,41 @@ class PushRequest {
     required this.deviceId,
     required this.ops,
     this.cursor,
+    this.capabilities = const [],
   });
 
   factory PushRequest.fromJson(Map<String, dynamic> json) {
     return PushRequest(
       deviceId: _requireField<String>(json, 'deviceId'),
-      ops: _requireField<List>(json, 'ops')
-          .map((Object? op) => PushOp.fromJson(_asJsonMap(op!)))
-          .toList(),
+      ops: _requireField<List>(
+        json,
+        'ops',
+      ).map((Object? op) => PushOp.fromJson(_asJsonMap(op!))).toList(),
       cursor: _optionalField<int>(json, 'cursor'),
+      capabilities: _optionalStringList(json, 'capabilities'),
     );
   }
 
   final String deviceId;
   final List<PushOp> ops;
   final int? cursor;
+  final List<String> capabilities;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'deviceId': deviceId,
-        'ops': ops.map((PushOp op) => op.toJson()).toList(),
-        'cursor': cursor,
-      };
+    'deviceId': deviceId,
+    'ops': ops.map((PushOp op) => op.toJson()).toList(),
+    'cursor': cursor,
+    'capabilities': capabilities,
+  };
+}
+
+List<String> _optionalStringList(Map<String, dynamic> json, String field) {
+  final value = json[field];
+  if (value == null) return const [];
+  if (value is! List || value.any((entry) => entry is! String)) {
+    throw FormatException('invalid field: $field');
+  }
+  return value.cast<String>();
 }
 
 class OpResult {
@@ -120,7 +160,10 @@ class OpResult {
   factory OpResult.fromJson(Map<String, dynamic> json) {
     return OpResult(
       opId: _requireField<String>(json, 'opId'),
-      status: _opStatusFromJson(_requireField<Object>(json, 'status'), 'status'),
+      status: _opStatusFromJson(
+        _requireField<Object>(json, 'status'),
+        'status',
+      ),
       serverRecord: json['serverRecord'] == null
           ? null
           : SyncRecord.fromJson(_asJsonMap(json['serverRecord']!)),
@@ -134,11 +177,11 @@ class OpResult {
   final String? code;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'opId': opId,
-        'status': status.name,
-        'serverRecord': serverRecord?.toJson(),
-        'code': code,
-      };
+    'opId': opId,
+    'status': status.name,
+    'serverRecord': serverRecord?.toJson(),
+    'code': code,
+  };
 }
 
 class PushResponse {
@@ -166,10 +209,10 @@ class PushResponse {
   final int cursor;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'results': results.map((OpResult result) => result.toJson()).toList(),
-        'piggyback': piggyback.map((SyncRecord record) => record.toJson()).toList(),
-        'cursor': cursor,
-      };
+    'results': results.map((OpResult result) => result.toJson()).toList(),
+    'piggyback': piggyback.map((SyncRecord record) => record.toJson()).toList(),
+    'cursor': cursor,
+  };
 }
 
 class PullResponse {
@@ -194,8 +237,8 @@ class PullResponse {
   final bool hasMore;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'changes': changes.map((SyncRecord record) => record.toJson()).toList(),
-        'nextCursor': nextCursor,
-        'hasMore': hasMore,
-      };
+    'changes': changes.map((SyncRecord record) => record.toJson()).toList(),
+    'nextCursor': nextCursor,
+    'hasMore': hasMore,
+  };
 }

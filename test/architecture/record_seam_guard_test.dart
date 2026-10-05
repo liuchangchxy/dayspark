@@ -27,7 +27,9 @@ const List<String> _recordWriteDirs = <String>[
   'lib/domain/records/',
   'lib/data/local/database/daos/',
 ];
-const List<String> _recordWriteFiles = <String>['lib/domain/sync/sync_outbox.dart'];
+const List<String> _recordWriteFiles = <String>[
+  'lib/domain/sync/sync_outbox.dart',
+];
 const List<String> _busDirs = <String>['lib/domain/records/'];
 const List<String> _busAccessFiles = <String>[
   'lib/domain/providers/record_bus_provider.dart',
@@ -41,7 +43,7 @@ const Set<String> _deletedChannelSymbols = <String>{
 };
 
 // G4：RecordScope.run 站点数。增删站点必须显式改这个常量，好在 diff 里被审查者看见。
-const int _scopeRunSites = 25;
+const int _scopeRunSites = 29;
 
 const Set<String> _readOnlyDaoMethods = <String>{
   'watchPending',
@@ -62,18 +64,18 @@ const Set<String> _readOnlyDaoMethods = <String>{
 
 const String _baselineRelativePath = 'tool/record_seam_baseline.txt';
 const String _bypassWriteMessage = '这条写入绕过了单写入口，派生态会静默失效';
-const String _bypassPublishMessage =
-    '这条发布绕过了唯一发点（RecordScope），事件会脱离"写入即登记"的绑定';
+const String _bypassPublishMessage = '这条发布绕过了唯一发点（RecordScope），事件会脱离"写入即登记"的绑定';
 
 final RegExp _rawWrite = RegExp(
-  r'\b(?:into|update|delete)\s*\(\s*(?:db|_db)\.(?:events|todos|reminders)\b',
+  r'\b(?:into|update|delete)\s*\(\s*(?:db|_db)\.(?:events|todos|reminders|taskAllocations)\b',
 );
 final RegExp _daoCall = RegExp(r'\b(?:todosDao|eventsDao)\.([A-Za-z]\w*)\s*\(');
 final RegExp _normalizedRawWrite = RegExp(
-  r'\b(?:into|update|delete)\s*\(\s*(?:db|_db)\s*\.\s*(?:events|todos|reminders)\b',
+  r'\b(?:into|update|delete)\s*\(\s*(?:db|_db)\s*\.\s*(?:events|todos|reminders|taskAllocations)\b',
 );
-final RegExp _normalizedDaoCall =
-    RegExp(r'\b(?:todosDao|eventsDao)\s*\.\s*([A-Za-z]\w*)\s*\(');
+final RegExp _normalizedDaoCall = RegExp(
+  r'\b(?:todosDao|eventsDao)\s*\.\s*([A-Za-z]\w*)\s*\(',
+);
 final RegExp _publishCall = RegExp(r'\.publish\s*\(');
 final RegExp _busAccess = RegExp(r'RecordBus\.of\s*\(');
 
@@ -118,7 +120,9 @@ String stripCommentsAndStrings(String source) {
     if (ch == '/' && next == '*') {
       i += 2;
       while (i < source.length &&
-          !(source[i] == '*' && i + 1 < source.length && source[i + 1] == '/')) {
+          !(source[i] == '*' &&
+              i + 1 < source.length &&
+              source[i + 1] == '/')) {
         if (source[i] == '\n') out.write('\n');
         i++;
       }
@@ -196,7 +200,8 @@ List<GuardHit> findViolations(String path, String source) {
   final original = source.split('\n');
   final hits = <GuardHit>[];
   final lineHits = <int>{};
-  final recordPath = _inDirs(path, _recordWriteDirs) || _recordWriteFiles.contains(path);
+  final recordPath =
+      _inDirs(path, _recordWriteDirs) || _recordWriteFiles.contains(path);
   final busPath = _inDirs(path, _busDirs);
 
   for (var i = 0; i < code.length; i++) {
@@ -230,9 +235,9 @@ List<GuardHit> findViolations(String path, String source) {
     final normalized = normalizeWhitespace(source);
     final splitHits = <RegExpMatch>[
       ..._normalizedRawWrite.allMatches(normalized.text),
-      ..._normalizedDaoCall.allMatches(normalized.text).where(
-            (m) => !_readOnlyDaoMethods.contains(m.group(1)),
-          ),
+      ..._normalizedDaoCall
+          .allMatches(normalized.text)
+          .where((m) => !_readOnlyDaoMethods.contains(m.group(1))),
     ]..sort((a, b) => a.start.compareTo(b.start));
     for (final match in splitHits) {
       final line = normalized.lineOf[match.start] + 1;
@@ -250,8 +255,9 @@ List<GuardHit> findViolations(String path, String source) {
   return hits;
 }
 
-String hashHits(List<GuardHit> hits) =>
-    sha256.convert(utf8.encode(hits.map((h) => h.source).join('\n'))).toString();
+String hashHits(List<GuardHit> hits) => sha256
+    .convert(utf8.encode(hits.map((h) => h.source).join('\n')))
+    .toString();
 
 String? resolveRepoRoot([Directory? from]) {
   var dir = (from ?? Directory.current).absolute;
@@ -278,9 +284,7 @@ Baseline readBaseline(String root) {
     if (raw.trim().isEmpty || raw.trimLeft().startsWith('#')) continue;
     final parts = raw.split('\t');
     if (parts.length != 3) {
-      problems.add(
-        '基线行格式错误（需要 路径<TAB>条数<TAB>sha256 三段，用 TAB 分隔）：$raw',
-      );
+      problems.add('基线行格式错误（需要 路径<TAB>条数<TAB>sha256 三段，用 TAB 分隔）：$raw');
       continue;
     }
     final count = int.tryParse(parts[1]);
@@ -304,7 +308,12 @@ Map<String, List<GuardHit>> scanLib(String root) {
         ..sort((a, b) => a.path.compareTo(b.path));
   for (final file in files) {
     final full = file.path.replaceAll('\\', '/');
-    final path = full.startsWith('$root/') ? full.substring(root.length + 1) : full;
+    final normalizedRoot = root
+        .replaceAll('\\', '/')
+        .replaceFirst(RegExp(r'/$'), '');
+    final path = full.startsWith('$normalizedRoot/')
+        ? full.substring(normalizedRoot.length + 1)
+        : full;
     final hits = findViolations(path, file.readAsStringSync());
     if (hits.isNotEmpty) found[path] = hits;
   }
@@ -316,14 +325,19 @@ List<String> deletedSymbolHits(String root) {
   final dir = Directory('$root/lib/ui');
   if (!dir.existsSync()) return hits;
   final files =
-      dir.listSync(recursive: true).whereType<File>().where(
-            (f) => f.path.endsWith('.dart'),
-          ).toList()
+      dir
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))
+          .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
   for (final file in files) {
     final full = file.path.replaceAll('\\', '/');
-    final path = full.startsWith('$root/')
-        ? full.substring(root.length + 1)
+    final normalizedRoot = root
+        .replaceAll('\\', '/')
+        .replaceFirst(RegExp(r'/$'), '');
+    final path = full.startsWith('$normalizedRoot/')
+        ? full.substring(normalizedRoot.length + 1)
         : full;
     final lines = stripCommentsAndStrings(file.readAsStringSync()).split('\n');
     for (var i = 0; i < lines.length; i++) {
@@ -348,8 +362,11 @@ Map<String, int> scopeRunSites(String root) {
         ..sort((a, b) => a.path.compareTo(b.path));
   for (final file in files) {
     final full = file.path.replaceAll('\\', '/');
-    final path = full.startsWith('$root/')
-        ? full.substring(root.length + 1)
+    final normalizedRoot = root
+        .replaceAll('\\', '/')
+        .replaceFirst(RegExp(r'/$'), '');
+    final path = full.startsWith('$normalizedRoot/')
+        ? full.substring(normalizedRoot.length + 1)
         : full;
     final count = RegExp(
       r'RecordScope\.run\(',
@@ -359,12 +376,17 @@ Map<String, int> scopeRunSites(String root) {
   return counts;
 }
 
-String _reject(String path, int line, String message, String detail, String source) =>
-    '$path:$line $detail$message\n    $source';
+String _reject(
+  String path,
+  int line,
+  String message,
+  String detail,
+  String source,
+) => '$path:$line $detail$message\n    $source';
 
 void main() {
   group('matcher selftest', () {
-    test('7 违规样本必须命中，合规样本必须不命中', () {
+    test('记录写入违规样本必须命中，合规样本必须不命中', () {
       const homePage = 'lib/ui/pages/home/home_page.dart';
       const provider = 'lib/domain/providers/other_provider.dart';
 
@@ -399,13 +421,24 @@ void main() {
         hasLength(1),
       );
       expect(
+        findViolations(
+          provider,
+          'await db.into(db.taskAllocations).insert(companion);',
+        ),
+        hasLength(1),
+      );
+      expect(
+        findViolations(
+          provider,
+          'await db\n  .into(\n    db.taskAllocations,\n  ).insert(companion);',
+        ),
+        hasLength(1),
+      );
+      expect(
         findViolations(provider, 'RecordBus.of(db).publish(scope.drain());'),
         hasLength(2),
       );
-      expect(
-        findViolations(provider, 'bus.publish(batch);'),
-        hasLength(1),
-      );
+      expect(findViolations(provider, 'bus.publish(batch);'), hasLength(1));
 
       const compliant = '''
         final rows = await db.select(db.events).get();
@@ -490,10 +523,7 @@ await db
 
       // 单行写法两趟都命中，但只报一次（不重复计）。
       expect(
-        findViolations(
-          provider,
-          'await db.into(db.events).insert(companion);',
-        ),
+        findViolations(provider, 'await db.into(db.events).insert(companion);'),
         hasLength(1),
       );
 
@@ -528,7 +558,10 @@ await db
       expect(resolveRepoRoot(nested), probe.path);
       expect(resolveRepoRoot(Directory.current), isNotNull);
       final nowhere = Directory('${probe.path}/lib/domain/records');
-      expect(resolveRepoRoot(Directory(nowhere.parent.parent.parent.parent.path)), isNull);
+      expect(
+        resolveRepoRoot(Directory(nowhere.parent.parent.parent.parent.path)),
+        isNull,
+      );
     });
 
     test('stripCommentsAndStrings 剥离注释与字符串，保留行数', () {
@@ -563,7 +596,13 @@ await db
         if (allowed == null) {
           for (final hit in entry.value) {
             problems.add(
-              _reject(hit.path, hit.line, hit.message, '未登记在棘轮基线中；', hit.source),
+              _reject(
+                hit.path,
+                hit.line,
+                hit.message,
+                '未登记在棘轮基线中；',
+                hit.source,
+              ),
             );
           }
           continue;
@@ -640,4 +679,40 @@ await db
       );
     });
   });
+
+  test(
+    'RecurrenceSpec persistence fields only go through its adapter and TodoWriter',
+    () {
+      const protectedFields = <String>{
+        'recurrenceAnchorSource',
+        'recurrenceValueType',
+        'recurrenceAnchorValue',
+        'recurrenceTimeZone',
+        'recurrenceRule',
+        'recurrenceLegacyState',
+        'recurrenceRevision',
+      };
+      final fieldPattern = RegExp('\\b(?:${protectedFields.join('|')})\\s*:');
+      const allowed = <String>{
+        'lib/domain/records/todo_recurrence.dart',
+        'lib/domain/records/writers/todo_writer.dart',
+      };
+      final hits = <String>[];
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        if (entity.path.endsWith('.g.dart') ||
+            entity.path.endsWith('.steps.dart')) {
+          continue;
+        }
+        final path = entity.path.replaceAll('\\', '/');
+        if (allowed.contains(path)) continue;
+        final source = stripCommentsAndStrings(entity.readAsStringSync());
+        for (final match in fieldPattern.allMatches(source)) {
+          final line = source.substring(0, match.start).split('\n').length;
+          hits.add('$path:$line');
+        }
+      }
+      expect(hits, isEmpty, reason: hits.join('\n'));
+    },
+  );
 }
