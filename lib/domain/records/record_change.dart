@@ -38,3 +38,7 @@ final class RecordsBulkChanged extends RecordChange {
 final class TaskAllocationChanged extends RecordChange {
   const TaskAllocationChanged(super.localId);
 }
+
+final class TaskInstanceStateChanged extends RecordChange {
+  const TaskInstanceStateChanged(super.localId);
+}

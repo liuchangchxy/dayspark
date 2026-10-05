@@ -36,10 +36,12 @@ Future<Map<String, dynamic>> _json(Response response) async {
 }
 
 Future<Map<String, String>> _register(AppServer app, String email) async {
-  final response = await _request(app.handler, 'POST', '/auth/register', body: {
-    'email': email,
-    'password': 'password123',
-  });
+  final response = await _request(
+    app.handler,
+    'POST',
+    '/auth/register',
+    body: {'email': email, 'password': 'password123'},
+  );
   expect(response.statusCode, 201, reason: 'register must succeed');
   final body = await _json(response);
   return {
@@ -80,8 +82,7 @@ Future<Map<String, dynamic>> _toolData(
   Map<String, Object?> args,
 ) async {
   final result = await _callTool(app, token, name, args);
-  expect(result['isError'], isNot(true),
-      reason: '${result['content']}');
+  expect(result['isError'], isNot(true), reason: '${result['content']}');
   final text = (result['content'] as List).first['text'] as String;
   return jsonDecode(text) as Map<String, dynamic>;
 }
@@ -93,8 +94,11 @@ Future<Map<String, dynamic>> _toolError(
   Map<String, Object?> args,
 ) async {
   final result = await _callTool(app, token, name, args);
-  expect(result['isError'], true,
-      reason: 'expected isError for $name ${result['content']}');
+  expect(
+    result['isError'],
+    true,
+    reason: 'expected isError for $name ${result['content']}',
+  );
   final text = (result['content'] as List).first['text'] as String;
   final payload = jsonDecode(text) as Map<String, dynamic>;
   expect(payload['code'], isA<String>(), reason: text);
@@ -126,14 +130,17 @@ Future<void> _seed(
     ),
     notify: (userId, seq) {},
   );
-  expect(result.status, OpStatus.applied,
-      reason: 'seed $id must apply: ${result.code}');
+  expect(
+    result.status,
+    OpStatus.applied,
+    reason: 'seed $id must apply: ${result.code}',
+  );
 }
 
 Future<RecordRow?> _row(AppServer app, String userId, String id) {
-  return (app.db.select(app.db.records)
-        ..where((t) => t.userId.equals(userId) & t.id.equals(id)))
-      .getSingleOrNull();
+  return (app.db.select(
+    app.db.records,
+  )..where((t) => t.userId.equals(userId) & t.id.equals(id))).getSingleOrNull();
 }
 
 Future<List<String>> _liveIds(
@@ -154,11 +161,14 @@ Future<List<String>> _liveIds(
 
 class _SseFeed {
   _SseFeed(Response response) {
-    _subscription = response.read().listen((chunk) {
-      _buffer.write(utf8.decode(chunk));
-    }, onError: (Object error) {
-      _error = error;
-    });
+    _subscription = response.read().listen(
+      (chunk) {
+        _buffer.write(utf8.decode(chunk));
+      },
+      onError: (Object error) {
+        _error = error;
+      },
+    );
   }
 
   final StringBuffer _buffer = StringBuffer();
@@ -209,92 +219,90 @@ void main() {
   DateTime now() => DateTime.now().toUtc();
 
   group('get_events', () {
-    test('returns window instances with rrule expansion and skips out-of-window rows',
-        () async {
-      final start = now().add(const Duration(hours: 2));
-      await _seed(
-        app,
-        userId,
-        'ev-standup',
-        type: RecordType.event,
-        fields: {
-          'summary': 'Standup',
-          'description': 'daily sync',
-          'startDt': iso(start),
-          'endDt': iso(start.add(const Duration(hours: 1))),
-          'isAllDay': false,
-          'location': null,
-          'rrule': null,
-          'deletedAt': null,
-        },
-      );
-      await _seed(
-        app,
-        userId,
-        'ev-old',
-        type: RecordType.event,
-        fields: {
-          'summary': 'Ancient',
-          'startDt': iso(now().subtract(const Duration(days: 40))),
-          'endDt': iso(now().subtract(const Duration(days: 40, hours: -1))),
-          'isAllDay': false,
-          'rrule': null,
-          'deletedAt': null,
-        },
-      );
-      final dailyStart = now().add(const Duration(days: 1));
-      await _seed(
-        app,
-        userId,
-        'ev-daily',
-        type: RecordType.event,
-        fields: {
-          'summary': 'Daily stretch',
-          'startDt': iso(dailyStart),
-          'endDt': iso(dailyStart.add(const Duration(minutes: 30))),
-          'isAllDay': false,
-          'rrule': 'RRULE:FREQ=DAILY',
-          'deletedAt': null,
-        },
-      );
+    test(
+      'returns window instances with rrule expansion and skips out-of-window rows',
+      () async {
+        final start = now().add(const Duration(hours: 2));
+        await _seed(
+          app,
+          userId,
+          'ev-standup',
+          type: RecordType.event,
+          fields: {
+            'summary': 'Standup',
+            'description': 'daily sync',
+            'startDt': iso(start),
+            'endDt': iso(start.add(const Duration(hours: 1))),
+            'isAllDay': false,
+            'location': null,
+            'rrule': null,
+            'deletedAt': null,
+          },
+        );
+        await _seed(
+          app,
+          userId,
+          'ev-old',
+          type: RecordType.event,
+          fields: {
+            'summary': 'Ancient',
+            'startDt': iso(now().subtract(const Duration(days: 40))),
+            'endDt': iso(now().subtract(const Duration(days: 40, hours: -1))),
+            'isAllDay': false,
+            'rrule': null,
+            'deletedAt': null,
+          },
+        );
+        final dailyStart = now().add(const Duration(days: 1));
+        await _seed(
+          app,
+          userId,
+          'ev-daily',
+          type: RecordType.event,
+          fields: {
+            'summary': 'Daily stretch',
+            'startDt': iso(dailyStart),
+            'endDt': iso(dailyStart.add(const Duration(minutes: 30))),
+            'isAllDay': false,
+            'rrule': 'RRULE:FREQ=DAILY',
+            'deletedAt': null,
+          },
+        );
 
-      final data = await _toolData(
-        app,
-        token,
-        'get_events',
-        {
+        final data = await _toolData(app, token, 'get_events', {
           'from': iso(now()),
           'to': iso(now().add(const Duration(days: 7))),
           'limit': 50,
-        },
-      );
-      final events = data['events'] as List;
-      final ids = events.map((e) => e['event_id'] as String).toSet();
-      expect(ids, contains('ev-standup'));
-      expect(ids, contains('ev-daily'));
-      expect(ids, isNot(contains('ev-old')));
-      expect(events.length, greaterThanOrEqualTo(7),
-          reason: 'daily series expands inside a 7-day window');
-      final daily = events
-          .where((e) => e['event_id'] == 'ev-daily')
-          .toList();
-      expect(daily.length, greaterThanOrEqualTo(6));
-      final first = daily.first as Map<String, dynamic>;
-      expect(first['title'], 'Daily stretch');
-      expect(first['start'], matches(RegExp(r'\.\d{6}Z$')));
-      expect(data['window'], isA<Map>());
-
-      final starts = daily
-          .map((e) => DateTime.parse(e['start'] as String))
-          .toList();
-      for (var i = 1; i < starts.length; i++) {
+        });
+        final events = data['events'] as List;
+        final ids = events.map((e) => e['event_id'] as String).toSet();
+        expect(ids, contains('ev-standup'));
+        expect(ids, contains('ev-daily'));
+        expect(ids, isNot(contains('ev-old')));
         expect(
-          starts[i].difference(starts[i - 1]),
-          const Duration(days: 1),
-          reason: 'DAILY expansion is one instance per day',
+          events.length,
+          greaterThanOrEqualTo(7),
+          reason: 'daily series expands inside a 7-day window',
         );
-      }
-    });
+        final daily = events.where((e) => e['event_id'] == 'ev-daily').toList();
+        expect(daily.length, greaterThanOrEqualTo(6));
+        final first = daily.first as Map<String, dynamic>;
+        expect(first['title'], 'Daily stretch');
+        expect(first['start'], matches(RegExp(r'\.\d{6}Z$')));
+        expect(data['window'], isA<Map>());
+
+        final starts = daily
+            .map((e) => DateTime.parse(e['start'] as String))
+            .toList();
+        for (var i = 1; i < starts.length; i++) {
+          expect(
+            starts[i].difference(starts[i - 1]),
+            const Duration(days: 1),
+            reason: 'DAILY expansion is one instance per day',
+          );
+        }
+      },
+    );
 
     test('rejects a naive datetime with a timezone hint', () async {
       final payload = await _toolError(app, token, 'get_events', {
@@ -305,14 +313,17 @@ void main() {
       expect(payload['hint'], contains('timezone offset or Z'));
     });
 
-    test('rejects windows longer than 366 days with WINDOW_TOO_LARGE', () async {
-      final payload = await _toolError(app, token, 'get_events', {
-        'from': iso(now()),
-        'to': iso(now().add(const Duration(days: 400))),
-      });
-      expect(payload['code'], 'WINDOW_TOO_LARGE');
-      expect(payload['hint'], contains('366'));
-    });
+    test(
+      'rejects windows longer than 366 days with WINDOW_TOO_LARGE',
+      () async {
+        final payload = await _toolError(app, token, 'get_events', {
+          'from': iso(now()),
+          'to': iso(now().add(const Duration(days: 400))),
+        });
+        expect(payload['code'], 'WINDOW_TOO_LARGE');
+        expect(payload['hint'], contains('366'));
+      },
+    );
 
     test('WINDOW_TOO_LARGE hint narrows the window without promising '
         'cursor paging', () async {
@@ -350,12 +361,9 @@ void main() {
           'deletedAt': null,
         },
       );
-      final data = await _toolData(
-        app,
-        token,
-        'get_event',
-        {'event_id': 'ev-one'},
-      );
+      final data = await _toolData(app, token, 'get_event', {
+        'event_id': 'ev-one',
+      });
       final event = data['event'] as Map<String, dynamic>;
       expect(event['event_id'], 'ev-one');
       expect(event['title'], 'Dentist');
@@ -363,74 +371,74 @@ void main() {
       expect(event['start'], matches(RegExp(r'Z$')));
     });
 
-    test('missing event reports EVENT_NOT_FOUND steering to get_events', () async {
-      final payload = await _toolError(
-        app,
-        token,
-        'get_event',
-        {'event_id': 'nope'},
-      );
-      expect(payload['code'], 'EVENT_NOT_FOUND');
-      expect(payload['hint'], contains('get_events'));
-    });
+    test(
+      'missing event reports EVENT_NOT_FOUND steering to get_events',
+      () async {
+        final payload = await _toolError(app, token, 'get_event', {
+          'event_id': 'nope',
+        });
+        expect(payload['code'], 'EVENT_NOT_FOUND');
+        expect(payload['hint'], contains('get_events'));
+      },
+    );
   });
 
   group('list_tasks', () {
-    test('filter=today returns only tasks due today (UTC day bucket)', () async {
-      await _seed(
-        app,
-        userId,
-        'td-today',
-        type: RecordType.todo,
-        fields: {
-          'summary': 'due now',
-          'dueDate': iso(now()),
-          'priority': 0,
-          'status': 'NEEDS-ACTION',
-          'percentComplete': 0,
-          'deletedAt': null,
-        },
-      );
-      await _seed(
-        app,
-        userId,
-        'td-later',
-        type: RecordType.todo,
-        fields: {
-          'summary': 'due later',
-          'dueDate': iso(now().add(const Duration(hours: 36))),
-          'priority': 0,
-          'status': 'NEEDS-ACTION',
-          'percentComplete': 0,
-          'deletedAt': null,
-        },
-      );
-      await _seed(
-        app,
-        userId,
-        'td-nodue',
-        type: RecordType.todo,
-        fields: {
-          'summary': 'no due',
-          'dueDate': null,
-          'priority': 0,
-          'status': 'NEEDS-ACTION',
-          'percentComplete': 0,
-          'deletedAt': null,
-        },
-      );
+    test(
+      'filter=today returns only tasks due today (UTC day bucket)',
+      () async {
+        await _seed(
+          app,
+          userId,
+          'td-today',
+          type: RecordType.todo,
+          fields: {
+            'summary': 'due now',
+            'dueDate': iso(now()),
+            'priority': 0,
+            'status': 'NEEDS-ACTION',
+            'percentComplete': 0,
+            'deletedAt': null,
+          },
+        );
+        await _seed(
+          app,
+          userId,
+          'td-later',
+          type: RecordType.todo,
+          fields: {
+            'summary': 'due later',
+            'dueDate': iso(now().add(const Duration(hours: 36))),
+            'priority': 0,
+            'status': 'NEEDS-ACTION',
+            'percentComplete': 0,
+            'deletedAt': null,
+          },
+        );
+        await _seed(
+          app,
+          userId,
+          'td-nodue',
+          type: RecordType.todo,
+          fields: {
+            'summary': 'no due',
+            'dueDate': null,
+            'priority': 0,
+            'status': 'NEEDS-ACTION',
+            'percentComplete': 0,
+            'deletedAt': null,
+          },
+        );
 
-      final data = await _toolData(
-        app,
-        token,
-        'list_tasks',
-        {'filter': 'today'},
-      );
-      final tasks = data['tasks'] as List;
-      expect(tasks.map((t) => t['task_id']), ['td-today']);
-      expect(data['has_more'], false);
-      expect(data['next_cursor'], isNull);
-    });
+        final data = await _toolData(app, token, 'list_tasks', {
+          'filter': 'today',
+        });
+        final tasks = data['tasks'] as List;
+        expect(tasks.map((t) => t['task_id']), ['td-today']);
+        expect(data['has_more'], false);
+        expect(data['next_cursor'], isNull);
+      },
+    );
 
     test('filter=inbox returns only tasks without a due date', () async {
       await _seed(
@@ -459,16 +467,11 @@ void main() {
           'percentComplete': 0,
         },
       );
-      final data = await _toolData(
-        app,
-        token,
-        'list_tasks',
-        {'filter': 'inbox', 'status': 'open'},
-      );
-      expect(
-        (data['tasks'] as List).map((t) => t['task_id']),
-        ['td-inbox'],
-      );
+      final data = await _toolData(app, token, 'list_tasks', {
+        'filter': 'inbox',
+        'status': 'open',
+      });
+      expect((data['tasks'] as List).map((t) => t['task_id']), ['td-inbox']);
     });
 
     test('rejects an unknown status filter value with a hint', () async {
@@ -496,8 +499,9 @@ void main() {
           'deletedAt': null,
         },
       );
-      final data =
-          await _toolData(app, token, 'get_task', {'task_id': 'td-one'});
+      final data = await _toolData(app, token, 'get_task', {
+        'task_id': 'td-one',
+      });
       final task = data['task'] as Map<String, dynamic>;
       expect(task['task_id'], 'td-one');
       expect(task['title'], 'Buy milk');
@@ -505,16 +509,16 @@ void main() {
       expect(task['due'], matches(RegExp(r'Z$')));
     });
 
-    test('missing task reports TASK_NOT_FOUND steering to list_tasks', () async {
-      final payload = await _toolError(
-        app,
-        token,
-        'get_task',
-        {'task_id': 'ghost'},
-      );
-      expect(payload['code'], 'TASK_NOT_FOUND');
-      expect(payload['hint'], contains('list_tasks'));
-    });
+    test(
+      'missing task reports TASK_NOT_FOUND steering to list_tasks',
+      () async {
+        final payload = await _toolError(app, token, 'get_task', {
+          'task_id': 'ghost',
+        });
+        expect(payload['code'], 'TASK_NOT_FOUND');
+        expect(payload['hint'], contains('list_tasks'));
+      },
+    );
   });
 
   group('search', () {
@@ -547,20 +551,13 @@ void main() {
         },
       );
 
-      final all = await _toolData(
-        app,
-        token,
-        'search',
-        {'query': 'dentist'},
-      );
+      final all = await _toolData(app, token, 'search', {'query': 'dentist'});
       expect((all['results'] as List).length, 2);
 
-      final eventsOnly = await _toolData(
-        app,
-        token,
-        'search',
-        {'query': 'dentist', 'kind': 'event'},
-      );
+      final eventsOnly = await _toolData(app, token, 'search', {
+        'query': 'dentist',
+        'kind': 'event',
+      });
       final results = eventsOnly['results'] as List;
       expect(results, hasLength(1));
       expect(results.first['kind'], 'event');
@@ -569,8 +566,7 @@ void main() {
     });
 
     test('rejects an empty query', () async {
-      final payload =
-          await _toolError(app, token, 'search', {'query': '   '});
+      final payload = await _toolError(app, token, 'search', {'query': '   '});
       expect(payload['code'], 'VALIDATION');
       expect(payload['message'], contains('query'));
     });
@@ -742,17 +738,19 @@ void main() {
       },
     );
 
-    test('offset allocation crossing local date still blocks its UTC instant',
-        () async {
-      expect(
-        await allocationBlocks(
-          todoId: 'todo-offset-allocation',
-          allocationStartAt: '2030-01-06T20:00:00-14:00',
-          allocationEndAt: '2030-01-06T21:00:00-14:00',
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'offset allocation crossing local date still blocks its UTC instant',
+      () async {
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-offset-allocation',
+            allocationStartAt: '2030-01-06T20:00:00-14:00',
+            allocationEndAt: '2030-01-06T21:00:00-14:00',
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('cancelled_allocation: cancelled allocation does not block', () async {
       expect(
@@ -870,50 +868,62 @@ void main() {
       },
     );
 
-    test('unknownLegacy recurring Todo rejects an unbound allocation', () async {
-      await expectLater(
-        allocationBlocks(
-          todoId: 'todo-repeating',
-          todoFields: {'rrule': 'RRULE:FREQ=DAILY'},
-        ),
-        throwsA(isA<TestFailure>()),
-      );
-    });
+    test(
+      'unknownLegacy recurring Todo rejects an unbound allocation',
+      () async {
+        await expectLater(
+          allocationBlocks(
+            todoId: 'todo-repeating',
+            todoFields: {'rrule': 'RRULE:FREQ=DAILY'},
+          ),
+          throwsA(isA<TestFailure>()),
+        );
+      },
+    );
 
-    test('valid and orphan occurrence allocations retain defensive busy time', () async {
-      final series = <String, Object?>{
-        'rrule': 'FREQ=DAILY;COUNT=3',
-        'recurrenceSpec': {
-          'anchor': {
-            'source': 'start',
-            'valueType': 'dateTime',
-            'value': '2030-01-07T10:00:00',
-          },
-          'timeZone': 'UTC',
+    test(
+      'valid and orphan occurrence allocations retain defensive busy time',
+      () async {
+        final series = <String, Object?>{
           'rrule': 'FREQ=DAILY;COUNT=3',
-        },
-        'recurrenceRevision': 1,
-        'recurrenceLegacyState': 'knownZoned',
-      };
-      const occurrenceId = 'v1:DT:2030-01-07T10:00:00@UTC';
-      expect(
-        await allocationBlocks(
-          todoId: 'todo-valid-occurrence',
-          todoFields: series,
-          occurrenceId: occurrenceId,
-        ),
-        isTrue,
-      );
+          'recurrenceSpec': {
+            'anchor': {
+              'source': 'start',
+              'valueType': 'dateTime',
+              'value': '2030-01-07T10:00:00',
+            },
+            'timeZone': 'UTC',
+            'rrule': 'FREQ=DAILY;COUNT=3',
+          },
+          'recurrenceRevision': 1,
+          'recurrenceLegacyState': 'knownZoned',
+        };
+        const occurrenceId = 'v1:DT:2030-01-07T10:00:00@UTC';
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-valid-occurrence',
+            todoFields: series,
+            occurrenceId: occurrenceId,
+          ),
+          isTrue,
+        );
 
-      await _seed(app, userId, 'todo-orphan-occurrence',
+        await _seed(
+          app,
+          userId,
+          'todo-orphan-occurrence',
           type: RecordType.todo,
           fields: {
             'summary': 'Orphan series',
             'status': 'NEEDS-ACTION',
             'deletedAt': null,
             ...series,
-          });
-      await _seed(app, userId, 'allocation-todo-orphan-occurrence',
+          },
+        );
+        await _seed(
+          app,
+          userId,
+          'allocation-todo-orphan-occurrence',
           type: RecordType.taskAllocation,
           fields: {
             'todoSyncId': 'todo-orphan-occurrence',
@@ -923,55 +933,146 @@ void main() {
             'state': 'active',
             'createdAt': iso(busyStart.subtract(const Duration(days: 1))),
             'updatedAt': iso(busyStart.subtract(const Duration(days: 1))),
-          });
-      final seriesRow = (await _row(app, userId, 'todo-orphan-occurrence'))!;
-      final changed = jsonDecode(seriesRow.payloadJson) as Map<String, dynamic>
-        ..['rrule'] = 'FREQ=WEEKLY;BYDAY=TU;COUNT=3'
-        ..['recurrenceSpec'] = {
-          'anchor': {
-            'source': 'start',
-            'valueType': 'dateTime',
-            'value': '2030-01-07T10:00:00',
           },
-          'timeZone': 'UTC',
-          'rrule': 'FREQ=WEEKLY;BYDAY=TU;COUNT=3',
-        }
-        ..['recurrenceRevision'] = 2;
-      await (app.db.update(app.db.records)
-            ..where((row) => row.userId.equals(userId) &
-                row.id.equals('todo-orphan-occurrence')))
-          .write(seriesRow.copyWith(payloadJson: jsonEncode(changed)));
-      final orphanIntervals = await getBusyIntervals(
-        app.db,
-        userId: userId,
-        from: busyStart,
-        to: busyEnd,
-      );
-      expect(
-        orphanIntervals.any((interval) => interval.sources.any(
+        );
+        final seriesRow = (await _row(app, userId, 'todo-orphan-occurrence'))!;
+        final changed =
+            jsonDecode(seriesRow.payloadJson) as Map<String, dynamic>
+              ..['rrule'] = 'FREQ=WEEKLY;BYDAY=TU;COUNT=3'
+              ..['recurrenceSpec'] = {
+                'anchor': {
+                  'source': 'start',
+                  'valueType': 'dateTime',
+                  'value': '2030-01-07T10:00:00',
+                },
+                'timeZone': 'UTC',
+                'rrule': 'FREQ=WEEKLY;BYDAY=TU;COUNT=3',
+              }
+              ..['recurrenceRevision'] = 2;
+        await (app.db.update(app.db.records)..where(
+              (row) =>
+                  row.userId.equals(userId) &
+                  row.id.equals('todo-orphan-occurrence'),
+            ))
+            .write(seriesRow.copyWith(payloadJson: jsonEncode(changed)));
+        final orphanIntervals = await getBusyIntervals(
+          app.db,
+          userId: userId,
+          from: busyStart,
+          to: busyEnd,
+        );
+        expect(
+          orphanIntervals.any(
+            (interval) => interval.sources.any(
               (source) => source.id == 'allocation-todo-orphan-occurrence',
-            )),
-        isTrue,
-      );
-      expect(
-        await allocationBlocks(
-          todoId: 'todo-cancelled-orphan',
-          todoFields: series,
-          occurrenceId: occurrenceId,
-          allocationState: 'cancelledByUser',
-        ),
-        isFalse,
-      );
-      expect(
-        await allocationBlocks(
-          todoId: 'todo-invalidated-orphan',
-          todoFields: series,
-          occurrenceId: occurrenceId,
-          allocationState: 'invalidatedByCompletion',
-        ),
-        isFalse,
-      );
-    });
+            ),
+          ),
+          isTrue,
+        );
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-cancelled-orphan',
+            todoFields: series,
+            occurrenceId: occurrenceId,
+            allocationState: 'cancelledByUser',
+          ),
+          isFalse,
+        );
+        expect(
+          await allocationBlocks(
+            todoId: 'todo-invalidated-orphan',
+            todoFields: series,
+            occurrenceId: occurrenceId,
+            allocationState: 'invalidatedByCompletion',
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'busy time completion is isolated to the matching occurrence',
+      () async {
+        final series = <String, Object?>{
+          'summary': 'Series',
+          'status': 'NEEDS-ACTION',
+          'deletedAt': null,
+          'rrule': 'FREQ=DAILY;COUNT=2',
+          'recurrenceSpec': {
+            'anchor': {
+              'source': 'start',
+              'valueType': 'dateTime',
+              'value': '2030-01-07T10:00:00',
+            },
+            'timeZone': 'UTC',
+            'rrule': 'FREQ=DAILY;COUNT=2',
+          },
+          'recurrenceRevision': 1,
+          'recurrenceLegacyState': 'knownZoned',
+        };
+        const first = 'v1:DT:2030-01-07T10:00:00@UTC';
+        const second = 'v1:DT:2030-01-08T10:00:00@UTC';
+        await _seed(
+          app,
+          userId,
+          'todo-instance-busy',
+          type: RecordType.todo,
+          fields: series,
+        );
+        for (final allocation in [
+          ('instance-allocation-a', first, DateTime.utc(2030, 1, 7, 10)),
+          ('instance-allocation-b', second, DateTime.utc(2030, 1, 7, 10, 30)),
+        ]) {
+          await _seed(
+            app,
+            userId,
+            allocation.$1,
+            type: RecordType.taskAllocation,
+            fields: {
+              'todoSyncId': 'todo-instance-busy',
+              'occurrenceId': allocation.$2,
+              'startAt': iso(allocation.$3),
+              'endAt': iso(allocation.$3.add(const Duration(minutes: 30))),
+              'state': 'active',
+              'createdAt': iso(allocation.$3),
+              'updatedAt': iso(allocation.$3),
+            },
+          );
+        }
+        final completedAt = DateTime.utc(2030, 1, 7, 9);
+        final state = TaskInstanceStatePayload(
+          todoSyncId: 'todo-instance-busy',
+          occurrenceId: first,
+          status: 'completed',
+          completedAt: completedAt,
+          updatedAt: completedAt,
+        );
+        await _seed(
+          app,
+          userId,
+          taskInstanceStateRecordId('todo-instance-busy', first),
+          type: RecordType.taskInstanceState,
+          fields: state.toJson(),
+        );
+        final intervals = await getBusyIntervals(
+          app.db,
+          userId: userId,
+          from: DateTime.utc(2030, 1, 7, 10),
+          to: DateTime.utc(2030, 1, 7, 11),
+        );
+        final sources = intervals
+            .expand((interval) => interval.sources)
+            .toList();
+        expect(
+          sources.any((source) => source.id == 'instance-allocation-a'),
+          isFalse,
+        );
+        expect(
+          sources.any((source) => source.id == 'instance-allocation-b'),
+          isTrue,
+        );
+      },
+    );
 
     test(
       'historical_block: completed Todo keeps a past allocation busy in history',
@@ -1115,16 +1216,16 @@ void main() {
           busyEnd.add(const Duration(hours: 1)),
           busyEnd.add(const Duration(hours: 2)),
         );
-      await seedAllocation(
-        'touches-window-start',
-        busyStart.subtract(const Duration(hours: 2)),
-        busyStart.subtract(const Duration(minutes: 15)),
-      );
-      await seedAllocation(
-        'touches-window-end',
-        busyEnd.add(const Duration(hours: 1, minutes: 30)),
-        busyEnd.add(const Duration(hours: 2)),
-      );
+        await seedAllocation(
+          'touches-window-start',
+          busyStart.subtract(const Duration(hours: 2)),
+          busyStart.subtract(const Duration(minutes: 15)),
+        );
+        await seedAllocation(
+          'touches-window-end',
+          busyEnd.add(const Duration(hours: 1, minutes: 30)),
+          busyEnd.add(const Duration(hours: 2)),
+        );
 
         final intervals = await getBusyIntervals(
           app.db,
@@ -1173,65 +1274,58 @@ void main() {
   });
 
   group('list_trash', () {
-    test('lists soft-trashed and tombstoned records but not live ones', () async {
-      await _seed(
-        app,
-        userId,
-        'td-live',
-        type: RecordType.todo,
-        fields: {'summary': 'live', 'status': 'NEEDS-ACTION'},
-      );
-      await _seed(
-        app,
-        userId,
-        'td-soft',
-        type: RecordType.todo,
-        fields: {
-          'summary': 'soft trashed',
-          'status': 'NEEDS-ACTION',
-          'deletedAt': iso(now().subtract(const Duration(hours: 1))),
-        },
-      );
-      await _seed(
-        app,
-        userId,
-        'ev-tomb',
-        type: RecordType.event,
-        fields: {
-          'summary': 'tombstoned',
-          'startDt': iso(now()),
-          'endDt': iso(now().add(const Duration(hours: 1))),
-          'isAllDay': false,
-          'deletedAt': iso(now().subtract(const Duration(hours: 2))),
-        },
-      );
-      final tombRow = await _row(app, userId, 'ev-tomb');
-      await (app.db.update(app.db.records)
-            ..where((t) =>
-                t.userId.equals(userId) & t.id.equals('ev-tomb')))
-          .write(tombRow!.copyWith(deleted: true));
+    test(
+      'lists soft-trashed and tombstoned records but not live ones',
+      () async {
+        await _seed(
+          app,
+          userId,
+          'td-live',
+          type: RecordType.todo,
+          fields: {'summary': 'live', 'status': 'NEEDS-ACTION'},
+        );
+        await _seed(
+          app,
+          userId,
+          'td-soft',
+          type: RecordType.todo,
+          fields: {
+            'summary': 'soft trashed',
+            'status': 'NEEDS-ACTION',
+            'deletedAt': iso(now().subtract(const Duration(hours: 1))),
+          },
+        );
+        await _seed(
+          app,
+          userId,
+          'ev-tomb',
+          type: RecordType.event,
+          fields: {
+            'summary': 'tombstoned',
+            'startDt': iso(now()),
+            'endDt': iso(now().add(const Duration(hours: 1))),
+            'isAllDay': false,
+            'deletedAt': iso(now().subtract(const Duration(hours: 2))),
+          },
+        );
+        final tombRow = await _row(app, userId, 'ev-tomb');
+        await (app.db.update(app.db.records)
+              ..where((t) => t.userId.equals(userId) & t.id.equals('ev-tomb')))
+            .write(tombRow!.copyWith(deleted: true));
 
-      final all = await _toolData(app, token, 'list_trash', {});
-      final items = all['items'] as List;
-      expect(
-        items.map((i) => i['id']).toSet(),
-        {'td-soft', 'ev-tomb'},
-      );
-      final soft = items.firstWhere((i) => i['id'] == 'td-soft') as Map;
-      expect(soft['trashed'], true);
-      expect(soft['trashed_at'], matches(RegExp(r'Z$')));
+        final all = await _toolData(app, token, 'list_trash', {});
+        final items = all['items'] as List;
+        expect(items.map((i) => i['id']).toSet(), {'td-soft', 'ev-tomb'});
+        final soft = items.firstWhere((i) => i['id'] == 'td-soft') as Map;
+        expect(soft['trashed'], true);
+        expect(soft['trashed_at'], matches(RegExp(r'Z$')));
 
-      final eventsOnly = await _toolData(
-        app,
-        token,
-        'list_trash',
-        {'kind': 'event'},
-      );
-      expect(
-        (eventsOnly['items'] as List).map((i) => i['id']),
-        ['ev-tomb'],
-      );
-    });
+        final eventsOnly = await _toolData(app, token, 'list_trash', {
+          'kind': 'event',
+        });
+        expect((eventsOnly['items'] as List).map((i) => i['id']), ['ev-tomb']);
+      },
+    );
 
     test('rejects an unknown kind', () async {
       final payload = await _toolError(app, token, 'list_trash', {
@@ -1295,111 +1389,213 @@ void main() {
       expect(payload['message'], contains('end'));
     });
 
-    test('rejects a bare RRULE string and asks for a structured object', () async {
-      final payload = await _toolError(app, token, 'create_event', {
-        'title': 'Recurring',
-        'start': iso(now().add(const Duration(hours: 1))),
-        'end': iso(now().add(const Duration(hours: 2))),
-        'recurrence': 'FREQ=WEEKLY',
-      });
-      expect(payload['code'], 'VALIDATION');
-      expect(payload['hint'], contains('structured'));
-    });
+    test(
+      'rejects a bare RRULE string and asks for a structured object',
+      () async {
+        final payload = await _toolError(app, token, 'create_event', {
+          'title': 'Recurring',
+          'start': iso(now().add(const Duration(hours: 1))),
+          'end': iso(now().add(const Duration(hours: 2))),
+          'recurrence': 'FREQ=WEEKLY',
+        });
+        expect(payload['code'], 'VALIDATION');
+        expect(payload['hint'], contains('structured'));
+      },
+    );
   });
 
-  test('AI create_event is visible to device pull and notifies the SSE hub',
-      () async {
-    final feedResponse = await _request(
-      app.handler,
-      'GET',
-      '/sync/stream',
-      token: token,
-    );
-    expect(feedResponse.statusCode, 200, reason: 'stream must open');
-    final feed = _SseFeed(feedResponse);
-    await feed.waitForData('{"cursor":0}');
-
-    final start = now().add(const Duration(hours: 5));
-    final data = await _toolData(app, token, 'create_event', {
-      'title': 'Visible event',
-      'start': iso(start),
-      'end': iso(start.add(const Duration(hours: 1))),
-    });
-    final id = (data['event'] as Map)['event_id'] as String;
-
-    await feed.waitForData('{"cursor":1}');
-
-    final pullResponse = await _request(
-      app.handler,
-      'GET',
-      '/sync/pull?cursor=0',
-      token: token,
-    );
-    final pull = await _json(pullResponse);
-    final changes = pull['changes'] as List;
-    expect(changes, hasLength(1));
-    final change = changes.first as Map<String, dynamic>;
-    expect(change['id'], id);
-    expect(change['payload']['summary'], 'Visible event');
-
-    final page = await queryRecords(app.db, userId: userId);
-    expect(page.records.map((r) => r.id), contains(id));
-    await feed.cancel();
-  });
-
-  test('structured recurrence round-trips through the RFC payload and expands',
-      () async {
-    final start = now().add(const Duration(days: 2));
-    final created = await _toolData(app, token, 'create_event', {
-      'title': 'Weekly review',
-      'start': iso(start),
-      'end': iso(start.add(const Duration(hours: 1))),
-      'recurrence': {
-        'freq': 'WEEKLY',
-        'interval': 1,
-        'until': iso(now().add(const Duration(days: 30))),
-      },
-    });
-    final id = (created['event'] as Map)['event_id'] as String;
-
-    final row = await _row(app, userId, id);
-    final payload = jsonDecode(row!.payloadJson) as Map<String, dynamic>;
-    final rruleString = payload['rrule'] as String;
-    expect(rruleString, contains('FREQ=WEEKLY'));
-    expect(rruleString, contains('INTERVAL=1'));
-
-    final parsed = parseRruleStructured(
-      {
-        'freq': 'WEEKLY',
-        'interval': 1,
-        'until': iso(now().add(const Duration(days: 30))),
-      },
-      'recurrence',
-    );
-    expect(parsed, rruleString,
-        reason: 'structured object must serialize deterministically');
-
-    final events = await _toolData(app, token, 'get_events', {
-      'from': iso(now()),
-      'to': iso(now().add(const Duration(days: 30))),
-      'limit': 200,
-    });
-    final instances = (events['events'] as List)
-        .where((e) => e['event_id'] == id)
-        .toList();
-    expect(instances.length, greaterThanOrEqualTo(2),
-        reason: 'weekly rule expands inside the window');
-    final starts = instances
-        .map((e) => DateTime.parse((e as Map)['start'] as String))
-        .toList();
-    for (var i = 1; i < starts.length; i++) {
-      expect(
-        starts[i].difference(starts[i - 1]),
-        const Duration(days: 7),
-        reason: 'WEEKLY interval 1 steps by seven days',
+  test(
+    'AI create_event is visible to device pull and notifies the SSE hub',
+    () async {
+      final feedResponse = await _request(
+        app.handler,
+        'GET',
+        '/sync/stream',
+        token: token,
       );
-    }
-  });
+      expect(feedResponse.statusCode, 200, reason: 'stream must open');
+      final feed = _SseFeed(feedResponse);
+      await feed.waitForData('{"cursor":0}');
+
+      final start = now().add(const Duration(hours: 5));
+      final data = await _toolData(app, token, 'create_event', {
+        'title': 'Visible event',
+        'start': iso(start),
+        'end': iso(start.add(const Duration(hours: 1))),
+      });
+      final id = (data['event'] as Map)['event_id'] as String;
+
+      await feed.waitForData('{"cursor":1}');
+
+      final pullResponse = await _request(
+        app.handler,
+        'GET',
+        '/sync/pull?cursor=0',
+        token: token,
+      );
+      final pull = await _json(pullResponse);
+      final changes = pull['changes'] as List;
+      expect(changes, hasLength(1));
+      final change = changes.first as Map<String, dynamic>;
+      expect(change['id'], id);
+      expect(change['payload']['summary'], 'Visible event');
+
+      final page = await queryRecords(app.db, userId: userId);
+      expect(page.records.map((r) => r.id), contains(id));
+      await feed.cancel();
+    },
+  );
+
+  test(
+    'list_task_occurrences exposes canonical ids for exact completion and reopen',
+    () async {
+      const taskId = 'recurring-readable';
+      await _seed(
+        app,
+        userId,
+        taskId,
+        type: RecordType.todo,
+        fields: {
+          'summary': 'Dose',
+          'status': 'NEEDS-ACTION',
+          'rrule': 'FREQ=DAILY;COUNT=3',
+          'recurrenceSpec': {
+            'anchor': {
+              'source': 'start',
+              'valueType': 'dateTime',
+              'value': '2035-05-01T09:00:00',
+            },
+            'timeZone': 'Asia/Shanghai',
+            'rrule': 'FREQ=DAILY;COUNT=3',
+          },
+          'recurrenceRevision': 1,
+          'recurrenceLegacyState': 'knownZoned',
+        },
+      );
+      final read = await _toolData(app, token, 'list_task_occurrences', {
+        'task_id': taskId,
+        'from': '2035-05-01T00:00:00Z',
+        'to': '2035-05-04T00:00:00Z',
+      });
+      final occurrences = read['occurrences'] as List;
+      expect(occurrences, hasLength(3));
+      final first = occurrences.first as Map<String, dynamic>;
+      final firstId = first['occurrence_id'] as String;
+      expect(first['status'], 'pending');
+      final completed = await _toolData(app, token, 'complete_task', {
+        'task_id': taskId,
+        'occurrence_id': firstId,
+      });
+      expect(completed['occurrence_id'], firstId);
+      final completedProjection =
+          await _toolData(app, token, 'list_task_occurrences', {
+            'task_id': taskId,
+            'from': '2035-05-01T00:00:00Z',
+            'to': '2035-05-04T00:00:00Z',
+          });
+      expect(
+        (completedProjection['occurrences'] as List).first['actionable'],
+        isFalse,
+      );
+      final reopened = await _toolData(app, token, 'reopen_task', {
+        'task_id': taskId,
+        'occurrence_id': firstId,
+      });
+      expect(reopened['occurrence_id'], firstId);
+      final skippedId = occurrences[1]['occurrence_id'] as String;
+      await _seed(
+        app,
+        userId,
+        taskInstanceStateRecordId(taskId, skippedId),
+        type: RecordType.taskInstanceState,
+        fields: TaskInstanceStatePayload(
+          todoSyncId: taskId,
+          occurrenceId: skippedId,
+          status: 'skipped',
+          completedAt: null,
+          updatedAt: DateTime.utc(2035, 5, 1),
+        ).toJson(),
+      );
+      final after = await _toolData(app, token, 'list_task_occurrences', {
+        'task_id': taskId,
+        'from': '2035-05-01T00:00:00Z',
+        'to': '2035-05-04T00:00:00Z',
+      });
+      expect((after['occurrences'] as List).first['status'], 'pending');
+      expect((after['occurrences'] as List).first['actionable'], isTrue);
+      expect((after['occurrences'] as List)[1]['actionable'], isFalse);
+      await _toolError(app, token, 'complete_task', {
+        'task_id': taskId,
+        'occurrence_id': 'v2:DATE:2035-05-09',
+      });
+      final states = await app.db.select(app.db.records).get();
+      expect(
+        states.where(
+          (row) => row.type == RecordType.taskInstanceState.wireName,
+        ),
+        hasLength(2),
+      );
+    },
+  );
+
+  test(
+    'structured recurrence round-trips through the RFC payload and expands',
+    () async {
+      final start = now().add(const Duration(days: 2));
+      final created = await _toolData(app, token, 'create_event', {
+        'title': 'Weekly review',
+        'start': iso(start),
+        'end': iso(start.add(const Duration(hours: 1))),
+        'recurrence': {
+          'freq': 'WEEKLY',
+          'interval': 1,
+          'until': iso(now().add(const Duration(days: 30))),
+        },
+      });
+      final id = (created['event'] as Map)['event_id'] as String;
+
+      final row = await _row(app, userId, id);
+      final payload = jsonDecode(row!.payloadJson) as Map<String, dynamic>;
+      final rruleString = payload['rrule'] as String;
+      expect(rruleString, contains('FREQ=WEEKLY'));
+      expect(rruleString, contains('INTERVAL=1'));
+
+      final parsed = parseRruleStructured({
+        'freq': 'WEEKLY',
+        'interval': 1,
+        'until': iso(now().add(const Duration(days: 30))),
+      }, 'recurrence');
+      expect(
+        parsed,
+        rruleString,
+        reason: 'structured object must serialize deterministically',
+      );
+
+      final events = await _toolData(app, token, 'get_events', {
+        'from': iso(now()),
+        'to': iso(now().add(const Duration(days: 30))),
+        'limit': 200,
+      });
+      final instances = (events['events'] as List)
+          .where((e) => e['event_id'] == id)
+          .toList();
+      expect(
+        instances.length,
+        greaterThanOrEqualTo(2),
+        reason: 'weekly rule expands inside the window',
+      );
+      final starts = instances
+          .map((e) => DateTime.parse((e as Map)['start'] as String))
+          .toList();
+      for (var i = 1; i < starts.length; i++) {
+        expect(
+          starts[i].difference(starts[i - 1]),
+          const Duration(days: 7),
+          reason: 'WEEKLY interval 1 steps by seven days',
+        );
+      }
+    },
+  );
 
   group('update_event', () {
     test('PATCH only the provided fields', () async {
@@ -1458,37 +1654,36 @@ void main() {
           'deletedAt': null,
         },
       );
-      final data = await _toolData(
-        app,
-        token,
-        'trash_event',
-        {'event_id': 'ev-trash-me'},
-      );
+      final data = await _toolData(app, token, 'trash_event', {
+        'event_id': 'ev-trash-me',
+      });
       expect((data['event'] as Map)['trashed'], isTrue);
       expect(data['trashed'], true);
 
       final live = await _liveIds(app.db, userId: userId);
       expect(live, isNot(contains('ev-trash-me')));
-      final trashed =
-          await _liveIds(app.db, userId: userId, trashedOnly: true);
+      final trashed = await _liveIds(app.db, userId: userId, trashedOnly: true);
       expect(trashed, contains('ev-trash-me'));
 
       final row = await _row(app, userId, 'ev-trash-me');
-      expect(row!.deleted, isFalse,
-          reason: 'trash is soft (deletedAt), not a device tombstone');
+      expect(
+        row!.deleted,
+        isFalse,
+        reason: 'trash is soft (deletedAt), not a device tombstone',
+      );
       final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
       expect(payload['deletedAt'], matches(RegExp(r'Z$')));
-      expect(payload['summary'], 'Bye',
-          reason: 'payload body survives for recycle-bin restore');
+      expect(
+        payload['summary'],
+        'Bye',
+        reason: 'payload body survives for recycle-bin restore',
+      );
     });
 
     test('missing event reports EVENT_NOT_FOUND', () async {
-      final payload = await _toolError(
-        app,
-        token,
-        'trash_event',
-        {'event_id': 'absent'},
-      );
+      final payload = await _toolError(app, token, 'trash_event', {
+        'event_id': 'absent',
+      });
       expect(payload['code'], 'EVENT_NOT_FOUND');
       expect(payload['hint'], isNotEmpty);
     });
@@ -1529,8 +1724,9 @@ void main() {
     });
 
     test('rejects an empty title', () async {
-      final payload =
-          await _toolError(app, token, 'create_task', {'title': '   '});
+      final payload = await _toolError(app, token, 'create_task', {
+        'title': '   ',
+      });
       expect(payload['code'], 'VALIDATION');
       expect(payload['message'], contains('title'));
     });
@@ -1557,8 +1753,11 @@ void main() {
         userId: userId,
         type: RecordType.todo,
       );
-      expect(page.records, hasLength(1),
-          reason: 'replay must not create a second record');
+      expect(
+        page.records,
+        hasLength(1),
+        reason: 'replay must not create a second record',
+      );
     });
 
     test('same key with a different body is rejected as VALIDATION', () async {
@@ -1579,12 +1778,12 @@ void main() {
         userId: userId,
         type: RecordType.todo,
       );
-      expect(page.records, hasLength(1),
-          reason: 'the conflicting call must not write');
       expect(
-        (first['task'] as Map)['title'],
-        'Original',
+        page.records,
+        hasLength(1),
+        reason: 'the conflicting call must not write',
       );
+      expect((first['task'] as Map)['title'], 'Original');
     });
   });
 
@@ -1625,48 +1824,94 @@ void main() {
   });
 
   group('complete_task', () {
-    test('marks the task completed with completedAt and percentComplete',
-        () async {
-      await _seed(
-        app,
-        userId,
-        'td-finish',
-        type: RecordType.todo,
-        fields: {
-          'summary': 'Finish it',
-          'dueDate': null,
-          'priority': 0,
-          'status': 'NEEDS-ACTION',
-          'percentComplete': 0,
-          'completedAt': null,
-          'deletedAt': null,
-        },
-      );
-      final data = await _toolData(
-        app,
-        token,
-        'complete_task',
-        {'task_id': 'td-finish'},
-      );
-      final task = data['task'] as Map<String, dynamic>;
-      expect(task['status'], 'COMPLETED');
-      expect(task['completed_at'], matches(RegExp(r'Z$')));
-      expect(task['percent'], 100);
+    test(
+      'marks the task completed with completedAt and percentComplete',
+      () async {
+        await _seed(
+          app,
+          userId,
+          'td-finish',
+          type: RecordType.todo,
+          fields: {
+            'summary': 'Finish it',
+            'dueDate': null,
+            'priority': 0,
+            'status': 'NEEDS-ACTION',
+            'percentComplete': 0,
+            'completedAt': null,
+            'deletedAt': null,
+          },
+        );
+        final data = await _toolData(app, token, 'complete_task', {
+          'task_id': 'td-finish',
+        });
+        final task = data['task'] as Map<String, dynamic>;
+        expect(task['status'], 'COMPLETED');
+        expect(task['completed_at'], matches(RegExp(r'Z$')));
+        expect(task['percent'], 100);
 
-      final row = await _row(app, userId, 'td-finish');
-      final payload = jsonDecode(row!.payloadJson) as Map<String, dynamic>;
-      expect(payload['status'], 'COMPLETED');
-      expect(payload['percentComplete'], 100);
-      expect(payload['completedAt'], isNotNull);
-    });
+        final row = await _row(app, userId, 'td-finish');
+        final payload = jsonDecode(row!.payloadJson) as Map<String, dynamic>;
+        expect(payload['status'], 'COMPLETED');
+        expect(payload['percentComplete'], 100);
+        expect(payload['completedAt'], isNotNull);
+      },
+    );
+
+    test(
+      'requires an occurrence identity for recurring task completion',
+      () async {
+        const occurrenceId = 'v1:DT:2030-01-07T10:00:00@UTC';
+        await _seed(
+          app,
+          userId,
+          'td-recurring-finish',
+          type: RecordType.todo,
+          fields: {
+            'summary': 'Recurring',
+            'status': 'NEEDS-ACTION',
+            'rrule': 'FREQ=DAILY;COUNT=2',
+            'recurrenceSpec': {
+              'anchor': {
+                'source': 'start',
+                'valueType': 'dateTime',
+                'value': '2030-01-07T10:00:00',
+              },
+              'timeZone': 'UTC',
+              'rrule': 'FREQ=DAILY;COUNT=2',
+            },
+            'recurrenceRevision': 1,
+            'recurrenceLegacyState': 'knownZoned',
+            'deletedAt': null,
+          },
+        );
+        final missingIdentity = await _toolError(app, token, 'complete_task', {
+          'task_id': 'td-recurring-finish',
+        });
+        expect(missingIdentity['code'], 'invalid_params');
+        final result = await _toolData(app, token, 'complete_task', {
+          'task_id': 'td-recurring-finish',
+          'occurrence_id': occurrenceId,
+        });
+        expect(result['occurrence_id'], occurrenceId);
+        final todo = await _row(app, userId, 'td-recurring-finish');
+        expect(
+          (jsonDecode(todo!.payloadJson) as Map<String, dynamic>)['status'],
+          'NEEDS-ACTION',
+        );
+        final state = await _row(
+          app,
+          userId,
+          taskInstanceStateRecordId('td-recurring-finish', occurrenceId),
+        );
+        expect(state?.type, RecordType.taskInstanceState.wireName);
+      },
+    );
 
     test('missing task reports TASK_NOT_FOUND', () async {
-      final payload = await _toolError(
-        app,
-        token,
-        'complete_task',
-        {'task_id': 'nope'},
-      );
+      final payload = await _toolError(app, token, 'complete_task', {
+        'task_id': 'nope',
+      });
       expect(payload['code'], 'TASK_NOT_FOUND');
       expect(payload['hint'], contains('list_tasks'));
     });
@@ -1689,12 +1934,9 @@ void main() {
           'deletedAt': null,
         },
       );
-      final data = await _toolData(
-        app,
-        token,
-        'reopen_task',
-        {'task_id': 'td-reopen'},
-      );
+      final data = await _toolData(app, token, 'reopen_task', {
+        'task_id': 'td-reopen',
+      });
       final task = data['task'] as Map<String, dynamic>;
       expect(task['status'], 'NEEDS-ACTION');
       expect(task['completed_at'], isNull);
@@ -1702,12 +1944,9 @@ void main() {
     });
 
     test('missing task reports TASK_NOT_FOUND', () async {
-      final payload = await _toolError(
-        app,
-        token,
-        'reopen_task',
-        {'task_id': 'nope'},
-      );
+      final payload = await _toolError(app, token, 'reopen_task', {
+        'task_id': 'nope',
+      });
       expect(payload['code'], 'TASK_NOT_FOUND');
       expect(payload['hint'], isNotEmpty);
     });
@@ -1745,8 +1984,11 @@ void main() {
       final row = await _row(app, userId, 'td-snooze');
       final payload = jsonDecode(row!.payloadJson) as Map<String, dynamic>;
       expect(payload['dueDate'], iso(until));
-      expect(payload['status'], 'NEEDS-ACTION',
-          reason: 'snooze never touches completion state');
+      expect(
+        payload['status'],
+        'NEEDS-ACTION',
+        reason: 'snooze never touches completion state',
+      );
       expect(payload['completedAt'], isNull);
     });
 
@@ -1794,18 +2036,14 @@ void main() {
           'deletedAt': null,
         },
       );
-      final data = await _toolData(
-        app,
-        token,
-        'trash_task',
-        {'task_id': 'td-trash-me'},
-      );
+      final data = await _toolData(app, token, 'trash_task', {
+        'task_id': 'td-trash-me',
+      });
       expect((data['task'] as Map)['trashed'], isTrue);
 
       final live = await _liveIds(app.db, userId: userId);
       expect(live, isNot(contains('td-trash-me')));
-      final trash =
-          await _liveIds(app.db, userId: userId, trashedOnly: true);
+      final trash = await _liveIds(app.db, userId: userId, trashedOnly: true);
       expect(trash, contains('td-trash-me'));
 
       final row = await _row(app, userId, 'td-trash-me');
@@ -1816,12 +2054,9 @@ void main() {
     });
 
     test('missing task reports TASK_NOT_FOUND', () async {
-      final payload = await _toolError(
-        app,
-        token,
-        'trash_task',
-        {'task_id': 'absent'},
-      );
+      final payload = await _toolError(app, token, 'trash_task', {
+        'task_id': 'absent',
+      });
       expect(payload['code'], 'TASK_NOT_FOUND');
       expect(payload['hint'], contains('list_tasks'));
     });
@@ -1843,10 +2078,7 @@ void main() {
       expect(data['failed'], 0);
       final results = data['results'] as List;
       expect(results, hasLength(2));
-      expect(
-        results.map((r) => (r as Map)['status']),
-        ['applied', 'applied'],
-      );
+      expect(results.map((r) => (r as Map)['status']), ['applied', 'applied']);
 
       final page = await queryRecords(
         app.db,
@@ -1872,8 +2104,11 @@ void main() {
         userId: userId,
         type: RecordType.todo,
       );
-      expect(page.records, isEmpty,
-          reason: 'schema validation runs before any write');
+      expect(
+        page.records,
+        isEmpty,
+        reason: 'schema validation runs before any write',
+      );
     });
   });
 }

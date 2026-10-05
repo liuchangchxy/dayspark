@@ -83,7 +83,7 @@ class SyncOutbox {
       }
       payloadJson = jsonEncode(await todoToPayload(db, row));
       baseRev = row.serverRev;
-    } else {
+    } else if (type == RecordType.taskAllocation) {
       final row = await (db.select(
         db.taskAllocations,
       )..where((t) => t.id.equals(localId))).getSingleOrNull();
@@ -116,6 +116,14 @@ class SyncOutbox {
       )..where((t) => t.id.equals(localId))).getSingle();
       payloadJson = jsonEncode(taskAllocationToPayload(refreshed));
       baseRev = refreshed.serverRev;
+    } else {
+      final row = await (db.select(
+        db.taskInstanceStates,
+      )..where((t) => t.id.equals(localId))).getSingleOrNull();
+      if (row == null) return;
+      recordId = row.syncId;
+      payloadJson = jsonEncode(taskInstanceStateToPayload(row));
+      baseRev = row.serverRev;
     }
     final oldest = await _existingCreatedAt(db, recordId);
     await _collapse(db, recordId);
@@ -183,6 +191,19 @@ class SyncOutbox {
             ),
       ];
     }
+    if (type == RecordType.taskInstanceState) {
+      final rows = await (db.select(
+        db.taskInstanceStates,
+      )..where((t) => t.id.isIn(localIds))).get();
+      return [
+        for (final row in rows)
+          OutboxTarget(
+            type: RecordType.taskInstanceState,
+            recordId: row.syncId,
+            baseRev: row.serverRev,
+          ),
+      ];
+    }
     final rows = await (db.select(
       db.todos,
     )..where((t) => t.id.isIn(localIds))).get();
@@ -239,9 +260,13 @@ class SyncOutbox {
       await (db.update(db.todos)..where((t) => t.id.equals(localId))).write(
         TodosCompanion(syncId: Value(syncId)),
       );
-    } else {
+    } else if (type == RecordType.taskAllocation) {
       await (db.update(db.taskAllocations)..where((t) => t.id.equals(localId)))
           .write(TaskAllocationsCompanion(syncId: Value(syncId)));
+    } else {
+      await (db.update(db.taskInstanceStates)
+            ..where((t) => t.id.equals(localId)))
+          .write(TaskInstanceStatesCompanion(syncId: Value(syncId)));
     }
     return syncId;
   }

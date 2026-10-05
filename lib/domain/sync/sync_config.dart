@@ -51,6 +51,8 @@ abstract class SyncCursorStore {
   Future<void> writeTaskAllocationCapabilityState(bool enabled);
   Future<bool?> readTodoRecurrenceCapabilityState();
   Future<void> writeTodoRecurrenceCapabilityState(bool enabled);
+  Future<bool?> readTaskInstanceStateCapabilityState();
+  Future<void> writeTaskInstanceStateCapabilityState(bool enabled);
 
   /// Identity/server switch: a watermark only means anything relative to
   /// the dataset it was raised against (account_provider resets it there).
@@ -65,6 +67,8 @@ class PrefsSyncCursorStore implements SyncCursorStore {
       'sync_task_allocation_capability_enabled';
   static const _todoRecurrenceCapabilityKey =
       'sync_todo_recurrence_capability_enabled';
+  static const _taskInstanceStateCapabilityKey =
+      'sync_task_instance_state_capability_enabled';
 
   final SharedPreferences _prefs;
 
@@ -91,10 +95,19 @@ class PrefsSyncCursorStore implements SyncCursorStore {
       _prefs.setBool(_todoRecurrenceCapabilityKey, enabled);
 
   @override
+  Future<bool?> readTaskInstanceStateCapabilityState() async =>
+      _prefs.getBool(_taskInstanceStateCapabilityKey);
+
+  @override
+  Future<void> writeTaskInstanceStateCapabilityState(bool enabled) =>
+      _prefs.setBool(_taskInstanceStateCapabilityKey, enabled);
+
+  @override
   Future<void> clear() async {
     await _prefs.remove(_key);
     await _prefs.remove(_taskAllocationCapabilityKey);
     await _prefs.remove(_todoRecurrenceCapabilityKey);
+    await _prefs.remove(_taskInstanceStateCapabilityKey);
   }
 }
 

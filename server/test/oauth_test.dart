@@ -857,7 +857,7 @@ void main() {
 
       final rpc = await _rpc(app, tokens['access_token'] as String, 'tools/list');
       final tools = (rpc['result'] as Map)['tools'] as List;
-      expect(tools, hasLength(17));
+      expect(tools, hasLength(18));
     });
 
     test('state is echoed on the success redirect', () async {

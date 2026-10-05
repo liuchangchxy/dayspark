@@ -97,6 +97,8 @@ final class ReminderReconciler {
           break;
         case TaskAllocationChanged():
           break;
+        case TaskInstanceStateChanged():
+          break;
         case RecordRemoved(:final type, :final localId, :final reminderIds):
           final key = _keyOf(type, localId);
           removed.putIfAbsent(key, () => <int>[]).addAll(reminderIds);

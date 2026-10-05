@@ -39,7 +39,9 @@ void main() {
             isCompleted: false,
             priority: 5,
             todoId: 1,
-            onToggle: () => toggles++,
+            onToggle: (occurrenceId, isCompleted) async {
+              toggles++;
+            },
             onTap: () => rowTaps++,
           ),
         ),
@@ -64,7 +66,9 @@ void main() {
             isCompleted: false,
             priority: 5,
             todoId: 1,
-            onToggle: () => toggles++,
+            onToggle: (occurrenceId, isCompleted) async {
+              toggles++;
+            },
             onTap: () => rowTaps++,
           ),
         ),
@@ -87,7 +91,9 @@ void main() {
             isCompleted: true,
             priority: 5,
             todoId: 2,
-            onToggle: () => toggles++,
+            onToggle: (occurrenceId, isCompleted) async {
+              toggles++;
+            },
             onTap: () => rowTaps++,
           ),
         ),
@@ -109,7 +115,7 @@ void main() {
             priority: 5,
             todoId: 1,
             dueDate: DateTime(2026, 4, 20),
-            onToggle: () {},
+            onToggle: (occurrenceId, isCompleted) async {},
             onTap: () {},
           ),
         ),
@@ -128,7 +134,7 @@ void main() {
             isCompleted: true,
             priority: 0,
             todoId: 2,
-            onToggle: () {},
+            onToggle: (occurrenceId, isCompleted) async {},
             onTap: () {},
           ),
         ),
@@ -150,7 +156,7 @@ void main() {
             priority: 5,
             todoId: 3,
             dueDate: tomorrow,
-            onToggle: () {},
+            onToggle: (occurrenceId, isCompleted) async {},
             onTap: () {},
           ),
         ),

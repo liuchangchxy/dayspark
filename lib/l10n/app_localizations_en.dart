@@ -29,6 +29,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectTodoOccurrence => 'Select occurrence';
 
   @override
+  String get earlierThirtyDays => 'Earlier 30 days';
+
+  @override
+  String get newerOccurrences => 'Newer';
+
+  @override
   String get legacyRecurrenceRequiresConfirmation => 'Confirm this recurrence before scheduling an occurrence.';
 
   @override

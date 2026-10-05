@@ -234,6 +234,7 @@ class HomeWidgetService {
     return (db.select(db.todos)
           ..where((t) => t.deletedAt.isNull())
           ..where((t) => t.status.isNotIn(['COMPLETED', 'CANCELLED']))
+          ..where((t) => t.rrule.isNull())
           // Subtasks must not occupy widget slots — only top-level todos.
           ..where((t) => t.parentId.isNull())
           ..orderBy([
@@ -252,7 +253,8 @@ class HomeWidgetService {
   static Future<int> pendingTodoCount(AppDatabase db) async {
     final rows = await (db.select(db.todos)
           ..where((t) => t.deletedAt.isNull())
-          ..where((t) => t.status.isNotIn(['COMPLETED', 'CANCELLED'])))
+          ..where((t) => t.status.isNotIn(['COMPLETED', 'CANCELLED']))
+          ..where((t) => t.rrule.isNull()))
         .get();
     return rows.length;
   }
@@ -294,6 +296,7 @@ class HomeWidgetService {
     return (db.select(db.todos)
           ..where((t) => t.deletedAt.isNull())
           ..where((t) => t.status.isNotIn(['COMPLETED', 'CANCELLED']))
+          ..where((t) => t.rrule.isNull())
           ..where((t) => t.parentId.isNull())
           ..where((t) => t.dueDate.isBiggerOrEqualValue(window.start))
           ..where((t) => t.dueDate.isSmallerThanValue(window.end))

@@ -11,6 +11,7 @@ import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
+import 'package:dayspark/domain/records/writers/task_instance_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
@@ -382,6 +383,124 @@ void main() {
     expect(onA.serverRev, 1);
     _expectConverged(onA, onB, reason: 'case 1 create');
   });
+
+  test(
+    'recurring instance completion syncs without changing sibling instance',
+    () async {
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2035, 5, 1, 9, 0, 0),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=2',
+      );
+      final todoId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: a.calendarId,
+            summary: 'series',
+            rrule: Value(spec.rule.canonical),
+          ),
+          recurrenceSpec: spec,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final todoA = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      final firstOccurrence = OccurrenceId.forNominal(
+        spec.anchor.value,
+        spec.timeZone,
+      ).value;
+      final secondOccurrence = OccurrenceId.forNominal(
+        LocalDateTime(2035, 5, 2, 9, 0, 0),
+        spec.timeZone,
+      ).value;
+      final firstAllocationId = await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.create(
+          a.db,
+          tx,
+          todoId: todoId,
+          occurrenceId: firstOccurrence,
+          startAt: DateTime.utc(2035, 5, 3, 1),
+          endAt: DateTime.utc(2035, 5, 3, 2),
+        ),
+      );
+      final secondAllocationId = await RecordScope.run(
+        a.db,
+        (tx) => TaskAllocationWriter.create(
+          a.db,
+          tx,
+          todoId: todoId,
+          occurrenceId: secondOccurrence,
+          startAt: DateTime.utc(2035, 5, 4, 1),
+          endAt: DateTime.utc(2035, 5, 4, 2),
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.setCompletion(
+          a.db,
+          tx,
+          todoId,
+          isCompleted: true,
+          occurrenceId: firstOccurrence,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+
+      final todoB = await (b.db.select(
+        b.db.todos,
+      )..where((row) => row.syncId.equals(todoA.syncId!))).getSingle();
+      final firstAllocationB = await (b.db.select(
+        b.db.taskAllocations,
+      )..where((row) => row.occurrenceId.equals(firstOccurrence))).getSingle();
+      final secondAllocationB = await (b.db.select(
+        b.db.taskAllocations,
+      )..where((row) => row.occurrenceId.equals(secondOccurrence))).getSingle();
+      final instanceStateB = await (b.db.select(
+        b.db.taskInstanceStates,
+      )..where((row) => row.occurrenceId.equals(firstOccurrence))).getSingle();
+      expect(todoB.status, 'NEEDS-ACTION');
+      expect(instanceStateB.status, 'completed');
+      expect(firstAllocationB.state, 'invalidatedByCompletion');
+      expect(secondAllocationB.state, 'active');
+
+      await RecordScope.run(
+        b.db,
+        (tx) => TodoWriter.setCompletion(
+          b.db,
+          tx,
+          todoB.id,
+          isCompleted: false,
+          occurrenceId: firstOccurrence,
+        ),
+      );
+      await _round(b);
+      await _round(a);
+      final reopenedA = await (a.db.select(
+        a.db.taskInstanceStates,
+      )..where((row) => row.occurrenceId.equals(firstOccurrence))).getSingle();
+      final stillInvalidatedA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(firstAllocationId))).getSingle();
+      final stillActiveA = await (a.db.select(
+        a.db.taskAllocations,
+      )..where((row) => row.id.equals(secondAllocationId))).getSingle();
+      expect(reopenedA.status, 'pending');
+      expect(stillInvalidatedA.state, 'invalidatedByCompletion');
+      expect(stillActiveA.state, 'active');
+    },
+  );
 
   test(
     'occurrence allocation round trips its series and occurrence ids',
@@ -905,6 +1024,73 @@ void main() {
       expect(
         TodoRecurrence.fromTodo(recovered).spec!.rule.canonical,
         spec.rule.canonical,
+      );
+    },
+  );
+
+  test(
+    'hard deleting a recurring Todo clears its instance state on both devices',
+    () async {
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDateTime(2035, 5, 1, 9, 0, 0),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=2',
+      );
+      final todoId = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(calendarId: a.calendarId, summary: 'Dose'),
+          recurrenceSpec: spec,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      final todo = await (a.db.select(
+        a.db.todos,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      final occurrence = OccurrenceId.forNominal(
+        LocalDateTime(2035, 5, 1, 9, 0, 0),
+        'Asia/Shanghai',
+      );
+      await RecordScope.run(
+        a.db,
+        (tx) => TaskInstanceWriter.setCompletion(
+          a.db,
+          tx,
+          todoId: todoId,
+          occurrenceId: occurrence.value,
+          completed: true,
+        ),
+      );
+      await _round(a);
+      await _round(b);
+      expect(await b.db.select(b.db.taskInstanceStates).get(), hasLength(1));
+      await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.permanentDelete(a.db, tx, todoId),
+      );
+      await _round(a);
+      await _round(b);
+      expect(
+        await (b.db.select(
+          b.db.taskInstanceStates,
+        )..where((state) => state.todoSyncId.equals(todo.syncId!))).get(),
+        isEmpty,
+      );
+      expect(await a.db.select(a.db.taskInstanceStates).get(), isEmpty);
+      b.cursors.value = 0;
+      await _round(b);
+      expect(
+        await (b.db.select(
+          b.db.taskInstanceStates,
+        )..where((state) => state.todoSyncId.equals(todo.syncId!))).get(),
+        isEmpty,
+        reason: 'cursor-zero backfill must not resurrect hard-deleted state',
       );
     },
   );

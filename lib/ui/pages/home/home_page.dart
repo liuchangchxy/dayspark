@@ -110,7 +110,9 @@ class _HomePageState extends ConsumerState<HomePage>
       final notifService = NotificationService();
       notifService
           .onNotificationAction = (actionId, parentId, parentType, reminderId) {
-        _handleNotificationAction(actionId, parentId, parentType, reminderId);
+        unawaited(
+          _handleNotificationAction(actionId, parentId, parentType, reminderId),
+        );
       };
       _checkOverdueTodos();
       _startDayCheckTimer();
@@ -250,17 +252,33 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  void _handleNotificationAction(
+  Future<void> _handleNotificationAction(
     String actionId,
     int parentId,
     String parentType,
     int? reminderId,
-  ) {
+  ) async {
     if (!mounted) return;
     if (actionId == NotificationActions.markComplete && parentType == 'todo') {
+      final todo =
+          await (ref
+                  .read(databaseProvider)
+                  .select(ref.read(databaseProvider).todos)
+                ..where((row) => row.id.equals(parentId)))
+              .getSingleOrNull();
+      if (!mounted || todo == null) return;
+      if (todo.rrule != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.selectTodoOccurrence),
+          ),
+        );
+        context.push('/todo/edit', extra: todo);
+        return;
+      }
       // Route through the toggle provider so completing from a notification
       // also cancels the todo's remaining reminder notifications.
-      ref.read(toggleTodoProvider)(id: parentId, isCompleted: true);
+      await ref.read(toggleTodoProvider)(id: parentId, isCompleted: true);
     } else if (actionId == NotificationActions.snooze) {
       if (reminderId == null) return;
       final l = AppLocalizations.of(context)!;
@@ -1060,11 +1078,13 @@ class _HomePageState extends ConsumerState<HomePage>
         isCompleted: isCompleted,
         priority: todo.priority,
         todoId: todo.id,
+        todo: todo,
         dueDate: todo.dueDate,
         startDate: todo.startDate,
-        onToggle: () => ref.read(toggleTodoProvider)(
+        onToggle: (occurrenceId, nextCompleted) => ref.read(toggleTodoProvider)(
           id: todo.id,
-          isCompleted: !isCompleted,
+          isCompleted: nextCompleted,
+          occurrenceId: occurrenceId,
         ),
         onTap: () => context.push('/todo/edit', extra: todo),
       ),

@@ -9,6 +9,7 @@ environment:
 dependencies:
   dayspark_recurrence:
     path: ../dayspark_recurrence
+  uuid: ^4.5.3
 
 dev_dependencies:
   test: ^1.26.0

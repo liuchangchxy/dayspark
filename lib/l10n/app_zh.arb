@@ -6,6 +6,8 @@
   "legacyVTimezonePresent": "原日历包含 VTIMEZONE 时区定义。",
   "legacyRecurrenceEvidenceMissing": "此旧记录没有可用的导入来源证据。",
   "selectTodoOccurrence": "选择重复事项",
+  "earlierThirtyDays": "更早 30 天",
+  "newerOccurrences": "较新的实例",
   "legacyRecurrenceRequiresConfirmation": "请先确认此重复规则，再安排某一次重复事项。",
   "unsupportedRecurrence": "此重复规则暂不支持展开和安排。",
   "unsupportedLegacyRecurrence": "导入的重复规则语法无效或暂不支持，不能安排其实例。",

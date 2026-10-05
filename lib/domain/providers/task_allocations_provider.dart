@@ -35,6 +35,13 @@ final taskAllocationsInDateRangeProvider = StreamProvider.autoDispose
               db.todos,
               db.todos.id.equalsExp(db.taskAllocations.todoId),
             ),
+            leftOuterJoin(
+              db.taskInstanceStates,
+              db.taskInstanceStates.todoSyncId.equalsExp(db.todos.syncId) &
+                  db.taskInstanceStates.occurrenceId.equalsExp(
+                    db.taskAllocations.occurrenceId,
+                  ),
+            ),
           ])..where(
             db.taskAllocations.state.equals('active') &
                 db.taskAllocations.startAt.isSmallerThanValue(
@@ -57,11 +64,22 @@ final taskAllocationsInDateRangeProvider = StreamProvider.autoDispose
                   ? allocation.occurrenceId == null
                   : allocation.occurrenceId != null &&
                         _isValidOccurrence(todo, allocation.occurrenceId!);
-              final passesCompletionBoundary =
-                  todo.status != 'COMPLETED' ||
-                  (completedAt != null &&
-                      allocation.startAt.toUtc().millisecondsSinceEpoch <
-                          completedAt.toUtc().millisecondsSinceEpoch);
+              final instanceState = row.readTableOrNull(db.taskInstanceStates);
+              final passesCompletionBoundary = recurring
+                  ? todo.status != 'COMPLETED' &&
+                        instanceState?.status != 'skipped' &&
+                        (instanceState?.status != 'completed' ||
+                            (instanceState?.completedAt != null &&
+                                allocation.startAt
+                                        .toUtc()
+                                        .millisecondsSinceEpoch <
+                                    instanceState!.completedAt!
+                                        .toUtc()
+                                        .millisecondsSinceEpoch))
+                  : todo.status != 'COMPLETED' ||
+                        (completedAt != null &&
+                            allocation.startAt.toUtc().millisecondsSinceEpoch <
+                                completedAt.toUtc().millisecondsSinceEpoch);
               return passesCompletionBoundary && validOccurrence
                   ? TaskAllocationCalendarItem(
                       allocation: allocation,

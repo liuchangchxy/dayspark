@@ -206,6 +206,9 @@ class SyncEngine {
       final todoRecurrenceEnabled = serverCapabilities.contains(
         SyncCapability.todoRecurrenceV1,
       );
+      final taskInstanceStateEnabled = serverCapabilities.contains(
+        SyncCapability.taskInstanceStateV1,
+      );
       final priorTaskAllocationEnabled = await cursorStore
           .readTaskAllocationCapabilityState();
       final capabilityBackfill =
@@ -214,7 +217,14 @@ class SyncEngine {
           .readTodoRecurrenceCapabilityState();
       final todoRecurrenceBackfill =
           todoRecurrenceEnabled && priorTodoRecurrenceEnabled != true;
-      final roundCursor = capabilityBackfill || todoRecurrenceBackfill
+      final priorTaskInstanceStateEnabled = await cursorStore
+          .readTaskInstanceStateCapabilityState();
+      final taskInstanceStateBackfill =
+          taskInstanceStateEnabled && priorTaskInstanceStateEnabled != true;
+      final roundCursor =
+          capabilityBackfill ||
+              todoRecurrenceBackfill ||
+              taskInstanceStateBackfill
           ? 0
           : cursor;
 
@@ -239,6 +249,7 @@ class SyncEngine {
           capabilities: const [
             SyncCapability.taskAllocationV1,
             SyncCapability.todoRecurrenceV1,
+            SyncCapability.taskInstanceStateV1,
           ],
         ),
       );
@@ -318,6 +329,9 @@ class SyncEngine {
       await cursorStore.writeTodoRecurrenceCapabilityState(
         todoRecurrenceEnabled,
       );
+      await cursorStore.writeTaskInstanceStateCapabilityState(
+        taskInstanceStateEnabled,
+      );
 
       _backoffSeconds = 1;
       _emit(
@@ -354,6 +368,10 @@ class SyncEngine {
           !serverCapabilities.contains(SyncCapability.taskAllocationV1)) {
         continue;
       }
+      if (type == RecordType.taskInstanceState &&
+          !serverCapabilities.contains(SyncCapability.taskInstanceStateV1)) {
+        continue;
+      }
       var baseRev = entry.baseRev;
       var fields = entry.payloadJson == null
           ? null
@@ -363,7 +381,9 @@ class SyncEngine {
         // applier may have advanced it after this op was enqueued.
         baseRev = await _liveServerRev(type, entry.recordId) ?? baseRev;
         final snapshot = await snapshots.read(entry.recordId);
-        if (snapshot != null && fields != null) {
+        if (snapshot != null &&
+            fields != null &&
+            type != RecordType.taskInstanceState) {
           final dirty = dirtyFields(fields, snapshot.payload);
           if (type == RecordType.todo &&
               !serverCapabilities.contains(SyncCapability.todoRecurrenceV1)) {
@@ -425,6 +445,12 @@ class SyncEngine {
     if (type == RecordType.taskAllocation) {
       final row = await (db.select(
         db.taskAllocations,
+      )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
+      return row?.serverRev;
+    }
+    if (type == RecordType.taskInstanceState) {
+      final row = await (db.select(
+        db.taskInstanceStates,
       )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
       return row?.serverRev;
     }
