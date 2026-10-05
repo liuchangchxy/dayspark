@@ -16,6 +16,7 @@
 
 - **TaskAllocation Busy-Time**：服务端 `find_free_time` 通过统一只读 BusyInterval 投影读取 Event occurrence 与有效 TaskAllocation；按半开窗口裁剪并合并，且不把 Todo `dueDate` 当作时间占用。完成 Todo 保留历史及进行中的有效安排，完成后的未来安排不会阻塞空闲时段。
 - **TaskAllocation busy-time projection**: `find_free_time` now consumes one read-only projection of Event occurrences and effective TaskAllocations. It clips and merges half-open intervals, keeps valid history and in-progress blocks after Todo completion, and never treats `dueDate` as reserved time.
+- **普通 Todo 完成控件误开编辑页**：将行编辑点击区与 Checkbox 完成点击区拆开；撤销完成时显式清除 `completedAt`，保留已失效 Allocation 的既有状态。 / **Todo completion control opened edit**: separated row editing from checkbox completion and explicitly clears `completedAt` on undo while preserving invalidated Allocation states.
 
 ---
 

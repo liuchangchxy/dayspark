@@ -542,6 +542,65 @@ void main() {
   );
 
   test(
+    'completion control path retains allocation lifecycle through undo',
+    () async {
+      final now = DateTime.now();
+      final todoId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(calendarId: calendarId, summary: 'Toggle'),
+          );
+      final endedId = await container.read(createTaskAllocationProvider)(
+        todoId: todoId,
+        startAt: now.subtract(const Duration(hours: 2)),
+        endAt: now.subtract(const Duration(hours: 1)),
+      );
+      final ongoingId = await container.read(createTaskAllocationProvider)(
+        todoId: todoId,
+        startAt: now.subtract(const Duration(minutes: 30)),
+        endAt: now.add(const Duration(minutes: 30)),
+      );
+      final futureId = await container.read(createTaskAllocationProvider)(
+        todoId: todoId,
+        startAt: now.add(const Duration(hours: 1)),
+        endAt: now.add(const Duration(hours: 2)),
+      );
+      final cancelledId = await container.read(createTaskAllocationProvider)(
+        todoId: todoId,
+        startAt: now.add(const Duration(hours: 3)),
+        endAt: now.add(const Duration(hours: 4)),
+      );
+      await container.read(cancelTaskAllocationProvider)(cancelledId);
+
+      await container
+          .read(toggleTodoProvider)
+          .call(id: todoId, isCompleted: true);
+
+      Future<String> allocationState(int id) async => (await (db.select(
+        db.taskAllocations,
+      )..where((row) => row.id.equals(id))).getSingle()).state;
+      expect(await allocationState(endedId), 'active');
+      expect(await allocationState(ongoingId), 'active');
+      expect(await allocationState(futureId), 'invalidatedByCompletion');
+      expect(await allocationState(cancelledId), 'cancelledByUser');
+
+      await container
+          .read(toggleTodoProvider)
+          .call(id: todoId, isCompleted: false);
+
+      final todo = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(todoId))).getSingle();
+      expect(todo.status, 'NEEDS-ACTION');
+      expect(todo.completedAt == null, isTrue);
+      expect(await allocationState(endedId), 'active');
+      expect(await allocationState(ongoingId), 'active');
+      expect(await allocationState(futureId), 'invalidatedByCompletion');
+      expect(await allocationState(cancelledId), 'cancelledByUser');
+    },
+  );
+
+  test(
     'calendar projection includes active allocations and hides cancelled ones',
     () async {
       final todoId = await db
