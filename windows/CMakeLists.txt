@@ -57,6 +57,10 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# connectivity_plus ships UTF-8 source without a BOM. Keep MSVC's source
+# charset explicit for this plugin so C4819 does not become fatal under /WX.
+target_compile_options(connectivity_plus_plugin PRIVATE /utf-8)
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can
