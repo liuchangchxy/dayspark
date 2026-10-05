@@ -105,6 +105,84 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
         .get();
   }
 
+  Future<List<Todo>> getSchedulableOrdinaryTodos() {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                t.rrule.isNull() &
+                t.recurrenceRule.isNull(),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .get();
+  }
+
+  Stream<List<Todo>> watchOrdinaryDueBetween(DateTime start, DateTime end) {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                t.rrule.isNull() &
+                t.recurrenceRule.isNull() &
+                t.dueDate.isBiggerOrEqualValue(start) &
+                t.dueDate.isSmallerThanValue(end),
+          )
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.sortOrder),
+            (t) => OrderingTerm.asc(t.priority),
+          ]))
+        .watch();
+  }
+
+  Stream<List<Todo>> watchOrdinaryOverdue(DateTime startOfDay) {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                t.rrule.isNull() &
+                t.recurrenceRule.isNull() &
+                t.dueDate.isNotNull() &
+                t.dueDate.isSmallerThanValue(startOfDay),
+          )
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.dueDate),
+            (t) => OrderingTerm.asc(t.priority),
+          ]))
+        .watch();
+  }
+
+  Stream<List<Todo>> watchOrdinaryUnplanned() {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                t.rrule.isNull() &
+                t.recurrenceRule.isNull() &
+                t.dueDate.isNull(),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .watch();
+  }
+
+  Stream<List<Todo>> watchOrdinaryCompletedOn(DateTime start, DateTime end) {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.equals('COMPLETED') &
+                t.rrule.isNull() &
+                t.recurrenceRule.isNull() &
+                t.completedAt.isBiggerOrEqualValue(start) &
+                t.completedAt.isSmallerThanValue(end),
+          )
+          ..orderBy([(t) => OrderingTerm.desc(t.completedAt)]))
+        .watch();
+  }
+
   Future<void> moveOverdueToToday(List<int> ids) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);

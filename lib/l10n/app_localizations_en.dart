@@ -1005,4 +1005,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancelledTaskAllocation => 'Cancelled';
+
+  @override
+  String get scheduleTodo => 'Schedule Todo';
+
+  @override
+  String get scheduleTodoDesc => 'Allocate calendar time for an existing todo';
+
+  @override
+  String get createEventOption => 'Create Event';
+
+  @override
+  String get createEventDesc => 'Add a new calendar event';
+
+  @override
+  String get selectTodoToSchedule => 'Select Todo to Schedule';
+
+  @override
+  String get noSchedulableTodos => 'No pending todos available to schedule';
+
+  @override
+  String get action => 'Action';
+
+  @override
+  String get actionFirst => 'Action First';
+
+  @override
+  String get scheduledSection => 'Scheduled';
+
+  @override
+  String get dueTodaySection => 'Due Today';
+
+  @override
+  String get unplannedInbox => 'Inbox';
+
+  @override
+  String unplannedCount(int count) {
+    return '$count unplanned';
+  }
+
+  @override
+  String get todayTimeline => 'Today\'s Schedule';
+
+  @override
+  String get emptyActionHint => 'No events, scheduled tasks, or deadlines for today.';
+
+  @override
+  String scheduledTodoSuccess(String summary) {
+    return 'Scheduled: $summary';
+  }
+
+  @override
+  String get plannedExecution => 'Planned';
+
+  @override
+  String deadlinePrefix(String date) {
+    return 'Deadline: $date';
+  }
+
+  @override
+  String get deadlineToday => 'Due today';
+
+  @override
+  String get eventLabel => 'Event';
+
+  @override
+  String get completedTodaySection => 'Completed Today';
 }

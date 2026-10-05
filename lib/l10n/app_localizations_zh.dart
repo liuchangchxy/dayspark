@@ -1005,4 +1005,70 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cancelledTaskAllocation => '已取消';
+
+  @override
+  String get scheduleTodo => '安排待办';
+
+  @override
+  String get scheduleTodoDesc => '为已有待办分配日历执行时间';
+
+  @override
+  String get createEventOption => '新建日程';
+
+  @override
+  String get createEventDesc => '添加一条新的日历日程';
+
+  @override
+  String get selectTodoToSchedule => '选择要安排的待办';
+
+  @override
+  String get noSchedulableTodos => '暂无可安排的待办';
+
+  @override
+  String get action => '行动';
+
+  @override
+  String get actionFirst => '行动优先';
+
+  @override
+  String get scheduledSection => '计划执行';
+
+  @override
+  String get dueTodaySection => '今日截止';
+
+  @override
+  String get unplannedInbox => '收件箱';
+
+  @override
+  String unplannedCount(int count) {
+    return '$count 条未安排';
+  }
+
+  @override
+  String get todayTimeline => '今日安排';
+
+  @override
+  String get emptyActionHint => '今日暂无日程、任务安排或截止事项。';
+
+  @override
+  String scheduledTodoSuccess(String summary) {
+    return '已安排：$summary';
+  }
+
+  @override
+  String get plannedExecution => '计划执行';
+
+  @override
+  String deadlinePrefix(String date) {
+    return '截止：$date';
+  }
+
+  @override
+  String get deadlineToday => '今日截止';
+
+  @override
+  String get eventLabel => '日程';
+
+  @override
+  String get completedTodaySection => '今日已完成';
 }

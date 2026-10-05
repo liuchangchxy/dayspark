@@ -115,60 +115,50 @@ class TodoListTile extends ConsumerWidget {
           else
             const SizedBox(width: 4),
           const SizedBox(width: 8),
+          if (index != null) ...[
+            Container(
+              width: 20,
+              alignment: Alignment.center,
+              child: Text(
+                '${index! + 1}',
+                style: TextStyle(
+                  fontSize: AppTypography.caption.fontSize,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
           SizedBox(
             width: 24,
             height: 24,
-            child: isCompleted || index == null
-                ? MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: isCompleted
-                        ? Semantics(
-                            button: true,
-                            label: l.markIncomplete,
-                            child: Checkbox(
-                              value: true,
-                              onChanged: (_) => _toggle(context, ref),
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          )
-                        : Semantics(
-                            button: true,
-                            label: l.markComplete,
-                            child: Checkbox(
-                              value: false,
-                              onChanged: (_) => _toggle(context, ref),
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ),
-                  )
-                : Center(
-                    child: Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        border: Border.all(
-                          color: theme.colorScheme.outline,
-                          width: 1.5,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: isCompleted
+                  ? Semantics(
+                      button: true,
+                      label: l.markIncomplete,
+                      child: Checkbox(
+                        value: true,
+                        onChanged: (_) => _toggle(context, ref),
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
                       ),
-                      child: Center(
-                        child: Text(
-                          '${index! + 1}',
-                          style: TextStyle(
-                            fontSize: AppTypography.overline.fontSize,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                    )
+                  : Semantics(
+                      button: true,
+                      label: l.markComplete,
+                      child: Checkbox(
+                        value: false,
+                        onChanged: (_) => _toggle(context, ref),
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
                       ),
                     ),
-                  ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

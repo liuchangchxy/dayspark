@@ -16,7 +16,7 @@ import 'package:dayspark/ui/pages/settings/settings_sections/todos_section.dart'
 GoRouter _router() => GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(path: '/', builder: (_, __) => const HomePage(initialTab: 1)),
+    GoRoute(path: '/', builder: (_, __) => const HomePage(initialTab: 2)),
     GoRoute(
       path: '/todo/edit',
       builder: (_, __) => const Scaffold(body: SizedBox.shrink()),

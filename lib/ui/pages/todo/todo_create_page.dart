@@ -58,8 +58,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
     if (widget.source != null) {
       debugPrint('todo_create: source=${widget.source}');
     }
-    final now = DateTime.now();
-    _dueDate = DateTime(now.year, now.month, now.day);
+    _dueDate = null;
     // Pre-select first calendar
     Future.microtask(() async {
       final calendars = await ref.read(calendarsProvider.future);
@@ -457,6 +456,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
             const SizedBox(height: 4),
             DropdownButtonFormField<int>(
               initialValue: _selectedCalendarId ?? calendars.first.id,
+              isExpanded: true,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 isDense: true,

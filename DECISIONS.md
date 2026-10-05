@@ -399,3 +399,18 @@
 - **兼容代价**：旧 `rrule != null && status == COMPLETED` 无法无损定位 occurrence。迁移不得猜或伪造实例；旧行作为 legacy series completion 保留，显式重开后才允许新实例操作。ordinary Todo 的原完成迁移与行为保持不变。客户端、contracts、server、MCP 与 UI 必须同时具备实例记录能力后才宣告闭环。
 - **Missed obligation 裁定 (2026-10-06)**：选择严格 obligation 语义（模型 A）。未完成 occurrence 即使日期过去仍 pending/actionable，直到用户完成或显式处理；时钟跨日不得改变状态。B 会无用户动作抹去 obligation，C 会让新 occurrence 隐式取代旧 obligation；两者都违背 Todo 表达 pending/actionable obligation 的原则。代价是 overdue obligations 可累积；通过按需分页控制 UI，每页 30 天，状态仍只稀疏存储。
 - **验证要求**：覆盖单实例完成/撤销、其他实例与 Allocation 保持、busy/calendar、legacy 数据、改 rule 后 orphan、旧 capability 客户端、跨设备并发与乱序同步。
+
+### [2026-10-06] Phase 1 — Action Loop Foundation
+- **触发背景**：Issue #3 用户拍板冻结裁定（Frozen Product Rulings & Phase 1 Boundary）。系统需打通从任务意图到时间安排再到执行完成的闭环（Intent → Plan → Time → Action），消除把 deadline 混淆为规划时间的历史缺陷。
+- **核心决策**：
+  1. **Today / Action 派生投影**：增加 Today / Action 为第三主 projection 并设为默认首页。保留 Action / Calendar / Todos 独立导航，继承老用户保存的默认偏好，新用户默认 Action。Action 为纯 derived projection，不增加 DB 实体或 DailyPlan。包含今日事件、今日普通待办 TaskAllocation、今日 deadline 普通待办、逾期普通待办与未安排紧凑入口。
+  2. **Deadline 事实清洗**：新建普通 Todo 默认 `dueDate = null`，不再隐式赋予今日。移除启动与跨日时将逾期待办截止日期篡改为今日的弹窗；逾期待办保留真实原 deadline。修改截止时间必须通过明确的 deadline edit。TaskAllocation 的增删改及待办完成均不得变更 `dueDate`。
+  3. **日历空白槽安排待办**：点击空白槽弹出双入口（新建日程 / 安排待办）。安排待办过滤出未完成普通待办并创建对应时段的 TaskAllocation，不创建 Event 且不改变 `dueDate`。
+  4. **Action 直接完成**：从 Action 投影中的待办/安排行均可直接勾选完成，走现有领域写入器并触发 Allocation 失效边界。
+  5. **恢复待办直接完成 Checkbox**：待办行恢复独立 Checkbox，序数与拖拽手柄独立展示，不得取代完成交互；六件事仅作为 presentation/focus cap。
+- **对应 SPEC 章节**：SPEC.md §1.1、§3.1（规则 2/4/16/17）。
+- **影响范围**：`lib/ui/pages/home/`、`lib/ui/pages/todo/`、`lib/ui/widgets/todo/`、`lib/ui/widgets/calendar/`、`lib/domain/providers/`、相关单元与部件测试。
+- **Rulings 裁定披露**：
+  - Action 投影首版仅聚合普通待办，重复任务实例延后至 Phase 2 → 判错代价：重复任务需在 Phase 2 才能直接在 Action 中以实例粒度呈现与打勾，但保证了 Phase 1 边界纯粹与零回归。
+  - 启动逾期弹窗直接移除而非替换为自动批量排程 → 判错代价：用户需要显式在日历或待办中为逾期任务安排时间，但杜绝了静默修改 deadline 的严重反模式。
+  - 六件事保留为展示上限而非持久化状态 → 判错代价：不跨设备同步所谓“今日六件事”锁，但避免了过早引入 DailyPlan 持久化模型。

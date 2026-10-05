@@ -26,6 +26,8 @@ import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
+import 'package:dayspark/ui/pages/home/action_section.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -82,10 +84,21 @@ class _HomePageState extends ConsumerState<HomePage>
     _selectedDate = DateTime(now.year, now.month, now.day);
   }
 
+  int _tabIndexFor(AppTab tab) {
+    switch (tab) {
+      case AppTab.action:
+        return 0;
+      case AppTab.calendar:
+        return 1;
+      case AppTab.todos:
+        return 2;
+    }
+  }
+
   void _initCurrentTab() {
     _currentTab = widget.initialTab >= 0
-        ? widget.initialTab.clamp(0, 1)
-        : (ref.read(defaultTabProvider) == AppTab.todos ? 1 : 0);
+        ? widget.initialTab.clamp(0, 2)
+        : _tabIndexFor(ref.read(defaultTabProvider));
   }
 
   void _listenForDefaultTabChanges() {
@@ -95,7 +108,7 @@ class _HomePageState extends ConsumerState<HomePage>
       ref.listenManual(defaultTabProvider, (prev, next) {
         if (!_userChangedTab && prev != null && mounted) {
           setState(() {
-            _currentTab = next == AppTab.todos ? 1 : 0;
+            _currentTab = _tabIndexFor(next);
           });
         }
       });
@@ -114,7 +127,6 @@ class _HomePageState extends ConsumerState<HomePage>
           _handleNotificationAction(actionId, parentId, parentType, reminderId),
         );
       };
-      _checkOverdueTodos();
       _startDayCheckTimer();
       _checkVersionChangelog();
       _refreshHomeWidget();
@@ -148,7 +160,6 @@ class _HomePageState extends ConsumerState<HomePage>
     final today = DateTime(current.year, current.month, current.day);
     if (today != _lastCheckedDay) {
       _lastCheckedDay = today;
-      _checkOverdueTodos();
     }
     _scheduleNextMidnightCheck();
   }
@@ -166,7 +177,6 @@ class _HomePageState extends ConsumerState<HomePage>
     // is what catches an external process (CLI) editing the same file, plus
     // any write path not yet migrated to the seam.
     unawaited(ref.read(reminderReconcilerProvider).reconcileAll());
-    _checkOverdueTodos();
     _dayCheckTimer?.cancel();
     _scheduleNextMidnightCheck();
   }
@@ -216,41 +226,6 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  Future<void> _checkOverdueTodos() async {
-    final db = ref.read(databaseProvider);
-    final overdue = await db.todosDao.getOverduePending();
-    if (overdue.isEmpty || !mounted) return;
-
-    final l = AppLocalizations.of(context)!;
-    final moved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.overdue),
-        content: Text(l.moveToTodayPrompt(overdue.length)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.skip),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l.moveToToday),
-          ),
-        ],
-      ),
-    );
-
-    if (moved == true && mounted) {
-      await ref.read(moveOverdueToTodayProvider)(
-        overdue.map((t) => t.id).toList(),
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.movedToToday(overdue.length))));
-      }
-    }
-  }
 
   Future<void> _handleNotificationAction(
     String actionId,
@@ -307,13 +282,11 @@ class _HomePageState extends ConsumerState<HomePage>
     super.dispose();
   }
 
-  bool get _todosFirst => ref.read(defaultTabProvider) == AppTab.todos;
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final todosFirst = _todosFirst;
-    final isCalendarTab = todosFirst ? _currentTab == 1 : _currentTab == 0;
+    final isActionTab = _currentTab == 0;
+    final isCalendarTab = _currentTab == 1;
 
     // Refresh events stream when switching to calendar tab
     if (isCalendarTab && !_calendarTabWasActive) {
@@ -357,7 +330,9 @@ class _HomePageState extends ConsumerState<HomePage>
                     ),
                 ],
               )
-            : null,
+            : isActionTab
+                ? Text(l.action, style: AppTypography.display)
+                : null,
         actions: [
           if (ref
                   .watch(featureFlagsProvider)
@@ -393,7 +368,11 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
         ],
       ),
-      body: isCalendarTab ? _buildCalendarTab() : _buildTodoTab(),
+      body: isActionTab
+          ? _buildActionTab()
+          : isCalendarTab
+              ? _buildCalendarTab()
+              : _buildTodoTab(),
       floatingActionButton: Semantics(
         button: true,
         label: isCalendarTab ? l.newEvent : l.newTodo,
@@ -421,28 +400,32 @@ class _HomePageState extends ConsumerState<HomePage>
           _userChangedTab = true;
           _currentTab = i;
         }),
-        destinations: todosFirst
-            ? [
-                NavigationDestination(
-                  icon: const Icon(CupertinoIcons.checkmark_rectangle),
-                  label: l.todos,
-                ),
-                NavigationDestination(
-                  icon: const Icon(CupertinoIcons.calendar),
-                  label: l.calendar,
-                ),
-              ]
-            : [
-                NavigationDestination(
-                  icon: const Icon(CupertinoIcons.calendar),
-                  label: l.calendar,
-                ),
-                NavigationDestination(
-                  icon: const Icon(CupertinoIcons.checkmark_rectangle),
-                  label: l.todos,
-                ),
-              ],
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(CupertinoIcons.bolt),
+            label: l.action,
+          ),
+          NavigationDestination(
+            icon: const Icon(CupertinoIcons.calendar),
+            label: l.calendar,
+          ),
+          NavigationDestination(
+            icon: const Icon(CupertinoIcons.checkmark_rectangle),
+            label: l.todos,
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildActionTab() {
+    return ActionSection(
+      onNavigateToTodos: () => setState(() {
+        _userChangedTab = true;
+        _currentTab = 2;
+      }),
+      onEventTap: (event) => context.push('/event/edit', extra: event),
+      onTodoTap: (todo) => context.push('/todo/edit', extra: todo),
     );
   }
 
@@ -501,9 +484,45 @@ class _HomePageState extends ConsumerState<HomePage>
               }
             },
             onTimeSlotTapped: (range) {
-              context.push(
-                '/event/new?start=${range.start.millisecondsSinceEpoch}'
-                '&end=${range.end.millisecondsSinceEpoch}',
+              CalendarSlotSheet.show(
+                context: context,
+                range: range,
+                onCreateEvent: () {
+                  context.push(
+                    '/event/new?start=${range.start.millisecondsSinceEpoch}'
+                    '&end=${range.end.millisecondsSinceEpoch}',
+                  );
+                },
+                loadSchedulableTodos: () =>
+                    ref.read(databaseProvider).todosDao.getSchedulableOrdinaryTodos(),
+                onScheduleTodo: (todo) async {
+                  try {
+                    await ref.read(createTaskAllocationProvider)(
+                      todoId: todo.id,
+                      startAt: range.start,
+                      endAt: range.end,
+                    );
+                    ref.invalidate(
+                      taskAllocationsInDateRangeProvider(rangeKey),
+                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            AppLocalizations.of(context)!
+                                .scheduledTodoSuccess(todo.summary),
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('$e')),
+                      );
+                    }
+                  }
+                },
               );
             },
             // 拖拽改期只走 provider：重排提醒由提交后的领域事件接管
