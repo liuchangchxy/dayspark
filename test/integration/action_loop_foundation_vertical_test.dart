@@ -38,7 +38,6 @@ void main() {
   late AppDatabase db;
   late ProviderContainer container;
   late int calendarId;
-  final today = DateTime(2026, 10, 6);
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -51,7 +50,6 @@ void main() {
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
-        actionDateProvider.overrideWith((ref) => today),
       ],
     );
   });
@@ -65,9 +63,32 @@ void main() {
     'Phase 1 vertical acceptance: Todo intent -> Calendar empty slot -> Schedule Todo -> TaskAllocation -> visible in Calendar and Action -> complete via existing writer with strict dueDate invariant and no Event creation',
     (tester) async {
       // -------------------------------------------------------------
+      // Derive test allocation and Action projection day dynamically:
+      // Allocation start is strictly in the future (+2h from current execution time)
+      // so that production completion (completedAt = DateTime.now()) always
+      // satisfies startAt >= completedAt and triggers invalidatedByCompletion
+      // on any machine, timezone, or time of day.
+      // -------------------------------------------------------------
+      final now = DateTime.now();
+      final futureInstant = now.add(const Duration(hours: 2));
+      final slotStart = DateTime(
+        futureInstant.year,
+        futureInstant.month,
+        futureInstant.day,
+        futureInstant.hour,
+        futureInstant.minute,
+      );
+      final slotEnd = slotStart.add(const Duration(hours: 1));
+      final slotRange = DateTimeRange(start: slotStart, end: slotEnd);
+
+      // Derive tested Action day and range from the scheduled allocation
+      final actionDay = DateTime(slotStart.year, slotStart.month, slotStart.day);
+      container.read(actionDateProvider.notifier).state = actionDay;
+
+      // -------------------------------------------------------------
       // 1. Todo Intent: Create ordinary Todo with specific future dueDate
       // -------------------------------------------------------------
-      final initialDueDate = DateTime(2026, 10, 9, 17, 0); // 3 days later
+      final initialDueDate = actionDay.add(const Duration(days: 3, hours: 17));
       final todoId = await db.into(db.todos).insert(
             TodosCompanion.insert(
               calendarId: calendarId,
@@ -86,12 +107,8 @@ void main() {
       expect(await db.select(db.taskAllocations).get(), isEmpty);
 
       // -------------------------------------------------------------
-      // 2. Calendar empty slot: User taps empty time slot for today 14:00 - 15:00
+      // 2. Calendar empty slot: User taps empty time slot for slotRange
       // -------------------------------------------------------------
-      final slotRange = DateTimeRange(
-        start: DateTime(2026, 10, 6, 14, 0),
-        end: DateTime(2026, 10, 6, 15, 0),
-      );
 
       // Mount host page that opens CalendarSlotSheet exactly as HomePage does
       await tester.pumpWidget(
@@ -174,7 +191,7 @@ void main() {
 
       // Assert visible in Calendar query (taskAllocationsInDateRangeProvider)
       final calendarRangeKey =
-          '${today.millisecondsSinceEpoch}-${today.add(const Duration(days: 1)).millisecondsSinceEpoch}';
+          '${actionDay.millisecondsSinceEpoch}-${actionDay.add(const Duration(days: 1)).millisecondsSinceEpoch}';
       final calSub = container.listen(
         taskAllocationsInDateRangeProvider(calendarRangeKey),
         (_, __) {},
