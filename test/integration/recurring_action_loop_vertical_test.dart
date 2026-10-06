@@ -271,7 +271,17 @@ void main() {
       // Checkbox in todayTimeline for this allocation item
       final checkboxFinder = find.byType(Checkbox);
       expect(checkboxFinder, findsWidgets);
-      await tester.tap(checkboxFinder.first);
+
+      // Target the exact occurrence-bound allocation Checkbox via its unique ValueKey
+      final allocationCheckboxFinder = find.byKey(
+        ValueKey('allocation-checkbox-${allocation.id}'),
+      );
+      expect(
+        allocationCheckboxFinder,
+        findsOneWidget,
+        reason: 'Timeline allocation checkbox for this exact allocation must be visible',
+      );
+      await tester.tap(allocationCheckboxFinder);
       await tester.pumpAndSettle();
 
       // -------------------------------------------------------------

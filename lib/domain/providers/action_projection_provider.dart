@@ -9,6 +9,16 @@ import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
+class RecurringExpansionError {
+  final Todo todo;
+  final Object error;
+
+  const RecurringExpansionError({
+    required this.todo,
+    required this.error,
+  });
+}
+
 class ActionProjectionData {
   final List<CalendaEventAdapter> events;
   final List<TaskAllocationCalendarItem> allocations;
@@ -20,10 +30,12 @@ class ActionProjectionData {
   // Phase 2 additions:
   final List<ProjectedTaskInstance> todayTaskInstances;
   final List<ProjectedTaskInstance> missedTaskInstances;
+  final List<Todo> earlierMissedSeries;
   final bool hasEarlierMissed;
   final List<ProjectedTaskInstance> completedTodayTaskInstances;
   final int unconfirmedRecurringCount;
   final List<Todo> unconfirmedRecurringTodos;
+  final List<RecurringExpansionError> recurrenceExpansionErrors;
 
   const ActionProjectionData({
     this.events = const [],
@@ -34,10 +46,12 @@ class ActionProjectionData {
     this.completedTodayTodos = const [],
     this.todayTaskInstances = const [],
     this.missedTaskInstances = const [],
+    this.earlierMissedSeries = const [],
     this.hasEarlierMissed = false,
     this.completedTodayTaskInstances = const [],
     this.unconfirmedRecurringCount = 0,
     this.unconfirmedRecurringTodos = const [],
+    this.recurrenceExpansionErrors = const [],
   });
 
   bool get isEmpty =>
@@ -49,8 +63,10 @@ class ActionProjectionData {
       completedTodayTodos.isEmpty &&
       todayTaskInstances.isEmpty &&
       missedTaskInstances.isEmpty &&
+      earlierMissedSeries.isEmpty &&
       completedTodayTaskInstances.isEmpty &&
-      unconfirmedRecurringCount == 0;
+      unconfirmedRecurringCount == 0 &&
+      recurrenceExpansionErrors.isEmpty;
 }
 
 final actionDateProvider = StateProvider<DateTime>((ref) {
@@ -212,17 +228,24 @@ final actionProjectionProvider =
       final todayTaskInstances = <ProjectedTaskInstance>[];
       final missedTaskInstances = <ProjectedTaskInstance>[];
       final unconfirmedRecurringTodos = <Todo>[];
-      var hasEarlierMissed = false;
+      final recurrenceExpansionErrors = <RecurringExpansionError>[];
+      final earlierMissedSeries = <Todo>[];
 
-      final thirtyDaysAgo = startOfDay.subtract(const Duration(days: 30));
+      final thirtyDaysAgo = civilDateAddDays(startOfDay, -30);
 
       for (final todo in recurringTodos) {
         // Ruling C: unknownLegacy / unsupported recurrence discovery without guessed instances.
         final TodoRecurrence recurrence;
         try {
           recurrence = TodoRecurrence.fromTodo(todo);
-        } catch (_) {
-          unconfirmedRecurringTodos.add(todo);
+        } catch (err) {
+          if (todo.recurrenceLegacyState == 'knownZoned') {
+            recurrenceExpansionErrors.add(
+              RecurringExpansionError(todo: todo, error: err),
+            );
+          } else {
+            unconfirmedRecurringTodos.add(todo);
+          }
           continue;
         }
 
@@ -230,8 +253,19 @@ final actionProjectionProvider =
           unconfirmedRecurringTodos.add(todo);
           continue;
         }
-        if (recurrence.isUnknownLegacy || recurrence.spec == null) {
+        if (recurrence.isUnknownLegacy) {
           unconfirmedRecurringTodos.add(todo);
+          continue;
+        }
+        if (recurrence.spec == null) {
+          if (todo.recurrenceLegacyState == 'knownZoned') {
+            recurrenceExpansionErrors.add(
+              RecurringExpansionError(
+                todo: todo,
+                error: const FormatException('knownZoned recurrence missing spec'),
+              ),
+            );
+          }
           continue;
         }
 
@@ -248,14 +282,35 @@ final actionProjectionProvider =
             endExclusive: endOfDay,
             maxOccurrences: 200,
           );
-        } catch (_) {
-          // Surfaced explicitly, never silently truncated.
-          unconfirmedRecurringTodos.add(todo);
+        } on RecurrenceRuleException catch (e) {
+          if (e.kind == RecurrenceRuleErrorKind.unsupported) {
+            unconfirmedRecurringTodos.add(todo);
+          } else {
+            recurrenceExpansionErrors.add(
+              RecurringExpansionError(todo: todo, error: e),
+            );
+          }
+          continue;
+        } catch (e) {
+          recurrenceExpansionErrors.add(
+            RecurringExpansionError(todo: todo, error: e),
+          );
           continue;
         }
 
         if (expansion.status != TodoOccurrenceExpansionStatus.expanded) {
-          unconfirmedRecurringTodos.add(todo);
+          if (expansion.status ==
+                  TodoOccurrenceExpansionStatus.requiresLegacyConfirmation ||
+              expansion.status == TodoOccurrenceExpansionStatus.unsupported) {
+            unconfirmedRecurringTodos.add(todo);
+          } else {
+            recurrenceExpansionErrors.add(
+              RecurringExpansionError(
+                todo: todo,
+                error: expansion.status.name,
+              ),
+            );
+          }
           continue;
         }
 
@@ -280,11 +335,32 @@ final actionProjectionProvider =
           }
         }
 
-        // Check if there are earlier occurrences before the 30-day window
-        if (!hasEarlierMissed) {
-          final anchor = todo.startDate ?? todo.dueDate;
-          if (anchor != null && anchor.isBefore(thirtyDaysAgo)) {
-            hasEarlierMissed = true;
+        // Check if there are earlier pending occurrences strictly before the 30-day window
+        final spec = recurrence.spec!;
+        final anchor = spec.anchor.value;
+        final anchorDate = switch (anchor) {
+          LocalDate d => DateTime(d.year, d.month, d.day),
+          LocalDateTime dt => DateTime(dt.year, dt.month, dt.day),
+        };
+        if (anchorDate.isBefore(thirtyDaysAgo)) {
+          try {
+            final earlierExpansion = expandTodoOccurrences(
+              todo,
+              startInclusive: anchorDate,
+              endExclusive: thirtyDaysAgo,
+              maxOccurrences: 200,
+            );
+            if (earlierExpansion.status == TodoOccurrenceExpansionStatus.expanded) {
+              final hasPendingEarlier = earlierExpansion.occurrences.any((occ) {
+                final st = statesMap['${occ.todoSyncId}:${occ.occurrenceId}'];
+                return st == null || (st.status != 'completed' && st.status != 'skipped');
+              });
+              if (hasPendingEarlier) {
+                earlierMissedSeries.add(todo);
+              }
+            }
+          } catch (_) {
+            // Expansion error before 30-day window does not produce false earlier-missed signal
           }
         }
       }
@@ -298,15 +374,8 @@ final actionProjectionProvider =
             state.completedAt!.isBefore(endOfDay)) {
           final parentTodo = todosBySyncId[state.todoSyncId];
           if (parentTodo != null && parentTodo.deletedAt == null) {
-            try {
-              final parsed = OccurrenceId.parse(state.occurrenceId);
-              final occurrence = TodoOccurrence(
-                todoSyncId: state.todoSyncId,
-                occurrenceId: state.occurrenceId,
-                nominalAnchor: parsed.nominal,
-                resolvedStartInstant: state.completedAt,
-                timeZone: parsed.timeZone?.id ?? 'UTC',
-              );
+            final occurrence = resolveTodoOccurrence(parentTodo, state.occurrenceId);
+            if (occurrence != null) {
               completedTodayTaskInstances.add(
                 ProjectedTaskInstance(
                   todo: parentTodo,
@@ -315,8 +384,6 @@ final actionProjectionProvider =
                   completedAt: state.completedAt,
                 ),
               );
-            } catch (_) {
-              // Ignore unparseable legacy occurrence states.
             }
           }
         }
@@ -337,10 +404,12 @@ final actionProjectionProvider =
           completedTodayTodos: completed,
           todayTaskInstances: todayTaskInstances,
           missedTaskInstances: missedTaskInstances,
-          hasEarlierMissed: hasEarlierMissed,
+          earlierMissedSeries: earlierMissedSeries,
+          hasEarlierMissed: earlierMissedSeries.isNotEmpty,
           completedTodayTaskInstances: completedTodayTaskInstances,
           unconfirmedRecurringCount: unconfirmedRecurringTodos.length,
           unconfirmedRecurringTodos: unconfirmedRecurringTodos,
+          recurrenceExpansionErrors: recurrenceExpansionErrors,
         ),
       );
     });

@@ -743,4 +743,49 @@ void main() {
     expect(page2, isNotEmpty);
     expect(page2.every((i) => i.isEarlierMissed(today) || i.isMissedWithin30Days(today)), isTrue);
   });
+
+  test('Phase 2 regression: civil 30-day paging partitions across DST transition without drift or overlap', () async {
+    // DST fall-back in America/New_York on 2026-11-01 (clocks turn back 1 hour, day is 25 hours long)
+    // Anchor date: 2026-11-15 (after DST transition).
+    // Page 1 past range: [2026-10-16, 2026-11-15)
+    // Page 2 past range: [2026-09-16, 2026-10-16)
+    // Series is Daily at 10:00 AM America/New_York, starting 2026-09-01.
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDateTime(2026, 9, 1, 10, 0, 0),
+      ),
+      timeZone: 'America/New_York',
+      rrule: 'FREQ=DAILY',
+    );
+    final id = await createSeries(spec);
+    final todo = await (db.select(db.todos)..where((row) => row.id.equals(id))).getSingle();
+
+    final anchorDate = DateTime(2026, 11, 15);
+    final page1 = await loadOccurrencePage(db, todo, historyPage: 1, anchorDate: anchorDate);
+    final page2 = await loadOccurrencePage(db, todo, historyPage: 2, anchorDate: anchorDate);
+
+    final page1Ids = page1.map((i) => i.occurrenceId).toSet();
+    final page2Ids = page2.map((i) => i.occurrenceId).toSet();
+
+    // No overlap between page 1 and page 2
+    expect(page1Ids.intersection(page2Ids), isEmpty);
+
+    // Exact partition at anchorDate - 30 civil days = 2026-10-16
+    expect(page1Ids.any((id) => id.contains('2026-10-16')), isTrue);
+    expect(page2Ids.any((id) => id.contains('2026-10-15')), isTrue);
+    expect(page2Ids.any((id) => id.contains('2026-10-16')), isFalse);
+
+    // Consistency of isMissedWithin30Days and isEarlierMissed
+    for (final inst in page1) {
+      if (inst.occurrence.resolvedStartInstant!.isBefore(DateTime.utc(2026, 11, 15))) {
+        expect(inst.isMissedWithin30Days(anchorDate), isTrue);
+        expect(inst.isEarlierMissed(anchorDate), isFalse);
+      }
+    }
+    for (final inst in page2) {
+      expect(inst.isEarlierMissed(anchorDate), isTrue);
+      expect(inst.isMissedWithin30Days(anchorDate), isFalse);
+    }
+  });
 }

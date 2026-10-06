@@ -413,5 +413,142 @@ void main() {
     expect(data.todayTaskInstances.any((i) => i.todo.summary == 'Legacy Task'), isFalse);
     expect(data.missedTaskInstances.any((i) => i.todo.summary == 'Legacy Task'), isFalse);
   });
-}
 
+  test('Phase 2 regression: earlierMissedSeries targets only series with real earlier pending obligations', () async {
+    // Series A: started 40 days ago, Daily, none completed
+    final specA = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 8, 27),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesAId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Series A (pending earlier)',
+          rrule: Value(specA.rule.canonical),
+        ),
+        recurrenceSpec: specA,
+      ),
+    );
+
+    // Series B: started 40 days ago, Daily, but occurrences before 30 days ago (2026-08-27 .. 2026-09-05) are ALL completed
+    final specB = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 8, 27),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesBId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Series B (all earlier completed)',
+          rrule: Value(specB.rule.canonical),
+        ),
+        recurrenceSpec: specB,
+      ),
+    );
+    final todoB = await (db.select(db.todos)..where((t) => t.id.equals(seriesBId))).getSingle();
+    var idx = 0;
+    for (var d = DateTime(2026, 8, 27); d.isBefore(DateTime(2026, 9, 6)); d = d.add(const Duration(days: 1))) {
+      final occId = 'v2:DATE:${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      await db.into(db.taskInstanceStates).insert(
+        TaskInstanceStatesCompanion.insert(
+          syncId: 'sync-b-$idx',
+          todoSyncId: todoB.syncId!,
+          occurrenceId: occId,
+          status: const Value('completed'),
+          completedAt: Value(DateTime(2026, 9, 1)),
+        ),
+      );
+      idx++;
+    }
+
+    final data = await getActionData();
+    expect(data.earlierMissedSeries, hasLength(1));
+    expect(data.earlierMissedSeries.first.id, seriesAId);
+    expect(data.earlierMissedSeries.first.summary, 'Series A (pending earlier)');
+  });
+
+  test('Phase 2 regression: expansion failure on known recurrence does not masquerade as unconfirmed recurrence', () async {
+    await db.into(db.todos).insert(
+      TodosCompanion.insert(
+        calendarId: calendarId,
+        summary: 'Broken Recurring Task',
+        rrule: const Value('INVALID_RRULE_FORMAT'),
+        recurrenceLegacyState: const Value('knownZoned'),
+        recurrenceRule: const Value('INVALID_RRULE_FORMAT'),
+        recurrenceAnchorSource: const Value('due'),
+        recurrenceValueType: const Value('date'),
+        recurrenceAnchorValue: const Value('2026-10-06'),
+        recurrenceTimeZone: const Value('UTC'),
+      ),
+    );
+
+    final data = await getActionData();
+    expect(data.unconfirmedRecurringTodos.isEmpty, isTrue);
+    expect(data.unconfirmedRecurringCount, 0);
+
+    expect(data.recurrenceExpansionErrors, hasLength(1));
+    expect(data.recurrenceExpansionErrors.first.todo.summary, 'Broken Recurring Task');
+  });
+
+  test('Phase 2 regression: completed today DATE-TIME occurrence preserves nominal instant independently of completedAt', () async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDateTime(2026, 10, 6, 9, 0, 0),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Morning Standup Meeting',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    final todo = await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
+    final occurrenceId = OccurrenceId.forNominal(spec.anchor.value, spec.timeZone).value;
+    final userCompletedAt = DateTime(2026, 10, 6, 17, 30);
+
+    await db.into(db.taskInstanceStates).insert(
+      TaskInstanceStatesCompanion.insert(
+        syncId: 'sync-meeting-1',
+        todoSyncId: todo.syncId!,
+        occurrenceId: occurrenceId,
+        status: const Value('completed'),
+        completedAt: Value(userCompletedAt),
+      ),
+    );
+
+    final data = await getActionData();
+    expect(data.completedTodayTaskInstances, hasLength(1));
+    final completedInstance = data.completedTodayTaskInstances.first;
+
+    expect(completedInstance.completedAt, userCompletedAt);
+    final expectedInstant = DateTime.utc(2026, 10, 6, 1, 0, 0);
+    expect(completedInstance.occurrence.resolvedStartInstant, expectedInstant);
+    expect(completedInstance.occurrence.occurrenceId, occurrenceId);
+  });
+}

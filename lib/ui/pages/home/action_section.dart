@@ -13,6 +13,7 @@ import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 class ActionSection extends ConsumerWidget {
   const ActionSection({
@@ -76,6 +77,51 @@ class ActionSection extends ConsumerWidget {
           ),
           children: [
             // Ruling C: Unconfirmed legacy/unsupported recurrence discovery card
+            // 0. Recurrence expansion errors (Ruling A / C distinction)
+            if (data.recurrenceExpansionErrors.isNotEmpty) ...[
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(
+                    color: theme.colorScheme.error.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Column(
+                  children: data.recurrenceExpansionErrors.map((err) {
+                    final message = err.error is RecurrenceExpansionException
+                        ? (((err.error as RecurrenceExpansionException).message.contains('horizon'))
+                            ? l.recurrenceTimezoneHorizonError
+                            : (((err.error as RecurrenceExpansionException).message.contains('limit'))
+                                ? l.recurrenceOccurrenceLimitError
+                                : (err.error as RecurrenceExpansionException).message))
+                        : '${err.error}';
+                    return ListTile(
+                      leading: Icon(
+                        CupertinoIcons.exclamationmark_circle,
+                        color: theme.colorScheme.error,
+                      ),
+                      title: Text(
+                        err.todo.summary,
+                        style: AppTypography.body.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        message,
+                        style: AppTypography.caption.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+
+            // 0. Unconfirmed recurrence card (Ruling C)
             if (data.unconfirmedRecurringCount > 0) ...[
               Card(
                 elevation: 0,
@@ -134,8 +180,10 @@ class ActionSection extends ConsumerWidget {
                 (instance) =>
                     _buildMissedInstanceTile(context, ref, instance, l, theme),
               ),
-              if (data.hasEarlierMissed)
-                _buildEarlierMissedTile(context, ref, data, l, theme),
+              ...data.earlierMissedSeries.map(
+                (series) =>
+                    _buildEarlierMissedTile(context, ref, series, l, theme),
+              ),
               const SizedBox(height: AppSpacing.md),
             ],
 
@@ -359,11 +407,12 @@ class ActionSection extends ConsumerWidget {
   Widget _buildEarlierMissedTile(
     BuildContext context,
     WidgetRef ref,
-    ActionProjectionData data,
+    Todo series,
     AppLocalizations l,
     ThemeData theme,
   ) {
     return Card(
+      key: ValueKey('earlier-missed-${series.id}'),
       margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       elevation: 0,
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
@@ -380,7 +429,7 @@ class ActionSection extends ConsumerWidget {
           size: 20,
         ),
         title: Text(
-          l.earlierMissed,
+          '${l.earlierMissed} · ${series.summary}',
           style: AppTypography.body.copyWith(
             fontWeight: FontWeight.w500,
             color: theme.colorScheme.onSurfaceVariant,
@@ -388,25 +437,18 @@ class ActionSection extends ConsumerWidget {
         ),
         trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
         onTap: () async {
-          final targetTodo = data.missedTaskInstances.isNotEmpty
-              ? data.missedTaskInstances.first.todo
-              : (data.todayTaskInstances.isNotEmpty
-                  ? data.todayTaskInstances.first.todo
-                  : null);
-          if (targetTodo != null) {
-            final selected = await TodoOccurrencePickerSheet.show(
-              context,
-              ref: ref,
-              todo: targetTodo,
-              initialPage: 2,
+          final selected = await TodoOccurrencePickerSheet.show(
+            context,
+            ref: ref,
+            todo: series,
+            initialPage: 2,
+          );
+          if (selected != null) {
+            await ref.read(toggleTodoProvider)(
+              id: selected.todoId,
+              isCompleted: !selected.isCompleted,
+              occurrenceId: selected.occurrenceId,
             );
-            if (selected != null) {
-              await ref.read(toggleTodoProvider)(
-                id: selected.todoId,
-                isCompleted: !selected.isCompleted,
-                occurrenceId: selected.occurrenceId,
-              );
-            }
           }
         },
       ),
@@ -521,6 +563,7 @@ class ActionSection extends ConsumerWidget {
           ),
           child: ListTile(
             leading: Checkbox(
+              key: ValueKey('allocation-checkbox-${item.allocation.id}'),
               value: false,
               activeColor: theme.colorScheme.secondary,
               onChanged: (val) async {

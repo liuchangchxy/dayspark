@@ -322,4 +322,110 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('Phase 2 regression: earlier missed tiles carry exact series identity for multiple series', (
+    tester,
+  ) async {
+    final specA = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 8, 20),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=5',
+    );
+    final seriesAId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Series Alpha',
+          rrule: Value(specA.rule.canonical),
+        ),
+        recurrenceSpec: specA,
+      ),
+    );
+
+    final specB = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 8, 20),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=5',
+    );
+    final seriesBId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Series Beta',
+          rrule: Value(specB.rule.canonical),
+        ),
+        recurrenceSpec: specB,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.byKey(ValueKey('earlier-missed-$seriesAId')), findsOneWidget);
+    expect(find.byKey(ValueKey('earlier-missed-$seriesBId')), findsOneWidget);
+    expect(find.text('Earlier missed… · Series Alpha'), findsOneWidget);
+    expect(find.text('Earlier missed… · Series Beta'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('Phase 2 regression: expansion failure shows dedicated error tile without legacy confirmation card', (
+    tester,
+  ) async {
+    await db.into(db.todos).insert(
+      TodosCompanion.insert(
+        calendarId: calendarId,
+        summary: 'Corrupted Series',
+        rrule: const Value('INVALID'),
+        recurrenceLegacyState: const Value('knownZoned'),
+        recurrenceRule: const Value('INVALID'),
+        recurrenceAnchorSource: const Value('due'),
+        recurrenceValueType: const Value('date'),
+        recurrenceAnchorValue: const Value('2026-10-06'),
+        recurrenceTimeZone: const Value('UTC'),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.text('Corrupted Series'), findsOneWidget);
+    expect(find.textContaining('need confirmation'), findsNothing);
+
+    await _unmount(tester);
+  });
 }
