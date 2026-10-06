@@ -1978,6 +1978,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelled'**
   String get cancelledTaskAllocation;
+
+  /// No description provided for @scheduleTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule Todo'**
+  String get scheduleTodo;
+
+  /// No description provided for @scheduleTodoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Allocate calendar time for an existing todo'**
+  String get scheduleTodoDesc;
+
+  /// No description provided for @createEventOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Event'**
+  String get createEventOption;
+
+  /// No description provided for @createEventDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a new calendar event'**
+  String get createEventDesc;
+
+  /// No description provided for @selectTodoToSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Todo to Schedule'**
+  String get selectTodoToSchedule;
+
+  /// No description provided for @noSchedulableTodos.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending todos available to schedule'**
+  String get noSchedulableTodos;
+
+  /// No description provided for @action.
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get action;
+
+  /// No description provided for @actionFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Action First'**
+  String get actionFirst;
+
+  /// No description provided for @scheduledSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get scheduledSection;
+
+  /// No description provided for @dueTodaySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Due Today'**
+  String get dueTodaySection;
+
+  /// No description provided for @unplannedInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get unplannedInbox;
+
+  /// No description provided for @unplannedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} unplanned'**
+  String unplannedCount(int count);
+
+  /// No description provided for @todayTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Schedule'**
+  String get todayTimeline;
+
+  /// No description provided for @emptyActionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No events, scheduled tasks, or deadlines for today.'**
+  String get emptyActionHint;
+
+  /// No description provided for @scheduledTodoSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled: {summary}'**
+  String scheduledTodoSuccess(String summary);
+
+  /// No description provided for @plannedExecution.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned'**
+  String get plannedExecution;
+
+  /// No description provided for @deadlinePrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline: {date}'**
+  String deadlinePrefix(String date);
+
+  /// No description provided for @deadlineToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Due today'**
+  String get deadlineToday;
+
+  /// No description provided for @eventLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get eventLabel;
+
+  /// No description provided for @completedTodaySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed Today'**
+  String get completedTodaySection;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

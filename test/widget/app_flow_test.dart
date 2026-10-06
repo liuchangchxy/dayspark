@@ -67,6 +67,7 @@ void main() {
 
     expect(find.byType(AppBar), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.text('Action'), findsWidgets);
     expect(find.text('Calendar'), findsOneWidget);
     expect(find.text('Todos'), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.settings), findsOneWidget);
@@ -74,8 +75,22 @@ void main() {
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
 
-  testWidgets('FAB opens event create', (tester) async {
+  testWidgets('FAB opens todo create on action tab', (tester) async {
     await tester.pumpWidget(_createTestApp());
+    await _settle(tester);
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await _settle(tester);
+
+    expect(find.text('New Todo'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+  });
+
+  testWidgets('FAB opens event create on calendar tab', (tester) async {
+    await tester.pumpWidget(_createTestApp());
+    await _settle(tester);
+
+    await tester.tap(find.text('Calendar'));
     await _settle(tester);
 
     await tester.tap(find.byType(FloatingActionButton));
@@ -87,6 +102,9 @@ void main() {
 
   testWidgets('event create has form fields', (tester) async {
     await tester.pumpWidget(_createTestApp());
+    await _settle(tester);
+
+    await tester.tap(find.text('Calendar'));
     await _settle(tester);
 
     await tester.tap(find.byType(FloatingActionButton));

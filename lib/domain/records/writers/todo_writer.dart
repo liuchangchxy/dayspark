@@ -310,19 +310,6 @@ final class TodoWriter {
     return restored;
   }
 
-  static Future<void> moveOverdueToToday(
-    AppDatabase db,
-    RecordScope tx,
-    List<int> ids,
-  ) async {
-    final previous = await _dueDates(db, ids);
-    await db.todosDao.moveOverdueToToday(ids);
-    for (final id in ids) {
-      await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
-      tx.applied(RecordType.todo, id, previousReference: previous[id]);
-    }
-  }
-
   static Future<void> permanentDelete(
     AppDatabase db,
     RecordScope tx,

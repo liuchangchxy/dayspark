@@ -46,7 +46,9 @@ class AppearanceSection extends ConsumerWidget {
           leading: const Icon(CupertinoIcons.square_split_2x1),
           title: Text(l.defaultTab),
           subtitle: Text(
-            ref.watch(defaultTabProvider) == AppTab.calendar
+            ref.watch(defaultTabProvider) == AppTab.action
+                ? l.actionFirst
+                : ref.watch(defaultTabProvider) == AppTab.calendar
                 ? l.calendarFirst
                 : l.todosFirst,
           ),
@@ -256,6 +258,19 @@ class AppearanceSection extends ConsumerWidget {
       builder: (ctx) => SimpleDialog(
         title: Text(l.defaultTab),
         children: [
+          SimpleDialogOption(
+            onPressed: () {
+              ref
+                  .read(defaultTabProvider.notifier)
+                  .setDefaultTab(AppTab.action);
+              Navigator.of(ctx).pop();
+            },
+            child: ListTile(
+              leading: const Icon(CupertinoIcons.bolt),
+              title: Text(l.actionFirst),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
           SimpleDialogOption(
             onPressed: () {
               ref

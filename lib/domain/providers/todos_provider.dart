@@ -38,13 +38,6 @@ final allTodosProvider = StreamProvider<List<Todo>>((ref) {
   return db.todosDao.watchAllNotDeleted();
 });
 
-final moveOverdueToTodayProvider = Provider<Future<void> Function(List<int>)>((
-  ref,
-) {
-  final db = ref.read(databaseProvider);
-  return (List<int> ids) =>
-      RecordScope.run(db, (tx) => TodoWriter.moveOverdueToToday(db, tx, ids));
-});
 
 final createTodoProvider =
     Provider<

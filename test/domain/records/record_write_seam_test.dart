@@ -618,47 +618,6 @@ void main() {
     });
   });
 
-  group('待办写路径', () {
-    test('2 moveOverdueToToday 3 条 → 每条按自己的位移重排', () async {
-      await wireSeamConsumers();
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final dueA = DateTime(today.year, today.month, today.day - 6, 9);
-      final dueB = DateTime(today.year, today.month, today.day - 3, 9);
-      final dueC = DateTime(today.year, today.month, today.day - 1, 9);
-      final todoA = await insertTodo(dueDate: dueA);
-      final todoB = await insertTodo(dueDate: dueB);
-      final todoC = await insertTodo(dueDate: dueC);
-      // 提醒相对 due 的偏移分别是 +2d / +3d / +1d。移动后的参考时间是"今天
-      // 00:00"，所以位移后的时刻 = 今天 00:00 + 偏移（三条都落在未来，才可观
-      // 察；负偏移会落进 pastDue 档，那是 T2 已钉死的另一档）。
-      final reminderA = await insertReminder('todo', todoA, dueA.add(const Duration(days: 2)));
-      final reminderB = await insertReminder('todo', todoB, dueB.add(const Duration(days: 3)));
-      final reminderC = await insertReminder('todo', todoC, dueC.add(const Duration(days: 1)));
-
-      await container.read(moveOverdueToTodayProvider)([
-        todoA,
-        todoB,
-        todoC,
-      ]);
-
-      await settleBatch(scheduleCount: 3);
-      final byId = <int, DateTime>{
-        for (final r in schedules) r.id: r.triggerTime,
-      };
-      expect(byId[reminderA], DateTime(today.year, today.month, today.day + 2));
-      expect(byId[reminderB], DateTime(today.year, today.month, today.day + 3));
-      expect(byId[reminderC], DateTime(today.year, today.month, today.day + 1));
-
-      final applied = flatBatches().cast<RecordApplied>();
-      expect(applied, hasLength(3), reason: '每条被移动的 todo 各一条 applied');
-      expect(
-        {for (final a in applied) a.localId: a.previousReference},
-        {todoA: dueA, todoB: dueB, todoC: dueC},
-        reason: 'previousReference 必须是写前的旧 dueDate（位移锚）',
-      );
-    });
-  });
 
   group('ICS 导入', () {
     String icsWith(String body) =>

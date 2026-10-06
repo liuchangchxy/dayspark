@@ -17,6 +17,16 @@
 
 ---
 
+## Action Loop Foundation / 行动闭环基础 (Phase 1, 2026-10-06)
+
+- **产品裁定已冻结 (Issue #3)**：消除 deadline 与计划时间混淆；打通 Todo intent → Calendar slot → TaskAllocation → Action projection → Complete 闭环。
+- **Phase 1 范围边界**：
+  - Deadline 事实清洗：新建普通 Todo 默认 `dueDate = null`；移除启动时篡改 overdue 截止时间的行为；TaskAllocation 生命周期操作不改变 `dueDate`。
+  - Today / Action 派生投影：作为默认首页，清晰区分计划安排（Allocation）与截止事实（dueDate），支持普通 Todo 直接完成。
+  - 日历空白槽安排：支持为已有普通 Todo 创建 TaskAllocation（不创建 Event）。
+  - Checkbox 恢复：待办行保留直接 Checkbox 完成能力，序数与拖拽手柄独立展示；六件事保持为展示上限。
+- **Phase 2+ 明确留待后续**：重复任务实例 Action 投影与打勾、Widget 调整、MCP TaskAllocation 写入、客户端 AI 排程融合、DailyPlan 实体。
+
 ## TaskAllocation Workstream / TaskAllocation 阶段状态 (2026-10-04)
 
 - **Phase 1 / 1.5 本地领域与 Calendar 投影**：已完成。

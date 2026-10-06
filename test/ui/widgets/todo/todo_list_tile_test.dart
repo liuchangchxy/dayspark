@@ -27,6 +27,35 @@ Widget _wrap(Widget child) => ProviderScope(
 
 void main() {
   group('TodoListTile', () {
+    testWidgets('pending row with index renders both ordinal and functional checkbox', (
+      tester,
+    ) async {
+      var toggles = 0;
+      await tester.pumpWidget(
+        _wrap(
+          TodoListTile(
+            index: 0,
+            summary: 'Buy groceries',
+            isCompleted: false,
+            priority: 5,
+            todoId: 1,
+            onToggle: (occurrenceId, isCompleted) async {
+              toggles++;
+            },
+            onTap: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('1'), findsOneWidget);
+      expect(find.byType(Checkbox), findsOneWidget);
+
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+
+      expect(toggles, 1);
+    });
+
     testWidgets('tapping completion control toggles without opening the row', (
       tester,
     ) async {

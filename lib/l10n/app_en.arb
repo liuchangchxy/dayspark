@@ -540,5 +540,46 @@
   "addTaskAllocation": "Schedule time",
   "noTaskAllocations": "No scheduled time",
   "cancelTaskAllocation": "Cancel schedule",
-  "cancelledTaskAllocation": "Cancelled"
+  "cancelledTaskAllocation": "Cancelled",
+  "scheduleTodo": "Schedule Todo",
+  "scheduleTodoDesc": "Allocate calendar time for an existing todo",
+  "createEventOption": "Create Event",
+  "createEventDesc": "Add a new calendar event",
+  "selectTodoToSchedule": "Select Todo to Schedule",
+  "noSchedulableTodos": "No pending todos available to schedule",
+  "action": "Action",
+  "actionFirst": "Action First",
+  "scheduledSection": "Scheduled",
+  "dueTodaySection": "Due Today",
+  "unplannedInbox": "Inbox",
+  "unplannedCount": "{count} unplanned",
+  "@unplannedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayTimeline": "Today's Schedule",
+  "emptyActionHint": "No events, scheduled tasks, or deadlines for today.",
+  "scheduledTodoSuccess": "Scheduled: {summary}",
+  "@scheduledTodoSuccess": {
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "plannedExecution": "Planned",
+  "deadlinePrefix": "Deadline: {date}",
+  "@deadlinePrefix": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "deadlineToday": "Due today",
+  "eventLabel": "Event",
+  "completedTodaySection": "Completed Today"
 }

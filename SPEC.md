@@ -60,9 +60,9 @@ flowchart LR
 - **业务描述**：Todo 与 Event 是两个独立的一等领域记录；TaskAllocation 将一个 Todo 或某次重复 Todo occurrence 与一段执行时间关联。Calendar 可将这些记录投影到同一时间视图，具体页面导航不由领域模型规定。
 - **业务规则契约**：
   - 规则 1：Todo 表达需要完成的事项，保留其现有状态、截止时间、重复及父子任务语义；Event 表达特定时间发生的事项，保留其现有时间区间、全天、地点及重复语义。两者可独立创建、编辑、查看及管理。Todo 列表行的完成控件只切换完成状态；标题/内容区域打开 Todo 编辑页，二者的点击区域必须彼此独立。
-  - 规则 2：`Todo.dueDate` 是截止时间，不是执行时段。创建、改期或取消 TaskAllocation 不得自动修改 Todo 的 `dueDate`。
+  - 规则 2：`Todo.dueDate` 是截止时间，不是执行时段。新建普通 Todo 在用户未显式选择截止时间时 `dueDate` 必须为 null，不得默认填入今日。移除启动时将逾期 Todo 的 `dueDate` 批量篡改为今日的行为；逾期待办保持其真实原截止时间，若用户计划今日执行，应通过 TaskAllocation 安排。创建、改期、取消 TaskAllocation 或完成 Todo，均不得自动修改 Todo 的 `dueDate`；修改截止时间必须通过显式 deadline edit 操作。
   - 规则 3：一个 Todo 可关联零个或多个 TaskAllocation；重复 Todo 的每个 TaskAllocation 绑定一个 occurrence，不自动应用到整个重复系列。
-  - 规则 4：TaskAllocation 表达为 Todo 预留的一段执行时间，具有独立身份和生命周期；可单独改期或取消。取消一个 Allocation 不删除或取消 Todo。
+  - 规则 4：TaskAllocation 表达为 Todo 预留的一段执行时间，具有独立身份和生命周期；可单独改期或取消。取消一个 Allocation 不删除或取消 Todo。日历空白时间槽点击提供“新建日程（Event）”与“安排待办（Schedule Todo）”双入口；选择安排待办可在当前时间区间内为已有的未完成普通 Todo 创建 TaskAllocation，而不创建 Event，且被安排 Todo 的 `dueDate` 保持完全不变。
   - 规则 5：用户取消的 Allocation 保留历史，普通 Calendar 不显示；Todo 历史可查看。普通（非重复）Todo 完成时，所有 `startAt >= completedAt` 的 Allocation 转为 `invalidatedByCompletion` 并保留记录；已结束与正在进行的 Allocation 保持原状态。重复 Todo 的完成依规则 15 限定到单个 occurrence。撤销完成不会自动恢复已失效 Allocation，用户须显式重新安排。
     - 完成边界比较统一使用 UTC instant：比较前将 `startAt`、`endAt`、`completedAt` 转为 UTC 并截断至毫秒，不四舍五入。`endAt <= completedAt` 保留为历史；`startAt < completedAt < endAt` 保持 active 至原定结束；`startAt >= completedAt` 转为 `invalidatedByCompletion`（包括相等边界）。
   - 规则 6：TaskAllocation 仅在自身状态为 `active`、父 Todo 未取消且未进入回收站时显示并占用 busy time。普通 Todo 完成时依其 `completedAt` 防御性校验边界；重复 Todo 则依对应 occurrence 的稀疏实例状态校验，不得读取父 series 的完成字段来隐藏其他实例安排。已结束时段不影响未来空闲查询。`cancelledByUser` 与 `invalidatedByCompletion` 不占 busy time。
@@ -72,9 +72,14 @@ flowchart LR
   - 规则 10：Calendar 是 Event occurrence、有效 TaskAllocation 和可选 Todo deadline marker 的时间投影，不是新的领域记录容器。截止标记不占 busy time。日历拖动 TaskAllocation 只修改该 Allocation 的时间，不修改 Todo 截止时间或 occurrence identity。
   - 规则 11：回收站为软删除；MCP/外部写入接口不提供物理硬删除，使用归档/软删姿态。永久清空按既有 tombstone 与保留期规则处理。
   - 规则 12：UI 文本必须 l10n 中英双语，禁止硬编码
-  - 规则 13：服务端 busy-time 是 Event occurrence 与有效 TaskAllocation 的统一只读投影，不是持久化实体。单次查询按半开区间 `[startAt, endAt)` 裁剪到请求窗口；空闲查询只消费裁剪、排序并合并后的区间。相邻和重叠 busy 区间合并，Event 与 Allocation 使用同一规则。Todo `dueDate` 及没有 Allocation 的 Todo 不占用时间。Event 沿用现有语义：查询排除 tombstone 与 `deletedAt` 软删行，按窗口展开 recurrence；Event 契约没有取消状态，故当前不额外过滤未定义的 status 值。All-day Event 使用既有有效结束时刻规则（正长度沿用 `endDt`，否则占用 24 小时）。
+  - 规则 13：服务端 busy-time 是 Event occurrence 与有效 TaskAllocation 的统一只读投影，不是持久化实体。单次查询按半开区间 `[startAt, endAt)` 裁剪到请求窗口；空闲查询只消费裁剪、排序并合并后的区间。相邻和重叠 busy 区间合并，Event 与 Allocation 使用同一规则。Todo `dueDate` 及没有 Allocation 的 Todo 不占用时间。Event 沿用现有语义：查询排除 tombstone 与 `deletedAt` 软删行，按窗口展开 recurrence；Event 契约没有取消状态，故当前不额外过滤未定义的 status值。All-day Event 使用既有有效结束时刻规则（正长度沿用 `endDt`，否则占用 24 小时）。
   - 规则 14：TaskAllocation 的 busy 有效性同时检查 Allocation 自身未 tombstone 且 `state == active`，并检查父 Todo 已解析、未 tombstone、未软删除且未取消。普通 Todo 依其 `completedAt` 校验；重复 Todo 必须解析 Allocation 的 `occurrenceId` 与对应实例状态，仅该实例的完成边界可使其安排不占用，其他 occurrence 不受影响。无法解析实例状态时 fail closed，且不得从旧 series 完成字段推断具体实例。
   - 规则 15：重复 Todo 的父 Todo 定义 TaskSeries，RecurrenceSpec 与稳定 `occurrenceId` 定义虚拟 TaskInstance。完成与撤销完成属于 `(todoSyncId, occurrenceId)`，调用必须提供有效 `occurrenceId`；缺少时拒绝。完成实例不将父 Todo 标为 `COMPLETED`，也不改变其他实例。该实例完成边界后开始的 active Allocation 失效；已结束或正在执行的 Allocation 保持原状态。撤销只清除同一实例状态，不自动恢复已失效 Allocation。Series 取消/归档与实例完成分离。仅持久化发生状态变化的实例；其他实例由 RecurrenceSpec 有界、惰性生成。真实 UI 保持 series row 并打开 occurrence selector。missed occurrence 保持 pending/actionable，跨日不得自动完成或跳过；selector 默认显示最近 30 天与未来 90 天，并支持按 30 天分页访问更早 obligation，不物化无限实例。通用原生小组件只有 series ID 时不得替用户选 occurrence，也不得把重复系列当成普通单次任务完成。Rule 修改后不再匹配的已完成实例仍按旧 key 保留为历史 orphan。既有 `rrule != null && status == COMPLETED` 无法定位到具体 occurrence，必须保留为 legacy series completion，不伪造实例状态；用户显式重开 series 后才允许新的实例级操作。
+  - 规则 16：Today / Action 是纯派生投影（derived projection），不得建立新的持久化实体或 DailyPlan。Home 默认首选视图为 Action，并保留 Action、Calendar、Todos 三个一等 projection。已持久化保存 Calendar/Todos 默认偏好的老用户继续尊重其偏好；未设置偏好者默认进入 Action。
+    - Action 投影内容包括：① 今日 EventOccurrence；② 今日有效普通 Todo 的 TaskAllocation（计划执行时间）；③ 今日 deadline 的普通 Todo；④ 逾期未完成普通 Todo（保持原真实截止日期）；⑤ 收件箱/未安排（Inbox/Unplanned）紧凑入口及数量。
+    - 时间安排（Allocation）与截止事实（dueDate）在视觉与文案上严格区分；同一 Todo 若今日既有 Allocation 又有 deadline，允许分别在计划区与截止区展示，严禁为了去重抹杀事实。已完成项默认折叠或隐藏。
+    - 从 Action 中直接完成普通 Todo 或 Allocation 必须复用现有 Todo domain writer/provider，不建立第二套完成路径。
+  - 规则 17：待办列表行的待办项必须保留直接可点击的完成 Checkbox。六件事（Six Things）仅作为呈现与专注上限（presentation/focus cap），不创建 DailyPlan 实体；序数编号（ordinal）和拖拽排序不得替换或阻碍完成 Checkbox 的直接交互。
 
 #### TaskAllocation 生命周期状态
 

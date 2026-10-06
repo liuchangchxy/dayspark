@@ -23,6 +23,20 @@ final eventsInDateRangeProvider =
       return stream;
     });
 
+final eventCandidatesInDateRangeProvider =
+    StreamProvider.autoDispose.family<List<Event>, String>((ref, rangeKey) {
+      final db = ref.watch(databaseProvider);
+      final parts = rangeKey.split('-');
+      final startMs = int.tryParse(parts[0]);
+      final endMs = int.tryParse(parts.length > 1 ? parts[1] : '');
+      if (startMs == null || endMs == null) {
+        return Stream.value([]);
+      }
+      final start = DateTime.fromMillisecondsSinceEpoch(startMs);
+      final end = DateTime.fromMillisecondsSinceEpoch(endMs);
+      return db.eventsDao.watchEventCandidates(start, end);
+    });
+
 final calendarsProvider = StreamProvider<List<Calendar>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.calendarsDao.watchAll();
