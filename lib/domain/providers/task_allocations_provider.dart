@@ -17,6 +17,80 @@ final taskAllocationsForTodoProvider = StreamProvider.autoDispose
           .watch();
     });
 
+Future<List<TaskAllocationCalendarItem>> fetchTaskAllocationsInDateRange(
+  AppDatabase db,
+  DateTime start,
+  DateTime end,
+) async {
+  final query =
+      db.select(db.taskAllocations).join([
+        innerJoin(
+          db.todos,
+          db.todos.id.equalsExp(db.taskAllocations.todoId),
+        ),
+        leftOuterJoin(
+          db.taskInstanceStates,
+          db.taskInstanceStates.todoSyncId.equalsExp(db.todos.syncId) &
+              db.taskInstanceStates.occurrenceId.equalsExp(
+                db.taskAllocations.occurrenceId,
+              ),
+        ),
+      ])..where(
+        db.taskAllocations.state.equals('active') &
+            db.taskAllocations.startAt.isSmallerThanValue(
+              end.toUtc().millisecondsSinceEpoch,
+            ) &
+            db.taskAllocations.endAt.isBiggerThanValue(
+              start.toUtc().millisecondsSinceEpoch,
+            ) &
+            db.todos.deletedAt.isNull() &
+            db.todos.status.isNotIn(const ['CANCELLED']),
+      );
+  final rows = await query.get();
+  return _mapTaskAllocationRows(db, rows);
+}
+
+List<TaskAllocationCalendarItem> _mapTaskAllocationRows(
+  AppDatabase db,
+  List<TypedResult> rows,
+) {
+  return rows
+      .map((row) {
+        final allocation = row.readTable(db.taskAllocations);
+        final todo = row.readTable(db.todos);
+        final completedAt = todo.completedAt;
+        final recurring = todo.rrule != null && todo.rrule!.isNotEmpty;
+        final validOccurrence = !recurring
+            ? allocation.occurrenceId == null
+            : allocation.occurrenceId != null &&
+                  _isValidOccurrence(todo, allocation.occurrenceId!);
+        final instanceState = row.readTableOrNull(db.taskInstanceStates);
+        final passesCompletionBoundary = recurring
+            ? todo.status != 'COMPLETED' &&
+                  instanceState?.status != 'skipped' &&
+                  (instanceState?.status != 'completed' ||
+                      (instanceState?.completedAt != null &&
+                          allocation.startAt
+                                  .toUtc()
+                                  .millisecondsSinceEpoch <
+                              instanceState!.completedAt!
+                                  .toUtc()
+                                  .millisecondsSinceEpoch))
+            : todo.status != 'COMPLETED' ||
+                  (completedAt != null &&
+                      allocation.startAt.toUtc().millisecondsSinceEpoch <
+                          completedAt.toUtc().millisecondsSinceEpoch);
+        return passesCompletionBoundary && validOccurrence
+            ? TaskAllocationCalendarItem(
+                allocation: allocation,
+                todo: todo,
+              )
+            : null;
+      })
+      .whereType<TaskAllocationCalendarItem>()
+      .toList();
+}
+
 final taskAllocationsInDateRangeProvider = StreamProvider.autoDispose
     .family<List<TaskAllocationCalendarItem>, String>((ref, rangeKey) {
       final db = ref.watch(databaseProvider);
@@ -53,43 +127,7 @@ final taskAllocationsInDateRangeProvider = StreamProvider.autoDispose
                 db.todos.deletedAt.isNull() &
                 db.todos.status.isNotIn(const ['CANCELLED']),
           );
-      return query.watch().map(
-        (rows) => rows
-            .map((row) {
-              final allocation = row.readTable(db.taskAllocations);
-              final todo = row.readTable(db.todos);
-              final completedAt = todo.completedAt;
-              final recurring = todo.rrule != null && todo.rrule!.isNotEmpty;
-              final validOccurrence = !recurring
-                  ? allocation.occurrenceId == null
-                  : allocation.occurrenceId != null &&
-                        _isValidOccurrence(todo, allocation.occurrenceId!);
-              final instanceState = row.readTableOrNull(db.taskInstanceStates);
-              final passesCompletionBoundary = recurring
-                  ? todo.status != 'COMPLETED' &&
-                        instanceState?.status != 'skipped' &&
-                        (instanceState?.status != 'completed' ||
-                            (instanceState?.completedAt != null &&
-                                allocation.startAt
-                                        .toUtc()
-                                        .millisecondsSinceEpoch <
-                                    instanceState!.completedAt!
-                                        .toUtc()
-                                        .millisecondsSinceEpoch))
-                  : todo.status != 'COMPLETED' ||
-                        (completedAt != null &&
-                            allocation.startAt.toUtc().millisecondsSinceEpoch <
-                                completedAt.toUtc().millisecondsSinceEpoch);
-              return passesCompletionBoundary && validOccurrence
-                  ? TaskAllocationCalendarItem(
-                      allocation: allocation,
-                      todo: todo,
-                    )
-                  : null;
-            })
-            .whereType<TaskAllocationCalendarItem>()
-            .toList(),
-      );
+      return query.watch().map((rows) => _mapTaskAllocationRows(db, rows));
     });
 
 bool _isValidOccurrence(Todo todo, String occurrenceId) {

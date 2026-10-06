@@ -440,3 +440,23 @@
   - 严格保持 obligation 语义，跨日不自动跳过/完成未完成实例 → 判错代价：遗漏任务会积压并需用户主动处理，但守护了待办作为承诺/责任的绝对严肃性。
   - 日历槽位安排重复任务必须强制二次显式选择 occurrenceId → 判错代价：用户多一步点击，但彻底杜绝了槽位时间与实例名义身份错位导致的隐式写破坏。
 
+### [2026-10-06] Phase 3 — MCP & AI TaskAllocation Scheduling Loop
+- **触发背景**：Issue #7（Refs #3，Follows #5 / PR #6）用户拍板冻结裁定 A–I（Frozen Product Rulings，2026-10-06）。Phase 1/2 已建立 Todo/TaskInstance → TaskAllocation → Calendar+Action → Complete 领域闭环，但 MCP 缺少 Allocation 读写工具，Client AI（`AiSchedulerService` / `AiChatPage`）仅感知 raw Event 且 Schedule 操作错误跳转 `/event/new`。Phase 3 接入既有 TaskAllocation 领域，打通外部 Agent 与客户端 AI 的排程闭环。
+- **核心决策（Rulings A–I）**：
+  1. **Ruling A — MCP 调度工作流工具面**：采用工作流工具 `schedule_task`、`reschedule_task_allocation`、`cancel_task_allocation`、`list_task_allocations`；禁止裸 CRUD、模糊的 `unschedule_task` 及物理删除接口；cancel 写入 `cancelledByUser` 状态。工具总数不作为冻结契约。
+  2. **Ruling B — 重复实例精确绑定**：安排重复 Todo 必须显式传 exact `occurrence_id`，缺失时 fail closed 拒绝并引导调用 `list_task_occurrences`；普通 Todo 传 `occurrence_id` 同样拒绝。严禁根据 slot 时间或当前日期猜测 identity。
+  3. **Ruling C — 安全冲突策略（Conflict-Safe Automation）**：底层领域允许重叠，但自动化写入口默认 safe conflict policy。写入前重新读取 authoritative busy intervals，冲突时默认拒绝并返回结构化 conflict source refs；仅显式传 `allow_conflicts: true` 时允许重叠写入。reschedule 冲突检测排除被改动的 allocation 自身。在 write-time 重新校验以防 TOCTOU 竞争。
+  4. **Ruling D — 确定性客户端可用性**：Client AI 严禁将 LLM 当作 busy/free 引擎。Busy truth 必须由 expanded `EventOccurrence`（支持 master 早于窗口的长期重复事件）+ effective `TaskAllocation` 确定性计算；LLM 仅用于候选偏好排序和理由解释；写入前必须通过确定性冲突校验，幻觉时间不得落库。保持 local-first 架构，不强求客户端调服务端 MCP。
+  5. **Ruling E — 多 Allocation 一等公民**：`schedule_task` 永远表示新增 Allocation，一个 Todo/TaskInstance 可有多条 active Allocation；不得自动覆盖、取消或 reschedule 已有安排。修改时间必须显式针对 `allocation_id` 调 `reschedule_task_allocation`。
+  6. **Ruling F — dueDate 零触碰**：排程对 `dueDate` 零修改，无论 `dueDate` 为空、同日或早于安排时间，均不得隐式修改 deadline。
+  7. **Ruling G — 幂等写入重放优先**：所有 Allocation MCP write tools 遵循既有 `idempotency_key` 契约；相同 key + 相同请求重放必须优先于会被第一次调用改变的可变状态/冲突校验（避免自身首次创建的 Allocation 将自身重放判为 conflict，避免已 cancel 的 Allocation 重放判为 non-active）；不同请求复用 key 报错拒绝。
+  8. **Ruling H — 授权与显式确认边界**：Client AI 禁止后台自主安排或无确认批量排程，用户必须显式选择 Todo（重复任务显式选 occurrence）并在确认后落库；MCP 正确声明 readOnly/destructive 元数据。
+  9. **Ruling I — Event vs TaskAllocation 决策边界**：Event 代表独立发生事实；TaskAllocation 代表对已有 obligation 的执行规划。排程已有 Todo/TaskInstance 必须创建 TaskAllocation，绝不创建 Event，移除 `/event/new` 临时跳转。
+- **对应 SPEC 章节**：SPEC.md §3.3 规则 7、§2。
+- **影响范围**：`server/lib/src/mcp/`、`server/lib/src/data/busy_intervals.dart`、`lib/domain/services/ai_scheduler_service.dart`、`lib/domain/providers/ai_scheduler_provider.dart`、`lib/ui/pages/ai_chat/ai_chat_page.dart`、相关测试套件。
+- **Rulings 裁定披露**：
+  - 自动化排程默认 conflict-safe，仅显式 override 才允许重叠 → 判错代价：自动化调用遇到冲突需显式确认重叠或重选空闲时段，但杜绝了静默产生重叠日程。
+  - 客户端 AI Schedule 必须显式选择已有 Todo（及重复 occurrence）→ 判错代价：用户不能在无关联 Todo 的情况下点击 AI Schedule 随便生成一段悬空安排，但彻底杜绝了伪造 Event 冒充任务排程的反模式。
+  - 幂等重放优先于可变状态校验 → 判错代价：需在写前增加幂等命中检查分支，但保证了网络抖动重发时接口的绝对鲁棒性与一致性。
+
+

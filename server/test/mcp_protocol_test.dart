@@ -4,13 +4,17 @@ import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:dayspark_server/server.dart';
 import 'package:test/test.dart';
 
-// Frozen tool table from the Task-2 brief (names/params exactly as listed).
+// Frozen tool table (names/params exactly as listed).
 const Set<String> frozenTools = {
   'get_events',
   'get_event',
   'list_tasks',
   'get_task',
   'list_task_occurrences',
+  'list_task_allocations',
+  'schedule_task',
+  'reschedule_task_allocation',
+  'cancel_task_allocation',
   'search',
   'find_free_time',
   'list_trash',
@@ -32,12 +36,17 @@ const Set<String> readOnlyTools = {
   'list_tasks',
   'get_task',
   'list_task_occurrences',
+  'list_task_allocations',
   'search',
   'find_free_time',
   'list_trash',
 };
 
-const Set<String> trashTools = {'trash_event', 'trash_task'};
+const Set<String> destructiveTools = {
+  'trash_event',
+  'trash_task',
+  'cancel_task_allocation',
+};
 
 Uri _uri(String path) => Uri.parse('http://localhost$path');
 
@@ -259,7 +268,7 @@ void main() {
             reason: '$name is read-only');
       } else {
         expect(annotations['readOnlyHint'], false);
-        if (trashTools.contains(name)) {
+        if (destructiveTools.contains(name)) {
           expect(annotations['destructiveHint'], true,
               reason: '$name soft-deletes data');
         } else {

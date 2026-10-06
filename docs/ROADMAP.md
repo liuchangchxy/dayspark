@@ -25,8 +25,9 @@
   - Today / Action 派生投影：作为默认首页，清晰区分计划安排（Allocation）与截止事实（dueDate），支持普通 Todo 直接完成。
   - 日历空白槽安排：支持为已有普通 Todo 创建 TaskAllocation（不创建 Event）。
   - Checkbox 恢复：待办行保留直接 Checkbox 完成能力，序数与拖拽手柄独立展示；六件事保持为展示上限。
-- **Phase 2 (Issue #5)**：Recurring TaskInstance Action Loop — 重复任务实例进入 Action 投影与打勾、日历空白槽安排重复任务实例、共享 occurrence projection/selector seam、遗漏任务有界可见性。
-- **Phase 3+ 明确留待后续**：Widget 调整、MCP TaskAllocation 写入、客户端 AI 排程融合、DailyPlan 实体。
+- **Phase 2 (Issue #5)**：Recurring TaskInstance Action Loop — 重复任务实例进入 Action 投影与打勾、日历空白槽安排重复任务实例、共享 occurrence projection/selector seam、遗漏任务有界可见性（已完成于 PR #6）。
+- **Phase 3 (Issue #7)**：MCP & AI TaskAllocation Scheduling Loop — MCP 四大工作流工具（`schedule_task`、`reschedule_task_allocation`、`cancel_task_allocation`、`list_task_allocations`）、重复任务精确 `occurrence_id` 绑定、自动化 safe conflict policy 与 TOCTOU 防御、幂等重放优先、客户端确定性可用性计算（expanded EventOccurrence + effective TaskAllocation，覆盖长期重复事件）、AI Chat 排程选择真实待办与显式确认、dueDate 零触碰、零假 Event 创建（实施中于 `feature/mcp-ai-taskallocation-scheduling`）。
+- **Phase 4+ 明确留待后续**：Widget 调整、Reminder 调整、DailyPlan 实体、后台自主排程。
 
 ## TaskAllocation Workstream / TaskAllocation 阶段状态 (2026-10-04)
 

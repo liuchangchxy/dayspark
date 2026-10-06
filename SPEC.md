@@ -48,7 +48,7 @@ flowchart LR
 ### 核心模块划分
 1. **客户端层**：Flutter（Riverpod + Drift + go_router），本地 SQLite 权威存储，离线可用；日历视图基于 kalender 库
 2. **同步后端**：Dart（shelf + drift + SQLite），服务器游标 + 幂等 push + 字段级 LWW + SSE 信号；与客户端共享 `dayspark_contracts` 契约 package
-3. **AI 接口层**：MCP server 长在后端同进程同数据源；既有 17 个 Event/Todo 工具保持兼容，TaskAllocation 以工作流工具增量扩展；工作流工具优先于 API 映射；无硬删除（trash 软删姿态，对应回收站语义）
+3. **AI 接口层**：MCP server 长在后端同进程同数据源；既有 Event/Todo 工具保持兼容（Phase 2 新增 `list_task_occurrences` 达 18 工具；工具总数本身不作为冻结契约），Phase 3 以工作流工具（`schedule_task`、`reschedule_task_allocation`、`cancel_task_allocation`、`list_task_allocations`）接入 TaskAllocation 领域模型；工作流工具优先于裸 CRUD；无物理删除接口（cancel 走 `cancelledByUser` 状态变迁，对应回收站/软注销语义）
 4. **小组件层**：versioned JSON 快照（home_widget + App Group / AppWidgetProvider），单写入路径
 5. **派生态失效层**：客户端单写入口（`RecordScope`）+ post-commit 领域事件（`record-applied` / `record-removed`）驱动闹钟重排与小组件快照刷新；事件只携带"重读拿不回来"的信息（写前参考时间、硬删前的 reminder id）
 
@@ -134,12 +134,22 @@ TaskAllocation 的领域状态为单一字段：
 
 ### 3.3 核心功能 C：MCP AI 读写（P3）
 - **业务规则契约**：
-  - 规则 1：现有 17 个工具（读 7 + 写 10，event+task）保持兼容；Allocation 工具采用工作流接口增量扩展，工具总数不作为冻结契约。候选工作流包括 `schedule_task`、`reschedule_task_allocation` 和 `cancel_task_allocation`；`find_free_time` 必须将有效 TaskAllocation 纳入 busy 集合。TaskAllocation 取消工具必须针对单条 Allocation；因一个 Todo 可有多个安排，不提供语义含混的批量 `unschedule_task`。
-  - 规则 2：时间 ISO 8601 + IANA timezone；RRULE 结构化对象
+  - 规则 1：MCP 工具保持向下兼容；Phase 2 新增 `list_task_occurrences` 达 18 工具，Phase 3 增加 4 个工作流工具（`schedule_task`、`reschedule_task_allocation`、`cancel_task_allocation`、`list_task_allocations`），工具总数本身不作为冻结契约。
+  - 规则 2：时间 ISO 8601 + IANA timezone；RRULE 结构化对象；TaskAllocation 的 `startAt`/`endAt` 为 UTC instant。
   - 规则 3：`get_events` 范围默认 now→+7d，上限 366 天；`find_free_time` 的 busy 集合由时间窗内的 Event occurrence 与有效 TaskAllocation 构成。
-  - 规则 4：错误以工具结果 `{isError, {code, message, hint}}` 返回，不是 JSON-RPC error
-  - 规则 5：不提供 `delete_task`（archive 姿态），与回收站语义对齐
-  - 规则 6：传输双形态：`POST /mcp` Streamable HTTP + OAuth 2.1（DCR + PKCE-S256 + token 轮换）；stdio wrapper 喂本地 Agent
+  - 规则 4：错误以工具结果 `{isError, {code, message, hint}}` 返回，不是 JSON-RPC error。
+  - 规则 5：不提供 `delete_task`（archive 姿态），与回收站语义对齐；不提供物理删除 Allocation 接口（`cancel_task_allocation` 写入 `cancelledByUser` 状态）。
+  - 规则 6：传输双形态：`POST /mcp` Streamable HTTP + OAuth 2.1（DCR + PKCE-S256 + token 轮换）；stdio wrapper 喂本地 Agent。
+  - 规则 7（Phase 3 冻结裁定 A–I，Issue #7）：
+    - **Ruling A（工作流工具面）**：提供 `schedule_task`（新增区间）、`reschedule_task_allocation`（修改指定 active 区间）、`cancel_task_allocation`（软取消指定区间入 `cancelledByUser`）、`list_task_allocations`（精确获取 allocation identity）。禁止语义含糊的 `unschedule_task`、`replace_task_schedule` 与物理删除接口。
+    - **Ruling B（精确绑定重复实例）**：安排重复 Todo 必须显式传 exact `occurrence_id`；若缺失则 fail closed 返回校验错误并提示先调 `list_task_occurrences`；普通 Todo 传 `occurrence_id` 同样拒绝。严禁根据 slot date、today 或最近 occurrence 猜测 identity。
+    - **Ruling C（安全冲突策略）**：底层领域允许重叠，但自动化写入口默认 conflict-safe。写入前重读 authoritative busy intervals；若与 Event occurrence 或有效 TaskAllocation 冲突则默认拒绝并返回结构化 conflict source refs；仅在调用方显式传 `allow_conflicts: true` 时允许重叠写入。reschedule 检测时必须排除被改动的 allocation 自身。必须在写时间重新校验（防止 TOCTOU 竞争）。
+    - **Ruling D（确定性客户端可用性）**：Client AI 严禁将 LLM 当作 busy/free 真值引擎。真值来自 expanded EventOccurrence（支持 master 远早于当前窗口的长期重复事件）+ effective TaskAllocation；经确定性计算得到 candidate free slots，LLM 仅可用于偏好排序或解释理由；用户确认后在落库前进行写入时 revalidation，LLM 幻觉冲突区间不得落库。保持 offline/local-first 架构，不要求客户端调服务端 MCP。
+    - **Ruling E（多 Allocation 一等公民）**：`schedule_task` 永远表示新增 Allocation，一个 Todo/TaskInstance 可有多条 active Allocation；不得自动覆盖、取消或 reschedule 已有安排。修改时间必须显式调用 `reschedule_task_allocation`。
+    - **Ruling F（dueDate 零触碰）**：排程对 `dueDate` 零修改，无论 `dueDate` 是否为空、是否与安排同日或晚于截止时间，均不得隐式修改 deadline。
+    - **Ruling G（幂等写入）**：MCP write 工具均支持 `idempotency_key`；相同 key + 相同请求重试返回稳定结果，不得产生重复 Allocation 或错误被自身第一次写入阻塞；不同请求复用 key 报错拒绝。重放检测语义优先于会被第一次调用改变的可变状态/冲突校验。
+    - **Ruling H（授权与确认边界）**：Client AI 严禁后台自主安排或无确认批量排程，用户显式选择 Todo（重复任务需显式选 occurrence）、确认 slot 后才落库；MCP 正确声明 readOnly/destructive 元数据（list 为 readOnly，schedule 为非破坏写入，reschedule 为 mutation，cancel 为 destructive/mutation）。
+    - **Ruling I（Event vs TaskAllocation 决策边界）**：Event 代表独立发生事实；TaskAllocation 代表对已有 obligation 的执行规划。目标对象已是 Todo/TaskInstance 时排程必须创建 TaskAllocation，严禁创建 Event，彻底移除 `/event/new` 临时跳转。两者存在歧义时严禁静默转换实体类型。
 
 ### 3.4 P1–P4 功能矩阵
 

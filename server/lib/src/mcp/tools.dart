@@ -10,9 +10,10 @@ import '../data/record_query.dart';
 import '../data/record_writer.dart';
 import '../data/rrule_window.dart';
 import '../db.dart';
+import '../sync/idempotency.dart';
 import 'schemas.dart';
 
-// The MCP tool surface: 8 read + 10 write tools over
+// The MCP tool surface: read and write workflow tools over
 // record_query / record_writer / rrule_window. Handlers never see JSON-RPC —
 // they throw McpToolException and endpoint.dart renders errors-as-tool-results.
 
@@ -125,17 +126,26 @@ Future<RecordRow> _requireVisible(
 }) async {
   final row = await _findRow(ctx, id, type: type);
   if (row == null || _trashed(row)) {
-    throw type == 'event'
-        ? McpToolException(
-            mcpCodeEventNotFound,
-            'event not found: $id',
-            hintEventNotFound,
-          )
-        : McpToolException(
-            mcpCodeTaskNotFound,
-            'task not found: $id',
-            hintTaskNotFound,
-          );
+    if (type == 'event') {
+      throw McpToolException(
+        mcpCodeEventNotFound,
+        'event not found: $id',
+        hintEventNotFound,
+      );
+    } else if (type == 'todo') {
+      throw McpToolException(
+        mcpCodeTaskNotFound,
+        'task not found: $id',
+        hintTaskNotFound,
+      );
+    } else if (type == RecordType.taskAllocation.wireName) {
+      throw McpToolException(
+        mcpCodeAllocationNotFound,
+        'task allocation not found: $id',
+        hintAllocationNotFound,
+      );
+    }
+    throw mcpValidation('record not found: $id');
   }
   return row;
 }
@@ -175,6 +185,53 @@ Map<String, Object?> taskJson(RecordRow row) {
     'updated_at': _payloadIso(payload['updatedAt']),
     'rev': row.rev,
   };
+}
+
+Map<String, Object?> allocationJson(RecordRow row) {
+  final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+  return <String, Object?>{
+    'allocation_id': row.id,
+    'task_id': payload['todoSyncId'],
+    if (payload['occurrenceId'] != null)
+      'occurrence_id': payload['occurrenceId'],
+    'start': _payloadIso(payload['startAt']),
+    'end': _payloadIso(payload['endAt']),
+    'state': payload['state'],
+    'trashed': _trashed(row),
+    'created_at': _payloadIso(payload['createdAt']),
+    'updated_at': _payloadIso(payload['updatedAt']),
+    'rev': row.rev,
+  };
+}
+
+Future<({RecordRow row, OpResult op})?> _checkIdempotentReplay(
+  McpToolContext ctx, {
+  required String? idempotencyKey,
+  required Map<String, Object?> requestArgs,
+  required String type,
+}) async {
+  if (idempotencyKey == null) return null;
+  final fingerprint = stableJson(requestArgs);
+  if (ctx.idempotency.contains(ctx.userId, idempotencyKey)) {
+    if (!ctx.idempotency.matches(ctx.userId, idempotencyKey, fingerprint)) {
+      throw mcpValidation(
+        'idempotency_key "$idempotencyKey" was reused with a different request body',
+        hint: hintIdempotencyReuse,
+      );
+    }
+    final stored = await findSyncOp(ctx.db, idempotencyKey);
+    if (stored != null && stored.userId == ctx.userId) {
+      final storedResult = decodeStoredOpResult(stored);
+      final recordId = storedResult.serverRecord?.id;
+      if (recordId != null) {
+        final row = await _findRow(ctx, recordId, type: type);
+        if (row != null) {
+          return (row: row, op: storedResult);
+        }
+      }
+    }
+  }
+  return null;
 }
 
 bool _isOpenStatus(Object? status) =>
@@ -718,6 +775,437 @@ final List<McpTool> mcpTools = <McpTool>[
         },
         'occurrences': occurrencesJson,
         'window': {'from': isoZ(from), 'to': isoZ(to)},
+      };
+    },
+  ),
+  McpTool(
+    name: 'list_task_allocations',
+    description:
+        'List task allocations with optional filtering by task_id, occurrence_id, interval, and state. '
+        'Useful for discovering allocation_id before reschedule or cancel.',
+    readOnly: true,
+    destructive: false,
+    inputSchema: _objectSchema({
+      'task_id': {'type': 'string', 'description': 'Filter by parent task/todo sync id'},
+      'occurrence_id': {'type': 'string', 'description': 'Filter by recurring occurrence id'},
+      'from': {'type': 'string', 'description': 'ISO 8601 UTC datetime'},
+      'to': {'type': 'string', 'description': 'ISO 8601 UTC datetime'},
+      'state': {
+        'type': 'string',
+        'enum': ['active', 'cancelledByUser', 'invalidatedByCompletion', 'any'],
+        'description': 'Filter by allocation state (default: any)',
+      },
+      'limit': _limitSchema,
+      'cursor': {'type': 'string'},
+    }),
+    handler: (ctx, args) async {
+      final taskId = args['task_id'] as String?;
+      final occurrenceId = args['occurrence_id'] as String?;
+      final stateFilter = args['state'] as String? ?? 'any';
+      DateTime? from;
+      DateTime? to;
+      if (args['from'] != null) {
+        from = parseStrictUtc(args['from'], 'from');
+      }
+      if (args['to'] != null) {
+        to = parseStrictUtc(args['to'], 'to');
+      }
+      if (from != null && to != null && !to.isAfter(from)) {
+        throw mcpValidation('to must be after from');
+      }
+      final limit = _limitOf(args['limit']);
+
+      bool predicate(RecordRow row) {
+        final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+        if (taskId != null && payload['todoSyncId'] != taskId) return false;
+        if (occurrenceId != null && payload['occurrenceId'] != occurrenceId) {
+          return false;
+        }
+        if (stateFilter != 'any' && payload['state'] != stateFilter) {
+          return false;
+        }
+        if (from != null) {
+          final endAt = DateTime.tryParse(payload['endAt'] as String? ?? '');
+          if (endAt != null && !endAt.toUtc().isAfter(from)) return false;
+        }
+        if (to != null) {
+          final startAt = DateTime.tryParse(payload['startAt'] as String? ?? '');
+          if (startAt != null && !startAt.toUtc().isBefore(to)) return false;
+        }
+        return true;
+      }
+
+      final collected = await _collect(
+        ctx,
+        type: RecordType.taskAllocation,
+        cursor: args['cursor'] as String?,
+        limit: limit,
+        predicate: predicate,
+      );
+      return <String, Object?>{
+        'allocations': collected.rows.map(allocationJson).toList(),
+        'next_cursor': collected.nextCursor,
+        'has_more': collected.nextCursor != null,
+      };
+    },
+  ),
+  McpTool(
+    name: 'schedule_task',
+    description:
+        'Schedule a task or recurring task occurrence into a planned execution interval. '
+        'Does not modify dueDate and does not create an Event. Rechecks conflicts at write time; '
+        'pass allow_conflicts: true to override.',
+    readOnly: false,
+    destructive: false,
+    inputSchema: _objectSchema(
+      {
+        'task_id': _idSchema,
+        'start': {'type': 'string', 'description': 'ISO 8601 UTC datetime'},
+        'end': {'type': 'string', 'description': 'ISO 8601 UTC datetime'},
+        'occurrence_id': {
+          'type': ['string', 'null'],
+          'description':
+              'Required for recurring tasks, prohibited for ordinary tasks. '
+              'Must be an exact canonical occurrenceId from list_task_occurrences.',
+        },
+        'allow_conflicts': {
+          'type': 'boolean',
+          'description':
+              'Default false. If true, allows scheduling overlapping with existing events or allocations.',
+        },
+        'idempotency_key': {
+          'type': 'string',
+          'minLength': 1,
+          'maxLength': 128,
+        },
+      },
+      required: ['task_id', 'start', 'end'],
+    ),
+    handler: (ctx, args) async {
+      final replay = await _checkIdempotentReplay(
+        ctx,
+        idempotencyKey: args['idempotency_key'] as String?,
+        requestArgs: args,
+        type: RecordType.taskAllocation.wireName,
+      );
+      if (replay != null) {
+        return <String, Object?>{
+          'allocation': allocationJson(replay.row),
+          'op': await _opJson(replay.op),
+        };
+      }
+
+      final taskId = args['task_id']! as String;
+      final todoRow = await _requireVisible(ctx, id: taskId, type: 'todo');
+      final todoPayload = jsonDecode(todoRow.payloadJson) as Map<String, dynamic>;
+      if (todoPayload['status'] == 'COMPLETED') {
+        throw mcpValidation(
+          'cannot schedule a completed task',
+          hint: 'Reopen the task before scheduling it.',
+        );
+      }
+      if (todoPayload['status'] == 'CANCELLED') {
+        throw mcpValidation(
+          'cannot schedule a cancelled task',
+          hint: 'Only open tasks can be scheduled.',
+        );
+      }
+
+      final recurrence = TodoRecurrenceDto.fromTodoPayload(todoPayload);
+      final isRecurring =
+          todoPayload['rrule'] != null && (todoPayload['rrule'] as String).isNotEmpty;
+      final rawOccurrenceId = args['occurrence_id'] as String?;
+      final occurrenceId =
+          rawOccurrenceId?.trim().isEmpty == true ? null : rawOccurrenceId?.trim();
+
+      if (isRecurring) {
+        if (occurrenceId == null) {
+          throw mcpValidation(
+            'recurring task requires an explicit occurrence_id',
+            hint: 'Call list_task_occurrences to find available occurrence IDs for this series.',
+          );
+        }
+        final spec = recurrence.spec;
+        if (spec == null) {
+          throw mcpValidation(
+            'cannot schedule task with unknown or unsupported recurrence',
+            hint: 'Unknown legacy recurrence must be confirmed before scheduling.',
+          );
+        }
+        parseIanaZone(spec.timeZone, 'time_zone');
+        var valid = false;
+        try {
+          valid = isOccurrenceValidForSpec(spec, occurrenceId);
+        } catch (_) {
+          valid = false;
+        }
+        if (!valid) {
+          throw mcpValidation(
+            'occurrence_id "$occurrenceId" does not belong to the recurring series',
+            hint: 'Call list_task_occurrences to inspect canonical occurrence IDs.',
+          );
+        }
+        final stateId = taskInstanceStateRecordId(todoRow.id, occurrenceId);
+        final stateRow = await _findRow(ctx, stateId, type: RecordType.taskInstanceState.wireName);
+        if (stateRow != null && !stateRow.deleted) {
+          final statePayload = jsonDecode(stateRow.payloadJson) as Map<String, dynamic>;
+          final status = statePayload['status'];
+          if (status == 'completed' || status == 'skipped') {
+            throw mcpValidation(
+              'cannot schedule a $status occurrence',
+              hint: 'Choose a pending occurrence from list_task_occurrences.',
+            );
+          }
+        }
+      } else {
+        if (occurrenceId != null) {
+          throw mcpValidation(
+            'ordinary task cannot specify occurrence_id',
+            hint: 'Omit occurrence_id when scheduling an ordinary non-recurring task.',
+          );
+        }
+      }
+
+      final start = parseStrictUtc(args['start'], 'start');
+      final end = parseStrictUtc(args['end'], 'end');
+      if (!end.isAfter(start)) {
+        throw mcpValidation('end must be after start');
+      }
+
+      if (args['allow_conflicts'] != true) {
+        final busy = await getBusyIntervals(
+          ctx.db,
+          userId: ctx.userId,
+          from: start,
+          to: end,
+        );
+        if (busy.isNotEmpty) {
+          final conflicts = busy.map((b) => <String, Object?>{
+            'start': isoZ(b.startAt),
+            'end': isoZ(b.endAt),
+            'sources': b.sources.map((s) => <String, Object?>{
+              'type': s.type == BusyIntervalSource.taskAllocation ? 'task_allocation' : 'event',
+              'id': s.id,
+            }).toList(),
+          }).toList();
+          throw McpToolException(
+            mcpCodeConflict,
+            'schedule conflicts with existing busy intervals',
+            hintConflict,
+            details: {'conflicts': conflicts},
+          );
+        }
+      }
+
+      final now = ctx.now.toUtc();
+      final fields = <String, Object?>{
+        'todoSyncId': todoRow.id,
+        if (occurrenceId != null) 'occurrenceId': occurrenceId,
+        'startAt': isoZ(start),
+        'endAt': isoZ(end),
+        'state': TaskAllocationState.active.wireName,
+        'createdAt': isoZ(now),
+        'updatedAt': isoZ(now),
+      };
+      final result = await _writeChecked(
+        ctx,
+        recordId: newOpId(),
+        type: RecordType.taskAllocation,
+        fields: fields,
+        requestArgs: args,
+        idempotencyKey: args['idempotency_key'] as String?,
+      );
+      final created = await _findRow(
+        ctx,
+        result.serverRecord!.id,
+        type: RecordType.taskAllocation.wireName,
+      );
+      return <String, Object?>{
+        'allocation': allocationJson(created!),
+        'op': await _opJson(result),
+      };
+    },
+  ),
+  McpTool(
+    name: 'reschedule_task_allocation',
+    description:
+        'Reschedule an active task allocation to a new interval. '
+        'Rechecks conflicts at write time, excluding this allocation itself; '
+        'pass allow_conflicts: true to override.',
+    readOnly: false,
+    destructive: false,
+    inputSchema: _objectSchema(
+      {
+        'allocation_id': _idSchema,
+        'start': {'type': 'string', 'description': 'ISO 8601 UTC datetime'},
+        'end': {'type': 'string', 'description': 'ISO 8601 UTC datetime'},
+        'allow_conflicts': {
+          'type': 'boolean',
+          'description':
+              'Default false. If true, allows scheduling overlapping with existing events or allocations.',
+        },
+        'idempotency_key': {
+          'type': 'string',
+          'minLength': 1,
+          'maxLength': 128,
+        },
+      },
+      required: ['allocation_id', 'start', 'end'],
+    ),
+    handler: (ctx, args) async {
+      final replay = await _checkIdempotentReplay(
+        ctx,
+        idempotencyKey: args['idempotency_key'] as String?,
+        requestArgs: args,
+        type: RecordType.taskAllocation.wireName,
+      );
+      if (replay != null) {
+        return <String, Object?>{
+          'allocation': allocationJson(replay.row),
+          'op': await _opJson(replay.op),
+        };
+      }
+
+      final allocationId = args['allocation_id']! as String;
+      final row = await _requireVisible(
+        ctx,
+        id: allocationId,
+        type: RecordType.taskAllocation.wireName,
+      );
+      final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+      if (payload['state'] != TaskAllocationState.active.wireName) {
+        throw mcpValidation(
+          'only active task allocations can be rescheduled',
+          hint: 'The allocation has state "${payload['state']}" and cannot be rescheduled.',
+        );
+      }
+
+      final start = parseStrictUtc(args['start'], 'start');
+      final end = parseStrictUtc(args['end'], 'end');
+      if (!end.isAfter(start)) {
+        throw mcpValidation('end must be after start');
+      }
+
+      if (args['allow_conflicts'] != true) {
+        final busy = await getBusyIntervals(
+          ctx.db,
+          userId: ctx.userId,
+          from: start,
+          to: end,
+          excludeAllocationId: row.id,
+        );
+        if (busy.isNotEmpty) {
+          final conflicts = busy.map((b) => <String, Object?>{
+            'start': isoZ(b.startAt),
+            'end': isoZ(b.endAt),
+            'sources': b.sources.map((s) => <String, Object?>{
+              'type': s.type == BusyIntervalSource.taskAllocation ? 'task_allocation' : 'event',
+              'id': s.id,
+            }).toList(),
+          }).toList();
+          throw McpToolException(
+            mcpCodeConflict,
+            'reschedule conflicts with existing busy intervals',
+            hintConflict,
+            details: {'conflicts': conflicts},
+          );
+        }
+      }
+
+      final now = ctx.now.toUtc();
+      final fields = <String, Object?>{
+        'startAt': isoZ(start),
+        'endAt': isoZ(end),
+        'updatedAt': isoZ(now),
+      };
+      final result = await _writeChecked(
+        ctx,
+        recordId: row.id,
+        type: RecordType.taskAllocation,
+        fields: fields,
+        requestArgs: args,
+        idempotencyKey: args['idempotency_key'] as String?,
+      );
+      final updated = await _findRow(
+        ctx,
+        row.id,
+        type: RecordType.taskAllocation.wireName,
+      );
+      return <String, Object?>{
+        'allocation': allocationJson(updated!),
+        'op': await _opJson(result),
+      };
+    },
+  ),
+  McpTool(
+    name: 'cancel_task_allocation',
+    description:
+        'Cancel an active task allocation (sets state to cancelledByUser). '
+        'Does not physically delete the allocation, does not cancel the task, and does not alter sibling allocations.',
+    readOnly: false,
+    destructive: true,
+    inputSchema: _objectSchema(
+      {
+        'allocation_id': _idSchema,
+        'idempotency_key': {
+          'type': 'string',
+          'minLength': 1,
+          'maxLength': 128,
+        },
+      },
+      required: ['allocation_id'],
+    ),
+    handler: (ctx, args) async {
+      final replay = await _checkIdempotentReplay(
+        ctx,
+        idempotencyKey: args['idempotency_key'] as String?,
+        requestArgs: args,
+        type: RecordType.taskAllocation.wireName,
+      );
+      if (replay != null) {
+        return <String, Object?>{
+          'allocation': allocationJson(replay.row),
+          'cancelled': true,
+          'op': await _opJson(replay.op),
+        };
+      }
+
+      final allocationId = args['allocation_id']! as String;
+      final row = await _requireVisible(
+        ctx,
+        id: allocationId,
+        type: RecordType.taskAllocation.wireName,
+      );
+      final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+      if (payload['state'] != TaskAllocationState.active.wireName) {
+        throw mcpValidation(
+          'only active task allocations can be cancelled',
+          hint: 'The allocation has state "${payload['state']}" and cannot be cancelled.',
+        );
+      }
+
+      final now = ctx.now.toUtc();
+      final fields = <String, Object?>{
+        'state': TaskAllocationState.cancelledByUser.wireName,
+        'updatedAt': isoZ(now),
+      };
+      final result = await _writeChecked(
+        ctx,
+        recordId: row.id,
+        type: RecordType.taskAllocation,
+        fields: fields,
+        requestArgs: args,
+        idempotencyKey: args['idempotency_key'] as String?,
+      );
+      final updated = await _findRow(
+        ctx,
+        row.id,
+        type: RecordType.taskAllocation.wireName,
+      );
+      return <String, Object?>{
+        'allocation': allocationJson(updated!),
+        'cancelled': true,
+        'op': await _opJson(result),
       };
     },
   ),

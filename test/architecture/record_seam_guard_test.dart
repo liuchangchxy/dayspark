@@ -66,6 +66,7 @@ const Set<String> _readOnlyDaoMethods = <String>{
   'watchOrdinaryUnplanned',
   'watchOrdinaryCompletedOn',
   'watchEventCandidates',
+  'getEventCandidates',
   'searchTodos',
   'searchEvents',
 };

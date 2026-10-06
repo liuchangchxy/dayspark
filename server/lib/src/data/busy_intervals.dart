@@ -33,6 +33,7 @@ Future<List<BusyInterval>> getBusyIntervals(
   required String userId,
   required DateTime from,
   required DateTime to,
+  String? excludeAllocationId,
 }) async {
   final fromUtc = from.toUtc();
   final toUtc = to.toUtc();
@@ -71,6 +72,9 @@ Future<List<BusyInterval>> getBusyIntervals(
   final candidates = <(RecordRow, Map<String, dynamic>, DateTime, DateTime)>[];
   final todoIds = <String>{};
   for (final row in allocationRows) {
+    if (excludeAllocationId != null && row.id == excludeAllocationId) {
+      continue;
+    }
     try {
       final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
       final startAt = DateTime.parse(payload['startAt'] as String).toUtc();

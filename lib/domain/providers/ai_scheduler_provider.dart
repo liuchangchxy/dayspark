@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
-import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/services/ai_scheduler_service.dart';
+import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 
 final aiSchedulerServiceProvider = Provider<AiSchedulerService>((ref) {
   return AiSchedulerService();
@@ -13,30 +15,43 @@ final suggestTimeSlotsProvider =
         required String taskDescription,
         required DateTime rangeStart,
         required DateTime rangeEnd,
+        Duration slotDuration,
       })
     >((ref) {
       return ({
         required taskDescription,
         required rangeStart,
         required rangeEnd,
+        slotDuration = const Duration(hours: 1),
       }) async {
         final configAsync = ref.read(aiConfigProvider);
         final config = configAsync.value;
-        if (config == null) return [];
 
-        final events = await ref.read(
-          eventsInDateRangeProvider(
-            '${rangeStart.millisecondsSinceEpoch}-${rangeEnd.millisecondsSinceEpoch}',
-          ).future,
+        // 1. Authoritative Event candidates (including long-running recurring master rows)
+        final db = ref.read(databaseProvider);
+        final events = await db.eventsDao.getEventCandidates(rangeStart, rangeEnd);
+        final expandedEvents = expandRecurringEvents(
+          events,
+          before: rangeStart,
+          after: rangeEnd,
+        );
+
+        // 2. Authoritative TaskAllocations in the target window
+        final allocations = await fetchTaskAllocationsInDateRange(
+          db,
+          rangeStart,
+          rangeEnd,
         );
 
         final service = ref.read(aiSchedulerServiceProvider);
         return service.suggestTimeSlots(
           config: config,
-          existingEvents: events,
+          events: expandedEvents,
+          allocations: allocations,
           taskDescription: taskDescription,
           rangeStart: rangeStart,
           rangeEnd: rangeEnd,
+          slotDuration: slotDuration,
         );
       };
     });
