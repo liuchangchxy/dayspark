@@ -1084,6 +1084,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get earlierMissed => '更早未完成…';
 
   @override
+  String get earlierHistory => '更早历史…';
+
+  @override
   String get todayTasks => '今日任务';
 
   @override

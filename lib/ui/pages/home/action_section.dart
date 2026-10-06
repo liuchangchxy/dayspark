@@ -165,7 +165,7 @@ class ActionSection extends ConsumerWidget {
             ],
 
             // 1. Overdue & Missed section
-            if (totalOverdue > 0 || data.hasEarlierMissed) ...[
+            if (totalOverdue > 0 || data.hasEarlierMissed || data.hasEarlierHistory) ...[
               _buildSectionHeader(
                 context,
                 title: '${l.overdue} ($totalOverdue)',
@@ -183,6 +183,10 @@ class ActionSection extends ConsumerWidget {
               ...data.earlierMissedSeries.map(
                 (series) =>
                     _buildEarlierMissedTile(context, ref, series, l, theme),
+              ),
+              ...data.earlierHistorySeries.map(
+                (series) =>
+                    _buildEarlierHistoryTile(context, ref, series, l, theme),
               ),
               const SizedBox(height: AppSpacing.md),
             ],
@@ -442,6 +446,57 @@ class ActionSection extends ConsumerWidget {
             ref: ref,
             todo: series,
             initialPage: 2,
+          );
+          if (selected != null) {
+            await ref.read(toggleTodoProvider)(
+              id: selected.todoId,
+              isCompleted: !selected.isCompleted,
+              occurrenceId: selected.occurrenceId,
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildEarlierHistoryTile(
+    BuildContext context,
+    WidgetRef ref,
+    Todo series,
+    AppLocalizations l,
+    ThemeData theme,
+  ) {
+    return Card(
+      key: ValueKey('earlier-history-${series.id}'),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      child: ListTile(
+        leading: Icon(
+          CupertinoIcons.time,
+          color: theme.colorScheme.onSurfaceVariant,
+          size: 20,
+        ),
+        title: Text(
+          '${l.earlierHistory} · ${series.summary}',
+          style: AppTypography.body.copyWith(
+            fontWeight: FontWeight.w500,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
+        onTap: () async {
+          final selected = await TodoOccurrencePickerSheet.show(
+            context,
+            ref: ref,
+            todo: series,
+            initialPage: 26,
           );
           if (selected != null) {
             await ref.read(toggleTodoProvider)(

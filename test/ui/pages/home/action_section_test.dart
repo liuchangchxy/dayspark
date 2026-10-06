@@ -428,4 +428,56 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('Phase 2 regression: earlier history tile renders distinct key and label for unprobed series', (
+    tester,
+  ) async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2024, 7, 28),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Ancient Habit',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+    final series = await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+          actionProjectionProvider.overrideWith(
+            (ref) => AsyncValue.data(
+              ActionProjectionData(
+                earlierHistorySeries: [series],
+                hasEarlierHistory: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(ValueKey('earlier-history-$seriesId')), findsOneWidget);
+    expect(find.text('Earlier history… · Ancient Habit'), findsOneWidget);
+
+    await _unmount(tester);
+  });
 }

@@ -449,6 +449,7 @@
   "recurringNeedConfirmation": "重复任务待确认",
   "recurringNeedConfirmationCount": "{count} 项重复任务待确认",
   "earlierMissed": "更早未完成…",
+  "earlierHistory": "更早历史…",
   "todayTasks": "今日任务",
   "missed": "已遗漏",
   "recurringTask": "重复"

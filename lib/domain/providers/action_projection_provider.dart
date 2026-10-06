@@ -32,6 +32,8 @@ class ActionProjectionData {
   final List<ProjectedTaskInstance> missedTaskInstances;
   final List<Todo> earlierMissedSeries;
   final bool hasEarlierMissed;
+  final List<Todo> earlierHistorySeries;
+  final bool hasEarlierHistory;
   final List<ProjectedTaskInstance> completedTodayTaskInstances;
   final int unconfirmedRecurringCount;
   final List<Todo> unconfirmedRecurringTodos;
@@ -48,6 +50,8 @@ class ActionProjectionData {
     this.missedTaskInstances = const [],
     this.earlierMissedSeries = const [],
     this.hasEarlierMissed = false,
+    this.earlierHistorySeries = const [],
+    this.hasEarlierHistory = false,
     this.completedTodayTaskInstances = const [],
     this.unconfirmedRecurringCount = 0,
     this.unconfirmedRecurringTodos = const [],
@@ -64,6 +68,7 @@ class ActionProjectionData {
       todayTaskInstances.isEmpty &&
       missedTaskInstances.isEmpty &&
       earlierMissedSeries.isEmpty &&
+      earlierHistorySeries.isEmpty &&
       completedTodayTaskInstances.isEmpty &&
       unconfirmedRecurringCount == 0 &&
       recurrenceExpansionErrors.isEmpty;
@@ -244,6 +249,7 @@ final actionProjectionProvider =
       final unconfirmedRecurringTodos = <Todo>[];
       final recurrenceExpansionErrors = <RecurringExpansionError>[];
       final earlierMissedSeries = <Todo>[];
+      final earlierHistorySeries = <Todo>[];
 
       final thirtyDaysAgo = civilDateAddDays(startOfDay, -30);
 
@@ -363,9 +369,11 @@ final actionProjectionProvider =
         if (anchorDate.isBefore(thirtyDaysAgo)) {
           var pageEnd = thirtyDaysAgo;
           var foundPendingEarlier = false;
+          var exhaustedHistory = false;
           // Probe backwards in bounded 30-day pages from thirtyDaysAgo down to anchorDate.
           // Bounded per-page expansion never expands whole history at once.
-          for (var p = 0; p < 24; p++) {
+          const probeMaxPages = 24;
+          for (var p = 0; p < probeMaxPages; p++) {
             final pageStart = civilDateAddDays(pageEnd, -30);
             final effectiveStart =
                 pageStart.isBefore(anchorDate) ? anchorDate : pageStart;
@@ -393,12 +401,15 @@ final actionProjectionProvider =
               // Ignore expansion error on older slices
             }
             if (!pageStart.isAfter(anchorDate)) {
+              exhaustedHistory = true;
               break;
             }
             pageEnd = pageStart;
           }
           if (foundPendingEarlier) {
             earlierMissedSeries.add(todo);
+          } else if (!exhaustedHistory) {
+            earlierHistorySeries.add(todo);
           }
         }
       }
@@ -444,6 +455,8 @@ final actionProjectionProvider =
           missedTaskInstances: missedTaskInstances,
           earlierMissedSeries: earlierMissedSeries,
           hasEarlierMissed: earlierMissedSeries.isNotEmpty,
+          earlierHistorySeries: earlierHistorySeries,
+          hasEarlierHistory: earlierHistorySeries.isNotEmpty,
           completedTodayTaskInstances: completedTodayTaskInstances,
           unconfirmedRecurringCount: unconfirmedRecurringTodos.length,
           unconfirmedRecurringTodos: unconfirmedRecurringTodos,

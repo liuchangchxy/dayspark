@@ -2117,6 +2117,12 @@ abstract class AppLocalizations {
   /// **'Earlier missed…'**
   String get earlierMissed;
 
+  /// No description provided for @earlierHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier history…'**
+  String get earlierHistory;
+
   /// No description provided for @todayTasks.
   ///
   /// In en, this message translates to:

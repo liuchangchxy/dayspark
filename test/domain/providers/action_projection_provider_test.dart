@@ -8,6 +8,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -607,7 +608,7 @@ void main() {
     expect(data.missedTaskInstances, isEmpty);
   });
 
-  test('Phase 2 regression: civil-day end boundary on DST transition captures events and tasks up to next civil midnight', () async {
+  test('Phase 2 regression: civil next-midnight boundary captures late-evening events and tasks up to civil midnight', () async {
     final lateEventStart = DateTime(2026, 10, 6, 23, 30);
     final lateEventEnd = DateTime(2026, 10, 6, 23, 59);
 
@@ -663,5 +664,71 @@ void main() {
     expect(data.recurrenceExpansionErrors, isEmpty);
     expect(data.hasEarlierMissed, isTrue);
     expect(data.earlierMissedSeries.any((s) => s.id == seriesId), isTrue);
+  });
+
+  test('Phase 2 regression: DAILY series > 720 days old with terminal recent 720 days preserves earlier history entryway', () async {
+    // 800 days ago from 2026-10-06
+    final anchorDt = fixedToday.subtract(const Duration(days: 800));
+    final anchorDate = LocalDate(anchorDt.year, anchorDt.month, anchorDt.day);
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: anchorDate,
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: '800-day Habit Series',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+    final todo = await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
+
+    // Mark all occurrences from day -750 to today as completed.
+    // This completes all occurrences in the 30-day recent window and all 24 probe pages (24 * 30 = 720 days).
+    final statesToInsert = <TaskInstanceStatesCompanion>[];
+    var currentDay = fixedToday.subtract(const Duration(days: 750));
+    while (!currentDay.isAfter(fixedToday)) {
+      final nextChunk = currentDay.add(const Duration(days: 50));
+      final chunkExpansion = expandTodoOccurrences(
+        todo,
+        startInclusive: currentDay,
+        endExclusive: nextChunk,
+        maxOccurrences: 100,
+      );
+      for (final occ in chunkExpansion.occurrences) {
+        statesToInsert.add(
+          TaskInstanceStatesCompanion.insert(
+            syncId: 'sync-${occ.occurrenceId}',
+            todoSyncId: todo.syncId!,
+            occurrenceId: occ.occurrenceId,
+            status: const Value('completed'),
+          ),
+        );
+      }
+      currentDay = nextChunk;
+    }
+    await db.batch((b) {
+      b.insertAll(db.taskInstanceStates, statesToInsert);
+    });
+
+    final data = await getActionData();
+
+    // The probe horizon (24 pages = 720 days) was exhausted without reaching anchorDate (800 days ago).
+    // Because all probed occurrences were terminal (completed), no pending item was found within horizon.
+    // Instead of falsely dropping the series or asserting false certainty, tri-state earlierHistory is preserved.
+    expect(data.hasEarlierMissed, isFalse);
+    expect(data.earlierMissedSeries.any((s) => s.id == seriesId), isFalse);
+    expect(data.hasEarlierHistory, isTrue);
+    expect(data.earlierHistorySeries.any((s) => s.id == seriesId), isTrue);
   });
 }

@@ -1090,6 +1090,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get earlierMissed => 'Earlier missed…';
 
   @override
+  String get earlierHistory => 'Earlier history…';
+
+  @override
   String get todayTasks => 'Today\'s Tasks';
 
   @override
