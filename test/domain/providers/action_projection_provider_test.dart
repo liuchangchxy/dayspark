@@ -246,4 +246,30 @@ void main() {
     expect(data.completedTodayTodos.first.id, todoId);
     expect(data.completedTodayTodos.first.status, 'COMPLETED');
   });
+
+  test('recurring series started >45 days before Action date produces occurrence today', () async {
+    // Master event started 90 days ago (2026-07-08), repeating daily at 09:00 - 10:00
+    final startDt = DateTime(2026, 7, 8, 9, 0);
+    final endDt = DateTime(2026, 7, 8, 10, 0);
+    expect(fixedToday.difference(startDt).inDays, greaterThan(45));
+
+    await db.into(db.events).insert(
+          EventsCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Long-standing Daily Standup',
+            startDt: startDt,
+            endDt: endDt,
+            rrule: const Value('RRULE:FREQ=DAILY'),
+            isAllDay: const Value(false),
+          ),
+        );
+
+    final data = await getActionData();
+    expect(data.events.length, 1);
+    final occurrence = data.events.first;
+    expect(occurrence.title, 'Long-standing Daily Standup');
+    expect(occurrence.start, DateTime(2026, 10, 6, 9, 0));
+    expect(occurrence.end, DateTime(2026, 10, 6, 10, 0));
+  });
 }
+

@@ -75,10 +75,9 @@ final actionProjectionProvider =
       final rangeKey =
           '${startOfDay.millisecondsSinceEpoch}-${endOfDay.millisecondsSinceEpoch}';
 
-      final eventsRangeKey =
-          '${startOfDay.subtract(const Duration(days: 45)).millisecondsSinceEpoch}-${endOfDay.add(const Duration(days: 45)).millisecondsSinceEpoch}';
-
-      final eventsAsync = ref.watch(eventsInDateRangeProvider(eventsRangeKey));
+      final eventsAsync = ref.watch(
+        eventCandidatesInDateRangeProvider(rangeKey),
+      );
       final allocationsAsync = ref.watch(
         taskAllocationsInDateRangeProvider(rangeKey),
       );

@@ -28,6 +28,7 @@ import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
+import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -37,7 +38,8 @@ import 'package:dayspark/core/theme/app_typography.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   final int initialTab;
-  const HomePage({super.key, this.initialTab = -1});
+  final DateTime Function()? clock;
+  const HomePage({super.key, this.initialTab = -1, this.clock});
 
   @override
   ConsumerState<HomePage> createState() => _HomePageState();
@@ -61,6 +63,8 @@ class _HomePageState extends ConsumerState<HomePage>
   Timer? _dayCheckTimer;
   DateTime? _lastCheckedDay;
 
+  DateTime _now() => (widget.clock ?? DateTime.now)();
+
   static DateTimeRange _calendarRange() {
     return DateTimeRange(
       start: DateTime(2000, 1, 1),
@@ -80,7 +84,7 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _initSelectedDate() {
-    final now = DateTime.now();
+    final now = _now();
     _selectedDate = DateTime(now.year, now.month, now.day);
   }
 
@@ -135,14 +139,27 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
+  void _syncActionDateIfDayChanged() {
+    final current = _now();
+    final today = DateTime(current.year, current.month, current.day);
+    if (today != _lastCheckedDay) {
+      _lastCheckedDay = today;
+      ref.read(actionDateProvider.notifier).state = today;
+    }
+  }
+
   void _startDayCheckTimer() {
-    final now = DateTime.now();
-    _lastCheckedDay = DateTime(now.year, now.month, now.day);
+    final now = _now();
+    final today = DateTime(now.year, now.month, now.day);
+    _lastCheckedDay = today;
+    if (ref.read(actionDateProvider) != today) {
+      ref.read(actionDateProvider.notifier).state = today;
+    }
     _scheduleNextMidnightCheck();
   }
 
   void _scheduleNextMidnightCheck() {
-    final now = DateTime.now();
+    final now = _now();
     final midnight = DateTime(now.year, now.month, now.day + 1);
     final delay = midnight.difference(now);
     _dayCheckTimer = Timer(delay, () {
@@ -156,11 +173,7 @@ class _HomePageState extends ConsumerState<HomePage>
   // rollover refreshes both even when the calendar day itself did not change.
   void _handleDayRollover() {
     _refreshHomeWidget();
-    final current = DateTime.now();
-    final today = DateTime(current.year, current.month, current.day);
-    if (today != _lastCheckedDay) {
-      _lastCheckedDay = today;
-    }
+    _syncActionDateIfDayChanged();
     _scheduleNextMidnightCheck();
   }
 
@@ -172,6 +185,7 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _handleResumed() {
+    _syncActionDateIfDayChanged();
     _refreshHomeWidget();
     // The bus only carries in-process writes; the conservative full recompute
     // is what catches an external process (CLI) editing the same file, plus

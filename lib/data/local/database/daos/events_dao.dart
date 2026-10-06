@@ -23,6 +23,19 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
         .watch();
   }
 
+  Stream<List<Event>> watchEventCandidates(DateTime start, DateTime end) {
+    return (select(events)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                ((t.startDt.isSmallerThanValue(end) &
+                        t.endDt.isBiggerThanValue(start)) |
+                    (t.rrule.isNotNull() & t.rrule.isNotValue(''))),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.startDt)]))
+        .watch();
+  }
+
   Future<void> upsert(Event entry) {
     return into(events).insertOnConflictUpdate(entry);
   }

@@ -414,3 +414,13 @@
   - Action 投影首版仅聚合普通待办，重复任务实例延后至 Phase 2 → 判错代价：重复任务需在 Phase 2 才能直接在 Action 中以实例粒度呈现与打勾，但保证了 Phase 1 边界纯粹与零回归。
   - 启动逾期弹窗直接移除而非替换为自动批量排程 → 判错代价：用户需要显式在日历或待办中为逾期任务安排时间，但杜绝了静默修改 deadline 的严重反模式。
   - 六件事保留为展示上限而非持久化状态 → 判错代价：不跨设备同步所谓“今日六件事”锁，但避免了过早引入 DailyPlan 持久化模型。
+
+### [2026-10-06] PR #4 独立审查反馈收口与防篡改记录
+- **触发背景**：PR #4 审查提出 5 项非扩展阻塞项：① Action 跨日与恢复前台重算；② 重复事件候选查询消除 45 天启发式限制；③ 彻底移除废弃的 `moveOverdueToToday` 批量修改截止时间写入路径；④ 补充全链路垂直验收测试；⑤ 纠正 PR 交付文案中"未排期"的不准确表述。
+- **决策与收口**：
+  1. **跨日与唤醒重算**：`HomePage` 增加时钟感知并在跨日定时器与 `resumed` 生命周期事件中驱动 `actionDateProvider` 推进至新本地日，Action 投影即刻按新日期重排，无需重启应用。
+  2. **事件展开去启发式**：`EventsDao` 引入 `watchEventCandidates`，以 `(startDt < end & endDt > start) | rrule != null` 直接按规则圈选有效主事件，彻底消除 45 天硬编码窗口，50+ 天前创建的重复事件正常投影到今天。
+  3. **废弃写路径物理拔除**：移除 `moveOverdueToTodayProvider`、`TodoWriter.moveOverdueToToday` 及 `TodosDao.moveOverdueToToday`。RecordScope 站点常数从 30 降为 29；按防篡改门禁说明在 DECISIONS.md 明确留痕：移除对应废弃写入路径的测试用例。
+  4. **全链路垂直验收集成测试**：新增 `action_loop_foundation_vertical_test.dart`，端到端实证 Todo 意图 → 日历空槽 → 安排待办 → TaskAllocation 创建 → 日历与 Action 投影可见 → Action 勾选完成；全流程严密断言 `Todo.dueDate` 严格不变、零 Event 生成、Allocation 生命周期正确失效。
+  5. **纠正 PR 交付表述**：明确槽位待办选择器提供所有未完成普通待办（不排除已有 Allocation 的待办，因单个 Todo 支持多次分段安排）。
+- **影响范围**：`lib/ui/pages/home/home_page.dart`、`lib/data/local/database/daos/events_dao.dart`、`lib/data/local/database/daos/todos_dao.dart`、`lib/domain/records/writers/todo_writer.dart`、`lib/domain/providers/`、`test/`。

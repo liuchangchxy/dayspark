@@ -183,17 +183,6 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
         .watch();
   }
 
-  Future<void> moveOverdueToToday(List<int> ids) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    return (update(todos)..where((t) => t.id.isIn(ids))).write(
-      TodosCompanion(
-        dueDate: Value(today),
-        updatedAt: Value(now),
-      ),
-    );
-  }
-
   Future<void> upsert(Todo entry) {
     return into(todos).insertOnConflictUpdate(entry);
   }

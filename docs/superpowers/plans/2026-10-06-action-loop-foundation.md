@@ -4,7 +4,7 @@
 
 **Goal:** Implement Phase 1 — Action Loop Foundation: clean up deadline semantics, add the derived Today / Action projection as default home view, support scheduling an existing ordinary Todo into a TaskAllocation from Calendar empty slots, enable direct Todo completion from Action, and restore the direct pending Checkbox affordance under ordinal/reordering.
 
-**Architecture:** 
+**Architecture:**
 - A derived `ActionProjectionProvider` (no new DB entity) calculates today's events, active ordinary-Todo task allocations, due today ordinary todos, overdue ordinary todos, and compact unplanned inbox count.
 - `defaultTabProvider` and `HomePage` navigation extended to three projections: Action (default), Calendar, and Todos, preserving existing saved preferences.
 - Calendar empty time slot tap presents a choice between creating an Event or scheduling an existing ordinary Todo into a TaskAllocation.

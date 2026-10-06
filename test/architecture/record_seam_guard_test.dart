@@ -43,7 +43,7 @@ const Set<String> _deletedChannelSymbols = <String>{
 };
 
 // G4：RecordScope.run 站点数。增删站点必须显式改这个常量，好在 diff 里被审查者看见。
-const int _scopeRunSites = 30;
+const int _scopeRunSites = 29;
 
 const Set<String> _readOnlyDaoMethods = <String>{
   'watchPending',
@@ -63,6 +63,7 @@ const Set<String> _readOnlyDaoMethods = <String>{
   'watchOrdinaryOverdue',
   'watchOrdinaryUnplanned',
   'watchOrdinaryCompletedOn',
+  'watchEventCandidates',
   'searchTodos',
   'searchEvents',
 };
