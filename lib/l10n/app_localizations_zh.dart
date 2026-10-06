@@ -1071,4 +1071,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get completedTodaySection => '今日已完成';
+
+  @override
+  String get recurringNeedConfirmation => '重复任务待确认';
+
+  @override
+  String recurringNeedConfirmationCount(int count) {
+    return '$count 项重复任务待确认';
+  }
+
+  @override
+  String get earlierMissed => '更早未完成…';
+
+  @override
+  String get todayTasks => '今日任务';
+
+  @override
+  String get missed => '已遗漏';
+
+  @override
+  String get recurringTask => '重复';
 }

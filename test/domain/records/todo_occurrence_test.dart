@@ -617,4 +617,130 @@ void main() {
       expect(retained.occurrenceId, oldId);
     },
   );
+
+  test('ProjectedTaskInstance DATE semantics (Ruling E)', () async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 10, 1),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final id = await createSeries(spec);
+    final todo = await (db.select(db.todos)..where((row) => row.id.equals(id))).getSingle();
+
+    final todayOccurrence = TodoOccurrence(
+      todoSyncId: todo.syncId!,
+      occurrenceId: 'v2:DATE:2026-10-06',
+      nominalAnchor: LocalDate(2026, 10, 6),
+      resolvedStartInstant: null,
+      timeZone: 'Asia/Shanghai',
+    );
+    final missedOccurrence = TodoOccurrence(
+      todoSyncId: todo.syncId!,
+      occurrenceId: 'v2:DATE:2026-10-04',
+      nominalAnchor: LocalDate(2026, 10, 4),
+      resolvedStartInstant: null,
+      timeZone: 'Asia/Shanghai',
+    );
+    final earlierOccurrence = TodoOccurrence(
+      todoSyncId: todo.syncId!,
+      occurrenceId: 'v2:DATE:2026-08-01',
+      nominalAnchor: LocalDate(2026, 8, 1),
+      resolvedStartInstant: null,
+      timeZone: 'Asia/Shanghai',
+    );
+
+    final actionDate = DateTime(2026, 10, 6);
+
+    final todayInstance = ProjectedTaskInstance(
+      todo: todo,
+      occurrence: todayOccurrence,
+      status: 'pending',
+    );
+    expect(todayInstance.isToday(actionDate), isTrue);
+    expect(todayInstance.isMissedWithin30Days(actionDate), isFalse);
+    expect(todayInstance.isEarlierMissed(actionDate), isFalse);
+
+    final missedInstance = ProjectedTaskInstance(
+      todo: todo,
+      occurrence: missedOccurrence,
+      status: 'pending',
+    );
+    expect(missedInstance.isToday(actionDate), isFalse);
+    expect(missedInstance.isMissedWithin30Days(actionDate), isTrue);
+    expect(missedInstance.isEarlierMissed(actionDate), isFalse);
+
+    final earlierInstance = ProjectedTaskInstance(
+      todo: todo,
+      occurrence: earlierOccurrence,
+      status: 'pending',
+    );
+    expect(earlierInstance.isToday(actionDate), isFalse);
+    expect(earlierInstance.isMissedWithin30Days(actionDate), isFalse);
+    expect(earlierInstance.isEarlierMissed(actionDate), isTrue);
+  });
+
+  test('ProjectedTaskInstance DATE-TIME resolved instant Action-day semantics (Ruling E)', () async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDateTime(2026, 10, 5, 20, 0, 0),
+      ),
+      timeZone: 'America/New_York',
+      rrule: 'FREQ=DAILY',
+    );
+    final id = await createSeries(spec);
+    final todo = await (db.select(db.todos)..where((row) => row.id.equals(id))).getSingle();
+
+    // 2026-10-05 20:00 EDT = 2026-10-06 00:00 UTC.
+    // For a local execution day [2026-10-06 00:00 UTC, 2026-10-07 00:00 UTC),
+    // this resolved instant falls on today!
+    final instant = DateTime.utc(2026, 10, 6, 0, 0, 0);
+    final occ = TodoOccurrence(
+      todoSyncId: todo.syncId!,
+      occurrenceId: 'v1:DT:2026-10-05T20:00:00@America/New_York',
+      nominalAnchor: LocalDateTime(2026, 10, 5, 20, 0, 0),
+      resolvedStartInstant: instant,
+      timeZone: 'America/New_York',
+    );
+
+    final actionDate = DateTime.utc(2026, 10, 6);
+    final instance = ProjectedTaskInstance(
+      todo: todo,
+      occurrence: occ,
+      status: 'pending',
+    );
+
+    expect(instance.isToday(actionDate), isTrue);
+    expect(instance.isMissedWithin30Days(actionDate), isFalse);
+  });
+
+  test('loadOccurrencePage pages bounded history and future with sparse state overlay', () async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final anchor = today.subtract(const Duration(days: 40));
+
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(anchor.year, anchor.month, anchor.day),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final id = await createSeries(spec);
+    final todo = await (db.select(db.todos)..where((row) => row.id.equals(id))).getSingle();
+
+    // Page 1: [today - 30, today + 91)
+    final page1 = await loadOccurrencePage(db, todo, historyPage: 1, anchorDate: today);
+    expect(page1, isNotEmpty);
+    expect(page1.any((i) => i.isToday(today)), isTrue);
+
+    // Page 2: [today - 60, today - 30)
+    final page2 = await loadOccurrencePage(db, todo, historyPage: 2, anchorDate: today);
+    expect(page2, isNotEmpty);
+    expect(page2.every((i) => i.isEarlierMissed(today) || i.isMissedWithin30Days(today)), isTrue);
+  });
 }

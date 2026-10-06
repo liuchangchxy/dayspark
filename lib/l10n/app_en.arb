@@ -581,5 +581,18 @@
   },
   "deadlineToday": "Due today",
   "eventLabel": "Event",
-  "completedTodaySection": "Completed Today"
+  "completedTodaySection": "Completed Today",
+  "recurringNeedConfirmation": "Recurring tasks need confirmation",
+  "recurringNeedConfirmationCount": "{count, plural, =1{1 recurring task needs confirmation} other{{count} recurring tasks need confirmation}}",
+  "@recurringNeedConfirmationCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "earlierMissed": "Earlier missed…",
+  "todayTasks": "Today's Tasks",
+  "missed": "Missed",
+  "recurringTask": "Recurring"
 }

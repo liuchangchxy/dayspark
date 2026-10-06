@@ -105,6 +105,29 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
         .get();
   }
 
+  Future<List<Todo>> getSchedulableTodos() {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .get();
+  }
+
+  Stream<List<Todo>> watchActiveRecurring() {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                (t.rrule.isNotNull() | t.recurrenceRule.isNotNull()),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .watch();
+  }
+
   Future<List<Todo>> getSchedulableOrdinaryTodos() {
     return (select(todos)
           ..where(

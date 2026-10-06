@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,8 +8,12 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 Widget _wrapWithApp({
   required Widget child,
@@ -38,6 +42,7 @@ Future<void> _unmount(WidgetTester tester) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(tzdata.initializeTimeZones);
 
   late AppDatabase db;
   late int calendarId;
@@ -247,6 +252,73 @@ void main() {
     await tester.pump();
 
     expect(navigated, isTrue);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('Phase 2: renders today recurring instance and checkbox completes exact instance', (
+    tester,
+  ) async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 10, 6),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Daily Yoga',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.text('Daily Yoga'), findsOneWidget);
+    expect(find.text("Today's Tasks (1)"), findsOneWidget);
+
+    // Find and tap the checkbox for Daily Yoga
+    final checkbox = find.byType(Checkbox);
+    expect(checkbox, findsOneWidget);
+    await tester.tap(checkbox);
+
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    // Verify parent series remains NEEDS-ACTION
+    final parent = await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
+    expect(parent.status, 'NEEDS-ACTION');
+
+    // Verify taskInstanceState has completed
+    final state = await (db.select(db.taskInstanceStates)
+          ..where((s) => s.todoSyncId.equals(parent.syncId!) & s.occurrenceId.equals('v2:DATE:2026-10-06')))
+        .getSingle();
+    expect(state.status, 'completed');
+
+    // Verify UI moved Daily Yoga into Completed Today
+    expect(find.text('Completed Today (1)'), findsOneWidget);
 
     await _unmount(tester);
   });

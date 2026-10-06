@@ -7,9 +7,14 @@ import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(tzdata.initializeTimeZones);
 
   late AppDatabase db;
   late ProviderContainer container;
@@ -270,6 +275,143 @@ void main() {
     expect(occurrence.title, 'Long-standing Daily Standup');
     expect(occurrence.start, DateTime(2026, 10, 6, 9, 0));
     expect(occurrence.end, DateTime(2026, 10, 6, 10, 0));
+  });
+
+  test('Phase 2: projects today actionable recurring TaskInstance and separates from missed', () async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 10, 4),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Daily Habit',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    final data = await getActionData();
+
+    // Oct 6 is today
+    expect(data.todayTaskInstances, hasLength(1));
+    expect(data.todayTaskInstances.first.todo.id, seriesId);
+    expect(data.todayTaskInstances.first.occurrenceId, 'v2:DATE:2026-10-06');
+    expect(data.todayTaskInstances.first.isPending, isTrue);
+
+    // Oct 4 and Oct 5 are missed (within 30 days)
+    expect(data.missedTaskInstances, hasLength(2));
+    expect(data.missedTaskInstances.map((i) => i.occurrenceId), containsAll(['v2:DATE:2026-10-04', 'v2:DATE:2026-10-05']));
+  });
+
+  test('Phase 2: projects valid occurrence-bound TaskAllocation in today timeline', () async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 10, 6),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Exercise',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    // Create allocation bound to today's occurrence
+    await container.read(createTaskAllocationProvider)(
+      todoId: seriesId,
+      startAt: DateTime(2026, 10, 6, 15, 0),
+      endAt: DateTime(2026, 10, 6, 16, 0),
+      occurrenceId: 'v2:DATE:2026-10-06',
+    );
+
+    final data = await getActionData();
+    expect(data.allocations.any((a) => a.allocation.occurrenceId == 'v2:DATE:2026-10-06'), isTrue);
+  });
+
+  test('Phase 2: completed today TaskInstance appears in completedTodayTaskInstances and reopens cleanly', () async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 10, 6),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Read Book',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    // Complete today's occurrence
+    await container.read(toggleTodoProvider)(
+      id: seriesId,
+      isCompleted: true,
+      occurrenceId: 'v2:DATE:2026-10-06',
+    );
+
+    var data = await getActionData();
+    expect(data.todayTaskInstances.isEmpty, isTrue);
+    expect(data.completedTodayTaskInstances, hasLength(1));
+    expect(data.completedTodayTaskInstances.first.occurrenceId, 'v2:DATE:2026-10-06');
+
+    // Reopen exact occurrence
+    await container.read(toggleTodoProvider)(
+      id: seriesId,
+      isCompleted: false,
+      occurrenceId: 'v2:DATE:2026-10-06',
+    );
+
+    data = await getActionData();
+    expect(data.completedTodayTaskInstances.isEmpty, isTrue);
+    expect(data.todayTaskInstances, hasLength(1));
+    expect(data.todayTaskInstances.first.occurrenceId, 'v2:DATE:2026-10-06');
+  });
+
+  test('Phase 2: unknownLegacy recurrence counted in unconfirmed without synthesized instances (Ruling C)', () async {
+    // Insert an unknown legacy recurring todo (no recurrenceSpec, recurrenceLegacyState != 'knownZoned')
+    await db.into(db.todos).insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Legacy Task',
+            rrule: const Value('RRULE:FREQ=DAILY'),
+            recurrenceLegacyState: const Value('unknownLegacy'),
+          ),
+        );
+
+    final data = await getActionData();
+    expect(data.unconfirmedRecurringCount, 1);
+    expect(data.unconfirmedRecurringTodos.first.summary, 'Legacy Task');
+    expect(data.todayTaskInstances.any((i) => i.todo.summary == 'Legacy Task'), isFalse);
+    expect(data.missedTaskInstances.any((i) => i.todo.summary == 'Legacy Task'), isFalse);
   });
 }
 

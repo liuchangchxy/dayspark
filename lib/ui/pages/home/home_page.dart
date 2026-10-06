@@ -508,13 +508,14 @@ class _HomePageState extends ConsumerState<HomePage>
                   );
                 },
                 loadSchedulableTodos: () =>
-                    ref.read(databaseProvider).todosDao.getSchedulableOrdinaryTodos(),
-                onScheduleTodo: (todo) async {
+                    ref.read(databaseProvider).todosDao.getSchedulableTodos(),
+                onScheduleTodo: (todo, [occurrenceId]) async {
                   try {
                     await ref.read(createTaskAllocationProvider)(
                       todoId: todo.id,
                       startAt: range.start,
                       endAt: range.end,
+                      occurrenceId: occurrenceId,
                     );
                     ref.invalidate(
                       taskAllocationsInDateRangeProvider(rangeKey),
