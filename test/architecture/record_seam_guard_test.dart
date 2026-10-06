@@ -59,6 +59,8 @@ const Set<String> _readOnlyDaoMethods = <String>{
   'watchDeletedEvents',
   'getOverduePending',
   'getSchedulableOrdinaryTodos',
+  'getSchedulableTodos',
+  'watchActiveRecurring',
   'watchOrdinaryDueBetween',
   'watchOrdinaryOverdue',
   'watchOrdinaryUnplanned',

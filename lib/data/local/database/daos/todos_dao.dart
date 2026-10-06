@@ -62,8 +62,12 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
   }
 
   Stream<List<Todo>> watchByDueDate(DateTime date) {
-    final startOfDay = DateTime(date.year, date.month, date.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final startOfDay = date.isUtc
+        ? DateTime.utc(date.year, date.month, date.day)
+        : DateTime(date.year, date.month, date.day);
+    final endOfDay = date.isUtc
+        ? DateTime.utc(date.year, date.month, date.day + 1)
+        : DateTime(date.year, date.month, date.day + 1);
     return (select(todos)..where(
           (t) =>
               t.deletedAt.isNull() &
@@ -103,6 +107,29 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
               t.dueDate.isSmallerThanValue(today),
         ))
         .get();
+  }
+
+  Future<List<Todo>> getSchedulableTodos() {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .get();
+  }
+
+  Stream<List<Todo>> watchActiveRecurring() {
+    return (select(todos)
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                (t.rrule.isNotNull() | t.recurrenceRule.isNotNull()),
+          )
+          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+        .watch();
   }
 
   Future<List<Todo>> getSchedulableOrdinaryTodos() {

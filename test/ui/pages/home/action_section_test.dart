@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,8 +8,12 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 Widget _wrapWithApp({
   required Widget child,
@@ -38,6 +42,7 @@ Future<void> _unmount(WidgetTester tester) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(tzdata.initializeTimeZones);
 
   late AppDatabase db;
   late int calendarId;
@@ -247,6 +252,231 @@ void main() {
     await tester.pump();
 
     expect(navigated, isTrue);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('Phase 2: renders today recurring instance and checkbox completes exact instance', (
+    tester,
+  ) async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 10, 6),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Daily Yoga',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.text('Daily Yoga'), findsOneWidget);
+    expect(find.text("Today's Tasks (1)"), findsOneWidget);
+
+    // Find and tap the checkbox for Daily Yoga
+    final checkbox = find.byType(Checkbox);
+    expect(checkbox, findsOneWidget);
+    await tester.tap(checkbox);
+
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    // Verify parent series remains NEEDS-ACTION
+    final parent = await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
+    expect(parent.status, 'NEEDS-ACTION');
+
+    // Verify taskInstanceState has completed
+    final state = await (db.select(db.taskInstanceStates)
+          ..where((s) => s.todoSyncId.equals(parent.syncId!) & s.occurrenceId.equals('v2:DATE:2026-10-06')))
+        .getSingle();
+    expect(state.status, 'completed');
+
+    // Verify UI moved Daily Yoga into Completed Today
+    expect(find.text('Completed Today (1)'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('Phase 2 regression: earlier missed tiles carry exact series identity for multiple series', (
+    tester,
+  ) async {
+    final specA = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 8, 20),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=5',
+    );
+    final seriesAId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Series Alpha',
+          rrule: Value(specA.rule.canonical),
+        ),
+        recurrenceSpec: specA,
+      ),
+    );
+
+    final specB = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2026, 8, 20),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=5',
+    );
+    final seriesBId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Series Beta',
+          rrule: Value(specB.rule.canonical),
+        ),
+        recurrenceSpec: specB,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.byKey(ValueKey('earlier-missed-$seriesAId')), findsOneWidget);
+    expect(find.byKey(ValueKey('earlier-missed-$seriesBId')), findsOneWidget);
+    expect(find.text('Earlier missed… · Series Alpha'), findsOneWidget);
+    expect(find.text('Earlier missed… · Series Beta'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('Phase 2 regression: expansion failure shows dedicated error tile without legacy confirmation card', (
+    tester,
+  ) async {
+    await db.into(db.todos).insert(
+      TodosCompanion.insert(
+        calendarId: calendarId,
+        summary: 'Corrupted Series',
+        rrule: const Value('INVALID'),
+        recurrenceLegacyState: const Value('knownZoned'),
+        recurrenceRule: const Value('INVALID'),
+        recurrenceAnchorSource: const Value('due'),
+        recurrenceValueType: const Value('date'),
+        recurrenceAnchorValue: const Value('2026-10-06'),
+        recurrenceTimeZone: const Value('UTC'),
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.text('Corrupted Series'), findsOneWidget);
+    expect(find.textContaining('need confirmation'), findsNothing);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('Phase 2 regression: earlier history tile renders distinct key and label for unprobed series', (
+    tester,
+  ) async {
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: LocalDate(2024, 7, 28),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Ancient Habit',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+    final series = await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+          actionProjectionProvider.overrideWith(
+            (ref) => AsyncValue.data(
+              ActionProjectionData(
+                earlierHistorySeries: [series],
+                hasEarlierHistory: true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(ValueKey('earlier-history-$seriesId')), findsOneWidget);
+    expect(find.text('Earlier history… · Ancient Habit'), findsOneWidget);
 
     await _unmount(tester);
   });

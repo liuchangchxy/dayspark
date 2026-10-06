@@ -25,7 +25,8 @@
   - Today / Action 派生投影：作为默认首页，清晰区分计划安排（Allocation）与截止事实（dueDate），支持普通 Todo 直接完成。
   - 日历空白槽安排：支持为已有普通 Todo 创建 TaskAllocation（不创建 Event）。
   - Checkbox 恢复：待办行保留直接 Checkbox 完成能力，序数与拖拽手柄独立展示；六件事保持为展示上限。
-- **Phase 2+ 明确留待后续**：重复任务实例 Action 投影与打勾、Widget 调整、MCP TaskAllocation 写入、客户端 AI 排程融合、DailyPlan 实体。
+- **Phase 2 (Issue #5)**：Recurring TaskInstance Action Loop — 重复任务实例进入 Action 投影与打勾、日历空白槽安排重复任务实例、共享 occurrence projection/selector seam、遗漏任务有界可见性。
+- **Phase 3+ 明确留待后续**：Widget 调整、MCP TaskAllocation 写入、客户端 AI 排程融合、DailyPlan 实体。
 
 ## TaskAllocation Workstream / TaskAllocation 阶段状态 (2026-10-04)
 

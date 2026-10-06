@@ -80,6 +80,11 @@ flowchart LR
     - 时间安排（Allocation）与截止事实（dueDate）在视觉与文案上严格区分；同一 Todo 若今日既有 Allocation 又有 deadline，允许分别在计划区与截止区展示，严禁为了去重抹杀事实。已完成项默认折叠或隐藏。
     - 从 Action 中直接完成普通 Todo 或 Allocation 必须复用现有 Todo domain writer/provider，不建立第二套完成路径。
   - 规则 17：待办列表行的待办项必须保留直接可点击的完成 Checkbox。六件事（Six Things）仅作为呈现与专注上限（presentation/focus cap），不创建 DailyPlan 实体；序数编号（ordinal）和拖拽排序不得替换或阻碍完成 Checkbox 的直接交互。
+  - 规则 18（Phase 2 重复任务 Action Loop 闭环）：
+    - Action 投影必须包含：今日 actionable recurring TaskInstances（DATE: LocalDate == civil date; DATE-TIME: resolved instant 在本地日窗口内）、最近 30 天 pending missed TaskInstances（按同一值类型规则早于今日边界）、Earlier missed 历史入口、今日 occurrence-bound TaskAllocations、今日完成的 TaskInstances（折叠展示在今日已完成区，携带 exact occurrenceId 供 reopen）、以及 unknownLegacy / unsupported 重复系列的紧凑确认卡片。
+    - 每一个 TaskInstance 投影与交互操作必须携带稳定显式的 `(todoId, todoSyncId, occurrenceId)`，绝不根据 today、slot date、Todo id 或 dueDate 隐式推测 occurrence。
+    - 日历空白槽安排待办支持选择重复任务，但必须通过共享 selector 显式选取具体 occurrenceId 后创建 TaskAllocation，不创建 Event，不修改 `dueDate`。
+    - 完成与取消完成必须经由现有领域写入器（`TaskInstanceWriter`）以精确 `occurrenceId` 执行，不得标记父系列为 COMPLETED，不影响兄弟实例，仅使该 occurrence 的未来 active TaskAllocation 失效。
 
 #### TaskAllocation 生命周期状态
 

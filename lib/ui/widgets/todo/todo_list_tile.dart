@@ -7,9 +7,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
-import 'package:dayspark/domain/providers/todos_provider.dart';
-import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 
 class TodoListTile extends ConsumerWidget {
   final String summary;
@@ -255,153 +253,14 @@ class TodoListTile extends ConsumerWidget {
       await onToggle(null, false);
       return;
     }
-    final l = AppLocalizations.of(context)!;
     try {
-      final identifiedTodo = row.syncId == null
-          ? await ref.read(ensureTodoSyncIdentityProvider)(todoId)
-          : row;
-      if (!context.mounted) return;
-      final now = DateTime.now();
-      final expansion = expandTodoOccurrences(
-        identifiedTodo,
-        startInclusive: DateTime(now.year, now.month, now.day),
-        endExclusive: DateTime(now.year, now.month, now.day + 91),
-        maxOccurrences: 100,
+      final selected = await TodoOccurrencePickerSheet.show(
+        context,
+        ref: ref,
+        todo: row,
       );
-      if (expansion.status != TodoOccurrenceExpansionStatus.expanded) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.legacyRecurrenceRequiresConfirmation)),
-        );
-        return;
-      }
-      final db = ref.read(databaseProvider);
-      Future<List<TodoOccurrenceStateProjection>> loadPage(int page) async {
-        final today = DateTime(now.year, now.month, now.day);
-        final past = expandTodoOccurrences(
-          identifiedTodo,
-          startInclusive: today.subtract(Duration(days: 30 * page)),
-          endExclusive: today.subtract(Duration(days: 30 * (page - 1))),
-          maxOccurrences: 100,
-        );
-        final future = page == 1
-            ? expansion.occurrences
-            : const <TodoOccurrence>[];
-        final window = TodoOccurrenceExpansion(
-          TodoOccurrenceExpansionStatus.expanded,
-          [...past.occurrences, ...future],
-        );
-        return projectTodoOccurrenceStates(db, window);
-      }
-
-      var historyPage = 1;
-      var pageFuture = loadPage(historyPage);
-      final selected = await showDialog<String>(
-        context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(l.selectTodoOccurrence),
-              content: SizedBox(
-                width: 360,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () => setDialogState(() {
-                            historyPage++;
-                            pageFuture = loadPage(historyPage);
-                          }),
-                          child: Text(l.earlierThirtyDays),
-                        ),
-                        if (historyPage > 1)
-                          TextButton(
-                            onPressed: () => setDialogState(() {
-                              historyPage--;
-                              pageFuture = loadPage(historyPage);
-                            }),
-                            child: Text(l.newerOccurrences),
-                          ),
-                      ],
-                    ),
-                    Flexible(
-                      child: FutureBuilder<List<TodoOccurrenceStateProjection>>(
-                        future: pageFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState !=
-                              ConnectionState.done) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          if (snapshot.hasError) {
-                            return Text('${snapshot.error}');
-                          }
-                          final pageItems =
-                              (snapshot.data ?? const [])
-                                  .where((item) => item.status != 'skipped')
-                                  .toList()
-                                ..sort(
-                                  (left, right) => left
-                                      .occurrence
-                                      .nominalAnchor
-                                      .canonical
-                                      .compareTo(
-                                        right
-                                            .occurrence
-                                            .nominalAnchor
-                                            .canonical,
-                                      ),
-                                );
-                          if (pageItems.isEmpty) {
-                            return Text(l.noOccurrencesAvailable);
-                          }
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: pageItems.length,
-                            itemBuilder: (context, index) {
-                              final item = pageItems[index];
-                              final occurrenceId = item.occurrence.occurrenceId;
-                              return ListTile(
-                                title: Text(
-                                  item.occurrence.nominalAnchor.canonical
-                                      .replaceFirst('T', '  '),
-                                ),
-                                trailing: item.status == 'completed'
-                                    ? const Icon(Icons.check)
-                                    : null,
-                                onTap: () =>
-                                    Navigator.of(context).pop(occurrenceId),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l.cancel),
-                ),
-              ],
-            );
-          },
-        ),
-      );
-      if (!context.mounted) return;
-      if (selected != null) {
-        final projected = await pageFuture;
-        final completed = projected.any(
-          (item) =>
-              item.occurrence.occurrenceId == selected &&
-              item.status == 'completed',
-        );
-        await onToggle(selected, !completed);
-      }
+      if (!context.mounted || selected == null) return;
+      await onToggle(selected.occurrenceId, !selected.isCompleted);
     } on Object catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(

@@ -424,3 +424,19 @@
   4. **全链路垂直验收集成测试**：新增 `action_loop_foundation_vertical_test.dart`，端到端实证 Todo 意图 → 日历空槽 → 安排待办 → TaskAllocation 创建 → 日历与 Action 投影可见 → Action 勾选完成；全流程严密断言 `Todo.dueDate` 严格不变、零 Event 生成、Allocation 生命周期正确失效。
   5. **纠正 PR 交付表述**：明确槽位待办选择器提供所有未完成普通待办（不排除已有 Allocation 的待办，因单个 Todo 支持多次分段安排）。
 - **影响范围**：`lib/ui/pages/home/home_page.dart`、`lib/data/local/database/daos/events_dao.dart`、`lib/data/local/database/daos/todos_dao.dart`、`lib/domain/records/writers/todo_writer.dart`、`lib/domain/providers/`、`test/`。
+
+### [2026-10-06] Phase 2 — Recurring TaskInstance Action Loop
+- **触发背景**：Issue #5（Refs #3）用户拍板冻结裁定 A–E（Frozen Product Rulings，2026-10-06）。Phase 1 已建立普通 Todo 闭环；Phase 2 将闭环扩展至重复任务实例（TaskInstance）边界，打通：`TaskSeries → exact TaskInstance → optional Calendar-slot TaskAllocation → Calendar + Action → exact-instance complete/reopen`。
+- **核心决策（Rulings A–E）**：
+  1. **Ruling A — 有界遗漏实例（Bounded missed-instance visibility）**：Action 直接展示最近 30 天历史页内的 pending missed TaskInstances；提供「Earlier missed…」入口进入既有分页历史流。更早的遗漏实例保持 pending/actionable，不因跨页或跨日被抹杀或自动完成/跳过；展开超限时显式报错并引导历史，严禁静默截断伪装完整真相。
+  2. **Ruling B — 日历空白槽安排重复任务（Calendar slot scheduling includes recurring instances）**：日历空白槽安排待办支持选择重复任务系列；选择系列后必须显式选择具体 concrete occurrence 才能创建 TaskAllocation（携带 exact `occurrenceId`）。候选选择器包含最近 30 天遗漏页与未来展开项，支持向前翻页。日历槽位时间仅用于辅助呈现，绝不用于隐式猜测/推断 occurrence 身份。不创建 Event，不修改 `dueDate`。
+  3. **Ruling C — 未知/遗留重复规则保持可发现且不猜测实例（unknown/legacy recurrence remains discoverable without guessed instances）**：严禁为 `unknownLegacy` 或不支持的 recurrence 合成 TaskInstance。Action 展示紧凑的「重复任务待确认」入口/数量并引导至安全确认流；确认前任何 Action 界面不得捏造 `occurrenceId`。
+  4. **Ruling D — 今日完成的实例归入折叠的今日已完成区（completed recurring instances belong in collapsed Completed today）**：今日完成的 TaskInstance 放入 Action 既有折叠的「今日已完成」区域；归属判定依据实例的 `completedAt`（今日），身份严格保持 `(todoSyncId, occurrenceId)`。从该区域取消完成（reopen）必须将精确 `occurrenceId` 传给现有 TaskInstanceWriter；不改变父系列状态，不影响兄弟实例。
+  5. **Ruling E — 执行日投影语义（Action-day semantics）**：DATE 类型「今日」判定为 `LocalDate == Action civil date`；DATE-TIME 类型「今日」判定为该实例的 resolved instant 落在用户本地 Action-day 的 `[start, end)` 瞬时窗口内。`occurrenceId` 严格保持系列名义本地身份，Action 投影绝不重写 identity。「Missed」定义为按同一值类型规则严格早于该日边界的 pending 实例。异地时区系列若 DATE-TIME 落在本地执行日内属于预期行为。
+  6. **共享 occurrence projection / selection seam**：将散落在待办行与详情页的有界展开、实例状态投影、分页历史、完成/跳过过滤抽取为统一只读缝；所有交互与投影入口共享同一身份与投影契约。
+- **对应 SPEC 章节**：SPEC.md §3.1（规则 16/18）与 §3.1.1。
+- **影响范围**：`lib/domain/records/todo_occurrence.dart`、`lib/domain/providers/action_projection_provider.dart`、`lib/ui/pages/home/action_section.dart`、`lib/ui/widgets/calendar/calendar_slot_sheet.dart`、`lib/ui/widgets/todo/` 等。
+- **Rulings 裁定披露**：
+  - 严格保持 obligation 语义，跨日不自动跳过/完成未完成实例 → 判错代价：遗漏任务会积压并需用户主动处理，但守护了待办作为承诺/责任的绝对严肃性。
+  - 日历槽位安排重复任务必须强制二次显式选择 occurrenceId → 判错代价：用户多一步点击，但彻底杜绝了槽位时间与实例名义身份错位导致的隐式写破坏。
+

@@ -1071,4 +1071,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get completedTodaySection => 'Completed Today';
+
+  @override
+  String get recurringNeedConfirmation => 'Recurring tasks need confirmation';
+
+  @override
+  String recurringNeedConfirmationCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count recurring tasks need confirmation',
+      one: '1 recurring task needs confirmation',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get earlierMissed => 'Earlier missed…';
+
+  @override
+  String get earlierHistory => 'Earlier history…';
+
+  @override
+  String get todayTasks => 'Today\'s Tasks';
+
+  @override
+  String get missed => 'Missed';
+
+  @override
+  String get recurringTask => 'Recurring';
 }

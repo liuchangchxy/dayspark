@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
-import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -100,87 +100,10 @@ class TaskAllocationsSection extends ConsumerWidget {
     final now = DateTime.now();
     String? occurrenceId;
     if (todo.rrule != null && todo.rrule!.isNotEmpty) {
-      var freshTodo =
-          await (ref
-                  .read(databaseProvider)
-                  .select(ref.read(databaseProvider).todos)
-                ..where((row) => row.id.equals(todo.id)))
-              .getSingle();
-      if (!context.mounted) return;
-      if (TodoRecurrence.fromTodo(freshTodo).isUnknownLegacy) {
-        if (!legacyRuleIsSupported(freshTodo.rrule ?? '')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.unsupportedLegacyRecurrence)),
-          );
-          return;
-        }
-        final confirmed = await confirmLegacyRecurrence(
-          context,
-          ref,
-          freshTodo,
-        );
-        if (!confirmed || !context.mounted) return;
-        freshTodo =
-            await (ref
-                    .read(databaseProvider)
-                    .select(ref.read(databaseProvider).todos)
-                  ..where((row) => row.id.equals(todo.id)))
-                .getSingle();
-        if (!context.mounted) return;
-      }
-      final TodoOccurrenceExpansion expansion;
-      try {
-        expansion = expandTodoOccurrences(
-          freshTodo,
-          startInclusive: now,
-          endExclusive: now.add(const Duration(days: 90)),
-          maxOccurrences: 100,
-        );
-      } on Object catch (error) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(expansionError(l, error))));
-        }
-        return;
-      }
-      if (expansion.status != TodoOccurrenceExpansionStatus.expanded) {
-        if (context.mounted) {
-          final message = switch (expansion.status) {
-            TodoOccurrenceExpansionStatus.requiresLegacyConfirmation =>
-              l.legacyRecurrenceRequiresConfirmation,
-            TodoOccurrenceExpansionStatus.unsupported =>
-              l.unsupportedRecurrence,
-            _ => l.noOccurrencesAvailable,
-          };
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message)));
-        }
-        return;
-      }
-      if (expansion.occurrences.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noOccurrencesAvailable)));
-        return;
-      }
-      final selected = await showDialog<TodoOccurrence>(
-        context: context,
-        builder: (dialogContext) => SimpleDialog(
-          title: Text(l.selectTodoOccurrence),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-              child: Text(l.occurrenceWindowHint),
-            ),
-            for (final occurrence in expansion.occurrences)
-              SimpleDialogOption(
-                onPressed: () => Navigator.of(dialogContext).pop(occurrence),
-                child: Text(_occurrenceLabel(occurrence)),
-              ),
-          ],
-        ),
+      final selected = await TodoOccurrencePickerSheet.show(
+        context,
+        ref: ref,
+        todo: todo,
       );
       if (selected == null || !context.mounted) return;
       occurrenceId = selected.occurrenceId;
@@ -552,16 +475,6 @@ class TaskAllocationsSection extends ConsumerWidget {
     throw const FormatException(
       'Enter an anchor matching the selected value type.',
     );
-  }
-
-  String _occurrenceLabel(TodoOccurrence occurrence) {
-    final nominal = occurrence.nominalAnchor;
-    if (nominal is LocalDate) return nominal.canonical;
-    final instant = occurrence.resolvedStartInstant;
-    return instant == null
-        ? nominal.canonical
-        : '${nominal.canonical} (${DateFormatters.formatDate(instant.toLocal())} '
-              '${DateFormatters.formatTime(instant.toLocal())})';
   }
 
   bool _isCurrentOccurrence(String occurrenceId) {

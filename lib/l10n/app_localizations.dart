@@ -2098,6 +2098,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Completed Today'**
   String get completedTodaySection;
+
+  /// No description provided for @recurringNeedConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring tasks need confirmation'**
+  String get recurringNeedConfirmation;
+
+  /// No description provided for @recurringNeedConfirmationCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 recurring task needs confirmation} other{{count} recurring tasks need confirmation}}'**
+  String recurringNeedConfirmationCount(int count);
+
+  /// No description provided for @earlierMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier missed…'**
+  String get earlierMissed;
+
+  /// No description provided for @earlierHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier history…'**
+  String get earlierHistory;
+
+  /// No description provided for @todayTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Tasks'**
+  String get todayTasks;
+
+  /// No description provided for @missed.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed'**
+  String get missed;
+
+  /// No description provided for @recurringTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring'**
+  String get recurringTask;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
