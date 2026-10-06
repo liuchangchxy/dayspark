@@ -62,8 +62,12 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
   }
 
   Stream<List<Todo>> watchByDueDate(DateTime date) {
-    final startOfDay = DateTime(date.year, date.month, date.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final startOfDay = date.isUtc
+        ? DateTime.utc(date.year, date.month, date.day)
+        : DateTime(date.year, date.month, date.day);
+    final endOfDay = date.isUtc
+        ? DateTime.utc(date.year, date.month, date.day + 1)
+        : DateTime(date.year, date.month, date.day + 1);
     return (select(todos)..where(
           (t) =>
               t.deletedAt.isNull() &

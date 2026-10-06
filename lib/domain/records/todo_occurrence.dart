@@ -53,7 +53,9 @@ final class TodoOccurrenceStateProjection {
 }
 
 DateTime civilDateAddDays(DateTime date, int days) =>
-    DateTime(date.year, date.month, date.day + days);
+    date.isUtc
+        ? DateTime.utc(date.year, date.month, date.day + days)
+        : DateTime(date.year, date.month, date.day + days);
 
 /// A projected recurring task instance with parent Todo, exact occurrence,
 /// and sparse instance state.
@@ -104,8 +106,12 @@ final class ProjectedTaskInstance {
   bool isMissedWithin30Days(DateTime actionDate) {
     if (occurrence.nominalAnchor.valueType == RecurrenceValueType.date) {
       final date = occurrence.nominalAnchor as LocalDate;
-      final occDate = DateTime(date.year, date.month, date.day);
-      final startOfDay = DateTime(actionDate.year, actionDate.month, actionDate.day);
+      final occDate = actionDate.isUtc
+          ? DateTime.utc(date.year, date.month, date.day)
+          : DateTime(date.year, date.month, date.day);
+      final startOfDay = actionDate.isUtc
+          ? DateTime.utc(actionDate.year, actionDate.month, actionDate.day)
+          : DateTime(actionDate.year, actionDate.month, actionDate.day);
       final thirtyDaysAgo = civilDateAddDays(startOfDay, -30);
       return occDate.isBefore(startOfDay) && !occDate.isBefore(thirtyDaysAgo);
     }
@@ -129,9 +135,13 @@ final class ProjectedTaskInstance {
   bool isEarlierMissed(DateTime actionDate) {
     if (occurrence.nominalAnchor.valueType == RecurrenceValueType.date) {
       final date = occurrence.nominalAnchor as LocalDate;
-      final occDate = DateTime(date.year, date.month, date.day);
+      final occDate = actionDate.isUtc
+          ? DateTime.utc(date.year, date.month, date.day)
+          : DateTime(date.year, date.month, date.day);
       final thirtyDaysAgo = civilDateAddDays(
-        DateTime(actionDate.year, actionDate.month, actionDate.day),
+        actionDate.isUtc
+            ? DateTime.utc(actionDate.year, actionDate.month, actionDate.day)
+            : DateTime(actionDate.year, actionDate.month, actionDate.day),
         -30,
       );
       return occDate.isBefore(thirtyDaysAgo);
@@ -158,8 +168,9 @@ Future<List<ProjectedTaskInstance>> loadOccurrencePage(
   required int historyPage,
   required DateTime anchorDate,
 }) async {
-  final now = anchorDate;
-  final today = DateTime(now.year, now.month, now.day);
+  final today = anchorDate.isUtc
+      ? DateTime.utc(anchorDate.year, anchorDate.month, anchorDate.day)
+      : DateTime(anchorDate.year, anchorDate.month, anchorDate.day);
   final pastStart = civilDateAddDays(today, -30 * historyPage);
   final pastEnd = civilDateAddDays(today, -30 * (historyPage - 1));
   final pastExpansion = expandTodoOccurrences(
@@ -302,35 +313,9 @@ TodoOccurrenceExpansion expandTodoOccurrences(
         ),
       );
     } else {
-      final DateTime startInstant;
-      final DateTime endInstant;
-      if (startInclusive.isUtc) {
-        startInstant = startInclusive;
-        endInstant = endExclusive;
-      } else {
-        final location = tz.getLocation(spec.timeZone);
-        startInstant = tz.TZDateTime(
-          location,
-          startInclusive.year,
-          startInclusive.month,
-          startInclusive.day,
-          startInclusive.hour,
-          startInclusive.minute,
-          startInclusive.second,
-        ).toUtc();
-        endInstant = tz.TZDateTime(
-          location,
-          endExclusive.year,
-          endExclusive.month,
-          endExclusive.day,
-          endExclusive.hour,
-          endExclusive.minute,
-          endExclusive.second,
-        ).toUtc();
-      }
       window = InstantWindow(
-        startInclusive: startInstant,
-        endExclusive: endInstant,
+        startInclusive: startInclusive.toUtc(),
+        endExclusive: endExclusive.toUtc(),
       );
     }
     final occurrences = const RecurrenceEngine().expand(

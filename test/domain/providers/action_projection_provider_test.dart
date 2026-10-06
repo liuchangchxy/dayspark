@@ -551,4 +551,117 @@ void main() {
     expect(completedInstance.occurrence.resolvedStartInstant, expectedInstant);
     expect(completedInstance.occurrence.occurrenceId, occurrenceId);
   });
+
+  test('Phase 2 regression: Action-day window timezone ownership preserves Tokyo series in UTC user day (Ruling E)', () async {
+    final utcContainer = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        actionDateProvider.overrideWith((ref) => DateTime.utc(2026, 10, 6)),
+      ],
+    );
+    addTearDown(utcContainer.dispose);
+
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDateTime(2026, 10, 7, 0, 30, 0),
+      ),
+      timeZone: 'Asia/Tokyo',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Midnight Tokyo Standup',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    final sub = utcContainer.listen(actionProjectionProvider, (_, __) {});
+    ActionProjectionData? data;
+    try {
+      for (var i = 0; i < 30; i++) {
+        await pumpEventQueue();
+        final asyncVal = utcContainer.read(actionProjectionProvider);
+        if (asyncVal.hasValue) {
+          data = asyncVal.value!;
+          break;
+        }
+      }
+    } finally {
+      sub.close();
+    }
+
+    expect(data, isNotNull);
+    expect(data!.todayTaskInstances, hasLength(1));
+    final instance = data.todayTaskInstances.first;
+    expect(instance.todo.id, seriesId);
+    expect(instance.occurrence.occurrenceId, 'v1:DT:2026-10-07T00:30:00@Asia/Tokyo');
+    expect(instance.occurrence.resolvedStartInstant, DateTime.utc(2026, 10, 6, 15, 30));
+    expect(data.missedTaskInstances, isEmpty);
+  });
+
+  test('Phase 2 regression: civil-day end boundary on DST transition captures events and tasks up to next civil midnight', () async {
+    final lateEventStart = DateTime(2026, 10, 6, 23, 30);
+    final lateEventEnd = DateTime(2026, 10, 6, 23, 59);
+
+    await db.into(db.events).insert(
+      EventsCompanion.insert(
+        calendarId: calendarId,
+        summary: 'Late Evening Wrap-up',
+        startDt: lateEventStart,
+        endDt: lateEventEnd,
+        isAllDay: const Value(false),
+      ),
+    );
+
+    final ordinaryLateId = await db.into(db.todos).insert(
+      TodosCompanion.insert(
+        calendarId: calendarId,
+        summary: 'Late Night Ordinary Task',
+        dueDate: Value(lateEventStart),
+      ),
+    );
+
+    final data = await getActionData();
+    expect(data.events.any((e) => e.title == 'Late Evening Wrap-up'), isTrue);
+    expect(data.dueTodayTodos.any((t) => t.id == ordinaryLateId), isTrue);
+  });
+
+  test('Phase 2 regression: earlier-missed DAILY series >= 300 days old retains affordance without exceeding expansion limit', () async {
+    final anchorDate = LocalDate(2025, 12, 10);
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: anchorDate,
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Long Running 300-day Habit',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    final data = await getActionData();
+
+    expect(data.recurrenceExpansionErrors, isEmpty);
+    expect(data.hasEarlierMissed, isTrue);
+    expect(data.earlierMissedSeries.any((s) => s.id == seriesId), isTrue);
+  });
 }

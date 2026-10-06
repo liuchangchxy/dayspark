@@ -77,15 +77,21 @@ final actionDateProvider = StateProvider<DateTime>((ref) {
 final actionDueTodayTodosProvider = StreamProvider.autoDispose
     .family<List<Todo>, DateTime>((ref, date) {
       final db = ref.watch(databaseProvider);
-      final start = DateTime(date.year, date.month, date.day);
-      final end = start.add(const Duration(days: 1));
+      final start = date.isUtc
+          ? DateTime.utc(date.year, date.month, date.day)
+          : DateTime(date.year, date.month, date.day);
+      final end = date.isUtc
+          ? DateTime.utc(date.year, date.month, date.day + 1)
+          : DateTime(date.year, date.month, date.day + 1);
       return db.todosDao.watchOrdinaryDueBetween(start, end);
     });
 
 final actionOverdueTodosProvider = StreamProvider.autoDispose
     .family<List<Todo>, DateTime>((ref, date) {
       final db = ref.watch(databaseProvider);
-      final start = DateTime(date.year, date.month, date.day);
+      final start = date.isUtc
+          ? DateTime.utc(date.year, date.month, date.day)
+          : DateTime(date.year, date.month, date.day);
       return db.todosDao.watchOrdinaryOverdue(start);
     });
 
@@ -99,8 +105,12 @@ final actionUnplannedTodosProvider = StreamProvider.autoDispose<List<Todo>>((
 final actionCompletedTodayTodosProvider = StreamProvider.autoDispose
     .family<List<Todo>, DateTime>((ref, date) {
       final db = ref.watch(databaseProvider);
-      final start = DateTime(date.year, date.month, date.day);
-      final end = start.add(const Duration(days: 1));
+      final start = date.isUtc
+          ? DateTime.utc(date.year, date.month, date.day)
+          : DateTime(date.year, date.month, date.day);
+      final end = date.isUtc
+          ? DateTime.utc(date.year, date.month, date.day + 1)
+          : DateTime(date.year, date.month, date.day + 1);
       return db.todosDao.watchOrdinaryCompletedOn(start, end);
     });
 
@@ -125,8 +135,12 @@ final actionTaskInstanceStatesProvider =
 final actionProjectionProvider =
     Provider.autoDispose<AsyncValue<ActionProjectionData>>((ref) {
       final date = ref.watch(actionDateProvider);
-      final startOfDay = DateTime(date.year, date.month, date.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
+      final startOfDay = date.isUtc
+          ? DateTime.utc(date.year, date.month, date.day)
+          : DateTime(date.year, date.month, date.day);
+      final endOfDay = date.isUtc
+          ? DateTime.utc(date.year, date.month, date.day + 1)
+          : DateTime(date.year, date.month, date.day + 1);
       final rangeKey =
           '${startOfDay.millisecondsSinceEpoch}-${endOfDay.millisecondsSinceEpoch}';
 
@@ -339,28 +353,52 @@ final actionProjectionProvider =
         final spec = recurrence.spec!;
         final anchor = spec.anchor.value;
         final anchorDate = switch (anchor) {
-          LocalDate d => DateTime(d.year, d.month, d.day),
-          LocalDateTime dt => DateTime(dt.year, dt.month, dt.day),
+          LocalDate d => startOfDay.isUtc
+              ? DateTime.utc(d.year, d.month, d.day)
+              : DateTime(d.year, d.month, d.day),
+          LocalDateTime dt => startOfDay.isUtc
+              ? DateTime.utc(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+              : DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second),
         };
         if (anchorDate.isBefore(thirtyDaysAgo)) {
-          try {
-            final earlierExpansion = expandTodoOccurrences(
-              todo,
-              startInclusive: anchorDate,
-              endExclusive: thirtyDaysAgo,
-              maxOccurrences: 200,
-            );
-            if (earlierExpansion.status == TodoOccurrenceExpansionStatus.expanded) {
-              final hasPendingEarlier = earlierExpansion.occurrences.any((occ) {
-                final st = statesMap['${occ.todoSyncId}:${occ.occurrenceId}'];
-                return st == null || (st.status != 'completed' && st.status != 'skipped');
-              });
-              if (hasPendingEarlier) {
-                earlierMissedSeries.add(todo);
+          var pageEnd = thirtyDaysAgo;
+          var foundPendingEarlier = false;
+          // Probe backwards in bounded 30-day pages from thirtyDaysAgo down to anchorDate.
+          // Bounded per-page expansion never expands whole history at once.
+          for (var p = 0; p < 24; p++) {
+            final pageStart = civilDateAddDays(pageEnd, -30);
+            final effectiveStart =
+                pageStart.isBefore(anchorDate) ? anchorDate : pageStart;
+            try {
+              final earlierExpansion = expandTodoOccurrences(
+                todo,
+                startInclusive: effectiveStart,
+                endExclusive: pageEnd,
+                maxOccurrences: 100,
+              );
+              if (earlierExpansion.status ==
+                      TodoOccurrenceExpansionStatus.expanded &&
+                  earlierExpansion.occurrences.isNotEmpty) {
+                final hasPending = earlierExpansion.occurrences.any((occ) {
+                  final st = statesMap['${occ.todoSyncId}:${occ.occurrenceId}'];
+                  return st == null ||
+                      (st.status != 'completed' && st.status != 'skipped');
+                });
+                if (hasPending) {
+                  foundPendingEarlier = true;
+                  break;
+                }
               }
+            } catch (_) {
+              // Ignore expansion error on older slices
             }
-          } catch (_) {
-            // Expansion error before 30-day window does not produce false earlier-missed signal
+            if (!pageStart.isAfter(anchorDate)) {
+              break;
+            }
+            pageEnd = pageStart;
+          }
+          if (foundPendingEarlier) {
+            earlierMissedSeries.add(todo);
           }
         }
       }
