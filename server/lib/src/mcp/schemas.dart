@@ -30,6 +30,8 @@ const String mcpCodeForbiddenScope = 'FORBIDDEN_SCOPE';
 const String mcpCodeUnknownTool = 'UNKNOWN_TOOL';
 const String mcpCodeWriteRejected = 'WRITE_REJECTED';
 const String mcpCodeWriteConflict = 'WRITE_CONFLICT';
+const String mcpCodeConflict = 'CONFLICT';
+const String mcpCodeAllocationNotFound = 'ALLOCATION_NOT_FOUND';
 const String mcpCodeInternal = 'INTERNAL';
 
 const String mcpScopeRead = 'mcp:read';
@@ -45,6 +47,8 @@ const String hintEventNotFound =
     'No visible event with that id — list windows with get_events or browse trash with list_trash(kind: event).';
 const String hintTaskNotFound =
     'No visible task with that id — find it with list_tasks or browse trash with list_trash(kind: task).';
+const String hintAllocationNotFound =
+    'No visible task allocation with that id — find it with list_task_allocations.';
 const String hintForbiddenScope =
     'Obtain an access token whose scope covers this operation (mcp:read / mcp:write) and retry.';
 const String hintUnknownTool =
@@ -57,18 +61,27 @@ const String hintStructuredRrule =
     'Pass a structured object {freq, interval?, until?, byday?...} instead of an RFC 5545 string.';
 const String hintIdempotencyReuse =
     'idempotency_key was already used with a different request body — use a fresh key for a new write, or resend the identical body to replay.';
+const String hintConflict =
+    'The target interval conflicts with existing busy intervals. Set allow_conflicts: true to schedule anyway, or choose a free slot from find_free_time.';
 
 class McpToolException implements Exception {
-  McpToolException(this.code, this.message, this.hint);
+  McpToolException(
+    this.code,
+    this.message,
+    this.hint, {
+    this.details,
+  });
 
   final String code;
   final String message;
   final String hint;
+  final Map<String, Object?>? details;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'code': code,
         'message': message,
         'hint': hint,
+        if (details != null) ...details!,
       };
 
   @override
@@ -85,8 +98,10 @@ String defaultHint(String code) => switch (code) {
       mcpCodeWindowTooLarge => hintWindowTooLarge,
       mcpCodeEventNotFound => hintEventNotFound,
       mcpCodeTaskNotFound => hintTaskNotFound,
+      mcpCodeAllocationNotFound => hintAllocationNotFound,
       mcpCodeForbiddenScope => hintForbiddenScope,
       mcpCodeUnknownTool => hintUnknownTool,
+      mcpCodeConflict => hintConflict,
       _ => hintValidation,
     };
 
@@ -575,6 +590,8 @@ class IdempotencyRegistry {
 
   bool matches(String userId, String opId, String fingerprint) =>
       _fingerprints[key(userId, opId)] == fingerprint;
+
+  void clear() => _fingerprints.clear();
 }
 
 // Key-order-independent JSON for fingerprint comparison.

@@ -2,11 +2,18 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drift/drift.dart' hide Column;
+import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/ai_scheduler_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
@@ -247,12 +254,91 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   ) async {
     final l = AppLocalizations.of(context)!;
     try {
+      final db = ref.read(databaseProvider);
+      final todos = await (db.select(db.todos)
+            ..where((t) =>
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.dueDate),
+              (t) => OrderingTerm.desc(t.priority),
+            ]))
+          .get();
+
+      if (!context.mounted) return;
+      if (todos.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.noSchedulableTodos)),
+        );
+        return;
+      }
+
+      // Step 1: User selects an existing Todo to schedule
+      final chosenTodo = await showDialog<Todo>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.selectTodoToSchedule),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: todos.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (ctx, i) {
+                final todo = todos[i];
+                final isRecurring =
+                    todo.rrule != null && todo.rrule!.isNotEmpty;
+                return ListTile(
+                  leading: Icon(
+                    isRecurring
+                        ? CupertinoIcons.repeat
+                        : CupertinoIcons.circle,
+                    size: 20,
+                  ),
+                  title: Text(todo.summary),
+                  subtitle: Text(
+                    isRecurring
+                        ? l.recurringTask
+                        : (todo.dueDate != null
+                            ? '${l.dueDate}: ${DateFormatters.formatShortDate(todo.dueDate!)}'
+                            : l.noDueDate),
+                  ),
+                  onTap: () => Navigator.of(ctx).pop(todo),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l.cancel),
+            ),
+          ],
+        ),
+      );
+
+      if (chosenTodo == null || !context.mounted) return;
+
+      // Step 2: If recurring series, select the exact occurrence
+      String? occurrenceId;
+      if (chosenTodo.rrule != null && chosenTodo.rrule!.isNotEmpty) {
+        final selectedInstance = await TodoOccurrencePickerSheet.show(
+          context,
+          ref: ref,
+          todo: chosenTodo,
+        );
+        if (selectedInstance == null || !context.mounted) return;
+        occurrenceId = selectedInstance.occurrenceId;
+      }
+
+      // Step 3: Fetch deterministic suggestions
       final now = DateTime.now();
       final suggestions = await ref.read(suggestTimeSlotsProvider)(
-        taskDescription: content,
+        taskDescription: chosenTodo.summary,
         rangeStart: now,
-        rangeEnd: now.add(const Duration(days: 7)),
+        rangeEnd: civilDateAddDays(now, 7),
       );
+
       if (!context.mounted) return;
       if (suggestions.isEmpty) {
         ScaffoldMessenger.of(
@@ -260,7 +346,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ).showSnackBar(SnackBar(content: Text(l.noTimeSlots)));
         return;
       }
-      showDialog(
+
+      // Step 4: User selects a slot
+      final selectedSlot = await showDialog<Map<String, dynamic>>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.suggestedTimeSlots),
@@ -270,26 +358,17 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
               children: suggestions.map((s) {
                 final startStr = s['start'] as String? ?? '';
                 final endStr = s['end'] as String? ?? '';
+                final start = DateTime.tryParse(startStr);
+                final end = DateTime.tryParse(endStr);
+                final label = (start != null && end != null)
+                    ? DateFormatters.formatTaskAllocationRange(start, end, includeDate: true)
+                    : '$startStr - $endStr';
                 return ListTile(
-                  title: Text('$startStr - $endStr'),
+                  title: Text(label),
                   subtitle: s['reason'] != null
                       ? Text(s['reason'] as String)
                       : null,
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    // Navigate to event creation with the suggested time
-                    final start = startStr.isNotEmpty
-                        ? DateTime.tryParse(startStr)
-                        : null;
-                    final end = endStr.isNotEmpty
-                        ? DateTime.tryParse(endStr)
-                        : null;
-                    context.push(
-                      '/event/new'
-                      '?start=${start?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch}'
-                      '&end=${end?.millisecondsSinceEpoch ?? DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch}',
-                    );
-                  },
+                  onTap: () => Navigator.of(ctx).pop(s),
                 );
               }).toList(),
             ),
@@ -301,6 +380,81 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             ),
           ],
         ),
+      );
+
+      if (selectedSlot == null || !context.mounted) return;
+
+      final start = DateTime.tryParse(selectedSlot['start'] as String? ?? '');
+      final end = DateTime.tryParse(selectedSlot['end'] as String? ?? '');
+      if (start == null || end == null) return;
+
+      // Step 5: Explicit confirmation before write
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.scheduleTodo),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                chosenTodo.summary,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              if (occurrenceId != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '${l.recurringTask}: $occurrenceId',
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
+              ],
+              const SizedBox(height: 8),
+              Text(DateFormatters.formatTaskAllocationRange(start, end, includeDate: true)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l.schedule),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true || !context.mounted) return;
+
+      // Step 6: Write-time authoritative conflict revalidation (TOCTOU defense)
+      final isStillFree = await ref.read(validateSlotAvailabilityProvider)(
+        start: start,
+        end: end,
+      );
+
+      if (!isStillFree) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l.timeSlotConflict),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
+
+      // Step 7: Create TaskAllocation - zero Event created, dueDate untouched
+      await ref.read(createTaskAllocationProvider)(
+        todoId: chosenTodo.id,
+        startAt: start,
+        endAt: end,
+        occurrenceId: occurrenceId,
+      );
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.scheduledTodoSuccess(chosenTodo.summary))),
       );
     } catch (e) {
       debugPrint('ai_chat: scheduleTask error: $e');

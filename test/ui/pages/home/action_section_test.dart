@@ -259,10 +259,15 @@ void main() {
   testWidgets('Phase 2: renders today recurring instance and checkbox completes exact instance', (
     tester,
   ) async {
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final occId = 'v2:DATE:$todayStr';
+
     final spec = RecurrenceSpec.parse(
       anchor: RecurrenceAnchor(
         source: RecurrenceAnchorSource.due,
-        value: LocalDate(2026, 10, 6),
+        value: LocalDate(today.year, today.month, today.day),
       ),
       timeZone: 'Asia/Shanghai',
       rrule: 'FREQ=DAILY',
@@ -286,7 +291,7 @@ void main() {
         child: const ActionSection(),
         overrides: [
           databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
+          actionDateProvider.overrideWith((ref) => todayDate),
         ],
       ),
     );
@@ -313,7 +318,7 @@ void main() {
 
     // Verify taskInstanceState has completed
     final state = await (db.select(db.taskInstanceStates)
-          ..where((s) => s.todoSyncId.equals(parent.syncId!) & s.occurrenceId.equals('v2:DATE:2026-10-06')))
+          ..where((s) => s.todoSyncId.equals(parent.syncId!) & s.occurrenceId.equals(occId)))
         .getSingle();
     expect(state.status, 'completed');
 

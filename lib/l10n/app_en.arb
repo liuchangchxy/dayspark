@@ -185,6 +185,7 @@
   },
   "noTimeSlots": "No time slot suggestions available",
   "suggestedTimeSlots": "Suggested Time Slots",
+  "timeSlotConflict": "The selected time slot is now occupied or no longer available. Please select another slot.",
   "schedulingFailed": "Scheduling failed: {error}",
   "@schedulingFailed": {
     "placeholders": {

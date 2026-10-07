@@ -231,11 +231,15 @@ void main() {
   });
 
   test('toggling todo completion moves it reactively to completedToday', () async {
+    final today = DateTime.now();
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+    container.read(actionDateProvider.notifier).state = todayMidnight;
+
     final todoId = await db.into(db.todos).insert(
           TodosCompanion.insert(
             calendarId: calendarId,
             summary: 'Task To Complete',
-            dueDate: Value(DateTime(2026, 10, 6, 15, 0)),
+            dueDate: Value(todayMidnight.add(const Duration(hours: 15))),
           ),
         );
 
@@ -350,10 +354,16 @@ void main() {
   });
 
   test('Phase 2: completed today TaskInstance appears in completedTodayTaskInstances and reopens cleanly', () async {
+    final today = DateTime.now();
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+    container.read(actionDateProvider.notifier).state = todayMidnight;
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final occId = 'v2:DATE:$todayStr';
+
     final spec = RecurrenceSpec.parse(
       anchor: RecurrenceAnchor(
         source: RecurrenceAnchorSource.due,
-        value: LocalDate(2026, 10, 6),
+        value: LocalDate(today.year, today.month, today.day),
       ),
       timeZone: 'Asia/Shanghai',
       rrule: 'FREQ=DAILY',
@@ -376,25 +386,25 @@ void main() {
     await container.read(toggleTodoProvider)(
       id: seriesId,
       isCompleted: true,
-      occurrenceId: 'v2:DATE:2026-10-06',
+      occurrenceId: occId,
     );
 
     var data = await getActionData();
     expect(data.todayTaskInstances.isEmpty, isTrue);
     expect(data.completedTodayTaskInstances, hasLength(1));
-    expect(data.completedTodayTaskInstances.first.occurrenceId, 'v2:DATE:2026-10-06');
+    expect(data.completedTodayTaskInstances.first.occurrenceId, occId);
 
     // Reopen exact occurrence
     await container.read(toggleTodoProvider)(
       id: seriesId,
       isCompleted: false,
-      occurrenceId: 'v2:DATE:2026-10-06',
+      occurrenceId: occId,
     );
 
     data = await getActionData();
     expect(data.completedTodayTaskInstances.isEmpty, isTrue);
     expect(data.todayTaskInstances, hasLength(1));
-    expect(data.todayTaskInstances.first.occurrenceId, 'v2:DATE:2026-10-06');
+    expect(data.todayTaskInstances.first.occurrenceId, occId);
   });
 
   test('Phase 2: unknownLegacy recurrence counted in unconfirmed without synthesized instances (Ruling C)', () async {
