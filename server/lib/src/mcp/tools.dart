@@ -187,24 +187,47 @@ Map<String, Object?> taskJson(RecordRow row) {
   };
 }
 
-Map<String, Object?> allocationJson(RecordRow row) {
-  final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+Map<String, Object?> _allocationJsonFromComponents({
+  required String id,
+  required Map<String, dynamic> payload,
+  required int rev,
+  required bool deleted,
+}) {
   return <String, Object?>{
-    'allocation_id': row.id,
+    'allocation_id': id,
     'task_id': payload['todoSyncId'],
     if (payload['occurrenceId'] != null)
       'occurrence_id': payload['occurrenceId'],
     'start': _payloadIso(payload['startAt']),
     'end': _payloadIso(payload['endAt']),
     'state': payload['state'],
-    'trashed': _trashed(row),
+    'trashed': deleted || payload['deletedAt'] != null,
     'created_at': _payloadIso(payload['createdAt']),
     'updated_at': _payloadIso(payload['updatedAt']),
-    'rev': row.rev,
+    'rev': rev,
   };
 }
 
-Future<({RecordRow row, OpResult op})?> _checkIdempotentReplay(
+Map<String, Object?> allocationJson(RecordRow row) {
+  final payload = jsonDecode(row.payloadJson) as Map<String, dynamic>;
+  return _allocationJsonFromComponents(
+    id: row.id,
+    payload: payload,
+    rev: row.rev,
+    deleted: row.deleted,
+  );
+}
+
+Map<String, Object?> allocationJsonFromSyncRecord(SyncRecord record) {
+  return _allocationJsonFromComponents(
+    id: record.id,
+    payload: record.payload,
+    rev: record.rev,
+    deleted: record.deleted,
+  );
+}
+
+Future<({SyncRecord record, OpResult op})?> _checkIdempotentReplay(
   McpToolContext ctx, {
   required String? idempotencyKey,
   required Map<String, Object?> requestArgs,
@@ -219,16 +242,16 @@ Future<({RecordRow row, OpResult op})?> _checkIdempotentReplay(
         hint: hintIdempotencyReuse,
       );
     }
-    final stored = await findSyncOp(ctx.db, idempotencyKey);
-    if (stored != null && stored.userId == ctx.userId) {
-      final storedResult = decodeStoredOpResult(stored);
-      final recordId = storedResult.serverRecord?.id;
-      if (recordId != null) {
-        final row = await _findRow(ctx, recordId, type: type);
-        if (row != null) {
-          return (row: row, op: storedResult);
-        }
+  }
+  final stored = await findSyncOp(ctx.db, idempotencyKey);
+  if (stored != null && stored.userId == ctx.userId) {
+    final storedResult = decodeStoredOpResult(stored);
+    final record = storedResult.serverRecord;
+    if (record != null && record.type.wireName == type) {
+      if (!ctx.idempotency.contains(ctx.userId, idempotencyKey)) {
+        ctx.idempotency.record(ctx.userId, idempotencyKey, fingerprint);
       }
+      return (record: record, op: storedResult);
     }
   }
   return null;
@@ -890,7 +913,7 @@ final List<McpTool> mcpTools = <McpTool>[
       );
       if (replay != null) {
         return <String, Object?>{
-          'allocation': allocationJson(replay.row),
+          'allocation': allocationJsonFromSyncRecord(replay.record),
           'op': await _opJson(replay.op),
         };
       }
@@ -1061,7 +1084,7 @@ final List<McpTool> mcpTools = <McpTool>[
       );
       if (replay != null) {
         return <String, Object?>{
-          'allocation': allocationJson(replay.row),
+          'allocation': allocationJsonFromSyncRecord(replay.record),
           'op': await _opJson(replay.op),
         };
       }
@@ -1164,7 +1187,7 @@ final List<McpTool> mcpTools = <McpTool>[
       );
       if (replay != null) {
         return <String, Object?>{
-          'allocation': allocationJson(replay.row),
+          'allocation': allocationJsonFromSyncRecord(replay.record),
           'cancelled': true,
           'op': await _opJson(replay.op),
         };

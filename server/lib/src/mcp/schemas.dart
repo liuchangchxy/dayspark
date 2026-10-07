@@ -590,6 +590,8 @@ class IdempotencyRegistry {
 
   bool matches(String userId, String opId, String fingerprint) =>
       _fingerprints[key(userId, opId)] == fingerprint;
+
+  void clear() => _fingerprints.clear();
 }
 
 // Key-order-independent JSON for fingerprint comparison.

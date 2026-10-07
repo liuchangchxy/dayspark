@@ -921,20 +921,172 @@ void main() {
 
       final first = await _toolData(app, token, 'schedule_task', scheduleArgs);
       final allocId = first['allocation']['allocation_id'] as String;
-      expect(first['allocation']['start'], isoZ(DateTime.parse('2026-10-17T11:00:00.000Z')));
+      final firstRev = first['allocation']['rev'] as int;
+      final expectedOriginalStart = isoZ(DateTime.parse('2026-10-17T11:00:00.000Z'));
+      final expectedOriginalEnd = isoZ(DateTime.parse('2026-10-17T12:00:00.000Z'));
+      expect(first['allocation']['start'], expectedOriginalStart);
+      expect(first['allocation']['end'], expectedOriginalEnd);
+      expect(first['allocation']['rev'], firstRev);
 
-      // Allocation is subsequently rescheduled to another interval
-      await _toolData(app, token, 'reschedule_task_allocation', {
+      // Allocation is subsequently rescheduled to another interval (15:00-16:00)
+      final resched = await _toolData(app, token, 'reschedule_task_allocation', {
         'allocation_id': allocId,
         'start': '2026-10-17T15:00:00.000Z',
         'end': '2026-10-17T16:00:00.000Z',
       });
+      final reschedRev = resched['allocation']['rev'] as int;
+      expect(reschedRev, greaterThan(firstRev));
 
-      // Replaying the original schedule_task with key-sched-resched-later returns stable original result
-      // without failing due to current state or new interval busy
+      // Replaying the original schedule_task with key-sched-resched-later must return
+      // the historical FIRST response snapshot, NOT the current mutable 15:00-16:00 row!
       final replay = await _toolData(app, token, 'schedule_task', scheduleArgs);
       expect(replay['allocation']['allocation_id'], allocId);
+      expect(replay['allocation']['start'], expectedOriginalStart, reason: 'Replay must preserve initial start');
+      expect(replay['allocation']['end'], expectedOriginalEnd, reason: 'Replay must preserve initial end');
+      expect(replay['allocation']['state'], 'active');
+      expect(replay['allocation']['rev'], firstRev, reason: 'Replay must preserve initial rev');
       expect(replay['op']['status'], 'applied');
+      expect(replay['op']['rev'], firstRev);
+
+      // Verify that the actual current DB row remains at 15:00-16:00
+      final currentRecord = await (app.db.select(app.db.records)..where((r) => r.id.equals(allocId))).getSingle();
+      final currentPayload = jsonDecode(currentRecord.payloadJson) as Map<String, dynamic>;
+      expect(DateTime.parse(currentPayload['startAt'] as String), DateTime.parse('2026-10-17T15:00:00.000Z'));
+      expect(DateTime.parse(currentPayload['endAt'] as String), DateTime.parse('2026-10-17T16:00:00.000Z'));
+      expect(currentRecord.rev, reschedRev);
+    });
+
+    test('reschedule_task_allocation replay returns stable original snapshot even if allocation was subsequently mutated', () async {
+      await _seed(
+        app,
+        userId,
+        'task-idem-double-resched',
+        type: RecordType.todo,
+        fields: {
+          'summary': 'Task Double Rescheduled',
+          'status': 'pending',
+          'createdAt': iso(base),
+          'updatedAt': iso(base),
+        },
+      );
+
+      final initial = await _toolData(app, token, 'schedule_task', {
+        'task_id': 'task-idem-double-resched',
+        'start': '2026-10-17T09:00:00.000Z',
+        'end': '2026-10-17T10:00:00.000Z',
+      });
+      final allocId = initial['allocation']['allocation_id'] as String;
+
+      // Reschedule K1 to 13:00-14:00
+      final k1Args = {
+        'allocation_id': allocId,
+        'start': '2026-10-17T13:00:00.000Z',
+        'end': '2026-10-17T14:00:00.000Z',
+        'idempotency_key': 'key-resched-1',
+      };
+      final k1 = await _toolData(app, token, 'reschedule_task_allocation', k1Args);
+      final k1Rev = k1['allocation']['rev'] as int;
+      final k1Start = isoZ(DateTime.parse('2026-10-17T13:00:00.000Z'));
+      final k1End = isoZ(DateTime.parse('2026-10-17T14:00:00.000Z'));
+      expect(k1['allocation']['start'], k1Start);
+
+      // Reschedule K2 to 15:00-16:00
+      final k2 = await _toolData(app, token, 'reschedule_task_allocation', {
+        'allocation_id': allocId,
+        'start': '2026-10-17T15:00:00.000Z',
+        'end': '2026-10-17T16:00:00.000Z',
+        'idempotency_key': 'key-resched-2',
+      });
+      final k2Rev = k2['allocation']['rev'] as int;
+      expect(k2Rev, greaterThan(k1Rev));
+
+      // Replay K1: must return K1's snapshot (13:00-14:00, k1Rev)
+      final replayK1 = await _toolData(app, token, 'reschedule_task_allocation', k1Args);
+      expect(replayK1['allocation']['allocation_id'], allocId);
+      expect(replayK1['allocation']['start'], k1Start);
+      expect(replayK1['allocation']['end'], k1End);
+      expect(replayK1['allocation']['rev'], k1Rev);
+      expect(replayK1['op']['status'], 'applied');
+
+      // Current DB record remains K2's state (15:00-16:00, k2Rev)
+      final currentRecord = await (app.db.select(app.db.records)..where((r) => r.id.equals(allocId))).getSingle();
+      final currentPayload = jsonDecode(currentRecord.payloadJson) as Map<String, dynamic>;
+      expect(DateTime.parse(currentPayload['startAt'] as String), DateTime.parse('2026-10-17T15:00:00.000Z'));
+      expect(DateTime.parse(currentPayload['endAt'] as String), DateTime.parse('2026-10-17T16:00:00.000Z'));
+      expect(currentRecord.rev, k2Rev);
+    });
+
+    test('cancel_task_allocation replay returns stable original snapshot', () async {
+      await _seed(
+        app,
+        userId,
+        'task-idem-cancel',
+        type: RecordType.todo,
+        fields: {
+          'summary': 'Task Idem Cancel',
+          'status': 'pending',
+          'createdAt': iso(base),
+          'updatedAt': iso(base),
+        },
+      );
+
+      final initial = await _toolData(app, token, 'schedule_task', {
+        'task_id': 'task-idem-cancel',
+        'start': '2026-10-17T09:00:00.000Z',
+        'end': '2026-10-17T10:00:00.000Z',
+      });
+      final allocId = initial['allocation']['allocation_id'] as String;
+
+      final cancelArgs = {
+        'allocation_id': allocId,
+        'idempotency_key': 'key-cancel-1',
+      };
+      final firstCancel = await _toolData(app, token, 'cancel_task_allocation', cancelArgs);
+      expect(firstCancel['cancelled'], isTrue);
+      expect(firstCancel['allocation']['state'], 'cancelledByUser');
+      final cancelRev = firstCancel['allocation']['rev'] as int;
+
+      // Replaying cancel_task_allocation returns the recorded snapshot rather than failing on state validation
+      final replayCancel = await _toolData(app, token, 'cancel_task_allocation', cancelArgs);
+      expect(replayCancel['cancelled'], isTrue);
+      expect(replayCancel['allocation']['allocation_id'], allocId);
+      expect(replayCancel['allocation']['state'], 'cancelledByUser');
+      expect(replayCancel['allocation']['rev'], cancelRev);
+      expect(replayCancel['op']['status'], 'applied');
+    });
+
+    test('idempotency replay survives in-memory registry eviction / restart', () async {
+      await _seed(
+        app,
+        userId,
+        'task-idem-evict',
+        type: RecordType.todo,
+        fields: {
+          'summary': 'Task Idem Evict',
+          'status': 'pending',
+          'createdAt': iso(base),
+          'updatedAt': iso(base),
+        },
+      );
+
+      final scheduleArgs = {
+        'task_id': 'task-idem-evict',
+        'start': '2026-10-17T10:00:00.000Z',
+        'end': '2026-10-17T11:00:00.000Z',
+        'idempotency_key': 'key-sched-evict',
+      };
+
+      final first = await _toolData(app, token, 'schedule_task', scheduleArgs);
+      final allocId = first['allocation']['allocation_id'] as String;
+
+      // Simulate server restart or registry eviction: in-memory map wiped
+      app.mcp.idempotency.clear();
+
+      // Replay with identical request args succeeds via sync_ops persistence
+      final replayed = await _toolData(app, token, 'schedule_task', scheduleArgs);
+      expect(replayed['allocation']['allocation_id'], allocId);
+      expect(replayed['allocation']['start'], isoZ(DateTime.parse('2026-10-17T10:00:00.000Z')));
+      expect(replayed['op']['status'], 'applied');
     });
 
     test('reusing idempotency_key with mismatched payload fails', () async {

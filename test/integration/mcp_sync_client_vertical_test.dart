@@ -6,6 +6,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/action_projection_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/task_instance_writer.dart';
@@ -14,6 +16,7 @@ import 'package:dayspark/domain/sync/sync_api_client.dart';
 import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:dayspark_server/server.dart' as srv;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../domain/sync/sync_test_support.dart';
@@ -116,6 +119,32 @@ Future<Map<String, dynamic>> _callMcpTool(
   final content = result['content'] as List<dynamic>;
   final textContent = content.first as Map<String, dynamic>;
   return jsonDecode(textContent['text'] as String) as Map<String, dynamic>;
+}
+
+Future<ActionProjectionData> _getActionProjection(AppDatabase db, DateTime date) async {
+  final container = ProviderContainer(
+    overrides: [
+      databaseProvider.overrideWithValue(db),
+      actionDateProvider.overrideWith((ref) => date),
+    ],
+  );
+  try {
+    final sub = container.listen(actionProjectionProvider, (_, __) {});
+    try {
+      for (var i = 0; i < 30; i++) {
+        await pumpEventQueue();
+        final asyncVal = container.read(actionProjectionProvider);
+        if (asyncVal.hasValue) {
+          return asyncVal.value!;
+        }
+      }
+      throw StateError('actionProjectionProvider did not resolve to data');
+    } finally {
+      sub.close();
+    }
+  } finally {
+    container.dispose();
+  }
 }
 
 void main() {
@@ -229,6 +258,12 @@ void main() {
     expect(projectedItems.first.allocation.startAt, alloc.startAt);
     expect(projectedItems.first.allocation.endAt, alloc.endAt);
 
+    // Verify Action projection Provider
+    final actionData = await _getActionProjection(a.db, DateTime.utc(2026, 10, 21));
+    expect(actionData.allocations, hasLength(1));
+    expect(actionData.allocations.first.todo.summary, 'Prepare Launch Brief');
+    expect(actionData.allocations.first.allocation.id, alloc.id);
+
     // 3. Complete Todo on client
     await RecordScope.run(
       a.db,
@@ -339,6 +374,12 @@ void main() {
     expect(projectedItems, hasLength(1));
     expect(projectedItems.first.todo.summary, 'Daily Sync');
     expect(projectedItems.first.allocation.occurrenceId, canonicalOccId);
+
+    // Verify Action projection Provider
+    final actionData = await _getActionProjection(a.db, DateTime.utc(2026, 10, 20));
+    expect(actionData.allocations, hasLength(1));
+    expect(actionData.allocations.first.todo.summary, 'Daily Sync');
+    expect(actionData.allocations.first.allocation.occurrenceId, canonicalOccId);
 
     // Complete that instance on client
     await RecordScope.run(
