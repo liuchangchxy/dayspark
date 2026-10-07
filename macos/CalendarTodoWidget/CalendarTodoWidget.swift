@@ -8,8 +8,12 @@ struct WidgetTimelineItem: Decodable {
     let kind: String
     let summary: String
     let start: String
-    let end: String?
-    let isAllDay: Bool?
+    var end: String? = nil
+    var isAllDay: Bool? = nil
+    var allocationId: String? = nil
+    var todoId: Int? = nil
+    var todoSyncId: String? = nil
+    var occurrenceId: String? = nil
 }
 
 struct WidgetActionItem: Decodable {
