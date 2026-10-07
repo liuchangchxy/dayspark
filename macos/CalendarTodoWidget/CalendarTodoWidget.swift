@@ -399,9 +399,6 @@ struct TodayWidgetView: View {
                         .font(.caption2)
                         .foregroundStyle(textSecondary)
                 }
-
-                let pendingTargets = WidgetSnapshotStore.pendingCommandTargets()
-
                 // Status compact indicator row (Overdue N, Missed N, Inbox N)
                 let status = snapshot.today?.status
                 let overdueCount = status?.overdueCount ?? 0
@@ -450,30 +447,12 @@ struct TodayWidgetView: View {
                     ForEach(timeline.prefix(isExpanded ? 3 : 2).indices, id: \.self) { i in
                         let item = timeline[i]
                         let isTaskAllocation = item.kind == "taskAllocation" && (item.todoId ?? -1) > 0
-                        let isChecked: Bool = {
-                            guard isTaskAllocation, let todoId = item.todoId else { return false }
-                            if let occ = item.occurrenceId, !occ.isEmpty {
-                                return pendingTargets.instanceKeys.contains("\(todoId):\(occ)")
-                            } else {
-                                return pendingTargets.todoIds.contains(todoId)
-                            }
-                        }()
 
                         HStack(spacing: 6) {
-                            if isTaskAllocation, let todoId = item.todoId {
-                                let target = (item.occurrenceId != nil && !item.occurrenceId!.isEmpty) ? "taskInstance" : "todo"
-                                Button(intent: CompleteActionIntent(
-                                    target: target,
-                                    todoId: todoId,
-                                    todoSyncId: item.todoSyncId ?? "",
-                                    occurrenceId: item.occurrenceId ?? "",
-                                    sourceAllocationId: item.allocationId ?? ""
-                                )) {
-                                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(isChecked ? accent : textSecondary)
-                                        .font(.footnote)
-                                }
-                                .buttonStyle(.plain)
+                            if isTaskAllocation {
+                                Circle()
+                                    .stroke(accent, lineWidth: 1.5)
+                                    .frame(width: 8, height: 8)
                             } else {
                                 RoundedRectangle(cornerRadius: 2)
                                     .fill(accent)
@@ -484,8 +463,7 @@ struct TodayWidgetView: View {
                                 Text(item.summary)
                                     .font(.caption)
                                     .lineLimit(1)
-                                    .strikethrough(isChecked)
-                                    .foregroundStyle(isChecked ? textSecondary : textPrimary)
+                                    .foregroundStyle(textPrimary)
                                 let timeStr: String = {
                                     if item.isAllDay == true { return ui.allDay }
                                     if let end = item.end, !end.isEmpty { return "\(item.start) - \(end)" }
@@ -531,7 +509,7 @@ struct TodayWidgetView: View {
                         .foregroundStyle(.green)
                 } else {
                     ForEach(actions.prefix(isExpanded ? 3 : 2).indices, id: \.self) { i in
-                        actionRow(actions[i], pendingTargets: pendingTargets, legacyChecked: snapshot.pendingTapIds)
+                        actionRow(actions[i])
                     }
                 }
 
@@ -563,43 +541,15 @@ struct TodayWidgetView: View {
     }
 
     @ViewBuilder
-    private func actionRow(
-        _ action: WidgetActionItem,
-        pendingTargets: WidgetSnapshotStore.PendingCommandTargets,
-        legacyChecked: Set<Int>
-    ) -> some View {
-        let isChecked: Bool = {
-            if action.target == "taskInstance" {
-                let occ = action.occurrenceId ?? ""
-                return pendingTargets.instanceKeys.contains("\(action.todoId):\(occ)")
-            } else {
-                return pendingTargets.todoIds.contains(action.todoId) || legacyChecked.contains(action.todoId)
-            }
-        }()
-
+    private func actionRow(_ action: WidgetActionItem) -> some View {
         HStack(spacing: 6) {
-            if action.todoId > 0 {
-                Button(intent: CompleteActionIntent(
-                    target: action.target,
-                    todoId: action.todoId,
-                    todoSyncId: action.todoSyncId ?? "",
-                    occurrenceId: action.occurrenceId ?? ""
-                )) {
-                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(isChecked ? accent : textSecondary)
-                        .font(.footnote)
-                }
-                .buttonStyle(.plain)
-            } else {
-                Image(systemName: "circle")
-                    .foregroundStyle(textSecondary)
-                    .font(.footnote)
-            }
+            Circle()
+                .stroke(accent, lineWidth: 1.5)
+                .frame(width: 8, height: 8)
             Text(action.summary)
                 .font(.caption)
                 .lineLimit(1)
-                .strikethrough(isChecked)
-                .foregroundStyle(isChecked ? textSecondary : textPrimary)
+                .foregroundStyle(textPrimary)
             Spacer()
             let secondaryText = action.deadline ?? action.displayTime ?? ""
             if !secondaryText.isEmpty {
