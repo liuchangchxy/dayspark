@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
@@ -113,7 +114,7 @@ void main() {
         summary: 'Deep Work',
         syncId: 'todo_sync_allocated',
       );
-      await insertAllocation(
+      final allocatedId = await insertAllocation(
         todoId: allocatedTodoId,
         todoSyncId: 'todo_sync_allocated',
         startAt: DateTime(2026, 10, 7, 14, 0),
@@ -208,6 +209,8 @@ void main() {
       expect(timelineRows[1]['summary'], 'Deep Work');
       expect(timelineRows[1]['start'], '14:00');
       expect(timelineRows[1]['end'], '15:00');
+      expect(timelineRows[1]['allocationId'], isA<String>());
+      expect(timelineRows[1]['allocationId'], '$allocatedId');
 
       final actionRows = today['actions'] as List;
       expect(actionRows.any((a) => a['summary'] == 'Quarterly Taxes'), isTrue);
@@ -262,7 +265,7 @@ void main() {
       expect(items.any((i) => i['summary'] == 'Far Future Meeting'), isFalse);
     });
 
-    test('civil-day arithmetic prevents DST drift across 23h/25h transitions', () async {
+    test('civil calendar boundary regression', () async {
       // 1. Autumn transition (25h wall day): civilDay advances by pure date components, not duration
       final fallDate = DateTime(2026, 10, 25, 12, 0);
 
@@ -422,6 +425,29 @@ void main() {
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
       expect((dark['colors'] as Map)['accent'], '#0A84FF');
+    });
+
+    test('cross-contract regression: builder allocationId runtimeType is String matching v3 fixture', () async {
+      // 1. Verify v3 fixture schema
+      final fixtureFile = File('test/fixtures/widget/widget_snapshot_v3.json');
+      final fixtureJson = jsonDecode(await fixtureFile.readAsString()) as Map<String, dynamic>;
+      final fixtureTimeline = (fixtureJson['today'] as Map<String, dynamic>)['timeline'] as List;
+      final fixtureAlloc = fixtureTimeline.firstWhere((item) => item['kind'] == 'taskAllocation') as Map<String, dynamic>;
+      expect(fixtureAlloc['allocationId'], isA<String>(), reason: 'v3 fixture allocationId must be String');
+
+      // 2. Verify HomeWidgetService builder produces identical String wire type
+      final todoId = await insertTodo(summary: 'Type Check');
+      final allocId = await insertAllocation(
+        todoId: todoId,
+        startAt: DateTime(2026, 10, 7, 9, 0),
+        endAt: DateTime(2026, 10, 7, 10, 0),
+      );
+      final projection = await ActionProjectionQuery.fetch(db, date: DateTime(2026, 10, 7));
+      final timeline = HomeWidgetService.todayTimeline(projection);
+      final allocRow = timeline.firstWhere((item) => item['kind'] == 'taskAllocation');
+      expect(allocRow['allocationId'], isA<String>());
+      expect(allocRow['allocationId'].runtimeType, fixtureAlloc['allocationId'].runtimeType);
+      expect(allocRow['allocationId'], allocId.toString());
     });
   });
 }

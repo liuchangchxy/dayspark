@@ -259,7 +259,7 @@ class HomeWidgetService {
     for (final a in data.allocations) {
       list.add({
         'kind': 'taskAllocation',
-        'allocationId': a.allocation.id,
+        'allocationId': a.allocation.id.toString(),
         'todoId': a.todo.id,
         'todoSyncId': a.todo.syncId,
         'occurrenceId': a.allocation.occurrenceId,

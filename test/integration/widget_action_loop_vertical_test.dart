@@ -239,7 +239,7 @@ void main() {
       (item) => item['kind'] == 'taskAllocation' && item['summary'] == 'Write Architectural Review',
     );
     expect(allocRow, isNotNull);
-    expect(allocRow['allocationId'], allocId);
+    expect(allocRow['allocationId'], '$allocId');
     expect(allocRow['todoId'], todo.id);
     expect(allocRow['todoSyncId'], todo.syncId);
     expect(allocRow['occurrenceId'], isNull);
@@ -295,7 +295,7 @@ void main() {
     // 9. Refreshed snapshot timeline no longer has active allocation
     final refreshedProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
     final refreshedTimeline = HomeWidgetService.todayTimeline(refreshedProjection);
-    expect(refreshedTimeline.any((item) => item['allocationId'] == allocId), isFalse);
+    expect(refreshedTimeline.any((item) => item['allocationId'] == '$allocId'), isFalse);
   });
 
   test('recurring Allocation vertical slice: completion invalidates occurrence allocation while siblings remain untouched', () async {
@@ -350,7 +350,7 @@ void main() {
     // 4. Initial timeline verifies occurrenceId and allocationId are retained
     final initialProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
     final initialTimeline = HomeWidgetService.todayTimeline(initialProjection);
-    final allocRow = initialTimeline.firstWhere((item) => item['allocationId'] == allocId);
+    final allocRow = initialTimeline.firstWhere((item) => item['allocationId'] == '$allocId');
     expect(allocRow['kind'], 'taskAllocation');
     expect(allocRow['occurrenceId'], targetOccurrenceId);
     expect(allocRow['todoSyncId'], todo.syncId);
@@ -415,6 +415,6 @@ void main() {
     // - Refreshed timeline no longer has the completed allocation
     final refreshedProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
     final refreshedTimeline = HomeWidgetService.todayTimeline(refreshedProjection);
-    expect(refreshedTimeline.any((item) => item['allocationId'] == allocId), isFalse);
+    expect(refreshedTimeline.any((item) => item['allocationId'] == '$allocId'), isFalse);
   });
 }
