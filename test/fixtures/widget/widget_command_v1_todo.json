@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "commandId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "action": "complete",
+  "target": "todo",
+  "todoId": 11,
+  "todoSyncId": "todo_sync_11",
+  "occurrenceId": null,
+  "sourceAllocationId": null,
+  "at": "2026-10-07T14:30:00.000Z"
+}

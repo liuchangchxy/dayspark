@@ -1,22 +1,24 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/core/utils/platform_target.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
+import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/domain/services/action_projection_query.dart';
+import 'package:dayspark/domain/utils/recurring_event_helper.dart';
+import 'package:dayspark/infrastructure/platform/widget_command.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
-// One widget-checkbox tap pushed from native code to the app.
-//
-// Native widgets never write the database directly (single-writer rule):
-// they append entries to `widget_snapshot.pendingTaps` in the shared
-// store; the app consumes them on the next flush and lands the completes
-// through the normal `toggleTodoProvider` path.
+// Legacy v2 tap format kept strictly for backward-compatible migration (Ruling I/P).
 class WidgetPendingTap {
   const WidgetPendingTap({
     required this.todoId,
@@ -51,10 +53,7 @@ class WidgetPendingTap {
   }
 }
 
-// Pre-localized widget labels for the locale in effect at snapshot build
-// time. Native readers render these verbatim — Kotlin/Swift must never
-// hardcode English (or Chinese) widget copy again; locale switches reach
-// the widget only through the next snapshot write.
+// Pre-localized widget labels for the locale in effect at snapshot build time.
 class WidgetUiStrings {
   const WidgetUiStrings({
     required this.locale,
@@ -69,6 +68,9 @@ class WidgetUiStrings {
     required this.pendingCount,
     required this.quickAdd,
     required this.upcoming,
+    this.overdue = 'Overdue',
+    this.missed = 'Missed',
+    this.unplanned = 'Inbox',
   });
 
   final String locale;
@@ -83,6 +85,9 @@ class WidgetUiStrings {
   final String pendingCount;
   final String quickAdd;
   final String upcoming;
+  final String overdue;
+  final String missed;
+  final String unplanned;
 
   Map<String, Object?> toBlock() => {
     'locale': locale,
@@ -97,94 +102,118 @@ class WidgetUiStrings {
     'pendingCount': pendingCount,
     'quickAdd': quickAdd,
     'upcoming': upcoming,
+    'overdue': overdue,
+    'missed': missed,
+    'unplanned': unplanned,
   };
 }
 
 class HomeWidgetService {
   static const String snapshotKey = 'widget_snapshot';
-  static const int snapshotVersion = 2;
+  static const int snapshotVersion = 3;
+
   static const String androidProviderName =
       'com.dayspark.app.CalendarTodoWidgetProvider';
   static const String androidUpcomingProviderName =
       'com.dayspark.app.UpcomingWidgetProvider';
   static const String androidMonthProviderName =
       'com.dayspark.app.MonthDotsWidgetProvider';
-  // WidgetKit kind names — home_widget reloads one kind per updateWidget
-  // call, so a flush must fan out over all three or the variants go stale.
+
   static const List<String> appleWidgetKinds = [
     'CalendarTodoWidget',
     'CalendarUpcomingWidget',
     'CalendarMonthWidget',
   ];
+
   static const String legacyEventsKey = 'today_events';
   static const String legacyTodosKey = 'pending_todos';
   static const String legacyCountKey = 'todo_count';
 
-  // Snapshot contract (v2) — single blob every native widget reads.
-  //
-  // WHY v2 with dual-written legacy keys still present: the three legacy
-  // keys stay for one more task so live widgets never blank out, while
-  // `widget_snapshot` becomes the only contract native readers migrate to
-  // (T3). `upcoming` feeds the next-7-days variant; `pendingTaps` is the
-  // native→app command channel (app writes `[]` on every flush after
-  // consumption — native appends, app consumes, never the reverse);
-  // `ui` carries pre-localized labels so Kotlin/Swift hold zero hardcoded
-  // copy; `theme` hands native the resolved dark flag + hex tokens so its
-  // styling matches the app without re-deriving theme logic.
+  /// Updates the authoritative v3 widget snapshot and drains any pending commands.
   static Future<void> updateWidget(
     AppDatabase db, {
-    Future<void> Function(List<WidgetPendingTap> taps)? onPendingTaps,
+    DateTime? now,
+    WidgetCommandTransport? commandTransport,
+    ToggleTodoFunction? toggleTodo,
+    Future<void> Function(List<WidgetPendingTap> taps)? onLegacyPendingTaps,
   }) async {
     if (!supportsHomeWidget) return;
 
     try {
-      final events = await todayEvents(db);
-      final todos = await pendingTodos(db);
-      final todoCount = await pendingTodoCount(db);
-      final upcomingEventsList = await upcomingEvents(db);
-      final upcomingTodosList = await upcomingTodos(db);
-      final monthEventDays = await monthEventDaysOfCurrentMonth(db);
+      final effectiveNow = now ?? DateTime.now();
 
-      // Native→app channel: read taps appended since the last flush, land
-      // them through the caller's complete path, then write a fresh
-      // snapshot whose pendingTaps is empty. Reading before building the
-      // snapshot (and only clearing on a successful consume) keeps a tap
-      // from being wiped by a flush that has no consumer attached.
+      // 1. Drain typed commands from independent command transport (Ruling O)
+      final transport = commandTransport ?? const PlatformWidgetCommandTransport();
+      if (toggleTodo != null) {
+        await consumeWidgetCommands(
+          db: db,
+          transport: transport,
+          toggleTodo: toggleTodo,
+        );
+      }
+
+      // 2. Backward compatibility: Drain any legacy v2 pendingTaps if found (Ruling I / P)
       final storedRaw = await HomeWidget.getWidgetData<String>(snapshotKey);
-      final storedTaps = decodePendingTaps(storedRaw);
-      var pendingTaps = const <WidgetPendingTap>[];
-      if (storedTaps.isNotEmpty) {
-        if (onPendingTaps != null) {
-          await onPendingTaps(storedTaps);
-        } else {
-          pendingTaps = storedTaps;
+      final legacyTaps = decodePendingTaps(storedRaw);
+      if (legacyTaps.isNotEmpty) {
+        if (onLegacyPendingTaps != null) {
+          await onLegacyPendingTaps(legacyTaps);
+        } else if (toggleTodo != null) {
+          for (final tap in legacyTaps) {
+            if (tap.action == 'complete') {
+              final row = await (db.select(db.todos)
+                    ..where((t) => t.id.equals(tap.todoId) & t.deletedAt.isNull()))
+                  .getSingleOrNull();
+              if (row != null) {
+                final isRecurring = (row.rrule != null && row.rrule!.isNotEmpty) ||
+                    (row.recurrenceRule != null && row.recurrenceRule!.isNotEmpty);
+                if (isRecurring) {
+                  // Ruling I: Missing occurrenceId fails closed; do not guess
+                  continue;
+                }
+                if (row.status != 'COMPLETED') {
+                  try {
+                    await toggleTodo(id: row.id, isCompleted: true);
+                  } catch (_) {}
+                }
+              }
+            }
+          }
         }
       }
 
-      final ui = await loadWidgetUiStrings(todoCount: todoCount);
+      // 3. Compute unified deterministic projections
+      final todayData = await ActionProjectionQuery.fetch(db, date: effectiveNow);
+      final timeline = todayTimeline(todayData);
+      final actions = todayActions(todayData);
+      final status = todayStatus(todayData);
+      final upcoming = await upcomingItems(db, now: effectiveNow);
+      final dots = await monthDots(db, now: effectiveNow);
+
+      final ui = await loadWidgetUiStrings(
+        todoCount: actions.length + status['unplannedCount']!,
+      );
       final theme = await resolveWidgetTheme();
+
+      final preservedTaps =
+          (onLegacyPendingTaps == null && toggleTodo == null)
+              ? legacyTaps
+              : const <WidgetPendingTap>[];
+
+      // 4. Build authoritative v3 snapshot
       final snapshot = buildSnapshot(
-        events: events,
-        todos: todos,
-        todoCount: todoCount,
-        upcomingEvents: upcomingEventsList,
-        upcomingTodos: upcomingTodosList,
-        monthEventDays: monthEventDays,
-        pendingTaps: pendingTaps,
+        todayTimeline: timeline,
+        todayActions: actions,
+        todayStatus: status,
+        upcomingItems: upcoming,
+        monthDots: dots,
         ui: ui,
         theme: theme,
-        generatedAt: DateTime.now(),
+        generatedAt: effectiveNow,
+        preservedPendingTaps: preservedTaps,
       );
 
-      // Dual-write kept for the retirement window: legacy three keys stay
-      // one more release as a downlevel fallback; `widget_snapshot` v2 is
-      // now the contract every native reader (T3) consumes.
-      await HomeWidget.saveWidgetData(
-        legacyEventsKey,
-        encodeTodayEvents(events),
-      );
-      await HomeWidget.saveWidgetData(legacyTodosKey, encodePendingTodos(todos));
-      await HomeWidget.saveWidgetData(legacyCountKey, '$todoCount');
+      // Save v3 snapshot (Native only reads this; never writes to it)
       await HomeWidget.saveWidgetData(snapshotKey, jsonEncode(snapshot));
       await refreshNativeWidgets();
     } catch (e) {
@@ -192,9 +221,6 @@ class HomeWidgetService {
     }
   }
 
-  // Fans the refresh out over every registered widget: Android needs one
-  // APPWIDGET_UPDATE broadcast per provider class, while iOS needs one
-  // reloadTimelines call per WidgetKit kind.
   static Future<void> refreshNativeWidgets() async {
     switch (homeWidgetPlatform) {
       case TargetPlatform.android:
@@ -214,178 +240,297 @@ class HomeWidgetService {
     }
   }
 
-  static Future<List<Event>> todayEvents(AppDatabase db) {
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final todayEnd = todayStart.add(const Duration(days: 1));
-    return (db.select(db.events)
-          ..where((t) => t.deletedAt.isNull())
+  /// Builds the timeline rows for Today Widget (EventOccurrence + TaskAllocation).
+  static List<Map<String, dynamic>> todayTimeline(ActionProjectionData data) {
+    final list = <Map<String, dynamic>>[];
+
+    for (final e in data.events) {
+      list.add({
+        'kind': 'eventOccurrence',
+        'id': e.drifId,
+        'summary': e.title,
+        'start': _formatTime(e.start),
+        'end': _formatTime(e.end),
+        'isAllDay': e.isAllDay,
+        'startMs': e.start.millisecondsSinceEpoch,
+      });
+    }
+
+    for (final a in data.allocations) {
+      list.add({
+        'kind': 'taskAllocation',
+        'allocationId': a.allocation.id.toString(),
+        'todoId': a.todo.id,
+        'todoSyncId': a.todo.syncId,
+        'occurrenceId': a.allocation.occurrenceId,
+        'summary': a.todo.summary,
+        'start': _formatTime(a.allocation.startAt),
+        'end': _formatTime(a.allocation.endAt),
+        'isAllDay': false,
+        'startMs': a.allocation.startAt.millisecondsSinceEpoch,
+      });
+    }
+
+    list.sort((a, b) => (a['startMs'] as int).compareTo(b['startMs'] as int));
+    for (final item in list) {
+      item.remove('startMs');
+    }
+    return list;
+  }
+
+  /// Builds the action rows for Today Widget (TodoDeadline + TaskInstance).
+  static List<Map<String, dynamic>> todayActions(ActionProjectionData data) {
+    final list = <Map<String, dynamic>>[];
+
+    for (final t in data.dueTodayTodos) {
+      list.add({
+        'kind': 'todoDeadline',
+        'todoId': t.id,
+        'todoSyncId': t.syncId,
+        'summary': t.summary,
+        'deadline': t.dueDate != null ? '${t.dueDate!.month}/${t.dueDate!.day}' : '',
+        'target': 'todo',
+      });
+    }
+
+    for (final inst in data.todayTaskInstances) {
+      list.add({
+        'kind': 'taskInstance',
+        'todoId': inst.todo.id,
+        'todoSyncId': inst.todo.syncId,
+        'occurrenceId': inst.occurrence.occurrenceId,
+        'summary': inst.todo.summary,
+        'displayTime': _formatOccurrenceTime(inst.occurrence),
+        'target': 'taskInstance',
+      });
+    }
+
+    return list;
+  }
+
+  /// Computes status counts for Today Widget.
+  static Map<String, int> todayStatus(ActionProjectionData data) {
+    return {
+      'overdueCount': data.overdueTodos.length,
+      'missedCount': data.missedTaskInstances.length,
+      'unplannedCount': data.unplannedCount,
+    };
+  }
+
+  /// Upcoming items for the next 7 full civil days [tomorrow 00:00, tomorrow+7d 00:00).
+  static Future<List<Map<String, dynamic>>> upcomingItems(
+    AppDatabase db, {
+    DateTime? now,
+  }) async {
+    final ref = now ?? DateTime.now();
+    final tomorrowStart = DateTime(ref.year, ref.month, ref.day + 1);
+    final windowEnd = DateTime(ref.year, ref.month, ref.day + 8);
+
+    final eventCandidates = await db.eventsDao.getEventCandidates(
+      tomorrowStart,
+      windowEnd,
+    );
+    final expandedEvents = expandRecurringEvents(
+      eventCandidates,
+      before: tomorrowStart,
+      after: windowEnd,
+    ).where((e) => e.start.isBefore(windowEnd) && e.end.isAfter(tomorrowStart)).toList();
+
+    final allocations = await fetchTaskAllocationsInDateRange(
+      db,
+      tomorrowStart,
+      windowEnd,
+    );
+
+    final dueTodos = await (db.select(db.todos)
           ..where(
             (t) =>
-                t.startDt.isSmallerThanValue(todayEnd) &
-                t.endDt.isBiggerThanValue(todayStart),
+                t.deletedAt.isNull() &
+                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
+                t.rrule.isNull() &
+                t.recurrenceRule.isNull() &
+                t.dueDate.isBiggerOrEqualValue(tomorrowStart) &
+                t.dueDate.isSmallerThanValue(windowEnd),
           )
-          ..orderBy([(t) => OrderingTerm.asc(t.startDt)])
-          ..limit(3))
+          ..orderBy([(t) => OrderingTerm.asc(t.dueDate)]))
         .get();
+
+    final rows = <({DateTime sortTime, Map<String, dynamic> item})>[];
+
+    for (final e in expandedEvents) {
+      final localStart = e.start.toLocal();
+      rows.add((
+        sortTime: localStart,
+        item: {
+          'kind': 'eventOccurrence',
+          'summary': e.title,
+          'date': '${localStart.month}/${localStart.day}',
+          'time': e.isAllDay ? 'All day' : _formatTime(localStart),
+          'isAllDay': e.isAllDay,
+        },
+      ));
+    }
+
+    for (final a in allocations) {
+      final localStart = a.allocation.startAt.toLocal();
+      rows.add((
+        sortTime: localStart,
+        item: {
+          'kind': 'taskAllocation',
+          'summary': a.todo.summary,
+          'date': '${localStart.month}/${localStart.day}',
+          'time': '${_formatTime(a.allocation.startAt)} - ${_formatTime(a.allocation.endAt)}',
+          'isAllDay': false,
+        },
+      ));
+    }
+
+    for (final t in dueTodos) {
+      final due = t.dueDate!;
+      rows.add((
+        sortTime: due,
+        item: {
+          'kind': 'todoDeadline',
+          'summary': t.summary,
+          'date': '${due.month}/${due.day}',
+          'time': 'Deadline',
+          'isAllDay': false,
+        },
+      ));
+    }
+
+    rows.sort((a, b) => a.sortTime.compareTo(b.sortTime));
+    return rows.map((r) => r.item).toList();
   }
 
-  static Future<List<Todo>> pendingTodos(AppDatabase db, {int limit = 3}) {
-    return (db.select(db.todos)
-          ..where((t) => t.deletedAt.isNull())
-          ..where((t) => t.status.isNotIn(['COMPLETED', 'CANCELLED']))
-          ..where((t) => t.rrule.isNull())
-          // Subtasks must not occupy widget slots — only top-level todos.
-          ..where((t) => t.parentId.isNull())
-          ..orderBy([
-            // SQLite ASC puts NULLs first; ordering by `due_date IS NULL`
-            // (0/1) first sinks NULL due dates to the end of the list.
-            (t) => OrderingTerm(
-              expression: t.dueDate.isNull(),
-              mode: OrderingMode.asc,
-            ),
-            (t) => OrderingTerm.asc(t.dueDate),
-          ])
-          ..limit(limit))
-        .get();
-  }
-
-  static Future<int> pendingTodoCount(AppDatabase db) async {
-    final rows = await (db.select(db.todos)
-          ..where((t) => t.deletedAt.isNull())
-          ..where((t) => t.status.isNotIn(['COMPLETED', 'CANCELLED']))
-          ..where((t) => t.rrule.isNull()))
-        .get();
-    return rows.length;
-  }
-
-  // Upcoming bucket window: the 7 full days after today — [tomorrow
-  // 00:00, tomorrow+7d 00:00). Today is excluded on purpose: the legacy
-  // bucket already covers it and the Upcoming variant sits next to the
-  // today widget on the home screen.
-  static ({DateTime start, DateTime end}) upcomingWindow(DateTime now) {
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final start = todayStart.add(const Duration(days: 1));
-    return (start: start, end: start.add(const Duration(days: 7)));
-  }
-
-  static Future<List<Event>> upcomingEvents(
-    AppDatabase db, {
-    int limit = 10,
-    DateTime? now,
-  }) {
-    final window = upcomingWindow(now ?? DateTime.now());
-    return (db.select(db.events)
-          ..where((t) => t.deletedAt.isNull())
-          ..where(
-            (t) =>
-                t.startDt.isSmallerThanValue(window.end) &
-                t.endDt.isBiggerThanValue(window.start),
-          )
-          ..orderBy([(t) => OrderingTerm.asc(t.startDt)])
-          ..limit(limit))
-        .get();
-  }
-
-  static Future<List<Todo>> upcomingTodos(
-    AppDatabase db, {
-    int limit = 10,
-    DateTime? now,
-  }) {
-    final window = upcomingWindow(now ?? DateTime.now());
-    return (db.select(db.todos)
-          ..where((t) => t.deletedAt.isNull())
-          ..where((t) => t.status.isNotIn(['COMPLETED', 'CANCELLED']))
-          ..where((t) => t.rrule.isNull())
-          ..where((t) => t.parentId.isNull())
-          ..where((t) => t.dueDate.isBiggerOrEqualValue(window.start))
-          ..where((t) => t.dueDate.isSmallerThanValue(window.end))
-          ..orderBy([(t) => OrderingTerm.asc(t.dueDate)])
-          ..limit(limit))
-        .get();
-  }
-
-  // Days-of-month (1..31) inside the current calendar month that overlap at
-  // least one event — feeds the month-dots widget variant. Derived here in
-  // one bounded query rather than by native code: todayEvents carries no
-  // date and the upcoming bucket only spans 7 days, so the snapshot alone
-  // cannot reconstruct a month grid (T3 brief's allowed minimal Dart
-  // addition).
-  static Future<List<int>> monthEventDaysOfCurrentMonth(
+  /// Month dots for current civil calendar month.
+  /// Points on dates with at least one EventOccurrence or TaskAllocation (Ruling G).
+  static Future<List<List<dynamic>>> monthDots(
     AppDatabase db, {
     DateTime? now,
   }) async {
     final ref = now ?? DateTime.now();
     final monthStart = DateTime(ref.year, ref.month, 1);
     final monthEnd = DateTime(ref.year, ref.month + 1, 1);
-    final rows = await (db.select(db.events)
-          ..where((t) => t.deletedAt.isNull())
-          ..where(
-            (t) =>
-                t.startDt.isSmallerThanValue(monthEnd) &
-                t.endDt.isBiggerOrEqualValue(monthStart),
-          )
-          ..orderBy([(t) => OrderingTerm.asc(t.startDt)])
-          ..limit(200))
-        .get();
-    final days = <int>{};
-    for (final e in rows) {
-      if (!e.endDt.isAfter(e.startDt)) {
-        // Zero-length events still occupy their start day.
-        final s = DateTime(e.startDt.year, e.startDt.month, e.startDt.day);
-        if (!s.isBefore(monthStart) && s.isBefore(monthEnd)) {
-          days.add(s.day);
-        }
+    final daysInMonth = DateTime(ref.year, ref.month + 1, 0).day;
+
+    final eventCandidates = await db.eventsDao.getEventCandidates(
+      monthStart,
+      monthEnd,
+    );
+    final expandedEvents = expandRecurringEvents(
+      eventCandidates,
+      before: monthStart,
+      after: monthEnd,
+    ).where((e) => e.start.isBefore(monthEnd) && e.end.isAfter(monthStart)).toList();
+
+    final allocations = await fetchTaskAllocationsInDateRange(
+      db,
+      monthStart,
+      monthEnd,
+    );
+
+    final markedDays = <int>{};
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      final dayStart = DateTime(ref.year, ref.month, d);
+      final dayEnd = DateTime(ref.year, ref.month, d + 1);
+
+      final hasEvent = expandedEvents.any(
+        (e) => e.start.isBefore(dayEnd) && e.end.isAfter(dayStart),
+      );
+      if (hasEvent) {
+        markedDays.add(d);
         continue;
       }
-      var cursor = DateTime(e.startDt.year, e.startDt.month, e.startDt.day);
-      if (cursor.isBefore(monthStart)) cursor = monthStart;
-      while (cursor.isBefore(monthEnd) && cursor.isBefore(e.endDt)) {
-        days.add(cursor.day);
-        cursor = cursor.add(const Duration(days: 1));
+
+      final hasAlloc = allocations.any(
+        (a) =>
+            a.allocation.startAt.isBefore(dayEnd) &&
+            a.allocation.endAt.isAfter(dayStart),
+      );
+      if (hasAlloc) {
+        markedDays.add(d);
       }
     }
-    final sorted = days.toList()..sort();
-    return sorted;
+
+    final sorted = markedDays.toList()..sort();
+    return [for (final day in sorted) [day, true]];
   }
 
+  /// Builds the complete authoritative v3 snapshot dictionary.
   static Map<String, Object?> buildSnapshot({
-    required List<Event> events,
-    required List<Todo> todos,
-    required int todoCount,
-    required List<Event> upcomingEvents,
-    required List<Todo> upcomingTodos,
+    required List<Map<String, dynamic>> todayTimeline,
+    required List<Map<String, dynamic>> todayActions,
+    required Map<String, int> todayStatus,
+    required List<Map<String, dynamic>> upcomingItems,
+    required List<List<dynamic>> monthDots,
     required WidgetUiStrings ui,
     required Map<String, Object?> theme,
     required DateTime generatedAt,
-    List<WidgetPendingTap> pendingTaps = const [],
-    List<int> monthEventDays = const [],
+    List<WidgetPendingTap> preservedPendingTaps = const [],
   }) {
+    // Legacy fallback items for smooth downlevel reader compatibility
+    final legacyEvents = todayTimeline
+        .where((t) => t['kind'] == 'eventOccurrence')
+        .map((e) => {
+          'summary': e['summary'] as String,
+          'start': e['start'] as String,
+          'isAllDay': e['isAllDay'] as bool,
+        })
+        .toList();
+
+    final legacyTodos = todayActions
+        .map((a) => {
+          'id': a['todoId'],
+          'summary': a['summary'] as String,
+          'dueDate': a['deadline'] ?? '',
+        })
+        .toList();
+
+    final legacyUpcomingEvents = upcomingItems
+        .where((i) => i['kind'] == 'eventOccurrence')
+        .map((e) => {
+          'summary': e['summary'] as String,
+          'date': e['date'] as String,
+          'start': e['time'] as String,
+          'isAllDay': e['isAllDay'] as bool,
+        })
+        .toList();
+
+    final legacyUpcomingTodos = upcomingItems
+        .where((i) => i['kind'] != 'eventOccurrence')
+        .map((t) => {
+          'summary': t['summary'] as String,
+          'dueDate': t['date'] as String,
+        })
+        .toList();
+
     return {
       'version': snapshotVersion,
       'generatedAt': generatedAt.toUtc().toIso8601String(),
-      'todayEvents': events.map(eventItem).toList(),
-      'pendingTodos': todos.map(todoItem).toList(),
-      'todoCount': todoCount,
-      'upcoming': {
-        'events': upcomingEvents.map(upcomingEventItem).toList(),
-        'todos': upcomingTodos.map(upcomingTodoItem).toList(),
+      'today': {
+        'timeline': todayTimeline,
+        'actions': todayActions,
+        'status': todayStatus,
       },
-      'pendingTaps': pendingTaps.map((t) => t.toJson()).toList(),
-      // Additive on top of the frozen v2 shape: [[dayNumber, hasEvent]]
-      // pairs for the current month — presence of the pair is what marks
-      // the day, `hasEvent` is carried for contract-shape stability.
-      'monthDots': [
-        for (final day in monthEventDays) [day, true],
+      'upcoming': {
+        'items': upcomingItems,
+        'events': legacyUpcomingEvents,
+        'todos': legacyUpcomingTodos,
+      },
+      'monthDots': monthDots,
+      'todayEvents': legacyEvents,
+      'pendingTodos': legacyTodos,
+      'todoCount': todayActions.length + (todayStatus['unplannedCount'] ?? 0),
+      'pendingTaps': [
+        for (final tap in preservedPendingTaps) tap.toJson(),
       ],
       'ui': ui.toBlock(),
       'theme': theme,
     };
   }
 
-  // Parses `pendingTaps` out of a stored snapshot. Malformed JSON or
-  // malformed entries degrade to "no taps" instead of throwing — a corrupt
-  // channel must never block a widget refresh.
   static List<WidgetPendingTap> decodePendingTaps(String? rawSnapshot) {
     if (rawSnapshot == null || rawSnapshot.isEmpty) {
       return const [];
@@ -412,8 +557,6 @@ class HomeWidgetService {
     }
   }
 
-  // Resolution order: explicit locale param → persisted app locale →
-  // platform locale (mirrors loadNotificationStrings — no BuildContext).
   static Future<WidgetUiStrings> loadWidgetUiStrings({
     Locale? locale,
     int todoCount = 0,
@@ -440,11 +583,12 @@ class HomeWidgetService {
       pendingCount: l.widgetPendingCount(todoCount),
       quickAdd: l.quickAdd,
       upcoming: l.upcoming,
+      overdue: l.overdue,
+      missed: l.missed,
+      unplanned: l.unplannedInbox,
     );
   }
 
-  // `system` falls back to platform brightness; emits the native-ready
-  // dark flag + hex color tokens.
   static Future<Map<String, Object?>> resolveWidgetTheme() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(themeModePrefKey);
@@ -481,58 +625,16 @@ class HomeWidgetService {
   static String _hex(Color color) =>
       '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
-  static String encodeTodayEvents(List<Event> events) =>
-      jsonEncode(events.map(legacyEventItem).toList());
+  static String _formatTime(DateTime dt) {
+    final local = dt.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
 
-  static String encodePendingTodos(List<Todo> todos) =>
-      jsonEncode(todos.map(legacyTodoItem).toList());
-
-  static Map<String, Object?> eventItem(Event e) => {
-        'summary': e.summary,
-        'start':
-            '${e.startDt.hour.toString().padLeft(2, '0')}:${e.startDt.minute.toString().padLeft(2, '0')}',
-        'isAllDay': e.isAllDay,
-      };
-
-  // `id` rides along so native checkbox taps can address the todo in
-  // pendingTaps (native never writes the DB — it only appends the id).
-  static Map<String, Object?> todoItem(Todo t) => {
-        'id': t.id,
-        'summary': t.summary,
-        'dueDate':
-            t.dueDate != null ? '${t.dueDate!.month}/${t.dueDate!.day}' : '',
-      };
-
-  static Map<String, Object?> upcomingEventItem(Event e) => {
-        'summary': e.summary,
-        'date': '${e.startDt.month}/${e.startDt.day}',
-        'start':
-            '${e.startDt.hour.toString().padLeft(2, '0')}:${e.startDt.minute.toString().padLeft(2, '0')}',
-        'isAllDay': e.isAllDay,
-      };
-
-  static Map<String, Object?> upcomingTodoItem(Todo t) => {
-        'summary': t.summary,
-        'dueDate':
-            t.dueDate != null ? '${t.dueDate!.month}/${t.dueDate!.day}' : '',
-      };
-
-  // Legacy payloads must be [[String: String]]: iOS CalendarTodoWidget.swift
-  // casts today_events/pending_todos with `as? [[String: String]]`, and one
-  // non-string value (the bool isAllDay) fails the whole array cast, leaving
-  // the widget empty. macOS Swift reads isAllDay as `as? Bool` — it cannot
-  // coexist with the iOS all-string contract, so legacy degrades macOS to
-  // "All Day" labels until P4 retargets the Swift readers at widget_snapshot.
-  static Map<String, String> legacyEventItem(Event e) => {
-        'summary': e.summary,
-        'start':
-            '${e.startDt.hour.toString().padLeft(2, '0')}:${e.startDt.minute.toString().padLeft(2, '0')}',
-        'isAllDay': '${e.isAllDay}',
-      };
-
-  static Map<String, String> legacyTodoItem(Todo t) => {
-        'summary': t.summary,
-        'dueDate':
-            t.dueDate != null ? '${t.dueDate!.month}/${t.dueDate!.day}' : '',
-      };
+  static String _formatOccurrenceTime(TodoOccurrence occ) {
+    final anchor = occ.nominalAnchor;
+    if (anchor is LocalDateTime) {
+      return '${anchor.hour.toString().padLeft(2, '0')}:${anchor.minute.toString().padLeft(2, '0')}';
+    }
+    return '';
+  }
 }

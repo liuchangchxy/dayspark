@@ -459,4 +459,21 @@
   - 客户端 AI Schedule 必须显式选择已有 Todo（及重复 occurrence）→ 判错代价：用户不能在无关联 Todo 的情况下点击 AI Schedule 随便生成一段悬空安排，但彻底杜绝了伪造 Event 冒充任务排程的反模式。
   - 幂等重放优先于可变状态校验 → 判错代价：需在写前增加幂等命中检查分支，但保证了网络抖动重发时接口的绝对鲁棒性与一致性。
 
-
+### [2026-10-07] Phase 4 — Widget Action Projection & Exact TaskInstance Commands
+- **触发背景**：Issue #9（Refs #3，Follows #7 / PR #8）用户拍板冻结裁定 A–P（Frozen Product Rulings，2026-10-07）。Phase 1/2/3 打通了 App 内部与 MCP/AI 的 Action Loop，但小组件仍留在历史旧世界：快照仍为 v2、只展示待办列表而未接入 Action 投影、漏掉 TaskAllocation、无法对重复任务具体实例进行打勾操作、且快照 pendingTaps 存在原生与 Flutter 并发写入的 RMW 丢失竞争。
+- **核心决策（Rulings A–P）**：
+  1. **Ruling A — 小组件收敛至 Action 投影（Action-First Widgets）**：小组件全面迁移至快照契约 v3，对齐 Action 页面投影口径。`today.timeline` 聚合 EventOccurrence 与 TaskAllocation；`today.actions` 聚合今日 Action 项（Todo 截止与 TaskInstance）。
+  2. **Ruling B — 单写入者架构（Single-Writer Architecture）**：原生小组件代码保持纯只读渲染器，严格禁止直接打开或写入 SQLite 数据库。所有写入必须通过平台命令队列由 Flutter 宿主消费并落库。
+  3. **Ruling C — 精确实例命令（Exact TaskInstance Commands）**：小组件打勾操作生成强类型命令 `WidgetCommand`，携带 `target: "todo" | "taskInstance"`、`commandId`、`todoId`、`todoSyncId`、`occurrenceId` 等字段，支持对重复任务具体实例完成打勾，不模糊回退到系列。
+  4. **Ruling D — 命令排空与领域闭环（Drain & Domain Reconcile）**：宿主应用在启动、前台恢复（Resumed）和小组件刷新前，通过平台通道批量拉取并排空命令；分发至 `toggleTodo(todo, occurrenceId: occurrenceId)` 统一领域写入器，触发 Allocation 失效与后续副作用；成功或终态无效（如已完成）后安全 ack 删除平台存储中的命令条目。
+  5. **Ruling E — 独立命令存储消除 RMW 竞争（Independent Command Storage）**：原生端不修改快照 JSON blob，而是为每条命令原子写入独立键（`widget_command_<commandId>`），彻底消除快照并发覆盖丢失。
+  6. **Ruling F — 纯投影与零架构迁移（Pure Projection & Zero Schema Change）**：快照生成为纯内存派生投影（抽取 `ActionProjectionQuery`），零 SQLite schema 迁移，零服务器同步协议变更，零 recurrence identity 变更。
+  7. **Ruling G — 共享时间轴与空状态一致性**：Timeline 与 MonthDots 统一包含有效 TaskAllocation；纯待办小组件在今日无 Action 且无时间轴项时展示统一空状态。
+  8. **Ruling H — 确定性公历日期加减**：所有多日投影与跨日计算使用 `DateTime(y, m, d + n)` 公历算术，禁止使用 `Duration(days: 1)` 防止夏令时跳变。
+  9. **Ruling I — 本地化展示与时区保真**：小组件时间展示使用设备本地时刻，底层持久化保持 UTC instant 与规范 occurrence identity。
+  10. **Ruling J — 平滑迁移与兼容性**：保留对旧快照 v2 兼容解析，排空历史 legacy `pendingTaps` 并清理废弃的独立键。
+- **对应 SPEC 章节**：SPEC.md §3.5（TaskAllocation 规则与小组件契约）、§4.3。
+- **影响范围**：`lib/domain/services/action_projection_query.dart`、`lib/domain/providers/action_projection_provider.dart`、`lib/infrastructure/platform/widget_command.dart`、`lib/infrastructure/platform/home_widget_service.dart`、`android/app/src/main/kotlin/com/dayspark/app/`、`ios/CalendarTodoWidget/`、`macos/CalendarTodoWidget/`、相关测试套件。
+- **Rulings 裁定披露**：
+  - 独立平台存储键替代快照内的 pendingTaps 数组 → 判错代价：需逐条命令读写和 ack，但彻底杜绝了原生小组件与应用刷新并发时的丢点击竞争。
+  - 原生端零直写 SQLite，坚持 Single-Writer 架构 → 判错代价：小组件打勾依赖应用激活或后台服务排空才能落库，但保护了 SQLite 事务完整性与跨平台数据同步单一权威。

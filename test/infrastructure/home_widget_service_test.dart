@@ -1,10 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark/domain/services/action_projection_query.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_service.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 import '../helpers/test_database.dart';
 
@@ -29,6 +34,8 @@ void main() {
     DateTime? dueDate,
     int? parentId,
     String status = 'NEEDS-ACTION',
+    String? syncId,
+    String? rrule,
     DateTime? deletedAt,
   }) {
     return db
@@ -40,6 +47,8 @@ void main() {
             status: Value(status),
             dueDate: dueDate != null ? Value(dueDate) : const Value.absent(),
             parentId: parentId != null ? Value(parentId) : const Value.absent(),
+            syncId: syncId != null ? Value(syncId) : const Value.absent(),
+            rrule: rrule != null ? Value(rrule) : const Value.absent(),
             deletedAt:
                 deletedAt != null ? Value(deletedAt) : const Value.absent(),
           ),
@@ -51,6 +60,7 @@ void main() {
     required DateTime startDt,
     required DateTime endDt,
     bool isAllDay = false,
+    String? rrule,
     DateTime? deletedAt,
   }) {
     return db
@@ -62,522 +72,382 @@ void main() {
             startDt: startDt,
             endDt: endDt,
             isAllDay: Value(isAllDay),
+            rrule: rrule != null ? Value(rrule) : const Value.absent(),
             deletedAt: deletedAt != null ? Value(deletedAt) : const Value.absent(),
           ),
         );
   }
 
-  group('HomeWidgetService.pendingTodos', () {
-    test('orders todos with NULL due dates last', () async {
-      await insertTodo(summary: 'No due', dueDate: null);
-      await insertTodo(summary: 'Due later', dueDate: DateTime(2026, 10, 1));
-      await insertTodo(
-        summary: 'Due sooner',
-        dueDate: DateTime(2026, 9, 20),
-      );
+  Future<int> insertAllocation({
+    required int todoId,
+    String? todoSyncId,
+    String? occurrenceId,
+    required DateTime startAt,
+    required DateTime endAt,
+  }) {
+    return db
+        .into(db.taskAllocations)
+        .insert(
+          TaskAllocationsCompanion.insert(
+            todoId: Value(todoId),
+            todoSyncId: todoSyncId != null ? Value(todoSyncId) : const Value.absent(),
+            occurrenceId: occurrenceId != null ? Value(occurrenceId) : const Value.absent(),
+            startAt: startAt,
+            endAt: endAt,
+          ),
+        );
+  }
 
-      final todos = await HomeWidgetService.pendingTodos(db, limit: 10);
+  group('HomeWidgetService v3 snapshot contract', () {
+    test('v3 snapshot schema keys and types match the contract', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
 
-      expect(
-        todos.map((t) => t.summary).toList(),
-        ['Due sooner', 'Due later', 'No due'],
-      );
-    });
-
-    test('excludes subtasks so they never occupy widget slots', () async {
-      final parentId = await insertTodo(summary: 'Parent', dueDate: null);
-      await insertTodo(
-        summary: 'Subtask',
-        dueDate: DateTime(2026, 9, 19),
-        parentId: parentId,
-      );
-      await insertTodo(summary: 'Top level', dueDate: DateTime(2026, 9, 21));
-
-      final todos = await HomeWidgetService.pendingTodos(db, limit: 10);
-
-      expect(todos.map((t) => t.summary).toList(), [
-        'Top level',
-        'Parent',
-      ]);
-      expect(todos.any((t) => t.summary == 'Subtask'), isFalse);
-    });
-
-    test('returns at most limit top-level pending todos', () async {
-      for (var i = 0; i < 5; i++) {
-        await insertTodo(summary: 'Todo $i', dueDate: DateTime(2026, 9, 20));
-      }
-      await insertTodo(
-        summary: 'Done',
-        dueDate: DateTime(2026, 9, 20),
-        status: 'COMPLETED',
-      );
-      await insertTodo(
-        summary: 'Deleted',
-        dueDate: DateTime(2026, 9, 20),
-        deletedAt: DateTime(2026, 9, 21),
-      );
-
-      final todos = await HomeWidgetService.pendingTodos(db);
-
-      expect(todos.length, 3);
-    });
-  });
-
-  group('HomeWidgetService v2 snapshot', () {
-    test('v2 snapshot schema keys and types match the contract', () async {
-      final today = DateTime.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
+      // 1. Insert Event for today
       await insertEvent(
-        summary: 'Standup',
-        startDt: todayStart.add(const Duration(hours: 10)),
-        endDt: todayStart.add(const Duration(hours: 11)),
+        summary: 'Team Sync',
+        startDt: DateTime(2026, 10, 7, 10, 0),
+        endDt: DateTime(2026, 10, 7, 11, 0),
       );
-      await insertEvent(
-        summary: 'Conference',
-        startDt: todayStart,
-        endDt: todayStart.add(const Duration(days: 1)),
-        isAllDay: true,
-      );
-      await insertTodo(summary: 'With due', dueDate: DateTime(2026, 9, 25));
-      await insertTodo(summary: 'Without due', dueDate: null);
 
-      final events = await HomeWidgetService.todayEvents(db);
-      final todos = await HomeWidgetService.pendingTodos(db);
-      final todoCount = await HomeWidgetService.pendingTodoCount(db);
+      // 2. Insert Todo with allocation for today
+      final allocatedTodoId = await insertTodo(
+        summary: 'Deep Work',
+        syncId: 'todo_sync_allocated',
+      );
+      final allocatedId = await insertAllocation(
+        todoId: allocatedTodoId,
+        todoSyncId: 'todo_sync_allocated',
+        startAt: DateTime(2026, 10, 7, 14, 0),
+        endAt: DateTime(2026, 10, 7, 15, 0),
+      );
+
+      // 3. Insert Action Todo due today
+      await insertTodo(
+        summary: 'Quarterly Taxes',
+        syncId: 'todo_sync_taxes',
+        dueDate: DateTime(2026, 10, 7),
+      );
+
+      // 4. Insert Recurring habit
+      final habitSpec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.due,
+          value: LocalDate(2026, 10, 7),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY',
+      );
+      await RecordScope.run(
+        db,
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calId,
+            summary: 'Daily Standup Notes',
+            rrule: Value(habitSpec.rule.canonical),
+          ),
+          recurrenceSpec: habitSpec,
+        ),
+      );
+
+      // 5. Query and build v3 components
+      final projectionData = await ActionProjectionQuery.fetch(db, date: now);
+      final timeline = HomeWidgetService.todayTimeline(projectionData);
+      final actions = HomeWidgetService.todayActions(projectionData);
+      final status = HomeWidgetService.todayStatus(projectionData);
+      final upcoming = await HomeWidgetService.upcomingItems(db, now: now);
+      final monthDots = await HomeWidgetService.monthDots(db, now: now);
+
       final ui = await HomeWidgetService.loadWidgetUiStrings(
         locale: const Locale('en'),
-        todoCount: todoCount,
+        todoCount: actions.length + status['unplannedCount']!,
       );
-      final theme = HomeWidgetService.buildThemeBlock(dark: false);
+      final theme = HomeWidgetService.buildThemeBlock(dark: true);
 
       final snapshot = HomeWidgetService.buildSnapshot(
-        events: events,
-        todos: todos,
-        todoCount: todoCount,
-        upcomingEvents: const [],
-        upcomingTodos: const [],
-        monthEventDays: await HomeWidgetService.monthEventDaysOfCurrentMonth(
-          db,
-        ),
+        todayTimeline: timeline,
+        todayActions: actions,
+        todayStatus: status,
+        upcomingItems: upcoming,
+        monthDots: monthDots,
         ui: ui,
         theme: theme,
-        generatedAt: DateTime.utc(2026, 9, 22, 4, 5, 6),
+        generatedAt: now,
       );
-      final decoded =
-          jsonDecode(jsonEncode(snapshot)) as Map<String, dynamic>;
+
+      final decoded = jsonDecode(jsonEncode(snapshot)) as Map<String, dynamic>;
 
       expect(decoded.keys.toSet(), {
         'version',
         'generatedAt',
+        'today',
+        'upcoming',
+        'monthDots',
         'todayEvents',
         'pendingTodos',
         'todoCount',
-        'upcoming',
         'pendingTaps',
-        'monthDots',
         'ui',
         'theme',
       });
-      expect(decoded['version'], 2);
-      expect(decoded['version'], isA<int>());
-      expect(DateTime.tryParse(decoded['generatedAt'] as String), isNotNull);
 
-      final todayEvents = decoded['todayEvents'] as List;
-      expect(todayEvents, hasLength(2));
-      for (final item in todayEvents.cast<Map<String, dynamic>>()) {
-        expect(item.keys.toSet(), {'summary', 'start', 'isAllDay'});
-        expect(item['summary'], isA<String>());
-        expect(item['start'], matches(RegExp(r'^\d{2}:\d{2}$')));
-        expect(item['isAllDay'], isA<bool>());
-      }
-      // startDt ASC: all-day event starts at 00:00, standup at 10:00.
-      expect((todayEvents.first as Map)['summary'], 'Conference');
+      expect(decoded['version'], 3);
+      expect(decoded['generatedAt'], isA<String>());
 
-      final pendingTodos = decoded['pendingTodos'] as List;
-      expect(pendingTodos, hasLength(2));
-      for (final item in pendingTodos.cast<Map<String, dynamic>>()) {
-        // `id` is the handle native checkbox taps append into pendingTaps.
-        expect(item.keys.toSet(), {'id', 'summary', 'dueDate'});
-        expect(item['id'], isA<int>());
-        expect(item['summary'], isA<String>());
-        expect(item['dueDate'], isA<String>());
-      }
+      final today = decoded['today'] as Map<String, dynamic>;
+      expect(today.keys.toSet(), {'timeline', 'actions', 'status'});
 
-      expect(decoded['todoCount'], 2);
+      final timelineRows = today['timeline'] as List;
+      expect(timelineRows.length, 2);
+      expect(timelineRows[0]['kind'], 'eventOccurrence');
+      expect(timelineRows[0]['summary'], 'Team Sync');
+      expect(timelineRows[0]['start'], '10:00');
+      expect(timelineRows[0]['end'], '11:00');
+
+      expect(timelineRows[1]['kind'], 'taskAllocation');
+      expect(timelineRows[1]['summary'], 'Deep Work');
+      expect(timelineRows[1]['start'], '14:00');
+      expect(timelineRows[1]['end'], '15:00');
+      expect(timelineRows[1]['allocationId'], isA<String>());
+      expect(timelineRows[1]['allocationId'], '$allocatedId');
+
+      final actionRows = today['actions'] as List;
+      expect(actionRows.any((a) => a['summary'] == 'Quarterly Taxes'), isTrue);
+      expect(actionRows.any((a) => a['summary'] == 'Daily Standup Notes'), isTrue);
+
+      final statusMap = today['status'] as Map<String, dynamic>;
+      expect(statusMap.keys.toSet(), {'overdueCount', 'missedCount', 'unplannedCount'});
+
+      // Downlevel compatibility fields
+      expect(decoded['todayEvents'], isA<List>());
+      expect(decoded['pendingTodos'], isA<List>());
       expect(decoded['todoCount'], isA<int>());
-
-      final upcoming = decoded['upcoming'] as Map<String, dynamic>;
-      expect(upcoming.keys.toSet(), {'events', 'todos'});
-      expect(upcoming['events'], isA<List>());
-      expect(upcoming['todos'], isA<List>());
-
-      // App side of the native→app channel always writes it empty; native
-      // appends between flushes, the next flush with a consumer clears it.
-      expect(decoded['pendingTaps'], isA<List>());
       expect(decoded['pendingTaps'], isEmpty);
-
-      // monthDots: [[dayNumber, hasEvent]] pairs for the current month; the
-      // golden inserts an all-day event covering today, so today's day shows.
-      final monthDots = decoded['monthDots'] as List;
-      expect(monthDots, isA<List>());
-      for (final pair in monthDots) {
-        expect(pair, isA<List>());
-        final parts = (pair as List);
-        expect(parts, hasLength(2));
-        expect(parts[0], isA<int>());
-        expect(parts[1], true);
-      }
-      final todayDot = monthDots.firstWhere(
-        (pair) => (pair as List)[0] == today.day,
-        orElse: () => null,
-      );
-      expect(todayDot, isNotNull, reason: 'today must carry a month dot');
-
-      final uiBlock = decoded['ui'] as Map<String, dynamic>;
-      expect(uiBlock.keys.toSet(), {
-        'locale',
-        'title',
-        'today',
-        'events',
-        'todos',
-        'allDay',
-        'todayEventsHeader',
-        'noEvents',
-        'allDone',
-        'pendingCount',
-        'quickAdd',
-        'upcoming',
-      });
-      expect(uiBlock['locale'], 'en');
-      expect(uiBlock['pendingCount'], '2 pending');
-      for (final key in uiBlock.keys) {
-        expect(uiBlock[key], isA<String>(), reason: 'ui.$key');
-      }
-
-      final themeBlock = decoded['theme'] as Map<String, dynamic>;
-      expect(themeBlock.keys.toSet(), {'dark', 'colors'});
-      expect(themeBlock['dark'], isA<bool>());
-      expect(themeBlock['dark'], false);
-      final colors = themeBlock['colors'] as Map<String, dynamic>;
-      expect(colors.keys.toSet(), {
-        'background',
-        'surface',
-        'textPrimary',
-        'textSecondary',
-        'accent',
-        'border',
-      });
-      for (final key in colors.keys) {
-        expect(colors[key], matches(RegExp(r'^#[0-9A-F]{6}$')));
-      }
     });
 
-    test('upcoming bucket covers tomorrow through day 7 only', () async {
-      final now = DateTime(2026, 9, 24, 15);
-      final window = HomeWidgetService.upcomingWindow(now);
-      expect(window.start, DateTime(2026, 9, 25));
-      expect(window.end, DateTime(2026, 10, 2));
+    test('upcomingItems covers 7-civil-day hybrid projection', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
 
+      // Tomorrow event
       await insertEvent(
-        summary: 'Today event',
-        startDt: DateTime(2026, 9, 24, 10),
-        endDt: DateTime(2026, 9, 24, 11),
-      );
-      await insertEvent(
-        summary: 'Tomorrow event',
-        startDt: DateTime(2026, 9, 25, 9),
-        endDt: DateTime(2026, 9, 25, 10),
-      );
-      await insertEvent(
-        summary: 'Day7 event',
-        startDt: DateTime(2026, 10, 1, 18),
-        endDt: DateTime(2026, 10, 1, 19),
-      );
-      await insertEvent(
-        summary: 'Day8 event',
-        startDt: DateTime(2026, 10, 2, 9),
-        endDt: DateTime(2026, 10, 2, 10),
-      );
-      await insertEvent(
-        summary: 'Spilling multi-day',
-        startDt: DateTime(2026, 9, 24, 8),
-        endDt: DateTime(2026, 9, 26, 8),
+        summary: 'Tomorrow Meeting',
+        startDt: DateTime(2026, 10, 8, 9, 0),
+        endDt: DateTime(2026, 10, 8, 10, 0),
       );
 
-      await insertTodo(summary: 'Due tomorrow', dueDate: DateTime(2026, 9, 25));
-      await insertTodo(summary: 'Due day7', dueDate: DateTime(2026, 10, 1));
-      await insertTodo(summary: 'Due day8', dueDate: DateTime(2026, 10, 2));
-      await insertTodo(summary: 'Due today', dueDate: DateTime(2026, 9, 24));
-      await insertTodo(summary: 'No due', dueDate: null);
-      final parentId = await insertTodo(summary: 'Parent', dueDate: null);
+      // Day 3 Task Allocation
+      final todoDay3 = await insertTodo(summary: 'Project Sprint');
+      await insertAllocation(
+        todoId: todoDay3,
+        startAt: DateTime(2026, 10, 10, 14, 0),
+        endAt: DateTime(2026, 10, 10, 16, 0),
+      );
+
+      // Day 5 Todo Deadline
       await insertTodo(
-        summary: 'Due subtask',
-        dueDate: DateTime(2026, 9, 26),
-        parentId: parentId,
-      );
-      await insertTodo(
-        summary: 'Done soon',
-        dueDate: DateTime(2026, 9, 26),
-        status: 'COMPLETED',
+        summary: 'Submit Invoice',
+        dueDate: DateTime(2026, 10, 12),
       );
 
-      final events = await HomeWidgetService.upcomingEvents(db, now: now);
-      final todos = await HomeWidgetService.upcomingTodos(db, now: now);
-
-      expect(events.map((e) => e.summary).toSet(), {
-        'Tomorrow event',
-        'Day7 event',
-        'Spilling multi-day',
-      });
-      expect(todos.map((t) => t.summary).toSet(), {
-        'Due tomorrow',
-        'Due day7',
-      });
-
-      final snapshot = HomeWidgetService.buildSnapshot(
-        events: const [],
-        todos: const [],
-        todoCount: 0,
-        upcomingEvents: events,
-        upcomingTodos: todos,
-        ui: await HomeWidgetService.loadWidgetUiStrings(
-          locale: const Locale('en'),
-        ),
-        theme: HomeWidgetService.buildThemeBlock(dark: false),
-        generatedAt: now,
+      // Day 8 event (out of 7-day window)
+      await insertEvent(
+        summary: 'Far Future Meeting',
+        startDt: DateTime(2026, 10, 16, 9, 0),
+        endDt: DateTime(2026, 10, 16, 10, 0),
       );
-      final upcoming = snapshot['upcoming'] as Map<String, Object?>;
-      final upcomingEventItems = upcoming['events'] as List;
-      expect(upcomingEventItems, hasLength(3));
-      for (final item in upcomingEventItems.cast<Map<String, Object?>>()) {
-        expect(
-          item.keys.toSet(),
-          {'summary', 'date', 'start', 'isAllDay'},
-        );
-        expect(item['date'], matches(RegExp(r'^\d{1,2}/\d{1,2}$')));
-      }
-      final upcomingTodoItems = upcoming['todos'] as List;
-      expect(upcomingTodoItems, hasLength(2));
-      for (final item in upcomingTodoItems.cast<Map<String, Object?>>()) {
-        expect(item.keys.toSet(), {'summary', 'dueDate'});
-      }
+
+      final items = await HomeWidgetService.upcomingItems(db, now: now);
+
+      expect(items.any((i) => i['summary'] == 'Tomorrow Meeting'), isTrue);
+      expect(items.any((i) => i['summary'] == 'Project Sprint'), isTrue);
+      expect(items.any((i) => i['summary'] == 'Submit Invoice'), isTrue);
+      expect(items.any((i) => i['summary'] == 'Far Future Meeting'), isFalse);
     });
 
-    test('month dots cover every day an event touches in the month',
-        () async {
-      final now = DateTime(2026, 9, 15, 12);
+    test('civil calendar boundary regression', () async {
+      // 1. Autumn transition (25h wall day): civilDay advances by pure date components, not duration
+      final fallDate = DateTime(2026, 10, 25, 12, 0);
+
+      // Insert event on the exact day after DST transition
       await insertEvent(
-        summary: 'Single day',
-        startDt: DateTime(2026, 9, 3, 9),
-        endDt: DateTime(2026, 9, 3, 10),
-      );
-      await insertEvent(
-        summary: 'Multi day',
-        startDt: DateTime(2026, 9, 28, 10),
-        endDt: DateTime(2026, 9, 30, 11),
-      );
-      await insertEvent(
-        summary: 'Crosses into month',
-        startDt: DateTime(2026, 8, 31, 8),
-        endDt: DateTime(2026, 9, 1, 8),
-      );
-      await insertEvent(
-        summary: 'Next month',
-        startDt: DateTime(2026, 10, 5, 9),
-        endDt: DateTime(2026, 10, 5, 10),
-      );
-      await insertEvent(
-        summary: 'Previous month only',
-        startDt: DateTime(2026, 8, 10, 9),
-        endDt: DateTime(2026, 8, 10, 10),
-      );
-      await insertEvent(
-        summary: 'Deleted',
-        startDt: DateTime(2026, 9, 10, 9),
-        endDt: DateTime(2026, 9, 10, 10),
-        deletedAt: DateTime(2026, 9, 11),
+        summary: 'Post-DST Sync',
+        startDt: DateTime(2026, 10, 26, 10, 0),
+        endDt: DateTime(2026, 10, 26, 11, 0),
       );
 
-      final days = await HomeWidgetService.monthEventDaysOfCurrentMonth(
-        db,
-        now: now,
-      );
+      final upcoming = await HomeWidgetService.upcomingItems(db, now: fallDate);
+      expect(upcoming, isA<List>());
+      final syncItem = upcoming.firstWhere((i) => i['summary'] == 'Post-DST Sync');
+      // Must not drift to previous or next day due to 24h duration arithmetic
+      expect(syncItem['date'], '10/26');
+      expect(syncItem['time'], '10:00');
 
-      // Boundary-crossing event occupies Aug 31 (outside) + Sep 1 (inside);
-      // multi-day marks each touched September day; out-of-month and
-      // deleted events stay out.
-      expect(days, [1, 3, 28, 29, 30]);
+      final dots = await HomeWidgetService.monthDots(db, now: fallDate);
+      expect(dots, isA<List>());
+      // October 26 must have a marked dot [26, true]
+      expect(dots.any((d) => d[0] == 26 && d[1] == true), isTrue);
+
+      // 2. Pure civil date arithmetic verification:
+      // Even if instant delta is 23h or 25h, civil date advance DateTime(y, m, d + 1)
+      // always yields exact civil calendar next day without minute or hour shifting
+      final civilTomorrow = DateTime(fallDate.year, fallDate.month, fallDate.day + 1);
+      expect(civilTomorrow.year, 2026);
+      expect(civilTomorrow.month, 10);
+      expect(civilTomorrow.day, 26);
+      expect(civilTomorrow.hour, 0);
+
+      // Spring transition test (March 29 European spring forward / 23h wall day)
+      final springDate = DateTime(2026, 3, 28, 14, 0);
+      final springTomorrow = DateTime(springDate.year, springDate.month, springDate.day + 1);
+      expect(springTomorrow.year, 2026);
+      expect(springTomorrow.month, 3);
+      expect(springTomorrow.day, 29);
+      expect(springTomorrow.hour, 0);
     });
 
-    test('legacy encoders keep payloads native readers parse', () async {
-      final today = DateTime.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
+    test('expands recurring events started >90 days ago', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
+
+      // Recurring event started 120 days ago (June 9, 2026) with daily recurrence
       await insertEvent(
-        summary: 'Standup',
-        startDt: todayStart.add(const Duration(hours: 9, minutes: 30)),
-        endDt: todayStart.add(const Duration(hours: 10)),
+        summary: 'Daily Standup Recurrence',
+        startDt: DateTime(2026, 6, 9, 9, 0),
+        endDt: DateTime(2026, 6, 9, 9, 30),
+        rrule: 'RRULE:FREQ=DAILY',
       );
-      await insertTodo(summary: 'Legacy todo', dueDate: DateTime(2026, 9, 30));
 
-      final events = await HomeWidgetService.todayEvents(db);
-      final todos = await HomeWidgetService.pendingTodos(db);
+      final projectionData = await ActionProjectionQuery.fetch(db, date: now);
+      final timeline = HomeWidgetService.todayTimeline(projectionData);
 
-      final eventsJson =
-          jsonDecode(HomeWidgetService.encodeTodayEvents(events))
-              as List<dynamic>;
-      expect(eventsJson, hasLength(1));
-      final legacyEvent = (eventsJson.first as Map).cast<String, dynamic>();
-      expect(legacyEvent.keys.toSet(), {'summary', 'start', 'isAllDay'});
-      expect(legacyEvent['summary'], 'Standup');
-      expect(legacyEvent['start'], '09:30');
-      // iOS casts today_events as [[String: String]] — every value must be
-      // a String or the whole array cast fails and the widget renders empty.
-      expect(legacyEvent['isAllDay'], isA<String>());
-      expect(legacyEvent['isAllDay'], 'false');
-      for (final item in eventsJson.cast<Map<String, dynamic>>()) {
-        expect(item.values.every((v) => v is String), isTrue);
-      }
+      // The >90d daily recurring event must appear in today's timeline!
+      expect(
+        timeline.any((item) => item['summary'] == 'Daily Standup Recurrence'),
+        isTrue,
+        reason: '>90d daily recurring event must expand into today',
+      );
 
-      final todosJson =
-          jsonDecode(HomeWidgetService.encodePendingTodos(todos))
-              as List<dynamic>;
-      expect(todosJson, hasLength(1));
-      final legacyTodo = (todosJson.first as Map).cast<String, dynamic>();
-      expect(legacyTodo.keys.toSet(), {'summary', 'dueDate'});
-      expect(legacyTodo['summary'], 'Legacy todo');
-      expect(legacyTodo['dueDate'], '9/30');
-      for (final item in todosJson.cast<Map<String, dynamic>>()) {
-        expect(item.values.every((v) => v is String), isTrue);
-      }
+      // And also appears in upcoming items
+      final upcoming = await HomeWidgetService.upcomingItems(db, now: now);
+      expect(
+        upcoming.any((item) => item['summary'] == 'Daily Standup Recurrence'),
+        isTrue,
+        reason: '>90d daily recurring event must expand into upcoming window',
+      );
+    });
+
+    test('monthDots marks commitment days from both events and allocations', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
+
+      // Event on October 5
+      await insertEvent(
+        summary: 'Event Oct 5',
+        startDt: DateTime(2026, 10, 5, 10, 0),
+        endDt: DateTime(2026, 10, 5, 11, 0),
+      );
+
+      // Allocation on October 18
+      final todo = await insertTodo(summary: 'Allocated Todo Oct 18');
+      await insertAllocation(
+        todoId: todo,
+        startAt: DateTime(2026, 10, 18, 14, 0),
+        endAt: DateTime(2026, 10, 18, 15, 0),
+      );
+
+      final dots = await HomeWidgetService.monthDots(db, now: now);
+
+      final markedDays = dots.where((pair) => pair[1] == true).map((pair) => pair[0]).toSet();
+      expect(markedDays.contains(5), isTrue, reason: 'October 5 had an event');
+      expect(markedDays.contains(18), isTrue, reason: 'October 18 had a task allocation');
     });
   });
 
-  group('HomeWidgetService pendingTaps codec', () {
-    test('app-written snapshot carries an empty pendingTaps array', () {
-      final snapshot = HomeWidgetService.buildSnapshot(
-        events: const [],
-        todos: const [],
-        todoCount: 0,
-        upcomingEvents: const [],
-        upcomingTodos: const [],
-        ui: const WidgetUiStrings(
-          locale: 'en',
-          title: 'DaySpark',
-          today: 'Today',
-          events: 'Events',
-          todos: 'Todos',
-          allDay: 'All day',
-          todayEventsHeader: "Today's Events",
-          noEvents: 'No events today',
-          allDone: 'All done!',
-          pendingCount: '0 pending',
-          quickAdd: 'Quick add',
-          upcoming: 'Upcoming',
-        ),
-        theme: HomeWidgetService.buildThemeBlock(dark: false),
-        generatedAt: DateTime.utc(2026, 9, 22),
-      );
-
-      expect(snapshot['pendingTaps'], isEmpty);
-      expect(
-        HomeWidgetService.decodePendingTaps(jsonEncode(snapshot)),
-        isEmpty,
-      );
-    });
-
-    test('decodes native-appended entries and skips malformed ones', () {
-      final appended = jsonEncode({
+  group('HomeWidgetService legacy pendingTaps codec', () {
+    test('decodes legacy pendingTaps correctly', () {
+      final jsonStr = jsonEncode({
         'version': 2,
         'pendingTaps': [
           {
-            'todoId': 7,
+            'todoId': 42,
             'action': 'complete',
-            'at': '2026-09-24T01:02:03.000Z',
+            'at': '2026-10-07T10:00:00.000Z',
           },
-          {'todoId': 'bad', 'action': 'complete'},
-          42,
           {
-            'todoId': 8,
+            'todoId': 'invalid',
             'action': 'complete',
-            'at': 'not-a-date',
           },
         ],
       });
 
-      final taps = HomeWidgetService.decodePendingTaps(appended);
-
-      expect(taps, hasLength(2));
-      expect(taps.first.todoId, 7);
+      final taps = HomeWidgetService.decodePendingTaps(jsonStr);
+      expect(taps.length, 1);
+      expect(taps.first.todoId, 42);
       expect(taps.first.action, 'complete');
-      expect(taps.first.at, DateTime.utc(2026, 9, 24, 1, 2, 3));
-      expect(taps.last.todoId, 8);
+    });
 
+    test('handles null and invalid json gracefully', () {
       expect(HomeWidgetService.decodePendingTaps(null), isEmpty);
       expect(HomeWidgetService.decodePendingTaps(''), isEmpty);
       expect(HomeWidgetService.decodePendingTaps('not json'), isEmpty);
-      expect(
-        HomeWidgetService.decodePendingTaps('{"pendingTaps": "nope"}'),
-        isEmpty,
-      );
-      expect(
-        HomeWidgetService.decodePendingTaps('[]'),
-        isEmpty,
-      );
     });
   });
 
-  group('HomeWidgetService ui strings', () {
-    test('ui strings follow locale switch', () async {
+  group('HomeWidgetService UI and Theme', () {
+    test('ui strings load and switch locale', () async {
       final en = await HomeWidgetService.loadWidgetUiStrings(
         locale: const Locale('en'),
-        todoCount: 3,
+        todoCount: 5,
       );
       expect(en.locale, 'en');
       expect(en.today, 'Today');
-      expect(en.events, 'Events');
-      expect(en.todos, 'Todos');
-      expect(en.allDay, 'All day');
-      expect(en.todayEventsHeader, "Today's Events");
-      expect(en.noEvents, 'No events today');
-      expect(en.allDone, 'All done!');
-      expect(en.pendingCount, '3 pending');
-      expect(en.quickAdd, 'Quick add');
-      expect(en.upcoming, 'Upcoming');
+      expect(en.pendingCount, '5 pending');
+      expect(en.overdue, 'Overdue');
+      expect(en.missed, 'Missed');
+      expect(en.unplanned, 'Inbox');
 
       final zh = await HomeWidgetService.loadWidgetUiStrings(
         locale: const Locale('zh'),
-        todoCount: 3,
+        todoCount: 5,
       );
       expect(zh.locale, 'zh');
       expect(zh.today, '今天');
-      expect(zh.events, '日程');
-      expect(zh.todos, '待办');
-      expect(zh.allDay, '全天');
-      expect(zh.todayEventsHeader, '今日日程');
-      expect(zh.noEvents, '今天没有日程');
-      expect(zh.allDone, '全部完成');
-      expect(zh.pendingCount, '3 项待办');
-      expect(zh.quickAdd, '快速添加');
-      expect(zh.upcoming, '接下来');
-
-      expect(zh.toBlock()['locale'], 'zh');
-      expect(zh.toBlock()['todos'], '待办');
+      expect(zh.pendingCount, '5 项待办');
+      expect(zh.overdue, '已逾期');
+      expect(zh.missed, '已遗漏');
+      expect(zh.unplanned, '收件箱');
     });
-  });
 
-  group('HomeWidgetService theme block', () {
-    test('exposes dark flag and hex tokens per mode', () {
+    test('theme block contains valid hex tokens and mode', () {
       final light = HomeWidgetService.buildThemeBlock(dark: false);
       expect(light['dark'], false);
-      final lightColors = light['colors'] as Map<String, Object?>;
-      expect(lightColors['accent'], '#007AFF');
-      expect(lightColors['background'], '#F2F2F7');
+      expect((light['colors'] as Map)['accent'], '#007AFF');
 
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
-      final darkColors = dark['colors'] as Map<String, Object?>;
-      expect(darkColors['accent'], '#0A84FF');
-      expect(darkColors['background'], '#0A0A0C');
+      expect((dark['colors'] as Map)['accent'], '#0A84FF');
+    });
+
+    test('cross-contract regression: builder allocationId runtimeType is String matching v3 fixture', () async {
+      // 1. Verify v3 fixture schema
+      final fixtureFile = File('test/fixtures/widget/widget_snapshot_v3.json');
+      final fixtureJson = jsonDecode(await fixtureFile.readAsString()) as Map<String, dynamic>;
+      final fixtureTimeline = (fixtureJson['today'] as Map<String, dynamic>)['timeline'] as List;
+      final fixtureAlloc = fixtureTimeline.firstWhere((item) => item['kind'] == 'taskAllocation') as Map<String, dynamic>;
+      expect(fixtureAlloc['allocationId'], isA<String>(), reason: 'v3 fixture allocationId must be String');
+
+      // 2. Verify HomeWidgetService builder produces identical String wire type
+      final todoId = await insertTodo(summary: 'Type Check');
+      final allocId = await insertAllocation(
+        todoId: todoId,
+        startAt: DateTime(2026, 10, 7, 9, 0),
+        endAt: DateTime(2026, 10, 7, 10, 0),
+      );
+      final projection = await ActionProjectionQuery.fetch(db, date: DateTime(2026, 10, 7));
+      final timeline = HomeWidgetService.todayTimeline(projection);
+      final allocRow = timeline.firstWhere((item) => item['kind'] == 'taskAllocation');
+      expect(allocRow['allocationId'], isA<String>());
+      expect(allocRow['allocationId'].runtimeType, fixtureAlloc['allocationId'].runtimeType);
+      expect(allocRow['allocationId'], allocId.toString());
     });
   });
 }

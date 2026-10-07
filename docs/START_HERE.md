@@ -2,13 +2,13 @@
 
 > **给 AI 的指令**：当用户说"看看从哪里开始 / 继续项目"时，先读完本文档，再按「优先队列」行动。本文档是**未做事项的唯一清单索引**；状态类信息一律引用专业文档，不在此重复（防漂移）。
 
-**最后更新：2026-09-30 · 当前版本以 `pubspec.yaml` 为准（全景见 `docs/ROADMAP.md`，发布记录见 https://github.com/liuchangchxy/dayspark/releases ）**
+**最后更新：2026-10-07 · 当前版本以 `pubspec.yaml` 为准（全景见 `docs/ROADMAP.md`，发布记录见 https://github.com/liuchangchxy/dayspark/releases ）**
 
 ---
 
 ## 1. 我们在哪（一句话）
 
-四阶段主计划 **P1 地基 → P2 同步后端 → P3 MCP/CLI → P4 平台+UX 全部完成**；**债务2 统一事件缝已交付并随 v0.25.0 发布**（prerelease，五平台产物齐全）；✅ **v0.25.0 的 Web 白屏 P1 已修复并随 v0.25.1 交付**（`Platform.*` 唯一读点 + 静态守卫测试 + CI 冒烟截图断言）。六套测试全绿（app 345 / server 195 / contracts 37 / wrapper 9 / CLI 20 / Kotlin 7）。每任务经独立审查+终审，过程裁定见各 DECISIONS 条目与 `docs/superpowers/plans/2026-09-24-d2-event-seam.md` 收尾记录。
+四阶段主计划全部完成；**行动闭环（Action Loop）Phase 1–3 已交付进入主干，Phase 4（小组件 Action 投影与命令闭环，PR #10）implementation complete in PR #10, pending independent review and merge**。全套测试全绿。每任务经独立审查+终审，过程裁定见各 DECISIONS 条目与规范文档。
 
 ## 2. 下一步优先队列（按序）
 

@@ -2,7 +2,50 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-// MARK: - v2 snapshot contract (mirrors lib/infrastructure/platform/home_widget_service.dart buildSnapshot)
+// MARK: - v3 snapshot contract (mirrors lib/infrastructure/platform/home_widget_service.dart buildSnapshot)
+
+struct WidgetTimelineItem: Decodable {
+    let kind: String
+    let summary: String
+    let start: String
+    var end: String? = nil
+    var isAllDay: Bool? = nil
+    var allocationId: String? = nil
+    var todoId: Int? = nil
+    var todoSyncId: String? = nil
+    var occurrenceId: String? = nil
+}
+
+struct WidgetActionItem: Decodable {
+    let kind: String
+    let target: String
+    let todoId: Int
+    let todoSyncId: String?
+    let occurrenceId: String?
+    let summary: String
+    let deadline: String?
+    let displayTime: String?
+}
+
+struct WidgetStatus: Decodable {
+    let overdueCount: Int?
+    let missedCount: Int?
+    let unplannedCount: Int?
+}
+
+struct WidgetToday: Decodable {
+    let timeline: [WidgetTimelineItem]?
+    let actions: [WidgetActionItem]?
+    let status: WidgetStatus?
+}
+
+struct WidgetUpcomingItem: Decodable {
+    let kind: String
+    let summary: String
+    let date: String
+    let time: String
+    let isAllDay: Bool
+}
 
 struct WidgetEvent: Decodable {
     let summary: String
@@ -11,8 +54,6 @@ struct WidgetEvent: Decodable {
 }
 
 struct WidgetTodo: Decodable {
-    // Optional because snapshots written before the id addition (and the
-    // dual-write window) may lack it; taps are disabled when nil.
     let id: Int?
     let summary: String
     let dueDate: String
@@ -26,8 +67,9 @@ struct WidgetUpcomingEvent: Decodable {
 }
 
 struct WidgetUpcoming: Decodable {
-    let events: [WidgetUpcomingEvent]
-    let todos: [WidgetTodo]
+    let items: [WidgetUpcomingItem]?
+    let events: [WidgetUpcomingEvent]?
+    let todos: [WidgetTodo]?
 }
 
 struct WidgetPendingTap: Decodable {
@@ -61,6 +103,9 @@ struct WidgetUi: Decodable {
     let pendingCount: String
     let quickAdd: String
     let upcoming: String
+    var overdue: String? = nil
+    var missed: String? = nil
+    var unplanned: String? = nil
 }
 
 struct WidgetThemeColors: Decodable {
@@ -80,6 +125,7 @@ struct WidgetTheme: Decodable {
 struct WidgetSnapshot: Decodable {
     let version: Int
     let generatedAt: String?
+    let today: WidgetToday?
     let todayEvents: [WidgetEvent]?
     let pendingTodos: [WidgetTodo]?
     let todoCount: Int?
@@ -94,9 +140,7 @@ struct WidgetSnapshot: Decodable {
     }
 }
 
-// Reader/writer for the shared App Group snapshot. The reader side is the
-// retarget that kills the legacy isAllDay-type mismatch (P1): typed JSON
-// decode instead of casting [[String: String]] / [[String: Any]] blobs.
+// Reader/writer for the shared App Group snapshot and command queue.
 enum WidgetSnapshotStore {
     static let appGroupId = "group.com.dayspark.app"
     static let snapshotKey = "widget_snapshot"
@@ -107,47 +151,137 @@ enum WidgetSnapshotStore {
         else {
             return nil
         }
-        // A corrupt blob degrades to the empty placeholder, never a crash.
         return try? JSONDecoder().decode(WidgetSnapshot.self, from: data)
     }
 
-    // WHY append-not-write (single-writer rule): the native checkbox never
-    // touches the database and never rewrites other snapshot fields — it
-    // read-modify-writes ONLY the pendingTaps array. The app consumes the
-    // queue on its next foreground flush and clears it. Same-todoId taps
-    // are last-wins: a re-tap replaces the queued entry, because the app's
-    // consume path toggles and a duplicate would reopen the todo. Known
-    // race (accepted in docs/CONSTRAINTS.md): a flush in flight may
-    // overwrite a tap landing inside its read→write window.
-    static func appendPendingTap(todoId: Int) {
-        guard let defaults = UserDefaults(suiteName: appGroupId),
-              let raw = defaults.string(forKey: snapshotKey),
-              let data = raw.data(using: .utf8),
-              var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        else {
-            return
+    struct PendingCommandTargets {
+        let todoIds: Set<Int>
+        let instanceKeys: Set<String>
+    }
+
+    static func pendingCommandTargets() -> PendingCommandTargets {
+        guard let defaults = UserDefaults(suiteName: appGroupId) else {
+            return PendingCommandTargets(todoIds: [], instanceKeys: [])
         }
-        var taps = (object["pendingTaps"] as? [[String: Any]]) ?? []
-        taps.removeAll { ($0["todoId"] as? Int) == todoId }
+        var todoIds = Set<Int>()
+        var instanceKeys = Set<String>()
+        for (key, val) in defaults.dictionaryRepresentation() {
+            if key.hasPrefix("widget_command_"),
+               let str = val as? String,
+               let data = str.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let target = obj["target"] as? String,
+               let todoId = obj["todoId"] as? Int {
+                if target == "taskInstance" {
+                    let occ = (obj["occurrenceId"] as? String) ?? ""
+                    if !occ.isEmpty {
+                        instanceKeys.insert("\(todoId):\(occ)")
+                    }
+                } else if target == "todo" {
+                    todoIds.insert(todoId)
+                }
+            }
+        }
+        return PendingCommandTargets(todoIds: todoIds, instanceKeys: instanceKeys)
+    }
+
+    // Atomic single-writer command append: appends widget_command_<commandId> to UserDefaults.
+    // Does NOT mutate widget_snapshot (Ruling E).
+    static func appendCommand(
+        target: String,
+        todoId: Int,
+        todoSyncId: String?,
+        occurrenceId: String?,
+        sourceAllocationId: String? = nil
+    ) {
+        guard let defaults = UserDefaults(suiteName: appGroupId) else { return }
+        let commandId = UUID().uuidString
         let formatter = ISO8601DateFormatter()
-        taps.append([
-            "todoId": todoId,
+        var dict: [String: Any] = [
+            "version": 1,
+            "commandId": commandId,
             "action": "complete",
+            "target": target,
+            "todoId": todoId,
             "at": formatter.string(from: Date()),
-        ])
-        object["pendingTaps"] = taps
-        guard let updated = try? JSONSerialization.data(withJSONObject: object),
-              let string = String(data: updated, encoding: .utf8)
-        else {
-            return
+        ]
+        if let todoSyncId = todoSyncId, !todoSyncId.isEmpty {
+            dict["todoSyncId"] = todoSyncId
         }
-        defaults.set(string, forKey: snapshotKey)
+        if let occurrenceId = occurrenceId, !occurrenceId.isEmpty {
+            dict["occurrenceId"] = occurrenceId
+        }
+        if let sourceAllocationId = sourceAllocationId, !sourceAllocationId.isEmpty {
+            dict["sourceAllocationId"] = sourceAllocationId
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: dict),
+           let jsonString = String(data: data, encoding: .utf8) {
+            defaults.set(jsonString, forKey: "widget_command_\(commandId)")
+        }
+    }
+
+    // Legacy fallback append for pre-v3 snapshots
+    static func appendPendingTap(todoId: Int) {
+        appendCommand(target: "todo", todoId: todoId, todoSyncId: nil, occurrenceId: nil)
     }
 }
 
-// Checkbox tap: queue the append, then ask WidgetKit to rebuild — the next
-// entry reads pendingTaps back and paints the row checked (optimistic
-// round-trip through storage, no second state store to desync).
+@available(iOS 17.0, macOS 14.0, *)
+struct CompleteActionIntent: AppIntent {
+    static var title: LocalizedStringResource = "Complete action"
+    static var description =
+        IntentDescription("Queues a widget action into command queue")
+
+    @Parameter(title: "Target")
+    var target: String
+
+    @Parameter(title: "Todo ID")
+    var todoId: Int
+
+    @Parameter(title: "Todo Sync ID")
+    var todoSyncId: String
+
+    @Parameter(title: "Occurrence ID")
+    var occurrenceId: String
+
+    @Parameter(title: "Source Allocation ID")
+    var sourceAllocationId: String
+
+    init() {
+        self.target = "todo"
+        self.todoId = 0
+        self.todoSyncId = ""
+        self.occurrenceId = ""
+        self.sourceAllocationId = ""
+    }
+
+    init(
+        target: String,
+        todoId: Int,
+        todoSyncId: String = "",
+        occurrenceId: String = "",
+        sourceAllocationId: String = ""
+    ) {
+        self.target = target
+        self.todoId = todoId
+        self.todoSyncId = todoSyncId
+        self.occurrenceId = occurrenceId
+        self.sourceAllocationId = sourceAllocationId
+    }
+
+    func perform() async throws -> some IntentResult {
+        WidgetSnapshotStore.appendCommand(
+            target: target,
+            todoId: todoId,
+            todoSyncId: todoSyncId.isEmpty ? nil : todoSyncId,
+            occurrenceId: occurrenceId.isEmpty ? nil : occurrenceId,
+            sourceAllocationId: sourceAllocationId.isEmpty ? nil : sourceAllocationId
+        )
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
 @available(iOS 17.0, macOS 14.0, *)
 struct CompleteTodoIntent: AppIntent {
     static var title: LocalizedStringResource = "Complete todo"
@@ -157,14 +291,16 @@ struct CompleteTodoIntent: AppIntent {
     @Parameter(title: "Todo ID")
     var todoId: Int
 
-    init() {}
+    init() {
+        self.todoId = 0
+    }
 
     init(todoId: Int) {
         self.todoId = todoId
     }
 
     func perform() async throws -> some IntentResult {
-        WidgetSnapshotStore.appendPendingTap(todoId: todoId)
+        WidgetSnapshotStore.appendCommand(target: "todo", todoId: todoId, todoSyncId: nil, occurrenceId: nil)
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
@@ -187,8 +323,6 @@ struct SnapshotTimelineProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CalendarTodoEntry>) -> Void) {
-        // Data is app-driven (flush after every mutation reloads all kinds);
-        // .atEnd matches the legacy provider so WidgetKit re-asks cheaply.
         let entry = CalendarTodoEntry(date: Date(), snapshot: WidgetSnapshotStore.load())
         completion(Timeline(entries: [entry], policy: .atEnd))
     }
@@ -266,23 +400,98 @@ struct TodayWidgetView: View {
                         .foregroundStyle(textSecondary)
                 }
 
-                let events = snapshot.todayEvents ?? []
-                if events.isEmpty {
+                let pendingTargets = WidgetSnapshotStore.pendingCommandTargets()
+
+                // Status compact indicator row (Overdue N, Missed N, Inbox N)
+                let status = snapshot.today?.status
+                let overdueCount = status?.overdueCount ?? 0
+                let missedCount = status?.missedCount ?? 0
+                let unplannedCount = status?.unplannedCount ?? 0
+                if overdueCount > 0 || missedCount > 0 || unplannedCount > 0 {
+                    HStack(spacing: 8) {
+                        if overdueCount > 0 {
+                            let label = ui.overdue ?? "Overdue"
+                            Text("\(label) \(overdueCount)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.red)
+                        }
+                        if missedCount > 0 {
+                            let label = ui.missed ?? "Missed"
+                            Text("\(label) \(missedCount)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.orange)
+                        }
+                        if unplannedCount > 0 {
+                            let label = ui.unplanned ?? "Inbox"
+                            Text("\(label) \(unplannedCount)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(textSecondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.bottom, 2)
+                }
+
+                let timeline = snapshot.today?.timeline ?? (snapshot.todayEvents ?? []).map {
+                    WidgetTimelineItem(
+                        kind: "eventOccurrence",
+                        summary: $0.summary,
+                        start: $0.start,
+                        end: nil,
+                        isAllDay: $0.isAllDay
+                    )
+                }
+
+                if timeline.isEmpty {
                     Text(ui.noEvents)
                         .font(.caption2)
                         .foregroundStyle(textSecondary)
                 } else {
-                    ForEach(events.prefix(isExpanded ? 3 : 2).indices, id: \.self) { i in
+                    ForEach(timeline.prefix(isExpanded ? 3 : 2).indices, id: \.self) { i in
+                        let item = timeline[i]
+                        let isTaskAllocation = item.kind == "taskAllocation" && (item.todoId ?? -1) > 0
+                        let isChecked: Bool = {
+                            guard isTaskAllocation, let todoId = item.todoId else { return false }
+                            if let occ = item.occurrenceId, !occ.isEmpty {
+                                return pendingTargets.instanceKeys.contains("\(todoId):\(occ)")
+                            } else {
+                                return pendingTargets.todoIds.contains(todoId)
+                            }
+                        }()
+
                         HStack(spacing: 6) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(accent)
-                                .frame(width: 3, height: 16)
+                            if isTaskAllocation, let todoId = item.todoId {
+                                let target = (item.occurrenceId != nil && !item.occurrenceId!.isEmpty) ? "taskInstance" : "todo"
+                                Button(intent: CompleteActionIntent(
+                                    target: target,
+                                    todoId: todoId,
+                                    todoSyncId: item.todoSyncId ?? "",
+                                    occurrenceId: item.occurrenceId ?? "",
+                                    sourceAllocationId: item.allocationId ?? ""
+                                )) {
+                                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(isChecked ? accent : textSecondary)
+                                        .font(.footnote)
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(accent)
+                                    .frame(width: 3, height: 16)
+                            }
+
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(events[i].summary)
+                                Text(item.summary)
                                     .font(.caption)
                                     .lineLimit(1)
-                                    .foregroundStyle(textPrimary)
-                                Text(events[i].isAllDay ? ui.allDay : events[i].start)
+                                    .strikethrough(isChecked)
+                                    .foregroundStyle(isChecked ? textSecondary : textPrimary)
+                                let timeStr: String = {
+                                    if item.isAllDay == true { return ui.allDay }
+                                    if let end = item.end, !end.isEmpty { return "\(item.start) - \(end)" }
+                                    return item.start
+                                }()
+                                Text(timeStr)
                                     .font(.caption2)
                                     .foregroundStyle(textSecondary)
                             }
@@ -303,15 +512,26 @@ struct TodayWidgetView: View {
                         .foregroundStyle(textSecondary)
                 }
 
-                let todos = snapshot.pendingTodos ?? []
-                let checked = snapshot.pendingTapIds
-                if todos.isEmpty {
+                let actions: [WidgetActionItem] = snapshot.today?.actions ?? (snapshot.pendingTodos ?? []).map {
+                    WidgetActionItem(
+                        kind: "todoDeadline",
+                        target: "todo",
+                        todoId: $0.id ?? -1,
+                        todoSyncId: nil,
+                        occurrenceId: nil,
+                        summary: $0.summary,
+                        deadline: $0.dueDate,
+                        displayTime: nil
+                    )
+                }
+
+                if actions.isEmpty {
                     Text(ui.allDone)
                         .font(.caption2)
                         .foregroundStyle(.green)
                 } else {
-                    ForEach(todos.prefix(isExpanded ? 3 : 2).indices, id: \.self) { i in
-                        todoRow(todos[i], checked: checked)
+                    ForEach(actions.prefix(isExpanded ? 3 : 2).indices, id: \.self) { i in
+                        actionRow(actions[i], pendingTargets: pendingTargets, legacyChecked: snapshot.pendingTapIds)
                     }
                 }
 
@@ -330,8 +550,6 @@ struct TodayWidgetView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             } else {
-                // Snapshot missing (app never flushed / corrupt): quiet
-                // placeholder, no hardcoded copy.
                 Spacer()
                 Image(systemName: "calendar")
                     .font(.title2)
@@ -345,11 +563,28 @@ struct TodayWidgetView: View {
     }
 
     @ViewBuilder
-    private func todoRow(_ todo: WidgetTodo, checked: Set<Int>) -> some View {
-        let isChecked = todo.id.map { checked.contains($0) } ?? false
+    private func actionRow(
+        _ action: WidgetActionItem,
+        pendingTargets: WidgetSnapshotStore.PendingCommandTargets,
+        legacyChecked: Set<Int>
+    ) -> some View {
+        let isChecked: Bool = {
+            if action.target == "taskInstance" {
+                let occ = action.occurrenceId ?? ""
+                return pendingTargets.instanceKeys.contains("\(action.todoId):\(occ)")
+            } else {
+                return pendingTargets.todoIds.contains(action.todoId) || legacyChecked.contains(action.todoId)
+            }
+        }()
+
         HStack(spacing: 6) {
-            if let todoId = todo.id {
-                Button(intent: CompleteTodoIntent(todoId: todoId)) {
+            if action.todoId > 0 {
+                Button(intent: CompleteActionIntent(
+                    target: action.target,
+                    todoId: action.todoId,
+                    todoSyncId: action.todoSyncId ?? "",
+                    occurrenceId: action.occurrenceId ?? ""
+                )) {
                     Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(isChecked ? accent : textSecondary)
                         .font(.footnote)
@@ -360,14 +595,15 @@ struct TodayWidgetView: View {
                     .foregroundStyle(textSecondary)
                     .font(.footnote)
             }
-            Text(todo.summary)
+            Text(action.summary)
                 .font(.caption)
                 .lineLimit(1)
                 .strikethrough(isChecked)
                 .foregroundStyle(isChecked ? textSecondary : textPrimary)
             Spacer()
-            if !todo.dueDate.isEmpty {
-                Text(todo.dueDate)
+            let secondaryText = action.deadline ?? action.displayTime ?? ""
+            if !secondaryText.isEmpty {
+                Text(secondaryText)
                     .font(.caption2)
                     .foregroundStyle(textSecondary)
             }
@@ -419,29 +655,44 @@ struct UpcomingWidgetView: View {
                         .foregroundStyle(textSecondary)
                 }
 
-                let events = snapshot.upcoming?.events ?? []
-                let todos = snapshot.upcoming?.todos ?? []
                 let limit = family == .systemMedium ? 5 : 3
 
-                if events.isEmpty && todos.isEmpty {
-                    Text(ui.noEvents)
-                        .font(.caption2)
-                        .foregroundStyle(textSecondary)
-                } else {
-                    ForEach(events.prefix(limit).indices, id: \.self) { i in
-                        row(
-                            title: events[i].summary,
-                            secondary: events[i].isAllDay ? events[i].date : "\(events[i].date) \(events[i].start)",
-                            marked: true
-                        )
+                if let items = snapshot.upcoming?.items {
+                    if items.isEmpty {
+                        Text(ui.noEvents)
+                            .font(.caption2)
+                            .foregroundStyle(textSecondary)
+                    } else {
+                        ForEach(items.prefix(limit).indices, id: \.self) { i in
+                            let it = items[i]
+                            let secondary = it.isAllDay ? it.date : (it.time.isEmpty ? it.date : "\(it.date) \(it.time)")
+                            row(title: it.summary, secondary: secondary, marked: it.kind == "eventOccurrence")
+                        }
                     }
-                    let remaining = max(limit - min(events.count, limit), 0)
-                    ForEach(todos.prefix(remaining).indices, id: \.self) { i in
-                        row(
-                            title: todos[i].summary,
-                            secondary: todos[i].dueDate,
-                            marked: false
-                        )
+                } else {
+                    let events = snapshot.upcoming?.events ?? []
+                    let todos = snapshot.upcoming?.todos ?? []
+
+                    if events.isEmpty && todos.isEmpty {
+                        Text(ui.noEvents)
+                            .font(.caption2)
+                            .foregroundStyle(textSecondary)
+                    } else {
+                        ForEach(events.prefix(limit).indices, id: \.self) { i in
+                            row(
+                                title: events[i].summary,
+                                secondary: events[i].isAllDay ? events[i].date : "\(events[i].date) \(events[i].start)",
+                                marked: true
+                            )
+                        }
+                        let remaining = max(limit - min(events.count, limit), 0)
+                        ForEach(todos.prefix(remaining).indices, id: \.self) { i in
+                            row(
+                                title: todos[i].summary,
+                                secondary: todos[i].dueDate,
+                                marked: false
+                            )
+                        }
                     }
                 }
             } else {
@@ -596,9 +847,6 @@ struct CalendarTodoWidget: Widget {
         StaticConfiguration(kind: kind, provider: SnapshotTimelineProvider()) { entry in
             TodayWidgetView(entry: entry)
         }
-        // Display metadata can't wait for a snapshot (WidgetKit shows it in
-        // the gallery before any data exists); runtime copy all comes from
-        // the pre-localized ui block.
         .configurationDisplayName("Calendar & Todo")
         .description("View today's events and pending to-dos.")
         .supportedFamilies([.systemSmall, .systemMedium])

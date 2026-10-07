@@ -1,0 +1,72 @@
+{
+  "version": 2,
+  "generatedAt": "2026-10-07T00:00:00.000Z",
+  "todayEvents": [
+    {
+      "summary": "Team Sync",
+      "start": "10:00",
+      "isAllDay": false
+    }
+  ],
+  "pendingTodos": [
+    {
+      "id": 1,
+      "summary": "Review PR",
+      "dueDate": "10/7"
+    }
+  ],
+  "todoCount": 1,
+  "upcoming": {
+    "events": [
+      {
+        "summary": "Planning",
+        "date": "10/8",
+        "start": "14:00",
+        "isAllDay": false
+      }
+    ],
+    "todos": [
+      {
+        "id": 2,
+        "summary": "Submit Report",
+        "dueDate": "10/9"
+      }
+    ]
+  },
+  "pendingTaps": [
+    {
+      "todoId": 1,
+      "action": "complete",
+      "at": "2026-10-07T00:05:00.000Z"
+    }
+  ],
+  "monthDots": [
+    [7, true],
+    [8, true]
+  ],
+  "ui": {
+    "locale": "en",
+    "title": "DaySpark",
+    "today": "Today",
+    "events": "Events",
+    "todos": "Todos",
+    "allDay": "All day",
+    "todayEventsHeader": "Today's Events",
+    "noEvents": "No events",
+    "allDone": "All done",
+    "pendingCount": "1 pending",
+    "quickAdd": "Quick add",
+    "upcoming": "Upcoming"
+  },
+  "theme": {
+    "dark": true,
+    "colors": {
+      "background": "#121212",
+      "surface": "#1E1E1E",
+      "textPrimary": "#FFFFFF",
+      "textSecondary": "#9E9E9E",
+      "accent": "#90CAF9",
+      "border": "#333333"
+    }
+  }
+}

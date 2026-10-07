@@ -9,9 +9,11 @@ import 'package:dayspark/infrastructure/platform/home_widget_service.dart';
 final updateHomeWidgetProvider = Provider<Future<void> Function()>((ref) {
   return () async {
     final db = ref.read(databaseProvider);
+    final toggleTodo = ref.read(toggleTodoProvider);
     await HomeWidgetService.updateWidget(
       db,
-      onPendingTaps: ref.read(consumeWidgetPendingTapsProvider),
+      toggleTodo: toggleTodo,
+      onLegacyPendingTaps: ref.read(consumeWidgetPendingTapsProvider),
     );
   };
 });
@@ -51,7 +53,7 @@ final consumeWidgetPendingTapsProvider =
 final homeWidgetAutoRefreshProvider = Provider<void>((ref) {
   final db = ref.watch(databaseProvider);
   final bus = ref.watch(recordBusProvider);
-  final onPendingTaps = ref.read(consumeWidgetPendingTapsProvider);
+  final onLegacyPendingTaps = ref.read(consumeWidgetPendingTapsProvider);
   var running = false;
   var queued = false;
 
@@ -64,7 +66,12 @@ final homeWidgetAutoRefreshProvider = Provider<void>((ref) {
     try {
       do {
         queued = false;
-        await HomeWidgetService.updateWidget(db, onPendingTaps: onPendingTaps);
+        final toggleTodo = ref.read(toggleTodoProvider);
+        await HomeWidgetService.updateWidget(
+          db,
+          toggleTodo: toggleTodo,
+          onLegacyPendingTaps: onLegacyPendingTaps,
+        );
       } while (queued);
     } finally {
       running = false;

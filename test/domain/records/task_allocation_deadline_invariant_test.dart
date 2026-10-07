@@ -102,10 +102,12 @@ void main() {
       );
 
       // 5. Create a second allocation and complete Todo
+      final futureStart = DateTime.now().toUtc().add(const Duration(hours: 2));
+      final futureEnd = futureStart.add(const Duration(hours: 1));
       final allocationId2 = await container.read(createTaskAllocationProvider)(
         todoId: todoId,
-        startAt: DateTime.utc(2026, 10, 7, 10, 0),
-        endAt: DateTime.utc(2026, 10, 7, 11, 0),
+        startAt: futureStart,
+        endAt: futureEnd,
       );
 
       await container.read(toggleTodoProvider)(id: todoId, isCompleted: true);
