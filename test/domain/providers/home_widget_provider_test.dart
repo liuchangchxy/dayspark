@@ -175,7 +175,7 @@ void main() {
       expect(HomeWidgetService.decodePendingTaps(storedSnapshot()), isEmpty);
       final written =
           jsonDecode(storedSnapshot()) as Map<String, dynamic>;
-      expect(written['version'], 2);
+      expect(written['version'], 3);
     },
   );
 

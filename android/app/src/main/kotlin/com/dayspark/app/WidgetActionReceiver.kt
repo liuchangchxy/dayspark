@@ -5,30 +5,39 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
-// Checkbox taps land here: append {todoId, action:"complete", at} onto the
-// stored snapshot's pendingTaps queue and re-render every widget — nothing
-// else. The DB is off-limits on this path (single-writer rule); the app
-// consumes the queue on its next flush through the normal complete flow.
+// Checkbox taps land here: write a typed command ({commandId, target, todoId, ...})
+// into independent SharedPreferences storage key (`widget_command_<commandId>`) and
+// re-render every widget.
+// The DB is off-limits on this path (single-writer rule).
+// The snapshot blob is NOT modified (ruling E).
+// The app drains the queue through the domain toggleTodo pipeline on launch, resume, or refresh.
 class WidgetActionReceiver : BroadcastReceiver() {
 
   override fun onReceive(context: Context, intent: Intent) {
-    if (intent.action != WidgetSnapshot.ACTION_TOGGLE_TODO) return
+    val action = intent.action
+    if (action != WidgetSnapshot.ACTION_TOGGLE_TODO && action != WidgetSnapshot.ACTION_COMPLETE_ACTION) {
+      return
+    }
+
     val todoId = intent.getIntExtra(WidgetSnapshot.EXTRA_TODO_ID, -1)
     if (todoId < 0) return
 
-    // ISO-8601 UTC, matching WidgetPendingTap.at parsing on the Dart side.
-    val at = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
-      timeZone = java.util.TimeZone.getTimeZone("UTC")
-    }.format(Date())
+    val target = intent.getStringExtra(WidgetSnapshot.EXTRA_TARGET) ?: "todo"
+    val todoSyncId = intent.getStringExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID)
+    val occurrenceId = intent.getStringExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID)
+    val sourceAllocationId = intent.getStringExtra(WidgetSnapshot.EXTRA_SOURCE_ALLOCATION_ID)
 
-    if (!WidgetSnapshot.appendPendingTap(context, todoId, at)) {
-      // No snapshot yet (app never flushed) — nothing to queue into.
-      return
-    }
+    // Append to independent command storage key (Ruling E)
+    WidgetSnapshot.writeCommand(
+      context = context,
+      target = target,
+      todoId = todoId,
+      todoSyncId = todoSyncId,
+      occurrenceId = occurrenceId,
+      sourceAllocationId = sourceAllocationId,
+    )
+
     refreshAllWidgets(context)
   }
 

@@ -9,8 +9,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Upcoming variant: compact 7-day bucket (tomorrow through day 7) straight
-// from the v2 snapshot's `upcoming` block. Read-only — checkboxes and
+// Upcoming variant: compact 7-day bucket straight from the snapshot's
+// `upcoming.items` block (or legacy v2 fallback). Read-only — checkboxes and
 // quick-add live on the primary widget only.
 class UpcomingWidgetProvider : AppWidgetProvider() {
 
@@ -65,17 +65,18 @@ class UpcomingWidgetProvider : AppWidgetProvider() {
       views.setTextViewText(R.id.upcoming_header, ui?.upcoming ?: "")
       views.setViewVisibility(R.id.upcoming_header, if (ui != null) View.VISIBLE else View.GONE)
 
-      // Merge the two buckets into one list (events first, then todos —
-      // each bucket is already time-ordered).
+      val items = snapshot.upcomingItems()
       val rows = mutableListOf<Pair<String, String>>()
-      for (e in snapshot.upcomingEvents()) {
+      for (item in items) {
         if (rows.size >= MAX_ROWS) break
-        val time = if (e.isAllDay) e.date else "${e.date} ${e.start}"
-        rows.add(Pair(e.summary, time))
-      }
-      for (t in snapshot.upcomingTodos()) {
-        if (rows.size >= MAX_ROWS) break
-        rows.add(Pair(t.summary, t.dueDate))
+        val time = if (item.isAllDay) {
+          item.date
+        } else if (item.time.isNotEmpty()) {
+          "${item.date} ${item.time}"
+        } else {
+          item.date
+        }
+        rows.add(Pair(item.summary, time))
       }
 
       for ((i, rowId) in ROW_IDS.withIndex()) {

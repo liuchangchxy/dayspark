@@ -5,12 +5,14 @@ import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 
-// v2 `widget_snapshot` reader + the native side of the pendingTaps queue.
+// v3 `widget_snapshot` reader + native command queue operations (Rulings A, C, E, O).
 //
-// Every native widget renders from this one blob; the legacy three keys
-// (today_events / pending_todos / todo_count) are only a downlevel
-// fallback while dual-write is still in effect.
+// Every native widget renders from this snapshot blob; the snapshot is READ-ONLY
+// for native code (Single-Writer rule). Widget actions append typed commands
+// into independent SharedPreferences keys (`widget_command_<commandId>`).
 data class WidgetSnapshot(val json: JSONObject) {
+
+  val version: Int get() = json.optInt("version", 0)
 
   data class EventRow(val summary: String, val start: String, val isAllDay: Boolean)
   data class TodoRow(val id: Int?, val summary: String, val dueDate: String)
@@ -20,6 +22,132 @@ data class WidgetSnapshot(val json: JSONObject) {
     val start: String,
     val isAllDay: Boolean,
   )
+
+  data class TimelineRow(
+    val kind: String,
+    val summary: String,
+    val start: String,
+    val end: String,
+    val isAllDay: Boolean,
+  )
+
+  data class ActionRow(
+    val kind: String,
+    val target: String,
+    val todoId: Int,
+    val todoSyncId: String?,
+    val occurrenceId: String?,
+    val summary: String,
+    val deadline: String?,
+    val displayTime: String?,
+  )
+
+  data class UpcomingItemRow(
+    val kind: String,
+    val summary: String,
+    val date: String,
+    val time: String,
+    val isAllDay: Boolean,
+  )
+
+  data class PendingTargets(
+    val todoIds: Set<Int>,
+    val instanceKeys: Set<String>,
+  )
+
+  fun todayTimeline(): List<TimelineRow> {
+    val todayObj = json.optJSONObject("today")
+    if (todayObj != null && todayObj.has("timeline")) {
+      return todayObj.optJSONArray("timeline").toObjectList { o ->
+        TimelineRow(
+          kind = o.optString("kind", "eventOccurrence"),
+          summary = o.optString("summary", ""),
+          start = o.optString("start", ""),
+          end = o.optString("end", ""),
+          isAllDay = o.optBoolean("isAllDay", false),
+        )
+      }
+    }
+    return todayEvents().map {
+      TimelineRow(
+        kind = "eventOccurrence",
+        summary = it.summary,
+        start = it.start,
+        end = "",
+        isAllDay = it.isAllDay,
+      )
+    }
+  }
+
+  fun todayActions(): List<ActionRow> {
+    val todayObj = json.optJSONObject("today")
+    if (todayObj != null && todayObj.has("actions")) {
+      return todayObj.optJSONArray("actions").toObjectList { o ->
+        val target = o.optString("target", if (o.optString("kind") == "taskInstance") "taskInstance" else "todo")
+        ActionRow(
+          kind = o.optString("kind", "todoDeadline"),
+          target = target,
+          todoId = o.optInt("todoId", -1),
+          todoSyncId = if (o.has("todoSyncId") && !o.isNull("todoSyncId")) o.optString("todoSyncId") else null,
+          occurrenceId = if (o.has("occurrenceId") && !o.isNull("occurrenceId")) o.optString("occurrenceId") else null,
+          summary = o.optString("summary", ""),
+          deadline = if (o.has("deadline") && !o.isNull("deadline")) o.optString("deadline") else null,
+          displayTime = if (o.has("displayTime") && !o.isNull("displayTime")) o.optString("displayTime") else null,
+        )
+      }
+    }
+    return pendingTodos().map {
+      ActionRow(
+        kind = "todoDeadline",
+        target = "todo",
+        todoId = it.id ?: -1,
+        todoSyncId = null,
+        occurrenceId = null,
+        summary = it.summary,
+        deadline = it.dueDate,
+        displayTime = null,
+      )
+    }
+  }
+
+  fun upcomingItems(): List<UpcomingItemRow> {
+    val upcomingObj = json.optJSONObject("upcoming")
+    if (upcomingObj != null && upcomingObj.has("items")) {
+      return upcomingObj.optJSONArray("items").toObjectList { o ->
+        UpcomingItemRow(
+          kind = o.optString("kind", ""),
+          summary = o.optString("summary", ""),
+          date = o.optString("date", ""),
+          time = o.optString("time", ""),
+          isAllDay = o.optBoolean("isAllDay", false),
+        )
+      }
+    }
+    val rows = mutableListOf<UpcomingItemRow>()
+    for (e in upcomingEvents()) {
+      rows.add(
+        UpcomingItemRow(
+          kind = "eventOccurrence",
+          summary = e.summary,
+          date = e.date,
+          time = e.start,
+          isAllDay = e.isAllDay,
+        ),
+      )
+    }
+    for (t in upcomingTodos()) {
+      rows.add(
+        UpcomingItemRow(
+          kind = "todoDeadline",
+          summary = t.summary,
+          date = t.dueDate,
+          time = "",
+          isAllDay = false,
+        ),
+      )
+    }
+    return rows
+  }
 
   fun todayEvents(): List<EventRow> = json.optJSONArray("todayEvents").toObjectList { o ->
     EventRow(
@@ -31,7 +159,6 @@ data class WidgetSnapshot(val json: JSONObject) {
 
   fun pendingTodos(): List<TodoRow> = json.optJSONArray("pendingTodos").toObjectList { o ->
     TodoRow(
-      // Legacy-only snapshots predate `id`; taps are disabled there.
       id = if (o.has("id")) o.optInt("id") else null,
       summary = o.optString("summary", ""),
       dueDate = o.optString("dueDate", ""),
@@ -73,7 +200,7 @@ data class WidgetSnapshot(val json: JSONObject) {
   }
 
   // Optimistic checkbox state: a todo renders checked while its id sits in
-  // the pendingTaps queue (cleared by the app's next flush after consume).
+  // the legacy pendingTaps queue (for v2 backwards-compatibility).
   fun pendingTapTodoIds(): Set<Int> {
     val out = mutableSetOf<Int>()
     val arr = json.optJSONArray("pendingTaps") ?: return out
@@ -137,8 +264,14 @@ data class WidgetSnapshot(val json: JSONObject) {
   companion object {
     const val PREFS_NAME = "HomeWidgetPreferences"
     const val SNAPSHOT_KEY = "widget_snapshot"
+    const val COMMAND_PREFIX = "widget_command_"
     const val ACTION_TOGGLE_TODO = "com.dayspark.app.action.TOGGLE_TODO"
+    const val ACTION_COMPLETE_ACTION = "com.dayspark.app.action.COMPLETE_ACTION"
+    const val EXTRA_TARGET = "target"
     const val EXTRA_TODO_ID = "todoId"
+    const val EXTRA_TODO_SYNC_ID = "todoSyncId"
+    const val EXTRA_OCCURRENCE_ID = "occurrenceId"
+    const val EXTRA_SOURCE_ALLOCATION_ID = "sourceAllocationId"
 
     private val COLOR_KEYS = listOf(
       "background",
@@ -164,15 +297,99 @@ data class WidgetSnapshot(val json: JSONObject) {
       }
     }
 
-    // Append-only mutation of the shared snapshot — single-writer rule:
-    // native never touches the database and never rewrites other fields.
-    // Read-modify-write on the one stored JSON blob, mutating ONLY
-    // pendingTaps. Same-todoId taps are last-wins (a re-tap replaces the
-    // queued entry instead of double-queueing an already pending complete).
-    // WHY last-wins: the app consumes via a toggle path — a duplicated
-    // entry would reopen the todo it just completed. Known race (accepted
-    // in docs/CONSTRAINTS.md): a flush in flight may overwrite a tap that
-    // lands inside its read→write window.
+    // Atomic single-writer command write: writes widget_command_<commandId> to prefs.
+    // Does NOT mutate widget_snapshot (Ruling E).
+    fun writeCommand(
+      context: Context,
+      target: String,
+      todoId: Int,
+      todoSyncId: String?,
+      occurrenceId: String?,
+      sourceAllocationId: String? = null,
+    ): String {
+      val commandId = java.util.UUID.randomUUID().toString()
+      val atIso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+        timeZone = java.util.TimeZone.getTimeZone("UTC")
+      }.format(java.util.Date())
+
+      val obj = JSONObject().apply {
+        put("version", 1)
+        put("commandId", commandId)
+        put("action", "complete")
+        put("target", target)
+        put("todoId", todoId)
+        if (!todoSyncId.isNullOrEmpty()) put("todoSyncId", todoSyncId)
+        if (!occurrenceId.isNullOrEmpty()) put("occurrenceId", occurrenceId)
+        if (!sourceAllocationId.isNullOrEmpty()) put("sourceAllocationId", sourceAllocationId)
+        put("at", atIso)
+      }
+
+      val editor = prefs(context).edit()
+      editor.putString("$COMMAND_PREFIX$commandId", obj.toString())
+      editor.commit()
+      return commandId
+    }
+
+    fun readPendingCommands(context: Context): List<Map<String, Any?>> {
+      val prefs = prefs(context)
+      val list = mutableListOf<Map<String, Any?>>()
+      for ((key, value) in prefs.all) {
+        if (key.startsWith(COMMAND_PREFIX) && value is String) {
+          try {
+            val obj = JSONObject(value)
+            val map = mutableMapOf<String, Any?>()
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+              val k = keys.next()
+              if (!obj.isNull(k)) {
+                map[k] = obj.get(k)
+              } else {
+                map[k] = null
+              }
+            }
+            list.add(map)
+          } catch (_: Exception) {}
+        }
+      }
+      return list
+    }
+
+    fun ackCommand(context: Context, commandId: String): Boolean {
+      val editor = prefs(context).edit()
+      return editor.remove("$COMMAND_PREFIX$commandId").commit()
+    }
+
+    fun readPendingTargets(context: Context): PendingTargets {
+      val prefs = prefs(context)
+      val todoIds = mutableSetOf<Int>()
+      val instanceKeys = mutableSetOf<String>()
+      for ((key, value) in prefs.all) {
+        if (key.startsWith(COMMAND_PREFIX) && value is String) {
+          try {
+            val obj = JSONObject(value)
+            val target = obj.optString("target", "todo")
+            val todoId = obj.optInt("todoId", -1)
+            if (target == "taskInstance") {
+              val occ = obj.optString("occurrenceId", "")
+              if (todoId > 0 && occ.isNotEmpty()) {
+                instanceKeys.add("$todoId:$occ")
+              }
+            } else if (target == "todo") {
+              if (todoId > 0) {
+                todoIds.add(todoId)
+              }
+            }
+          } catch (_: Exception) {}
+        }
+      }
+      val snap = read(context)
+      if (snap != null) {
+        todoIds.addAll(snap.pendingTapTodoIds())
+      }
+      return PendingTargets(todoIds = todoIds, instanceKeys = instanceKeys)
+    }
+
+    // Legacy v2 appendPendingTap retained for test backward compatibility.
     fun appendPendingTap(raw: String?, todoId: Int, atIso: String): String? {
       val json = try {
         if (raw.isNullOrEmpty()) return null
@@ -205,9 +422,6 @@ data class WidgetSnapshot(val json: JSONObject) {
         todoId,
         atIso,
       ) ?: return false
-      // commit(), not apply(): the follow-up widget refresh reads the value
-      // back immediately — apply's async disk write is fine but commit keeps
-      // read-after-write ordering obvious under the broadcast that follows.
       return editor.putString(SNAPSHOT_KEY, updated).commit()
     }
 

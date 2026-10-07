@@ -167,7 +167,7 @@ TaskAllocation 的领域状态为单一字段：
 ### 3.5 核心功能 D：派生态一致性（闹钟 / 小组件）
 
 - **业务描述**：记录（事件/待办/TaskAllocation）的派生副作用——本地通知/闹钟的重排、桌面小组件快照的刷新——必须在每次记录写入后收敛到当前行状态，不因写入入口不同而静默失效
-- **TaskAllocation 规则**：首版 Allocation 不创建独立 Reminder，不接入 `ReminderReconciler` 的时间参考字段，也不修改 Todo Reminder。Allocation 变化可触发既有 Widget 快照刷新总线，但首版 Widget JSON 与原生消费端不增加 Allocation 项。
+- **TaskAllocation 规则**：TaskAllocation 不创建独立 Reminder，不接入 `ReminderReconciler` 的时间参考字段，也不修改 Todo Reminder。Allocation 变化触发小组件快照刷新总线。小组件在 Phase 4 全面收敛至 Action 投影（快照契约 v3）：`today.timeline` 聚合 Event 与有效 TaskAllocation，`today.actions` 聚合截止待办与 TaskInstance（支持普通待办与重复实例打勾）；原生端保持纯只读渲染器，点击操作写入独立 typed command（`widget_command_<commandId>`），由客户端统一拉取消费并经 `toggleTodo` 闭环落库，消除了快照 read-modify-write 竞争。
 - **时间展示规则**：`TaskAllocation.startAt/endAt` 始终是绝对 instant，DB 与 sync wire 保持 UTC；Todo 安排摘要、Calendar tile 和 Calendar 布局均按查看设备本地时区呈现。跨本地日期的区间必须显示开始与结束日期；同日 Calendar tile 保持紧凑时刻范围。展示转换不得改变持久化 instant 或重复 Todo 的 occurrence identity。
 - **Phase 1 范围**：仅交付普通非重复 Todo 的本地 TaskAllocation 创建、Calendar 显示、改期与取消，以及 Todo 完成时本地事务内的未来 Allocation 失效；本阶段不实现 Allocation 同步/outbox、busy-time、重复 Todo 或 occurrence identity。重复 Todo 的安排入口应隐藏或明确拒绝，不得推测 occurrence。`task_allocations.todo_id` 当前使用本地 FK cascade；永久删除引起的 Allocation tombstone 传播是同步阶段的前置工作，本地 cascade 不代表已实现同步删除。
 - **业务规则契约**：
@@ -228,6 +228,71 @@ TaskAllocation payload 只包含 `todoSyncId`、可空 `occurrenceId`、`startAt
 永久删除 Todo 的 delete op 显式带 `hardDelete: true` tombstone 标记；不带标记的历史 Todo tombstone 继续按回收站软删兼容。单项永久删除与清空回收站必须在删本地 Allocation/Todo 行之前，捕获每个已同步 Allocation/Todo 的 sync UUID 和 rev，并在同一事务 enqueue 对应 tombstone。远端收到标记 tombstone 后物理清除本地 Todo 与其 Allocation；这与普通 Todo 软删（未标记 tombstone，Allocation 保留并由父项状态隐藏）区分。不得依赖 SQLite FK cascade 生成同步删除事实。
 
 服务端 Todo 完成写入口必须与 Allocation completion invariant 收敛：完成 Todo 时，已结束/进行中的 Allocation 保持原状态，`startAt >= completedAt` 的 active Allocation 写入 `invalidatedByCompletion`；之后到达的 Allocation upsert 也必须按服务端 Todo 当前状态校验，不能复活出 `Todo=completed + future Allocation=active`。用户取消的终态不得被完成失效或普通改期覆盖。Allocation tombstone 与父 Todo hard-delete 并发时，父删除获胜；后到的 Allocation upsert 不得留下永久 orphan。
+
+### 4.3 小组件快照与命令契约 (Widget Snapshot v3 & Command v1)
+
+```json
+{
+  "version": 3,
+  "generatedAt": "UTC ISO-8601 instant",
+  "today": {
+    "timeline": [
+      {
+        "id": "event localId or allocation localId",
+        "title": "标题",
+        "startAt": "UTC ISO-8601 instant",
+        "endAt": "UTC ISO-8601 instant",
+        "isAllDay": false,
+        "isTaskAllocation": false,
+        "todoSyncId": null,
+        "occurrenceId": null
+      }
+    ],
+    "actions": [
+      {
+        "actionId": "todo_123 or instance_todoSyncId_occurrenceId",
+        "target": "todo | taskInstance",
+        "todoId": 123,
+        "todoSyncId": "UUIDv7",
+        "occurrenceId": null,
+        "title": "任务标题",
+        "isCompleted": false,
+        "priority": 1,
+        "hasDeadline": true,
+        "isOverdue": false,
+        "isAllocated": true
+      }
+    ]
+  },
+  "upcoming": {
+    "days": 7,
+    "items": []
+  },
+  "monthDots": ["2026-10-07"],
+  "pendingTaps": [],
+  "ui": {},
+  "theme": {}
+}
+```
+
+- **单写入者规则 (Single-Writer Rule)**：原生小组件代码（Android Kotlin / iOS Swift）是快照的纯只读渲染器，严禁直接打开或写入 SQLite 数据库。
+- **独立命令存储队列**：用户在小组件上打勾完成任务时，原生端不直接修改快照 blob，而是将命令原子写入独立平台键（Android `SharedPreferences`: `widget_command_<commandId>`，iOS/macOS `UserDefaults`: `widget_command_<commandId>`）。避免多进程/多线程 Read-Modify-Write 竞争。
+- **WidgetCommand v1 结构**：
+  ```json
+  {
+    "commandId": "UUIDv4/UUIDv7",
+    "version": 1,
+    "action": "complete",
+    "target": "todo | taskInstance",
+    "todoId": 123,
+    "todoSyncId": "UUIDv7",
+    "occurrenceId": "occurrenceId or null",
+    "sourceAllocationId": null,
+    "at": "UTC ISO-8601 instant"
+  }
+  ```
+- **消费与排空 (Drain & Reconcile)**：客户端在 App 启动、前台唤醒（Resumed）及小组件主动刷新前，通过平台通道批量拉取并排空命令；按 `at` 时间顺序分发至统一领域写入器 `toggleTodo(todo, occurrenceId: occurrenceId)`；消费完成后由客户端调用 ack 彻底删除原生存储条目。对于已完成或终态无效的命令，做幂等处理并安全 ack。
+- **平滑兼容**：快照升级支持读取 v2 格式；legacy `pendingTaps` 继续排空并迁移至安全清除。
 
 ---
 

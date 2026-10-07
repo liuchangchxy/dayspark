@@ -1,0 +1,121 @@
+{
+  "version": 3,
+  "generatedAt": "2026-10-07T00:00:00.000Z",
+  "today": {
+    "timeline": [
+      {
+        "kind": "eventOccurrence",
+        "id": "event_101",
+        "summary": "Team Sync",
+        "start": "10:00",
+        "end": "11:00",
+        "isAllDay": false
+      },
+      {
+        "kind": "taskAllocation",
+        "allocationId": "alloc_201",
+        "todoId": 10,
+        "todoSyncId": "todo_sync_10",
+        "occurrenceId": null,
+        "summary": "Deep Work",
+        "start": "14:00",
+        "end": "15:00",
+        "isAllDay": false
+      }
+    ],
+    "actions": [
+      {
+        "kind": "todoDeadline",
+        "todoId": 11,
+        "todoSyncId": "todo_sync_11",
+        "summary": "Submit Quarterly Taxes",
+        "deadline": "10/7",
+        "target": "todo"
+      },
+      {
+        "kind": "taskInstance",
+        "todoId": 12,
+        "todoSyncId": "todo_sync_12",
+        "occurrenceId": "2026-10-07T09:00:00.000Z",
+        "summary": "Daily Standup Notes",
+        "displayTime": "09:00",
+        "target": "taskInstance"
+      }
+    ],
+    "status": {
+      "overdueCount": 1,
+      "missedCount": 0,
+      "unplannedCount": 3
+    }
+  },
+  "upcoming": {
+    "items": [
+      {
+        "kind": "eventOccurrence",
+        "summary": "Board Meeting",
+        "date": "10/8",
+        "time": "09:00",
+        "isAllDay": false
+      },
+      {
+        "kind": "taskAllocation",
+        "summary": "Write Report",
+        "date": "10/9",
+        "time": "14:00 - 15:30",
+        "isAllDay": false
+      },
+      {
+        "kind": "todoDeadline",
+        "summary": "Electric Bill Due",
+        "date": "10/10",
+        "time": "Deadline",
+        "isAllDay": false
+      }
+    ]
+  },
+  "monthDots": [
+    [7, true],
+    [8, true],
+    [9, true]
+  ],
+  "todayEvents": [
+    {
+      "summary": "Team Sync",
+      "start": "10:00",
+      "isAllDay": false
+    }
+  ],
+  "pendingTodos": [
+    {
+      "id": 11,
+      "summary": "Submit Quarterly Taxes",
+      "dueDate": "10/7"
+    }
+  ],
+  "todoCount": 2,
+  "ui": {
+    "locale": "en",
+    "title": "DaySpark",
+    "today": "Today",
+    "events": "Events",
+    "todos": "Todos",
+    "allDay": "All day",
+    "todayEventsHeader": "Today's Events",
+    "noEvents": "No events",
+    "allDone": "All done",
+    "pendingCount": "2 pending",
+    "quickAdd": "Quick add",
+    "upcoming": "Upcoming"
+  },
+  "theme": {
+    "dark": true,
+    "colors": {
+      "background": "#121212",
+      "surface": "#1E1E1E",
+      "textPrimary": "#FFFFFF",
+      "textSecondary": "#9E9E9E",
+      "accent": "#90CAF9",
+      "border": "#333333"
+    }
+  }
+}

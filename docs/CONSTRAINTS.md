@@ -207,17 +207,20 @@
 - **Why**: 进程内统一走缝，不再维护第二套失效机制；跨进程写（CLI）与非记录刺激（locale/theme/跨午夜）盖不住，由重算兜底
 - **Date**: 2026-09-22（2026-09-24 债务2 T4 重写：驱动源 `tableUpdates` → `RecordBus`；原条目"UI 直写"前提已随单写入口失效）
 
-### 小组件键双写：legacy 三键 + versioned `widget_snapshot` 同时写
-- legacy：`today_events` / `pending_todos` / `todo_count` — 现有 Kotlin/Swift 读取端只认这三个
-- versioned：`widget_snapshot` v2（`{version:2, generatedAt, todayEvents, pendingTodos, todoCount, upcoming, pendingTaps, ui, theme, monthDots}`，**10 顶层键**）— P4 迁移读取端的唯一契约，item 形状与 legacy 刻意一致
-  - `upcoming`：**今天之后连续 7 天**（[明天 00:00, +8 天 00:00)）的事件+有日期顶层待办；今天不进 upcoming（todayEvents 已覆盖，Upcoming 变体与今日组件并排会重复）
-  - `pendingTaps[]`：native→app 勾选通道。app 每次 flush 消费后写 `[]`；无消费者的 flush 必须**原样保留** native 追加的条目（禁止裸清空）；消费走 `toggleTodoProvider`（提醒取消/markComplete/outbox 单一写路径），组件端禁止直写库。flush 在途的 read→write 窗口内 native append 会被覆盖，已接受的已知边缘（概率=突变触发的 flush 与点击同毫秒）
-  - `ui`：按当前 locale **预本地化**的全部组件文案（gen-l10n arb 生成，Kotlin/Swift 零硬编码英文）；locale 切换靠下一次快照写入生效
-  - `theme`：`{dark, colors{background,surface,textPrimary,textSecondary,accent,border}}`（`#RRGGBB`），dark 由 `theme_mode` prefs + 平台亮度解析
-  - `monthDots`：`List<[int day, bool hasEvent]>`（仅 `hasEvent=true` 对写入；当前自然月），月点阵变体数据源——**T4 评审时的 9 键清单已过期，golden 断言以 10 键为准**
-- 删除/改名任何一侧前必须先迁移所有仍由 app 刷新的原生读取端（Android SharedPreferences + iOS UserDefaults suite）；macOS 原生读取端当前不接入 `home_widget` API 刷新
-- **Why**: 单写新键会让现网组件立刻空白；单写旧键则 P4 无迁移目标
-- **Date**: 2026-09-22（v2 契约补全 2026-09-24：upcoming/pendingTaps/ui/theme；`monthDots` 第 10 键 2026-09-24 随 T3 原生端落地）
+### 小组件快照收敛至 Action 投影（Snapshot v3）与独立命令队列
+- **快照契约 v3**：`widget_snapshot` v3 包含 `{version: 3, generatedAt, today: {timeline, actions}, upcoming: {days, items}, monthDots, pendingTaps, ui, theme}`。
+  - `today.timeline`：统一聚合事件（EventOccurrence）与有效任务安排（TaskAllocation），按开始时刻升序排列。
+  - `today.actions`：统一聚合今日 Action 项（Todo 截止与 TaskInstance 实例），对齐 Action 页面投影规则。
+  - `upcoming.items`：今天之后连续 7 天的事件与任务安排，日期计算使用 `DateTime(y, m, d + n)` 严格公历算术。
+  - `monthDots`：自然月内包含事件或安排的日期集合。
+  - 迁移兼容：读取端兼容旧版 v2 结构；旧版独立三键（`today_events`、`pending_todos`、`todo_count`）已在原生端全面迁移至 snapshot 后停止双写。
+- **单写入者（Single-Writer）与独立命令存储**：
+  - 原生小组件为纯只读渲染器，**严禁直接打开或写入 SQLite 数据库**。
+  - 用户在小组件上勾选完成任务时，原生端不修改快照 JSON blob（避免 Read-Modify-Write 覆盖竞争），而是原子写入独立平台键 `widget_command_<commandId>`（Android `SharedPreferences`，iOS/macOS `UserDefaults`）。
+  - 命令格式为强类型 `WidgetCommand`（含 `target: "todo" | "taskInstance"`、`commandId`、`occurrenceId` 等），支持对重复任务具体实例进行打勾完成。
+  - Flutter 客户端在 App 启动、前台唤醒（Resumed）与小组件快照刷新前，通过平台通道批量拉取并排空命令；按发生时刻顺序经由 `toggleTodo(todo, occurrenceId: occurrenceId)` 统一领域写入器落库，完成后调用 ack 删除原生存储中的命令键。
+- **Why**: 独立命令键消除了快照刷新与用户打勾并发时的覆盖丢失竞争；Single-Writer 保证 SQLite 事务完整性与同步一致性。
+- **Date**: 2026-10-07（Phase 4 收敛：Issue #9）
 
 ### 小组件快速添加通路：home_widget interactivity 回调 + `dayspark://quick-add`
 - widget 按钮点击走 `HomeWidget.registerInteractivityCallback(widgetInteractivityCallback)`（main() 注册，vm:entry-point）；回调**只做导航**（→ `/todo/new?source=widget`），不碰数据库——落库只在 flush 的 pendingTaps 消费路径

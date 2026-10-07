@@ -12,9 +12,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Primary today widget. Renders the v2 `widget_snapshot` blob (legacy
+// Primary today widget. Renders the v3 `widget_snapshot` blob (legacy
 // three-key fallback while dual-write lives), styles from the theme block,
-// wires checkbox taps into the pendingTaps queue, and deep-links the
+// wires checkbox taps into the independent command queue, and deep-links the
 // quick-add button through dayspark://quick-add (engine deep link →
 // go_router redirect → widgetDeepLinkLocation).
 class CalendarTodoWidgetProvider : AppWidgetProvider() {
@@ -67,8 +67,6 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
         applyTextColor(views, R.id.widget_quick_add, it, "accent")
       }
 
-      // ui block absent (corrupt partial snapshot): hide section chrome
-      // instead of leaking hardcoded copy — data rows still render.
       val hasUi = ui != null
       views.setTextViewText(R.id.widget_events_header, ui?.todayEventsHeader ?: "")
       views.setTextViewText(R.id.widget_todos_header, ui?.todos ?: "")
@@ -78,17 +76,20 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
       )
       views.setViewVisibility(R.id.widget_quick_add, if (hasUi) View.VISIBLE else View.GONE)
 
-      // Events (≤3 slots).
-      val events = snapshot.todayEvents()
+      // Timeline (EventOccurrence + TaskAllocation) (≤3 slots)
+      val timeline = snapshot.todayTimeline()
       val eventIds = listOf(R.id.event_0, R.id.event_1, R.id.event_2)
       for (i in 0..2) {
-        if (i < events.size) {
-          val e = events[i]
-          val text = if (e.isAllDay) {
-            "${e.summary}  ${ui?.allDay ?: ""}"
+        if (i < timeline.size) {
+          val item = timeline[i]
+          val timeStr = if (item.isAllDay) {
+            ui?.allDay ?: ""
+          } else if (item.end.isNotEmpty()) {
+            "${item.start} - ${item.end}"
           } else {
-            "${e.summary}  ${e.start}"
+            item.start
           }
+          val text = if (timeStr.isNotEmpty()) "${item.summary}  $timeStr" else item.summary
           views.setTextViewText(eventIds[i], text)
           views.setViewVisibility(eventIds[i], View.VISIBLE)
           theme?.let { applyTextColor(views, eventIds[i], it, "textPrimary") }
@@ -98,40 +99,47 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
       }
       views.setViewVisibility(
         R.id.no_events,
-        if (events.isEmpty() && hasUi) View.VISIBLE else View.GONE,
+        if (timeline.isEmpty() && hasUi) View.VISIBLE else View.GONE,
       )
       if (hasUi) views.setTextViewText(R.id.no_events, ui!!.noEvents)
 
-      // Todos (≤3 slots) with optimistic checkbox state.
-      val todos = snapshot.pendingTodos()
-      val checkedIds = snapshot.pendingTapTodoIds()
+      // Actions (TodoDeadline + TaskInstance) (≤3 slots) with optimistic state
+      val actions = snapshot.todayActions()
+      val pendingTargets = WidgetSnapshot.readPendingTargets(context)
       views.setTextViewText(R.id.todo_count, ui?.pendingCount ?: "${snapshot.todoCount()}")
       val rowIds = listOf(R.id.todo_row_0, R.id.todo_row_1, R.id.todo_row_2)
       val checkIds = listOf(R.id.todo_check_0, R.id.todo_check_1, R.id.todo_check_2)
       val textIds = listOf(R.id.todo_text_0, R.id.todo_text_1, R.id.todo_text_2)
       val dueIds = listOf(R.id.todo_due_0, R.id.todo_due_1, R.id.todo_due_2)
+
       for (i in 0..2) {
-        if (i < todos.size) {
-          val t = todos[i]
-          views.setTextViewText(textIds[i], t.summary)
-          views.setTextViewText(dueIds[i], t.dueDate)
-          views.setViewVisibility(dueIds[i], if (t.dueDate.isEmpty()) View.GONE else View.VISIBLE)
+        if (i < actions.size) {
+          val a = actions[i]
+          views.setTextViewText(textIds[i], a.summary)
+          val secondaryText = a.deadline ?: a.displayTime ?: ""
+          views.setTextViewText(dueIds[i], secondaryText)
+          views.setViewVisibility(dueIds[i], if (secondaryText.isEmpty()) View.GONE else View.VISIBLE)
           views.setViewVisibility(rowIds[i], View.VISIBLE)
           theme?.let {
             applyTextColor(views, textIds[i], it, "textPrimary")
             applyTextColor(views, dueIds[i], it, "textSecondary")
           }
 
-          val todoId = t.id
-          if (todoId != null) {
+          val isPending = if (a.target == "taskInstance") {
+            val occ = a.occurrenceId ?: ""
+            pendingTargets.instanceKeys.contains("${a.todoId}:$occ")
+          } else {
+            pendingTargets.todoIds.contains(a.todoId)
+          }
+
+          if (a.todoId > 0) {
             views.setViewVisibility(checkIds[i], View.VISIBLE)
-            views.setBoolean(checkIds[i], "setChecked", checkedIds.contains(todoId))
+            views.setBoolean(checkIds[i], "setChecked", isPending)
             views.setOnClickPendingIntent(
               rowIds[i],
-              checkPendingIntent(context, todoId),
+              actionPendingIntent(context, a),
             )
           } else {
-            // Snapshot without ids: render row, no tap target.
             views.setViewVisibility(checkIds[i], View.GONE)
             views.setOnClickPendingIntent(rowIds[i], null)
           }
@@ -141,26 +149,31 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
       }
       views.setViewVisibility(
         R.id.no_todos,
-        if (todos.isEmpty() && hasUi) View.VISIBLE else View.GONE,
+        if (actions.isEmpty() && hasUi) View.VISIBLE else View.GONE,
       )
       if (hasUi) views.setTextViewText(R.id.no_todos, ui!!.allDone)
 
       views.setOnClickPendingIntent(R.id.widget_quick_add, quickAddPendingIntent(context))
     }
 
-    // Last-wins queue append happens in the receiver; the redraw that
-    // follows this broadcast reads pendingTaps back for the checked mark.
-    private fun checkPendingIntent(context: Context, todoId: Int): PendingIntent {
+    private fun actionPendingIntent(context: Context, action: WidgetSnapshot.ActionRow): PendingIntent {
       val intent = Intent(context, WidgetActionReceiver::class.java).apply {
-        action = WidgetSnapshot.ACTION_TOGGLE_TODO
-        // Unique data URI per todo keeps the system from collapsing the
-        // PendingIntents of different rows into one.
-        data = Uri.parse("dayspark://widget-check/$todoId")
-        putExtra(WidgetSnapshot.EXTRA_TODO_ID, todoId)
+        this.action = WidgetSnapshot.ACTION_COMPLETE_ACTION
+        val occPart = action.occurrenceId ?: "single"
+        data = Uri.parse("dayspark://widget-action/${action.target}/${action.todoId}/$occPart")
+        putExtra(WidgetSnapshot.EXTRA_TARGET, action.target)
+        putExtra(WidgetSnapshot.EXTRA_TODO_ID, action.todoId)
+        if (!action.todoSyncId.isNullOrEmpty()) {
+          putExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID, action.todoSyncId)
+        }
+        if (!action.occurrenceId.isNullOrEmpty()) {
+          putExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID, action.occurrenceId)
+        }
       }
+      val requestCode = (action.todoId.hashCode() * 31 + (action.occurrenceId?.hashCode() ?: 0)) and 0x7FFFFFFF
       return PendingIntent.getBroadcast(
         context,
-        todoId,
+        requestCode,
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
       )
@@ -194,8 +207,7 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
     }
 
     // Downlevel window only: app predates widget_snapshot (or the blob is
-    // corrupt). Legacy keys carry data but no ui/theme/id — section chrome
-    // and checkboxes are hidden rather than filled with hardcoded copy.
+    // corrupt).
     private fun renderLegacyFallback(context: Context, views: RemoteViews) {
       val prefs = WidgetSnapshot.prefs(context)
       views.setViewVisibility(R.id.widget_events_header, View.GONE)
@@ -204,53 +216,14 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
       views.setViewVisibility(R.id.no_events, View.GONE)
       views.setViewVisibility(R.id.no_todos, View.GONE)
 
-      val eventsJson = prefs.getString("today_events", "[]") ?: "[]"
-      val eventsArray = try {
-        org.json.JSONArray(eventsJson)
-      } catch (e: Exception) {
-        org.json.JSONArray()
-      }
-      val eventIds = listOf(R.id.event_0, R.id.event_1, R.id.event_2)
-      for (i in 0..2) {
-        if (i < eventsArray.length()) {
-          val event = eventsArray.getJSONObject(i)
-          val summary = event.optString("summary", "")
-          val start = event.optString("start", "")
-          val isAllDay = event.optString("isAllDay", "false") == "true"
-          // No ui block in legacy mode — keep raw fields, no formatted copy.
-          val text = if (isAllDay && start.isEmpty()) summary else "$summary  $start"
-          views.setTextViewText(eventIds[i], text)
-          views.setViewVisibility(eventIds[i], View.VISIBLE)
-        } else {
-          views.setViewVisibility(eventIds[i], View.GONE)
-        }
-      }
+      val count = prefs.getInt("todo_count", 0)
+      views.setTextViewText(R.id.todo_count, if (count > 0) "$count" else "")
 
-      val todosJson = prefs.getString("pending_todos", "[]") ?: "[]"
-      val todosArray = try {
-        org.json.JSONArray(todosJson)
-      } catch (e: Exception) {
-        org.json.JSONArray()
+      for (id in listOf(R.id.event_0, R.id.event_1, R.id.event_2)) {
+        views.setViewVisibility(id, View.GONE)
       }
-      val todoCount = prefs.getString("todo_count", "0") ?: "0"
-      views.setTextViewText(R.id.todo_count, todoCount)
-      val rowIds = listOf(R.id.todo_row_0, R.id.todo_row_1, R.id.todo_row_2)
-      val checkIds = listOf(R.id.todo_check_0, R.id.todo_check_1, R.id.todo_check_2)
-      val textIds = listOf(R.id.todo_text_0, R.id.todo_text_1, R.id.todo_text_2)
-      val dueIds = listOf(R.id.todo_due_0, R.id.todo_due_1, R.id.todo_due_2)
-      for (i in 0..2) {
-        if (i < todosArray.length()) {
-          val todo = todosArray.getJSONObject(i)
-          views.setTextViewText(textIds[i], todo.optString("summary", ""))
-          val dueDate = todo.optString("dueDate", "")
-          views.setTextViewText(dueIds[i], dueDate)
-          views.setViewVisibility(dueIds[i], if (dueDate.isEmpty()) View.GONE else View.VISIBLE)
-          views.setViewVisibility(checkIds[i], View.GONE)
-          views.setViewVisibility(rowIds[i], View.VISIBLE)
-          views.setOnClickPendingIntent(rowIds[i], null)
-        } else {
-          views.setViewVisibility(rowIds[i], View.GONE)
-        }
+      for (id in listOf(R.id.todo_row_0, R.id.todo_row_1, R.id.todo_row_2)) {
+        views.setViewVisibility(id, View.GONE)
       }
     }
   }
