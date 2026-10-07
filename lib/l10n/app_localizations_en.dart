@@ -399,6 +399,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get suggestedTimeSlots => 'Suggested Time Slots';
 
   @override
+  String get timeSlotConflict => 'The selected time slot is now occupied or no longer available. Please select another slot.';
+
+  @override
   String schedulingFailed(String error) {
     return 'Scheduling failed: $error';
   }

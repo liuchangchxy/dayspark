@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/services/ai_scheduler_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
@@ -119,9 +120,37 @@ void main() {
         isTrue,
       );
     });
+    test('civil-day arithmetic iterates across multiple civil days without 24h duration drift', () {
+      final slots = service.computeFreeSlots(
+        rangeStart: DateTime.utc(2026, 10, 20, 9, 0),
+        rangeEnd: DateTime.utc(2026, 10, 23, 18, 0),
+        busyIntervals: [],
+        slotDuration: const Duration(hours: 1),
+        startHour: 9,
+        endHour: 18,
+        maxSlots: 50,
+      );
+
+      expect(slots, isNotEmpty);
+      final daysCovered = slots.map((s) => s.start.day).toSet();
+      // Must cover civil days 20, 21, 22, 23 exactly
+      expect(daysCovered, containsAll([20, 21, 22, 23]));
+      // Every slot start must be on the exact integer hour with 0 minutes
+      for (final s in slots) {
+        expect(s.start.minute, 0);
+        expect(s.start.hour, greaterThanOrEqualTo(9));
+        expect(s.end.hour, lessThanOrEqualTo(18));
+      }
+    });
   });
 
-  group('AiSchedulerService - Hallucination Defense & Recurring Events', () {
+  group('AiSchedulerService - Hallucination Defense & Candidate Matching', () {
+    final dummyConfig = AiConfig(
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: 'test-key',
+      model: 'gpt-4o',
+    );
+
     test('suggestTimeSlots falls back to deterministic free slots without config', () async {
       final events = [
         CalendaEventAdapter(
@@ -151,6 +180,78 @@ void main() {
         expect(start.isBefore(DateTime(2026, 10, 20, 12, 0)), isFalse);
         expect(end.isAfter(start), isTrue);
       }
+    });
+
+    test('discards LLM non-candidate slots (e.g. 03:00-04:00) even if free from busy', () async {
+      final suggestions = await service.suggestTimeSlots(
+        config: dummyConfig,
+        events: [],
+        allocations: [],
+        taskDescription: 'Draft Proposal',
+        rangeStart: DateTime.utc(2026, 10, 20, 9, 0),
+        rangeEnd: DateTime.utc(2026, 10, 20, 18, 0),
+        slotDuration: const Duration(hours: 1),
+        maxSuggestions: 3,
+        aiCaller: ({required config, required systemPrompt, required userPrompt}) async {
+          // LLM hallucinates an early morning slot not in candidate list (03:00-04:00)
+          return '[{"start":"2026-10-20T03:00:00.000Z","end":"2026-10-20T04:00:00.000Z","reason":"Early bird"}]';
+        },
+      );
+
+      // The 03:00 slot must be discarded; fallback to valid candidate slots
+      expect(suggestions, isNotEmpty);
+      for (final s in suggestions) {
+        final start = DateTime.parse(s['start'] as String);
+        expect(start.hour, greaterThanOrEqualTo(9), reason: 'Must only return slots within candidate working hours');
+      }
+    });
+
+    test('discards LLM slots with invalid duration or out of range', () async {
+      final suggestions = await service.suggestTimeSlots(
+        config: dummyConfig,
+        events: [],
+        allocations: [],
+        taskDescription: 'Draft Proposal',
+        rangeStart: DateTime.utc(2026, 10, 20, 9, 0),
+        rangeEnd: DateTime.utc(2026, 10, 20, 18, 0),
+        slotDuration: const Duration(hours: 1),
+        maxSuggestions: 3,
+        aiCaller: ({required config, required systemPrompt, required userPrompt}) async {
+          // LLM hallucinates a 30-min slot and a slot tomorrow past rangeEnd
+          return '[{"start":"2026-10-20T10:00:00.000Z","end":"2026-10-20T10:30:00.000Z","reason":"Quick slot"},'
+              '{"start":"2026-10-25T10:00:00.000Z","end":"2026-10-25T11:00:00.000Z","reason":"Next week"}]';
+        },
+      );
+
+      expect(suggestions, isNotEmpty);
+      for (final s in suggestions) {
+        final start = DateTime.parse(s['start'] as String);
+        final end = DateTime.parse(s['end'] as String);
+        expect(end.difference(start), const Duration(hours: 1));
+        expect(start.day, 20);
+      }
+    });
+
+    test('accepts valid candidate slot by numeric slot ID', () async {
+      final suggestions = await service.suggestTimeSlots(
+        config: dummyConfig,
+        events: [],
+        allocations: [],
+        taskDescription: 'Draft Proposal',
+        rangeStart: DateTime.utc(2026, 10, 20, 9, 0),
+        rangeEnd: DateTime.utc(2026, 10, 20, 18, 0),
+        slotDuration: const Duration(hours: 1),
+        maxSuggestions: 2,
+        aiCaller: ({required config, required systemPrompt, required userPrompt}) async {
+          // LLM picks slot 2 (10:00-11:00) and slot 4 (12:00-13:00)
+          return '[{"id": 2, "reason": "Slot 2 preferred"}, {"id": 4, "reason": "Lunch slot"}]';
+        },
+      );
+
+      expect(suggestions, hasLength(2));
+      expect(DateTime.parse(suggestions[0]['start'] as String), DateTime.utc(2026, 10, 20, 10, 0));
+      expect(DateTime.parse(suggestions[1]['start'] as String), DateTime.utc(2026, 10, 20, 12, 0));
+      expect(suggestions[0]['reason'], 'Slot 2 preferred');
     });
 
     test('retains long-running recurring events created >90 days ago in availability', () {

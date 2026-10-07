@@ -399,6 +399,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get suggestedTimeSlots => '推荐时间段';
 
   @override
+  String get timeSlotConflict => '所选时间段已被占用或已过期，请重新选择时间。';
+
+  @override
   String schedulingFailed(String error) {
     return '排程失败：$error';
   }

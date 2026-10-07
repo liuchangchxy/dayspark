@@ -132,6 +132,7 @@
   "deleteEventConfirm": "确定删除「{title}」吗？",
   "noTimeSlots": "暂无可用的时间建议",
   "suggestedTimeSlots": "推荐时间段",
+  "timeSlotConflict": "所选时间段已被占用或已过期，请重新选择时间。",
   "schedulingFailed": "排程失败：{error}",
   "noSubtaskSuggestions": "暂无子任务建议",
   "taskBreakdown": "任务拆分",

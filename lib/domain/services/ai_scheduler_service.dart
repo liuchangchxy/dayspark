@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
 
 /// Uses deterministic availability computation and optional AI ranking
 /// to suggest optimal time slots for task scheduling.
@@ -61,22 +62,40 @@ class AiSchedulerService {
     final results = <({DateTime start, DateTime end})>[];
     if (!rangeEnd.isAfter(rangeStart) || maxSlots <= 0) return results;
 
-    var dayCursor = DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
-    final lastDay = DateTime(rangeEnd.year, rangeEnd.month, rangeEnd.day);
+    var dayCursor = rangeStart.isUtc
+        ? DateTime.utc(rangeStart.year, rangeStart.month, rangeStart.day)
+        : DateTime(rangeStart.year, rangeStart.month, rangeStart.day);
+    final lastDay = rangeEnd.isUtc
+        ? DateTime.utc(rangeEnd.year, rangeEnd.month, rangeEnd.day)
+        : DateTime(rangeEnd.year, rangeEnd.month, rangeEnd.day);
 
     while (!dayCursor.isAfter(lastDay) && results.length < maxSlots) {
-      final workStart = DateTime(
-        dayCursor.year,
-        dayCursor.month,
-        dayCursor.day,
-        startHour,
-      );
-      final workEnd = DateTime(
-        dayCursor.year,
-        dayCursor.month,
-        dayCursor.day,
-        endHour,
-      );
+      final workStart = dayCursor.isUtc
+          ? DateTime.utc(
+              dayCursor.year,
+              dayCursor.month,
+              dayCursor.day,
+              startHour,
+            )
+          : DateTime(
+              dayCursor.year,
+              dayCursor.month,
+              dayCursor.day,
+              startHour,
+            );
+      final workEnd = dayCursor.isUtc
+          ? DateTime.utc(
+              dayCursor.year,
+              dayCursor.month,
+              dayCursor.day,
+              endHour,
+            )
+          : DateTime(
+              dayCursor.year,
+              dayCursor.month,
+              dayCursor.day,
+              endHour,
+            );
 
       final windowStart = workStart.isBefore(rangeStart) ? rangeStart : workStart;
       final windowEnd = workEnd.isAfter(rangeEnd) ? rangeEnd : workEnd;
@@ -114,7 +133,7 @@ class AiSchedulerService {
         }
       }
 
-      dayCursor = dayCursor.add(const Duration(days: 1));
+      dayCursor = civilDateAddDays(dayCursor, 1);
     }
 
     return results;
@@ -146,6 +165,11 @@ class AiSchedulerService {
     required DateTime rangeEnd,
     Duration slotDuration = const Duration(hours: 1),
     int maxSuggestions = 3,
+    Future<String> Function({
+      required AiConfig config,
+      required String systemPrompt,
+      required String userPrompt,
+    })? aiCaller,
   }) async {
     final busy = computeBusyIntervals(
       events: events,
@@ -186,11 +210,13 @@ class AiSchedulerService {
       buffer.writeln();
       buffer.writeln(
         'Choose up to $maxSuggestions best time slots from the candidates above. '
-        'You MUST ONLY pick from the candidate slots provided. Do not hallucinate or create conflicting slots. '
-        'Return ONLY a JSON array in the format: [{"start":"...","end":"...","reason":"..."}]',
+        'You MUST ONLY pick from the candidate slot IDs provided. '
+        'Return ONLY a JSON array in the format: [{"id": 1, "reason": "..."}] '
+        'where "id" is the numeric Slot ID (1 to ${candidateSlots.length}).',
       );
 
-      final response = await callAiApi(
+      final caller = aiCaller ?? callAiApi;
+      final response = await caller(
         config: config,
         systemPrompt:
             'You are a scheduling assistant. Recommend up to $maxSuggestions time slots '
@@ -202,27 +228,64 @@ class AiSchedulerService {
       if (arrayMatch != null) {
         final matches = RegExp(r'\{[^{}]*\}').allMatches(arrayMatch.group(0)!);
         final validated = <Map<String, dynamic>>[];
+        final pickedIndices = <int>{};
 
         for (final m in matches) {
-          final startStr = _extractJsonField(m.group(0)!, 'start');
-          final endStr = _extractJsonField(m.group(0)!, 'end');
-          final reason = _extractJsonField(m.group(0)!, 'reason');
+          final itemJson = m.group(0)!;
+          final reason = _extractJsonField(itemJson, 'reason');
 
-          final start = DateTime.tryParse(startStr);
-          final end = DateTime.tryParse(endStr);
+          ({DateTime start, DateTime end})? matchedCandidate;
+          int? matchedIndex;
 
-          if (start != null && end != null) {
-            // Strict deterministic validation
-            if (isSlotFree(start: start, end: end, busyIntervals: busy)) {
-              validated.add({
-                'start': start.toIso8601String(),
-                'end': end.toIso8601String(),
-                'reason': reason.isNotEmpty ? reason : 'Optimal recommended slot',
-              });
-              if (validated.length >= maxSuggestions) break;
-            } else {
-              debugPrint('ai_scheduler: Discarding hallucinated/conflicting slot: $start - $end');
+          final idVal = _extractJsonField(itemJson, 'id');
+          final idInt = int.tryParse(idVal);
+          if (idInt != null && idInt >= 1 && idInt <= candidateSlots.length) {
+            matchedIndex = idInt - 1;
+            matchedCandidate = candidateSlots[matchedIndex];
+          } else {
+            // Fallback: exact membership match against candidateSlots
+            final startStr = _extractJsonField(itemJson, 'start');
+            final endStr = _extractJsonField(itemJson, 'end');
+            final start = DateTime.tryParse(startStr);
+            final end = DateTime.tryParse(endStr);
+            if (start != null && end != null) {
+              for (var i = 0; i < candidateSlots.length; i++) {
+                final cand = candidateSlots[i];
+                if (cand.start.isAtSameMomentAs(start) &&
+                    cand.end.isAtSameMomentAs(end)) {
+                  matchedIndex = i;
+                  matchedCandidate = cand;
+                  break;
+                }
+              }
             }
+          }
+
+          if (matchedCandidate == null || matchedIndex == null) {
+            // Non-candidate: hallucinated interval, different duration, or outside range. Discard!
+            debugPrint('ai_scheduler: Discarding non-candidate slot from LLM: $itemJson');
+            continue;
+          }
+
+          if (pickedIndices.contains(matchedIndex)) {
+            continue;
+          }
+
+          // Strict deterministic validation that the candidate slot is still free
+          if (isSlotFree(
+            start: matchedCandidate.start,
+            end: matchedCandidate.end,
+            busyIntervals: busy,
+          )) {
+            pickedIndices.add(matchedIndex);
+            validated.add({
+              'start': matchedCandidate.start.toIso8601String(),
+              'end': matchedCandidate.end.toIso8601String(),
+              'reason': reason.isNotEmpty ? reason : 'Optimal recommended slot',
+            });
+            if (validated.length >= maxSuggestions) break;
+          } else {
+            debugPrint('ai_scheduler: Discarding candidate slot that is now busy: $matchedCandidate');
           }
         }
 
@@ -268,7 +331,10 @@ class AiSchedulerService {
   }
 
   String _extractJsonField(String json, String field) {
-    final match = RegExp('"$field"\\s*:\\s*"([^"]*)"').firstMatch(json);
-    return match?.group(1) ?? '';
+    final strMatch = RegExp('"$field"\\s*:\\s*"([^"]*)"').firstMatch(json);
+    if (strMatch != null) return strMatch.group(1)!;
+    final numMatch = RegExp('"$field"\\s*:\\s*(\\d+)').firstMatch(json);
+    if (numMatch != null) return numMatch.group(1)!;
+    return '';
   }
 }

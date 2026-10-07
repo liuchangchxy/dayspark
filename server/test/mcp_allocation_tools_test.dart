@@ -855,6 +855,88 @@ void main() {
       expect(second['allocation']['state'], 'cancelledByUser');
     });
 
+    test('reschedule_task_allocation replay returns previous result without failing busy or mutating twice', () async {
+      await _seed(
+        app,
+        userId,
+        'task-idem-resched',
+        type: RecordType.todo,
+        fields: {
+          'summary': 'Idempotent Reschedule Task',
+          'status': 'pending',
+          'createdAt': iso(base),
+          'updatedAt': iso(base),
+        },
+      );
+
+      final created = await _toolData(app, token, 'schedule_task', {
+        'task_id': 'task-idem-resched',
+        'start': '2026-10-17T09:00:00.000Z',
+        'end': '2026-10-17T10:00:00.000Z',
+      });
+      final allocId = created['allocation']['allocation_id'] as String;
+
+      final reschedArgs = {
+        'allocation_id': allocId,
+        'start': '2026-10-17T10:00:00.000Z',
+        'end': '2026-10-17T11:00:00.000Z',
+        'idempotency_key': 'key-resched-1',
+      };
+
+      // First reschedule succeeds
+      final first = await _toolData(app, token, 'reschedule_task_allocation', reschedArgs);
+      expect(first['allocation']['allocation_id'], allocId);
+      expect(first['allocation']['start'], isoZ(DateTime.parse('2026-10-17T10:00:00.000Z')));
+      expect(first['allocation']['end'], isoZ(DateTime.parse('2026-10-17T11:00:00.000Z')));
+      expect(first['op']['status'], 'applied');
+
+      // Second identical reschedule returns stable replay without failing busy or mutating twice
+      final second = await _toolData(app, token, 'reschedule_task_allocation', reschedArgs);
+      expect(second['allocation']['allocation_id'], allocId);
+      expect(second['allocation']['start'], isoZ(DateTime.parse('2026-10-17T10:00:00.000Z')));
+      expect(second['allocation']['end'], isoZ(DateTime.parse('2026-10-17T11:00:00.000Z')));
+      expect(second['op']['status'], 'applied');
+    });
+
+    test('schedule_task replay returns stable original allocation even if allocation was subsequently rescheduled', () async {
+      await _seed(
+        app,
+        userId,
+        'task-idem-later-resched',
+        type: RecordType.todo,
+        fields: {
+          'summary': 'Task Rescheduled Later',
+          'status': 'pending',
+          'createdAt': iso(base),
+          'updatedAt': iso(base),
+        },
+      );
+
+      final scheduleArgs = {
+        'task_id': 'task-idem-later-resched',
+        'start': '2026-10-17T11:00:00.000Z',
+        'end': '2026-10-17T12:00:00.000Z',
+        'idempotency_key': 'key-sched-resched-later',
+      };
+
+      final first = await _toolData(app, token, 'schedule_task', scheduleArgs);
+      final allocId = first['allocation']['allocation_id'] as String;
+      expect(first['allocation']['start'], isoZ(DateTime.parse('2026-10-17T11:00:00.000Z')));
+
+      // Allocation is subsequently rescheduled to another interval
+      await _toolData(app, token, 'reschedule_task_allocation', {
+        'allocation_id': allocId,
+        'start': '2026-10-17T15:00:00.000Z',
+        'end': '2026-10-17T16:00:00.000Z',
+      });
+
+      // Replaying the original schedule_task with key-sched-resched-later returns stable original result
+      // without failing due to current state or new interval busy
+      final replay = await _toolData(app, token, 'schedule_task', scheduleArgs);
+      expect(replay['allocation']['allocation_id'], allocId);
+      expect(replay['op']['status'], 'applied');
+    });
+
     test('reusing idempotency_key with mismatched payload fails', () async {
       await _seed(
         app,

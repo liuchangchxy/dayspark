@@ -839,6 +839,12 @@ abstract class AppLocalizations {
   /// **'Suggested Time Slots'**
   String get suggestedTimeSlots;
 
+  /// No description provided for @timeSlotConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected time slot is now occupied or no longer available. Please select another slot.'**
+  String get timeSlotConflict;
+
   /// No description provided for @schedulingFailed.
   ///
   /// In en, this message translates to:

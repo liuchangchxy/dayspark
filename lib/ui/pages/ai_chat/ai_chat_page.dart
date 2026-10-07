@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -335,7 +336,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       final suggestions = await ref.read(suggestTimeSlotsProvider)(
         taskDescription: chosenTodo.summary,
         rangeStart: now,
-        rangeEnd: now.add(const Duration(days: 7)),
+        rangeEnd: civilDateAddDays(now, 7),
       );
 
       if (!context.mounted) return;
@@ -426,7 +427,24 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       if (confirmed != true || !context.mounted) return;
 
-      // Step 6: Create TaskAllocation - zero Event created, dueDate untouched
+      // Step 6: Write-time authoritative conflict revalidation (TOCTOU defense)
+      final isStillFree = await ref.read(validateSlotAvailabilityProvider)(
+        start: start,
+        end: end,
+      );
+
+      if (!isStillFree) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l.timeSlotConflict),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
+
+      // Step 7: Create TaskAllocation - zero Event created, dueDate untouched
       await ref.read(createTaskAllocationProvider)(
         todoId: chosenTodo.id,
         startAt: start,

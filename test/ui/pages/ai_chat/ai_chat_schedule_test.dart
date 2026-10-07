@@ -251,4 +251,82 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('TOCTOU conflict before confirmation rejects write, shows SnackBar, zero allocations/events', (tester) async {
+    final due = DateTime.utc(2026, 10, 25, 18, 0);
+    final todoId = await db.into(db.todos).insert(
+      TodosCompanion.insert(
+        calendarId: 1,
+        summary: 'Important Report',
+        dueDate: Value(due),
+        priority: const Value(1),
+      ),
+    );
+
+    final overrideSlots = suggestTimeSlotsProvider.overrideWithValue(
+      ({required taskDescription, required rangeStart, required rangeEnd, slotDuration = const Duration(hours: 1)}) async {
+        return [
+          {
+            'start': '2026-10-21T10:00:00.000',
+            'end': '2026-10-21T11:00:00.000',
+            'reason': 'Free morning slot',
+          },
+        ];
+      },
+    );
+
+    await tester.pumpWidget(_app(db, overrides: [overrideSlots]));
+    await _settle(tester);
+
+    // Tap Schedule
+    await tester.tap(find.text('Schedule'));
+    await _settle(tester);
+
+    // Step 1: Select Todo
+    await tester.tap(find.text('Important Report'));
+    await _settle(tester);
+
+    // Step 2: Select Slot
+    await tester.tap(find.text('Free morning slot'));
+    await _settle(tester);
+
+    // Step 3: Confirmation dialog is showing
+    expect(find.text('Schedule Todo'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Schedule'), findsOneWidget);
+
+    // Simulate TOCTOU race: An event is inserted into the exact slot right before user taps "Schedule"
+    await db.into(db.events).insert(
+      EventsCompanion.insert(
+        calendarId: 1,
+        summary: 'Emergency Meeting',
+        startDt: DateTime.parse('2026-10-21T10:30:00.000'),
+        endDt: DateTime.parse('2026-10-21T11:30:00.000'),
+      ),
+    );
+
+    // User confirms
+    await tester.tap(find.widgetWithText(FilledButton, 'Schedule'));
+    await _settle(tester);
+
+    // Assert: SnackBar shows conflict error message
+    expect(
+      find.text('The selected time slot is now occupied or no longer available. Please select another slot.'),
+      findsOneWidget,
+    );
+
+    // Assert: Zero new TaskAllocation rows created for the todo
+    final allocations = await (db.select(db.taskAllocations)..where((t) => t.todoId.equals(todoId))).get();
+    expect(allocations, isEmpty);
+
+    // Assert: Zero fake Event rows created (only the Emergency Meeting we inserted exists)
+    final events = await (db.select(db.events)).get();
+    expect(events, hasLength(1));
+    expect(events.first.summary, 'Emergency Meeting');
+
+    // Assert: Todo dueDate remains untouched
+    final todoAfter = await (db.select(db.todos)..where((t) => t.id.equals(todoId))).getSingle();
+    expect(todoAfter.dueDate!.toUtc(), due);
+
+    await _unmount(tester);
+  });
 }
