@@ -262,9 +262,9 @@ void main() {
       expect(items.any((i) => i['summary'] == 'Far Future Meeting'), isFalse);
     });
 
-    test('civil-day arithmetic prevents DST drift', () async {
-      // Simulating a date around autumn daylight saving transition (e.g. October 25)
-      final dstDate = DateTime(2026, 10, 25, 12, 0);
+    test('civil-day arithmetic prevents DST drift across 23h/25h transitions', () async {
+      // 1. Autumn transition (25h wall day): civilDay advances by pure date components, not duration
+      final fallDate = DateTime(2026, 10, 25, 12, 0);
 
       // Insert event on the exact day after DST transition
       await insertEvent(
@@ -273,17 +273,34 @@ void main() {
         endDt: DateTime(2026, 10, 26, 11, 0),
       );
 
-      final upcoming = await HomeWidgetService.upcomingItems(db, now: dstDate);
+      final upcoming = await HomeWidgetService.upcomingItems(db, now: fallDate);
       expect(upcoming, isA<List>());
       final syncItem = upcoming.firstWhere((i) => i['summary'] == 'Post-DST Sync');
       // Must not drift to previous or next day due to 24h duration arithmetic
       expect(syncItem['date'], '10/26');
       expect(syncItem['time'], '10:00');
 
-      final dots = await HomeWidgetService.monthDots(db, now: dstDate);
+      final dots = await HomeWidgetService.monthDots(db, now: fallDate);
       expect(dots, isA<List>());
       // October 26 must have a marked dot [26, true]
       expect(dots.any((d) => d[0] == 26 && d[1] == true), isTrue);
+
+      // 2. Pure civil date arithmetic verification:
+      // Even if instant delta is 23h or 25h, civil date advance DateTime(y, m, d + 1)
+      // always yields exact civil calendar next day without minute or hour shifting
+      final civilTomorrow = DateTime(fallDate.year, fallDate.month, fallDate.day + 1);
+      expect(civilTomorrow.year, 2026);
+      expect(civilTomorrow.month, 10);
+      expect(civilTomorrow.day, 26);
+      expect(civilTomorrow.hour, 0);
+
+      // Spring transition test (March 29 European spring forward / 23h wall day)
+      final springDate = DateTime(2026, 3, 28, 14, 0);
+      final springTomorrow = DateTime(springDate.year, springDate.month, springDate.day + 1);
+      expect(springTomorrow.year, 2026);
+      expect(springTomorrow.month, 3);
+      expect(springTomorrow.day, 29);
+      expect(springTomorrow.hour, 0);
     });
 
     test('expands recurring events started >90 days ago', () async {

@@ -25,13 +25,15 @@ import UIKit
       let defaults = UserDefaults(suiteName: appGroupId)
       switch call.method {
       case "getPendingCommands":
-        var commands: [[String: Any]] = []
+        var commands: [[String: String]] = []
         if let dict = defaults?.dictionaryRepresentation() {
           for (key, val) in dict {
-            if key.hasPrefix("widget_command_"), let str = val as? String,
-               let data = str.data(using: .utf8),
-               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-              commands.append(obj)
+            if key.hasPrefix("widget_command_"), let str = val as? String {
+              let commandId = String(key.dropFirst("widget_command_".count))
+              commands.append([
+                "commandId": commandId,
+                "raw": str
+              ])
             }
           }
         }

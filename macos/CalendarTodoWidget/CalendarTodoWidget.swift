@@ -103,6 +103,9 @@ struct WidgetUi: Decodable {
     let pendingCount: String
     let quickAdd: String
     let upcoming: String
+    var overdue: String? = nil
+    var missed: String? = nil
+    var unplanned: String? = nil
 }
 
 struct WidgetThemeColors: Decodable {
@@ -184,7 +187,13 @@ enum WidgetSnapshotStore {
 
     // Atomic single-writer command append: appends widget_command_<commandId> to UserDefaults.
     // Does NOT mutate widget_snapshot (Ruling E).
-    static func appendCommand(target: String, todoId: Int, todoSyncId: String?, occurrenceId: String?) {
+    static func appendCommand(
+        target: String,
+        todoId: Int,
+        todoSyncId: String?,
+        occurrenceId: String?,
+        sourceAllocationId: String? = nil
+    ) {
         guard let defaults = UserDefaults(suiteName: appGroupId) else { return }
         let commandId = UUID().uuidString
         let formatter = ISO8601DateFormatter()
@@ -201,6 +210,9 @@ enum WidgetSnapshotStore {
         }
         if let occurrenceId = occurrenceId, !occurrenceId.isEmpty {
             dict["occurrenceId"] = occurrenceId
+        }
+        if let sourceAllocationId = sourceAllocationId, !sourceAllocationId.isEmpty {
+            dict["sourceAllocationId"] = sourceAllocationId
         }
         if let data = try? JSONSerialization.data(withJSONObject: dict),
            let jsonString = String(data: data, encoding: .utf8) {
@@ -232,18 +244,29 @@ struct CompleteActionIntent: AppIntent {
     @Parameter(title: "Occurrence ID")
     var occurrenceId: String
 
+    @Parameter(title: "Source Allocation ID")
+    var sourceAllocationId: String
+
     init() {
         self.target = "todo"
         self.todoId = 0
         self.todoSyncId = ""
         self.occurrenceId = ""
+        self.sourceAllocationId = ""
     }
 
-    init(target: String, todoId: Int, todoSyncId: String = "", occurrenceId: String = "") {
+    init(
+        target: String,
+        todoId: Int,
+        todoSyncId: String = "",
+        occurrenceId: String = "",
+        sourceAllocationId: String = ""
+    ) {
         self.target = target
         self.todoId = todoId
         self.todoSyncId = todoSyncId
         self.occurrenceId = occurrenceId
+        self.sourceAllocationId = sourceAllocationId
     }
 
     func perform() async throws -> some IntentResult {
@@ -251,7 +274,8 @@ struct CompleteActionIntent: AppIntent {
             target: target,
             todoId: todoId,
             todoSyncId: todoSyncId.isEmpty ? nil : todoSyncId,
-            occurrenceId: occurrenceId.isEmpty ? nil : occurrenceId
+            occurrenceId: occurrenceId.isEmpty ? nil : occurrenceId,
+            sourceAllocationId: sourceAllocationId.isEmpty ? nil : sourceAllocationId
         )
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
@@ -376,6 +400,38 @@ struct TodayWidgetView: View {
                         .foregroundStyle(textSecondary)
                 }
 
+                let pendingTargets = WidgetSnapshotStore.pendingCommandTargets()
+
+                // Status compact indicator row (Overdue N, Missed N, Inbox N)
+                let status = snapshot.today?.status
+                let overdueCount = status?.overdueCount ?? 0
+                let missedCount = status?.missedCount ?? 0
+                let unplannedCount = status?.unplannedCount ?? 0
+                if overdueCount > 0 || missedCount > 0 || unplannedCount > 0 {
+                    HStack(spacing: 8) {
+                        if overdueCount > 0 {
+                            let label = ui.overdue ?? "Overdue"
+                            Text("\(label) \(overdueCount)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.red)
+                        }
+                        if missedCount > 0 {
+                            let label = ui.missed ?? "Missed"
+                            Text("\(label) \(missedCount)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.orange)
+                        }
+                        if unplannedCount > 0 {
+                            let label = ui.unplanned ?? "Inbox"
+                            Text("\(label) \(unplannedCount)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(textSecondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.bottom, 2)
+                }
+
                 let timeline = snapshot.today?.timeline ?? (snapshot.todayEvents ?? []).map {
                     WidgetTimelineItem(
                         kind: "eventOccurrence",
@@ -393,15 +449,43 @@ struct TodayWidgetView: View {
                 } else {
                     ForEach(timeline.prefix(isExpanded ? 3 : 2).indices, id: \.self) { i in
                         let item = timeline[i]
+                        let isTaskAllocation = item.kind == "taskAllocation" && (item.todoId ?? -1) > 0
+                        let isChecked: Bool = {
+                            guard isTaskAllocation, let todoId = item.todoId else { return false }
+                            if let occ = item.occurrenceId, !occ.isEmpty {
+                                return pendingTargets.instanceKeys.contains("\(todoId):\(occ)")
+                            } else {
+                                return pendingTargets.todoIds.contains(todoId)
+                            }
+                        }()
+
                         HStack(spacing: 6) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(accent)
-                                .frame(width: 3, height: 16)
+                            if isTaskAllocation, let todoId = item.todoId {
+                                let target = (item.occurrenceId != nil && !item.occurrenceId!.isEmpty) ? "taskInstance" : "todo"
+                                Button(intent: CompleteActionIntent(
+                                    target: target,
+                                    todoId: todoId,
+                                    todoSyncId: item.todoSyncId ?? "",
+                                    occurrenceId: item.occurrenceId ?? "",
+                                    sourceAllocationId: item.allocationId ?? ""
+                                )) {
+                                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(isChecked ? accent : textSecondary)
+                                        .font(.footnote)
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(accent)
+                                    .frame(width: 3, height: 16)
+                            }
+
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(item.summary)
                                     .font(.caption)
                                     .lineLimit(1)
-                                    .foregroundStyle(textPrimary)
+                                    .strikethrough(isChecked)
+                                    .foregroundStyle(isChecked ? textSecondary : textPrimary)
                                 let timeStr: String = {
                                     if item.isAllDay == true { return ui.allDay }
                                     if let end = item.end, !end.isEmpty { return "\(item.start) - \(end)" }
@@ -440,7 +524,6 @@ struct TodayWidgetView: View {
                         displayTime: nil
                     )
                 }
-                let pendingTargets = WidgetSnapshotStore.pendingCommandTargets()
 
                 if actions.isEmpty {
                     Text(ui.allDone)

@@ -359,25 +359,18 @@ data class WidgetSnapshot(val json: JSONObject) {
       return commandId
     }
 
-    fun readPendingCommands(context: Context): List<Map<String, Any?>> {
+    fun readPendingCommands(context: Context): List<Map<String, String>> {
       val prefs = prefs(context)
-      val list = mutableListOf<Map<String, Any?>>()
+      val list = mutableListOf<Map<String, String>>()
       for ((key, value) in prefs.all) {
         if (key.startsWith(COMMAND_PREFIX) && value is String) {
-          try {
-            val obj = JSONObject(value)
-            val map = mutableMapOf<String, Any?>()
-            val keys = obj.keys()
-            while (keys.hasNext()) {
-              val k = keys.next()
-              if (!obj.isNull(k)) {
-                map[k] = obj.get(k)
-              } else {
-                map[k] = null
-              }
-            }
-            list.add(map)
-          } catch (_: Exception) {}
+          val commandId = key.removePrefix(COMMAND_PREFIX)
+          list.add(
+            mapOf(
+              "commandId" to commandId,
+              "raw" to value,
+            ),
+          )
         }
       }
       return list

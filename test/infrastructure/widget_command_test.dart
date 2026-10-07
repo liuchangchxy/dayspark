@@ -627,5 +627,41 @@ void main() {
       await transport.ackCommand('key-123');
       expect(log.any((c) => c.method == 'ackCommand' && c.arguments['commandId'] == 'key-123'), isTrue);
     });
+
+    test('malformed raw native command through transport is consumed as terminalInvalid and storage key is acked', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        log.add(call);
+        if (call.method == 'getPendingCommands') {
+          return [
+            {
+              'commandId': 'corrupt-key',
+              'raw': '{broken json',
+            },
+          ];
+        } else if (call.method == 'ackCommand') {
+          return true;
+        }
+        return null;
+      });
+
+      const transport = PlatformWidgetCommandTransport();
+      var toggleCalled = false;
+
+      await consumeWidgetCommands(
+        db: db,
+        transport: transport,
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          toggleCalled = true;
+        },
+      );
+
+      expect(toggleCalled, isFalse);
+      expect(
+        log.any((c) => c.method == 'ackCommand' && c.arguments['commandId'] == 'corrupt-key'),
+        isTrue,
+        reason: 'Corrupt raw payload must ack the storage key and not remain stuck',
+      );
+    });
   });
 }

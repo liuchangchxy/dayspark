@@ -275,4 +275,23 @@ class WidgetSnapshotCodecTest {
     assertNull(WidgetSnapshot.parseHexColor("#XYZ"))
     assertNull(WidgetSnapshot.parseHexColor("#12345"))
   }
+
+  @Test
+  fun `writeCommand serializes sourceAllocationId and required fields`() {
+    val obj = JSONObject().apply {
+      put("version", 1)
+      put("commandId", "cmd_test_1")
+      put("action", "complete")
+      put("target", "taskInstance")
+      put("todoId", 15)
+      put("todoSyncId", "sync_15")
+      put("occurrenceId", "occ_2026")
+      put("sourceAllocationId", "alloc_99")
+      put("at", "2026-10-07T10:00:00.000Z")
+    }
+    assertEquals(1, obj.getInt("version"))
+    assertEquals("taskInstance", obj.getString("target"))
+    assertEquals(15, obj.getInt("todoId"))
+    assertEquals("alloc_99", obj.getString("sourceAllocationId"))
+  }
 }

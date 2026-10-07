@@ -76,8 +76,43 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
       )
       views.setViewVisibility(R.id.widget_quick_add, if (hasUi) View.VISIBLE else View.GONE)
 
+      // Status row (Overdue, Missed, Inbox)
+      val status = snapshot.todayStatus()
+      var hasStatus = false
+      if (status.overdueCount > 0) {
+        val overdueLabel = ui?.overdue ?: "Overdue"
+        views.setTextViewText(R.id.status_overdue, "$overdueLabel ${status.overdueCount}")
+        views.setViewVisibility(R.id.status_overdue, View.VISIBLE)
+        hasStatus = true
+      } else {
+        views.setViewVisibility(R.id.status_overdue, View.GONE)
+      }
+
+      if (status.missedCount > 0) {
+        val missedLabel = ui?.missed ?: "Missed"
+        views.setTextViewText(R.id.status_missed, "$missedLabel ${status.missedCount}")
+        views.setViewVisibility(R.id.status_missed, View.VISIBLE)
+        hasStatus = true
+      } else {
+        views.setViewVisibility(R.id.status_missed, View.GONE)
+      }
+
+      if (status.unplannedCount > 0) {
+        val unplannedLabel = ui?.unplanned ?: "Inbox"
+        views.setTextViewText(R.id.status_unplanned, "$unplannedLabel ${status.unplannedCount}")
+        views.setViewVisibility(R.id.status_unplanned, View.VISIBLE)
+        hasStatus = true
+      } else {
+        views.setViewVisibility(R.id.status_unplanned, View.GONE)
+      }
+      views.setViewVisibility(R.id.widget_status_row, if (hasStatus) View.VISIBLE else View.GONE)
+
+      val pendingTargets = WidgetSnapshot.readPendingTargets(context)
+
       // Timeline (EventOccurrence + TaskAllocation) (≤3 slots)
       val timeline = snapshot.todayTimeline()
+      val eventRowIds = listOf(R.id.event_row_0, R.id.event_row_1, R.id.event_row_2)
+      val eventCheckIds = listOf(R.id.event_check_0, R.id.event_check_1, R.id.event_check_2)
       val eventIds = listOf(R.id.event_0, R.id.event_1, R.id.event_2)
       for (i in 0..2) {
         if (i < timeline.size) {
@@ -91,10 +126,30 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
           }
           val text = if (timeStr.isNotEmpty()) "${item.summary}  $timeStr" else item.summary
           views.setTextViewText(eventIds[i], text)
-          views.setViewVisibility(eventIds[i], View.VISIBLE)
+          views.setViewVisibility(eventRowIds[i], View.VISIBLE)
           theme?.let { applyTextColor(views, eventIds[i], it, "textPrimary") }
+
+          // TaskAllocation timeline row: interactive complete control with optimistic state
+          if (item.kind == "taskAllocation" && item.todoId != null && item.todoId > 0) {
+            val target = if (!item.occurrenceId.isNullOrEmpty()) "taskInstance" else "todo"
+            val isPending = if (target == "taskInstance") {
+              pendingTargets.instanceKeys.contains("${item.todoId}:${item.occurrenceId}")
+            } else {
+              pendingTargets.todoIds.contains(item.todoId)
+            }
+            views.setViewVisibility(eventCheckIds[i], View.VISIBLE)
+            views.setBoolean(eventCheckIds[i], "setChecked", isPending)
+            views.setOnClickPendingIntent(
+              eventRowIds[i],
+              timelineAllocationPendingIntent(context, item, target),
+            )
+          } else {
+            // EventOccurrence is strictly read-only
+            views.setViewVisibility(eventCheckIds[i], View.GONE)
+            views.setOnClickPendingIntent(eventRowIds[i], null)
+          }
         } else {
-          views.setViewVisibility(eventIds[i], View.GONE)
+          views.setViewVisibility(eventRowIds[i], View.GONE)
         }
       }
       views.setViewVisibility(
@@ -105,7 +160,6 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
 
       // Actions (TodoDeadline + TaskInstance) (≤3 slots) with optimistic state
       val actions = snapshot.todayActions()
-      val pendingTargets = WidgetSnapshot.readPendingTargets(context)
       views.setTextViewText(R.id.todo_count, ui?.pendingCount ?: "${snapshot.todoCount()}")
       val rowIds = listOf(R.id.todo_row_0, R.id.todo_row_1, R.id.todo_row_2)
       val checkIds = listOf(R.id.todo_check_0, R.id.todo_check_1, R.id.todo_check_2)
@@ -154,6 +208,36 @@ class CalendarTodoWidgetProvider : AppWidgetProvider() {
       if (hasUi) views.setTextViewText(R.id.no_todos, ui!!.allDone)
 
       views.setOnClickPendingIntent(R.id.widget_quick_add, quickAddPendingIntent(context))
+    }
+
+    private fun timelineAllocationPendingIntent(
+      context: Context,
+      item: WidgetSnapshot.TimelineRow,
+      target: String,
+    ): PendingIntent {
+      val intent = Intent(context, WidgetActionReceiver::class.java).apply {
+        this.action = WidgetSnapshot.ACTION_COMPLETE_ACTION
+        val occPart = item.occurrenceId ?: "single"
+        data = Uri.parse("dayspark://widget-action/timeline/$target/${item.todoId}/$occPart")
+        putExtra(WidgetSnapshot.EXTRA_TARGET, target)
+        putExtra(WidgetSnapshot.EXTRA_TODO_ID, item.todoId ?: -1)
+        if (!item.todoSyncId.isNullOrEmpty()) {
+          putExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID, item.todoSyncId)
+        }
+        if (!item.occurrenceId.isNullOrEmpty()) {
+          putExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID, item.occurrenceId)
+        }
+        if (!item.allocationId.isNullOrEmpty()) {
+          putExtra(WidgetSnapshot.EXTRA_SOURCE_ALLOCATION_ID, item.allocationId)
+        }
+      }
+      val requestCode = (item.todoId.hashCode() * 37 + (item.occurrenceId?.hashCode() ?: 0) + (item.allocationId?.hashCode() ?: 0)) and 0x7FFFFFFF
+      return PendingIntent.getBroadcast(
+        context,
+        requestCode,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+      )
     }
 
     private fun actionPendingIntent(context: Context, action: WidgetSnapshot.ActionRow): PendingIntent {

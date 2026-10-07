@@ -32,32 +32,120 @@
             android:textColor="#999999" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/event_0"
+    <!-- Status indicators: Overdue, Missed, Inbox (only visible if >0) -->
+    <LinearLayout
+        android:id="@+id/widget_status_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:textColor="#333333"
-        android:paddingBottom="2dp"
-        android:visibility="gone" />
+        android:orientation="horizontal"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+        <TextView
+            android:id="@+id/status_overdue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="#E53935"
+            android:textStyle="bold"
+            android:paddingEnd="8dp"
+            android:visibility="gone" />
+        <TextView
+            android:id="@+id/status_missed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="#FB8C00"
+            android:textStyle="bold"
+            android:paddingEnd="8dp"
+            android:visibility="gone" />
+        <TextView
+            android:id="@+id/status_unplanned"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="#757575"
+            android:paddingEnd="8dp"
+            android:visibility="gone" />
+    </LinearLayout>
 
-    <TextView
-        android:id="@+id/event_1"
+    <!-- Timeline rows (≤3 slots): EventOccurrence (read-only) or TaskAllocation (interactive checkable) -->
+    <LinearLayout
+        android:id="@+id/event_row_0"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:textColor="#333333"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingBottom="2dp"
-        android:visibility="gone" />
+        android:visibility="gone">
+        <CheckBox
+            android:id="@+id/event_check_0"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="false"
+            android:focusable="false"
+            android:visibility="gone" />
+        <TextView
+            android:id="@+id/event_0"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
 
-    <TextView
-        android:id="@+id/event_2"
+    <LinearLayout
+        android:id="@+id/event_row_1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:textColor="#333333"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingBottom="2dp"
-        android:visibility="gone" />
+        android:visibility="gone">
+        <CheckBox
+            android:id="@+id/event_check_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="false"
+            android:focusable="false"
+            android:visibility="gone" />
+        <TextView
+            android:id="@+id/event_1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/event_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="2dp"
+        android:visibility="gone">
+        <CheckBox
+            android:id="@+id/event_check_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="false"
+            android:focusable="false"
+            android:visibility="gone" />
+        <TextView
+            android:id="@+id/event_2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="#333333"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/no_events"

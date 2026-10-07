@@ -204,4 +204,217 @@ void main() {
     expect(replayToggleCalls, 0);
     expect((await transport.fetchPendingCommands()), isEmpty);
   });
+
+  test('ordinary Allocation vertical slice: completion invalidates future allocation', () async {
+    // 1. Ordinary Todo
+    final todoId = await db.into(db.todos).insert(
+          TodosCompanion.insert(
+            calendarId: calId,
+            summary: 'Write Architectural Review',
+            syncId: const Value('todo_sync_arch_review'),
+            dueDate: Value(DateTime(2026, 10, 7)),
+          ),
+        );
+    final todo = await (db.select(db.todos)..where((t) => t.id.equals(todoId))).getSingle();
+
+    // 2. Future active Allocation today (relative to now so startAt >= completedAt holds)
+    final realNow = DateTime.now();
+    final futureStart = realNow.add(const Duration(hours: 2));
+    final futureEnd = futureStart.add(const Duration(hours: 1));
+
+    final allocId = await db.into(db.taskAllocations).insert(
+          TaskAllocationsCompanion.insert(
+            todoId: Value(todo.id),
+            startAt: futureStart,
+            endAt: futureEnd,
+            state: const Value('active'),
+          ),
+        );
+
+    // 3. Verify snapshot timeline contains taskAllocation row
+    final queryDate = DateTime(futureStart.year, futureStart.month, futureStart.day);
+    final initialProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
+    final initialTimeline = HomeWidgetService.todayTimeline(initialProjection);
+    final allocRow = initialTimeline.firstWhere(
+      (item) => item['kind'] == 'taskAllocation' && item['summary'] == 'Write Architectural Review',
+    );
+    expect(allocRow, isNotNull);
+    expect(allocRow['allocationId'], allocId);
+    expect(allocRow['todoId'], todo.id);
+    expect(allocRow['todoSyncId'], todo.syncId);
+    expect(allocRow['occurrenceId'], isNull);
+
+    // 4. Native complete tap on TaskAllocation timeline row -> derives target=todo command with sourceAllocationId
+    final transport = InMemoryWidgetCommandTransport();
+    final cmd = WidgetCommand(
+      commandId: 'cmd_alloc_ord_1',
+      action: 'complete',
+      target: 'todo',
+      todoId: todo.id,
+      todoSyncId: todo.syncId,
+      sourceAllocationId: '$allocId',
+      at: DateTime.utc(2026, 10, 7, 10, 15),
+    );
+    transport.pushCommand(cmd);
+
+    // 5. Consume command through domain toggleTodo
+    Future<void> toggleTodo({
+      required int id,
+      required bool isCompleted,
+      String? occurrenceId,
+    }) async {
+      await RecordScope.run(
+        db,
+        (tx) => TodoWriter.setCompletion(
+          db,
+          tx,
+          id,
+          isCompleted: isCompleted,
+          occurrenceId: occurrenceId,
+        ),
+      );
+    }
+
+    await consumeWidgetCommands(
+      db: db,
+      transport: transport,
+      toggleTodo: toggleTodo,
+    );
+
+    // 6. Verification: Todo is COMPLETED
+    final updatedTodo = await (db.select(db.todos)..where((t) => t.id.equals(todo.id))).getSingle();
+    expect(updatedTodo.status, 'COMPLETED');
+
+    // 7. Future active allocation was invalidatedByCompletion in domain
+    final updatedAlloc = await (db.select(db.taskAllocations)..where((a) => a.id.equals(allocId))).getSingle();
+    expect(updatedAlloc.state, 'invalidatedByCompletion');
+
+    // 8. Transport is fully acknowledged
+    expect(await transport.fetchPendingCommands(), isEmpty);
+
+    // 9. Refreshed snapshot timeline no longer has active allocation
+    final refreshedProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
+    final refreshedTimeline = HomeWidgetService.todayTimeline(refreshedProjection);
+    expect(refreshedTimeline.any((item) => item['allocationId'] == allocId), isFalse);
+  });
+
+  test('recurring Allocation vertical slice: completion invalidates occurrence allocation while siblings remain untouched', () async {
+    final realNow = DateTime.now();
+    final todayLocal = LocalDate(realNow.year, realNow.month, realNow.day);
+
+    // 1. Recurring Todo
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.due,
+        value: todayLocal,
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY',
+    );
+    final todoId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calId,
+          summary: 'Daily German Practice',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+    final todo = await (db.select(db.todos)..where((t) => t.id.equals(todoId))).getSingle();
+
+    // 2. Derive occurrenceId for today
+    final projection = await ActionProjectionQuery.fetch(db, date: realNow);
+    final inst = projection.todayTaskInstances.firstWhere((i) => i.todo.id == todo.id);
+    final targetOccurrenceId = inst.occurrence.occurrenceId;
+    expect(targetOccurrenceId, isNotEmpty);
+
+    // 3. Create occurrence-bound future active Allocation (start in future relative to realNow)
+    final futureStart = realNow.add(const Duration(hours: 3));
+    final futureEnd = futureStart.add(const Duration(hours: 1));
+    final queryDate = DateTime(futureStart.year, futureStart.month, futureStart.day);
+
+    final allocId = await db.into(db.taskAllocations).insert(
+          TaskAllocationsCompanion.insert(
+            todoId: Value(todo.id),
+            occurrenceId: Value(targetOccurrenceId),
+            startAt: futureStart,
+            endAt: futureEnd,
+            state: const Value('active'),
+          ),
+        );
+
+    // 4. Initial timeline verifies occurrenceId and allocationId are retained
+    final initialProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
+    final initialTimeline = HomeWidgetService.todayTimeline(initialProjection);
+    final allocRow = initialTimeline.firstWhere((item) => item['allocationId'] == allocId);
+    expect(allocRow['kind'], 'taskAllocation');
+    expect(allocRow['occurrenceId'], targetOccurrenceId);
+    expect(allocRow['todoSyncId'], todo.syncId);
+
+    // 5. Native complete tap sends target=taskInstance with exact occurrenceId and sourceAllocationId
+    final transport = InMemoryWidgetCommandTransport();
+    final cmd = WidgetCommand(
+      commandId: 'cmd_alloc_rec_1',
+      action: 'complete',
+      target: 'taskInstance',
+      todoId: todo.id,
+      todoSyncId: todo.syncId,
+      occurrenceId: targetOccurrenceId,
+      sourceAllocationId: '$allocId',
+      at: DateTime.utc(2026, 10, 7, 10, 20),
+    );
+    transport.pushCommand(cmd);
+
+    // 6. Consume command
+    Future<void> toggleTodo({
+      required int id,
+      required bool isCompleted,
+      String? occurrenceId,
+    }) async {
+      await RecordScope.run(
+        db,
+        (tx) => TodoWriter.setCompletion(
+          db,
+          tx,
+          id,
+          isCompleted: isCompleted,
+          occurrenceId: occurrenceId,
+        ),
+      );
+    }
+
+    await consumeWidgetCommands(
+      db: db,
+      transport: transport,
+      toggleTodo: toggleTodo,
+    );
+
+    // 7. Verification:
+    // - TaskInstanceState for target occurrence is completed
+    final instanceState = await (db.select(db.taskInstanceStates)
+          ..where((s) => s.todoSyncId.equals(todo.syncId!) & s.occurrenceId.equals(targetOccurrenceId)))
+        .getSingleOrNull();
+    expect(instanceState, isNotNull);
+    expect(instanceState!.status.toLowerCase(), 'completed');
+
+    // - Parent Todo remains active (status != COMPLETED)
+    final refreshedTodo = await (db.select(db.todos)..where((t) => t.id.equals(todo.id))).getSingle();
+    expect(refreshedTodo.status, 'NEEDS-ACTION');
+
+    // - Allocation is invalidatedByCompletion
+    final updatedAlloc = await (db.select(db.taskAllocations)..where((a) => a.id.equals(allocId))).getSingle();
+    expect(updatedAlloc.state, 'invalidatedByCompletion');
+
+    // - Transport acknowledged
+    expect(await transport.fetchPendingCommands(), isEmpty);
+
+    // - Refreshed timeline no longer has the completed allocation
+    final refreshedProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
+    final refreshedTimeline = HomeWidgetService.todayTimeline(refreshedProjection);
+    expect(refreshedTimeline.any((item) => item['allocationId'] == allocId), isFalse);
+  });
 }

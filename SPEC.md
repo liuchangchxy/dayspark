@@ -238,40 +238,112 @@ TaskAllocation payload 只包含 `todoSyncId`、可空 `occurrenceId`、`startAt
   "today": {
     "timeline": [
       {
-        "id": "event localId or allocation localId",
-        "title": "标题",
-        "startAt": "UTC ISO-8601 instant",
-        "endAt": "UTC ISO-8601 instant",
-        "isAllDay": false,
-        "isTaskAllocation": false,
-        "todoSyncId": null,
-        "occurrenceId": null
+        "kind": "eventOccurrence",
+        "id": "event_101",
+        "summary": "Team Sync",
+        "start": "10:00",
+        "end": "11:00",
+        "isAllDay": false
+      },
+      {
+        "kind": "taskAllocation",
+        "allocationId": "alloc_201",
+        "todoId": 10,
+        "todoSyncId": "todo_sync_10",
+        "occurrenceId": null,
+        "summary": "Deep Work",
+        "start": "14:00",
+        "end": "15:00",
+        "isAllDay": false
       }
     ],
     "actions": [
       {
-        "actionId": "todo_123 or instance_todoSyncId_occurrenceId",
-        "target": "todo | taskInstance",
-        "todoId": 123,
-        "todoSyncId": "UUIDv7",
-        "occurrenceId": null,
-        "title": "任务标题",
-        "isCompleted": false,
-        "priority": 1,
-        "hasDeadline": true,
-        "isOverdue": false,
-        "isAllocated": true
+        "kind": "todoDeadline",
+        "target": "todo",
+        "todoId": 11,
+        "todoSyncId": "todo_sync_11",
+        "summary": "Submit Quarterly Taxes",
+        "deadline": "10/7"
+      },
+      {
+        "kind": "taskInstance",
+        "target": "taskInstance",
+        "todoId": 12,
+        "todoSyncId": "todo_sync_12",
+        "occurrenceId": "2026-10-07T09:00:00.000Z",
+        "summary": "Daily Standup Notes",
+        "displayTime": "09:00"
+      }
+    ],
+    "status": {
+      "overdueCount": 1,
+      "missedCount": 0,
+      "unplannedCount": 3
+    }
+  },
+  "upcoming": {
+    "items": [
+      {
+        "kind": "eventOccurrence",
+        "summary": "Board Meeting",
+        "date": "10/8",
+        "time": "09:00",
+        "isAllDay": false
+      },
+      {
+        "kind": "taskAllocation",
+        "summary": "Write Report",
+        "date": "10/9",
+        "time": "14:00 - 15:30",
+        "isAllDay": false
+      },
+      {
+        "kind": "todoDeadline",
+        "summary": "Electric Bill Due",
+        "date": "10/10",
+        "time": "Deadline",
+        "isAllDay": false
       }
     ]
   },
-  "upcoming": {
-    "days": 7,
-    "items": []
-  },
-  "monthDots": ["2026-10-07"],
+  "monthDots": [
+    [7, true],
+    [8, true],
+    [9, true]
+  ],
+  "todayEvents": [],
+  "pendingTodos": [],
+  "todoCount": 2,
   "pendingTaps": [],
-  "ui": {},
-  "theme": {}
+  "ui": {
+    "locale": "en",
+    "title": "DaySpark",
+    "today": "Today",
+    "events": "Events",
+    "todos": "Todos",
+    "allDay": "All day",
+    "todayEventsHeader": "Today's Events",
+    "noEvents": "No events",
+    "allDone": "All done",
+    "pendingCount": "2 pending",
+    "quickAdd": "Quick add",
+    "upcoming": "Upcoming",
+    "overdue": "Overdue",
+    "missed": "Missed",
+    "unplanned": "Inbox"
+  },
+  "theme": {
+    "dark": true,
+    "colors": {
+      "background": "#121212",
+      "surface": "#1E1E1E",
+      "textPrimary": "#FFFFFF",
+      "textSecondary": "#9E9E9E",
+      "accent": "#90CAF9",
+      "border": "#333333"
+    }
+  }
 }
 ```
 
