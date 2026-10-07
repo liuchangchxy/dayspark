@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/infrastructure/platform/widget_command.dart';
@@ -235,6 +236,32 @@ void main() {
       expect(res, CommandExecutionResult.terminalInvalid);
     });
 
+    test('5-case resolver: local row A.syncId == null, command.todoSyncId resolves row B -> terminalInvalid, zero mutation', () async {
+      final rowA = await insertTodo(summary: 'Row A', syncId: null);
+      final rowB = await insertTodo(summary: 'Row B', syncId: 'sync_row_b');
+
+      var toggled = false;
+      final command = WidgetCommand(
+        commandId: 'cmd_collision',
+        action: 'complete',
+        target: 'todo',
+        todoId: rowA.id,
+        todoSyncId: rowB.syncId, // points to row B while todoId is row A
+        at: DateTime.utc(2026, 10, 7, 10),
+      );
+
+      final res = await executeWidgetCommand(
+        db,
+        command,
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          toggled = true;
+        },
+      );
+
+      expect(res, CommandExecutionResult.terminalInvalid);
+      expect(toggled, isFalse);
+    });
+
     test('fails closed if recurring todo targeted without occurrenceId (Ruling I)', () async {
       final recurringTodo = await insertTodo(
         summary: 'Recurring daily',
@@ -257,6 +284,34 @@ void main() {
       );
 
       expect(res, CommandExecutionResult.terminalInvalid);
+    });
+
+    test('target=todo on recurring Todo even with occurrenceId must be terminalInvalid and not toggle', () async {
+      final recurringTodo = await insertTodo(
+        summary: 'Recurring daily with occurrence',
+        rrule: 'FREQ=DAILY',
+      );
+
+      var toggleCalled = false;
+      final command = WidgetCommand(
+        commandId: 'cmd_rec_with_occ',
+        action: 'complete',
+        target: 'todo',
+        todoId: recurringTodo.id,
+        occurrenceId: '2026-10-07T08:00:00.000Z',
+        at: DateTime.utc(2026, 10, 7, 10),
+      );
+
+      final res = await executeWidgetCommand(
+        db,
+        command,
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          toggleCalled = true;
+        },
+      );
+
+      expect(res, CommandExecutionResult.terminalInvalid);
+      expect(toggleCalled, isFalse);
     });
   });
 
@@ -408,6 +463,169 @@ void main() {
       // All terminal commands (success + terminalInvalid) are acknowledged from transport storage
       expect(transport.storage, isEmpty);
       expect((await transport.fetchPendingCommands()), isEmpty);
+    });
+
+    test('storage key and payload commandId mismatch acks storage key with zero domain mutation', () async {
+      final todo = await insertTodo(summary: 'Mismatch todo');
+      final payloadCommand = WidgetCommand(
+        commandId: 'key-B',
+        action: 'complete',
+        target: 'todo',
+        todoId: todo.id,
+        at: DateTime.utc(2026, 10, 7, 10, 0),
+      );
+
+      final transport = InMemoryWidgetCommandTransport();
+      // Transport entry has key 'key-A', but payload JSON has commandId 'key-B'
+      transport.pushRaw('key-A', jsonEncode(payloadCommand.toJson()));
+
+      var toggleCalled = false;
+      await consumeWidgetCommands(
+        db: db,
+        transport: transport,
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          toggleCalled = true;
+        },
+      );
+
+      expect(toggleCalled, isFalse);
+      expect(transport.storage.containsKey('key-A'), isFalse);
+      expect(transport.storage, isEmpty);
+    });
+
+    test('malformed raw native command is delivered, marked terminalInvalid and acked (blocker 8)', () async {
+      final transport = InMemoryWidgetCommandTransport();
+      transport.pushRaw('key-corrupt', '{not-json');
+
+      var toggleCalled = false;
+      await consumeWidgetCommands(
+        db: db,
+        transport: transport,
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          toggleCalled = true;
+        },
+      );
+
+      expect(toggleCalled, isFalse);
+      // Acked so corrupt entry does not permanently remain
+      expect(transport.storage.containsKey('key-corrupt'), isFalse);
+      expect(transport.storage, isEmpty);
+    });
+
+    test('transient failure keeps command in storage as retryable, succeeding on next retry (blocker 9)', () async {
+      final todo = await insertTodo(summary: 'Retryable todo');
+      final cmd = WidgetCommand(
+        commandId: 'cmd_retry_1',
+        action: 'complete',
+        target: 'todo',
+        todoId: todo.id,
+        at: DateTime.utc(2026, 10, 7, 10, 0),
+      );
+
+      final transport = InMemoryWidgetCommandTransport();
+      transport.pushCommand(cmd);
+
+      var attempt = 0;
+      // First try: throw transient network/db exception
+      await consumeWidgetCommands(
+        db: db,
+        transport: transport,
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          attempt++;
+          if (attempt == 1) {
+            throw Exception('Transient SQLite busy');
+          }
+        },
+      );
+
+      // Kept in transport storage for next retry
+      expect(transport.storage.containsKey('cmd_retry_1'), isTrue);
+      expect(attempt, 1);
+
+      // Second try: succeeds
+      await consumeWidgetCommands(
+        db: db,
+        transport: transport,
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          attempt++;
+        },
+      );
+
+      expect(attempt, 2);
+      // Now acked and removed
+      expect(transport.storage, isEmpty);
+    });
+
+    test('crash-before-ack replay: domain mutation succeeded, command still present -> alreadyApplied, zero second mutation, final ack (blocker 10)', () async {
+      final todo = await insertTodo(summary: 'Crash replay todo');
+      final cmd = WidgetCommand(
+        commandId: 'cmd_crash_1',
+        action: 'complete',
+        target: 'todo',
+        todoId: todo.id,
+        at: DateTime.utc(2026, 10, 7, 10, 0),
+      );
+
+      final transport = InMemoryWidgetCommandTransport();
+      transport.pushCommand(cmd);
+
+      // Simulate first run mutated domain (status -> COMPLETED)
+      await db.update(db.todos).replace(todo.copyWith(status: 'COMPLETED'));
+
+      var toggleCallCount = 0;
+      await consumeWidgetCommands(
+        db: db,
+        transport: transport,
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          toggleCallCount++;
+        },
+      );
+
+      // Replay detects alreadyApplied -> zero toggleTodo mutation
+      expect(toggleCallCount, 0);
+      // Safely acked and drained
+      expect(transport.storage, isEmpty);
+    });
+  });
+
+  group('PlatformWidgetCommandTransport MethodChannel wire shape (blocker 1, 16)', () {
+    const channel = MethodChannel('com.dayspark.app/widget_commands');
+    final log = <MethodCall>[];
+
+    setUp(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        log.add(call);
+        if (call.method == 'getPendingCommands') {
+          return [
+            {
+              'commandId': 'key-123',
+              'raw': '{"version":1,"commandId":"key-123","action":"complete","target":"todo","todoId":10,"at":"2026-10-07T10:00:00.000Z"}',
+            },
+          ];
+        } else if (call.method == 'ackCommand') {
+          return true;
+        }
+        return null;
+      });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+      log.clear();
+    });
+
+    test('PlatformWidgetCommandTransport fetches wire shape {"commandId", "raw"} and acks storage key', () async {
+      const transport = PlatformWidgetCommandTransport();
+      final entries = await transport.fetchPendingCommands();
+
+      expect(entries.length, 1);
+      expect(entries.first.commandId, 'key-123');
+      expect(entries.first.rawJson, contains('"version":1'));
+
+      await transport.ackCommand('key-123');
+      expect(log.any((c) => c.method == 'ackCommand' && c.arguments['commandId'] == 'key-123'), isTrue);
     });
   });
 }

@@ -4,7 +4,7 @@
 >
 > **规矩**：新增一个会出现用户可见文字的地方，必须同时 ①登记进本表 ②被冒烟覆盖。**不在表上的出口，视为未接线。**
 
-最后更新：2026-10-05（Recurring Todo lazy confirmation）
+最后更新：2026-10-07（Widget v3 Action projection ui block: overdue / missed / unplanned）
 
 ---
 
@@ -14,7 +14,7 @@
 |---|---|---|---|---|---|
 | 1 | 应用内 UI | `AppLocalizations`（经 `AppStr` 之外的直接 `l.xxx`；含 Todo 安排/编辑时的 legacy recurrence 确认、来源证据、occurrence 预览与错误提示） | `MaterialApp.locale` ← `localeProvider` | 重建即生效 | `test/architecture/no_raw_text_guard_test.dart`（裸文案）+ `l10n_parity_guard_test.dart`（键对齐）+ `test/ui/widgets/todo/task_allocations_section_test.dart` |
 | 2 | 本地通知（提醒） | `loadNotificationStrings()` | `resolveNotificationLocale()`：持久化 prefs → 系统 | **`ReminderReconciler.onLocaleChanged()`**：清掉已交给 OS 的 `_applied` 条目 → `_reconcileAll(force: true)` 重排 | `test/domain/records/reminder_reconciler_test.dart` 测试 18 |
-| 3 | 桌面 / 锁屏小组件 | `WidgetUiStrings` 快照（预本地化后交给原生） | 同上 | `home_page.dart` 监听 `localeProvider` → `_refreshHomeWidget()` | `test/infrastructure/home_widget_interactivity_test.dart` + `home_widget_refresh_triggers_test.dart` |
+| 3 | 桌面 / 锁屏小组件 | `WidgetUiStrings` 快照（预本地化后交给原生；v3 新增 `overdue`/`missed`/`unplanned` 出口，源自 `l.overdue`/`l.missed`/`l.unplannedInbox`） | 同上 | `home_page.dart` 监听 `localeProvider` → `_refreshHomeWidget()` | `test/infrastructure/home_widget_interactivity_test.dart` + `home_widget_service_test.dart` |
 | 4 | 通知动作按钮 / 渠道名 | 原生资源（Android `strings.xml` / iOS） | 系统语言，**不随 App 内切换** | 不适用（系统级，切换需改系统语言） | ⚠️ 未覆盖——见下方"已知缺口" |
 | 5 | 服务端错误 | 结构化 `{"error":{"code","message"}}`，前端按 code 查表 | 不适用（返回的是 code） | 不适用 | `_mapApiError` 走枚举 → `_errorText` 走 l10n |
 | 6 | MCP / CLI 输出 | 服务端工具描述与错误（面向 AI，非终端用户） | 不适用 | 不适用 | 不纳入本清单（读者是 AI agent） |

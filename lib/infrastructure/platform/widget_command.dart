@@ -206,42 +206,67 @@ Future<CommandExecutionResult> executeWidgetCommand(
   }
 
   try {
-    // 1. Resolve target Todo
-    var todo =
-        await (db.select(db.todos)
+    // 1. Resolve target Todo using strict 5-case identity resolver
+    final localById = await (db.select(db.todos)
           ..where((t) => t.id.equals(command.todoId) & t.deletedAt.isNull()))
-            .getSingleOrNull();
+        .getSingleOrNull();
 
-    if (todo == null &&
-        command.todoSyncId != null &&
-        command.todoSyncId!.isNotEmpty) {
-      // Defensive fallback by stable syncId
-      todo =
-          await (db.select(db.todos)
+    Todo? stableBySyncId;
+    if (command.todoSyncId != null && command.todoSyncId!.isNotEmpty) {
+      stableBySyncId = await (db.select(db.todos)
             ..where(
               (t) =>
                   t.syncId.equals(command.todoSyncId!) & t.deletedAt.isNull(),
             ))
-              .getSingleOrNull();
+          .getSingleOrNull();
     }
 
-    if (todo == null) {
+    final Todo todo;
+    if (localById != null && stableBySyncId != null) {
+      if (localById.id == stableBySyncId.id) {
+        // Case A: localById + stableBySyncId identify the exact same row -> OK
+        todo = localById;
+      } else {
+        // Case C: both exist but point to different rows -> TERMINAL_INVALID
+        debugPrint(
+          'widget_command: resolver collision! localById (${localById.id}) != stableBySyncId (${stableBySyncId.id})',
+        );
+        return CommandExecutionResult.terminalInvalid;
+      }
+    } else if (localById == null && stableBySyncId != null) {
+      // Case B: only stableBySyncId exists -> use stable
+      todo = stableBySyncId;
+    } else if (localById != null && stableBySyncId == null) {
+      // If command specified a non-empty todoSyncId but stableBySyncId was null (or localById.syncId != null && mismatches),
+      // or if local row has null syncId while command gave a syncId that doesn't resolve to it -> Case D
+      if (command.todoSyncId != null && command.todoSyncId!.isNotEmpty) {
+        // Command provided syncId, but local row either doesn't match or doesn't have it -> TERMINAL_INVALID
+        debugPrint(
+          'widget_command: localById ${localById.id} syncId (${localById.syncId}) does not match command syncId (${command.todoSyncId})',
+        );
+        return CommandExecutionResult.terminalInvalid;
+      } else {
+        // Command didn't specify todoSyncId, localById alone is resolved
+        todo = localById;
+      }
+    } else {
+      // Case E: neither exists -> TERMINAL_INVALID
       debugPrint(
         'widget_command: target todo ${command.todoId} / ${command.todoSyncId} does not exist',
       );
       return CommandExecutionResult.terminalInvalid;
     }
 
-    // 2. Validate identity consistency
+    // Double check identity consistency
     if (command.todoSyncId != null &&
         command.todoSyncId!.isNotEmpty &&
         todo.syncId != null &&
         todo.syncId!.isNotEmpty &&
         todo.syncId != command.todoSyncId) {
       debugPrint(
-        'widget_command: identity mismatch! Local todo.syncId ${todo.syncId} != command ${command.todoSyncId}',
+        'widget_command: identity mismatch! todo.syncId ${todo.syncId} != command ${command.todoSyncId}',
       );
-      return CommandExecutionResult.terminalInvalid; // Fail closed
+      return CommandExecutionResult.terminalInvalid;
     }
 
     // 3. Dispatch based on target
@@ -249,11 +274,11 @@ Future<CommandExecutionResult> executeWidgetCommand(
       final isRecurring =
           (todo.rrule != null && todo.rrule!.isNotEmpty) ||
           (todo.recurrenceRule != null && todo.recurrenceRule!.isNotEmpty);
-      if (isRecurring && (command.occurrenceId == null || command.occurrenceId!.isEmpty)) {
+      if (isRecurring) {
         debugPrint(
-          'widget_command: recurring todo targeted without occurrenceId',
+          'widget_command: recurring todo cannot be targeted via target=todo (requires target=taskInstance)',
         );
-        return CommandExecutionResult.terminalInvalid; // Ruling I: fail closed
+        return CommandExecutionResult.terminalInvalid; // Strict target rule
       }
       if (todo.status == 'COMPLETED') {
         return CommandExecutionResult.alreadyApplied;
@@ -284,7 +309,7 @@ Future<CommandExecutionResult> executeWidgetCommand(
         final state =
             await (db.select(db.taskInstanceStates)..where(
                   (s) =>
-                      s.todoSyncId.equals(todo!.syncId!) &
+                      s.todoSyncId.equals(todo.syncId!) &
                       s.occurrenceId.equals(occurrenceId),
                 ))
                 .getSingleOrNull();
@@ -353,6 +378,15 @@ Future<void> consumeWidgetCommands({
 
     if (command == null) {
       // Corrupt/malformed JSON: terminal invalid, ack and discard
+      await transport.ackCommand(entry.commandId);
+      continue;
+    }
+
+    if (entry.commandId != command.commandId) {
+      // Storage key does not match payload commandId: ack storage key and discard (zero domain mutation)
+      debugPrint(
+        'widget_command: storage key ${entry.commandId} does not match payload commandId ${command.commandId}, discarding',
+      );
       await transport.ackCommand(entry.commandId);
       continue;
     }

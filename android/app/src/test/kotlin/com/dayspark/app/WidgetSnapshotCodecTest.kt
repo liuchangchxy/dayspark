@@ -115,7 +115,8 @@ class WidgetSnapshotCodecTest {
         "ui": {"locale":"en","title":"DaySpark","today":"Today","events":"Events",
                "todos":"Todos","allDay":"All day","todayEventsHeader":"Today's Events",
                "noEvents":"No events","allDone":"All done","pendingCount":"2 pending",
-               "quickAdd":"Quick add","upcoming":"Upcoming"},
+               "quickAdd":"Quick add","upcoming":"Upcoming",
+               "overdue":"Overdue","missed":"Missed","unplanned":"Inbox"},
         "theme": {"dark":true,"colors":{"background":"#121212","surface":"#1E1E1E",
                   "textPrimary":"#FFFFFF","textSecondary":"#9E9E9E",
                   "accent":"#90CAF9","border":"#333333"}}
@@ -136,6 +137,10 @@ class WidgetSnapshotCodecTest {
     assertEquals("10:00", timeline[0].start)
     assertEquals("taskAllocation", timeline[1].kind)
     assertEquals("Deep Work", timeline[1].summary)
+    assertEquals("alloc_201", timeline[1].allocationId)
+    assertEquals(10, timeline[1].todoId)
+    assertEquals("todo_sync_10", timeline[1].todoSyncId)
+    assertNull(timeline[1].occurrenceId)
 
     val actions = snapshot.todayActions()
     assertEquals(2, actions.size)
@@ -156,6 +161,22 @@ class WidgetSnapshotCodecTest {
     assertEquals("Write Report", upcoming[1].summary)
 
     assertEquals(setOf(7, 8), snapshot.monthDots())
+
+    val ui = snapshot.ui()
+    assertNotNull(ui)
+    assertEquals("Overdue", ui!!.overdue)
+    assertEquals("Missed", ui.missed)
+    assertEquals("Inbox", ui.unplanned)
+  }
+
+  @Test
+  fun `parses v3 snapshot todayStatus correctly`() {
+    val snapshot = WidgetSnapshot.parse(snapshotV3Json())
+    assertNotNull(snapshot)
+    val status = snapshot!!.todayStatus()
+    assertEquals(1, status.overdueCount)
+    assertEquals(0, status.missedCount)
+    assertEquals(3, status.unplannedCount)
   }
 
   @Test

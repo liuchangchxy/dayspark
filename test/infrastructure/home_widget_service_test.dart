@@ -263,13 +263,27 @@ void main() {
     });
 
     test('civil-day arithmetic prevents DST drift', () async {
-      // Simulating a date around autumn daylight saving transition
+      // Simulating a date around autumn daylight saving transition (e.g. October 25)
       final dstDate = DateTime(2026, 10, 25, 12, 0);
+
+      // Insert event on the exact day after DST transition
+      await insertEvent(
+        summary: 'Post-DST Sync',
+        startDt: DateTime(2026, 10, 26, 10, 0),
+        endDt: DateTime(2026, 10, 26, 11, 0),
+      );
+
       final upcoming = await HomeWidgetService.upcomingItems(db, now: dstDate);
       expect(upcoming, isA<List>());
+      final syncItem = upcoming.firstWhere((i) => i['summary'] == 'Post-DST Sync');
+      // Must not drift to previous or next day due to 24h duration arithmetic
+      expect(syncItem['date'], '10/26');
+      expect(syncItem['time'], '10:00');
 
       final dots = await HomeWidgetService.monthDots(db, now: dstDate);
       expect(dots, isA<List>());
+      // October 26 must have a marked dot [26, true]
+      expect(dots.any((d) => d[0] == 26 && d[1] == true), isTrue);
     });
 
     test('expands recurring events started >90 days ago', () async {
@@ -367,6 +381,9 @@ void main() {
       expect(en.locale, 'en');
       expect(en.today, 'Today');
       expect(en.pendingCount, '5 pending');
+      expect(en.overdue, 'Overdue');
+      expect(en.missed, 'Missed');
+      expect(en.unplanned, 'Inbox');
 
       final zh = await HomeWidgetService.loadWidgetUiStrings(
         locale: const Locale('zh'),
@@ -375,6 +392,9 @@ void main() {
       expect(zh.locale, 'zh');
       expect(zh.today, '今天');
       expect(zh.pendingCount, '5 项待办');
+      expect(zh.overdue, '已逾期');
+      expect(zh.missed, '已遗漏');
+      expect(zh.unplanned, '收件箱');
     });
 
     test('theme block contains valid hex tokens and mode', () {

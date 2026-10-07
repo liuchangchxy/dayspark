@@ -29,6 +29,10 @@ data class WidgetSnapshot(val json: JSONObject) {
     val start: String,
     val end: String,
     val isAllDay: Boolean,
+    val allocationId: String? = null,
+    val todoId: Int? = null,
+    val todoSyncId: String? = null,
+    val occurrenceId: String? = null,
   )
 
   data class ActionRow(
@@ -50,6 +54,12 @@ data class WidgetSnapshot(val json: JSONObject) {
     val isAllDay: Boolean,
   )
 
+  data class StatusRow(
+    val overdueCount: Int,
+    val missedCount: Int,
+    val unplannedCount: Int,
+  )
+
   data class PendingTargets(
     val todoIds: Set<Int>,
     val instanceKeys: Set<String>,
@@ -65,6 +75,10 @@ data class WidgetSnapshot(val json: JSONObject) {
           start = o.optString("start", ""),
           end = o.optString("end", ""),
           isAllDay = o.optBoolean("isAllDay", false),
+          allocationId = if (o.has("allocationId") && !o.isNull("allocationId")) o.optString("allocationId") else null,
+          todoId = if (o.has("todoId") && !o.isNull("todoId")) o.optInt("todoId") else null,
+          todoSyncId = if (o.has("todoSyncId") && !o.isNull("todoSyncId")) o.optString("todoSyncId") else null,
+          occurrenceId = if (o.has("occurrenceId") && !o.isNull("occurrenceId")) o.optString("occurrenceId") else null,
         )
       }
     }
@@ -108,6 +122,15 @@ data class WidgetSnapshot(val json: JSONObject) {
         displayTime = null,
       )
     }
+  }
+
+  fun todayStatus(): StatusRow {
+    val statusObj = json.optJSONObject("today")?.optJSONObject("status")
+    return StatusRow(
+      overdueCount = statusObj?.optInt("overdueCount", 0) ?: 0,
+      missedCount = statusObj?.optInt("missedCount", 0) ?: 0,
+      unplannedCount = statusObj?.optInt("unplannedCount", 0) ?: 0,
+    )
   }
 
   fun upcomingItems(): List<UpcomingItemRow> {
@@ -226,6 +249,9 @@ data class WidgetSnapshot(val json: JSONObject) {
       pendingCount = o.optString("pendingCount", ""),
       quickAdd = o.optString("quickAdd", ""),
       upcoming = o.optString("upcoming", ""),
+      overdue = o.optString("overdue", "Overdue"),
+      missed = o.optString("missed", "Missed"),
+      unplanned = o.optString("unplanned", "Inbox"),
     )
   }
 
@@ -257,6 +283,9 @@ data class WidgetSnapshot(val json: JSONObject) {
     val pendingCount: String,
     val quickAdd: String,
     val upcoming: String,
+    val overdue: String = "Overdue",
+    val missed: String = "Missed",
+    val unplanned: String = "Inbox",
   )
 
   data class ThemeBlock(val dark: Boolean, val colors: Map<String, Int>)

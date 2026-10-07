@@ -10,6 +10,10 @@ struct WidgetTimelineItem: Decodable {
     let start: String
     let end: String?
     let isAllDay: Bool?
+    let allocationId: String?
+    let todoId: Int?
+    let todoSyncId: String?
+    let occurrenceId: String?
 }
 
 struct WidgetActionItem: Decodable {

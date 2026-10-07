@@ -68,6 +68,9 @@ class WidgetUiStrings {
     required this.pendingCount,
     required this.quickAdd,
     required this.upcoming,
+    this.overdue = 'Overdue',
+    this.missed = 'Missed',
+    this.unplanned = 'Inbox',
   });
 
   final String locale;
@@ -82,6 +85,9 @@ class WidgetUiStrings {
   final String pendingCount;
   final String quickAdd;
   final String upcoming;
+  final String overdue;
+  final String missed;
+  final String unplanned;
 
   Map<String, Object?> toBlock() => {
     'locale': locale,
@@ -96,6 +102,9 @@ class WidgetUiStrings {
     'pendingCount': pendingCount,
     'quickAdd': quickAdd,
     'upcoming': upcoming,
+    'overdue': overdue,
+    'missed': missed,
+    'unplanned': unplanned,
   };
 }
 
@@ -574,6 +583,9 @@ class HomeWidgetService {
       pendingCount: l.widgetPendingCount(todoCount),
       quickAdd: l.quickAdd,
       upcoming: l.upcoming,
+      overdue: l.overdue,
+      missed: l.missed,
+      unplanned: l.unplannedInbox,
     );
   }
 
