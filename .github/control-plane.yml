@@ -1,0 +1,43 @@
+schema_version: 2
+vccp:
+  source: liuchangchxy/vibe-coding-control-plane
+  revision: 8146b5a9ee1dceb5e15ff5417af93811e3b619a3
+repository:
+  base_branch: main
+  implementer_authors:
+    - chang-implementer[bot]
+issue_contract:
+  frozen_spec_label: frozen-spec
+  active_coordination_labels:
+    - agent-ready
+    - agent-working
+    - changes-requested
+  terminal_coordination_labels:
+    - infra-blocked
+    - needs-human
+  max_automated_repairs: 3
+reviewer:
+  transport: chatgpt-work-github-webhook-task
+  events:
+    - pull_request.opened
+    - pull_request.ready_for_review
+    - pull_request.synchronize
+  exact_head_sha_required: true
+  required_checks_completion: same_run_wait_until_terminal
+  required_checks:
+    - name: test
+      accepted_conclusions:
+        - success
+      implementation_failure_conclusions:
+        - failure
+      infrastructure_failure_conclusions:
+        - timed_out
+        - startup_failure
+merge:
+  native_auto_merge: true
+  enable_native_auto_merge_by: reviewer
+  method: squash
+  direct_merge_forbidden: true
+  admin_bypass_forbidden_in_normal_flow: true
+reporting:
+  pull_request_template: false
