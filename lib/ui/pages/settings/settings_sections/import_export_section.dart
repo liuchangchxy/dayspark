@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter/cupertino.dart';
@@ -118,7 +120,7 @@ class ImportExportSection extends ConsumerWidget {
                 String icsContent;
                 final file = result.files.first;
                 if (kIsWeb) {
-                  icsContent = String.fromCharCodes(file.bytes!);
+                  icsContent = decodeWebIcsBytes(file.bytes!);
                 } else {
                   icsContent = await readFileNative(file.path!);
                 }
@@ -167,3 +169,9 @@ class ImportExportSection extends ConsumerWidget {
     );
   }
 }
+
+/// Decodes raw bytes from a Web-uploaded ICS file as strict UTF-8.
+String decodeWebIcsBytes(List<int> bytes) => utf8.decode(bytes);
+
+/// Decodes raw bytes from an uploaded ICS file as strict UTF-8.
+String decodeIcsBytes(List<int> bytes) => decodeWebIcsBytes(bytes);
