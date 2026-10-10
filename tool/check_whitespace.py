@@ -27,6 +27,8 @@ def violations(path: Path) -> list[str]:
     if b"\x00" in data:
         return []
     issues: list[str] = []
+    if path.name == "pubspec.lock" and b"\r" in data:
+        issues.append(f"{path}: CRLF line endings found (LF required)")
     if b"\r\n" in data and b"\n" in data.replace(b"\r\n", b""):
         issues.append(f"{path}: mixed CRLF/LF line endings")
     for number, line in enumerate(data.splitlines(), 1):
