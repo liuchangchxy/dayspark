@@ -151,4 +151,112 @@ void main() {
       );
     });
   });
+
+  group('Web ICS Import Decoding (Production Path)', () {
+    test(
+      'decodeWebIcsBytes correctly decodes multi-byte UTF-8 containing Chinese and emoji',
+      () {
+        const unicodeIcsContent =
+            'BEGIN:VCALENDAR\r\n'
+            'VERSION:2.0\r\n'
+            'PRODID:-//DaySpark//CN\r\n'
+            'BEGIN:VEVENT\r\n'
+            'UID:meeting-2026-utf8\r\n'
+            'SUMMARY:灵光团队周会 📅✨\r\n'
+            'DESCRIPTION:讨论产品架构优化与多语言支持 🚀🔥\r\n'
+            'END:VEVENT\r\n'
+            'BEGIN:VTODO\r\n'
+            'UID:todo-2026-utf8\r\n'
+            'SUMMARY:发布准备清单 📝🎉\r\n'
+            'DESCRIPTION:验证 Web 端 ICS 导入中文字符与表情符号 ✨\r\n'
+            'END:VTODO\r\n'
+            'END:VCALENDAR\r\n';
+
+        final rawBytes = utf8.encode(unicodeIcsContent);
+
+        // Demonstrates that the prior buggy implementation (String.fromCharCodes) corrupted multi-byte characters
+        final corruptedText = String.fromCharCodes(rawBytes);
+        expect(
+          corruptedText,
+          isNot(equals(unicodeIcsContent)),
+          reason:
+              'String.fromCharCodes treats raw bytes as Unicode code units, corrupting UTF-8',
+        );
+
+        // Exercises production decoding path
+        final decoded = decodeWebIcsBytes(rawBytes);
+        expect(decoded, equals(unicodeIcsContent));
+        expect(decoded, contains('灵光团队周会 📅✨'));
+        expect(decoded, contains('讨论产品架构优化与多语言支持 🚀🔥'));
+        expect(decoded, contains('发布准备清单 📝🎉'));
+        expect(decoded, contains('验证 Web 端 ICS 导入中文字符与表情符号 ✨'));
+
+        // decodeIcsBytes alias must match production behavior
+        expect(decodeIcsBytes(rawBytes), equals(unicodeIcsContent));
+      },
+    );
+
+    test('decodeWebIcsBytes throws FormatException on malformed UTF-8 bytes', () {
+      final malformedBytes = <int>[0xFF, 0xFE, 0xFD];
+      expect(
+        () => decodeWebIcsBytes(malformedBytes),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => decodeIcsBytes(malformedBytes),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test(
+      'production decoding path preserves non-ASCII calendar data through IcsService import',
+      () async {
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(() async => db.close());
+
+        final cals = await db.select(db.calendars).get();
+        final calId = cals.first.id;
+
+        const unicodeIcs =
+            'BEGIN:VCALENDAR\r\n'
+            'VERSION:2.0\r\n'
+            'PRODID:-//DaySpark//CN\r\n'
+            'BEGIN:VEVENT\r\n'
+            'UID:event-chinese-emoji\r\n'
+            'DTSTAMP:20261005T000000Z\r\n'
+            'SUMMARY:年度战略总结会 🎯🎉\r\n'
+            'DESCRIPTION:评估多语言与多平台稳定性 🚀\r\n'
+            'DTSTART:20261102T090000Z\r\n'
+            'DTEND:20261102T100000Z\r\n'
+            'END:VEVENT\r\n'
+            'BEGIN:VTODO\r\n'
+            'UID:todo-chinese-emoji\r\n'
+            'DTSTAMP:20261005T000000Z\r\n'
+            'SUMMARY:完成 ICS 导入验证 📋\r\n'
+            'DESCRIPTION:确保非 ASCII 字符无损持久化 🌟\r\n'
+            'END:VTODO\r\n'
+            'END:VCALENDAR\r\n';
+
+        final rawBytes = utf8.encode(unicodeIcs);
+        final decodedIcs = decodeWebIcsBytes(rawBytes);
+
+        final service = IcsService(db);
+        final imported = await service.importIcs(decodedIcs, calId);
+
+        expect(imported.events, 1);
+        expect(imported.todos, 1);
+
+        final eventList = await db.select(db.events).get();
+        expect(eventList.length, 1);
+        expect(eventList.first.summary, '年度战略总结会 🎯🎉');
+        expect(eventList.first.description, '评估多语言与多平台稳定性 🚀');
+
+        final todoList = await db.select(db.todos).get();
+        expect(todoList.length, 1);
+        expect(todoList.first.summary, '完成 ICS 导入验证 📋');
+        expect(todoList.first.description, '确保非 ASCII 字符无损持久化 🌟');
+      },
+    );
+  });
 }
+
