@@ -18,6 +18,16 @@
 | 2 | `tool/guard_test_tampering.py` | 删/放宽既有断言来造绿 | 同上，随钩子 | ✅ 2026-10-01（删掉 `expect(schedules, isEmpty)` → 报出文件与断言原文） |
 | 3 | `tool/scan_hardcoded_paths.py` | 写死本机绝对路径 | 同上，随钩子 | ✅ 2026-10-01（写入 `/home/chang/secret` → 报出 `file:line`） |
 
+### 本地复跑命令 / Local re-run
+
+三条脚本门禁都可在本地直接复跑，不必等钩子或 CI：
+
+```bash
+python3 tool/check_whitespace.py
+python3 tool/scan_hardcoded_paths.py
+python3 tool/guard_test_tampering.py
+```
+
 ## 二、CI 门禁（`.github/workflows/ci.yml`，push / PR）
 
 | # | 门禁 | 守什么 | 挂在哪 | 红过没 |
