@@ -81,6 +81,7 @@ dependencies:
     path: packages/dayspark_recurrence
   uuid: ^4.5.3
   connectivity_plus: ^7.3.1
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

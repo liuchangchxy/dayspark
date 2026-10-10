@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:dayspark/data/file_downloader.dart';
 import 'package:dayspark/data/file_reader.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
@@ -67,20 +68,30 @@ class ImportExportSection extends ConsumerWidget {
                 if (cals.isEmpty) return;
                 final service = IcsService(db);
                 final content = await service.exportCalendar(cals.first.id);
-                final path = await service.saveIcsToFile(
-                  content,
-                  'calendar_export_${DateTime.now().millisecondsSinceEpoch}.ics',
-                );
-                if (context.mounted) {
-                  try {
-                    await Share.shareXFiles([
-                      XFile(path),
-                    ], subject: 'DaySpark Calendar Export');
-                  } on UnimplementedError {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l.exportedTo(path))),
-                      );
+                final filename =
+                    'calendar_export_${DateTime.now().millisecondsSinceEpoch}.ics';
+                final isWeb = ref.read(isWebProvider);
+                if (isWeb) {
+                  ref.read(webFileDownloaderProvider)(
+                    content: content,
+                    filename: filename,
+                  );
+                } else {
+                  final path = await service.saveIcsToFile(
+                    content,
+                    filename,
+                  );
+                  if (context.mounted) {
+                    try {
+                      await Share.shareXFiles([
+                        XFile(path),
+                      ], subject: 'DaySpark Calendar Export');
+                    } on UnimplementedError {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(l.exportedTo(path))),
+                        );
+                      }
                     }
                   }
                 }
