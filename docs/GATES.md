@@ -47,6 +47,7 @@ python3 tool/guard_test_tampering.py
 | 16 | `tool/web_smoke.dart` | Web 产物白屏即红（零依赖无头截图 + 着色比断言） | `build-web` job | ✅ v0.25.1（正身信号 + 抽掉守卫即判白屏） |
 | 17 | 服务端 / contracts / wrapper / CLI 各自的 `dart test` | 非 Flutter 侧的回归 | `server-test` job | ✅ 2026-10-01（默认端口 8787→8788 → `Expected: <8787> Actual: <8788>`） |
 > **分支保护依赖 / Branch-protection dependency**：`main` 的分支保护要求一条名为 `test` 的 required status check —— 就是上表第 4–14 条所在的那个 job 名。**job 名本身是门禁契约的一部分**：重命名 `test` 必须在同一次改动里同步更新分支保护，否则合并门会在没有任何门变红的情况下静默消失。
+> **Control Plane revision / 控制平面版本**：本仓库的 `.github/control-plane.yml` 固定在 `0549824a6044a3ee2fd778ebf821f4d70d9d3298`（`liuchangchxy/vibe-coding-control-plane`）。
 
 ## 三、发布门禁（`release.yml`，打 tag 触发）
 
