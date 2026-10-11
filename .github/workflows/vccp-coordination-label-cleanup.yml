@@ -14,6 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Remove active coordination labels and preserve terminal evidence
-        uses: liuchangchxy/vibe-coding-control-plane/.github/actions/coordination-label-cleanup@8146b5a9ee1dceb5e15ff5417af93811e3b619a3
+        uses: liuchangchxy/vibe-coding-control-plane/.github/actions/coordination-label-cleanup@0549824a6044a3ee2fd778ebf821f4d70d9d3298
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
