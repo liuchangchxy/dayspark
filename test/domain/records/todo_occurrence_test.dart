@@ -235,6 +235,13 @@ void main() {
         spec.anchor.value,
         spec.timeZone,
       ).value;
+      // Completion only invalidates allocations starting at or after it, so a hardcoded
+      // start silently expires once wall-clock passes it. Stay one day ahead, truncated to
+      // whole milliseconds because that is the precision task_allocations stores.
+      final futureStart = DateTime.fromMillisecondsSinceEpoch(
+        DateTime.now().toUtc().add(const Duration(days: 1)).millisecondsSinceEpoch,
+        isUtc: true,
+      );
       final first = await RecordScope.run(
         db,
         (tx) => TaskAllocationWriter.create(
@@ -263,8 +270,8 @@ void main() {
           db,
           tx,
           id: first,
-          startAt: DateTime.utc(2026, 10, 11, 20),
-          endAt: DateTime.utc(2026, 10, 11, 21),
+          startAt: futureStart,
+          endAt: futureStart.add(const Duration(hours: 1)),
         ),
       );
       await RecordScope.run(
@@ -284,7 +291,7 @@ void main() {
       final rows = await db.select(db.taskAllocations).get();
       expect(rows, hasLength(2));
       expect(rows.map((row) => row.occurrenceId), [occurrenceId, occurrenceId]);
-      expect(rows.first.startAt, DateTime.utc(2026, 10, 11, 20));
+      expect(rows.first.startAt, futureStart);
       expect(rows.first.state, 'invalidatedByCompletion');
       expect(rows.last.id, second);
       expect(rows.last.state, 'cancelledByUser');
