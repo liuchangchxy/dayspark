@@ -2,20 +2,20 @@
   "lock_schema_version": 1,
   "vccp": {
     "source": "liuchangchxy/vibe-coding-control-plane",
-    "revision": "f80027ad7997c2cc2bd05a4b2b10358b8cd4f019"
+    "revision": "780f332e796a4c1cf473b728077fb02ed540d81a"
   },
   "artifacts": [
     {
       "path": ".github/vccp/reviewer-task-prompt.md",
       "component": "reviewer-task-prompt",
-      "component_revision": "f80027ad7997c2cc2bd05a4b2b10358b8cd4f019",
+      "component_revision": "780f332e796a4c1cf473b728077fb02ed540d81a",
       "sha256": "4142cbbb29f8766008225e8ac5ca8bdcf516509a867e098fe4469d385650221a"
     },
     {
       "path": ".github/workflows/vccp-coordination-label-cleanup.yml",
       "component": "coordination-label-cleanup-adapter",
-      "component_revision": "f80027ad7997c2cc2bd05a4b2b10358b8cd4f019",
-      "sha256": "6e2cf2e2c2ee19e2fc51c0c29cee220e8fa4dba9334aa7b5421fb5efbb12f9f2"
+      "component_revision": "780f332e796a4c1cf473b728077fb02ed540d81a",
+      "sha256": "09008fd7a092c10ade721817d586ce8d525b0a9a1f5b72eec1398b80849c127e"
     }
   ]
 }
