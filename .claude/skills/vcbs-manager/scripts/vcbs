@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# vcbs - Portable runner for vibe-coding-Bootstrap CLI in DaySpark
+# Resolves VCBS_ROOT, validates environment, and executes unmodified VCBS CLI.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+if [ -z "${VCBS_ROOT:-}" ]; then
+  # Fallback to sibling checkout if available
+  CANDIDATE="${REPO_ROOT}/../vibe-coding-Bootstrap"
+  if [ -d "${CANDIDATE}/bootstrap" ]; then
+    VCBS_ROOT="$(cd "${CANDIDATE}" && pwd)"
+  fi
+fi
+
+if [ -z "${VCBS_ROOT:-}" ] || [ ! -d "${VCBS_ROOT}/bootstrap" ]; then
+  echo "Error: VCBS_ROOT is not set or does not point to a valid vibe-coding-Bootstrap checkout." >&2
+  echo "Please set VCBS_ROOT to your trusted vibe-coding-Bootstrap repository path:" >&2
+  echo "  export VCBS_ROOT=/path/to/vibe-coding-Bootstrap" >&2
+  exit 1
+fi
+
+PYTHON_BIN="${PYTHON:-python3}"
+if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
+  echo "Error: Python 3 executable '${PYTHON_BIN}' not found in PATH." >&2
+  exit 1
+fi
+
+export PYTHONPATH="${VCBS_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+exec "${PYTHON_BIN}" -m bootstrap "$@"
