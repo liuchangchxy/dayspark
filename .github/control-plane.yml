@@ -1,7 +1,7 @@
 schema_version: 2
 vccp:
   source: liuchangchxy/vibe-coding-control-plane
-  revision: 697e68efefac1bb6ba1ce865cfa7da8bd4794a40
+  revision: dca341414c9310e5590c2adb6b9ff2afa0586b41
 repository:
   base_branch: main
   implementer_authors:
