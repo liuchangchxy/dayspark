@@ -50,13 +50,19 @@ List<CalendaEventAdapter> expandRecurringEvents(
         if (instance.isAfter(windowEndUtc)) break;
         if (instance.isBefore(windowStartUtc)) continue;
 
+        final occurrenceStart = instance.copyWith(isUtc: false);
         result.add(
           CalendaEventAdapter(
             drifId: event.id,
             calendarId: event.calendarId,
             title: event.summary,
-            start: instance.copyWith(isUtc: false),
+            start: occurrenceStart,
             end: instance.add(duration).copyWith(isUtc: false),
+            // The series anchor travels with every occurrence: the tile draws
+            // the occurrence, but a write has to land on the row's DTSTART.
+            seriesStart: event.startDt,
+            seriesEnd: event.endDt,
+            occurrenceStart: occurrenceStart,
             description: event.description,
             location: event.location,
             color: color,

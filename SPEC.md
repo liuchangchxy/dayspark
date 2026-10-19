@@ -374,7 +374,10 @@ TaskAllocation payload 只包含 `todoSyncId`、可空 `occurrenceId`、`startAt
 2. **冲突防御**：字段级 LWW + 同秒 opId 破平；conflict 不静默丢弃，逐条状态可追溯
 3. **幂等防御**：同一 opId 重复 push 只应用一次（唯一约束）
 4. **删除传播**：Event/Todo 软删按现有墓碑协议传播，保留 ≥45 天后 GC；TaskAllocation 的用户取消与完成失效是 payload 状态变更，不是删除墓碑。外部接口不提供物理硬删
-5. **重复事件**：展开绑定可见窗口（before/after），不做全量时间轴展开；拖拽重复事件须防改坏整个系列
+5. **重复事件与日历交互**：
+   - 展开绑定可见窗口（before/after），不做全量时间轴展开；展开的虚拟 occurrence 保留原始系列锚点（seriesStart/seriesEnd），编辑重复事件时明确针对整个系列生效，未明确修改系列时间时禁止将具体 occurrence 的日期回写为系列的 DTSTART/DTEND；删除重复事件时明确提示并操作整个系列。
+   - 新建及编辑事件支持日历选择器（多日历时展示，单日历时折叠）；编辑事件允许在现有日历间安全迁移，原日历被删除时平滑回退至可用有效日历。
+   - Kalender 视图中对尚不支持交互改期的事件（重复事件及全天事件）明确禁用拖拽改期并提供交互反馈，杜绝前端虚假移动与数据不同步；普通非重复定时事件及 TaskAllocation 拖动保持独立正常工作。
 6. **重复 Todo 安排**：TaskAllocation 绑定单个 occurrence identity，不自动套用到重复系列；identity 使用 Todo 系列稳定同步 ID + 原 occurrence 本地日期时间 + IANA 时区，不使用改期后的 Allocation 时间。无 `startDate` 且无 `dueDate` 的重复 Todo 不可创建 occurrence 级 Allocation
 7. **版本解析**：构建号比较用 `int.tryParse`，解析失败视为无更新，不得抛异常
 8. **平台差异**：UI/交互改动必须显式考虑桌面鼠标 vs 移动触摸（平台感知法则）；本地验证命令用 `dart analyze .`（`flutter analyze` 在中文路径下 LSP 崩溃）

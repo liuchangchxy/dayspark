@@ -827,6 +827,30 @@ abstract class AppLocalizations {
   /// **'Delete \"{title}\"?'**
   String deleteEventConfirm(String title);
 
+  /// No description provided for @deleteRecurringEventConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the whole recurring series \"{title}\" and every occurrence in it?'**
+  String deleteRecurringEventConfirm(String title);
+
+  /// No description provided for @recurringSeriesNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This event repeats. Saving changes the whole series, and the times below are the series start rather than the occurrence you tapped. Editing a single occurrence is not supported yet.'**
+  String get recurringSeriesNotice;
+
+  /// No description provided for @allDayDragDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'All-day events cannot be moved by drag'**
+  String get allDayDragDisabled;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
   /// No description provided for @noTimeSlots.
   ///
   /// In en, this message translates to:

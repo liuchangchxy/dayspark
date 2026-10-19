@@ -183,6 +183,17 @@
       }
     }
   },
+  "deleteRecurringEventConfirm": "Delete the whole recurring series \"{title}\" and every occurrence in it?",
+  "@deleteRecurringEventConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recurringSeriesNotice": "This event repeats. Saving changes the whole series, and the times below are the series start rather than the occurrence you tapped. Editing a single occurrence is not supported yet.",
+  "allDayDragDisabled": "All-day events cannot be moved by drag",
+  "retry": "Retry",
   "noTimeSlots": "No time slot suggestions available",
   "suggestedTimeSlots": "Suggested Time Slots",
   "timeSlotConflict": "The selected time slot is now occupied or no longer available. Please select another slot.",

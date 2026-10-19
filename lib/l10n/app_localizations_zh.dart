@@ -393,6 +393,20 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String deleteRecurringEventConfirm(String title) {
+    return '确定删除整个重复日程「$title」及其全部实例吗？';
+  }
+
+  @override
+  String get recurringSeriesNotice => '这是重复日程。保存会修改整个系列；下面的时间是系列起始，不是你点开的那一次。暂不支持只修改单次实例。';
+
+  @override
+  String get allDayDragDisabled => '全天日程无法通过拖拽移动';
+
+  @override
+  String get retry => '重试';
+
+  @override
   String get noTimeSlots => '暂无可用的时间建议';
 
   @override
