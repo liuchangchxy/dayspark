@@ -59,19 +59,6 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     _openedAsAllDay = _event.isAllDay;
     _rrule = _event.rrule;
     _selectedCalendarId = _event.calendarId;
-    Future.microtask(() async {
-      final calendars = await ref.read(calendarsProvider.future);
-      if (!mounted) return;
-      final ids = calendars.map((calendar) => calendar.id).toSet();
-      // A row whose calendar was removed still carries the old id; the picker
-      // would assert on a value it cannot render, and the write would target a
-      // calendar that no longer exists.
-      setState(() {
-        _selectedCalendarId = ids.contains(_event.calendarId)
-            ? _event.calendarId
-            : (calendars.isEmpty ? null : calendars.first.id);
-      });
-    });
   }
 
   @override

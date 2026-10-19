@@ -44,14 +44,6 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
     super.initState();
     _start = widget.initialStart;
     _end = widget.initialEnd;
-    // Preselect the default calendar so the picker opens on the same one the
-    // form would have saved to without it.
-    Future.microtask(() async {
-      final calendars = await ref.read(calendarsProvider.future);
-      if (calendars.isNotEmpty && mounted) {
-        setState(() => _selectedCalendarId = calendars.first.id);
-      }
-    });
   }
 
   /// All-day events are stored at midnight; the time-of-day a slot prefill
