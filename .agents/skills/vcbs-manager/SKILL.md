@@ -148,8 +148,8 @@ Generate the adoption plan:
 **Extract and Display Dynamic Plan Summary**:
 Read `/tmp/vcbs/plan.json` and extract all summary fields directly from the artifact:
 - `route` from `.route`
-- `target_revision` from `.target_revision`
-- `covered_capabilities` from `.capabilities`
+- `target_revision` from `.target.commit_sha` (`plan["target"]["commit_sha"]`)
+- `covered_capabilities`: calculated from `.underlying_plans.adoption_plan.items` (`sum(item["semantic_status"] == "satisfied" for item in plan["underlying_plans"]["adoption_plan"]["items"])`)
 - `actual_changes` from `.actual_changes`
 - `requires_confirmation` from `.requires_confirmation`
 - `project_changes` from `.project_changes`
@@ -158,8 +158,8 @@ Read `/tmp/vcbs/plan.json` and extract all summary fields directly from the arti
 Display the actual derived values to the developer:
 ```text
 Route: <extracted route>
-Target revision: <extracted target_revision>
-Covered capabilities: <count of covered capabilities>
+Target revision: <extracted target.commit_sha>
+Covered capabilities: <count of covered capabilities (semantic_status == satisfied)>
 Actual changes: <extracted actual_changes count>
 Confirmation required: <extracted requires_confirmation boolean>
 ```
