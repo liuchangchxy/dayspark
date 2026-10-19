@@ -281,6 +281,31 @@ void main() {
       await _unmount(tester);
     });
 
+    testWidgets('changing the recurrence rule keeps the series anchor', (
+      tester,
+    ) async {
+      final seeded = await _seedSeries(db);
+
+      await _pump(tester, db, seeded.occurrence);
+
+      // Switch Daily -> Weekly through the real rule editor.
+      await tester.tap(find.text('Daily').last);
+      await _settle(tester);
+      await tester.tap(find.text('Weekly').last);
+      await _settle(tester);
+      await _save(tester);
+
+      final after = await _row(db, seeded.id);
+      expect(after.rrule, contains('FREQ=WEEKLY'));
+      expect(
+        after.startDt,
+        DateTime(2026, 10, 1, 9),
+        reason: 'changing the rule must not move the time base',
+      );
+      expect(after.endDt, DateTime(2026, 10, 1, 9, 30));
+      await _unmount(tester);
+    });
+
     testWidgets('deleting says the whole series goes, and takes the row', (
       tester,
     ) async {

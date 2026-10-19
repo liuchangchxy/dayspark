@@ -228,7 +228,10 @@ void main() {
     tester,
   ) async {
     final personal = (await _calendars(db)).single.id;
-    final doomed = await _addCalendar(db, 'Doomed', 1);
+    // A third calendar keeps the picker on screen, so the fallback selection
+    // is actually observable instead of collapsing to a hidden row.
+    await _addCalendar(db, 'Work', 1);
+    final doomed = await _addCalendar(db, 'Doomed', 2);
     final id = await db
         .into(db.events)
         .insert(

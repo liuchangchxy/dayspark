@@ -263,11 +263,12 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Carries its own bottom gap, so it can sit here unconditionally
+            // without leaving a hole when it renders nothing.
             CalendarSelector(
               selectedId: _selectedCalendarId,
               onChanged: (id) => setState(() => _selectedCalendarId = id),
             ),
-            const SizedBox(height: 16),
             TextField(
               controller: _titleController,
               decoration: InputDecoration(labelText: l.title),

@@ -22,10 +22,23 @@
 - **Why**: 全量展开是性能 bug；±45 天覆盖月视图 6 周网格（anchor 前 7 天、后 34 天）
 - **Date**: 2026-09-22
 
+### 重复事件的编辑只写系列锚点（2026-10-19）
+- `CalendaEventAdapter` 携带两套时间：`start`/`end` 是展开后的 occurrence（只用于渲染），`seriesStart`/`seriesEnd` 是行的 DTSTART/DTEND；`toUpdateCompanion()` **只写后者**
+- `copyWithData(start:)` 对 occurrence **不动锚点**——要移动锚点必须点名 `seriesStart`/`seriesEnd`。普通事件没有"自己的位置"，两者恒等，所以既有的拖拽路径行为不变
+- 编辑页编辑的是系列锚点本身（`_start`/`_end` 初值取 `seriesStart`/`seriesEnd`），被点开的实例日期永远不会进 companion；重复日程的页面顶部有说明横幅，删除对话框也明说删的是整个系列
+- **Why**: `expandRecurringEvents` 让每个实例共享同一个 `drifId` 却各带自己的时间。编辑页若把渲染时间写回，点开第三次重复只改个标题就会把系列 DTSTART 挪到那一天，整条系列错位（已用回归测试实证：改前 DTSTART 从 10-01 变成 10-03）
+- **Date**: 2026-10-19
+
+### 全天事件只在"本次刚切成全天"时归零到午夜（2026-10-19）
+- 保存时以 `_isAllDay && !打开时就是全天` 为条件把起止归一为日期；本来就是全天的行**保留原值**
+- **Why**: 无条件归一会把既有全天系列（DTSTART 带时分）在"只改标题"时也挪到午夜，违反"未明确修改系列时间则 DTSTART/DTEND 不变"
+- **Date**: 2026-10-19
+
 ### 重复/全天事件禁止拖拽（S1 系列损坏守卫）
-- `KalenderCalendarEvent.fromAdapter` 对 `rrule != null || isAllDay` 设 `EventInteraction.allowNone()`；`onEventChanged` 回调层再拦一次
-- **Why**: 拖单次实例会把新时间写回共享 drifId，改坏整个系列
-- **Date**: 2026-09-22
+- 第一层：`KalenderCalendarEvent.fromAdapter` 对 `rrule != null || isAllDay` 设 `EventInteraction.allowNone()`（kalender 0.17.0 实测：`TileDraggable` / `TileResizable` 直接返回 child，拖动根本不会发起）
+- 第二层：`CalendarSection.onEventChanged` 回调层再拦一次——命中即 `_syncEvents(force: true)` 复位 + SnackBar 说明原因；普通事件落库失败走同一条复位 + 报错路径（与 TaskAllocation 对称）
+- **Why**: 拖单次实例会把新时间写回共享 drifId，改坏整个系列。第二层存在的意义是"永远别让界面停在被拖到的位置而库里没变"——静默 `return` 会让用户以为改成功了
+- **Date**: 2026-09-22（2026-10-19 补第二层反馈与复位）
 
 ### _calendarRange 必须是静态的
 - `home_page.dart` 中的 `_calendarRange()` 返回固定的 `DateTime(2000,1,1)` 到 `DateTime(2030,12,31)`
@@ -34,7 +47,7 @@
 - **Date**: 2026-05-03
 
 ### CalendaEventAdapter == 必须包含所有字段
-- equality 和 hashCode 必须覆盖全部 12 个字段
+- equality 和 hashCode 必须覆盖全部字段（含 `seriesStart`/`seriesEnd`/`occurrenceStart`）
 - **Why**: Flutter widget diffing 依赖 ==，漏字段会导致旧数据不被替换
 - **Date**: 2026-05-02
 

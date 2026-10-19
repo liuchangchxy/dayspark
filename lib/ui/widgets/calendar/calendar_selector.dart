@@ -68,10 +68,6 @@ class CalendarSelector extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   DropdownButtonFormField<int>(
-                    // The selection can change after the first build (the
-                    // edit form re-points it when the row's calendar is gone),
-                    // and the field only re-reads initialValue on a remount.
-                    key: ValueKey<int?>(selectedId),
                     initialValue: selectedId ?? calendars.first.id,
                     isExpanded: true,
                     decoration: const InputDecoration(
