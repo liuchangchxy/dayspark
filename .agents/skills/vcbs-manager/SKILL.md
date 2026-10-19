@@ -53,9 +53,30 @@ Execution requires access to a trusted local checkout of `liuchangchxy/vibe-codi
      export VCBS_ROOT=/path/to/vibe-coding-Bootstrap
    ```
 
-### Prerequisites
-- Python 3 with required dependencies (`pip install -r requirements.txt` in VCBS root, including `jsonschema` and `pyyaml`).
-- Clean repository checkout with known revision (e.g. pinned commit).
+### Verifying Revision and Dependencies
+Before running the workflow, verify that your VCBS checkout is clean and matches the trusted revision, and that all runtime dependencies are available:
+
+1. **Verify VCBS Revision**:
+   ```bash
+   VCBS_DIR="${VCBS_ROOT:-../vibe-coding-Bootstrap}"
+   git -C "${VCBS_DIR}" rev-parse HEAD
+   git -C "${VCBS_DIR}" status --porcelain
+   ```
+   *Expected trusted revision:* `6a8a3ef8ee1d33d320f0325da8edc35e6eebf5f1` (upstream `main`). If the revision does not match or the working tree is dirty, halt and verify your checkout before proceeding.
+
+2. **Verify Python Dependencies**:
+   ```bash
+   python3 -c "import jsonschema, yaml; print('VCBS dependencies: OK')"
+   ```
+   If dependencies are missing, fail clearly and install them:
+   ```bash
+   pip install -r "${VCBS_DIR}/requirements.txt"
+   ```
+
+3. **Verify Unmodified CLI Accessibility**:
+   ```bash
+   PYTHONPATH="${VCBS_DIR}" python3 -m bootstrap --help
+   ```
 
 ### Execution Methods
 You can invoke VCBS either via the bundled launcher or directly via Python:
@@ -66,7 +87,7 @@ You can invoke VCBS either via the bundled launcher or directly via Python:
   ```
 - **Via direct Python invocation**:
   ```bash
-  PYTHONPATH="${VCBS_ROOT}" python3 -m bootstrap <command> [arguments]
+  PYTHONPATH="${VCBS_ROOT:-../vibe-coding-Bootstrap}" python3 -m bootstrap <command> [arguments]
   ```
 
 ---
@@ -89,23 +110,29 @@ mkdir -p /tmp/vcbs
   --output /tmp/vcbs/inspect.json
 ```
 
-**Inspection Facts**:
-- Target repository: `liuchangchxy/dayspark`
-- Selected route: `adoption` (DaySpark has existing project-owned assets)
-- Output contains `semantic_package` with `discovered_assets`, `capability_catalog`, `baseline_coverage`, and `profile_constraints`.
+**Derive Inspection Facts dynamically**:
+Do not assume fixed inspection results. Read `/tmp/vcbs/inspect.json` and extract:
+- `target_repository` from `.target.repository`
+- `commit_sha` from `.target.commit_sha`
+- `route` from `.route` (`adoption` when existing project assets are found)
+- `semantic_package` from `.semantic_package` (includes `discovered_assets`, `capability_catalog`, `baseline_coverage`, and `profile_constraints`)
 
 ### Step 2: Evidence-Based Semantic Review
-Analyze the `semantic_package` from Step 1. In adoption mode, VCBS requires a semantic review result before building a plan (`HOST_SEMANTIC_REVIEW_REQUIRED`).
+Analyze the dynamically extracted `semantic_package` from Step 1. In adoption mode, VCBS requires a semantic review result before building a plan (`HOST_SEMANTIC_REVIEW_REQUIRED`).
 
-Review DaySpark's existing assets against each catalog capability:
-- **`code-review`**: Satisfied (evidence: `CLAUDE.md`, code review checklists, `dayspark-code-review` skill).
-- **`documentation`**: Satisfied (evidence: `SPEC.md`, `CLAUDE.md`, `README.md`, `docs/`).
-- **`engineering-baseline`**: Satisfied (evidence: `AGENTS.md`, `CLAUDE.md`, `docs/process/EXECUTION.md`).
-- **`planning`**: Satisfied (evidence: `DECISIONS.md`, `docs/CONSTRAINTS.md`, `docs/ROADMAP.md`, `docs/START_HERE.md`).
-- **`testing`**: Satisfied (evidence: `AGENTS.md`, `CLAUDE.md`, `docs/process/TESTING.md`, extensive unit/widget/integration tests).
-- **`agent-development` / `debugging` / `research-workflow`**: Marked `unknown` with `no_action` recommended (DaySpark is an end-user client app, not an agent runtime or research project).
+Inspect the discovered assets and baseline coverage in `semantic_package`. For each capability in `capability_catalog`, evaluate DaySpark's actual coverage:
+- Cite discovered relative paths and explain their meaning.
+- Judge satisfied by substantive coverage, not file count.
+- Judge missing only when applicability is established and core purpose is not covered; otherwise use `unknown`.
+- *Historical baseline reference (for commit `b3b4efd595`)*:
+  - `code-review`: Satisfied (covered by `CLAUDE.md`, code review checklists).
+  - `documentation`: Satisfied (covered by `SPEC.md`, `CLAUDE.md`, `README.md`, `docs/`).
+  - `engineering-baseline`: Satisfied (covered by `AGENTS.md`, `CLAUDE.md`, `docs/process/EXECUTION.md`).
+  - `planning`: Satisfied (covered by `DECISIONS.md`, `docs/CONSTRAINTS.md`, `docs/ROADMAP.md`, `docs/START_HERE.md`).
+  - `testing`: Satisfied (covered by `AGENTS.md`, `CLAUDE.md`, `docs/process/TESTING.md`, unit/widget/integration tests).
+  - `agent-development` / `debugging` / `research-workflow`: Marked `unknown` with `no_action` recommended (DaySpark is an end-user client app, not an agent runtime or research project).
 
-Write the review result to `/tmp/vcbs/semantic_review.json` following `schemas/semantic-review-result.schema.json`.
+Construct the review result adhering to `schemas/semantic-review-result.schema.json` and write it to `/tmp/vcbs/semantic_review.json`.
 
 ### Step 3: Build and Summarize Adoption Plan
 Generate the adoption plan:
@@ -118,39 +145,62 @@ Generate the adoption plan:
   --output /tmp/vcbs/plan.json
 ```
 
-Display a concise summary to the developer:
-- Route: `adoption`
-- Target commit: `<commit-sha>`
-- Covered capabilities: 5 satisfied
-- Gaps / changes: 0 (legitimate NO-OP)
-- Confirmation required: `false`
+**Extract and Display Dynamic Plan Summary**:
+Read `/tmp/vcbs/plan.json` and extract all summary fields directly from the artifact:
+- `route` from `.route`
+- `target_revision` from `.target_revision`
+- `covered_capabilities` from `.capabilities`
+- `actual_changes` from `.actual_changes`
+- `requires_confirmation` from `.requires_confirmation`
+- `project_changes` from `.project_changes`
+- `global_changes` from `.global_changes`
+
+Display the actual derived values to the developer:
+```text
+Route: <extracted route>
+Target revision: <extracted target_revision>
+Covered capabilities: <count of covered capabilities>
+Actual changes: <extracted actual_changes count>
+Confirmation required: <extracted requires_confirmation boolean>
+```
+*(When existing capabilities satisfy requirements, `actual_changes` will be 0, representing a legitimate NO-OP plan).*
 
 ### Step 4: Authorization Gate (Never Auto-Approve)
 
 > [!CAUTION]
 > **Strict Rule: Never Auto-Approve**:
-> The host agent must NEVER automatically approve a plan that proposes material changes (`actual_changes > 0`). It must present the exact diff / plan summary and wait for explicit human authorization.
+> If the derived `actual_changes > 0` or `requires_confirmation == true`, the host agent MUST NEVER automatically approve the plan. It must present the exact diff / change list to the human developer and wait for explicit confirmation.
 
-For plans requiring confirmation:
-```bash
-.agents/skills/vcbs-manager/scripts/vcbs decide /tmp/vcbs/plan.json \
-  --decision approve \
-  --output /tmp/vcbs/decision.json
-```
+- **If `actual_changes > 0` (Mutating Plan)**:
+  Only after explicit human confirmation:
+  ```bash
+  .agents/skills/vcbs-manager/scripts/vcbs decide /tmp/vcbs/plan.json \
+    --decision approve \
+    --output /tmp/vcbs/decision.json
+  ```
 
-For no-op plans (`actual_changes: 0`), VCBS requires no decision artifact and creates no snapshot.
+- **If `actual_changes == 0` (Legitimate No-Op Plan)**:
+  No decision is required by VCBS (`decide` is skipped; a no-op needs no decision and creates no snapshot or deployment record).
 
 ### Step 5: Apply
 Apply the plan:
 
-```bash
-.agents/skills/vcbs-manager/scripts/vcbs apply \
-  --plan /tmp/vcbs/plan.json \
-  --project-root .
-```
+- **For No-Op (`actual_changes == 0`)**:
+  ```bash
+  .agents/skills/vcbs-manager/scripts/vcbs apply \
+    --plan /tmp/vcbs/plan.json \
+    --project-root .
+  ```
+  Verify that the command returns `status: "no_changes"` and that git status confirms the working tree is untouched.
 
-- When `actual_changes == 0`, apply returns `status: "no_changes"`, creating no snapshot and leaving DaySpark's working tree completely untouched.
-- When `actual_changes > 0`, apply creates a pre-apply Git snapshot under `refs/vibe-coding-bootstrap/snapshots/<deployment-id>` before materializing changes.
+- **For Mutating Plan (`actual_changes > 0`)**:
+  ```bash
+  .agents/skills/vcbs-manager/scripts/vcbs apply \
+    --plan /tmp/vcbs/plan.json \
+    --decision /tmp/vcbs/decision.json \
+    --project-root .
+  ```
+  Apply creates a pre-apply Git snapshot under `refs/vibe-coding-bootstrap/snapshots/<deployment-id>` before materializing changes.
 
 ### Step 6: Rollback (Preview and Apply)
 If a previous mutating deployment needs reversal:
