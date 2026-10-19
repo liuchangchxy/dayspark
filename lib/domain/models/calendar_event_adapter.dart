@@ -84,9 +84,9 @@ class CalendaEventAdapter {
     String? title,
     Object? description = _unset,
     Object? location = _unset,
-    Color? color,
+    Object? color = _unset,
     bool? isAllDay,
-    String? rrule,
+    Object? rrule = _unset,
   }) {
     final nextStart = start ?? this.start;
     final nextEnd = end ?? this.end;
@@ -112,9 +112,9 @@ class CalendaEventAdapter {
       location: identical(location, _unset)
           ? this.location
           : location as String?,
-      color: color ?? this.color,
+      color: identical(color, _unset) ? this.color : color as Color?,
       isAllDay: isAllDay ?? this.isAllDay,
-      rrule: rrule ?? this.rrule,
+      rrule: identical(rrule, _unset) ? this.rrule : rrule as String?,
     );
   }
 

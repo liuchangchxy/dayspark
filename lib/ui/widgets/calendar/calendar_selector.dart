@@ -54,7 +54,27 @@ class CalendarSelector extends ConsumerWidget {
                 ),
               );
             }
-            if (calendars.length == 1) return const SizedBox.shrink();
+            if (calendars.length == 1) {
+              final onlyId = calendars.first.id;
+              if (selectedId != onlyId) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  onChanged(onlyId);
+                });
+              }
+              return const SizedBox.shrink();
+            }
+
+            final ids = calendars.map((c) => c.id).toSet();
+            final effectiveId = (selectedId != null && ids.contains(selectedId))
+                ? selectedId!
+                : calendars.first.id;
+
+            if (selectedId != effectiveId) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                onChanged(effectiveId);
+              });
+            }
+
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.lg),
               child: Column(
@@ -68,7 +88,8 @@ class CalendarSelector extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   DropdownButtonFormField<int>(
-                    initialValue: selectedId ?? calendars.first.id,
+                    key: ValueKey<int>(effectiveId),
+                    initialValue: effectiveId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),

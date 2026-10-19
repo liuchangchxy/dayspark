@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/event/event_create_page.dart';
 import 'package:dayspark/ui/pages/event/event_edit_page.dart';
@@ -297,4 +298,63 @@ void main() {
     expect(dropdown.initialValue, work);
     await _unmount(tester);
   });
+
+  testWidgets(
+    'when calendarsProvider is prewarmed, dangling calendarId falls back cleanly without assertion',
+    (tester) async {
+      final personal = (await _calendars(db)).single.id;
+      final doomed = await _addCalendar(db, 'Doomed', 1);
+      final id = await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: doomed,
+          summary: 'Prewarmed orphan',
+          startDt: DateTime(2026, 10, 5, 9),
+          endDt: DateTime(2026, 10, 5, 10),
+        ),
+      );
+      // Remove the doomed calendar so doomed id is dangling
+      await (db.delete(db.calendars)..where((t) => t.id.equals(doomed))).go();
+      final row = await _event(db, id);
+
+      // Prewarm the provider by building a widget that reads calendarsProvider
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(container.dispose);
+      await container.read(calendarsProvider.future);
+
+      // Pump the event edit page with prewarmed state
+      tester.view.physicalSize = const Size(1000, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: _router(event: CalendaEventAdapter.fromDrift(row)),
+            localizationsDelegates: const [
+              ...AppLocalizations.localizationsDelegates,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+          ),
+        ),
+      );
+      await _settle(tester);
+
+      expect(tester.takeException(), isNull);
+      await tester.enterText(_field('Title'), 'Prewarmed orphan (saved)');
+      await _save(tester);
+
+      final after = await _event(db, id);
+      expect(after.calendarId, personal);
+      expect(after.summary, 'Prewarmed orphan (saved)');
+      await _unmount(tester);
+    },
+  );
 }

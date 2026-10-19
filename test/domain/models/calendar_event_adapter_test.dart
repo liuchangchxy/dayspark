@@ -149,6 +149,29 @@ void main() {
       expect(cleared.toUpdateCompanion().location.value, isNull);
     });
 
+    test('copyWithData can clear rrule and color', () {
+      final adapter = CalendaEventAdapter(
+        drifId: 1,
+        calendarId: 10,
+        title: 'Event',
+        start: DateTime(2026, 1, 1),
+        end: DateTime(2026, 1, 1, 1),
+        color: const Color(0xFF123456),
+        rrule: 'RRULE:FREQ=DAILY;COUNT=5',
+      );
+
+      // Omitting them leaves them alone...
+      final untouched = adapter.copyWithData(title: 'X');
+      expect(untouched.color, const Color(0xFF123456));
+      expect(untouched.rrule, 'RRULE:FREQ=DAILY;COUNT=5');
+
+      // Passing null clears them instead of keeping the old value.
+      final cleared = adapter.copyWithData(color: null, rrule: null);
+      expect(cleared.color, isNull);
+      expect(cleared.rrule, isNull);
+      expect(cleared.toUpdateCompanion().rrule.value, isNull);
+    });
+
     test('equality covers the series anchor and occurrence marker', () {
       CalendaEventAdapter build({
         DateTime? seriesStart,

@@ -306,6 +306,32 @@ void main() {
       await _unmount(tester);
     });
 
+    testWidgets('clearing the recurrence rule to Never persists rrule as null', (
+      tester,
+    ) async {
+      final seeded = await _seedSeries(db);
+      expect(seeded.occurrence.rrule, 'RRULE:FREQ=DAILY;COUNT=5');
+
+      await _pump(tester, db, seeded.occurrence);
+
+      // Switch Daily -> Never through the real rule editor.
+      await tester.tap(find.text('Daily').last);
+      await _settle(tester);
+      await tester.tap(find.text('Never').last);
+      await _settle(tester);
+      await _save(tester);
+
+      final after = await _row(db, seeded.id);
+      expect(after.rrule, isNull, reason: 'rrule must be persisted as null in DB');
+      expect(
+        after.startDt,
+        DateTime(2026, 10, 1, 9),
+        reason: 'clearing the rule must not move the time base',
+      );
+      expect(after.endDt, DateTime(2026, 10, 1, 9, 30));
+      await _unmount(tester);
+    });
+
     testWidgets('deleting says the whole series goes, and takes the row', (
       tester,
     ) async {
