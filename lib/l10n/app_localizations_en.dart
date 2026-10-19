@@ -393,6 +393,20 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String deleteRecurringEventConfirm(String title) {
+    return 'Delete the whole recurring series \"$title\" and every occurrence in it?';
+  }
+
+  @override
+  String get recurringSeriesNotice => 'This event repeats. Saving changes the whole series, and the times below are the series start rather than the occurrence you tapped. Editing a single occurrence is not supported yet.';
+
+  @override
+  String get allDayDragDisabled => 'All-day events cannot be moved by drag';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
   String get noTimeSlots => 'No time slot suggestions available';
 
   @override

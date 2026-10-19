@@ -27,6 +27,8 @@ Future<void> _pumpCalendar(
   Future<void> Function(TaskAllocationCalendarAdapter allocation)?
   onTaskAllocationChanged,
   void Function(DateTimeRange range)? onTimeSlotTapped,
+  Future<void> Function(CalendaEventAdapter event)? onEventChanged,
+  void Function(CalendaEventAdapter event)? onEventTapped,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -40,6 +42,8 @@ Future<void> _pumpCalendar(
             onTaskAllocationTapped: onTaskAllocationTapped,
             onTaskAllocationChanged: onTaskAllocationChanged,
             onTimeSlotTapped: onTimeSlotTapped,
+            onEventChanged: onEventChanged,
+            onEventTapped: onEventTapped,
           ),
         ),
       ),
@@ -48,6 +52,39 @@ Future<void> _pumpCalendar(
   await tester.pump(const Duration(milliseconds: 350));
   await tester.pump(const Duration(milliseconds: 350));
 }
+
+/// Drags the tile carrying [label] the way a user would and returns nothing:
+/// whether anything happened is what the assertions are about.
+Future<void> _dragTile(
+  WidgetTester tester,
+  String label, {
+  Offset by = const Offset(0, 64),
+}) async {
+  final gesture = await tester.startGesture(
+    tester.getCenter(find.text(label).first),
+  );
+  await tester.pump(const Duration(milliseconds: 600));
+  await gesture.moveBy(by);
+  await tester.pump(const Duration(milliseconds: 100));
+  await gesture.up();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+CalendaEventAdapter _timedEvent({
+  required DateTime today,
+  String title = 'Timed',
+  String? rrule,
+  bool isAllDay = false,
+}) => CalendaEventAdapter(
+  drifId: 1,
+  calendarId: 10,
+  title: title,
+  start: today.add(const Duration(hours: 9)),
+  end: today.add(const Duration(hours: 10)),
+  rrule: rrule,
+  isAllDay: isAllDay,
+);
 
 void main() {
   setUp(() {
@@ -268,6 +305,114 @@ void main() {
       await db.close();
     },
   );
+
+  group('drag interaction', () {
+    testWidgets('a recurring event cannot be dragged', (tester) async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      CalendaEventAdapter? changed;
+      final event = _timedEvent(
+        today: today,
+        title: 'Daily standup',
+        rrule: 'RRULE:FREQ=DAILY;COUNT=5',
+      );
+
+      await _pumpCalendar(
+        tester,
+        events: [event],
+        onEventChanged: (value) async => changed = value,
+      );
+      final before = tester.getRect(find.byType(EventTile).first);
+
+      await _dragTile(tester, 'Daily standup');
+
+      expect(
+        changed,
+        isNull,
+        reason: 'a recurring instance must never reach the write path',
+      );
+      expect(
+        tester.getRect(find.byType(EventTile).first),
+        before,
+        reason: 'a tile that stayed put must not look like it moved',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('an all-day event cannot be dragged', (tester) async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      CalendaEventAdapter? changed;
+      final event = _timedEvent(
+        today: today,
+        title: 'Company holiday',
+        isAllDay: true,
+      );
+
+      await _pumpCalendar(
+        tester,
+        events: [event],
+        onEventChanged: (value) async => changed = value,
+      );
+      final before = tester.getRect(find.byType(EventTile).first);
+
+      // The all-day bar lives in the header, which only accepts horizontal
+      // reschedules; a vertical drag would leave it and prove nothing.
+      await _dragTile(tester, 'Company holiday', by: const Offset(120, 0));
+
+      expect(changed, isNull);
+      expect(tester.getRect(find.byType(EventTile).first), before);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('a plain event still drags to a new time', (tester) async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      CalendaEventAdapter? changed;
+      final event = _timedEvent(today: today, title: 'Movable');
+
+      await _pumpCalendar(
+        tester,
+        events: [event],
+        onEventChanged: (value) async => changed = value,
+      );
+
+      await _dragTile(tester, 'Movable');
+
+      expect(changed, isNotNull);
+      expect(changed!.drifId, event.drifId);
+      expect(changed!.start, isNot(event.start));
+      expect(changed!.rrule, isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('a failed event drag restores the tile and reports it', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final event = _timedEvent(today: today, title: 'Doomed move');
+
+      await _pumpCalendar(
+        tester,
+        events: [event],
+        onEventChanged: (_) async => throw StateError('save failed'),
+      );
+      final before = tester.getRect(find.byType(EventTile).first);
+
+      await _dragTile(tester, 'Doomed move');
+
+      expect(find.textContaining('save failed'), findsOneWidget);
+      expect(
+        tester.getRect(find.byType(EventTile).first),
+        before,
+        reason: 'a rejected move must not stay on screen',
+      );
+      final tile = tester.widget<EventTile>(find.byType(EventTile).first);
+      expect(tile.event.start, event.start);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
 
   testWidgets('renders all-day event (all-day bar shows every event)', (
     tester,

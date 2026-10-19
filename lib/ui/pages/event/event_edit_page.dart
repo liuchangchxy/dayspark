@@ -5,10 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:rrule_generator/rrule_generator.dart';
 import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
 import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_selector.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -29,17 +32,33 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   final _locationController = TextEditingController();
   bool _saving = false;
   bool _isAllDay = false;
+  late final bool _openedAsAllDay;
   String? _rrule;
+  int? _selectedCalendarId;
+
+  /// The times this page edits: the row's own DTSTART/DTEND, not the position
+  /// of the occurrence that was tapped. For a plain event the two are the same
+  /// value, so this is one code path for both.
+  late DateTime _start;
+  late DateTime _end;
+
+  /// True for a series row or any of its occurrences — both write to the same
+  /// row, so both have to say so.
+  bool get _isRecurring => widget.event.rrule != null;
 
   @override
   void initState() {
     super.initState();
     _event = widget.event;
+    _start = _event.seriesStart;
+    _end = _event.seriesEnd;
     _titleController.text = _event.title;
     _descriptionController.text = _event.description ?? '';
     _locationController.text = _event.location ?? '';
     _isAllDay = _event.isAllDay;
+    _openedAsAllDay = _event.isAllDay;
     _rrule = _event.rrule;
+    _selectedCalendarId = _event.calendarId;
   }
 
   @override
@@ -48,6 +67,28 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     _descriptionController.dispose();
     _locationController.dispose();
     super.dispose();
+  }
+
+  /// All-day events are stored at midnight. Existing all-day rows keep
+  /// whatever they already carry — normalising on every save would move a
+  /// series' DTSTART that the user never touched.
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  bool get _normaliseAllDay => _isAllDay && !_openedAsAllDay;
+
+  DateTime get _startDt => _normaliseAllDay ? _dateOnly(_start) : _start;
+
+  DateTime get _endDt => _normaliseAllDay ? _dateOnly(_end) : _end;
+
+  String? get _descriptionText {
+    final text = _descriptionController.text.trim();
+    return text.isEmpty ? null : text;
+  }
+
+  String? get _locationText {
+    final text = _locationController.text.trim();
+    return text.isEmpty ? null : text;
   }
 
   Future<void> _save() async {
@@ -59,7 +100,9 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       return;
     }
 
-    if (!_isAllDay && _event.end.isBefore(_event.start)) {
+    final start = _startDt;
+    final end = _endDt;
+    if (end.isBefore(start)) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l.endBeforeStart)));
@@ -69,13 +112,15 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     setState(() => _saving = true);
     try {
       final updated = _event.copyWithData(
+        calendarId: _selectedCalendarId,
+        // Only the row's own times are written. The tapped occurrence's
+        // position never reaches the companion, so a title-only edit cannot
+        // move DTSTART even by accident.
+        seriesStart: start,
+        seriesEnd: end,
         title: _titleController.text.trim(),
-        description: _descriptionController.text.trim().isNotEmpty
-            ? _descriptionController.text.trim()
-            : null,
-        location: _locationController.text.trim().isNotEmpty
-            ? _locationController.text.trim()
-            : null,
+        description: _descriptionText,
+        location: _locationText,
         rrule: _rrule,
         isAllDay: _isAllDay,
       );
@@ -102,7 +147,13 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.delete),
-        content: Text(l.deleteEventConfirm(_event.title)),
+        // A recurring row is one series, not one occurrence: say so, or the
+        // user reads "delete this" as "delete the one I tapped".
+        content: Text(
+          _isRecurring
+              ? l.deleteRecurringEventConfirm(_event.title)
+              : l.deleteEventConfirm(_event.title),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -125,7 +176,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   }
 
   Future<void> _pickDateTime(bool isStart) async {
-    final current = isStart ? _event.start : _event.end;
+    final current = isStart ? _start : _end;
     final date = await showDatePicker(
       context: context,
       initialDate: current,
@@ -136,14 +187,11 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
 
     if (_isAllDay) {
       setState(() {
+        final picked = DateTime(date.year, date.month, date.day);
         if (isStart) {
-          _event = _event.copyWithData(
-            start: DateTime(date.year, date.month, date.day),
-          );
+          _start = picked;
         } else {
-          _event = _event.copyWithData(
-            end: DateTime(date.year, date.month, date.day),
-          );
+          _end = picked;
         }
       });
       return;
@@ -164,11 +212,48 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     );
     setState(() {
       if (isStart) {
-        _event = _event.copyWithData(start: dt);
+        _start = dt;
       } else {
-        _event = _event.copyWithData(end: dt);
+        _end = dt;
       }
     });
+  }
+
+  Widget _buildSeriesNotice(AppLocalizations l) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border(
+          left: BorderSide(color: theme.colorScheme.primary, width: 3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            CupertinoIcons.repeat,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              l.recurringSeriesNotice,
+              style: AppTypography.caption.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -202,11 +287,14 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_isRecurring) _buildSeriesNotice(l),
+          CalendarSelector(
+            selectedId: _selectedCalendarId,
+            onChanged: (id) => setState(() => _selectedCalendarId = id),
+          ),
           TextField(
             controller: _titleController,
-            decoration: InputDecoration(
-              labelText: l.title,
-            ),
+            decoration: InputDecoration(labelText: l.title),
           ),
           const SizedBox(height: 16),
           SwitchListTile(
@@ -221,8 +309,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             title: Text(l.startDate),
             subtitle: Text(
               _isAllDay
-                  ? DateFormatters.formatDate(_event.start)
-                  : DateFormatters.formatDateTime(_event.start),
+                  ? DateFormatters.formatDate(_start)
+                  : DateFormatters.formatDateTime(_start),
             ),
             onTap: () => _pickDateTime(true),
             contentPadding: EdgeInsets.zero,
@@ -232,8 +320,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             title: Text(l.endDate),
             subtitle: Text(
               _isAllDay
-                  ? DateFormatters.formatDate(_event.end)
-                  : DateFormatters.formatDateTime(_event.end),
+                  ? DateFormatters.formatDate(_end)
+                  : DateFormatters.formatDateTime(_end),
             ),
             onTap: () => _pickDateTime(false),
             contentPadding: EdgeInsets.zero,
@@ -241,9 +329,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
           const SizedBox(height: 8),
           TextField(
             controller: _descriptionController,
-            decoration: InputDecoration(
-              labelText: l.description,
-            ),
+            decoration: InputDecoration(labelText: l.description),
             maxLines: 3,
           ),
           const SizedBox(height: 16),

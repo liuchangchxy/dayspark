@@ -137,6 +137,120 @@ void main() {
       expect(result.first.title, 'Bad rrule event');
     });
 
+    test('every occurrence carries the series anchor', () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final seriesStart = DateTime(2026, 10, 1, 9);
+      final seriesEnd = DateTime(2026, 10, 1, 9, 30);
+      await testDb
+          .into(testDb.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calId,
+              summary: 'Daily standup',
+              startDt: seriesStart,
+              endDt: seriesEnd,
+              rrule: const Value('RRULE:FREQ=DAILY;COUNT=5'),
+            ),
+          );
+
+      final events = await testDb.select(testDb.events).get();
+      final result = expandRecurringEvents(
+        events,
+        before: DateTime(2026, 10, 1),
+        after: DateTime(2026, 10, 31),
+      );
+
+      expect(result.length, 5);
+      for (final adapter in result) {
+        expect(
+          adapter.isRecurringOccurrence,
+          isTrue,
+          reason: 'an expanded instance is not the series row',
+        );
+        expect(adapter.occurrenceStart, adapter.start);
+        expect(
+          adapter.seriesStart,
+          seriesStart,
+          reason: 'DTSTART must survive expansion untouched',
+        );
+        expect(adapter.seriesEnd, seriesEnd);
+      }
+      // The rendered instances still walk forward day by day.
+      expect(result[2].start, DateTime(2026, 10, 3, 9));
+    });
+
+    test('a non-recurring event is never marked as an occurrence', () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calId,
+              summary: 'One-off',
+              startDt: DateTime(2026, 10, 1, 9),
+              endDt: DateTime(2026, 10, 1, 10),
+            ),
+          );
+
+      final events = await testDb.select(testDb.events).get();
+      final result = expandRecurringEvents(
+        events,
+        before: DateTime(2026, 10, 1),
+        after: DateTime(2026, 10, 31),
+      );
+
+      expect(result.single.isRecurringOccurrence, isFalse);
+      expect(result.single.seriesStart, DateTime(2026, 10, 1, 9));
+    });
+
+    test(
+      'occurrences keep wall-clock times across month and year ends',
+      () async {
+        final calId = await testDb
+            .into(testDb.calendars)
+            .insert(CalendarsCompanion.insert(name: 'Test'));
+        final seriesStart = DateTime(2026, 12, 28, 9);
+        final seriesEnd = DateTime(2026, 12, 28, 9, 30);
+        await testDb
+            .into(testDb.events)
+            .insert(
+              EventsCompanion.insert(
+                calendarId: calId,
+                summary: 'Year end',
+                startDt: seriesStart,
+                endDt: seriesEnd,
+                rrule: const Value('RRULE:FREQ=DAILY;COUNT=10'),
+              ),
+            );
+
+        final events = await testDb.select(testDb.events).get();
+        final result = expandRecurringEvents(
+          events,
+          before: DateTime(2026, 12, 1),
+          after: DateTime(2027, 2, 1),
+        );
+
+        expect(result.length, 10);
+        for (var i = 0; i < result.length; i++) {
+          final expected = DateTime(2026, 12, 28 + i, 9);
+          expect(
+            result[i].start,
+            expected,
+            reason: 'instance $i drifted off its wall-clock slot',
+          );
+          expect(
+            result[i].end.difference(result[i].start),
+            const Duration(minutes: 30),
+          );
+          expect(result[i].seriesStart, seriesStart);
+        }
+      },
+    );
+
     test('uses colorForCalendar callback', () async {
       final calId = await testDb
           .into(testDb.calendars)

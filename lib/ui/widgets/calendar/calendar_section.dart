@@ -27,7 +27,7 @@ class CalendarSection extends ConsumerStatefulWidget {
   final List<TaskAllocationCalendarAdapter> allocations;
   final void Function(CalendaEventAdapter event)? onEventTapped;
   final void Function(DateTimeRange range)? onTimeSlotTapped;
-  final void Function(CalendaEventAdapter event)? onEventChanged;
+  final Future<void> Function(CalendaEventAdapter event)? onEventChanged;
   final void Function(TaskAllocationCalendarAdapter allocation)?
   onTaskAllocationTapped;
   final Future<void> Function(TaskAllocationCalendarAdapter allocation)?
@@ -145,6 +145,37 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
         context,
       )?.showSnackBar(SnackBar(content: Text(l.error('$error'))));
     }
+  }
+
+  Future<void> _persistEventChange(CalendaEventAdapter event) async {
+    try {
+      await widget.onEventChanged?.call(event);
+    } catch (error) {
+      if (!mounted) return;
+      _syncEvents(force: true);
+      final l = AppLocalizations.of(context)!;
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(l.error('$error'))));
+    }
+  }
+
+  /// Drags that must not reach the row. kalender already refuses them through
+  /// [EventInteraction.allowNone]; if one ever arrives anyway, put the tile
+  /// back where the row actually is and say why — a tile left at the drop
+  /// position over an unchanged row is the failure this guards.
+  void _rejectDrag(CalendaEventAdapter adapter) {
+    _syncEvents(force: true);
+    final l = AppLocalizations.of(context)!;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          adapter.rrule != null
+              ? l.recurringDragDisabled
+              : l.allDayDragDisabled,
+        ),
+      ),
+    );
   }
 
   String _eventSignature(CalendarEvent event) {
@@ -389,11 +420,16 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
         if (event is! KalenderCalendarEvent) return;
         final adapter = event.adapter;
         // S1 guard: never persist drags onto recurring/all-day events.
-        if (adapter.rrule != null || adapter.isAllDay) return;
-        widget.onEventChanged?.call(
-          adapter.copyWithData(
-            start: updatedEvent.dateTimeRange.start.toLocal(),
-            end: updatedEvent.dateTimeRange.end.toLocal(),
+        if (adapter.rrule != null || adapter.isAllDay) {
+          _rejectDrag(adapter);
+          return;
+        }
+        unawaited(
+          _persistEventChange(
+            adapter.copyWithData(
+              start: updatedEvent.dateTimeRange.start.toLocal(),
+              end: updatedEvent.dateTimeRange.end.toLocal(),
+            ),
           ),
         );
       },

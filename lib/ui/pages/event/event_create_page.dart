@@ -9,6 +9,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_selector.dart';
 import 'package:dayspark/ui/widgets/centered_content.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 
@@ -36,6 +37,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
   bool _saving = false;
   bool _aiLoading = false;
   String? _rrule;
+  int? _selectedCalendarId;
 
   @override
   void initState() {
@@ -43,6 +45,14 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
     _start = widget.initialStart;
     _end = widget.initialEnd;
   }
+
+  /// All-day events are stored at midnight; the time-of-day a slot prefill
+  /// carried is meaningless once the event covers whole days.
+  DateTime get _startDt => _isAllDay ? _dateOnly(_start) : _start;
+  DateTime get _endDt => _isAllDay ? _dateOnly(_end) : _end;
+
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
 
   @override
   void dispose() {
@@ -61,7 +71,9 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       return;
     }
 
-    if (!_isAllDay && _end.isBefore(_start)) {
+    // All-day ranges are validated too: DTEND is exclusive, so an end date
+    // before the start date is as illegal there as it is for a timed event.
+    if (_endDt.isBefore(_startDt)) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(l.endBeforeStart)));
@@ -83,10 +95,10 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
 
       final createEvent = ref.read(createEventProvider);
       await createEvent(
-        calendarId: calendars.first.id,
+        calendarId: _selectedCalendarId ?? calendars.first.id,
         summary: _titleController.text.trim(),
-        startDt: _start,
-        endDt: _end,
+        startDt: _startDt,
+        endDt: _endDt,
         isAllDay: _isAllDay,
         description: _descriptionController.text.trim().isNotEmpty
             ? _descriptionController.text.trim()
@@ -241,77 +253,79 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       ),
       body: CenteredContent(
         child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: _titleController,
-            decoration: InputDecoration(
-              labelText: l.title,
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Carries its own bottom gap, so it can sit here unconditionally
+            // without leaving a hole when it renders nothing.
+            CalendarSelector(
+              selectedId: _selectedCalendarId,
+              onChanged: (id) => setState(() => _selectedCalendarId = id),
             ),
-            textCapitalization: TextCapitalization.sentences,
-          ),
-          const SizedBox(height: 16),
-          SwitchListTile(
-            value: _isAllDay,
-            onChanged: (v) => setState(() => _isAllDay = v),
-            title: Text(l.allDay),
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(CupertinoIcons.play),
-            title: Text(l.startDate),
-            subtitle: Text(
-              _isAllDay
-                  ? DateFormatters.formatDate(_start)
-                  : DateFormatters.formatDateTime(_start),
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(labelText: l.title),
+              textCapitalization: TextCapitalization.sentences,
             ),
-            onTap: () => _pickDateTime(true),
-            contentPadding: EdgeInsets.zero,
-          ),
-          ListTile(
-            leading: const Icon(CupertinoIcons.stop),
-            title: Text(l.endDate),
-            subtitle: Text(
-              _isAllDay
-                  ? DateFormatters.formatDate(_end)
-                  : DateFormatters.formatDateTime(_end),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              value: _isAllDay,
+              onChanged: (v) => setState(() => _isAllDay = v),
+              title: Text(l.allDay),
+              contentPadding: EdgeInsets.zero,
             ),
-            onTap: () => _pickDateTime(false),
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _descriptionController,
-            decoration: InputDecoration(
-              labelText: l.description,
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(CupertinoIcons.play),
+              title: Text(l.startDate),
+              subtitle: Text(
+                _isAllDay
+                    ? DateFormatters.formatDate(_start)
+                    : DateFormatters.formatDateTime(_start),
+              ),
+              onTap: () => _pickDateTime(true),
+              contentPadding: EdgeInsets.zero,
             ),
-            maxLines: 3,
-            textCapitalization: TextCapitalization.sentences,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _locationController,
-            decoration: InputDecoration(
-              labelText: l.location,
-              prefixIcon: const Icon(CupertinoIcons.location),
+            ListTile(
+              leading: const Icon(CupertinoIcons.stop),
+              title: Text(l.endDate),
+              subtitle: Text(
+                _isAllDay
+                    ? DateFormatters.formatDate(_end)
+                    : DateFormatters.formatDateTime(_end),
+              ),
+              onTap: () => _pickDateTime(false),
+              contentPadding: EdgeInsets.zero,
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _descriptionController,
+              decoration: InputDecoration(labelText: l.description),
+              maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _locationController,
+              decoration: InputDecoration(
+                labelText: l.location,
+                prefixIcon: const Icon(CupertinoIcons.location),
+              ),
+            ),
+            const SizedBox(height: 16),
 
-          // Recurrence rule
-          RRuleGenerator(
-            localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
-            config: RRuleGeneratorConfig(),
-            initialRRule: _rrule ?? '',
-            withExcludeDates: false,
-            onChange: (String rrule) {
-              setState(() {
-                _rrule = rrule.isEmpty ? null : rrule;
-              });
-            },
-          ),
-        ],
+            // Recurrence rule
+            RRuleGenerator(
+              localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
+              config: RRuleGeneratorConfig(),
+              initialRRule: _rrule ?? '',
+              withExcludeDates: false,
+              onChange: (String rrule) {
+                setState(() {
+                  _rrule = rrule.isEmpty ? null : rrule;
+                });
+              },
+            ),
+          ],
         ),
       ),
     );
