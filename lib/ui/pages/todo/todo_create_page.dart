@@ -90,6 +90,15 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
         );
       }
 
+      if (_startDate != null && _dueDate != null && _startDate!.isAfter(_dueDate!)) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${l.startDate} > ${l.dueDate}')));
+        }
+        return;
+      }
+
       final calendars = await ref.read(calendarsProvider.future);
       if (calendars.isEmpty) {
         if (mounted) {

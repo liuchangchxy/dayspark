@@ -29,6 +29,11 @@ final class TodoWriter {
         'Recurring Todo completion requires an explicit occurrenceId.',
       );
     }
+    final start = data.startDate.present ? data.startDate.value : existing.startDate;
+    final due = data.dueDate.present ? data.dueDate.value : existing.dueDate;
+    if (start != null && due != null && start.isAfter(due)) {
+      throw ArgumentError('startDate cannot be after dueDate');
+    }
     final recurrence = TodoRecurrence.fromTodo(existing);
     final touchesChangedProjection =
         (data.rrule.present && data.rrule.value != existing.rrule) ||
@@ -83,6 +88,11 @@ final class TodoWriter {
     TodosCompanion data, {
     RecurrenceSpec? recurrenceSpec,
   }) async {
+    final start = data.startDate.present ? data.startDate.value : null;
+    final due = data.dueDate.present ? data.dueDate.value : null;
+    if (start != null && due != null && start.isAfter(due)) {
+      throw ArgumentError('startDate cannot be after dueDate');
+    }
     if (data.rrule.present &&
         data.rrule.value != null &&
         recurrenceSpec == null) {

@@ -99,6 +99,15 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
         );
       }
 
+      if (_startDate != null && _dueDate != null && _startDate!.isAfter(_dueDate!)) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${l.startDate} > ${l.dueDate}')));
+        }
+        return;
+      }
+
       final recurrenceSpec = _unknownLegacy ? null : _recurrenceSpecForSave();
       await ref.read(updateTodoProvider)(
         _todo.id,
