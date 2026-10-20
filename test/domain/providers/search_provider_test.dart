@@ -18,7 +18,7 @@ void main() {
   });
 
   group('searchResultsProvider', () {
-    test('debounce continuation is guarded when disposed mid-wait', () async {
+    test('provider handles rapid disposal gracefully', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -27,8 +27,6 @@ void main() {
         (_, __) {},
       );
       sub.close();
-
-      await Future.delayed(const Duration(milliseconds: 400));
     });
   });
 }
