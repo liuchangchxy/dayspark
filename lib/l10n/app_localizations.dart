@@ -281,6 +281,18 @@ abstract class AppLocalizations {
   /// **'DaySpark'**
   String get appName;
 
+  /// No description provided for @calendarUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar unavailable. Please choose another calendar.'**
+  String get calendarUnavailable;
+
+  /// No description provided for @loadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load More'**
+  String get loadMore;
+
   /// No description provided for @allCalendars.
   ///
   /// In en, this message translates to:

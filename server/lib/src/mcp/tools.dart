@@ -174,6 +174,7 @@ Map<String, Object?> taskJson(RecordRow row) {
     'task_id': row.id,
     'title': payload['summary'],
     'due': _payloadIso(payload['dueDate']),
+    'start_date': _payloadIso(payload['startDate']),
     'priority': payload['priority'] ?? 0,
     'status': payload['status'] ?? 'NEEDS-ACTION',
     'description': payload['description'],
@@ -183,6 +184,12 @@ Map<String, Object?> taskJson(RecordRow row) {
     'trashed': _trashed(row),
     'created_at': _payloadIso(payload['createdAt']),
     'updated_at': _payloadIso(payload['updatedAt']),
+    'calendar_id': payload['calendarId'],
+    'parent_id': payload['parentSyncId'],
+    'recurrence': payload['rrule'],
+    'reminder': payload['reminderTriggerTime'] != null
+        ? _payloadIso(payload['reminderTriggerTime'])
+        : null,
     'rev': row.rev,
   };
 }
@@ -453,24 +460,33 @@ Map<String, Object?> _taskPayloadCreate({
   required String title,
   required DateTime now,
   DateTime? due,
+  DateTime? startDate,
   int? priority,
   Object? description,
   Object? tags,
+  Object? calendarId,
+  String? parentSyncId,
+  String? rrule,
+  DateTime? reminderTriggerTime,
 }) {
   return <String, Object?>{
     'summary': title,
     'description': description is String ? description : null,
     'dueDate': due == null ? null : isoZ(due),
-    'startDate': null,
+    'startDate': startDate == null ? null : isoZ(startDate),
     'priority': priority ?? 0,
     'status': 'NEEDS-ACTION',
-    'rrule': null,
+    'rrule': rrule,
     'completedAt': null,
     'percentComplete': 0,
     'deletedAt': null,
     'createdAt': isoZ(now),
     'updatedAt': isoZ(now),
     'sortOrder': 0,
+    if (calendarId != null) 'calendarId': calendarId,
+    if (parentSyncId != null) 'parentSyncId': parentSyncId,
+    if (reminderTriggerTime != null)
+      'reminderTriggerTime': isoZ(reminderTriggerTime),
     if (tags is List) 'tags': tags,
   };
 }
@@ -1721,13 +1737,15 @@ final List<McpTool> mcpTools = <McpTool>[
     name: 'create_task',
     description:
         'Create a task. due is ISO 8601 with explicit timezone; tags are stored on the '
-        'record (tag entities sync in a later phase).',
+        'record (tag entities sync in a later phase). Supports startDate, calendar, '
+        'parent_id, reminder, and structured recurrence.',
     readOnly: false,
     destructive: false,
     inputSchema: _objectSchema(
       {
         'title': {'type': 'string', 'minLength': 1},
         'due': {'type': 'string'},
+        'start_date': {'type': 'string'},
         'priority': {'type': 'integer', 'minimum': 0, 'maximum': 9},
         'description': {
           'type': ['string', 'null'],
@@ -1736,6 +1754,16 @@ final List<McpTool> mcpTools = <McpTool>[
           'type': 'array',
           'items': {'type': 'string', 'minLength': 1},
         },
+        'calendar': {
+          'type': ['integer', 'string', 'null'],
+        },
+        'parent_id': {
+          'type': ['string', 'null'],
+        },
+        'reminder': {
+          'type': ['string', 'null'],
+        },
+        'recurrence': recurrenceSchema(),
         'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
       },
       required: ['title'],
@@ -1745,14 +1773,31 @@ final List<McpTool> mcpTools = <McpTool>[
       final due = args['due'] == null
           ? null
           : parseStrictUtc(args['due'], 'due');
+      final startDate = args['start_date'] == null
+          ? null
+          : parseStrictUtc(args['start_date'], 'start_date');
+      final reminder = args['reminder'] == null
+          ? null
+          : parseStrictUtc(args['reminder'], 'reminder');
+      final rrule = args['recurrence'] == null
+          ? null
+          : parseRruleStructured(args['recurrence'], 'recurrence');
+      final parentId = args['parent_id'] as String?;
+      final calendar = args['calendar'];
+
       final now = ctx.now.toUtc();
       final fields = _taskPayloadCreate(
         title: title,
         now: now,
         due: due,
+        startDate: startDate,
         priority: args['priority'] as int?,
         description: args['description'],
         tags: args['tags'],
+        calendarId: calendar,
+        parentSyncId: parentId,
+        rrule: rrule,
+        reminderTriggerTime: reminder,
       );
       final result = await _writeChecked(
         ctx,
@@ -1787,6 +1832,9 @@ final List<McpTool> mcpTools = <McpTool>[
         'due': {
           'type': ['string', 'null'],
         },
+        'start_date': {
+          'type': ['string', 'null'],
+        },
         'priority': {
           'type': ['integer', 'null'],
           'minimum': 0,
@@ -1799,6 +1847,16 @@ final List<McpTool> mcpTools = <McpTool>[
           'type': ['array', 'null'],
           'items': {'type': 'string', 'minLength': 1},
         },
+        'calendar': {
+          'type': ['integer', 'string', 'null'],
+        },
+        'parent_id': {
+          'type': ['string', 'null'],
+        },
+        'reminder': {
+          'type': ['string', 'null'],
+        },
+        'recurrence': recurrenceSchema(),
         'idempotency_key': {'type': 'string', 'minLength': 1, 'maxLength': 128},
       },
       required: ['task_id'],
@@ -1819,6 +1877,11 @@ final List<McpTool> mcpTools = <McpTool>[
             ? null
             : isoZ(parseStrictUtc(args['due'], 'due'));
       }
+      if (args.containsKey('start_date')) {
+        fields['startDate'] = args['start_date'] == null
+            ? null
+            : isoZ(parseStrictUtc(args['start_date'], 'start_date'));
+      }
       if (args.containsKey('priority')) {
         fields['priority'] = args['priority'] ?? 0;
       }
@@ -1828,10 +1891,26 @@ final List<McpTool> mcpTools = <McpTool>[
       if (args.containsKey('tags')) {
         fields['tags'] = args['tags'];
       }
+      if (args.containsKey('calendar')) {
+        fields['calendarId'] = args['calendar'];
+      }
+      if (args.containsKey('parent_id')) {
+        fields['parentSyncId'] = args['parent_id'];
+      }
+      if (args.containsKey('reminder')) {
+        fields['reminderTriggerTime'] = args['reminder'] == null
+            ? null
+            : isoZ(parseStrictUtc(args['reminder'], 'reminder'));
+      }
+      if (args.containsKey('recurrence')) {
+        fields['rrule'] = args['recurrence'] == null
+            ? null
+            : parseRruleStructured(args['recurrence'], 'recurrence');
+      }
       if (fields.isEmpty) {
         throw mcpValidation(
           'no updatable fields supplied',
-          hint: 'Pass at least one of title, due, priority, description, tags.',
+          hint: 'Pass at least one of title, due, start_date, priority, description, tags, calendar, parent_id, reminder, recurrence.',
         );
       }
       fields['updatedAt'] = isoZ(now);

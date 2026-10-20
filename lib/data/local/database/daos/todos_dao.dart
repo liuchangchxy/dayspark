@@ -214,7 +214,11 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
     return into(todos).insertOnConflictUpdate(entry);
   }
 
-  Future<List<Todo>> searchTodos(String query, {int limit = 100}) {
+  Future<List<Todo>> searchTodos(
+    String query, {
+    int limit = 100,
+    int offset = 0,
+  }) {
     final pattern = '%$query%';
     return (select(todos)
           ..where(
@@ -223,7 +227,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
                 (t.summary.like(pattern) | t.description.like(pattern)),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.dueDate)])
-          ..limit(limit))
+          ..limit(limit, offset: offset))
         .get();
   }
 

@@ -25,6 +25,8 @@ class SearchPage extends ConsumerStatefulWidget {
 class _SearchPageState extends ConsumerState<SearchPage> {
   final _searchController = TextEditingController();
   String _query = '';
+  int _eventPage = 1;
+  int _todoPage = 1;
   Timer? _debounceTimer;
 
   @override
@@ -36,12 +38,22 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _submitSearch(String query) {
     _debounceTimer?.cancel();
-    setState(() => _query = query.trim());
+    setState(() {
+      _query = query.trim();
+      _eventPage = 1;
+      _todoPage = 1;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final queryState = SearchQueryState(
+      query: _query,
+      eventPage: _eventPage,
+      todoPage: _todoPage,
+    );
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -60,14 +72,22 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           onChanged: (v) {
             if (v.trim().isEmpty) {
               _debounceTimer?.cancel();
-              setState(() => _query = '');
+              setState(() {
+                _query = '';
+                _eventPage = 1;
+                _todoPage = 1;
+              });
               return;
             }
             _debounceTimer?.cancel();
             _debounceTimer = Timer(const Duration(milliseconds: 300), () {
               final text = _searchController.text.trim();
               if (text.isNotEmpty) {
-                setState(() => _query = text);
+                setState(() {
+                  _query = text;
+                  _eventPage = 1;
+                  _todoPage = 1;
+                });
               }
             });
           },
@@ -81,7 +101,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               extra: _suggestions(context, ref, l),
             )
           : ref
-                .watch(searchResultsProvider(_query))
+                .watch(pagedSearchResultsProvider(queryState))
                 .when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
@@ -117,6 +137,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               },
                             );
                           }),
+                          if (results.hasMoreEvents)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: TextButton.icon(
+                                icon: const Icon(CupertinoIcons.chevron_down),
+                                label: Text(l.loadMore),
+                                onPressed: () {
+                                  setState(() => _eventPage++);
+                                },
+                              ),
+                            ),
                         ],
                         if (results.todos.isNotEmpty) ...[
                           Padding(
@@ -145,6 +179,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               },
                             ),
                           ),
+                          if (results.hasMoreTodos)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: TextButton.icon(
+                                icon: const Icon(CupertinoIcons.chevron_down),
+                                label: Text(l.loadMore),
+                                onPressed: () {
+                                  setState(() => _todoPage++);
+                                },
+                              ),
+                            ),
                         ],
                       ],
                     );

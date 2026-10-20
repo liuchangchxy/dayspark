@@ -79,26 +79,27 @@ class CalendarSelector extends ConsumerWidget {
                 ),
               );
             }
+
+            final ids = calendars.map((c) => c.id).toSet();
+            final isMissing = selectedId != null && !ids.contains(selectedId);
+
             if (calendars.length == 1) {
               final onlyId = calendars.first.id;
-              if (selectedId != onlyId) {
+              if (selectedId == null) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   onChanged(onlyId);
                 });
+                return const SizedBox.shrink();
               }
-              return const SizedBox.shrink();
+              if (!isMissing && selectedId == onlyId) {
+                return const SizedBox.shrink();
+              }
+              // If previously targeted calendar is missing, show notice and require re-selection
             }
 
-            final ids = calendars.map((c) => c.id).toSet();
-            final effectiveId = (selectedId != null && ids.contains(selectedId))
-                ? selectedId!
-                : calendars.first.id;
-
-            if (selectedId != effectiveId) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                onChanged(effectiveId);
-              });
-            }
+            final effectiveValue = (selectedId != null && ids.contains(selectedId))
+                ? selectedId
+                : null;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -111,15 +112,26 @@ class CalendarSelector extends ConsumerWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  if (isMissing) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      l.calendarUnavailable,
+                      style: AppTypography.caption.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.xs),
                   DropdownButtonFormField<int>(
-                    key: ValueKey<int>(effectiveId),
-                    initialValue: effectiveId,
+                    key: ValueKey<int?>(effectiveValue),
+                    initialValue: effectiveValue,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
+                    hint: Text(l.calendarUnavailable),
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      errorText: isMissing ? l.calendarUnavailable : null,
                       isDense: true,
-                      contentPadding: EdgeInsets.symmetric(
+                      contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
                         vertical: AppSpacing.sm,
                       ),
