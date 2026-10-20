@@ -179,7 +179,7 @@ final class TodoWriter {
       left.timeZone == right.timeZone &&
       left.rule.canonical == right.rule.canonical;
 
-  // ICS 导入用：仍是裸 insert（outbox 与 syncId 回填属 P2.5#2，不在本次）。
+  // ICS 导入用：根据 (calendarId, summary, dueDate) 查重（DS-007），存在则 update，不存在则 insert 并 enqueue outbox（DS-005），补一条 applied。
   static Future<int> importRow(
     AppDatabase db,
     RecordScope tx,
@@ -200,6 +200,28 @@ final class TodoWriter {
     } else {
       importData = data;
     }
+
+    final calId = data.calendarId.value;
+    final summary = data.summary.value;
+    final dueDate = data.dueDate.present ? data.dueDate.value : null;
+
+    final existing = await (db.select(db.todos)
+          ..where((t) =>
+              t.calendarId.equals(calId) &
+              t.summary.equals(summary) &
+              (dueDate == null ? t.dueDate.isNull() : t.dueDate.equals(dueDate)) &
+              t.deletedAt.isNull())
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.todos)..where((t) => t.id.equals(existing.id)))
+          .write(importData);
+      await SyncOutbox.enqueueUpsert(db, RecordType.todo, existing.id);
+      tx.applied(RecordType.todo, existing.id, previousReference: existing.dueDate);
+      return existing.id;
+    }
+
     final id = await db.into(db.todos).insert(importData);
     await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
     tx.applied(RecordType.todo, id);

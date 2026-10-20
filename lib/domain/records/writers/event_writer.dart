@@ -86,12 +86,32 @@ final class EventWriter {
     }
   }
 
-  // ICS 导入用：insert 并 enqueue outbox（DS-005），补一条 applied。
+  // ICS 导入用：根据 (calendarId, summary, startDt) 查重（DS-007），存在则 update，不存在则 insert 并 enqueue outbox（DS-005），补一条 applied。
   static Future<int> importRow(
     AppDatabase db,
     RecordScope tx,
     EventsCompanion data,
   ) async {
+    final calId = data.calendarId.value;
+    final summary = data.summary.value;
+    final startDt = data.startDt.value;
+    final existing = await (db.select(db.events)
+          ..where((t) =>
+              t.calendarId.equals(calId) &
+              t.summary.equals(summary) &
+              t.startDt.equals(startDt) &
+              t.deletedAt.isNull())
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await (db.update(db.events)..where((t) => t.id.equals(existing.id)))
+          .write(data);
+      await SyncOutbox.enqueueUpsert(db, RecordType.event, existing.id);
+      tx.applied(RecordType.event, existing.id, previousReference: existing.startDt);
+      return existing.id;
+    }
+
     final id = await db.into(db.events).insert(data);
     await SyncOutbox.enqueueUpsert(db, RecordType.event, id);
     tx.applied(RecordType.event, id);
