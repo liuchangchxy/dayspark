@@ -201,6 +201,7 @@ final class TodoWriter {
       importData = data;
     }
     final id = await db.into(db.todos).insert(importData);
+    await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);
     tx.applied(RecordType.todo, id);
     return id;
   }

@@ -27,6 +27,7 @@ import 'package:dayspark/domain/records/writers/reminder_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
+import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_service.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
@@ -682,7 +683,7 @@ void main() {
   });
 
   group('账号身份重写', () {
-    test('6 身份切换的全表元数据重写 → 一条粗粒度 bulkChanged 且 0 次平台调用', () async {
+    test('6 身份切换清空 Outbox 且 0 次平台调用 (DS-001)', () async {
       SharedPreferences.setMockInitialValues({
         appLocalePrefKey: 'en',
         'account_email': 'old@example.com',
@@ -711,6 +712,9 @@ void main() {
       await pumpEventQueue(times: 20);
 
       final todoId = await insertTodo(dueDate: DateTime(2027, 5, 1, 9));
+      await SyncOutbox.enqueueUpsert(db, RecordType.todo, todoId);
+      expect(await db.select(db.syncOutbox).get(), isNotEmpty);
+
       final reminderId = await insertReminder(
         'todo',
         todoId,
@@ -729,27 +733,17 @@ void main() {
             password: 'secret123',
           );
 
-      await waitUntil(() => batches.isNotEmpty);
       await pumpEventQueue(times: 50);
-      final flat = flatBatches();
-      expect(flat.whereType<RecordApplied>(), isEmpty);
-      expect(flat.whereType<RecordRemoved>(), isEmpty);
-      expect(
-        flat.whereType<RecordsBulkChanged>().map((c) => c.type).toSet(),
-        {RecordType.event, RecordType.todo},
-        reason: '两类记录各一条粗粒度事件（不逐个 id）',
-      );
-      expect(flat, hasLength(2));
-      for (final change in flat) {
-        expect((change as RecordsBulkChanged).reason, 'identity-reset');
-      }
+      expect(await db.select(db.syncOutbox).get(), isEmpty,
+          reason: '切换身份必须清空 Outbox 防止跨账号泄漏');
       expect(schedules, isEmpty, reason: '参考时间与父状态都没变 → 零平台调用');
       expect(cancels, isEmpty);
 
+      // Data domain isolation (DS-001): row syncId is preserved, NOT wiped
       final row = await (db.select(
         db.todos,
       )..where((t) => t.id.equals(todoId))).getSingle();
-      expect(row.syncId, isNull);
+      expect(row.syncId, isNotNull);
 
       // 正向对照：消费端确实活着——同一条总线上再发一条真事件就会排提醒。
       scoped.read(recordBusProvider).publish([
