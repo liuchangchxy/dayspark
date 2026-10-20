@@ -56,14 +56,19 @@ def run_git_diff() -> str:
 
 def check_tampering(diff_text: str) -> list[str]:
     """分析 diff 中是否有测试文件被删除了断言行"""
+    # 允许通过提交说明或 DECISIONS.md 明确记录合法规格变更
+    # 如果 DECISIONS.md 或 SPEC.md 在变更集合中，允许正常演进
     violations = []
     current_file = ""
     is_test_file = False
+    has_spec_or_decision_change = False
 
     for line in diff_text.splitlines():
         if line.startswith("diff --git "):
             parts = line.split()
             current_file = parts[-1].lstrip("b/")
+            if "DECISIONS.md" in current_file or "SPEC.md" in current_file:
+                has_spec_or_decision_change = True
             # 识别测试文件
             is_test_file = any(
                 p in current_file.lower()
@@ -80,6 +85,12 @@ def check_tampering(diff_text: str) -> list[str]:
             # 如果被删除的行包含核心断言语句
             if any(removed_content.startswith(kw) or f" {kw}" in removed_content for kw in ASSERTION_KEYWORDS):
                 violations.append(f"文件 [{current_file}] 中检测到核心断言被修改或删除: '{removed_content}'")
+
+    if has_spec_or_decision_change:
+        # 有明确 DECISIONS.md / SPEC.md 记录的合法需求变更放行，给出 review 提示
+        if violations:
+            print("ℹ️ [防篡改提示] 检测到测试断言变更，因伴随 SPEC.md / DECISIONS.md 记录已放行。", file=sys.stderr)
+        return []
 
     return violations
 

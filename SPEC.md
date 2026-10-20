@@ -131,6 +131,7 @@ TaskAllocation 的领域状态为单一字段：
   - 规则 4：冲突 = 服务器时间戳字段级 LWW；同秒用 opId 字典序破平。TaskAllocation 的生命周期状态以一个字段同步；Calendar 与 busy-time 投影还必须校验父 Todo 回收站/取消状态及 `completedAt` 边界，不能仅凭 Allocation 行判定有效。
   - 规则 5：SSE 只发 `{cursor}` 信号，不发载荷
   - 规则 6：新增 RecordType 必须有显式客户端 capability / protocol contract。服务端只能向声明支持类型的客户端返回 `task_allocation` 与 `task_instance_state`；未声明支持的旧客户端继续同步 `event` / `todo`，不得收到无法解析的类型，也不得创建或修改这些记录。能力及 wire contract 定义在 `dayspark_contracts` 并由测试校验。新能力启用时客户端必须 cursor-0 backfill。发布顺序为：先发布能解析新记录的客户端，再启用服务端按 capability 下发，最后开放 MCP 或其他外部完成入口。禁止以要求所有旧客户端全量升级代替兼容门控。
+  - 规则 7：账号切换与数据域隔离。切换账号或切换服务器身份（identity = normalized baseUrl + userId）时，客户端必须清空待发 Outbox、Cursor 游标及服务端快照，防止旧账号未同步的本地操作跨越边界上推至新账号；严禁将已有同步身份的本地记录的 `syncId` 强行置空并在新账号上执行全量重基线上推（baseline sweep）；各账号/服务器数据域物理独立，杜绝跨账号数据污染。
 
 ### 3.3 核心功能 C：MCP AI 读写（P3）
 - **业务规则契约**：

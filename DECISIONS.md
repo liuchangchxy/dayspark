@@ -18,6 +18,12 @@
 
 ## 历史决策流
 
+### [2026-10-20] 账号/服务器身份切换的数据隔离契约 (DS-001)
+- **触发背景**：审计发现切换账号或服务器时，原实现将本地旧记录的 syncId 和 serverRev 清零；随后首轮 syncEngine 触发 _baselineSweep()，把旧账号未同步/已同步的记录重新塞入 Outbox 并作为新记录推送到新账号，破坏跨账号隐私与数据域隔离。
+- **核心决策**：账号/服务器身份切换时，仅清空 Outbox（防止未推完的操作跨越边界推给新账号）、Cursor 游标及快照，严禁清空本地记录的 syncId 执行全量重基线上推；保留既有数据身份，避免无授权的数据自动迁移。
+- **对应 SPEC 章节**：SPEC.md 第 3.2 节 规则 7
+- **影响范围**：`lib/domain/providers/account_provider.dart`、`lib/domain/sync/sync_outbox.dart`、`test/ui/widgets/settings/account_section_test.dart`。
+
 ### [2026-09-22] 路线甲：DaySpark 重生，不 fork 外部项目
 - **触发背景**：项目需重大重构为"自托管的开源 Todo清单"，在"fork 现成项目改造"与"原项目重生"之间选型。
 - **核心决策**：走路线甲——保留 DaySpark 现有数据模型/UI/l10n/测试资产原地重构，不 fork 任何外部项目。

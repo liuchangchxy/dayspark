@@ -275,8 +275,8 @@ void main() {
   });
 
   test(
-      'login as a different identity resets cursor, snapshots and '
-      'row sync state', () async {
+      'login as a different identity resets cursor, snapshots and outbox, '
+      'without rewriting local row sync state into fresh uploads (DS-001)', () async {
     SharedPreferences.setMockInitialValues({
       'account_email': 'old@example.com',
       'last_sync_identity': 'https://sync.example.com|user-1',
@@ -320,16 +320,18 @@ void main() {
     expect(prefs.getString('sync_snapshot_old-event-sync-id'), isNull,
         reason: 'old-server snapshots must be dropped');
 
+    // Data domain isolation (DS-001): Existing local records MUST NOT have their
+    // syncId cleared to be re-uploaded to the new identity via baseline sweep.
     final event =
         await (db.select(db.events)..where((t) => t.id.equals(eventId)))
             .getSingle();
-    expect(event.serverRev, 0);
-    expect(event.syncId, isNull);
+    expect(event.serverRev, 7);
+    expect(event.syncId, 'old-event-sync-id');
     final todo =
         await (db.select(db.todos)..where((t) => t.id.equals(todoId)))
             .getSingle();
-    expect(todo.serverRev, 0);
-    expect(todo.syncId, isNull);
+    expect(todo.serverRev, 3);
+    expect(todo.syncId, 'old-todo-sync-id');
   });
 
   test('re-login with the same identity keeps sync state untouched',
