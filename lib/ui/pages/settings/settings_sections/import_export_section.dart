@@ -168,17 +168,20 @@ class ImportExportSection extends ConsumerWidget {
                   }
 
                   final service = IcsService(db);
-                  final imported = await service.importIcs(
+                  final imported = await service.importIcsDetailed(
                     icsContent,
                     importCalendarId!,
                   );
                   if (context.mounted) {
+                    final message = imported.failed > 0
+                        ? l.importedResultWithFailed(
+                            imported.events,
+                            imported.todos,
+                            imported.failed,
+                          )
+                        : l.importedResult(imported.events, imported.todos);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          l.importedResult(imported.events, imported.todos),
-                        ),
-                      ),
+                      SnackBar(content: Text(message)),
                     );
                   }
                 } catch (e) {

@@ -132,6 +132,7 @@
   "noCalendarToImport": "没有可用的日历来导入数据",
   "importFailed": "导入失败：{error}",
   "importedResult": "已导入 {events} 条日程和 {todos} 条待办",
+  "importedResultWithFailed": "已导入 {events} 条日程和 {todos} 条待办（{failed} 条失败）",
   "importExportDesc": "将日程和待办导出为 .ics 文件，或从 .ics 文件导入。",
   "error": "出错了：{error}",
   "endBeforeStart": "结束时间必须晚于开始时间",

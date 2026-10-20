@@ -839,6 +839,12 @@ abstract class AppLocalizations {
   /// **'Imported {events} event(s) and {todos} todo(s)'**
   String importedResult(int events, int todos);
 
+  /// No description provided for @importedResultWithFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {events} event(s) and {todos} todo(s) ({failed} failed)'**
+  String importedResultWithFailed(int events, int todos, int failed);
+
   /// No description provided for @importExportDesc.
   ///
   /// In en, this message translates to:

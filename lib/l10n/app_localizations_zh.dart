@@ -393,6 +393,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String importedResultWithFailed(int events, int todos, int failed) {
+    return '已导入 $events 条日程和 $todos 条待办（$failed 条失败）';
+  }
+
+  @override
   String get importExportDesc => '将日程和待办导出为 .ics 文件，或从 .ics 文件导入。';
 
   @override

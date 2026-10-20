@@ -393,6 +393,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String importedResultWithFailed(int events, int todos, int failed) {
+    return 'Imported $events event(s) and $todos todo(s) ($failed failed)';
+  }
+
+  @override
   String get importExportDesc => 'Export calendar events and todos to .ics, or import from a .ics file.';
 
   @override
