@@ -15,6 +15,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_selector.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
@@ -36,6 +37,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   late Todo _todo;
   final _summaryController = TextEditingController();
   final _descriptionController = TextEditingController();
+  int? _calendarId;
   int _priority = 5;
   DateTime? _dueDate;
   TimeOfDay? _dueTime;
@@ -53,6 +55,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
   void initState() {
     super.initState();
     _todo = widget.todo;
+    _calendarId = _todo.calendarId;
     _summaryController.text = _todo.summary;
     _descriptionController.text = _todo.description ?? '';
     _priority = _todo.priority;
@@ -112,6 +115,7 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
       await ref.read(updateTodoProvider)(
         _todo.id,
         TodosCompanion(
+          calendarId: _calendarId != null ? Value(_calendarId!) : const Value.absent(),
           summary: Value(_summaryController.text.trim()),
           description: Value(
             _descriptionController.text.trim().isNotEmpty
@@ -465,6 +469,13 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           TaskAllocationsSection(todo: _todo),
           const SizedBox(height: 16),
 
+          // Calendar
+          CalendarSelector(
+            selectedId: _calendarId ?? _todo.calendarId,
+            onChanged: (id) => setState(() => _calendarId = id),
+          ),
+          const SizedBox(height: 16),
+
           // Priority
           Text(
             l.priority,
@@ -766,8 +777,12 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
     try {
       final calendars = await ref.read(calendarsProvider.future);
       if (calendars.isEmpty) return;
+      // Inherit parent todo's calendarId if available locally, otherwise fallback to first
+      final effectiveCalendarId = calendars.any((c) => c.id == _todo.calendarId)
+          ? _todo.calendarId
+          : calendars.first.id;
       await ref.read(createTodoProvider)(
-        calendarId: calendars.first.id,
+        calendarId: effectiveCalendarId,
         summary: text,
         priority: 0,
         status: 'NEEDS-ACTION',
