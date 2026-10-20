@@ -247,21 +247,16 @@ final class TodoWriter {
   }
 
   static Future<void> softDelete(AppDatabase db, RecordScope tx, int id) async {
-    final children = await (db.select(
-      db.todos,
-    )..where((t) => t.parentId.equals(id) & t.deletedAt.isNull())).get();
-    final ids = <int>[id, ...children.map((c) => c.id)];
+    final descendants = await _allDescendantIds(db, id);
+    final ids = <int>[id, ...descendants];
     final previous = await _dueDates(db, ids);
     final targets = await SyncOutbox.captureDeletes(db, RecordType.todo, ids);
     final now = DateTime.now();
-    // Soft delete parent and direct children with the same timestamp so no
+    // Soft delete parent and all descendants with the same timestamp so no
     // orphan rows keep showing up in lists or as ghost reminders.
-    await (db.update(db.todos)..where((t) => t.id.equals(id))).write(
+    await (db.update(db.todos)..where((t) => t.id.isIn(ids))).write(
       TodosCompanion(deletedAt: Value(now), updatedAt: Value(now)),
     );
-    await (db.update(db.todos)
-          ..where((t) => t.parentId.equals(id) & t.deletedAt.isNull()))
-        .write(TodosCompanion(deletedAt: Value(now), updatedAt: Value(now)));
     await SyncOutbox.enqueueDeletes(db, targets);
     for (final tid in ids) {
       tx.applied(RecordType.todo, tid, previousReference: previous[tid]);
@@ -275,7 +270,7 @@ final class TodoWriter {
   ) async {
     final row = await _row(db, id);
     // Restoring a child under a still-trashed parent would hide it in the
-    // active lists — untrash the parent too. Single level: no recursion up.
+    // active lists — untrash the parent too.
     final parentRefId = row?.parentId;
     int? trashedParentId;
     if (parentRefId != null) {
@@ -284,13 +279,11 @@ final class TodoWriter {
         trashedParentId = parent.id;
       }
     }
-    final children = await (db.select(
-      db.todos,
-    )..where((t) => t.parentId.equals(id))).get();
+    final descendants = await _allDescendantIds(db, id);
     final restored = <int>[
       id,
       if (trashedParentId != null) trashedParentId,
-      ...children.map((t) => t.id),
+      ...descendants,
     ];
     final previous = await _dueDates(db, restored);
     final now = DateTime.now();
@@ -305,13 +298,15 @@ final class TodoWriter {
         TodosCompanion(deletedAt: const Value(null), updatedAt: Value(now)),
       );
     }
-    // Mirror cascade-delete: restoring a parent must also pull its direct
-    // children out of the trash, or they stay orphaned there.
-    await (db.update(
-      db.todos,
-    )..where((t) => t.parentId.equals(id) & t.deletedAt.isNotNull())).write(
-      TodosCompanion(deletedAt: const Value(null), updatedAt: Value(now)),
-    );
+    // Mirror cascade-delete: restoring a parent must also pull all its
+    // descendants out of the trash, or they stay orphaned there.
+    if (descendants.isNotEmpty) {
+      await (db.update(
+        db.todos,
+      )..where((t) => t.id.isIn(descendants) & t.deletedAt.isNotNull())).write(
+        TodosCompanion(deletedAt: const Value(null), updatedAt: Value(now)),
+      );
+    }
     for (final tid in restored) {
       await SyncOutbox.enqueueUpsert(db, RecordType.todo, tid);
     }
@@ -326,10 +321,8 @@ final class TodoWriter {
     RecordScope tx,
     int id,
   ) async {
-    final children = await (db.select(
-      db.todos,
-    )..where((t) => t.parentId.equals(id))).get();
-    final ids = <int>[id, ...children.map((c) => c.id)];
+    final descendants = await _allDescendantIds(db, id);
+    final ids = <int>[id, ...descendants];
     final todos = await (db.select(
       db.todos,
     )..where((t) => t.id.isIn(ids))).get();
@@ -761,5 +754,20 @@ final class TodoWriter {
       }
       tx.taskAllocationChanged(allocation.id);
     }
+  }
+
+  static Future<List<int>> _allDescendantIds(AppDatabase db, int rootId) async {
+    final result = <int>[];
+    var currentParents = [rootId];
+    while (currentParents.isNotEmpty) {
+      final children = await (db.select(db.todos)
+            ..where((t) => t.parentId.isIn(currentParents)))
+          .get();
+      if (children.isEmpty) break;
+      final childIds = children.map((c) => c.id).toList();
+      result.addAll(childIds);
+      currentParents = childIds;
+    }
+    return result;
   }
 }
