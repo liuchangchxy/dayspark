@@ -281,6 +281,18 @@ abstract class AppLocalizations {
   /// **'DaySpark'**
   String get appName;
 
+  /// No description provided for @allCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'All Calendars'**
+  String get allCalendars;
+
+  /// No description provided for @targetCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Target Calendar'**
+  String get targetCalendar;
+
   /// No description provided for @calendar.
   ///
   /// In en, this message translates to:

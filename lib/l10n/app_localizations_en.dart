@@ -104,6 +104,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appName => 'DaySpark';
 
   @override
+  String get allCalendars => 'All Calendars';
+
+  @override
+  String get targetCalendar => 'Target Calendar';
+
+  @override
   String get calendar => 'Calendar';
 
   @override

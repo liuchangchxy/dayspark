@@ -104,6 +104,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appName => '灵光';
 
   @override
+  String get allCalendars => '全部日历';
+
+  @override
+  String get targetCalendar => '目标日历';
+
+  @override
   String get calendar => '日历';
 
   @override
