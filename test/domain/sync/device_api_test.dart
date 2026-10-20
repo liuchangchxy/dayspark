@@ -6,8 +6,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/domain/sync/sync_api_client.dart';
+import 'package:dayspark/domain/sync/sync_config.dart';
 
 import 'sync_test_support.dart';
 
@@ -207,6 +209,22 @@ void main() {
             SyncHttpResponse(statusCode: 200, body: jsonEncode({'devices': []})),
       );
       expect(await client.fetchDevices(), isEmpty);
+    });
+  });
+
+  group('DS-002: loadOrCreateDeviceId isolates deviceId across different account identities', () {
+    test('mints distinct deviceId per account identity on the same installation', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      final dev1 = await loadOrCreateDeviceId(prefs, accountIdentity: 'https://sync.example.com|user-1');
+      final dev2 = await loadOrCreateDeviceId(prefs, accountIdentity: 'https://sync.example.com|user-2');
+      final dev1Again = await loadOrCreateDeviceId(prefs, accountIdentity: 'https://sync.example.com|user-1');
+
+      expect(dev1, isNotEmpty);
+      expect(dev2, isNotEmpty);
+      expect(dev1, isNot(equals(dev2)), reason: 'different accounts must have isolated deviceIds to prevent 409 registration collisions');
+      expect(dev1Again, equals(dev1), reason: 'same account identity retains its deviceId');
     });
   });
 }

@@ -17,8 +17,7 @@ final searchResultsProvider =
       if (query.trim().isEmpty) return SearchResults([], []);
       var disposed = false;
       ref.onDispose(() => disposed = true);
-      // Debounce: wait 300ms before executing the query
-      await Future.delayed(const Duration(milliseconds: 300));
+      // Direct execution without double debouncing: SearchPage already debounces user input.
       if (disposed) return SearchResults([], []);
       if (ref.state.hasError && ref.state.error != null) {
         return SearchResults([], []);

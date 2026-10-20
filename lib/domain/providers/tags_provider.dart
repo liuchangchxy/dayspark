@@ -42,6 +42,18 @@ final todoTagsProvider = StreamProvider.autoDispose.family<List<Tag>, int>((
   );
 });
 
+/// Map of todoId to Set of tagIds for all todos.
+final todoTagIdsMapProvider = StreamProvider<Map<int, Set<int>>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.select(db.todoTags).watch().map((rows) {
+    final map = <int, Set<int>>{};
+    for (final row in rows) {
+      map.putIfAbsent(row.todoId, () => <int>{}).add(row.tagId);
+    }
+    return map;
+  });
+});
+
 /// Create a new tag.
 final createTagProvider =
     Provider<Future<int> Function({required String name, String? color})>((

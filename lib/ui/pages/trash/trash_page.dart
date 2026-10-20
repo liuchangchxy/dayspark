@@ -125,7 +125,12 @@ class TrashPage extends ConsumerWidget {
           }
           return true;
         } else {
-          return _confirmPermanentDelete(context, l);
+          final confirmed = await _confirmPermanentDelete(context, l);
+          if (confirmed) {
+            await ref.read(permanentDeleteTodoProvider)(todo.id);
+            return true;
+          }
+          return false;
         }
       },
       child: ListTile(
@@ -187,7 +192,12 @@ class TrashPage extends ConsumerWidget {
           }
           return true;
         } else {
-          return _confirmPermanentDelete(context, l);
+          final confirmed = await _confirmPermanentDelete(context, l);
+          if (confirmed) {
+            await ref.read(hardDeleteEventWithChildrenProvider)(event.id);
+            return true;
+          }
+          return false;
         }
       },
       child: ListTile(

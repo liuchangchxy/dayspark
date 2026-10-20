@@ -104,6 +104,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appName => 'DaySpark';
 
   @override
+  String get allCalendars => 'All Calendars';
+
+  @override
+  String get targetCalendar => 'Target Calendar';
+
+  @override
+  String get manageCalendars => 'Manage Calendars';
+
+  @override
+  String get newCalendar => 'New Calendar';
+
+  @override
+  String get navigationError => 'Navigation Error';
+
+  @override
+  String pageNotFound(String uri) {
+    return 'Page not found or failed to load: $uri';
+  }
+
+  @override
+  String get returnToHome => 'Return to Home';
+
+  @override
+  String get eventNotFound => 'Event Not Found';
+
+  @override
+  String get missingEventParam => 'Missing event parameter to edit.';
+
+  @override
+  String get todoNotFound => 'Todo Not Found';
+
+  @override
+  String get missingTodoParam => 'Missing todo parameter to edit.';
+
+  @override
+  String get editCalendar => 'Edit Calendar';
+
+  @override
+  String get deleteCalendar => 'Delete Calendar';
+
+  @override
+  String get calendarName => 'Calendar Name';
+
+  @override
+  String get cannotDeleteOnlyCalendar => 'Cannot delete the only calendar';
+
+  @override
   String get calendar => 'Calendar';
 
   @override
@@ -366,6 +413,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String importedResult(int events, int todos) {
     return 'Imported $events event(s) and $todos todo(s)';
+  }
+
+  @override
+  String importedResultWithFailed(int events, int todos, int failed) {
+    return 'Imported $events event(s) and $todos todo(s) ($failed failed)';
   }
 
   @override
@@ -708,6 +760,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageEn => 'English';
+
+  @override
+  String get reminders => 'Reminders';
+
+  @override
+  String get addReminder => 'Add Reminder';
+
+  @override
+  String get noReminders => 'No reminders set';
+
+  @override
+  String get reminderTriggerTime => 'Reminder Time';
 
   @override
   String get reminder => 'Reminder';

@@ -86,14 +86,14 @@ final class EventWriter {
     }
   }
 
-  // ICS 导入用：仍是裸 insert（outbox 与 syncId 回填属 P2.5#2，不在本次），
-  // 只补一条 applied——导入行不回看旧值。
+  // ICS 导入用：insert 并 enqueue outbox（DS-005），补一条 applied。
   static Future<int> importRow(
     AppDatabase db,
     RecordScope tx,
     EventsCompanion data,
   ) async {
     final id = await db.into(db.events).insert(data);
+    await SyncOutbox.enqueueUpsert(db, RecordType.event, id);
     tx.applied(RecordType.event, id);
     return id;
   }

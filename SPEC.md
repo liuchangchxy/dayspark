@@ -100,7 +100,7 @@ TaskAllocation 的领域状态为单一字段：
 
 #### 3.1.1 重复 Todo 系列与 occurrence 契约
 
-- **领域真值**：正式重复 Todo 使用原子 `RecurrenceSpec`：`anchor { source: start|due, valueType: date|localDateTime, value: offset-free local value }`、IANA `timeZone`、规范化 `rrule`。只有 `startDate` 时 anchor 来源为 `start`；否则使用 `dueDate`；两者均无时不展开 occurrence，也不允许 occurrence-bound Allocation。`startDate` 决定 occurrence identity，`dueDate` 是相应 Todo 的 deadline。DATE-only 值始终是日历日期，不是午夜 instant。
+- **领域真值**：正式重复 Todo 使用原子 `RecurrenceSpec`：`anchor { source: start|due, valueType: date|localDateTime, value: offset-free local value }`、IANA `timeZone`、规范化 `rrule`。只有 `startDate` 时 anchor 来源为 `start`；否则使用 `dueDate`；两者均无时不展开 occurrence，也不允许 occurrence-bound Allocation。`startDate` 决定 occurrence identity，`dueDate` 是相应 Todo 的 deadline。DATE-only 值始终是日历日期，不是午夜 instant。同时，Todo 的时间语义要求 `startDate` 不得晚于 `dueDate`；当两者均存在且 `startDate > dueDate` 时，领域写入口与创建/编辑界面必须显式拒绝并提示错误，禁止保存时间自相矛盾的 Todo。
 - **时区**：新重复 Todo 固化创建表单选定的 IANA 时区；设备时区只能作为新建表单默认值。旅行、服务器配置和客户端默认时区不得改变 series zone。非重复 Todo 不保存 recurrence timezone。
 - **Occurrence key 与解析两阶段**：`RecurrenceSpec + query window` 先生成 nominal local occurrence（DATE 或 DATE-TIME），据此产生带版本/类型的 key。DATE-TIME v1 key 包含 series TZID（如 `v1:DT:2026-11-02T09:00:00@America/New_York`）；DATE 使用 timezone-independent `v2:DATE:2026-11-02`，不表示 instant。解析 DATE-TIME 后才按 IANA 时区规则得到 resolved instant；DATE 永不解析为 instant。DST gap 即使解析成显示当地 03:30，identity 仍使用规则产生的 nominal 02:30。旧 `v1:DATE:...@TZID` allocation ID 保留解析和验证兼容。键不重复编码 Todo ID，因为 Allocation 已携带 `todoSyncId`。Allocation 的 `startAt/endAt` 是独立的实际 UTC 安排时间；改期不改 key，series anchor/rule/zone 改动都不重写旧 key。
 - **DST**：gap 使用 gap 发生前的 UTC offset 解释（例如纽约名义 02:30 解析为 07:30Z / 当地 03:30）；fold 有两个候选 instant 时取较早 instant（第一次出现）。occurrence identity 保留 RRULE 产生的名义 local 值（gap 示例仍为 `02:30`），与解析后的实际 local 显示时间和 resolved instant 分离。不得依赖 `TZDateTime` 构造器隐式选择策略；引擎显式找出候选 instant，并应用上述规则。
@@ -131,6 +131,9 @@ TaskAllocation 的领域状态为单一字段：
   - 规则 4：冲突 = 服务器时间戳字段级 LWW；同秒用 opId 字典序破平。TaskAllocation 的生命周期状态以一个字段同步；Calendar 与 busy-time 投影还必须校验父 Todo 回收站/取消状态及 `completedAt` 边界，不能仅凭 Allocation 行判定有效。
   - 规则 5：SSE 只发 `{cursor}` 信号，不发载荷
   - 规则 6：新增 RecordType 必须有显式客户端 capability / protocol contract。服务端只能向声明支持类型的客户端返回 `task_allocation` 与 `task_instance_state`；未声明支持的旧客户端继续同步 `event` / `todo`，不得收到无法解析的类型，也不得创建或修改这些记录。能力及 wire contract 定义在 `dayspark_contracts` 并由测试校验。新能力启用时客户端必须 cursor-0 backfill。发布顺序为：先发布能解析新记录的客户端，再启用服务端按 capability 下发，最后开放 MCP 或其他外部完成入口。禁止以要求所有旧客户端全量升级代替兼容门控。
+  - 规则 7：账号切换与数据域隔离。切换账号或切换服务器身份（identity = normalized baseUrl + userId）时，客户端必须清空待发 Outbox、Cursor 游标及服务端快照，防止旧账号未同步的本地操作跨越边界上推至新账号；严禁将已有同步身份的本地记录的 `syncId` 强行置空并在新账号上执行全量重基线上推（baseline sweep）；各账号/服务器数据域物理独立，杜绝跨账号数据污染。
+  - 规则 8：设备身份注册隔离。设备身份与账号绑定，客户端按账号维度派生或生成独立的 deviceId（基于 installationId 与 account identity 隔离），确保同一物理设备切换不同账号登录时，各自持有合法的独立设备注册身份，服务端避免 409 注册失败。
+  - 规则 9：ICS 导入入库与同步链路。ICS 导入记录（VEVENT 与 VTODO）必须走正常领域写入并 enqueue Outbox 产生稳定同步身份（syncId），确保导入记录能够跨设备同步，第二设备可见；导入与导出必须支持明确指定目标日历，杜绝写死首个日历。
 
 ### 3.3 核心功能 C：MCP AI 读写（P3）
 - **业务规则契约**：

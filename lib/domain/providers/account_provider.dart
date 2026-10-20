@@ -4,11 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/sync_client_provider.dart';
-import 'package:dayspark/domain/records/record_scope.dart';
-import 'package:dayspark/domain/records/writers/event_writer.dart';
-import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
 import 'package:dayspark/domain/sync/sync_config.dart';
+import 'package:dayspark/domain/sync/sync_outbox.dart';
 
 enum AccountAuthError {
   invalidUrl,
@@ -164,18 +162,16 @@ class AccountAuthNotifier extends AsyncNotifier<AccountAuthState> {
     state = const AsyncData(AccountAuthState());
   }
 
-  /// Full re-baseline after an identity/server switch: drop the pull
-  /// watermark and every snapshot, and zero row sync state so the next
-  /// round re-identifies all rows (fresh syncIds) and pushes them to the
-  /// new dataset from scratch.
+  /// Data domain isolation after an identity/server switch (DS-001):
+  /// Drop the pull watermark and snapshots, and clear the pending outbox
+  /// to prevent previous account pending operations from leaking into the new account.
+  /// Pre-existing rows retain their sync identity so they are NOT wiped and
+  /// re-uploaded to the new identity via baseline sweep.
   Future<void> _resetSyncStateForIdentityChange(SharedPreferences prefs) async {
     await PrefsSyncCursorStore(prefs).clear();
     await PrefsSyncSnapshotStore(prefs).clear();
     final db = ref.read(databaseProvider);
-    await RecordScope.run(db, (tx) async {
-      await EventWriter.clearSyncState(db, tx);
-      await TodoWriter.clearSyncState(db, tx);
-    });
+    await SyncOutbox.clearAll(db);
   }
 
   Future<void> _restartEngine() async {

@@ -21,18 +21,22 @@ class IcsService {
 
   IcsService(this._db);
 
-  /// Export all events from a calendar to a .ics file.
-  Future<String> exportCalendar(int calendarId) async {
-    final events =
-        await (_db.select(_db.events)..where(
-              (t) => t.calendarId.equals(calendarId) & t.deletedAt.isNull(),
-            ))
-            .get();
-    final todos =
-        await (_db.select(_db.todos)..where(
-              (t) => t.calendarId.equals(calendarId) & t.deletedAt.isNull(),
-            ))
-            .get();
+  /// Export all events from a calendar to a .ics file, or from all calendars when calendarId is null.
+  Future<String> exportCalendar([int? calendarId]) async {
+    final events = await (_db.select(_db.events)..where((t) {
+      final notDeleted = t.deletedAt.isNull();
+      if (calendarId != null) {
+        return notDeleted & t.calendarId.equals(calendarId);
+      }
+      return notDeleted;
+    })).get();
+    final todos = await (_db.select(_db.todos)..where((t) {
+      final notDeleted = t.deletedAt.isNull();
+      if (calendarId != null) {
+        return notDeleted & t.calendarId.equals(calendarId);
+      }
+      return notDeleted;
+    })).get();
 
     final cal = VCalendar();
     cal.productId = '-//CalendarTodoApp//EN';
@@ -114,7 +118,7 @@ class IcsService {
   }
 
   /// Import events/todos from an .ics string into a calendar.
-  Future<({int events, int todos})> importIcs(
+  Future<({int events, int todos, int failed})> importIcsDetailed(
     String icsContent,
     int calendarId,
   ) async {
@@ -125,8 +129,9 @@ class IcsService {
 
     var events = 0;
     var todos = 0;
+    var failed = 0;
 
-    // 一批导入 = 一个事务 = 一个事件批；畸形行在 catch 里被吞掉，不登记
+    // 一批导入 = 一个事务 = 一个事件批；畸形行在 catch 里记录 failed 计数，不登记
     // （没落库的行不该让派生态去重读）。
     await RecordScope.run(_db, (tx) async {
       for (final child in component.children) {
@@ -142,6 +147,7 @@ class IcsService {
             await EventWriter.importRow(_db, tx, companion);
             events++;
           } catch (e) {
+            failed++;
             debugPrint('ics: VEVENT insert error: $e');
           }
         } else if (child is VTodo) {
@@ -174,13 +180,23 @@ class IcsService {
             );
             todos++;
           } catch (e) {
+            failed++;
             debugPrint('ics: VTODO insert error: $e');
           }
         }
       }
     });
 
-    return (events: events, todos: todos);
+    return (events: events, todos: todos, failed: failed);
+  }
+
+  /// Import events/todos from an .ics string into a calendar.
+  Future<({int events, int todos})> importIcs(
+    String icsContent,
+    int calendarId,
+  ) async {
+    final detailed = await importIcsDetailed(icsContent, calendarId);
+    return (events: detailed.events, todos: detailed.todos);
   }
 
   _IcsTodoRecurrence? _recurrenceFromIcs(VTodo todo, VCalendar sourceCalendar) {

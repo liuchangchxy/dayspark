@@ -30,7 +30,8 @@ class SyncSettings {
 final syncSettingsProvider = FutureProvider<SyncSettings>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   final config = await PrefsSyncConfigStore(prefs).load();
-  final deviceId = await loadOrCreateDeviceId(prefs);
+  final identity = prefs.getString('last_sync_identity');
+  final deviceId = await loadOrCreateDeviceId(prefs, accountIdentity: identity);
   return SyncSettings(prefs: prefs, baseUrl: config?.baseUrl, deviceId: deviceId);
 });
 

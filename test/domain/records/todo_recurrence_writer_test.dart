@@ -228,4 +228,60 @@ void main() {
       expect(await db.select(db.syncOutbox).get(), hasLength(1));
     },
   );
+
+  test('DS-017: TodoWriter rejects startDate after dueDate on create and update', () async {
+    final start = DateTime(2026, 10, 10);
+    final due = DateTime(2026, 10, 5);
+
+    // 1. Rejects on create
+    expect(
+      () => RecordScope.run(
+        db,
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'invalid date todo',
+            startDate: Value(start),
+            dueDate: Value(due),
+          ),
+        ),
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
+
+    // 2. Rejects on update
+    late int validId;
+    await RecordScope.run(
+      db,
+      (tx) async {
+        validId = await TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'valid todo',
+            startDate: Value(DateTime(2026, 10, 1)),
+            dueDate: Value(DateTime(2026, 10, 5)),
+          ),
+        );
+      },
+    );
+
+    expect(
+      () => RecordScope.run(
+        db,
+        (tx) => TodoWriter.updateTodo(
+          db,
+          tx,
+          validId,
+          TodosCompanion(
+            startDate: Value(start),
+          ),
+        ),
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
 }

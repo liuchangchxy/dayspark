@@ -68,7 +68,7 @@ class _HomePageState extends ConsumerState<HomePage>
   static DateTimeRange _calendarRange() {
     return DateTimeRange(
       start: DateTime(2000, 1, 1),
-      end: DateTime(2030, 12, 31),
+      end: DateTime(2100, 12, 31),
     );
   }
 
@@ -682,6 +682,14 @@ class _HomePageState extends ConsumerState<HomePage>
     final l = AppLocalizations.of(context)!;
     final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
     final sixThingsOn = ref.watch(sixThingsModeProvider).valueOrNull ?? false;
+    final todoTagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
+    final hasTagFilter = _selectedTagIds.isNotEmpty;
+    bool matchesTags(Todo t) {
+      if (!hasTagFilter) return true;
+      final tags = todoTagMap[t.id];
+      if (tags == null) return false;
+      return _selectedTagIds.any((id) => tags.contains(id));
+    }
     final tagKey = _selectedTagIds.isEmpty
         ? ''
         : (_selectedTagIds.toList()..sort()).join(',');
@@ -694,10 +702,11 @@ class _HomePageState extends ConsumerState<HomePage>
         data: (todos) {
           final pending = todos
               .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
+              .where(matchesTags)
               .toList();
           final completed = hideCompleted
               ? <Todo>[]
-              : todos.where((t) => t.status == 'COMPLETED').toList();
+              : todos.where((t) => t.status == 'COMPLETED').where(matchesTags).toList();
           if (pending.isEmpty && completed.isEmpty) return _emptyState(l);
           return CustomScrollView(
             slivers: [
@@ -735,24 +744,25 @@ class _HomePageState extends ConsumerState<HomePage>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(l.error('$e'))),
         data: (inboxTodos) {
+          final filteredInbox = inboxTodos.where(matchesTags).toList();
           final completed = hideCompleted
               ? <Todo>[]
-              : (completedAsync.valueOrNull ?? []);
-          if (inboxTodos.isEmpty && completed.isEmpty) {
+              : (completedAsync.valueOrNull ?? []).where(matchesTags).toList();
+          if (filteredInbox.isEmpty && completed.isEmpty) {
             return _emptyState(l);
           }
           return CustomScrollView(
             slivers: [
-              if (inboxTodos.isNotEmpty) ...[
+              if (filteredInbox.isNotEmpty) ...[
                 SliverToBoxAdapter(
-                  child: _sectionHeader(l.inbox, inboxTodos.length, null),
+                  child: _sectionHeader(l.inbox, filteredInbox.length, null),
                 ),
                 SliverReorderableList(
-                  itemCount: inboxTodos.length,
+                  itemCount: filteredInbox.length,
                   onReorderItem: (oldIndex, newIndex) =>
-                      _onReorderItem(inboxTodos, oldIndex, newIndex),
+                      _onReorderItem(filteredInbox, oldIndex, newIndex),
                   itemBuilder: (context, index) {
-                    final t = inboxTodos[index];
+                    final t = filteredInbox[index];
                     return _reorderableTodoTile(
                       t,
                       Key('inbox-${t.id}'),
@@ -802,7 +812,9 @@ class _HomePageState extends ConsumerState<HomePage>
         // Filter completed for the selected date
         final dateCompleted = hideCompleted
             ? <Todo>[]
-            : completed.where((t) {
+            : completed
+                .where(matchesTags)
+                .where((t) {
                 if (t.completedAt == null) return false;
                 final c = DateTime(
                   t.completedAt!.year,

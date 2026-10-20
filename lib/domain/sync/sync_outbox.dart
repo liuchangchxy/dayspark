@@ -287,4 +287,10 @@ class SyncOutbox {
       db.syncOutbox,
     )..where((t) => t.recordId.equals(recordId))).go();
   }
+
+  /// Clears all pending sync outbox operations (e.g. during account/server switch
+  /// to isolate data domains and avoid uploading stale pending ops to a new account).
+  static Future<void> clearAll(AppDatabase db) async {
+    await db.delete(db.syncOutbox).go();
+  }
 }

@@ -1,14 +1,16 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_interactivity.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/event/event_create_page.dart';
 import 'package:dayspark/ui/pages/event/event_edit_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_create_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_edit_page.dart';
+import 'package:dayspark/ui/pages/calendar/calendars_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
 import 'package:dayspark/ui/pages/ai_chat/ai_chat_page.dart';
@@ -62,11 +64,36 @@ abstract final class AppRouter {
       }
       return null;
     },
-    onException: (context, state, router) {
+    errorBuilder: (context, state) {
       if (!kReleaseMode) {
-        debugPrint('[GoRouter] EXCEPTION at ${state.matchedLocation}');
+        debugPrint('[GoRouter] ERROR at ${state.matchedLocation}: ${state.error}');
       }
-      router.go('/');
+      final l = AppLocalizations.of(context);
+      return Scaffold(
+        appBar: AppBar(title: Text(l?.navigationError ?? 'Navigation Error')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  l?.pageNotFound(state.uri.toString()) ??
+                      'Page not found or failed to load: ${state.uri}',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => context.go('/'),
+                  child: Text(l?.returnToHome ?? 'Return to Home'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     },
     routes: [
       GoRoute(
@@ -106,7 +133,35 @@ abstract final class AppRouter {
         path: '/event/edit',
         name: 'eventEdit',
         pageBuilder: (context, state) {
-          if (state.extra is! CalendaEventAdapter) return _fadeTransition(const HomePage());
+          if (state.extra is! CalendaEventAdapter) {
+            final l = AppLocalizations.of(context);
+            return _fadeTransition(
+              Scaffold(
+                appBar: AppBar(title: Text(l?.eventNotFound ?? 'Event Not Found')),
+                body: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
+                        const SizedBox(height: 16),
+                        Text(
+                          l?.missingEventParam ?? 'Missing event parameter to edit.',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => context.go('/'),
+                          child: Text(l?.returnToHome ?? 'Return to Home'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
           final event = state.extra as CalendaEventAdapter;
           return _fadeTransition(EventEditPage(event: event));
         },
@@ -129,7 +184,35 @@ abstract final class AppRouter {
         path: '/todo/edit',
         name: 'todoEdit',
         pageBuilder: (context, state) {
-          if (state.extra is! Todo) return _fadeTransition(const HomePage());
+          if (state.extra is! Todo) {
+            final l = AppLocalizations.of(context);
+            return _fadeTransition(
+              Scaffold(
+                appBar: AppBar(title: Text(l?.todoNotFound ?? 'Todo Not Found')),
+                body: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
+                        const SizedBox(height: 16),
+                        Text(
+                          l?.missingTodoParam ?? 'Missing todo parameter to edit.',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => context.go('/'),
+                          child: Text(l?.returnToHome ?? 'Return to Home'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
           final todo = state.extra as Todo;
           return _fadeTransition(TodoEditPage(todo: todo));
         },
@@ -143,6 +226,11 @@ abstract final class AppRouter {
         path: '/tags',
         name: 'tags',
         builder: (context, state) => const TagsPage(),
+      ),
+      GoRoute(
+        path: '/calendars',
+        name: 'calendars',
+        builder: (context, state) => const CalendarsPage(),
       ),
       GoRoute(
         path: '/ai-chat',

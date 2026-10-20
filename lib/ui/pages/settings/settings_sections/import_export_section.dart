@@ -53,118 +53,153 @@ class ImportExportSection extends ConsumerWidget {
     );
   }
 
-  void _showIcsDialog(BuildContext context, WidgetRef ref) {
+  void _showIcsDialog(BuildContext context, WidgetRef ref) async {
     final l = AppLocalizations.of(context)!;
+    final db = ref.read(databaseProvider);
+    final cals = await (db.select(db.calendars)).get();
+
+    if (!context.mounted) return;
+
+    int? exportCalendarId; // null = all
+    var importCalendarId = cals.isNotEmpty ? cals.first.id : null;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.importExport),
-        content: Text(l.importExportDesc),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              try {
-                final db = ref.read(databaseProvider);
-                final cals = await (db.select(db.calendars)).get();
-                if (cals.isEmpty) return;
-                final service = IcsService(db);
-                final content = await service.exportCalendar(cals.first.id);
-                final filename =
-                    'calendar_export_${DateTime.now().millisecondsSinceEpoch}.ics';
-                final isWeb = ref.read(isWebProvider);
-                if (isWeb) {
-                  ref.read(webFileDownloaderProvider)(
-                    content: content,
-                    filename: filename,
-                  );
-                } else {
-                  final path = await service.saveIcsToFile(
-                    content,
-                    filename,
-                  );
-                  if (context.mounted) {
-                    try {
-                      await Share.shareXFiles([
-                        XFile(path),
-                      ], subject: 'DaySpark Calendar Export');
-                    } on UnimplementedError {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l.exportedTo(path))),
-                        );
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(l.importExport),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.importExportDesc),
+              if (cals.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(l.targetCalendar, style: AppTypography.caption),
+                const SizedBox(height: AppSpacing.xs),
+                DropdownButton<int?>(
+                  isExpanded: true,
+                  value: importCalendarId,
+                  items: cals.map((c) {
+                    return DropdownMenuItem<int?>(
+                      value: c.id,
+                      child: Text(c.name),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => importCalendarId = val);
+                    }
+                  },
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                try {
+                  if (cals.isEmpty) return;
+                  final service = IcsService(db);
+                  final content = await service.exportCalendar(exportCalendarId);
+                  final filename =
+                      'calendar_export_${DateTime.now().millisecondsSinceEpoch}.ics';
+                  final isWeb = ref.read(isWebProvider);
+                  if (isWeb) {
+                    ref.read(webFileDownloaderProvider)(
+                      content: content,
+                      filename: filename,
+                    );
+                  } else {
+                    final path = await service.saveIcsToFile(
+                      content,
+                      filename,
+                    );
+                    if (context.mounted) {
+                      try {
+                        await Share.shareXFiles([
+                          XFile(path),
+                        ], subject: 'DaySpark Calendar Export');
+                      } on UnimplementedError {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l.exportedTo(path))),
+                          );
+                        }
                       }
                     }
                   }
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l.exportFailed('$e'))));
-                }
-              }
-            },
-            child: Text(l.export),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              try {
-                final result = await FilePicker.platform.pickFiles(
-                  type: FileType.custom,
-                  allowedExtensions: ['ics'],
-                );
-                if (result == null || result.files.isEmpty) return;
-
-                String icsContent;
-                final file = result.files.first;
-                if (kIsWeb) {
-                  icsContent = decodeWebIcsBytes(file.bytes!);
-                } else {
-                  icsContent = await readFileNative(file.path!);
-                }
-
-                final db = ref.read(databaseProvider);
-                final cals = await (db.select(db.calendars)).get();
-                if (cals.isEmpty) {
+                } catch (e) {
                   if (context.mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(l.exportFailed('$e'))));
+                  }
+                }
+              },
+              child: Text(l.export),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                try {
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['ics'],
+                  );
+                  if (result == null || result.files.isEmpty) return;
+
+                  String icsContent;
+                  final file = result.files.first;
+                  if (kIsWeb) {
+                    icsContent = decodeWebIcsBytes(file.bytes!);
+                  } else {
+                    icsContent = await readFileNative(file.path!);
+                  }
+
+                  if (cals.isEmpty || importCalendarId == null) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l.noCalendarToImport)),
+                      );
+                    }
+                    return;
+                  }
+
+                  final service = IcsService(db);
+                  final imported = await service.importIcsDetailed(
+                    icsContent,
+                    importCalendarId!,
+                  );
+                  if (context.mounted) {
+                    final message = imported.failed > 0
+                        ? l.importedResultWithFailed(
+                            imported.events,
+                            imported.todos,
+                            imported.failed,
+                          )
+                        : l.importedResult(imported.events, imported.todos);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l.noCalendarToImport)),
+                      SnackBar(content: Text(message)),
                     );
                   }
-                  return;
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(l.importFailed('$e'))));
+                  }
                 }
-
-                final service = IcsService(db);
-                final imported = await service.importIcs(
-                  icsContent,
-                  cals.first.id,
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        l.importedResult(imported.events, imported.todos),
-                      ),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l.importFailed('$e'))));
-                }
-              }
-            },
-            child: Text(l.import),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-        ],
+              },
+              child: Text(l.import),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l.cancel),
+            ),
+          ],
+        ),
       ),
     );
   }

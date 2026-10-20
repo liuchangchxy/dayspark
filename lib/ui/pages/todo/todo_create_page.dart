@@ -13,7 +13,9 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
+import 'package:dayspark/ui/widgets/reminder/reminders_draft_section.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 
@@ -42,6 +44,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
   String? _rrule;
   int? _selectedCalendarId;
   final Set<int> _selectedTagIds = {};
+  List<DateTime> _draftReminders = [];
 
   static const _priorityValues = [0, 9, 5, 1];
 
@@ -90,6 +93,15 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
         );
       }
 
+      if (_startDate != null && _dueDate != null && _startDate!.isAfter(_dueDate!)) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${l.startDate} > ${l.dueDate}')));
+        }
+        return;
+      }
+
       final calendars = await ref.read(calendarsProvider.future);
       if (calendars.isEmpty) {
         if (mounted) {
@@ -123,15 +135,39 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           );
 
       // Assign selected tags
+      final tagErrors = <String>[];
       for (final tagId in _selectedTagIds) {
         try {
           await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
         } catch (e) {
           debugPrint('todo_create: addTag error: $e');
+          tagErrors.add('$e');
         }
       }
 
-      if (mounted) context.pop();
+      final reminderErrors = <String>[];
+      for (final trigger in _draftReminders) {
+        try {
+          await ref.read(createReminderProvider)(
+            parentType: 'todo',
+            parentId: todoId,
+            triggerTime: trigger,
+          );
+        } catch (e) {
+          debugPrint('todo_create: reminder error: $e');
+          reminderErrors.add('$e');
+        }
+      }
+
+      if (mounted) {
+        final allErrors = [...tagErrors, ...reminderErrors];
+        if (allErrors.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l.failedAction(allErrors.join(', ')))),
+          );
+        }
+        context.pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -428,6 +464,14 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
                           _rrule = rrule.isEmpty ? null : rrule;
                         });
                       },
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    RemindersDraftSection(
+                      draftReminders: _draftReminders,
+                      defaultTriggerTime: _dueDate,
+                      onChanged: (reminders) => setState(() => _draftReminders = reminders),
                     ),
                   ],
                 ),

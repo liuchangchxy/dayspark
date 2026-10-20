@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_selector.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
 class EventEditPage extends ConsumerStatefulWidget {
@@ -365,6 +366,12 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
               ),
           const SizedBox(height: 16),
           AttachmentList(parentType: 'event', parentId: _event.drifId),
+          const SizedBox(height: 16),
+          RemindersSection(
+            parentType: 'event',
+            parentId: _event.drifId,
+            defaultTriggerTime: _start.subtract(const Duration(minutes: 15)),
+          ),
           const SizedBox(height: 16),
           // Recurrence rule
           RRuleGenerator(

@@ -281,6 +281,96 @@ abstract class AppLocalizations {
   /// **'DaySpark'**
   String get appName;
 
+  /// No description provided for @allCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'All Calendars'**
+  String get allCalendars;
+
+  /// No description provided for @targetCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Target Calendar'**
+  String get targetCalendar;
+
+  /// No description provided for @manageCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Calendars'**
+  String get manageCalendars;
+
+  /// No description provided for @newCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'New Calendar'**
+  String get newCalendar;
+
+  /// No description provided for @navigationError.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation Error'**
+  String get navigationError;
+
+  /// No description provided for @pageNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Page not found or failed to load: {uri}'**
+  String pageNotFound(String uri);
+
+  /// No description provided for @returnToHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to Home'**
+  String get returnToHome;
+
+  /// No description provided for @eventNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Not Found'**
+  String get eventNotFound;
+
+  /// No description provided for @missingEventParam.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing event parameter to edit.'**
+  String get missingEventParam;
+
+  /// No description provided for @todoNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo Not Found'**
+  String get todoNotFound;
+
+  /// No description provided for @missingTodoParam.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing todo parameter to edit.'**
+  String get missingTodoParam;
+
+  /// No description provided for @editCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Calendar'**
+  String get editCalendar;
+
+  /// No description provided for @deleteCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Calendar'**
+  String get deleteCalendar;
+
+  /// No description provided for @calendarName.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar Name'**
+  String get calendarName;
+
+  /// No description provided for @cannotDeleteOnlyCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot delete the only calendar'**
+  String get cannotDeleteOnlyCalendar;
+
   /// No description provided for @calendar.
   ///
   /// In en, this message translates to:
@@ -790,6 +880,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Imported {events} event(s) and {todos} todo(s)'**
   String importedResult(int events, int todos);
+
+  /// No description provided for @importedResultWithFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {events} event(s) and {todos} todo(s) ({failed} failed)'**
+  String importedResultWithFailed(int events, int todos, int failed);
 
   /// No description provided for @importExportDesc.
   ///
@@ -1420,6 +1516,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'English'**
   String get languageEn;
+
+  /// No description provided for @reminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get reminders;
+
+  /// No description provided for @addReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Reminder'**
+  String get addReminder;
+
+  /// No description provided for @noReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminders set'**
+  String get noReminders;
+
+  /// No description provided for @reminderTriggerTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder Time'**
+  String get reminderTriggerTime;
 
   /// No description provided for @reminder.
   ///

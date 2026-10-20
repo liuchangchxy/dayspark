@@ -104,6 +104,53 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appName => '灵光';
 
   @override
+  String get allCalendars => '全部日历';
+
+  @override
+  String get targetCalendar => '目标日历';
+
+  @override
+  String get manageCalendars => '管理日历';
+
+  @override
+  String get newCalendar => '新建日历';
+
+  @override
+  String get navigationError => '导航错误';
+
+  @override
+  String pageNotFound(String uri) {
+    return '页面未找到或加载失败：$uri';
+  }
+
+  @override
+  String get returnToHome => '返回首页';
+
+  @override
+  String get eventNotFound => '日程未找到';
+
+  @override
+  String get missingEventParam => '缺少待编辑的日程参数。';
+
+  @override
+  String get todoNotFound => '待办未找到';
+
+  @override
+  String get missingTodoParam => '缺少待编辑的待办参数。';
+
+  @override
+  String get editCalendar => '编辑日历';
+
+  @override
+  String get deleteCalendar => '删除日历';
+
+  @override
+  String get calendarName => '日历名称';
+
+  @override
+  String get cannotDeleteOnlyCalendar => '无法删除唯一的日历';
+
+  @override
   String get calendar => '日历';
 
   @override
@@ -366,6 +413,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String importedResult(int events, int todos) {
     return '已导入 $events 条日程和 $todos 条待办';
+  }
+
+  @override
+  String importedResultWithFailed(int events, int todos, int failed) {
+    return '已导入 $events 条日程和 $todos 条待办（$failed 条失败）';
   }
 
   @override
@@ -708,6 +760,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get languageEn => 'English';
+
+  @override
+  String get reminders => '提醒';
+
+  @override
+  String get addReminder => '添加提醒';
+
+  @override
+  String get noReminders => '未设置提醒';
+
+  @override
+  String get reminderTriggerTime => '提醒时间';
 
   @override
   String get reminder => '提醒';

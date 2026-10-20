@@ -158,8 +158,13 @@ class SecureSyncTokenStore implements SyncTokenStore {
   }
 }
 
-Future<String> loadOrCreateDeviceId(SharedPreferences prefs) async {
-  const key = 'sync_device_id';
+Future<String> loadOrCreateDeviceId(
+  SharedPreferences prefs, {
+  String? accountIdentity,
+}) async {
+  final key = accountIdentity != null && accountIdentity.isNotEmpty
+      ? 'sync_device_id_${accountIdentity.hashCode.abs()}'
+      : 'sync_device_id';
   final existing = prefs.getString(key);
   if (existing != null) return existing;
   final id = const Uuid().v7();

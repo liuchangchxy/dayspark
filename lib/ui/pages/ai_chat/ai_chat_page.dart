@@ -32,6 +32,40 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   final _scrollController = ScrollController();
   bool _sending = false;
 
+  Future<int?> _selectCalendar(List<Calendar> calendars) async {
+    if (calendars.isEmpty) return null;
+    if (calendars.length == 1) return calendars.first.id;
+
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) {
+        final l = AppLocalizations.of(ctx)!;
+        return SimpleDialog(
+          title: Text(l.calendar),
+          children: calendars.map((c) {
+            return SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(c.id),
+              child: Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: Color(int.tryParse(c.color.replaceFirst('#', '0xFF')) ?? 0xFF2563EB),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Text(c.name),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -152,6 +186,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                               ref,
                                               msg.content,
                                               'event',
+                                              promptInput: index > 0 &&
+                                                      messages[index - 1].role ==
+                                                          'user'
+                                                  ? messages[index - 1].content
+                                                  : null,
                                             ),
                                           ),
                                           _QuickActionChip(
@@ -162,6 +201,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                               ref,
                                               msg.content,
                                               'todo',
+                                              promptInput: index > 0 &&
+                                                      messages[index - 1].role ==
+                                                          'user'
+                                                  ? messages[index - 1].content
+                                                  : null,
                                             ),
                                           ),
                                           _QuickActionChip(
@@ -503,7 +547,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                         calendarsProvider.future,
                       );
                       if (calendars.isEmpty) return;
-                      final calId = calendars.first.id;
+                      final calId = await _selectCalendar(calendars);
+                      if (calId == null) return;
                       final todoId = await ref
                           .read(createTodoProvider)
                           .call(
@@ -512,6 +557,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                             priority: 5,
                             status: 'NEEDS-ACTION',
                           );
+                      String? reminderError;
                       try {
                         await ref.read(addDefaultTodoRemindersProvider)(
                           todoId: todoId,
@@ -519,10 +565,14 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                         );
                       } catch (e) {
                         debugPrint('ai_chat: addReminders error: $e');
+                        reminderError = '$e';
                       }
                       if (context.mounted) {
+                        final msg = reminderError != null
+                            ? '${l.todoCreatedShort} (${l.failedAction(reminderError)})'
+                            : l.todoCreatedShort;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l.todoCreatedShort)),
+                          SnackBar(content: Text(msg)),
                         );
                       }
                     } catch (e) {
@@ -559,19 +609,22 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   Future<void> _tryCreateFromChat(
     WidgetRef ref,
     String content,
-    String type,
-  ) async {
+    String type, {
+    String? promptInput,
+  }) async {
     final config = ref.read(aiConfigProvider).value;
     if (config == null) return;
 
     final defaultEventTitle = AppLocalizations.of(context)!.newEvent;
     final defaultTodoTitle = AppLocalizations.of(context)!.newTodo;
 
-    // Find the user message that prompted this response
-    final messages = ref.read(aiChatProvider);
-    var input = content;
-    final idx = messages.indexWhere((m) => m.content == content);
-    if (idx > 0) input = messages[idx - 1].content;
+    // Use explicit promptInput if provided; otherwise fallback to finding the message
+    var input = promptInput ?? content;
+    if (promptInput == null) {
+      final messages = ref.read(aiChatProvider);
+      final idx = messages.indexWhere((m) => m.content == content);
+      if (idx > 0) input = messages[idx - 1].content;
+    }
 
     try {
       final result = await parseNaturalLanguage(
@@ -582,8 +635,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       final calendars = await ref.read(calendarsProvider.future);
       if (calendars.isEmpty) return;
-      final calId = calendars.first.id;
+      final calId = await _selectCalendar(calendars);
+      if (calId == null) return;
 
+      String? reminderError;
       if (type == 'event') {
         final start = result['start'] != null
             ? DateTime.parse(result['start'] as String)
@@ -607,6 +662,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
           );
         } catch (e) {
           debugPrint('ai_chat: addEventReminders error: $e');
+          reminderError = '$e';
         }
       } else {
         final dueDate = result['due_date'] != null
@@ -629,16 +685,19 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
           );
         } catch (e) {
           debugPrint('ai_chat: addTodoReminders error: $e');
+          reminderError = '$e';
         }
       }
 
       if (mounted) {
         final l = AppLocalizations.of(context)!;
+        final baseMsg = type == 'event' ? l.eventCreatedShort : l.todoCreatedShort;
+        final msg = reminderError != null
+            ? '$baseMsg (${l.failedAction(reminderError)})'
+            : baseMsg;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              type == 'event' ? l.eventCreatedShort : l.todoCreatedShort,
-            ),
+            content: Text(msg),
           ),
         );
       }

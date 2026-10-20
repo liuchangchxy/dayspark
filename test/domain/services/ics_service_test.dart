@@ -643,5 +643,41 @@ END:VCALENDAR''', calendarId);
       expect(exported, isNot(contains('TZID=Custom/Unknown')));
       await db.close();
     });
+
+    test('counts and returns failed records when import encounters invalid entries', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final calendarId = await db
+          .into(db.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+
+      // 1 valid event, 1 invalid event (missing DTSTART), 1 valid todo
+      final result = await IcsService(db).importIcsDetailed('''BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:valid-event
+DTSTAMP:20261005T000000Z
+SUMMARY:Valid Event
+DTSTART:20261005T100000Z
+DTEND:20261005T110000Z
+END:VEVENT
+BEGIN:VEVENT
+UID:invalid-event
+DTSTAMP:20261005T000000Z
+SUMMARY:Corrupt Event
+END:VEVENT
+BEGIN:VTODO
+UID:valid-todo
+DTSTAMP:20261005T000000Z
+SUMMARY:Valid Todo
+DUE:20261005T120000Z
+END:VTODO
+END:VCALENDAR''', calendarId);
+
+      expect(result.events, 1);
+      expect(result.todos, 1);
+      expect(result.failed, 1);
+
+      await db.close();
+    });
   });
 }

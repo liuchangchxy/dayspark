@@ -214,7 +214,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
     return into(todos).insertOnConflictUpdate(entry);
   }
 
-  Future<List<Todo>> searchTodos(String query) {
+  Future<List<Todo>> searchTodos(String query, {int limit = 100}) {
     final pattern = '%$query%';
     return (select(todos)
           ..where(
@@ -223,7 +223,7 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
                 (t.summary.like(pattern) | t.description.like(pattern)),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.dueDate)])
-          ..limit(50))
+          ..limit(limit))
         .get();
   }
 
@@ -321,11 +321,17 @@ class TodosDao extends DatabaseAccessor<AppDatabase> with _$TodosDaoMixin {
   }
 
   /// Update the sort order for a list of todo IDs in batch.
+  /// Preserves the sortOrder range of the involved items to prevent polluting
+  /// global sortOrder when reordering a filtered/subset list.
   Future<void> updateSortOrders(List<int> ids) async {
+    if (ids.isEmpty) return;
     await transaction(() async {
+      final rows = await (select(todos)..where((t) => t.id.isIn(ids))).get();
+      final existingOrders = rows.map((r) => r.sortOrder).toList()..sort();
       for (var i = 0; i < ids.length; i++) {
+        final newOrder = i < existingOrders.length ? existingOrders[i] : i;
         await (update(todos)..where((t) => t.id.equals(ids[i]))).write(
-          TodosCompanion(sortOrder: Value(i), updatedAt: Value(DateTime.now())),
+          TodosCompanion(sortOrder: Value(newOrder), updatedAt: Value(DateTime.now())),
         );
       }
     });

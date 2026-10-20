@@ -32,6 +32,28 @@
   "recurrenceOccurrenceLimitError": "There are more matching occurrences than this selector can show. Narrow the date range.",
   "@@locale": "en",
   "appName": "DaySpark",
+  "allCalendars": "All Calendars",
+  "targetCalendar": "Target Calendar",
+  "manageCalendars": "Manage Calendars",
+  "newCalendar": "New Calendar",
+  "navigationError": "Navigation Error",
+  "pageNotFound": "Page not found or failed to load: {uri}",
+  "@pageNotFound": {
+    "placeholders": {
+      "uri": {
+        "type": "String"
+      }
+    }
+  },
+  "returnToHome": "Return to Home",
+  "eventNotFound": "Event Not Found",
+  "missingEventParam": "Missing event parameter to edit.",
+  "todoNotFound": "Todo Not Found",
+  "missingTodoParam": "Missing todo parameter to edit.",
+  "editCalendar": "Edit Calendar",
+  "deleteCalendar": "Delete Calendar",
+  "calendarName": "Calendar Name",
+  "cannotDeleteOnlyCalendar": "Cannot delete the only calendar",
   "calendar": "Calendar",
   "todos": "Todos",
   "settings": "Settings",
@@ -152,6 +174,20 @@
         "type": "int"
       },
       "todos": {
+        "type": "int"
+      }
+    }
+  },
+  "importedResultWithFailed": "Imported {events} event(s) and {todos} todo(s) ({failed} failed)",
+  "@importedResultWithFailed": {
+    "placeholders": {
+      "events": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      },
+      "failed": {
         "type": "int"
       }
     }
@@ -355,6 +391,10 @@
   "languageSystem": "Follow System",
   "languageZh": "Chinese",
   "languageEn": "English",
+  "reminders": "Reminders",
+  "addReminder": "Add Reminder",
+  "noReminders": "No reminders set",
+  "reminderTriggerTime": "Reminder Time",
   "reminder": "Reminder",
   "subtasks": "Subtasks",
   "addSubtask": "Add subtask",
