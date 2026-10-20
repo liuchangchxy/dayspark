@@ -110,6 +110,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get targetCalendar => 'Target Calendar';
 
   @override
+  String get manageCalendars => 'Manage Calendars';
+
+  @override
+  String get newCalendar => 'New Calendar';
+
+  @override
+  String get editCalendar => 'Edit Calendar';
+
+  @override
+  String get deleteCalendar => 'Delete Calendar';
+
+  @override
+  String get calendarName => 'Calendar Name';
+
+  @override
+  String get cannotDeleteOnlyCalendar => 'Cannot delete the only calendar';
+
+  @override
   String get calendar => 'Calendar';
 
   @override

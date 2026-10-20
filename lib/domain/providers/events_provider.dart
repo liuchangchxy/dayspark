@@ -125,3 +125,39 @@ final emptyEventTrashProvider = Provider<Future<void> Function()>((ref) {
   final db = ref.read(databaseProvider);
   return () => RecordScope.run(db, (tx) => EventWriter.emptyTrash(db, tx));
 });
+
+final createCalendarProvider = Provider<Future<int> Function({required String name, String? color})>((ref) {
+  final db = ref.read(databaseProvider);
+  return ({required name, color}) async {
+    return db.calendarsDao.insertCalendar(
+      CalendarsCompanion.insert(
+        name: name,
+        color: color != null ? Value(color) : const Value('#2563EB'),
+      ),
+    );
+  };
+});
+
+final updateCalendarProvider = Provider<Future<void> Function({required int id, required String name, String? color})>((ref) {
+  final db = ref.read(databaseProvider);
+  return ({required id, required name, color}) async {
+    await db.calendarsDao.updateCalendar(
+      id,
+      CalendarsCompanion(
+        name: Value(name),
+        color: color != null ? Value(color) : const Value.absent(),
+      ),
+    );
+  };
+});
+
+final deleteCalendarProvider = Provider<Future<void> Function(int id)>((ref) {
+  final db = ref.read(databaseProvider);
+  return (int id) async {
+    final count = await (db.select(db.calendars)).get();
+    if (count.length <= 1) {
+      throw StateError('Cannot delete the only remaining calendar.');
+    }
+    await db.calendarsDao.deleteCalendar(id);
+  };
+});

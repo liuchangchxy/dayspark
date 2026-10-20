@@ -293,6 +293,42 @@ abstract class AppLocalizations {
   /// **'Target Calendar'**
   String get targetCalendar;
 
+  /// No description provided for @manageCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Calendars'**
+  String get manageCalendars;
+
+  /// No description provided for @newCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'New Calendar'**
+  String get newCalendar;
+
+  /// No description provided for @editCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Calendar'**
+  String get editCalendar;
+
+  /// No description provided for @deleteCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Calendar'**
+  String get deleteCalendar;
+
+  /// No description provided for @calendarName.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar Name'**
+  String get calendarName;
+
+  /// No description provided for @cannotDeleteOnlyCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot delete the only calendar'**
+  String get cannotDeleteOnlyCalendar;
+
   /// No description provided for @calendar.
   ///
   /// In en, this message translates to:

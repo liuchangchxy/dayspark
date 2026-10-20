@@ -110,6 +110,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get targetCalendar => '目标日历';
 
   @override
+  String get manageCalendars => '管理日历';
+
+  @override
+  String get newCalendar => '新建日历';
+
+  @override
+  String get editCalendar => '编辑日历';
+
+  @override
+  String get deleteCalendar => '删除日历';
+
+  @override
+  String get calendarName => '日历名称';
+
+  @override
+  String get cannotDeleteOnlyCalendar => '无法删除唯一的日历';
+
+  @override
   String get calendar => '日历';
 
   @override

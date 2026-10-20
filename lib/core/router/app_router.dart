@@ -9,6 +9,7 @@ import 'package:dayspark/ui/pages/event/event_create_page.dart';
 import 'package:dayspark/ui/pages/event/event_edit_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_create_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_edit_page.dart';
+import 'package:dayspark/ui/pages/calendar/calendars_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
 import 'package:dayspark/ui/pages/ai_chat/ai_chat_page.dart';
@@ -143,6 +144,11 @@ abstract final class AppRouter {
         path: '/tags',
         name: 'tags',
         builder: (context, state) => const TagsPage(),
+      ),
+      GoRoute(
+        path: '/calendars',
+        name: 'calendars',
+        builder: (context, state) => const CalendarsPage(),
       ),
       GoRoute(
         path: '/ai-chat',
