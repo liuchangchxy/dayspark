@@ -18,6 +18,7 @@ import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_selector.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
@@ -467,6 +468,20 @@ class _TodoEditPageState extends ConsumerState<TodoEditPage> {
           ],
           const SizedBox(height: 8),
           TaskAllocationsSection(todo: _todo),
+          const SizedBox(height: 16),
+          RemindersSection(
+            parentType: 'todo',
+            parentId: _todo.id,
+            defaultTriggerTime: _dueDate != null
+                ? DateTime(
+                    _dueDate!.year,
+                    _dueDate!.month,
+                    _dueDate!.day,
+                    _dueTime?.hour ?? 9,
+                    _dueTime?.minute ?? 0,
+                  ).subtract(const Duration(hours: 1))
+                : null,
+          ),
           const SizedBox(height: 16),
 
           // Calendar

@@ -734,6 +734,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageEn => 'English';
 
   @override
+  String get reminders => '提醒';
+
+  @override
+  String get addReminder => '添加提醒';
+
+  @override
+  String get noReminders => '未设置提醒';
+
+  @override
+  String get reminderTriggerTime => '提醒时间';
+
+  @override
   String get reminder => '提醒';
 
   @override

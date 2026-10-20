@@ -734,6 +734,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageEn => 'English';
 
   @override
+  String get reminders => 'Reminders';
+
+  @override
+  String get addReminder => 'Add Reminder';
+
+  @override
+  String get noReminders => 'No reminders set';
+
+  @override
+  String get reminderTriggerTime => 'Reminder Time';
+
+  @override
   String get reminder => 'Reminder';
 
   @override
