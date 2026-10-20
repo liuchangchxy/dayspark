@@ -132,15 +132,24 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           );
 
       // Assign selected tags
+      final tagErrors = <String>[];
       for (final tagId in _selectedTagIds) {
         try {
           await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
         } catch (e) {
           debugPrint('todo_create: addTag error: $e');
+          tagErrors.add('$e');
         }
       }
 
-      if (mounted) context.pop();
+      if (mounted) {
+        if (tagErrors.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l.failedAction(tagErrors.join(', ')))),
+          );
+        }
+        context.pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
