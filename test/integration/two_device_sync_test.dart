@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
+import 'package:drift/drift.dart' show BooleanExpressionOperators, Value, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,7 +36,7 @@ import '../domain/sync/sync_test_support.dart';
 /// container would only need mocked, while the engine instances exercise
 /// the exact production sync path end to end.
 class _Device {
-  _Device(this.name, String baseUrl) {
+  _Device(this.name, this.baseUrl) {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     transport = _GatedTransport(DioSyncTransport(baseUrl: baseUrl));
     tokens = MemoryTokenStore();
@@ -54,6 +54,7 @@ class _Device {
   }
 
   final String name;
+  final String baseUrl;
   late final AppDatabase db;
   late final _GatedTransport transport;
   late final MemoryTokenStore tokens;
@@ -268,6 +269,22 @@ Future<void> _deleteEvent(_Device d, int localId) {
     );
     await SyncOutbox.enqueueDelete(d.db, RecordType.event, localId);
   });
+}
+
+Future<Todo> _todoBySyncId(AppDatabase db, String syncId) async {
+  final row = await (db.select(
+    db.todos,
+  )..where((t) => t.syncId.equals(syncId))).getSingleOrNull();
+  expect(row, isNotNull, reason: 'todo $syncId must exist');
+  return row!;
+}
+
+Future<String> _syncIdOfTodo(AppDatabase db, int localId) async {
+  final row = await (db.select(
+    db.todos,
+  )..where((t) => t.id.equals(localId))).getSingle();
+  expect(row.syncId, isNotNull, reason: 'todo row must be enqueued at least once');
+  return row.syncId!;
 }
 
 Future<Event> _eventBySyncId(AppDatabase db, String syncId) async {
@@ -1500,4 +1517,261 @@ void main() {
       }
     },
   );
+
+  test('events map to correct calendar when devices have identical local IDs but distinct calendars (DS-003)', () async {
+    // Device A creates another Calendar ("Work") and an event in it.
+    final workCalA = await a.db.into(a.db.calendars).insert(
+      CalendarsCompanion.insert(
+        name: 'Work on A',
+        syncId: const Value('cal-sync-uuid-work'),
+      ),
+    );
+
+    // Device B creates another Calendar ("Gym") with a different syncId.
+    // It gets the exact same local integer id as workCalA.
+    final gymCalB = await b.db.into(b.db.calendars).insert(
+      CalendarsCompanion.insert(
+        name: 'Gym on B',
+        syncId: const Value('cal-sync-uuid-gym'),
+      ),
+    );
+    expect(gymCalB, workCalA);
+
+    // Device B also pre-creates "Work" calendar with matching syncId.
+    final workCalB = await b.db.into(b.db.calendars).insert(
+      CalendarsCompanion.insert(
+        name: 'Work on B',
+        syncId: const Value('cal-sync-uuid-work'),
+      ),
+    );
+    expect(workCalB, isNot(workCalA));
+
+    // Create an event in Calendar on Device A.
+    final localId = await a.db.transaction(() async {
+      final id = await a.db.into(a.db.events).insert(
+        EventsCompanion.insert(
+          calendarId: workCalA,
+          summary: 'Team retrospective',
+          startDt: DateTime(2026, 11, 1, 14),
+          endDt: DateTime(2026, 11, 1, 15),
+        ),
+      );
+      await SyncOutbox.enqueueUpsert(a.db, RecordType.event, id);
+      return id;
+    });
+
+    await _round(a);
+    final syncId = await _syncIdOf(a.db, localId);
+    await _round(b);
+
+    // On Device B, the event must NOT be assigned to local ID workCalA (Gym), but to workCalB (Work).
+    final eventOnB = await _eventBySyncId(b.db, syncId);
+    expect(eventOnB.summary, 'Team retrospective');
+    expect(eventOnB.calendarId, workCalB);
+    expect(eventOnB.calendarId, isNot(gymCalB));
+  });
+
+  test('reminders sync across devices and bind to matching parent (Reminder Sync)', () async {
+    // Device A creates a todo with a reminder
+    final todoA = await a.db.transaction(() async {
+      final id = await a.db.into(a.db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: 1,
+          summary: 'Todo with reminder',
+          dueDate: Value(DateTime(2026, 11, 2, 10)),
+        ),
+      );
+      await SyncOutbox.enqueueUpsert(a.db, RecordType.todo, id);
+      return id;
+    });
+
+    final remIdA = await a.db.transaction(() async {
+      final id = await a.db.into(a.db.reminders).insert(
+        RemindersCompanion.insert(
+          parentType: 'todo',
+          parentId: todoA,
+          triggerTime: DateTime(2026, 11, 2, 9, 30),
+        ),
+      );
+      await SyncOutbox.enqueueUpsert(a.db, RecordType.reminder, id);
+      return id;
+    });
+
+    // Device A pushes, Device B pulls
+    await _round(a);
+    await _round(b);
+
+    final todoSyncId = await _syncIdOfTodo(a.db, todoA);
+    final todoB = await _todoBySyncId(b.db, todoSyncId);
+    expect(todoB.summary, 'Todo with reminder');
+
+    final remRowA = await (a.db.select(a.db.reminders)..where((r) => r.id.equals(remIdA))).getSingle();
+    expect(remRowA.syncId, isNotNull);
+
+    final remRowB = await (b.db.select(b.db.reminders)..where((r) => r.syncId.equals(remRowA.syncId!))).getSingleOrNull();
+    expect(remRowB, isNotNull);
+    expect(remRowB!.parentId, todoB.id);
+    expect(remRowB.parentType, 'todo');
+    expect(remRowB.triggerTime, DateTime(2026, 11, 2, 9, 30));
+
+    // Delete reminder on Device A -> Sync -> Removed on B
+    await a.db.transaction(() async {
+      final targets = await SyncOutbox.captureDeletes(a.db, RecordType.reminder, [remIdA]);
+      await (a.db.delete(a.db.reminders)..where((r) => r.id.equals(remIdA))).go();
+      await SyncOutbox.enqueueDeletes(a.db, targets);
+    });
+
+    await _round(a);
+    await _round(b);
+
+    final remRowBAfter = await (b.db.select(b.db.reminders)..where((r) => r.syncId.equals(remRowA.syncId!))).getSingleOrNull();
+    expect(remRowBAfter, isNull);
+  });
+
+  test('tags and tag associations sync across devices (DS-022)', () async {
+    // Device A creates a tag and assigns it to a todo
+    final tagA = await a.db.into(a.db.tags).insert(
+      TagsCompanion.insert(
+        name: 'Urgent',
+        color: const Value('#EF4444'),
+      ),
+    );
+    await SyncOutbox.enqueueUpsert(a.db, RecordType.tag, tagA);
+
+    final todoA = await a.db.transaction(() async {
+      final id = await a.db.into(a.db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: 1,
+          summary: 'Urgent Task',
+        ),
+      );
+      await SyncOutbox.enqueueUpsert(a.db, RecordType.todo, id);
+      return id;
+    });
+
+    await a.db.into(a.db.todoTags).insert(
+      TodoTagsCompanion.insert(todoId: todoA, tagId: tagA),
+    );
+    await SyncOutbox.enqueueTagAssociationUpsert(
+      a.db,
+      parentType: 'todo',
+      parentId: todoA,
+      tagId: tagA,
+    );
+
+    // Sync A -> B
+    await _round(a);
+    await _round(b);
+
+    final tagRowA = await (a.db.select(a.db.tags)..where((t) => t.id.equals(tagA))).getSingle();
+    final tagRowB = await (b.db.select(b.db.tags)..where((t) => t.syncId.equals(tagRowA.syncId!))).getSingleOrNull();
+    expect(tagRowB, isNotNull);
+    expect(tagRowB!.name, 'Urgent');
+    expect(tagRowB.color, '#EF4444');
+
+    final todoSyncId = await _syncIdOfTodo(a.db, todoA);
+    final todoB = await _todoBySyncId(b.db, todoSyncId);
+    final todoTagB = await (b.db.select(b.db.todoTags)..where((t) => t.todoId.equals(todoB.id) & t.tagId.equals(tagRowB.id))).getSingleOrNull();
+    expect(todoTagB, isNotNull);
+
+    // Remove tag association on A -> Sync -> Removed on B
+    await SyncOutbox.enqueueTagAssociationDelete(
+      a.db,
+      parentType: 'todo',
+      parentId: todoA,
+      tagId: tagA,
+    );
+    await (a.db.delete(a.db.todoTags)..where((t) => t.todoId.equals(todoA) & t.tagId.equals(tagA))).go();
+
+    await _round(a);
+    await _round(b);
+
+    final todoTagBAfter = await (b.db.select(b.db.todoTags)..where((t) => t.todoId.equals(todoB.id) & t.tagId.equals(tagRowB.id))).getSingleOrNull();
+    expect(todoTagBAfter, isNull);
+  });
+
+  test('attachments sync metadata and server file references (DS-023)', () async {
+    // Device A uploads an attachment to server
+    final token = await a.tokens.readAccessToken();
+    final fileBytes = utf8.encode('Hello attachment test content');
+    final uploadUri = Uri.parse('${a.baseUrl}/attachments/upload');
+    final client = HttpClient();
+    final req = await client.postUrl(uploadUri);
+    req.headers.set('authorization', 'Bearer $token');
+    req.headers.set('content-type', 'application/octet-stream');
+    req.add(fileBytes);
+    final resp = await req.close();
+    expect(resp.statusCode, 200);
+    final respBody = jsonDecode(await utf8.decodeStream(resp)) as Map<String, dynamic>;
+    final serverFileRef = respBody['serverFileRef'] as String;
+    expect(serverFileRef, isNotEmpty);
+
+    // Device A adds attachment to a todo
+    final todoA = await a.db.transaction(() async {
+      final id = await a.db.into(a.db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: 1,
+          summary: 'Task with attachment',
+        ),
+      );
+      await SyncOutbox.enqueueUpsert(a.db, RecordType.todo, id);
+      return id;
+    });
+
+    final attIdA = await a.db.transaction(() async {
+      final id = await a.db.into(a.db.attachments).insert(
+        AttachmentsCompanion.insert(
+          parentType: 'todo',
+          parentId: todoA,
+          filePath: '/local/deviceA/test.txt',
+          fileName: 'test.txt',
+          fileSize: const Value(29),
+          serverFileRef: Value(serverFileRef),
+        ),
+      );
+      await SyncOutbox.enqueueUpsert(a.db, RecordType.attachment, id);
+      return id;
+    });
+
+    // Sync A -> B
+    await _round(a);
+    await _round(b);
+
+    final todoSyncId = await _syncIdOfTodo(a.db, todoA);
+    final todoB = await _todoBySyncId(b.db, todoSyncId);
+    expect(todoB.summary, 'Task with attachment');
+
+    final attRowA = await (a.db.select(a.db.attachments)..where((at) => at.id.equals(attIdA))).getSingle();
+    expect(attRowA.syncId, isNotNull);
+
+    final attRowB = await (b.db.select(b.db.attachments)..where((at) => at.syncId.equals(attRowA.syncId!))).getSingleOrNull();
+    expect(attRowB, isNotNull);
+    expect(attRowB!.parentId, todoB.id);
+    expect(attRowB.parentType, 'todo');
+    expect(attRowB.fileName, 'test.txt');
+    expect(attRowB.serverFileRef, serverFileRef);
+
+    // Device B downloads attachment file content from server using serverFileRef
+    final tokenB = await b.tokens.readAccessToken();
+    final downloadUri = Uri.parse('${b.baseUrl}/attachments/$serverFileRef');
+    final getReq = await client.getUrl(downloadUri);
+    getReq.headers.set('authorization', 'Bearer $tokenB');
+    final getResp = await getReq.close();
+    expect(getResp.statusCode, 200);
+    final downloadedBytes = await getResp.fold<List<int>>(<int>[], (acc, chunk) => acc..addAll(chunk));
+    expect(utf8.decode(downloadedBytes), 'Hello attachment test content');
+
+    // Delete attachment on A -> Sync -> Removed on B
+    await a.db.transaction(() async {
+      final targets = await SyncOutbox.captureDeletes(a.db, RecordType.attachment, [attIdA]);
+      await (a.db.delete(a.db.attachments)..where((at) => at.id.equals(attIdA))).go();
+      await SyncOutbox.enqueueDeletes(a.db, targets);
+    });
+
+    await _round(a);
+    await _round(b);
+
+    final attRowBAfter = await (b.db.select(b.db.attachments)..where((at) => at.syncId.equals(attRowA.syncId!))).getSingleOrNull();
+    expect(attRowBAfter, isNull);
+  });
 }

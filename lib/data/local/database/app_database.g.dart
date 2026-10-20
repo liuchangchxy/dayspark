@@ -91,6 +91,15 @@ class $CalendarsTable extends Calendars
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -100,6 +109,7 @@ class $CalendarsTable extends Calendars
     lastSyncedAt,
     isActive,
     sortOrder,
+    syncId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -157,6 +167,12 @@ class $CalendarsTable extends Calendars
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
       );
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
     return context;
   }
 
@@ -194,6 +210,10 @@ class $CalendarsTable extends Calendars
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
     );
   }
 
@@ -211,6 +231,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   final DateTime? lastSyncedAt;
   final bool isActive;
   final int sortOrder;
+  final String? syncId;
   const Calendar({
     required this.id,
     required this.name,
@@ -219,6 +240,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     this.lastSyncedAt,
     required this.isActive,
     required this.sortOrder,
+    this.syncId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -232,6 +254,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     }
     map['is_active'] = Variable<bool>(isActive);
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
     return map;
   }
 
@@ -246,6 +271,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
           : Value(lastSyncedAt),
       isActive: Value(isActive),
       sortOrder: Value(sortOrder),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
     );
   }
 
@@ -262,6 +290,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
       lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
     );
   }
   @override
@@ -275,6 +304,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
       'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
       'isActive': serializer.toJson<bool>(isActive),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'syncId': serializer.toJson<String?>(syncId),
     };
   }
 
@@ -286,6 +316,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     Value<DateTime?> lastSyncedAt = const Value.absent(),
     bool? isActive,
     int? sortOrder,
+    Value<String?> syncId = const Value.absent(),
   }) => Calendar(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -294,6 +325,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
     isActive: isActive ?? this.isActive,
     sortOrder: sortOrder ?? this.sortOrder,
+    syncId: syncId.present ? syncId.value : this.syncId,
   );
   Calendar copyWithCompanion(CalendarsCompanion data) {
     return Calendar(
@@ -306,6 +338,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
           : this.lastSyncedAt,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
     );
   }
 
@@ -318,14 +351,23 @@ class Calendar extends DataClass implements Insertable<Calendar> {
           ..write('timezone: $timezone, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('isActive: $isActive, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('syncId: $syncId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, color, timezone, lastSyncedAt, isActive, sortOrder);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    color,
+    timezone,
+    lastSyncedAt,
+    isActive,
+    sortOrder,
+    syncId,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -336,7 +378,8 @@ class Calendar extends DataClass implements Insertable<Calendar> {
           other.timezone == this.timezone &&
           other.lastSyncedAt == this.lastSyncedAt &&
           other.isActive == this.isActive &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.syncId == this.syncId);
 }
 
 class CalendarsCompanion extends UpdateCompanion<Calendar> {
@@ -347,6 +390,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
   final Value<DateTime?> lastSyncedAt;
   final Value<bool> isActive;
   final Value<int> sortOrder;
+  final Value<String?> syncId;
   const CalendarsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -355,6 +399,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     this.lastSyncedAt = const Value.absent(),
     this.isActive = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.syncId = const Value.absent(),
   });
   CalendarsCompanion.insert({
     this.id = const Value.absent(),
@@ -364,6 +409,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     this.lastSyncedAt = const Value.absent(),
     this.isActive = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.syncId = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Calendar> custom({
     Expression<int>? id,
@@ -373,6 +419,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     Expression<DateTime>? lastSyncedAt,
     Expression<bool>? isActive,
     Expression<int>? sortOrder,
+    Expression<String>? syncId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -382,6 +429,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
       if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
       if (isActive != null) 'is_active': isActive,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (syncId != null) 'sync_id': syncId,
     });
   }
 
@@ -393,6 +441,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     Value<DateTime?>? lastSyncedAt,
     Value<bool>? isActive,
     Value<int>? sortOrder,
+    Value<String?>? syncId,
   }) {
     return CalendarsCompanion(
       id: id ?? this.id,
@@ -402,6 +451,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       isActive: isActive ?? this.isActive,
       sortOrder: sortOrder ?? this.sortOrder,
+      syncId: syncId ?? this.syncId,
     );
   }
 
@@ -429,6 +479,9 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
     return map;
   }
 
@@ -441,7 +494,8 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
           ..write('timezone: $timezone, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('isActive: $isActive, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('syncId: $syncId')
           ..write(')'))
         .toString();
   }
@@ -600,6 +654,15 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _icsUidMeta = const VerificationMeta('icsUid');
+  @override
+  late final GeneratedColumn<String> icsUid = GeneratedColumn<String>(
+    'ics_uid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _serverRevMeta = const VerificationMeta(
     'serverRev',
   );
@@ -627,6 +690,7 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     createdAt,
     updatedAt,
     syncId,
+    icsUid,
     serverRev,
   ];
   @override
@@ -727,6 +791,12 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
       );
     }
+    if (data.containsKey('ics_uid')) {
+      context.handle(
+        _icsUidMeta,
+        icsUid.isAcceptableOrUnknown(data['ics_uid']!, _icsUidMeta),
+      );
+    }
     if (data.containsKey('server_rev')) {
       context.handle(
         _serverRevMeta,
@@ -794,6 +864,10 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         DriftSqlType.string,
         data['${effectivePrefix}sync_id'],
       ),
+      icsUid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ics_uid'],
+      ),
       serverRev: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}server_rev'],
@@ -821,6 +895,7 @@ class Event extends DataClass implements Insertable<Event> {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? syncId;
+  final String? icsUid;
   final int serverRev;
   const Event({
     required this.id,
@@ -836,6 +911,7 @@ class Event extends DataClass implements Insertable<Event> {
     required this.createdAt,
     required this.updatedAt,
     this.syncId,
+    this.icsUid,
     required this.serverRev,
   });
   @override
@@ -863,6 +939,9 @@ class Event extends DataClass implements Insertable<Event> {
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || syncId != null) {
       map['sync_id'] = Variable<String>(syncId);
+    }
+    if (!nullToAbsent || icsUid != null) {
+      map['ics_uid'] = Variable<String>(icsUid);
     }
     map['server_rev'] = Variable<int>(serverRev);
     return map;
@@ -893,6 +972,9 @@ class Event extends DataClass implements Insertable<Event> {
       syncId: syncId == null && nullToAbsent
           ? const Value.absent()
           : Value(syncId),
+      icsUid: icsUid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(icsUid),
       serverRev: Value(serverRev),
     );
   }
@@ -916,6 +998,7 @@ class Event extends DataClass implements Insertable<Event> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       syncId: serializer.fromJson<String?>(json['syncId']),
+      icsUid: serializer.fromJson<String?>(json['icsUid']),
       serverRev: serializer.fromJson<int>(json['serverRev']),
     );
   }
@@ -936,6 +1019,7 @@ class Event extends DataClass implements Insertable<Event> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'syncId': serializer.toJson<String?>(syncId),
+      'icsUid': serializer.toJson<String?>(icsUid),
       'serverRev': serializer.toJson<int>(serverRev),
     };
   }
@@ -954,6 +1038,7 @@ class Event extends DataClass implements Insertable<Event> {
     DateTime? createdAt,
     DateTime? updatedAt,
     Value<String?> syncId = const Value.absent(),
+    Value<String?> icsUid = const Value.absent(),
     int? serverRev,
   }) => Event(
     id: id ?? this.id,
@@ -969,6 +1054,7 @@ class Event extends DataClass implements Insertable<Event> {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     syncId: syncId.present ? syncId.value : this.syncId,
+    icsUid: icsUid.present ? icsUid.value : this.icsUid,
     serverRev: serverRev ?? this.serverRev,
   );
   Event copyWithCompanion(EventsCompanion data) {
@@ -990,6 +1076,7 @@ class Event extends DataClass implements Insertable<Event> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      icsUid: data.icsUid.present ? data.icsUid.value : this.icsUid,
       serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
     );
   }
@@ -1010,6 +1097,7 @@ class Event extends DataClass implements Insertable<Event> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncId: $syncId, ')
+          ..write('icsUid: $icsUid, ')
           ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
@@ -1030,6 +1118,7 @@ class Event extends DataClass implements Insertable<Event> {
     createdAt,
     updatedAt,
     syncId,
+    icsUid,
     serverRev,
   );
   @override
@@ -1049,6 +1138,7 @@ class Event extends DataClass implements Insertable<Event> {
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.syncId == this.syncId &&
+          other.icsUid == this.icsUid &&
           other.serverRev == this.serverRev);
 }
 
@@ -1066,6 +1156,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<String?> syncId;
+  final Value<String?> icsUid;
   final Value<int> serverRev;
   const EventsCompanion({
     this.id = const Value.absent(),
@@ -1081,6 +1172,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncId = const Value.absent(),
+    this.icsUid = const Value.absent(),
     this.serverRev = const Value.absent(),
   });
   EventsCompanion.insert({
@@ -1097,6 +1189,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncId = const Value.absent(),
+    this.icsUid = const Value.absent(),
     this.serverRev = const Value.absent(),
   }) : calendarId = Value(calendarId),
        summary = Value(summary),
@@ -1116,6 +1209,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<String>? syncId,
+    Expression<String>? icsUid,
     Expression<int>? serverRev,
   }) {
     return RawValuesInsertable({
@@ -1132,6 +1226,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (syncId != null) 'sync_id': syncId,
+      if (icsUid != null) 'ics_uid': icsUid,
       if (serverRev != null) 'server_rev': serverRev,
     });
   }
@@ -1150,6 +1245,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<String?>? syncId,
+    Value<String?>? icsUid,
     Value<int>? serverRev,
   }) {
     return EventsCompanion(
@@ -1166,6 +1262,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncId: syncId ?? this.syncId,
+      icsUid: icsUid ?? this.icsUid,
       serverRev: serverRev ?? this.serverRev,
     );
   }
@@ -1212,6 +1309,9 @@ class EventsCompanion extends UpdateCompanion<Event> {
     if (syncId.present) {
       map['sync_id'] = Variable<String>(syncId.value);
     }
+    if (icsUid.present) {
+      map['ics_uid'] = Variable<String>(icsUid.value);
+    }
     if (serverRev.present) {
       map['server_rev'] = Variable<int>(serverRev.value);
     }
@@ -1234,6 +1334,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncId: $syncId, ')
+          ..write('icsUid: $icsUid, ')
           ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
@@ -1525,6 +1626,15 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _icsUidMeta = const VerificationMeta('icsUid');
+  @override
+  late final GeneratedColumn<String> icsUid = GeneratedColumn<String>(
+    'ics_uid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _serverRevMeta = const VerificationMeta(
     'serverRev',
   );
@@ -1564,6 +1674,7 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
     sortOrder,
     parentId,
     syncId,
+    icsUid,
     serverRev,
   ];
   @override
@@ -1762,6 +1873,12 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
       );
     }
+    if (data.containsKey('ics_uid')) {
+      context.handle(
+        _icsUidMeta,
+        icsUid.isAcceptableOrUnknown(data['ics_uid']!, _icsUidMeta),
+      );
+    }
     if (data.containsKey('server_rev')) {
       context.handle(
         _serverRevMeta,
@@ -1877,6 +1994,10 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, Todo> {
         DriftSqlType.string,
         data['${effectivePrefix}sync_id'],
       ),
+      icsUid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ics_uid'],
+      ),
       serverRev: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}server_rev'],
@@ -1916,6 +2037,7 @@ class Todo extends DataClass implements Insertable<Todo> {
   final int sortOrder;
   final int? parentId;
   final String? syncId;
+  final String? icsUid;
   final int serverRev;
   const Todo({
     required this.id,
@@ -1943,6 +2065,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     required this.sortOrder,
     this.parentId,
     this.syncId,
+    this.icsUid,
     required this.serverRev,
   });
   @override
@@ -2005,6 +2128,9 @@ class Todo extends DataClass implements Insertable<Todo> {
     if (!nullToAbsent || syncId != null) {
       map['sync_id'] = Variable<String>(syncId);
     }
+    if (!nullToAbsent || icsUid != null) {
+      map['ics_uid'] = Variable<String>(icsUid);
+    }
     map['server_rev'] = Variable<int>(serverRev);
     return map;
   }
@@ -2066,6 +2192,9 @@ class Todo extends DataClass implements Insertable<Todo> {
       syncId: syncId == null && nullToAbsent
           ? const Value.absent()
           : Value(syncId),
+      icsUid: icsUid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(icsUid),
       serverRev: Value(serverRev),
     );
   }
@@ -2113,6 +2242,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       parentId: serializer.fromJson<int?>(json['parentId']),
       syncId: serializer.fromJson<String?>(json['syncId']),
+      icsUid: serializer.fromJson<String?>(json['icsUid']),
       serverRev: serializer.fromJson<int>(json['serverRev']),
     );
   }
@@ -2151,6 +2281,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       'sortOrder': serializer.toJson<int>(sortOrder),
       'parentId': serializer.toJson<int?>(parentId),
       'syncId': serializer.toJson<String?>(syncId),
+      'icsUid': serializer.toJson<String?>(icsUid),
       'serverRev': serializer.toJson<int>(serverRev),
     };
   }
@@ -2181,6 +2312,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     int? sortOrder,
     Value<int?> parentId = const Value.absent(),
     Value<String?> syncId = const Value.absent(),
+    Value<String?> icsUid = const Value.absent(),
     int? serverRev,
   }) => Todo(
     id: id ?? this.id,
@@ -2222,6 +2354,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     sortOrder: sortOrder ?? this.sortOrder,
     parentId: parentId.present ? parentId.value : this.parentId,
     syncId: syncId.present ? syncId.value : this.syncId,
+    icsUid: icsUid.present ? icsUid.value : this.icsUid,
     serverRev: serverRev ?? this.serverRev,
   );
   Todo copyWithCompanion(TodosCompanion data) {
@@ -2275,6 +2408,7 @@ class Todo extends DataClass implements Insertable<Todo> {
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
       syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      icsUid: data.icsUid.present ? data.icsUid.value : this.icsUid,
       serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
     );
   }
@@ -2307,6 +2441,7 @@ class Todo extends DataClass implements Insertable<Todo> {
           ..write('sortOrder: $sortOrder, ')
           ..write('parentId: $parentId, ')
           ..write('syncId: $syncId, ')
+          ..write('icsUid: $icsUid, ')
           ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
@@ -2339,6 +2474,7 @@ class Todo extends DataClass implements Insertable<Todo> {
     sortOrder,
     parentId,
     syncId,
+    icsUid,
     serverRev,
   ]);
   @override
@@ -2370,6 +2506,7 @@ class Todo extends DataClass implements Insertable<Todo> {
           other.sortOrder == this.sortOrder &&
           other.parentId == this.parentId &&
           other.syncId == this.syncId &&
+          other.icsUid == this.icsUid &&
           other.serverRev == this.serverRev);
 }
 
@@ -2399,6 +2536,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
   final Value<int> sortOrder;
   final Value<int?> parentId;
   final Value<String?> syncId;
+  final Value<String?> icsUid;
   final Value<int> serverRev;
   const TodosCompanion({
     this.id = const Value.absent(),
@@ -2426,6 +2564,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.sortOrder = const Value.absent(),
     this.parentId = const Value.absent(),
     this.syncId = const Value.absent(),
+    this.icsUid = const Value.absent(),
     this.serverRev = const Value.absent(),
   });
   TodosCompanion.insert({
@@ -2454,6 +2593,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     this.sortOrder = const Value.absent(),
     this.parentId = const Value.absent(),
     this.syncId = const Value.absent(),
+    this.icsUid = const Value.absent(),
     this.serverRev = const Value.absent(),
   }) : calendarId = Value(calendarId),
        summary = Value(summary);
@@ -2483,6 +2623,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Expression<int>? sortOrder,
     Expression<int>? parentId,
     Expression<String>? syncId,
+    Expression<String>? icsUid,
     Expression<int>? serverRev,
   }) {
     return RawValuesInsertable({
@@ -2516,6 +2657,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       if (sortOrder != null) 'sort_order': sortOrder,
       if (parentId != null) 'parent_id': parentId,
       if (syncId != null) 'sync_id': syncId,
+      if (icsUid != null) 'ics_uid': icsUid,
       if (serverRev != null) 'server_rev': serverRev,
     });
   }
@@ -2546,6 +2688,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     Value<int>? sortOrder,
     Value<int?>? parentId,
     Value<String?>? syncId,
+    Value<String?>? icsUid,
     Value<int>? serverRev,
   }) {
     return TodosCompanion(
@@ -2577,6 +2720,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
       sortOrder: sortOrder ?? this.sortOrder,
       parentId: parentId ?? this.parentId,
       syncId: syncId ?? this.syncId,
+      icsUid: icsUid ?? this.icsUid,
       serverRev: serverRev ?? this.serverRev,
     );
   }
@@ -2667,6 +2811,9 @@ class TodosCompanion extends UpdateCompanion<Todo> {
     if (syncId.present) {
       map['sync_id'] = Variable<String>(syncId.value);
     }
+    if (icsUid.present) {
+      map['ics_uid'] = Variable<String>(icsUid.value);
+    }
     if (serverRev.present) {
       map['server_rev'] = Variable<int>(serverRev.value);
     }
@@ -2701,6 +2848,7 @@ class TodosCompanion extends UpdateCompanion<Todo> {
           ..write('sortOrder: $sortOrder, ')
           ..write('parentId: $parentId, ')
           ..write('syncId: $syncId, ')
+          ..write('icsUid: $icsUid, ')
           ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
@@ -2748,8 +2896,29 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
     requiredDuringInsert: false,
     defaultValue: const Constant('#6B7280'),
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
   @override
-  List<GeneratedColumn> get $columns => [id, name, color];
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverRevMeta = const VerificationMeta(
+    'serverRev',
+  );
+  @override
+  late final GeneratedColumn<int> serverRev = GeneratedColumn<int>(
+    'server_rev',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, color, syncId, serverRev];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2779,6 +2948,18 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
         color.isAcceptableOrUnknown(data['color']!, _colorMeta),
       );
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('server_rev')) {
+      context.handle(
+        _serverRevMeta,
+        serverRev.isAcceptableOrUnknown(data['server_rev']!, _serverRevMeta),
+      );
+    }
     return context;
   }
 
@@ -2800,6 +2981,14 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
         DriftSqlType.string,
         data['${effectivePrefix}color'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      serverRev: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_rev'],
+      )!,
     );
   }
 
@@ -2813,18 +3002,38 @@ class Tag extends DataClass implements Insertable<Tag> {
   final int id;
   final String name;
   final String color;
-  const Tag({required this.id, required this.name, required this.color});
+  final String? syncId;
+  final int serverRev;
+  const Tag({
+    required this.id,
+    required this.name,
+    required this.color,
+    this.syncId,
+    required this.serverRev,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
     map['color'] = Variable<String>(color);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['server_rev'] = Variable<int>(serverRev);
     return map;
   }
 
   TagsCompanion toCompanion(bool nullToAbsent) {
-    return TagsCompanion(id: Value(id), name: Value(name), color: Value(color));
+    return TagsCompanion(
+      id: Value(id),
+      name: Value(name),
+      color: Value(color),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      serverRev: Value(serverRev),
+    );
   }
 
   factory Tag.fromJson(
@@ -2836,6 +3045,8 @@ class Tag extends DataClass implements Insertable<Tag> {
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       color: serializer.fromJson<String>(json['color']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      serverRev: serializer.fromJson<int>(json['serverRev']),
     );
   }
   @override
@@ -2845,19 +3056,31 @@ class Tag extends DataClass implements Insertable<Tag> {
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
       'color': serializer.toJson<String>(color),
+      'syncId': serializer.toJson<String?>(syncId),
+      'serverRev': serializer.toJson<int>(serverRev),
     };
   }
 
-  Tag copyWith({int? id, String? name, String? color}) => Tag(
+  Tag copyWith({
+    int? id,
+    String? name,
+    String? color,
+    Value<String?> syncId = const Value.absent(),
+    int? serverRev,
+  }) => Tag(
     id: id ?? this.id,
     name: name ?? this.name,
     color: color ?? this.color,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    serverRev: serverRev ?? this.serverRev,
   );
   Tag copyWithCompanion(TagsCompanion data) {
     return Tag(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       color: data.color.present ? data.color.value : this.color,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
     );
   }
 
@@ -2866,45 +3089,59 @@ class Tag extends DataClass implements Insertable<Tag> {
     return (StringBuffer('Tag(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('color: $color')
+          ..write('color: $color, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, color);
+  int get hashCode => Object.hash(id, name, color, syncId, serverRev);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Tag &&
           other.id == this.id &&
           other.name == this.name &&
-          other.color == this.color);
+          other.color == this.color &&
+          other.syncId == this.syncId &&
+          other.serverRev == this.serverRev);
 }
 
 class TagsCompanion extends UpdateCompanion<Tag> {
   final Value<int> id;
   final Value<String> name;
   final Value<String> color;
+  final Value<String?> syncId;
+  final Value<int> serverRev;
   const TagsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.color = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
   });
   TagsCompanion.insert({
     this.id = const Value.absent(),
     required String name,
     this.color = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Tag> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? color,
+    Expression<String>? syncId,
+    Expression<int>? serverRev,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (color != null) 'color': color,
+      if (syncId != null) 'sync_id': syncId,
+      if (serverRev != null) 'server_rev': serverRev,
     });
   }
 
@@ -2912,11 +3149,15 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     Value<int>? id,
     Value<String>? name,
     Value<String>? color,
+    Value<String?>? syncId,
+    Value<int>? serverRev,
   }) {
     return TagsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       color: color ?? this.color,
+      syncId: syncId ?? this.syncId,
+      serverRev: serverRev ?? this.serverRev,
     );
   }
 
@@ -2932,6 +3173,12 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     if (color.present) {
       map['color'] = Variable<String>(color.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (serverRev.present) {
+      map['server_rev'] = Variable<int>(serverRev.value);
+    }
     return map;
   }
 
@@ -2940,7 +3187,9 @@ class TagsCompanion extends UpdateCompanion<Tag> {
     return (StringBuffer('TagsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('color: $color')
+          ..write('color: $color, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
@@ -2978,8 +3227,29 @@ class $EventTagsTable extends EventTags
       'REFERENCES tags (id)',
     ),
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
   @override
-  List<GeneratedColumn> get $columns => [eventId, tagId];
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverRevMeta = const VerificationMeta(
+    'serverRev',
+  );
+  @override
+  late final GeneratedColumn<int> serverRev = GeneratedColumn<int>(
+    'server_rev',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [eventId, tagId, syncId, serverRev];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3008,6 +3278,18 @@ class $EventTagsTable extends EventTags
     } else if (isInserting) {
       context.missing(_tagIdMeta);
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('server_rev')) {
+      context.handle(
+        _serverRevMeta,
+        serverRev.isAcceptableOrUnknown(data['server_rev']!, _serverRevMeta),
+      );
+    }
     return context;
   }
 
@@ -3025,6 +3307,14 @@ class $EventTagsTable extends EventTags
         DriftSqlType.int,
         data['${effectivePrefix}tag_id'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      serverRev: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_rev'],
+      )!,
     );
   }
 
@@ -3037,17 +3327,35 @@ class $EventTagsTable extends EventTags
 class EventTag extends DataClass implements Insertable<EventTag> {
   final int eventId;
   final int tagId;
-  const EventTag({required this.eventId, required this.tagId});
+  final String? syncId;
+  final int serverRev;
+  const EventTag({
+    required this.eventId,
+    required this.tagId,
+    this.syncId,
+    required this.serverRev,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['event_id'] = Variable<int>(eventId);
     map['tag_id'] = Variable<int>(tagId);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['server_rev'] = Variable<int>(serverRev);
     return map;
   }
 
   EventTagsCompanion toCompanion(bool nullToAbsent) {
-    return EventTagsCompanion(eventId: Value(eventId), tagId: Value(tagId));
+    return EventTagsCompanion(
+      eventId: Value(eventId),
+      tagId: Value(tagId),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      serverRev: Value(serverRev),
+    );
   }
 
   factory EventTag.fromJson(
@@ -3058,6 +3366,8 @@ class EventTag extends DataClass implements Insertable<EventTag> {
     return EventTag(
       eventId: serializer.fromJson<int>(json['eventId']),
       tagId: serializer.fromJson<int>(json['tagId']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      serverRev: serializer.fromJson<int>(json['serverRev']),
     );
   }
   @override
@@ -3066,15 +3376,28 @@ class EventTag extends DataClass implements Insertable<EventTag> {
     return <String, dynamic>{
       'eventId': serializer.toJson<int>(eventId),
       'tagId': serializer.toJson<int>(tagId),
+      'syncId': serializer.toJson<String?>(syncId),
+      'serverRev': serializer.toJson<int>(serverRev),
     };
   }
 
-  EventTag copyWith({int? eventId, int? tagId}) =>
-      EventTag(eventId: eventId ?? this.eventId, tagId: tagId ?? this.tagId);
+  EventTag copyWith({
+    int? eventId,
+    int? tagId,
+    Value<String?> syncId = const Value.absent(),
+    int? serverRev,
+  }) => EventTag(
+    eventId: eventId ?? this.eventId,
+    tagId: tagId ?? this.tagId,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    serverRev: serverRev ?? this.serverRev,
+  );
   EventTag copyWithCompanion(EventTagsCompanion data) {
     return EventTag(
       eventId: data.eventId.present ? data.eventId.value : this.eventId,
       tagId: data.tagId.present ? data.tagId.value : this.tagId,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
     );
   }
 
@@ -3082,44 +3405,58 @@ class EventTag extends DataClass implements Insertable<EventTag> {
   String toString() {
     return (StringBuffer('EventTag(')
           ..write('eventId: $eventId, ')
-          ..write('tagId: $tagId')
+          ..write('tagId: $tagId, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(eventId, tagId);
+  int get hashCode => Object.hash(eventId, tagId, syncId, serverRev);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is EventTag &&
           other.eventId == this.eventId &&
-          other.tagId == this.tagId);
+          other.tagId == this.tagId &&
+          other.syncId == this.syncId &&
+          other.serverRev == this.serverRev);
 }
 
 class EventTagsCompanion extends UpdateCompanion<EventTag> {
   final Value<int> eventId;
   final Value<int> tagId;
+  final Value<String?> syncId;
+  final Value<int> serverRev;
   final Value<int> rowid;
   const EventTagsCompanion({
     this.eventId = const Value.absent(),
     this.tagId = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EventTagsCompanion.insert({
     required int eventId,
     required int tagId,
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : eventId = Value(eventId),
        tagId = Value(tagId);
   static Insertable<EventTag> custom({
     Expression<int>? eventId,
     Expression<int>? tagId,
+    Expression<String>? syncId,
+    Expression<int>? serverRev,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (eventId != null) 'event_id': eventId,
       if (tagId != null) 'tag_id': tagId,
+      if (syncId != null) 'sync_id': syncId,
+      if (serverRev != null) 'server_rev': serverRev,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3127,11 +3464,15 @@ class EventTagsCompanion extends UpdateCompanion<EventTag> {
   EventTagsCompanion copyWith({
     Value<int>? eventId,
     Value<int>? tagId,
+    Value<String?>? syncId,
+    Value<int>? serverRev,
     Value<int>? rowid,
   }) {
     return EventTagsCompanion(
       eventId: eventId ?? this.eventId,
       tagId: tagId ?? this.tagId,
+      syncId: syncId ?? this.syncId,
+      serverRev: serverRev ?? this.serverRev,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3145,6 +3486,12 @@ class EventTagsCompanion extends UpdateCompanion<EventTag> {
     if (tagId.present) {
       map['tag_id'] = Variable<int>(tagId.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (serverRev.present) {
+      map['server_rev'] = Variable<int>(serverRev.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3156,6 +3503,8 @@ class EventTagsCompanion extends UpdateCompanion<EventTag> {
     return (StringBuffer('EventTagsCompanion(')
           ..write('eventId: $eventId, ')
           ..write('tagId: $tagId, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3191,8 +3540,29 @@ class $TodoTagsTable extends TodoTags with TableInfo<$TodoTagsTable, TodoTag> {
       'REFERENCES tags (id)',
     ),
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
   @override
-  List<GeneratedColumn> get $columns => [todoId, tagId];
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverRevMeta = const VerificationMeta(
+    'serverRev',
+  );
+  @override
+  late final GeneratedColumn<int> serverRev = GeneratedColumn<int>(
+    'server_rev',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [todoId, tagId, syncId, serverRev];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3221,6 +3591,18 @@ class $TodoTagsTable extends TodoTags with TableInfo<$TodoTagsTable, TodoTag> {
     } else if (isInserting) {
       context.missing(_tagIdMeta);
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('server_rev')) {
+      context.handle(
+        _serverRevMeta,
+        serverRev.isAcceptableOrUnknown(data['server_rev']!, _serverRevMeta),
+      );
+    }
     return context;
   }
 
@@ -3238,6 +3620,14 @@ class $TodoTagsTable extends TodoTags with TableInfo<$TodoTagsTable, TodoTag> {
         DriftSqlType.int,
         data['${effectivePrefix}tag_id'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      serverRev: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_rev'],
+      )!,
     );
   }
 
@@ -3250,17 +3640,35 @@ class $TodoTagsTable extends TodoTags with TableInfo<$TodoTagsTable, TodoTag> {
 class TodoTag extends DataClass implements Insertable<TodoTag> {
   final int todoId;
   final int tagId;
-  const TodoTag({required this.todoId, required this.tagId});
+  final String? syncId;
+  final int serverRev;
+  const TodoTag({
+    required this.todoId,
+    required this.tagId,
+    this.syncId,
+    required this.serverRev,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['todo_id'] = Variable<int>(todoId);
     map['tag_id'] = Variable<int>(tagId);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    map['server_rev'] = Variable<int>(serverRev);
     return map;
   }
 
   TodoTagsCompanion toCompanion(bool nullToAbsent) {
-    return TodoTagsCompanion(todoId: Value(todoId), tagId: Value(tagId));
+    return TodoTagsCompanion(
+      todoId: Value(todoId),
+      tagId: Value(tagId),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      serverRev: Value(serverRev),
+    );
   }
 
   factory TodoTag.fromJson(
@@ -3271,6 +3679,8 @@ class TodoTag extends DataClass implements Insertable<TodoTag> {
     return TodoTag(
       todoId: serializer.fromJson<int>(json['todoId']),
       tagId: serializer.fromJson<int>(json['tagId']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      serverRev: serializer.fromJson<int>(json['serverRev']),
     );
   }
   @override
@@ -3279,15 +3689,28 @@ class TodoTag extends DataClass implements Insertable<TodoTag> {
     return <String, dynamic>{
       'todoId': serializer.toJson<int>(todoId),
       'tagId': serializer.toJson<int>(tagId),
+      'syncId': serializer.toJson<String?>(syncId),
+      'serverRev': serializer.toJson<int>(serverRev),
     };
   }
 
-  TodoTag copyWith({int? todoId, int? tagId}) =>
-      TodoTag(todoId: todoId ?? this.todoId, tagId: tagId ?? this.tagId);
+  TodoTag copyWith({
+    int? todoId,
+    int? tagId,
+    Value<String?> syncId = const Value.absent(),
+    int? serverRev,
+  }) => TodoTag(
+    todoId: todoId ?? this.todoId,
+    tagId: tagId ?? this.tagId,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    serverRev: serverRev ?? this.serverRev,
+  );
   TodoTag copyWithCompanion(TodoTagsCompanion data) {
     return TodoTag(
       todoId: data.todoId.present ? data.todoId.value : this.todoId,
       tagId: data.tagId.present ? data.tagId.value : this.tagId,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
     );
   }
 
@@ -3295,44 +3718,58 @@ class TodoTag extends DataClass implements Insertable<TodoTag> {
   String toString() {
     return (StringBuffer('TodoTag(')
           ..write('todoId: $todoId, ')
-          ..write('tagId: $tagId')
+          ..write('tagId: $tagId, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(todoId, tagId);
+  int get hashCode => Object.hash(todoId, tagId, syncId, serverRev);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is TodoTag &&
           other.todoId == this.todoId &&
-          other.tagId == this.tagId);
+          other.tagId == this.tagId &&
+          other.syncId == this.syncId &&
+          other.serverRev == this.serverRev);
 }
 
 class TodoTagsCompanion extends UpdateCompanion<TodoTag> {
   final Value<int> todoId;
   final Value<int> tagId;
+  final Value<String?> syncId;
+  final Value<int> serverRev;
   final Value<int> rowid;
   const TodoTagsCompanion({
     this.todoId = const Value.absent(),
     this.tagId = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TodoTagsCompanion.insert({
     required int todoId,
     required int tagId,
+    this.syncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : todoId = Value(todoId),
        tagId = Value(tagId);
   static Insertable<TodoTag> custom({
     Expression<int>? todoId,
     Expression<int>? tagId,
+    Expression<String>? syncId,
+    Expression<int>? serverRev,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (todoId != null) 'todo_id': todoId,
       if (tagId != null) 'tag_id': tagId,
+      if (syncId != null) 'sync_id': syncId,
+      if (serverRev != null) 'server_rev': serverRev,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3340,11 +3777,15 @@ class TodoTagsCompanion extends UpdateCompanion<TodoTag> {
   TodoTagsCompanion copyWith({
     Value<int>? todoId,
     Value<int>? tagId,
+    Value<String?>? syncId,
+    Value<int>? serverRev,
     Value<int>? rowid,
   }) {
     return TodoTagsCompanion(
       todoId: todoId ?? this.todoId,
       tagId: tagId ?? this.tagId,
+      syncId: syncId ?? this.syncId,
+      serverRev: serverRev ?? this.serverRev,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3358,6 +3799,12 @@ class TodoTagsCompanion extends UpdateCompanion<TodoTag> {
     if (tagId.present) {
       map['tag_id'] = Variable<int>(tagId.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (serverRev.present) {
+      map['server_rev'] = Variable<int>(serverRev.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3369,6 +3816,8 @@ class TodoTagsCompanion extends UpdateCompanion<TodoTag> {
     return (StringBuffer('TodoTagsCompanion(')
           ..write('todoId: $todoId, ')
           ..write('tagId: $tagId, ')
+          ..write('syncId: $syncId, ')
+          ..write('serverRev: $serverRev, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3473,6 +3922,49 @@ class $AttachmentsTable extends Attachments
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _parentSyncIdMeta = const VerificationMeta(
+    'parentSyncId',
+  );
+  @override
+  late final GeneratedColumn<String> parentSyncId = GeneratedColumn<String>(
+    'parent_sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverFileRefMeta = const VerificationMeta(
+    'serverFileRef',
+  );
+  @override
+  late final GeneratedColumn<String> serverFileRef = GeneratedColumn<String>(
+    'server_file_ref',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverRevMeta = const VerificationMeta(
+    'serverRev',
+  );
+  @override
+  late final GeneratedColumn<int> serverRev = GeneratedColumn<int>(
+    'server_rev',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3483,6 +3975,10 @@ class $AttachmentsTable extends Attachments
     fileSize,
     mimeType,
     createdAt,
+    syncId,
+    parentSyncId,
+    serverFileRef,
+    serverRev,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3549,6 +4045,36 @@ class $AttachmentsTable extends Attachments
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('parent_sync_id')) {
+      context.handle(
+        _parentSyncIdMeta,
+        parentSyncId.isAcceptableOrUnknown(
+          data['parent_sync_id']!,
+          _parentSyncIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_file_ref')) {
+      context.handle(
+        _serverFileRefMeta,
+        serverFileRef.isAcceptableOrUnknown(
+          data['server_file_ref']!,
+          _serverFileRefMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_rev')) {
+      context.handle(
+        _serverRevMeta,
+        serverRev.isAcceptableOrUnknown(data['server_rev']!, _serverRevMeta),
+      );
+    }
     return context;
   }
 
@@ -3590,6 +4116,22 @@ class $AttachmentsTable extends Attachments
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      parentSyncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_sync_id'],
+      ),
+      serverFileRef: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_file_ref'],
+      ),
+      serverRev: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_rev'],
+      )!,
     );
   }
 
@@ -3608,6 +4150,10 @@ class Attachment extends DataClass implements Insertable<Attachment> {
   final int fileSize;
   final String? mimeType;
   final DateTime createdAt;
+  final String? syncId;
+  final String? parentSyncId;
+  final String? serverFileRef;
+  final int serverRev;
   const Attachment({
     required this.id,
     required this.parentType,
@@ -3617,6 +4163,10 @@ class Attachment extends DataClass implements Insertable<Attachment> {
     required this.fileSize,
     this.mimeType,
     required this.createdAt,
+    this.syncId,
+    this.parentSyncId,
+    this.serverFileRef,
+    required this.serverRev,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3631,6 +4181,16 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       map['mime_type'] = Variable<String>(mimeType);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    if (!nullToAbsent || parentSyncId != null) {
+      map['parent_sync_id'] = Variable<String>(parentSyncId);
+    }
+    if (!nullToAbsent || serverFileRef != null) {
+      map['server_file_ref'] = Variable<String>(serverFileRef);
+    }
+    map['server_rev'] = Variable<int>(serverRev);
     return map;
   }
 
@@ -3646,6 +4206,16 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           ? const Value.absent()
           : Value(mimeType),
       createdAt: Value(createdAt),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      parentSyncId: parentSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentSyncId),
+      serverFileRef: serverFileRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverFileRef),
+      serverRev: Value(serverRev),
     );
   }
 
@@ -3663,6 +4233,10 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       fileSize: serializer.fromJson<int>(json['fileSize']),
       mimeType: serializer.fromJson<String?>(json['mimeType']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      parentSyncId: serializer.fromJson<String?>(json['parentSyncId']),
+      serverFileRef: serializer.fromJson<String?>(json['serverFileRef']),
+      serverRev: serializer.fromJson<int>(json['serverRev']),
     );
   }
   @override
@@ -3677,6 +4251,10 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       'fileSize': serializer.toJson<int>(fileSize),
       'mimeType': serializer.toJson<String?>(mimeType),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'syncId': serializer.toJson<String?>(syncId),
+      'parentSyncId': serializer.toJson<String?>(parentSyncId),
+      'serverFileRef': serializer.toJson<String?>(serverFileRef),
+      'serverRev': serializer.toJson<int>(serverRev),
     };
   }
 
@@ -3689,6 +4267,10 @@ class Attachment extends DataClass implements Insertable<Attachment> {
     int? fileSize,
     Value<String?> mimeType = const Value.absent(),
     DateTime? createdAt,
+    Value<String?> syncId = const Value.absent(),
+    Value<String?> parentSyncId = const Value.absent(),
+    Value<String?> serverFileRef = const Value.absent(),
+    int? serverRev,
   }) => Attachment(
     id: id ?? this.id,
     parentType: parentType ?? this.parentType,
@@ -3698,6 +4280,12 @@ class Attachment extends DataClass implements Insertable<Attachment> {
     fileSize: fileSize ?? this.fileSize,
     mimeType: mimeType.present ? mimeType.value : this.mimeType,
     createdAt: createdAt ?? this.createdAt,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    parentSyncId: parentSyncId.present ? parentSyncId.value : this.parentSyncId,
+    serverFileRef: serverFileRef.present
+        ? serverFileRef.value
+        : this.serverFileRef,
+    serverRev: serverRev ?? this.serverRev,
   );
   Attachment copyWithCompanion(AttachmentsCompanion data) {
     return Attachment(
@@ -3711,6 +4299,14 @@ class Attachment extends DataClass implements Insertable<Attachment> {
       fileSize: data.fileSize.present ? data.fileSize.value : this.fileSize,
       mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      parentSyncId: data.parentSyncId.present
+          ? data.parentSyncId.value
+          : this.parentSyncId,
+      serverFileRef: data.serverFileRef.present
+          ? data.serverFileRef.value
+          : this.serverFileRef,
+      serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
     );
   }
 
@@ -3724,7 +4320,11 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           ..write('fileName: $fileName, ')
           ..write('fileSize: $fileSize, ')
           ..write('mimeType: $mimeType, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('syncId: $syncId, ')
+          ..write('parentSyncId: $parentSyncId, ')
+          ..write('serverFileRef: $serverFileRef, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
@@ -3739,6 +4339,10 @@ class Attachment extends DataClass implements Insertable<Attachment> {
     fileSize,
     mimeType,
     createdAt,
+    syncId,
+    parentSyncId,
+    serverFileRef,
+    serverRev,
   );
   @override
   bool operator ==(Object other) =>
@@ -3751,7 +4355,11 @@ class Attachment extends DataClass implements Insertable<Attachment> {
           other.fileName == this.fileName &&
           other.fileSize == this.fileSize &&
           other.mimeType == this.mimeType &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.syncId == this.syncId &&
+          other.parentSyncId == this.parentSyncId &&
+          other.serverFileRef == this.serverFileRef &&
+          other.serverRev == this.serverRev);
 }
 
 class AttachmentsCompanion extends UpdateCompanion<Attachment> {
@@ -3763,6 +4371,10 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
   final Value<int> fileSize;
   final Value<String?> mimeType;
   final Value<DateTime> createdAt;
+  final Value<String?> syncId;
+  final Value<String?> parentSyncId;
+  final Value<String?> serverFileRef;
+  final Value<int> serverRev;
   const AttachmentsCompanion({
     this.id = const Value.absent(),
     this.parentType = const Value.absent(),
@@ -3772,6 +4384,10 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     this.fileSize = const Value.absent(),
     this.mimeType = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.parentSyncId = const Value.absent(),
+    this.serverFileRef = const Value.absent(),
+    this.serverRev = const Value.absent(),
   });
   AttachmentsCompanion.insert({
     this.id = const Value.absent(),
@@ -3782,6 +4398,10 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     this.fileSize = const Value.absent(),
     this.mimeType = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.parentSyncId = const Value.absent(),
+    this.serverFileRef = const Value.absent(),
+    this.serverRev = const Value.absent(),
   }) : parentType = Value(parentType),
        parentId = Value(parentId),
        filePath = Value(filePath),
@@ -3795,6 +4415,10 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     Expression<int>? fileSize,
     Expression<String>? mimeType,
     Expression<DateTime>? createdAt,
+    Expression<String>? syncId,
+    Expression<String>? parentSyncId,
+    Expression<String>? serverFileRef,
+    Expression<int>? serverRev,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3805,6 +4429,10 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
       if (fileSize != null) 'file_size': fileSize,
       if (mimeType != null) 'mime_type': mimeType,
       if (createdAt != null) 'created_at': createdAt,
+      if (syncId != null) 'sync_id': syncId,
+      if (parentSyncId != null) 'parent_sync_id': parentSyncId,
+      if (serverFileRef != null) 'server_file_ref': serverFileRef,
+      if (serverRev != null) 'server_rev': serverRev,
     });
   }
 
@@ -3817,6 +4445,10 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     Value<int>? fileSize,
     Value<String?>? mimeType,
     Value<DateTime>? createdAt,
+    Value<String?>? syncId,
+    Value<String?>? parentSyncId,
+    Value<String?>? serverFileRef,
+    Value<int>? serverRev,
   }) {
     return AttachmentsCompanion(
       id: id ?? this.id,
@@ -3827,6 +4459,10 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
       fileSize: fileSize ?? this.fileSize,
       mimeType: mimeType ?? this.mimeType,
       createdAt: createdAt ?? this.createdAt,
+      syncId: syncId ?? this.syncId,
+      parentSyncId: parentSyncId ?? this.parentSyncId,
+      serverFileRef: serverFileRef ?? this.serverFileRef,
+      serverRev: serverRev ?? this.serverRev,
     );
   }
 
@@ -3857,6 +4493,18 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (parentSyncId.present) {
+      map['parent_sync_id'] = Variable<String>(parentSyncId.value);
+    }
+    if (serverFileRef.present) {
+      map['server_file_ref'] = Variable<String>(serverFileRef.value);
+    }
+    if (serverRev.present) {
+      map['server_rev'] = Variable<int>(serverRev.value);
+    }
     return map;
   }
 
@@ -3870,7 +4518,11 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
           ..write('fileName: $fileName, ')
           ..write('fileSize: $fileSize, ')
           ..write('mimeType: $mimeType, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('syncId: $syncId, ')
+          ..write('parentSyncId: $parentSyncId, ')
+          ..write('serverFileRef: $serverFileRef, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
@@ -3943,6 +4595,38 @@ class $RemindersTable extends Reminders
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _parentSyncIdMeta = const VerificationMeta(
+    'parentSyncId',
+  );
+  @override
+  late final GeneratedColumn<String> parentSyncId = GeneratedColumn<String>(
+    'parent_sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverRevMeta = const VerificationMeta(
+    'serverRev',
+  );
+  @override
+  late final GeneratedColumn<int> serverRev = GeneratedColumn<int>(
+    'server_rev',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3950,6 +4634,9 @@ class $RemindersTable extends Reminders
     parentId,
     triggerTime,
     isTriggered,
+    syncId,
+    parentSyncId,
+    serverRev,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4002,6 +4689,27 @@ class $RemindersTable extends Reminders
         ),
       );
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('parent_sync_id')) {
+      context.handle(
+        _parentSyncIdMeta,
+        parentSyncId.isAcceptableOrUnknown(
+          data['parent_sync_id']!,
+          _parentSyncIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_rev')) {
+      context.handle(
+        _serverRevMeta,
+        serverRev.isAcceptableOrUnknown(data['server_rev']!, _serverRevMeta),
+      );
+    }
     return context;
   }
 
@@ -4031,6 +4739,18 @@ class $RemindersTable extends Reminders
         DriftSqlType.bool,
         data['${effectivePrefix}is_triggered'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      parentSyncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_sync_id'],
+      ),
+      serverRev: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_rev'],
+      )!,
     );
   }
 
@@ -4046,12 +4766,18 @@ class Reminder extends DataClass implements Insertable<Reminder> {
   final int parentId;
   final DateTime triggerTime;
   final bool isTriggered;
+  final String? syncId;
+  final String? parentSyncId;
+  final int serverRev;
   const Reminder({
     required this.id,
     required this.parentType,
     required this.parentId,
     required this.triggerTime,
     required this.isTriggered,
+    this.syncId,
+    this.parentSyncId,
+    required this.serverRev,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4061,6 +4787,13 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     map['parent_id'] = Variable<int>(parentId);
     map['trigger_time'] = Variable<DateTime>(triggerTime);
     map['is_triggered'] = Variable<bool>(isTriggered);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    if (!nullToAbsent || parentSyncId != null) {
+      map['parent_sync_id'] = Variable<String>(parentSyncId);
+    }
+    map['server_rev'] = Variable<int>(serverRev);
     return map;
   }
 
@@ -4071,6 +4804,13 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       parentId: Value(parentId),
       triggerTime: Value(triggerTime),
       isTriggered: Value(isTriggered),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      parentSyncId: parentSyncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentSyncId),
+      serverRev: Value(serverRev),
     );
   }
 
@@ -4085,6 +4825,9 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       parentId: serializer.fromJson<int>(json['parentId']),
       triggerTime: serializer.fromJson<DateTime>(json['triggerTime']),
       isTriggered: serializer.fromJson<bool>(json['isTriggered']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      parentSyncId: serializer.fromJson<String?>(json['parentSyncId']),
+      serverRev: serializer.fromJson<int>(json['serverRev']),
     );
   }
   @override
@@ -4096,6 +4839,9 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       'parentId': serializer.toJson<int>(parentId),
       'triggerTime': serializer.toJson<DateTime>(triggerTime),
       'isTriggered': serializer.toJson<bool>(isTriggered),
+      'syncId': serializer.toJson<String?>(syncId),
+      'parentSyncId': serializer.toJson<String?>(parentSyncId),
+      'serverRev': serializer.toJson<int>(serverRev),
     };
   }
 
@@ -4105,12 +4851,18 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     int? parentId,
     DateTime? triggerTime,
     bool? isTriggered,
+    Value<String?> syncId = const Value.absent(),
+    Value<String?> parentSyncId = const Value.absent(),
+    int? serverRev,
   }) => Reminder(
     id: id ?? this.id,
     parentType: parentType ?? this.parentType,
     parentId: parentId ?? this.parentId,
     triggerTime: triggerTime ?? this.triggerTime,
     isTriggered: isTriggered ?? this.isTriggered,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    parentSyncId: parentSyncId.present ? parentSyncId.value : this.parentSyncId,
+    serverRev: serverRev ?? this.serverRev,
   );
   Reminder copyWithCompanion(RemindersCompanion data) {
     return Reminder(
@@ -4125,6 +4877,11 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       isTriggered: data.isTriggered.present
           ? data.isTriggered.value
           : this.isTriggered,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      parentSyncId: data.parentSyncId.present
+          ? data.parentSyncId.value
+          : this.parentSyncId,
+      serverRev: data.serverRev.present ? data.serverRev.value : this.serverRev,
     );
   }
 
@@ -4135,14 +4892,25 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           ..write('parentType: $parentType, ')
           ..write('parentId: $parentId, ')
           ..write('triggerTime: $triggerTime, ')
-          ..write('isTriggered: $isTriggered')
+          ..write('isTriggered: $isTriggered, ')
+          ..write('syncId: $syncId, ')
+          ..write('parentSyncId: $parentSyncId, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, parentType, parentId, triggerTime, isTriggered);
+  int get hashCode => Object.hash(
+    id,
+    parentType,
+    parentId,
+    triggerTime,
+    isTriggered,
+    syncId,
+    parentSyncId,
+    serverRev,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4151,7 +4919,10 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           other.parentType == this.parentType &&
           other.parentId == this.parentId &&
           other.triggerTime == this.triggerTime &&
-          other.isTriggered == this.isTriggered);
+          other.isTriggered == this.isTriggered &&
+          other.syncId == this.syncId &&
+          other.parentSyncId == this.parentSyncId &&
+          other.serverRev == this.serverRev);
 }
 
 class RemindersCompanion extends UpdateCompanion<Reminder> {
@@ -4160,12 +4931,18 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
   final Value<int> parentId;
   final Value<DateTime> triggerTime;
   final Value<bool> isTriggered;
+  final Value<String?> syncId;
+  final Value<String?> parentSyncId;
+  final Value<int> serverRev;
   const RemindersCompanion({
     this.id = const Value.absent(),
     this.parentType = const Value.absent(),
     this.parentId = const Value.absent(),
     this.triggerTime = const Value.absent(),
     this.isTriggered = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.parentSyncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
   });
   RemindersCompanion.insert({
     this.id = const Value.absent(),
@@ -4173,6 +4950,9 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     required int parentId,
     required DateTime triggerTime,
     this.isTriggered = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.parentSyncId = const Value.absent(),
+    this.serverRev = const Value.absent(),
   }) : parentType = Value(parentType),
        parentId = Value(parentId),
        triggerTime = Value(triggerTime);
@@ -4182,6 +4962,9 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     Expression<int>? parentId,
     Expression<DateTime>? triggerTime,
     Expression<bool>? isTriggered,
+    Expression<String>? syncId,
+    Expression<String>? parentSyncId,
+    Expression<int>? serverRev,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -4189,6 +4972,9 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
       if (parentId != null) 'parent_id': parentId,
       if (triggerTime != null) 'trigger_time': triggerTime,
       if (isTriggered != null) 'is_triggered': isTriggered,
+      if (syncId != null) 'sync_id': syncId,
+      if (parentSyncId != null) 'parent_sync_id': parentSyncId,
+      if (serverRev != null) 'server_rev': serverRev,
     });
   }
 
@@ -4198,6 +4984,9 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     Value<int>? parentId,
     Value<DateTime>? triggerTime,
     Value<bool>? isTriggered,
+    Value<String?>? syncId,
+    Value<String?>? parentSyncId,
+    Value<int>? serverRev,
   }) {
     return RemindersCompanion(
       id: id ?? this.id,
@@ -4205,6 +4994,9 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
       parentId: parentId ?? this.parentId,
       triggerTime: triggerTime ?? this.triggerTime,
       isTriggered: isTriggered ?? this.isTriggered,
+      syncId: syncId ?? this.syncId,
+      parentSyncId: parentSyncId ?? this.parentSyncId,
+      serverRev: serverRev ?? this.serverRev,
     );
   }
 
@@ -4226,6 +5018,15 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     if (isTriggered.present) {
       map['is_triggered'] = Variable<bool>(isTriggered.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (parentSyncId.present) {
+      map['parent_sync_id'] = Variable<String>(parentSyncId.value);
+    }
+    if (serverRev.present) {
+      map['server_rev'] = Variable<int>(serverRev.value);
+    }
     return map;
   }
 
@@ -4236,7 +5037,10 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
           ..write('parentType: $parentType, ')
           ..write('parentId: $parentId, ')
           ..write('triggerTime: $triggerTime, ')
-          ..write('isTriggered: $isTriggered')
+          ..write('isTriggered: $isTriggered, ')
+          ..write('syncId: $syncId, ')
+          ..write('parentSyncId: $parentSyncId, ')
+          ..write('serverRev: $serverRev')
           ..write(')'))
         .toString();
   }
@@ -5991,6 +6795,7 @@ typedef $$CalendarsTableCreateCompanionBuilder =
       Value<DateTime?> lastSyncedAt,
       Value<bool> isActive,
       Value<int> sortOrder,
+      Value<String?> syncId,
     });
 typedef $$CalendarsTableUpdateCompanionBuilder =
     CalendarsCompanion Function({
@@ -6001,6 +6806,7 @@ typedef $$CalendarsTableUpdateCompanionBuilder =
       Value<DateTime?> lastSyncedAt,
       Value<bool> isActive,
       Value<int> sortOrder,
+      Value<String?> syncId,
     });
 
 final class $$CalendarsTableReferences
@@ -6087,6 +6893,11 @@ class $$CalendarsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6184,6 +6995,11 @@ class $$CalendarsTableOrderingComposer
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CalendarsTableAnnotationComposer
@@ -6217,6 +7033,9 @@ class $$CalendarsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
 
   Expression<T> eventsRefs<T extends Object>(
     Expression<T> Function($$EventsTableAnnotationComposer a) f,
@@ -6304,6 +7123,7 @@ class $$CalendarsTableTableManager
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
               }) => CalendarsCompanion(
                 id: id,
                 name: name,
@@ -6312,6 +7132,7 @@ class $$CalendarsTableTableManager
                 lastSyncedAt: lastSyncedAt,
                 isActive: isActive,
                 sortOrder: sortOrder,
+                syncId: syncId,
               ),
           createCompanionCallback:
               ({
@@ -6322,6 +7143,7 @@ class $$CalendarsTableTableManager
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
               }) => CalendarsCompanion.insert(
                 id: id,
                 name: name,
@@ -6330,6 +7152,7 @@ class $$CalendarsTableTableManager
                 lastSyncedAt: lastSyncedAt,
                 isActive: isActive,
                 sortOrder: sortOrder,
+                syncId: syncId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -6408,6 +7231,7 @@ typedef $$EventsTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<String?> syncId,
+      Value<String?> icsUid,
       Value<int> serverRev,
     });
 typedef $$EventsTableUpdateCompanionBuilder =
@@ -6425,6 +7249,7 @@ typedef $$EventsTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<String?> syncId,
+      Value<String?> icsUid,
       Value<int> serverRev,
     });
 
@@ -6534,6 +7359,11 @@ class $$EventsTableFilterComposer
 
   ColumnFilters<String> get syncId => $composableBuilder(
     column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icsUid => $composableBuilder(
+    column: $table.icsUid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6660,6 +7490,11 @@ class $$EventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get icsUid => $composableBuilder(
+    column: $table.icsUid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get serverRev => $composableBuilder(
     column: $table.serverRev,
     builder: (column) => ColumnOrderings(column),
@@ -6735,6 +7570,9 @@ class $$EventsTableAnnotationComposer
 
   GeneratedColumn<String> get syncId =>
       $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<String> get icsUid =>
+      $composableBuilder(column: $table.icsUid, builder: (column) => column);
 
   GeneratedColumn<int> get serverRev =>
       $composableBuilder(column: $table.serverRev, builder: (column) => column);
@@ -6829,6 +7667,7 @@ class $$EventsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String?> syncId = const Value.absent(),
+                Value<String?> icsUid = const Value.absent(),
                 Value<int> serverRev = const Value.absent(),
               }) => EventsCompanion(
                 id: id,
@@ -6844,6 +7683,7 @@ class $$EventsTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 syncId: syncId,
+                icsUid: icsUid,
                 serverRev: serverRev,
               ),
           createCompanionCallback:
@@ -6861,6 +7701,7 @@ class $$EventsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String?> syncId = const Value.absent(),
+                Value<String?> icsUid = const Value.absent(),
                 Value<int> serverRev = const Value.absent(),
               }) => EventsCompanion.insert(
                 id: id,
@@ -6876,6 +7717,7 @@ class $$EventsTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 syncId: syncId,
+                icsUid: icsUid,
                 serverRev: serverRev,
               ),
           withReferenceMapper: (p0) => p0
@@ -6982,6 +7824,7 @@ typedef $$TodosTableCreateCompanionBuilder =
       Value<int> sortOrder,
       Value<int?> parentId,
       Value<String?> syncId,
+      Value<String?> icsUid,
       Value<int> serverRev,
     });
 typedef $$TodosTableUpdateCompanionBuilder =
@@ -7011,6 +7854,7 @@ typedef $$TodosTableUpdateCompanionBuilder =
       Value<int> sortOrder,
       Value<int?> parentId,
       Value<String?> syncId,
+      Value<String?> icsUid,
       Value<int> serverRev,
     });
 
@@ -7200,6 +8044,11 @@ class $$TodosTableFilterComposer extends Composer<_$AppDatabase, $TodosTable> {
 
   ColumnFilters<String> get syncId => $composableBuilder(
     column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get icsUid => $composableBuilder(
+    column: $table.icsUid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7411,6 +8260,11 @@ class $$TodosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get icsUid => $composableBuilder(
+    column: $table.icsUid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get serverRev => $composableBuilder(
     column: $table.serverRev,
     builder: (column) => ColumnOrderings(column),
@@ -7542,6 +8396,9 @@ class $$TodosTableAnnotationComposer
 
   GeneratedColumn<String> get syncId =>
       $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<String> get icsUid =>
+      $composableBuilder(column: $table.icsUid, builder: (column) => column);
 
   GeneratedColumn<int> get serverRev =>
       $composableBuilder(column: $table.serverRev, builder: (column) => column);
@@ -7677,6 +8534,7 @@ class $$TodosTableTableManager
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> parentId = const Value.absent(),
                 Value<String?> syncId = const Value.absent(),
+                Value<String?> icsUid = const Value.absent(),
                 Value<int> serverRev = const Value.absent(),
               }) => TodosCompanion(
                 id: id,
@@ -7704,6 +8562,7 @@ class $$TodosTableTableManager
                 sortOrder: sortOrder,
                 parentId: parentId,
                 syncId: syncId,
+                icsUid: icsUid,
                 serverRev: serverRev,
               ),
           createCompanionCallback:
@@ -7733,6 +8592,7 @@ class $$TodosTableTableManager
                 Value<int> sortOrder = const Value.absent(),
                 Value<int?> parentId = const Value.absent(),
                 Value<String?> syncId = const Value.absent(),
+                Value<String?> icsUid = const Value.absent(),
                 Value<int> serverRev = const Value.absent(),
               }) => TodosCompanion.insert(
                 id: id,
@@ -7760,6 +8620,7 @@ class $$TodosTableTableManager
                 sortOrder: sortOrder,
                 parentId: parentId,
                 syncId: syncId,
+                icsUid: icsUid,
                 serverRev: serverRev,
               ),
           withReferenceMapper: (p0) => p0
@@ -7883,12 +8744,16 @@ typedef $$TagsTableCreateCompanionBuilder =
       Value<int> id,
       required String name,
       Value<String> color,
+      Value<String?> syncId,
+      Value<int> serverRev,
     });
 typedef $$TagsTableUpdateCompanionBuilder =
     TagsCompanion Function({
       Value<int> id,
       Value<String> name,
       Value<String> color,
+      Value<String?> syncId,
+      Value<int> serverRev,
     });
 
 final class $$TagsTableReferences
@@ -7953,6 +8818,16 @@ class $$TagsTableFilterComposer extends Composer<_$AppDatabase, $TagsTable> {
 
   ColumnFilters<String> get color => $composableBuilder(
     column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8029,6 +8904,16 @@ class $$TagsTableOrderingComposer extends Composer<_$AppDatabase, $TagsTable> {
     column: $table.color,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TagsTableAnnotationComposer
@@ -8048,6 +8933,12 @@ class $$TagsTableAnnotationComposer
 
   GeneratedColumn<String> get color =>
       $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRev =>
+      $composableBuilder(column: $table.serverRev, builder: (column) => column);
 
   Expression<T> eventTagsRefs<T extends Object>(
     Expression<T> Function($$EventTagsTableAnnotationComposer a) f,
@@ -8131,13 +9022,29 @@ class $$TagsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> color = const Value.absent(),
-              }) => TagsCompanion(id: id, name: name, color: color),
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
+              }) => TagsCompanion(
+                id: id,
+                name: name,
+                color: color,
+                syncId: syncId,
+                serverRev: serverRev,
+              ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 required String name,
                 Value<String> color = const Value.absent(),
-              }) => TagsCompanion.insert(id: id, name: name, color: color),
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
+              }) => TagsCompanion.insert(
+                id: id,
+                name: name,
+                color: color,
+                syncId: syncId,
+                serverRev: serverRev,
+              ),
           withReferenceMapper: (p0) => p0
               .map(
                 (e) =>
@@ -8210,12 +9117,16 @@ typedef $$EventTagsTableCreateCompanionBuilder =
     EventTagsCompanion Function({
       required int eventId,
       required int tagId,
+      Value<String?> syncId,
+      Value<int> serverRev,
       Value<int> rowid,
     });
 typedef $$EventTagsTableUpdateCompanionBuilder =
     EventTagsCompanion Function({
       Value<int> eventId,
       Value<int> tagId,
+      Value<String?> syncId,
+      Value<int> serverRev,
       Value<int> rowid,
     });
 
@@ -8268,6 +9179,16 @@ class $$EventTagsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$EventsTableFilterComposer get eventId {
     final $$EventsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -8324,6 +9245,16 @@ class $$EventTagsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$EventsTableOrderingComposer get eventId {
     final $$EventsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -8380,6 +9311,12 @@ class $$EventTagsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRev =>
+      $composableBuilder(column: $table.serverRev, builder: (column) => column);
+
   $$EventsTableAnnotationComposer get eventId {
     final $$EventsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -8457,20 +9394,28 @@ class $$EventTagsTableTableManager
               ({
                 Value<int> eventId = const Value.absent(),
                 Value<int> tagId = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EventTagsCompanion(
                 eventId: eventId,
                 tagId: tagId,
+                syncId: syncId,
+                serverRev: serverRev,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required int eventId,
                 required int tagId,
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EventTagsCompanion.insert(
                 eventId: eventId,
                 tagId: tagId,
+                syncId: syncId,
+                serverRev: serverRev,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -8557,12 +9502,16 @@ typedef $$TodoTagsTableCreateCompanionBuilder =
     TodoTagsCompanion Function({
       required int todoId,
       required int tagId,
+      Value<String?> syncId,
+      Value<int> serverRev,
       Value<int> rowid,
     });
 typedef $$TodoTagsTableUpdateCompanionBuilder =
     TodoTagsCompanion Function({
       Value<int> todoId,
       Value<int> tagId,
+      Value<String?> syncId,
+      Value<int> serverRev,
       Value<int> rowid,
     });
 
@@ -8615,6 +9564,16 @@ class $$TodoTagsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$TodosTableFilterComposer get todoId {
     final $$TodosTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -8671,6 +9630,16 @@ class $$TodoTagsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$TodosTableOrderingComposer get todoId {
     final $$TodosTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -8727,6 +9696,12 @@ class $$TodoTagsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<int> get serverRev =>
+      $composableBuilder(column: $table.serverRev, builder: (column) => column);
+
   $$TodosTableAnnotationComposer get todoId {
     final $$TodosTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -8804,17 +9779,28 @@ class $$TodoTagsTableTableManager
               ({
                 Value<int> todoId = const Value.absent(),
                 Value<int> tagId = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) =>
-                  TodoTagsCompanion(todoId: todoId, tagId: tagId, rowid: rowid),
+              }) => TodoTagsCompanion(
+                todoId: todoId,
+                tagId: tagId,
+                syncId: syncId,
+                serverRev: serverRev,
+                rowid: rowid,
+              ),
           createCompanionCallback:
               ({
                 required int todoId,
                 required int tagId,
+                Value<String?> syncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TodoTagsCompanion.insert(
                 todoId: todoId,
                 tagId: tagId,
+                syncId: syncId,
+                serverRev: serverRev,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -8907,6 +9893,10 @@ typedef $$AttachmentsTableCreateCompanionBuilder =
       Value<int> fileSize,
       Value<String?> mimeType,
       Value<DateTime> createdAt,
+      Value<String?> syncId,
+      Value<String?> parentSyncId,
+      Value<String?> serverFileRef,
+      Value<int> serverRev,
     });
 typedef $$AttachmentsTableUpdateCompanionBuilder =
     AttachmentsCompanion Function({
@@ -8918,6 +9908,10 @@ typedef $$AttachmentsTableUpdateCompanionBuilder =
       Value<int> fileSize,
       Value<String?> mimeType,
       Value<DateTime> createdAt,
+      Value<String?> syncId,
+      Value<String?> parentSyncId,
+      Value<String?> serverFileRef,
+      Value<int> serverRev,
     });
 
 class $$AttachmentsTableFilterComposer
@@ -8966,6 +9960,26 @@ class $$AttachmentsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentSyncId => $composableBuilder(
+    column: $table.parentSyncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverFileRef => $composableBuilder(
+    column: $table.serverFileRef,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9018,6 +10032,26 @@ class $$AttachmentsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentSyncId => $composableBuilder(
+    column: $table.parentSyncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverFileRef => $composableBuilder(
+    column: $table.serverFileRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AttachmentsTableAnnotationComposer
@@ -9054,6 +10088,22 @@ class $$AttachmentsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<String> get parentSyncId => $composableBuilder(
+    column: $table.parentSyncId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get serverFileRef => $composableBuilder(
+    column: $table.serverFileRef,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverRev =>
+      $composableBuilder(column: $table.serverRev, builder: (column) => column);
 }
 
 class $$AttachmentsTableTableManager
@@ -9095,6 +10145,10 @@ class $$AttachmentsTableTableManager
                 Value<int> fileSize = const Value.absent(),
                 Value<String?> mimeType = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<String?> parentSyncId = const Value.absent(),
+                Value<String?> serverFileRef = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
               }) => AttachmentsCompanion(
                 id: id,
                 parentType: parentType,
@@ -9104,6 +10158,10 @@ class $$AttachmentsTableTableManager
                 fileSize: fileSize,
                 mimeType: mimeType,
                 createdAt: createdAt,
+                syncId: syncId,
+                parentSyncId: parentSyncId,
+                serverFileRef: serverFileRef,
+                serverRev: serverRev,
               ),
           createCompanionCallback:
               ({
@@ -9115,6 +10173,10 @@ class $$AttachmentsTableTableManager
                 Value<int> fileSize = const Value.absent(),
                 Value<String?> mimeType = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<String?> parentSyncId = const Value.absent(),
+                Value<String?> serverFileRef = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
               }) => AttachmentsCompanion.insert(
                 id: id,
                 parentType: parentType,
@@ -9124,6 +10186,10 @@ class $$AttachmentsTableTableManager
                 fileSize: fileSize,
                 mimeType: mimeType,
                 createdAt: createdAt,
+                syncId: syncId,
+                parentSyncId: parentSyncId,
+                serverFileRef: serverFileRef,
+                serverRev: serverRev,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -9157,6 +10223,9 @@ typedef $$RemindersTableCreateCompanionBuilder =
       required int parentId,
       required DateTime triggerTime,
       Value<bool> isTriggered,
+      Value<String?> syncId,
+      Value<String?> parentSyncId,
+      Value<int> serverRev,
     });
 typedef $$RemindersTableUpdateCompanionBuilder =
     RemindersCompanion Function({
@@ -9165,6 +10234,9 @@ typedef $$RemindersTableUpdateCompanionBuilder =
       Value<int> parentId,
       Value<DateTime> triggerTime,
       Value<bool> isTriggered,
+      Value<String?> syncId,
+      Value<String?> parentSyncId,
+      Value<int> serverRev,
     });
 
 class $$RemindersTableFilterComposer
@@ -9198,6 +10270,21 @@ class $$RemindersTableFilterComposer
 
   ColumnFilters<bool> get isTriggered => $composableBuilder(
     column: $table.isTriggered,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentSyncId => $composableBuilder(
+    column: $table.parentSyncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9235,6 +10322,21 @@ class $$RemindersTableOrderingComposer
     column: $table.isTriggered,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentSyncId => $composableBuilder(
+    column: $table.parentSyncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverRev => $composableBuilder(
+    column: $table.serverRev,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$RemindersTableAnnotationComposer
@@ -9266,6 +10368,17 @@ class $$RemindersTableAnnotationComposer
     column: $table.isTriggered,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<String> get parentSyncId => $composableBuilder(
+    column: $table.parentSyncId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverRev =>
+      $composableBuilder(column: $table.serverRev, builder: (column) => column);
 }
 
 class $$RemindersTableTableManager
@@ -9301,12 +10414,18 @@ class $$RemindersTableTableManager
                 Value<int> parentId = const Value.absent(),
                 Value<DateTime> triggerTime = const Value.absent(),
                 Value<bool> isTriggered = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<String?> parentSyncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
               }) => RemindersCompanion(
                 id: id,
                 parentType: parentType,
                 parentId: parentId,
                 triggerTime: triggerTime,
                 isTriggered: isTriggered,
+                syncId: syncId,
+                parentSyncId: parentSyncId,
+                serverRev: serverRev,
               ),
           createCompanionCallback:
               ({
@@ -9315,12 +10434,18 @@ class $$RemindersTableTableManager
                 required int parentId,
                 required DateTime triggerTime,
                 Value<bool> isTriggered = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<String?> parentSyncId = const Value.absent(),
+                Value<int> serverRev = const Value.absent(),
               }) => RemindersCompanion.insert(
                 id: id,
                 parentType: parentType,
                 parentId: parentId,
                 triggerTime: triggerTime,
                 isTriggered: isTriggered,
+                syncId: syncId,
+                parentSyncId: parentSyncId,
+                serverRev: serverRev,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

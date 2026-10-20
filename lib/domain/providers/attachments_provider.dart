@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/sync/sync_outbox.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 /// Attachments for an event.
 final eventAttachmentsProvider = StreamProvider.family<List<Attachment>, int>((
@@ -46,7 +48,7 @@ final createAttachmentProvider =
         required fileName,
         mimeType,
       }) async {
-        return db
+        final id = await db
             .into(db.attachments)
             .insert(
               AttachmentsCompanion.insert(
@@ -57,6 +59,8 @@ final createAttachmentProvider =
                 mimeType: Value(mimeType),
               ),
             );
+        await SyncOutbox.enqueueUpsert(db, RecordType.attachment, id);
+        return id;
       };
     });
 
@@ -64,6 +68,8 @@ final createAttachmentProvider =
 final deleteAttachmentProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   return (int id) async {
+    final targets = await SyncOutbox.captureDeletes(db, RecordType.attachment, [id]);
     await (db.delete(db.attachments)..where((t) => t.id.equals(id))).go();
+    await SyncOutbox.enqueueDeletes(db, targets);
   };
 });

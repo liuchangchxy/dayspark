@@ -17,5 +17,6 @@ class Events extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get syncId => text().nullable()();
+  TextColumn get icsUid => text().nullable()();
   IntColumn get serverRev => integer().withDefault(const Constant(0))();
 }

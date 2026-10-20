@@ -679,5 +679,102 @@ END:VCALENDAR''', calendarId);
 
       await db.close();
     });
+
+    test('re-importing same ICS UID upserts instead of creating duplicates (DS-007)', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final calendarId = await db
+          .into(db.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      final service = IcsService(db);
+
+      const ics1 = '''BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:event-uid-123
+DTSTAMP:20261005T000000Z
+SUMMARY:Initial Meeting
+DTSTART:20261005T100000Z
+DTEND:20261005T110000Z
+END:VEVENT
+BEGIN:VTODO
+UID:todo-uid-456
+DTSTAMP:20261005T000000Z
+SUMMARY:Initial Task
+DUE:20261005T120000Z
+END:VTODO
+END:VCALENDAR''';
+
+      // 1. Initial import
+      final res1 = await service.importIcsDetailed(ics1, calendarId);
+      expect(res1.events, 1);
+      expect(res1.todos, 1);
+
+      var allEvents = await db.select(db.events).get();
+      var allTodos = await db.select(db.todos).get();
+      expect(allEvents.length, 1);
+      expect(allEvents.first.summary, 'Initial Meeting');
+      expect(allEvents.first.icsUid, 'event-uid-123');
+      expect(allTodos.length, 1);
+      expect(allTodos.first.summary, 'Initial Task');
+      expect(allTodos.first.icsUid, 'todo-uid-456');
+
+      // 2. Re-import identical UID with changed content -> updates existing records
+      const icsUpdated = '''BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:event-uid-123
+DTSTAMP:20261005T010000Z
+SUMMARY:Updated Meeting Title
+DTSTART:20261005T100000Z
+DTEND:20261005T110000Z
+END:VEVENT
+BEGIN:VTODO
+UID:todo-uid-456
+DTSTAMP:20261005T010000Z
+SUMMARY:Updated Task Title
+DUE:20261005T140000Z
+END:VTODO
+END:VCALENDAR''';
+
+      final res2 = await service.importIcsDetailed(icsUpdated, calendarId);
+      expect(res2.events, 1);
+      expect(res2.todos, 1);
+
+      allEvents = await db.select(db.events).get();
+      allTodos = await db.select(db.todos).get();
+      expect(allEvents.length, 1, reason: 'Duplicate event should not be created for same UID');
+      expect(allEvents.first.summary, 'Updated Meeting Title');
+      expect(allTodos.length, 1, reason: 'Duplicate todo should not be created for same UID');
+      expect(allTodos.first.summary, 'Updated Task Title');
+
+      // 3. Import same title/time but different UID -> keeps both as separate records
+      const icsDistinctUid = '''BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:event-uid-999
+DTSTAMP:20261005T010000Z
+SUMMARY:Updated Meeting Title
+DTSTART:20261005T100000Z
+DTEND:20261005T110000Z
+END:VEVENT
+BEGIN:VTODO
+UID:todo-uid-888
+DTSTAMP:20261005T010000Z
+SUMMARY:Updated Task Title
+DUE:20261005T140000Z
+END:VTODO
+END:VCALENDAR''';
+
+      final res3 = await service.importIcsDetailed(icsDistinctUid, calendarId);
+      expect(res3.events, 1);
+      expect(res3.todos, 1);
+
+      allEvents = await db.select(db.events).get();
+      allTodos = await db.select(db.todos).get();
+      expect(allEvents.length, 2, reason: 'Distinct UID should create new record even with identical summary/time');
+      expect(allTodos.length, 2, reason: 'Distinct UID should create new record even with identical summary/time');
+
+      await db.close();
+    });
   });
 }

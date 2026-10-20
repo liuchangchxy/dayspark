@@ -454,6 +454,24 @@ class SyncEngine {
       )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
       return row?.serverRev;
     }
+    if (type == RecordType.reminder) {
+      final row = await (db.select(
+        db.reminders,
+      )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
+      return row?.serverRev;
+    }
+    if (type == RecordType.tag) {
+      final row = await (db.select(
+        db.tags,
+      )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
+      return row?.serverRev;
+    }
+    if (type == RecordType.attachment) {
+      final row = await (db.select(
+        db.attachments,
+      )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();
+      return row?.serverRev;
+    }
     final row = await (db.select(
       db.todos,
     )..where((t) => t.syncId.equals(recordId))).getSingleOrNull();

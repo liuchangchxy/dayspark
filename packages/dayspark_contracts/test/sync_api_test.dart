@@ -113,7 +113,7 @@ void main() {
 
     test('invalid type enum throws FormatException', () {
       final json = _sampleOp().toJson();
-      json['type'] = 'reminder';
+      json['type'] = 'unsupported_type';
 
       expect(
         () => PushOp.fromJson(json),

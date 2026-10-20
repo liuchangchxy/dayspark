@@ -179,7 +179,7 @@ final class TodoWriter {
       left.timeZone == right.timeZone &&
       left.rule.canonical == right.rule.canonical;
 
-  // ICS 导入用：仍是裸 insert（outbox 与 syncId 回填属 P2.5#2，不在本次）。
+  // ICS 导入用：upsert by icsUid if present, insert otherwise; enqueue outbox (DS-005, DS-007).
   static Future<int> importRow(
     AppDatabase db,
     RecordScope tx,
@@ -199,6 +199,19 @@ final class TodoWriter {
       );
     } else {
       importData = data;
+    }
+    final uid = data.icsUid.present ? data.icsUid.value : null;
+    if (uid != null && uid.isNotEmpty) {
+      final existing = await (db.select(db.todos)..where((t) => t.icsUid.equals(uid))).getSingleOrNull();
+      if (existing != null) {
+        await (db.update(db.todos)..where((t) => t.id.equals(existing.id))).write(importData.copyWith(
+          id: Value(existing.id),
+          updatedAt: Value(DateTime.now()),
+        ));
+        await SyncOutbox.enqueueUpsert(db, RecordType.todo, existing.id);
+        tx.applied(RecordType.todo, existing.id);
+        return existing.id;
+      }
     }
     final id = await db.into(db.todos).insert(importData);
     await SyncOutbox.enqueueUpsert(db, RecordType.todo, id);

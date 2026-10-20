@@ -30,5 +30,6 @@ class Todos extends Table {
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   IntColumn get parentId => integer().nullable()();
   TextColumn get syncId => text().nullable()();
+  TextColumn get icsUid => text().nullable()();
   IntColumn get serverRev => integer().withDefault(const Constant(0))();
 }

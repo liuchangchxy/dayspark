@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -176,6 +176,24 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 14) {
         await m.createTable(taskInstanceStates);
+      }
+      if (from < 15) {
+        await m.addColumn(calendars, calendars.syncId);
+        await m.addColumn(events, events.icsUid);
+        await m.addColumn(todos, todos.icsUid);
+        await m.addColumn(reminders, reminders.syncId);
+        await m.addColumn(reminders, reminders.parentSyncId);
+        await m.addColumn(reminders, reminders.serverRev);
+        await m.addColumn(tags, tags.syncId);
+        await m.addColumn(tags, tags.serverRev);
+        await m.addColumn(eventTags, eventTags.syncId);
+        await m.addColumn(eventTags, eventTags.serverRev);
+        await m.addColumn(todoTags, todoTags.syncId);
+        await m.addColumn(todoTags, todoTags.serverRev);
+        await m.addColumn(attachments, attachments.syncId);
+        await m.addColumn(attachments, attachments.parentSyncId);
+        await m.addColumn(attachments, attachments.serverFileRef);
+        await m.addColumn(attachments, attachments.serverRev);
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

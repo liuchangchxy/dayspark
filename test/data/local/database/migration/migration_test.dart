@@ -206,6 +206,31 @@ File _createV11Database() {
     )
   ''');
   raw.execute('''
+    CREATE TABLE events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      calendar_id INTEGER NOT NULL,
+      summary TEXT NOT NULL,
+      start_dt INTEGER NOT NULL,
+      end_dt INTEGER NOT NULL,
+      is_all_day INTEGER NOT NULL DEFAULT 0,
+      description TEXT,
+      location TEXT,
+      rrule TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      sync_id TEXT,
+      server_rev INTEGER NOT NULL DEFAULT 0
+    )
+  ''');
+  raw.execute('''
+    CREATE TABLE event_tags (
+      event_id INTEGER NOT NULL REFERENCES events(id),
+      tag_id INTEGER NOT NULL REFERENCES tags(id),
+      PRIMARY KEY (event_id, tag_id)
+    )
+  ''');
+  raw.execute('''
     CREATE TABLE todos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       calendar_id INTEGER NOT NULL,
@@ -423,13 +448,13 @@ void main() {
     });
 
     test(
-      'v11 → v14 marks legacy recurrence without inferring timezone or inventing instance state',
+      'v11 → v15 marks legacy recurrence without inferring timezone or inventing instance state',
       () async {
         final file = _createV11Database();
         try {
           final db = AppDatabase.forExecutor(NativeDatabase(file));
           try {
-            expect(db.schemaVersion, 14);
+            expect(db.schemaVersion, 15);
             final todos = await (db.select(
               db.todos,
             )..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
@@ -484,10 +509,10 @@ void main() {
       },
     );
 
-    test('fresh database at v14 initializes correctly', () async {
+    test('fresh database at v15 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 14);
+        expect(db.schemaVersion, 15);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
@@ -499,9 +524,9 @@ void main() {
       }
     });
 
-    test('schema snapshot exists for v14', () async {
+    test('schema snapshot exists for v15', () async {
       final schemaFile = File(
-        'drift_schemas/app_database/drift_schema_v14.json',
+        'drift_schemas/app_database/drift_schema_v15.json',
       );
       expect(
         await schemaFile.exists(),

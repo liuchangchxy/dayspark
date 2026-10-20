@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/sync/sync_outbox.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 /// Watch all tags.
 final tagsProvider = StreamProvider<List<Tag>>((ref) {
@@ -61,7 +63,7 @@ final createTagProvider =
     ) {
       final db = ref.read(databaseProvider);
       return ({required name, color}) async {
-        return db
+        final id = await db
             .into(db.tags)
             .insert(
               TagsCompanion.insert(
@@ -69,6 +71,8 @@ final createTagProvider =
                 color: Value(color ?? '#6B7280'),
               ),
             );
+        await SyncOutbox.enqueueUpsert(db, RecordType.tag, id);
+        return id;
       };
     });
 
@@ -76,9 +80,11 @@ final createTagProvider =
 final deleteTagProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   return (int tagId) async {
+    final targets = await SyncOutbox.captureDeletes(db, RecordType.tag, [tagId]);
     await (db.delete(db.eventTags)..where((t) => t.tagId.equals(tagId))).go();
     await (db.delete(db.todoTags)..where((t) => t.tagId.equals(tagId))).go();
     await (db.delete(db.tags)..where((t) => t.id.equals(tagId))).go();
+    await SyncOutbox.enqueueDeletes(db, targets);
   };
 });
 
@@ -94,6 +100,7 @@ final updateTagProvider =
               color: Value(color ?? '#6B7280'),
             ),
           );
+          await SyncOutbox.enqueueUpsert(db, RecordType.tag, id);
         };
       },
     );
@@ -109,6 +116,12 @@ final addTagToEventProvider =
               .insert(
                 EventTagsCompanion.insert(eventId: eventId, tagId: tagId),
               );
+          await SyncOutbox.enqueueTagAssociationUpsert(
+            db,
+            parentType: 'event',
+            parentId: eventId,
+            tagId: tagId,
+          );
         };
       },
     );
@@ -119,6 +132,12 @@ final removeTagFromEventProvider =
       (ref) {
         final db = ref.read(databaseProvider);
         return ({required eventId, required tagId}) async {
+          await SyncOutbox.enqueueTagAssociationDelete(
+            db,
+            parentType: 'event',
+            parentId: eventId,
+            tagId: tagId,
+          );
           await (db.delete(db.eventTags)..where(
                 (t) => t.eventId.equals(eventId) & t.tagId.equals(tagId),
               ))
@@ -137,6 +156,12 @@ final addTagToTodoProvider =
         await db
             .into(db.todoTags)
             .insert(TodoTagsCompanion.insert(todoId: todoId, tagId: tagId));
+        await SyncOutbox.enqueueTagAssociationUpsert(
+          db,
+          parentType: 'todo',
+          parentId: todoId,
+          tagId: tagId,
+        );
       };
     });
 
@@ -147,6 +172,12 @@ final removeTagFromTodoProvider =
     ) {
       final db = ref.read(databaseProvider);
       return ({required todoId, required tagId}) async {
+        await SyncOutbox.enqueueTagAssociationDelete(
+          db,
+          parentType: 'todo',
+          parentId: todoId,
+          tagId: tagId,
+        );
         await (db.delete(
           db.todoTags,
         )..where((t) => t.todoId.equals(todoId) & t.tagId.equals(tagId))).go();
