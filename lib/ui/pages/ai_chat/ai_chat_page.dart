@@ -152,6 +152,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                               ref,
                                               msg.content,
                                               'event',
+                                              promptInput: index > 0 &&
+                                                      messages[index - 1].role ==
+                                                          'user'
+                                                  ? messages[index - 1].content
+                                                  : null,
                                             ),
                                           ),
                                           _QuickActionChip(
@@ -162,6 +167,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                               ref,
                                               msg.content,
                                               'todo',
+                                              promptInput: index > 0 &&
+                                                      messages[index - 1].role ==
+                                                          'user'
+                                                  ? messages[index - 1].content
+                                                  : null,
                                             ),
                                           ),
                                           _QuickActionChip(
@@ -559,19 +569,22 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   Future<void> _tryCreateFromChat(
     WidgetRef ref,
     String content,
-    String type,
-  ) async {
+    String type, {
+    String? promptInput,
+  }) async {
     final config = ref.read(aiConfigProvider).value;
     if (config == null) return;
 
     final defaultEventTitle = AppLocalizations.of(context)!.newEvent;
     final defaultTodoTitle = AppLocalizations.of(context)!.newTodo;
 
-    // Find the user message that prompted this response
-    final messages = ref.read(aiChatProvider);
-    var input = content;
-    final idx = messages.indexWhere((m) => m.content == content);
-    if (idx > 0) input = messages[idx - 1].content;
+    // Use explicit promptInput if provided; otherwise fallback to finding the message
+    var input = promptInput ?? content;
+    if (promptInput == null) {
+      final messages = ref.read(aiChatProvider);
+      final idx = messages.indexWhere((m) => m.content == content);
+      if (idx > 0) input = messages[idx - 1].content;
+    }
 
     try {
       final result = await parseNaturalLanguage(
