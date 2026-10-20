@@ -338,7 +338,13 @@ void main() {
     final canonicalOccId = occurrences.first['occurrence_id'] as String;
     expect(canonicalOccId, 'v2:DATE:2026-10-20');
 
-    // Schedule the occurrence via MCP
+    // Schedule the occurrence via MCP in the future (+2h) so that production
+    // completion (completedAt = DateTime.now()) always satisfies startAt >= completedAt
+    final futureStart = DateTime.now().toUtc().add(const Duration(hours: 2));
+    final futureEnd = futureStart.add(const Duration(minutes: 30));
+    final futureStartIso = futureStart.toIso8601String();
+    final futureEndIso = futureEnd.toIso8601String();
+
     final schedResult = await _callMcpTool(
       app,
       userToken,
@@ -346,8 +352,8 @@ void main() {
       {
         'task_id': todoSyncId,
         'occurrence_id': canonicalOccId,
-        'start': '2026-10-20T09:00:00Z',
-        'end': '2026-10-20T09:30:00Z',
+        'start': futureStartIso,
+        'end': futureEndIso,
       },
     );
     expect(schedResult['allocation'], isNotNull);
@@ -368,15 +374,18 @@ void main() {
     // Verify Calendar / Action projection
     final projectedItems = await fetchTaskAllocationsInDateRange(
       a.db,
-      DateTime.utc(2026, 10, 20, 0, 0),
-      DateTime.utc(2026, 10, 21, 0, 0),
+      futureStart.subtract(const Duration(hours: 1)),
+      futureEnd.add(const Duration(hours: 1)),
     );
     expect(projectedItems, hasLength(1));
     expect(projectedItems.first.todo.summary, 'Daily Sync');
     expect(projectedItems.first.allocation.occurrenceId, canonicalOccId);
 
     // Verify Action projection Provider
-    final actionData = await _getActionProjection(a.db, DateTime.utc(2026, 10, 20));
+    final actionData = await _getActionProjection(
+      a.db,
+      DateTime.utc(futureStart.year, futureStart.month, futureStart.day),
+    );
     expect(actionData.allocations, hasLength(1));
     expect(actionData.allocations.first.todo.summary, 'Daily Sync');
     expect(actionData.allocations.first.allocation.occurrenceId, canonicalOccId);
