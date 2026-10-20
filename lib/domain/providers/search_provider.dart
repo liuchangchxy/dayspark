@@ -53,6 +53,7 @@ final searchResultsProvider =
       if (query.trim().isEmpty) return SearchResults([], []);
       var disposed = false;
       ref.onDispose(() => disposed = true);
+      // Direct execution without double debouncing: SearchPage already debounces user input.
       if (disposed) return SearchResults([], []);
       if (ref.state.hasError && ref.state.error != null) {
         return SearchResults([], []);
