@@ -6,11 +6,13 @@ import 'package:rrule_generator/rrule_generator.dart';
 import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
 import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
-import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_selector.dart';
 import 'package:dayspark/ui/widgets/centered_content.dart';
+import 'package:dayspark/ui/widgets/reminder/reminders_draft_section.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 
 class EventCreatePage extends ConsumerStatefulWidget {
@@ -38,6 +40,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
   bool _aiLoading = false;
   String? _rrule;
   int? _selectedCalendarId;
+  List<DateTime> _draftReminders = [];
 
   @override
   void initState() {
@@ -94,7 +97,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
       }
 
       final createEvent = ref.read(createEventProvider);
-      await createEvent(
+      final eventId = await createEvent(
         calendarId: _selectedCalendarId ?? calendars.first.id,
         summary: _titleController.text.trim(),
         startDt: _startDt,
@@ -108,6 +111,18 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
             : null,
         rrule: _rrule,
       );
+
+      for (final trigger in _draftReminders) {
+        try {
+          await ref.read(createReminderProvider)(
+            parentType: 'event',
+            parentId: eventId,
+            triggerTime: trigger,
+          );
+        } catch (e) {
+          debugPrint('event_create: reminder error: $e');
+        }
+      }
 
       if (mounted) context.pop();
     } catch (e) {
@@ -324,6 +339,14 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
                   _rrule = rrule.isEmpty ? null : rrule;
                 });
               },
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            RemindersDraftSection(
+              draftReminders: _draftReminders,
+              defaultTriggerTime: _startDt,
+              onChanged: (reminders) => setState(() => _draftReminders = reminders),
             ),
           ],
         ),
