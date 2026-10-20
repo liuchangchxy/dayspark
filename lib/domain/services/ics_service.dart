@@ -21,18 +21,22 @@ class IcsService {
 
   IcsService(this._db);
 
-  /// Export all events from a calendar to a .ics file.
-  Future<String> exportCalendar(int calendarId) async {
-    final events =
-        await (_db.select(_db.events)..where(
-              (t) => t.calendarId.equals(calendarId) & t.deletedAt.isNull(),
-            ))
-            .get();
-    final todos =
-        await (_db.select(_db.todos)..where(
-              (t) => t.calendarId.equals(calendarId) & t.deletedAt.isNull(),
-            ))
-            .get();
+  /// Export all events from a calendar to a .ics file, or from all calendars when calendarId is null.
+  Future<String> exportCalendar([int? calendarId]) async {
+    final events = await (_db.select(_db.events)..where((t) {
+      final notDeleted = t.deletedAt.isNull();
+      if (calendarId != null) {
+        return notDeleted & t.calendarId.equals(calendarId);
+      }
+      return notDeleted;
+    })).get();
+    final todos = await (_db.select(_db.todos)..where((t) {
+      final notDeleted = t.deletedAt.isNull();
+      if (calendarId != null) {
+        return notDeleted & t.calendarId.equals(calendarId);
+      }
+      return notDeleted;
+    })).get();
 
     final cal = VCalendar();
     cal.productId = '-//CalendarTodoApp//EN';
