@@ -305,6 +305,48 @@ abstract class AppLocalizations {
   /// **'New Calendar'**
   String get newCalendar;
 
+  /// No description provided for @navigationError.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation Error'**
+  String get navigationError;
+
+  /// No description provided for @pageNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Page not found or failed to load: {uri}'**
+  String pageNotFound(String uri);
+
+  /// No description provided for @returnToHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to Home'**
+  String get returnToHome;
+
+  /// No description provided for @eventNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Not Found'**
+  String get eventNotFound;
+
+  /// No description provided for @missingEventParam.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing event parameter to edit.'**
+  String get missingEventParam;
+
+  /// No description provided for @todoNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo Not Found'**
+  String get todoNotFound;
+
+  /// No description provided for @missingTodoParam.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing todo parameter to edit.'**
+  String get missingTodoParam;
+
   /// No description provided for @editCalendar.
   ///
   /// In en, this message translates to:

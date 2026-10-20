@@ -112,6 +112,7 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
         rrule: _rrule,
       );
 
+      final reminderErrors = <String>[];
       for (final trigger in _draftReminders) {
         try {
           await ref.read(createReminderProvider)(
@@ -121,10 +122,18 @@ class _EventCreatePageState extends ConsumerState<EventCreatePage> {
           );
         } catch (e) {
           debugPrint('event_create: reminder error: $e');
+          reminderErrors.add('$e');
         }
       }
 
-      if (mounted) context.pop();
+      if (mounted) {
+        if (reminderErrors.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l.failedAction(reminderErrors.join(', ')))),
+          );
+        }
+        context.pop();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

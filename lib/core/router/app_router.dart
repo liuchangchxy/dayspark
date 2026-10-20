@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_interactivity.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/event/event_create_page.dart';
@@ -67,8 +68,9 @@ abstract final class AppRouter {
       if (!kReleaseMode) {
         debugPrint('[GoRouter] ERROR at ${state.matchedLocation}: ${state.error}');
       }
+      final l = AppLocalizations.of(context);
       return Scaffold(
-        appBar: AppBar(title: const Text('Navigation Error')),
+        appBar: AppBar(title: Text(l?.navigationError ?? 'Navigation Error')),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -78,13 +80,14 @@ abstract final class AppRouter {
                 const Icon(Icons.error_outline, size: 48, color: Colors.red),
                 const SizedBox(height: 16),
                 Text(
-                  'Page not found or failed to load: ${state.uri}',
+                  l?.pageNotFound(state.uri.toString()) ??
+                      'Page not found or failed to load: ${state.uri}',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () => context.go('/'),
-                  child: const Text('Return to Home'),
+                  child: Text(l?.returnToHome ?? 'Return to Home'),
                 ),
               ],
             ),
@@ -131,9 +134,10 @@ abstract final class AppRouter {
         name: 'eventEdit',
         pageBuilder: (context, state) {
           if (state.extra is! CalendaEventAdapter) {
+            final l = AppLocalizations.of(context);
             return _fadeTransition(
               Scaffold(
-                appBar: AppBar(title: const Text('Event Not Found')),
+                appBar: AppBar(title: Text(l?.eventNotFound ?? 'Event Not Found')),
                 body: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
@@ -142,14 +146,14 @@ abstract final class AppRouter {
                       children: [
                         const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Missing event parameter to edit.',
+                        Text(
+                          l?.missingEventParam ?? 'Missing event parameter to edit.',
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () => context.go('/'),
-                          child: const Text('Return to Home'),
+                          child: Text(l?.returnToHome ?? 'Return to Home'),
                         ),
                       ],
                     ),
@@ -181,9 +185,10 @@ abstract final class AppRouter {
         name: 'todoEdit',
         pageBuilder: (context, state) {
           if (state.extra is! Todo) {
+            final l = AppLocalizations.of(context);
             return _fadeTransition(
               Scaffold(
-                appBar: AppBar(title: const Text('Todo Not Found')),
+                appBar: AppBar(title: Text(l?.todoNotFound ?? 'Todo Not Found')),
                 body: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
@@ -192,14 +197,14 @@ abstract final class AppRouter {
                       children: [
                         const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Missing todo parameter to edit.',
+                        Text(
+                          l?.missingTodoParam ?? 'Missing todo parameter to edit.',
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () => context.go('/'),
-                          child: const Text('Return to Home'),
+                          child: Text(l?.returnToHome ?? 'Return to Home'),
                         ),
                       ],
                     ),

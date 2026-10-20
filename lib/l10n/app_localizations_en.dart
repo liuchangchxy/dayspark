@@ -116,6 +116,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newCalendar => 'New Calendar';
 
   @override
+  String get navigationError => 'Navigation Error';
+
+  @override
+  String pageNotFound(String uri) {
+    return 'Page not found or failed to load: $uri';
+  }
+
+  @override
+  String get returnToHome => 'Return to Home';
+
+  @override
+  String get eventNotFound => 'Event Not Found';
+
+  @override
+  String get missingEventParam => 'Missing event parameter to edit.';
+
+  @override
+  String get todoNotFound => 'Todo Not Found';
+
+  @override
+  String get missingTodoParam => 'Missing todo parameter to edit.';
+
+  @override
   String get editCalendar => 'Edit Calendar';
 
   @override

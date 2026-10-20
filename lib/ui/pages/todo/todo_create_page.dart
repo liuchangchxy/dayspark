@@ -145,6 +145,7 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
         }
       }
 
+      final reminderErrors = <String>[];
       for (final trigger in _draftReminders) {
         try {
           await ref.read(createReminderProvider)(
@@ -154,13 +155,15 @@ class _TodoCreatePageState extends ConsumerState<TodoCreatePage> {
           );
         } catch (e) {
           debugPrint('todo_create: reminder error: $e');
+          reminderErrors.add('$e');
         }
       }
 
       if (mounted) {
-        if (tagErrors.isNotEmpty) {
+        final allErrors = [...tagErrors, ...reminderErrors];
+        if (allErrors.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.failedAction(tagErrors.join(', ')))),
+            SnackBar(content: Text(l.failedAction(allErrors.join(', ')))),
           );
         }
         context.pop();

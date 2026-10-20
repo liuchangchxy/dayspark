@@ -116,6 +116,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get newCalendar => '新建日历';
 
   @override
+  String get navigationError => '导航错误';
+
+  @override
+  String pageNotFound(String uri) {
+    return '页面未找到或加载失败：$uri';
+  }
+
+  @override
+  String get returnToHome => '返回首页';
+
+  @override
+  String get eventNotFound => '日程未找到';
+
+  @override
+  String get missingEventParam => '缺少待编辑的日程参数。';
+
+  @override
+  String get todoNotFound => '待办未找到';
+
+  @override
+  String get missingTodoParam => '缺少待编辑的待办参数。';
+
+  @override
   String get editCalendar => '编辑日历';
 
   @override

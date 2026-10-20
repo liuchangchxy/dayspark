@@ -36,6 +36,20 @@
   "targetCalendar": "Target Calendar",
   "manageCalendars": "Manage Calendars",
   "newCalendar": "New Calendar",
+  "navigationError": "Navigation Error",
+  "pageNotFound": "Page not found or failed to load: {uri}",
+  "@pageNotFound": {
+    "placeholders": {
+      "uri": {
+        "type": "String"
+      }
+    }
+  },
+  "returnToHome": "Return to Home",
+  "eventNotFound": "Event Not Found",
+  "missingEventParam": "Missing event parameter to edit.",
+  "todoNotFound": "Todo Not Found",
+  "missingTodoParam": "Missing todo parameter to edit.",
   "editCalendar": "Edit Calendar",
   "deleteCalendar": "Delete Calendar",
   "calendarName": "Calendar Name",
