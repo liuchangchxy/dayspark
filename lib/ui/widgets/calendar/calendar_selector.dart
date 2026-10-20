@@ -30,8 +30,33 @@ class CalendarSelector extends ConsumerWidget {
     return ref
         .watch(calendarsProvider)
         .when(
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+          error: (e, _) => Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l.error('$e'),
+                    style: AppTypography.caption.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => ref.invalidate(calendarsProvider),
+                  child: Text(l.retry),
+                ),
+              ],
+            ),
+          ),
           data: (calendars) {
             if (calendars.isEmpty) {
               return Padding(
