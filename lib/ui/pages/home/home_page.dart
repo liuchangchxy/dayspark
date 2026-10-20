@@ -68,7 +68,7 @@ class _HomePageState extends ConsumerState<HomePage>
   static DateTimeRange _calendarRange() {
     return DateTimeRange(
       start: DateTime(2000, 1, 1),
-      end: DateTime(2030, 12, 31),
+      end: DateTime(2100, 12, 31),
     );
   }
 
