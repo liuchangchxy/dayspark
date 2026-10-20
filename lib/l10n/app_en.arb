@@ -32,6 +32,8 @@
   "recurrenceOccurrenceLimitError": "There are more matching occurrences than this selector can show. Narrow the date range.",
   "@@locale": "en",
   "appName": "DaySpark",
+  "calendarUnavailable": "Calendar unavailable. Please choose another calendar.",
+  "loadMore": "Load More",
   "allCalendars": "All Calendars",
   "targetCalendar": "Target Calendar",
   "manageCalendars": "Manage Calendars",

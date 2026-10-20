@@ -225,12 +225,11 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('an event whose calendar is gone falls back to a live one', (
+  testWidgets('an event whose calendar is gone prompts to re-select', (
     tester,
   ) async {
     final personal = (await _calendars(db)).single.id;
-    // A third calendar keeps the picker on screen, so the fallback selection
-    // is actually observable instead of collapsing to a hidden row.
+    // A third calendar keeps the picker on screen
     await _addCalendar(db, 'Work', 1);
     final doomed = await _addCalendar(db, 'Doomed', 2);
     final id = await db
@@ -246,8 +245,8 @@ void main() {
     await (db.delete(db.calendars)..where((t) => t.id.equals(doomed))).go();
     final row = await _event(db, id);
 
-    // The picker must not offer a calendar that no longer exists, and the
-    // write must not target a dangling id.
+    // The picker must not silently fall back to another calendar; it should
+    // prompt that calendar is unavailable and require explicit selection.
     await _pump(tester, db, event: CalendaEventAdapter.fromDrift(row));
     expect(tester.takeException(), isNull);
     expect(
@@ -256,10 +255,12 @@ void main() {
       reason: 'a calendar that no longer exists must not be offered',
     );
     expect(
-      find.text('Personal'),
-      findsOneWidget,
-      reason: 'the picker has to show the calendar the save will target',
+      find.text('Calendar unavailable. Please choose another calendar.'),
+      findsAtLeastNWidgets(1),
     );
+
+    // Re-select Personal explicitly
+    await _chooseCalendar(tester, 'Personal');
     await tester.enterText(_field('Title'), 'Orphan (renamed)');
     await _save(tester);
 
@@ -300,7 +301,7 @@ void main() {
   });
 
   testWidgets(
-    'when calendarsProvider is prewarmed, dangling calendarId falls back cleanly without assertion',
+    'when calendarsProvider is prewarmed, dangling calendarId prompts without assertion',
     (tester) async {
       final personal = (await _calendars(db)).single.id;
       final doomed = await _addCalendar(db, 'Doomed', 1);
@@ -348,6 +349,11 @@ void main() {
       await _settle(tester);
 
       expect(tester.takeException(), isNull);
+      expect(
+        find.text('Calendar unavailable. Please choose another calendar.'),
+        findsAtLeastNWidgets(1),
+      );
+      await _chooseCalendar(tester, 'Personal');
       await tester.enterText(_field('Title'), 'Prewarmed orphan (saved)');
       await _save(tester);
 

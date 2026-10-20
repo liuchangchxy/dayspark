@@ -104,6 +104,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appName => '灵光';
 
   @override
+  String get calendarUnavailable => '目标日历不可用，请重新选择日历。';
+
+  @override
+  String get loadMore => '加载更多';
+
+  @override
   String get allCalendars => '全部日历';
 
   @override

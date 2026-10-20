@@ -32,6 +32,8 @@
   "recurrenceOccurrenceLimitError": "符合条件的重复实例超出当前选择器上限，请缩小日期范围。",
   "@@locale": "zh",
   "appName": "灵光",
+  "calendarUnavailable": "目标日历不可用，请重新选择日历。",
+  "loadMore": "加载更多",
   "allCalendars": "全部日历",
   "targetCalendar": "目标日历",
   "manageCalendars": "管理日历",

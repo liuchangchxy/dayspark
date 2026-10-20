@@ -53,7 +53,11 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
     return into(events).insertOnConflictUpdate(entry);
   }
 
-  Future<List<Event>> searchEvents(String query, {int limit = 100}) {
+  Future<List<Event>> searchEvents(
+    String query, {
+    int limit = 100,
+    int offset = 0,
+  }) {
     final pattern = '%$query%';
     return (select(events)
           ..where(
@@ -64,7 +68,7 @@ class EventsDao extends DatabaseAccessor<AppDatabase> with _$EventsDaoMixin {
                     t.location.like(pattern)),
           )
           ..orderBy([(t) => OrderingTerm.asc(t.startDt)])
-          ..limit(limit))
+          ..limit(limit, offset: offset))
         .get();
   }
 
