@@ -35,6 +35,20 @@ class _RecordingTransport implements SyncTransport {
   }
 
   @override
+  Future<SyncHttpResponse> sendBytes({
+    required String method,
+    required String path,
+    Map<String, String> headers = const {},
+    required List<int> body,
+  }) => throw UnimplementedError('this fake never uploads blobs');
+
+  @override
+  Future<List<int>> fetchBytes({
+    required String path,
+    Map<String, String> headers = const {},
+  }) => throw UnimplementedError('this fake never downloads blobs');
+
+  @override
   Future<Stream<List<int>>> openStream({
     required String path,
     Map<String, String> headers = const {},

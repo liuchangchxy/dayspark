@@ -139,6 +139,18 @@
   "todoCreated": "Todo created",
   "importExport": "Import / Export",
   "export": "Export",
+  "fullBackup": "Full backup",
+  "fullBackupDesc": "Archive with all data and attachment files",
+  "restore": "Restore",
+  "backupRestored": "Backup restored",
+  "restoreFailed": "Restore failed: {error}",
+  "@restoreFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "import": "Import",
   "advancedFeatures": "Advanced Features",
   "attachments": "Attachments",
@@ -377,6 +389,25 @@
   "eventStartingSoon": "Event starting soon",
   "taskDueSoon": "Task due soon",
   "addAttachment": "Add attachment",
+  "openAttachment": "Open attachment",
+  "attachmentLocalOnly": "Not uploaded",
+  "attachmentUnavailable": "This attachment is not available on this device yet",
+  "attachmentReady": "Attachment saved: {name}",
+  "@attachmentReady": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "attachmentFailed": "Attachment failed: {error}",
+  "@attachmentFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "editTag": "Edit Tag",
   "thirdPartyLicenses": "Third-Party Licenses",
   "security": "Security",

@@ -8,7 +8,16 @@ String taskInstanceStateRecordId(String todoSyncId, String occurrenceId) =>
       'dayspark:task-instance:$todoSyncId:$occurrenceId',
     );
 
-enum RecordType { event, todo, taskAllocation, taskInstanceState }
+enum RecordType {
+  event,
+  todo,
+  taskAllocation,
+  taskInstanceState,
+  reminder,
+  tag,
+  tagAssociation,
+  attachment,
+}
 
 extension RecordTypeWireName on RecordType {
   String get wireName => switch (this) {
@@ -16,6 +25,10 @@ extension RecordTypeWireName on RecordType {
     RecordType.todo => 'todo',
     RecordType.taskAllocation => 'task_allocation',
     RecordType.taskInstanceState => 'task_instance_state',
+    RecordType.reminder => 'reminder',
+    RecordType.tag => 'tag',
+    RecordType.tagAssociation => 'tag_association',
+    RecordType.attachment => 'attachment',
   };
 }
 
@@ -24,6 +37,10 @@ RecordType recordTypeFromJson(Object value, String field) => switch (value) {
   'todo' => RecordType.todo,
   'task_allocation' => RecordType.taskAllocation,
   'task_instance_state' => RecordType.taskInstanceState,
+  'reminder' => RecordType.reminder,
+  'tag' => RecordType.tag,
+  'tag_association' => RecordType.tagAssociation,
+  'attachment' => RecordType.attachment,
   _ => throw FormatException('invalid $field value: $value'),
 };
 

@@ -44,6 +44,21 @@ abstract class SyncTransport {
     Object? body,
   });
 
+  /// Binary request body (attachment upload). Kept off [send] because a
+  /// JSON-envelope transport would base64 it and burn a third of the
+  /// payload budget on top of the server's size cap.
+  Future<SyncHttpResponse> sendBytes({
+    required String method,
+    required String path,
+    Map<String, String> headers = const {},
+    required List<int> body,
+  });
+
+  Future<List<int>> fetchBytes({
+    required String path,
+    Map<String, String> headers = const {},
+  });
+
   Future<Stream<List<int>>> openStream({
     required String path,
     Map<String, String> headers = const {},
@@ -80,6 +95,8 @@ class DioSyncTransport implements SyncTransport {
       final Response<dynamic> response;
       if (method == 'GET') {
         response = await _dio.get<dynamic>(path, options: options);
+      } else if (method == 'DELETE') {
+        response = await _dio.delete<dynamic>(path, options: options);
       } else {
         response = await _dio.post<dynamic>(path, data: body, options: options);
       }
@@ -95,6 +112,66 @@ class DioSyncTransport implements SyncTransport {
         statusCode: resp.statusCode ?? 0,
         body: data is String ? data : '',
       );
+    }
+  }
+
+  @override
+  Future<SyncHttpResponse> sendBytes({
+    required String method,
+    required String path,
+    Map<String, String> headers = const {},
+    required List<int> body,
+  }) async {
+    final options = Options(
+      headers: {...headers, 'content-type': 'application/octet-stream'},
+      responseType: ResponseType.plain,
+      // Uploads are user files, not control messages: the 15s connect /
+      // 30s receive defaults are for sync rounds and would abort a large
+      // attachment on a slow link.
+      sendTimeout: const Duration(minutes: 5),
+      receiveTimeout: const Duration(minutes: 5),
+    );
+    try {
+      final Response<dynamic> response;
+      if (method == 'GET') {
+        response = await _dio.get<dynamic>(path, options: options);
+      } else if (method == 'DELETE') {
+        response = await _dio.delete<dynamic>(path, options: options);
+      } else {
+        response = await _dio.post<dynamic>(path, data: body, options: options);
+      }
+      return SyncHttpResponse(
+        statusCode: response.statusCode ?? 0,
+        body: response.data is String ? response.data! as String : '',
+      );
+    } on DioException catch (e) {
+      final resp = e.response;
+      if (resp == null) rethrow;
+      final data = resp.data;
+      return SyncHttpResponse(
+        statusCode: resp.statusCode ?? 0,
+        body: data is String ? data : '',
+      );
+    }
+  }
+
+  @override
+  Future<List<int>> fetchBytes({
+    required String path,
+    Map<String, String> headers = const {},
+  }) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        path,
+        options: Options(
+          headers: {...headers},
+          responseType: ResponseType.bytes,
+          receiveTimeout: const Duration(minutes: 5),
+        ),
+      );
+      return response.data ?? const [];
+    } on DioException catch (e) {
+      throw SyncTransportException(e.response?.statusCode ?? 0);
     }
   }
 
@@ -159,6 +236,19 @@ abstract class DeviceApi {
   Future<List<DeviceDto>> fetchDevices();
 }
 
+/// Attachment blob endpoints. Separate from [SyncApiClient] for the same
+/// reason as [DeviceApi]: the sync fakes in tests must not grow methods they
+/// never call.
+abstract class AttachmentApi {
+  Future<AttachmentUploadResponse> uploadAttachment({required List<int> bytes});
+
+  Future<List<int>> downloadAttachment(String serverFileRef);
+
+  /// Idempotent — deleting an already-gone blob is a success, so a retried
+  /// delete after a flaky response does not surface as an error.
+  Future<void> deleteAttachment(String serverFileRef);
+}
+
 abstract class AuthApi {
   Future<AuthSession> login({required String email, required String password});
 
@@ -171,7 +261,8 @@ abstract class AuthApi {
 /// Bearer-token auth with single-flight refresh: on 401 the original
 /// request is retried exactly once after POST /auth/refresh rotates the
 /// token pair (T2 contract).
-class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
+class AuthSyncApiClient
+    implements SyncApiClient, AuthApi, DeviceApi, AttachmentApi {
   AuthSyncApiClient({
     required this.transport,
     required this.tokens,
@@ -188,36 +279,88 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
 
   Future<void>? _refreshInFlight;
 
-  Future<Map<String, String>> _authHeaders() async {
+  Future<Map<String, String>> _authHeaders({bool json = true}) async {
     final access = await tokens.readAccessToken();
     return {
       if (access != null) 'authorization': 'Bearer $access',
       if (deviceId.isNotEmpty) 'x-device-id': deviceId,
-      'content-type': 'application/json',
+      if (json) 'content-type': 'application/json',
     };
+  }
+
+  /// Single-flight refresh + one retry, shared by every authenticated call
+  /// shape (JSON, binary upload, binary download).
+  Future<SyncHttpResponse> _withRefresh(
+    Future<SyncHttpResponse> Function() attempt,
+  ) async {
+    final response = await attempt();
+    if (response.statusCode != 401) return response;
+    await _refresh();
+    return attempt();
   }
 
   Future<SyncHttpResponse> _send({
     required String method,
     required String path,
     Object? body,
-  }) async {
-    var response = await transport.send(
+  }) => _withRefresh(
+    () async => transport.send(
       method: method,
       path: path,
       headers: await _authHeaders(),
       body: body,
+    ),
+  );
+
+  @override
+  Future<AttachmentUploadResponse> uploadAttachment({
+    required List<int> bytes,
+  }) async {
+    final response = await _withRefresh(
+      () async => transport.sendBytes(
+        method: 'POST',
+        path: '/attachments/upload',
+        headers: await _authHeaders(json: false),
+        body: bytes,
+      ),
     );
-    if (response.statusCode == 401) {
+    if (response.statusCode != 200) throw _toException(response);
+    return AttachmentUploadResponse.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<List<int>> downloadAttachment(String serverFileRef) async {
+    Future<List<int>> attempt() async => transport.fetchBytes(
+      path: '/attachments/${Uri.encodeComponent(serverFileRef)}',
+      headers: await _authHeaders(json: false),
+    );
+    try {
+      return await attempt();
+    } on SyncTransportException catch (e) {
+      if (e.statusCode != 401) {
+        throw SyncApiException(
+          e.statusCode,
+          'transport',
+          'attachment download failed (${e.statusCode})',
+        );
+      }
       await _refresh();
-      response = await transport.send(
-        method: method,
-        path: path,
-        headers: await _authHeaders(),
-        body: body,
-      );
+      return attempt();
     }
-    return response;
+  }
+
+  @override
+  Future<void> deleteAttachment(String serverFileRef) async {
+    final response = await _withRefresh(
+      () async => transport.send(
+        method: 'DELETE',
+        path: '/attachments/${Uri.encodeComponent(serverFileRef)}',
+        headers: await _authHeaders(json: false),
+      ),
+    );
+    if (response.statusCode != 200) throw _toException(response);
   }
 
   @override
@@ -384,7 +527,7 @@ class AuthSyncApiClient implements SyncApiClient, AuthApi, DeviceApi {
     final response = await _send(
       method: 'GET',
       path:
-          '/sync/pull?cursor=$cursor&limit=$limit&capabilities=${Uri.encodeQueryComponent('${SyncCapability.taskAllocationV1},${SyncCapability.todoRecurrenceV1},${SyncCapability.taskInstanceStateV1}')}',
+          '/sync/pull?cursor=$cursor&limit=$limit&capabilities=${Uri.encodeQueryComponent('${SyncCapability.taskAllocationV1},${SyncCapability.todoRecurrenceV1},${SyncCapability.taskInstanceStateV1},${SyncCapability.reminderTagAttachmentV1}')}',
     );
     return _decode(response, PullResponse.fromJson);
   }

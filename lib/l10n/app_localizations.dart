@@ -833,6 +833,36 @@ abstract class AppLocalizations {
   /// **'Export'**
   String get export;
 
+  /// No description provided for @fullBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Full backup'**
+  String get fullBackup;
+
+  /// No description provided for @fullBackupDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive with all data and attachment files'**
+  String get fullBackupDesc;
+
+  /// No description provided for @restore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get restore;
+
+  /// No description provided for @backupRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup restored'**
+  String get backupRestored;
+
+  /// No description provided for @restoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore failed: {error}'**
+  String restoreFailed(String error);
+
   /// No description provided for @import.
   ///
   /// In en, this message translates to:
@@ -1432,6 +1462,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add attachment'**
   String get addAttachment;
+
+  /// No description provided for @openAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Open attachment'**
+  String get openAttachment;
+
+  /// No description provided for @attachmentLocalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Not uploaded'**
+  String get attachmentLocalOnly;
+
+  /// No description provided for @attachmentUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This attachment is not available on this device yet'**
+  String get attachmentUnavailable;
+
+  /// No description provided for @attachmentReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachment saved: {name}'**
+  String attachmentReady(String name);
+
+  /// No description provided for @attachmentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachment failed: {error}'**
+  String attachmentFailed(String error);
 
   /// No description provided for @editTag.
   ///

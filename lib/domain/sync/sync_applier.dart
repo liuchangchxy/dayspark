@@ -39,6 +39,10 @@ class SyncApplier {
           record,
           tx,
         ),
+        RecordType.reminder => await _applyReminder(record, tx),
+        RecordType.tag => await _applyTag(record, tx),
+        RecordType.tagAssociation => await _applyTagAssociation(record, tx),
+        RecordType.attachment => await _applyAttachment(record, tx),
       };
     } on FormatException catch (e) {
       debugPrint('sync applier: skip ${record.id}: $e');
@@ -71,7 +75,11 @@ class SyncApplier {
     }
 
     final companion = EventsCompanion(
-      calendarId: Value(await resolveCalendarId(db, payload['calendarId'])),
+      calendarId: Value(await resolveCalendarId(
+        db,
+        payload['calendarId'],
+        calendarSyncId: optionalString(payload['calendarSyncId']),
+      )),
       summary: Value(requireString(payload, 'summary')),
       startDt: Value(requireDateTime(payload, 'startDt')),
       endDt: Value(requireDateTime(payload, 'endDt')),
@@ -138,6 +146,9 @@ class SyncApplier {
       }
     }
 
+    // A payload carrying only the rrule projection (no recurrence group) is
+    // classified unknownLegacy — the same rule ICS import uses: recurrence
+    // that cannot be resolved is flagged for confirmation, never guessed.
     final recurrence =
         payload.containsKey('recurrenceSpec') ||
             payload.containsKey('recurrenceRevision') ||
@@ -147,7 +158,11 @@ class SyncApplier {
               ? TodoRecurrence.none()
               : TodoRecurrence.unknownLegacy());
     final companion = TodosCompanion(
-      calendarId: Value(await resolveCalendarId(db, payload['calendarId'])),
+      calendarId: Value(await resolveCalendarId(
+        db,
+        payload['calendarId'],
+        calendarSyncId: optionalString(payload['calendarSyncId']),
+      )),
       summary: Value(requireString(payload, 'summary')),
       dueDate: Value(parseIso(payload['dueDate'])),
       startDate: Value(parseIso(payload['startDate'])),
@@ -292,6 +307,188 @@ class SyncApplier {
         serverRev: Value(record.rev),
       ),
     );
+    return true;
+  }
+
+  Future<bool> _applyReminder(SyncRecord record, RecordScope tx) async {
+    final existing = await (db.select(db.reminders)
+          ..where((t) => t.syncId.equals(record.id)))
+        .getSingleOrNull();
+
+    if (record.deleted) {
+      if (existing == null) return false;
+      await (db.delete(db.reminders)..where((t) => t.id.equals(existing.id))).go();
+      return true;
+    }
+
+    final payload = record.payload;
+    final parentType = requireString(payload, 'parentType');
+    final parentSyncId = optionalString(payload['parentSyncId']);
+    final triggerTime = requireDateTime(payload, 'triggerTime');
+    final isTriggered = optionalBool(payload['isTriggered']) ?? false;
+
+    var parentId = 0;
+    if (parentSyncId != null && parentSyncId.isNotEmpty) {
+      if (parentType == 'event') {
+        final ev = await (db.select(db.events)..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
+        if (ev != null) parentId = ev.id;
+      } else {
+        final td = await (db.select(db.todos)..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
+        if (td != null) parentId = td.id;
+      }
+    }
+
+    final companion = RemindersCompanion(
+      parentType: Value(parentType),
+      parentId: Value(parentId),
+      triggerTime: Value(triggerTime),
+      isTriggered: Value(isTriggered),
+      syncId: Value(record.id),
+      parentSyncId: Value(parentSyncId),
+      serverRev: Value(record.rev),
+    );
+
+    if (existing == null) {
+      await db.into(db.reminders).insert(companion);
+    } else {
+      await (db.update(db.reminders)..where((t) => t.id.equals(existing.id))).write(companion);
+    }
+    return true;
+  }
+
+  Future<bool> _applyTag(SyncRecord record, RecordScope tx) async {
+    final existing = await (db.select(db.tags)
+          ..where((t) => t.syncId.equals(record.id)))
+        .getSingleOrNull();
+
+    if (record.deleted) {
+      if (existing == null) return false;
+      await (db.delete(db.eventTags)..where((t) => t.tagId.equals(existing.id))).go();
+      await (db.delete(db.todoTags)..where((t) => t.tagId.equals(existing.id))).go();
+      await (db.delete(db.tags)..where((t) => t.id.equals(existing.id))).go();
+      return true;
+    }
+
+    final payload = record.payload;
+    final name = requireString(payload, 'name');
+    final color = optionalString(payload['color']) ?? '#6B7280';
+
+    final companion = TagsCompanion(
+      name: Value(name),
+      color: Value(color),
+      syncId: Value(record.id),
+      serverRev: Value(record.rev),
+    );
+
+    if (existing == null) {
+      // Check if a tag with this name already exists without a syncId
+      final byName = await (db.select(db.tags)..where((t) => t.name.equals(name))).getSingleOrNull();
+      if (byName != null) {
+        await (db.update(db.tags)..where((t) => t.id.equals(byName.id))).write(companion);
+      } else {
+        await db.into(db.tags).insert(companion);
+      }
+    } else {
+      await (db.update(db.tags)..where((t) => t.id.equals(existing.id))).write(companion);
+    }
+    return true;
+  }
+
+  Future<bool> _applyTagAssociation(SyncRecord record, RecordScope tx) async {
+    final payload = record.payload;
+    final parentType = requireString(payload, 'parentType');
+    final parentSyncId = requireString(payload, 'parentSyncId');
+    final tagSyncId = requireString(payload, 'tagSyncId');
+
+    final tag = await (db.select(db.tags)..where((t) => t.syncId.equals(tagSyncId))).getSingleOrNull();
+    if (tag == null) return false;
+
+    if (parentType == 'event') {
+      final ev = await (db.select(db.events)..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
+      if (ev == null) return false;
+      if (record.deleted) {
+        await (db.delete(db.eventTags)
+              ..where((t) => t.eventId.equals(ev.id) & t.tagId.equals(tag.id)))
+            .go();
+      } else {
+        await db.into(db.eventTags).insertOnConflictUpdate(
+          EventTagsCompanion(
+            eventId: Value(ev.id),
+            tagId: Value(tag.id),
+            syncId: Value(record.id),
+            serverRev: Value(record.rev),
+          ),
+        );
+      }
+    } else {
+      final td = await (db.select(db.todos)..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
+      if (td == null) return false;
+      if (record.deleted) {
+        await (db.delete(db.todoTags)
+              ..where((t) => t.todoId.equals(td.id) & t.tagId.equals(tag.id)))
+            .go();
+      } else {
+        await db.into(db.todoTags).insertOnConflictUpdate(
+          TodoTagsCompanion(
+            todoId: Value(td.id),
+            tagId: Value(tag.id),
+            syncId: Value(record.id),
+            serverRev: Value(record.rev),
+          ),
+        );
+      }
+    }
+    return true;
+  }
+
+  Future<bool> _applyAttachment(SyncRecord record, RecordScope tx) async {
+    final existing = await (db.select(db.attachments)
+          ..where((t) => t.syncId.equals(record.id)))
+        .getSingleOrNull();
+
+    if (record.deleted) {
+      if (existing == null) return false;
+      await (db.delete(db.attachments)..where((t) => t.id.equals(existing.id))).go();
+      return true;
+    }
+
+    final payload = record.payload;
+    final parentType = requireString(payload, 'parentType');
+    final parentSyncId = optionalString(payload['parentSyncId']);
+    final fileName = requireString(payload, 'fileName');
+    final fileSize = optionalInt(payload['fileSize']) ?? 0;
+    final mimeType = optionalString(payload['mimeType']);
+    final serverFileRef = optionalString(payload['serverFileRef']);
+
+    var parentId = 0;
+    if (parentSyncId != null && parentSyncId.isNotEmpty) {
+      if (parentType == 'event') {
+        final ev = await (db.select(db.events)..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
+        if (ev != null) parentId = ev.id;
+      } else {
+        final td = await (db.select(db.todos)..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
+        if (td != null) parentId = td.id;
+      }
+    }
+
+    final companion = AttachmentsCompanion(
+      parentType: Value(parentType),
+      parentId: Value(parentId),
+      filePath: Value(existing?.filePath ?? ''),
+      fileName: Value(fileName),
+      fileSize: Value(fileSize),
+      mimeType: Value(mimeType),
+      syncId: Value(record.id),
+      parentSyncId: Value(parentSyncId),
+      serverFileRef: Value(serverFileRef),
+      serverRev: Value(record.rev),
+    );
+
+    if (existing == null) {
+      await db.into(db.attachments).insert(companion);
+    } else {
+      await (db.update(db.attachments)..where((t) => t.id.equals(existing.id))).write(companion);
+    }
     return true;
   }
 }

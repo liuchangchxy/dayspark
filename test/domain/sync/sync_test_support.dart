@@ -12,6 +12,7 @@ class MemoryCursorStore implements SyncCursorStore {
   bool? taskAllocationCapabilityEnabled = true;
   bool? todoRecurrenceCapabilityEnabled = true;
   bool? taskInstanceStateCapabilityEnabled = true;
+  bool? reminderTagAttachmentCapabilityEnabled = true;
 
   MemoryCursorStore([this.value]);
 
@@ -51,11 +52,21 @@ class MemoryCursorStore implements SyncCursorStore {
   }
 
   @override
+  Future<bool?> readReminderTagAttachmentCapabilityState() async =>
+      reminderTagAttachmentCapabilityEnabled;
+
+  @override
+  Future<void> writeReminderTagAttachmentCapabilityState(bool enabled) async {
+    reminderTagAttachmentCapabilityEnabled = enabled;
+  }
+
+  @override
   Future<void> clear() async {
     value = null;
     taskAllocationCapabilityEnabled = null;
     todoRecurrenceCapabilityEnabled = null;
     taskInstanceStateCapabilityEnabled = null;
+    reminderTagAttachmentCapabilityEnabled = null;
   }
 }
 
@@ -119,6 +130,7 @@ class FakeSyncApiClient implements SyncApiClient {
   List<String> serverCapabilities = const [
     SyncCapability.taskAllocationV1,
     SyncCapability.todoRecurrenceV1,
+    SyncCapability.reminderTagAttachmentV1,
   ];
   final StreamController<int> cursorController =
       StreamController<int>.broadcast();
@@ -227,8 +239,70 @@ class FakeTransport implements SyncTransport {
         }),
       );
     }
+    // Blob delete travels on the JSON control plane, not the binary one.
+    if (method == 'DELETE' && path.startsWith('/attachments/')) {
+      if (offlineDeletes) throw const SyncTransportException(0);
+      blobs.remove(_refOf(path));
+      return SyncHttpResponse(
+        statusCode: 200,
+        body: jsonEncode({'deleted': true}),
+      );
+    }
     throw StateError('unexpected path: $path');
   }
+
+  /// Blobs the fake "server" holds, keyed by the ref it handed out.
+  final Map<String, List<int>> blobs = <String, List<int>>{};
+  int _blobSeq = 0;
+
+  /// Blob-plane failures, toggled independently of the control plane so a
+  /// test can exercise "row synced, file not uploaded yet".
+  bool offlineUploads = false;
+  bool offlineDeletes = false;
+
+  @override
+  Future<SyncHttpResponse> sendBytes({
+    required String method,
+    required String path,
+    Map<String, String> headers = const {},
+    required List<int> body,
+  }) async {
+    if (offlineUploads && path == '/attachments/upload') {
+      throw const SyncTransportException(0);
+    }
+    if (offlineDeletes && method == 'DELETE') {
+      throw const SyncTransportException(0);
+    }
+    if (path == '/attachments/upload') {
+      final ref = 'blob-${++_blobSeq}';
+      blobs[ref] = List<int>.of(body);
+      return SyncHttpResponse(
+        statusCode: 200,
+        body: jsonEncode({'serverFileRef': ref, 'fileSize': body.length}),
+      );
+    }
+    if (method == 'DELETE' && path.startsWith('/attachments/')) {
+      blobs.remove(_refOf(path));
+      return SyncHttpResponse(
+        statusCode: 200,
+        body: jsonEncode({'deleted': true}),
+      );
+    }
+    throw StateError('unexpected blob path: $path');
+  }
+
+  @override
+  Future<List<int>> fetchBytes({
+    required String path,
+    Map<String, String> headers = const {},
+  }) async {
+    final bytes = blobs[_refOf(path)];
+    if (bytes == null) throw const SyncTransportException(404);
+    return bytes;
+  }
+
+  String _refOf(String path) =>
+      Uri.decodeComponent(path.substring('/attachments/'.length));
 
   @override
   Future<Stream<List<int>>> openStream({

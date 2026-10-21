@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show BooleanExpressionOperators, Value;
 import 'package:uuid/uuid.dart';
 
 import 'sync_payload.dart';
@@ -62,7 +62,7 @@ class SyncOutbox {
       )..where((t) => t.id.equals(localId))).getSingleOrNull();
       if (row == null) return;
       recordId = await _ensureSyncId(db, RecordType.event, localId, row.syncId);
-      payloadJson = jsonEncode(eventToPayload(row));
+      payloadJson = jsonEncode(await eventToPayload(db, row));
       baseRev = row.serverRev;
     } else if (type == RecordType.todo) {
       final row = await (db.select(
@@ -116,7 +116,7 @@ class SyncOutbox {
       )..where((t) => t.id.equals(localId))).getSingle();
       payloadJson = jsonEncode(taskAllocationToPayload(refreshed));
       baseRev = refreshed.serverRev;
-    } else {
+    } else if (type == RecordType.taskInstanceState) {
       final row = await (db.select(
         db.taskInstanceStates,
       )..where((t) => t.id.equals(localId))).getSingleOrNull();
@@ -124,6 +124,74 @@ class SyncOutbox {
       recordId = row.syncId;
       payloadJson = jsonEncode(taskInstanceStateToPayload(row));
       baseRev = row.serverRev;
+    } else if (type == RecordType.reminder) {
+      final row = await (db.select(
+        db.reminders,
+      )..where((t) => t.id.equals(localId))).getSingleOrNull();
+      if (row == null) return;
+      var parentSyncId = row.parentSyncId;
+      if (parentSyncId == null || parentSyncId.isEmpty) {
+        if (row.parentType == 'event') {
+          final parent = await (db.select(db.events)..where((e) => e.id.equals(row.parentId))).getSingleOrNull();
+          if (parent != null) {
+            parentSyncId = await _ensureSyncId(db, RecordType.event, parent.id, parent.syncId);
+          }
+        } else {
+          final parent = await (db.select(db.todos)..where((t) => t.id.equals(row.parentId))).getSingleOrNull();
+          if (parent != null) {
+            parentSyncId = await _ensureSyncId(db, RecordType.todo, parent.id, parent.syncId);
+          }
+        }
+        if (parentSyncId != null) {
+          await (db.update(db.reminders)..where((t) => t.id.equals(localId)))
+              .write(RemindersCompanion(parentSyncId: Value(parentSyncId)));
+        }
+      }
+      recordId = await _ensureSyncId(db, RecordType.reminder, localId, row.syncId);
+      final refreshed = await (db.select(db.reminders)..where((t) => t.id.equals(localId))).getSingle();
+      payloadJson = jsonEncode(reminderToPayload(refreshed));
+      baseRev = refreshed.serverRev;
+    } else if (type == RecordType.tag) {
+      final row = await (db.select(
+        db.tags,
+      )..where((t) => t.id.equals(localId))).getSingleOrNull();
+      if (row == null) return;
+      recordId = await _ensureSyncId(db, RecordType.tag, localId, row.syncId);
+      final refreshed = await (db.select(db.tags)..where((t) => t.id.equals(localId))).getSingle();
+      payloadJson = jsonEncode(tagToPayload(refreshed));
+      baseRev = refreshed.serverRev;
+    } else if (type == RecordType.attachment) {
+      final row = await (db.select(
+        db.attachments,
+      )..where((t) => t.id.equals(localId))).getSingleOrNull();
+      if (row == null) return;
+      var parentSyncId = row.parentSyncId;
+      if (parentSyncId == null || parentSyncId.isEmpty) {
+        if (row.parentType == 'event') {
+          final parent = await (db.select(db.events)..where((e) => e.id.equals(row.parentId))).getSingleOrNull();
+          if (parent != null) {
+            parentSyncId = await _ensureSyncId(db, RecordType.event, parent.id, parent.syncId);
+          }
+        } else {
+          final parent = await (db.select(db.todos)..where((t) => t.id.equals(row.parentId))).getSingleOrNull();
+          if (parent != null) {
+            parentSyncId = await _ensureSyncId(db, RecordType.todo, parent.id, parent.syncId);
+          }
+        }
+        if (parentSyncId != null) {
+          await (db.update(db.attachments)..where((t) => t.id.equals(localId)))
+              .write(AttachmentsCompanion(parentSyncId: Value(parentSyncId)));
+        }
+      }
+      recordId = await _ensureSyncId(db, RecordType.attachment, localId, row.syncId);
+      final refreshed = await (db.select(db.attachments)..where((t) => t.id.equals(localId))).getSingle();
+      payloadJson = jsonEncode(attachmentToPayload(refreshed));
+      baseRev = refreshed.serverRev;
+    } else if (type == RecordType.tagAssociation) {
+      // localId not used; enqueueTagAssociation handles tagAssociation directly.
+      return;
+    } else {
+      return;
     }
     final oldest = await _existingCreatedAt(db, recordId);
     await _collapse(db, recordId);
@@ -140,6 +208,112 @@ class SyncOutbox {
             createdAt: oldest ?? DateTime.now(),
           ),
         );
+  }
+
+  /// Enqueues upsert for a tag association.
+  static Future<void> enqueueTagAssociationUpsert(
+    AppDatabase db, {
+    required String parentType,
+    required int parentId,
+    required int tagId,
+  }) async {
+    final tag = await (db.select(db.tags)..where((t) => t.id.equals(tagId))).getSingleOrNull();
+    if (tag == null) return;
+    final tagSyncId = await _ensureSyncId(db, RecordType.tag, tag.id, tag.syncId);
+
+    String? parentSyncId;
+    if (parentType == 'event') {
+      final ev = await (db.select(db.events)..where((e) => e.id.equals(parentId))).getSingleOrNull();
+      if (ev == null) return;
+      parentSyncId = await _ensureSyncId(db, RecordType.event, ev.id, ev.syncId);
+    } else {
+      final td = await (db.select(db.todos)..where((t) => t.id.equals(parentId))).getSingleOrNull();
+      if (td == null) return;
+      parentSyncId = await _ensureSyncId(db, RecordType.todo, td.id, td.syncId);
+    }
+
+    final recordId = 'tagassoc_${parentType}_${parentSyncId}_$tagSyncId';
+    var baseRev = 0;
+    if (parentType == 'event') {
+      final row = await (db.select(db.eventTags)
+            ..where((t) => t.eventId.equals(parentId) & t.tagId.equals(tagId)))
+          .getSingleOrNull();
+      baseRev = row?.serverRev ?? 0;
+      await (db.update(db.eventTags)
+            ..where((t) => t.eventId.equals(parentId) & t.tagId.equals(tagId)))
+          .write(EventTagsCompanion(syncId: Value(recordId)));
+    } else {
+      final row = await (db.select(db.todoTags)
+            ..where((t) => t.todoId.equals(parentId) & t.tagId.equals(tagId)))
+          .getSingleOrNull();
+      baseRev = row?.serverRev ?? 0;
+      await (db.update(db.todoTags)
+            ..where((t) => t.todoId.equals(parentId) & t.tagId.equals(tagId)))
+          .write(TodoTagsCompanion(syncId: Value(recordId)));
+    }
+
+    final payload = tagAssociationToPayload(
+      parentType: parentType,
+      parentSyncId: parentSyncId,
+      tagSyncId: tagSyncId,
+    );
+    final oldest = await _existingCreatedAt(db, recordId);
+    await _collapse(db, recordId);
+    await db.into(db.syncOutbox).insert(
+      SyncOutboxCompanion.insert(
+        opId: _uuid.v7(),
+        recordId: recordId,
+        type: RecordType.tagAssociation.wireName,
+        op: OpType.upsert.name,
+        payloadJson: Value(jsonEncode(payload)),
+        baseRev: Value(baseRev),
+        createdAt: oldest ?? DateTime.now(),
+      ),
+    );
+  }
+
+  /// Enqueues delete for a tag association.
+  static Future<void> enqueueTagAssociationDelete(
+    AppDatabase db, {
+    required String parentType,
+    required int parentId,
+    required int tagId,
+  }) async {
+    final tag = await (db.select(db.tags)..where((t) => t.id.equals(tagId))).getSingleOrNull();
+    final tagSyncId = tag?.syncId;
+
+    String? parentSyncId;
+    if (parentType == 'event') {
+      final ev = await (db.select(db.events)..where((e) => e.id.equals(parentId))).getSingleOrNull();
+      parentSyncId = ev?.syncId;
+    } else {
+      final td = await (db.select(db.todos)..where((t) => t.id.equals(parentId))).getSingleOrNull();
+      parentSyncId = td?.syncId;
+    }
+
+    if (tagSyncId == null || parentSyncId == null) return;
+    final recordId = 'tagassoc_${parentType}_${parentSyncId}_$tagSyncId';
+
+    var baseRev = 0;
+    if (parentType == 'event') {
+      final row = await (db.select(db.eventTags)
+            ..where((t) => t.eventId.equals(parentId) & t.tagId.equals(tagId)))
+          .getSingleOrNull();
+      baseRev = row?.serverRev ?? 0;
+    } else {
+      final row = await (db.select(db.todoTags)
+            ..where((t) => t.todoId.equals(parentId) & t.tagId.equals(tagId)))
+          .getSingleOrNull();
+      baseRev = row?.serverRev ?? 0;
+    }
+
+    await enqueueDeletes(db, [
+      OutboxTarget(
+        type: RecordType.tagAssociation,
+        recordId: recordId,
+        baseRev: baseRev,
+      ),
+    ]);
   }
 
   /// Queues a delete for a row that still exists (soft-delete / trash
@@ -204,6 +378,48 @@ class SyncOutbox {
           ),
       ];
     }
+    if (type == RecordType.reminder) {
+      final rows = await (db.select(
+        db.reminders,
+      )..where((t) => t.id.isIn(localIds))).get();
+      return [
+        for (final row in rows)
+          if (row.syncId != null)
+            OutboxTarget(
+              type: RecordType.reminder,
+              recordId: row.syncId!,
+              baseRev: row.serverRev,
+            ),
+      ];
+    }
+    if (type == RecordType.tag) {
+      final rows = await (db.select(
+        db.tags,
+      )..where((t) => t.id.isIn(localIds))).get();
+      return [
+        for (final row in rows)
+          if (row.syncId != null)
+            OutboxTarget(
+              type: RecordType.tag,
+              recordId: row.syncId!,
+              baseRev: row.serverRev,
+            ),
+      ];
+    }
+    if (type == RecordType.attachment) {
+      final rows = await (db.select(
+        db.attachments,
+      )..where((t) => t.id.isIn(localIds))).get();
+      return [
+        for (final row in rows)
+          if (row.syncId != null)
+            OutboxTarget(
+              type: RecordType.attachment,
+              recordId: row.syncId!,
+              baseRev: row.serverRev,
+            ),
+      ];
+    }
     final rows = await (db.select(
       db.todos,
     )..where((t) => t.id.isIn(localIds))).get();
@@ -263,6 +479,15 @@ class SyncOutbox {
     } else if (type == RecordType.taskAllocation) {
       await (db.update(db.taskAllocations)..where((t) => t.id.equals(localId)))
           .write(TaskAllocationsCompanion(syncId: Value(syncId)));
+    } else if (type == RecordType.reminder) {
+      await (db.update(db.reminders)..where((t) => t.id.equals(localId)))
+          .write(RemindersCompanion(syncId: Value(syncId)));
+    } else if (type == RecordType.tag) {
+      await (db.update(db.tags)..where((t) => t.id.equals(localId)))
+          .write(TagsCompanion(syncId: Value(syncId)));
+    } else if (type == RecordType.attachment) {
+      await (db.update(db.attachments)..where((t) => t.id.equals(localId)))
+          .write(AttachmentsCompanion(syncId: Value(syncId)));
     } else {
       await (db.update(db.taskInstanceStates)
             ..where((t) => t.id.equals(localId)))

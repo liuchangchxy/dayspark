@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/core/utils/device_label.dart';
 import 'package:dayspark/domain/providers/account_provider.dart';
+import 'package:dayspark/domain/providers/attachments_provider.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/sync/foreground_sync_poller.dart';
@@ -60,6 +61,11 @@ final syncEngineProvider = Provider<SyncEngine?>((ref) {
     tokenStore: tokens,
     snapshots: PrefsSyncSnapshotStore(settings.prefs),
     deviceId: settings.deviceId,
+    // Attachment blobs are not records: the outbox only carries their
+    // metadata, so a blob created offline would never reach the server
+    // without this drain. Runs before the outbox read so the ref it writes
+    // is pushed in the same round.
+    beforeRound: () => ref.read(uploadPendingAttachmentsProvider)(),
   );
   final sse = SseListener(
     open: client.openCursorStream,

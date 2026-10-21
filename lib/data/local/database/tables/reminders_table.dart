@@ -7,4 +7,7 @@ class Reminders extends Table {
   IntColumn get parentId => integer()();
   DateTimeColumn get triggerTime => dateTime()();
   BoolColumn get isTriggered => boolean().withDefault(const Constant(false))();
+  TextColumn get syncId => text().nullable()();
+  TextColumn get parentSyncId => text().nullable()();
+  IntColumn get serverRev => integer().withDefault(const Constant(0))();
 }

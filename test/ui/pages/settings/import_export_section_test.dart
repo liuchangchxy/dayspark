@@ -71,7 +71,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open the Import/Export dialog
-      await tester.tap(find.byType(ListTile));
+      await tester.tap(
+        find.widgetWithText(ListTile, 'Import / Export'),
+      );
       await tester.pumpAndSettle();
 
       // Tap the Export button
@@ -132,7 +134,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Open dialog and tap Export
-      await tester.tap(find.byType(ListTile));
+      await tester.tap(
+        find.widgetWithText(ListTile, 'Import / Export'),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Export'));

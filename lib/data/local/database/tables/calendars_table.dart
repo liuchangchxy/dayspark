@@ -9,4 +9,5 @@ class Calendars extends Table {
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get syncId => text().nullable()();
 }

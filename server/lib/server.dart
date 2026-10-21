@@ -11,6 +11,7 @@ import 'src/http.dart';
 import 'src/mcp/endpoint.dart';
 import 'src/oauth/as.dart';
 import 'src/oauth/middleware.dart';
+import 'src/routes/attachments.dart';
 import 'src/routes/auth.dart';
 import 'src/routes/devices.dart';
 import 'src/routes/health.dart';
@@ -73,6 +74,12 @@ class AppServer {
     registerAuthRoutes(router, db: db, auth: auth);
     registerOauthRoutes(router, db: db, auth: auth);
     registerDeviceRoutes(router, db: db, auth: auth);
+    registerAttachmentRoutes(
+      router,
+      db: db,
+      auth: auth,
+      storageDir: config.attachmentDir,
+    );
     registerSyncRoutes(router, db: db, auth: auth, notifySeq: _notifySeq);
     registerStreamRoutes(
       router,

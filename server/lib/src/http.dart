@@ -51,23 +51,32 @@ Future<Map<String, dynamic>> readJsonObject(Request request) async {
 // envelope.
 const int maxRequestBodyBytes = 256 * 1024;
 
-Future<List<int>> readBodyBytes(Request request) async {
+/// Attachment uploads carry user files, not control messages — the shared
+/// 256KB ceiling would reject any real photo or PDF. Still bounded so a
+/// single request cannot fill the disk.
+const int maxAttachmentBytes = 25 * 1024 * 1024;
+
+Future<List<int>> readBodyBytes(Request request, {int? maxBytes}) async {
+  final limit = maxBytes ?? maxRequestBodyBytes;
   final declared = int.tryParse(request.headers['content-length'] ?? '');
-  if (declared != null && declared > maxRequestBodyBytes) {
-    throw _bodyTooLarge();
+  if (declared != null && declared > limit) {
+    throw _bodyTooLarge(limit);
   }
   final buffer = <int>[];
   await for (final chunk in request.read()) {
-    if (buffer.length + chunk.length > maxRequestBodyBytes) {
-      throw _bodyTooLarge();
+    if (buffer.length + chunk.length > limit) {
+      throw _bodyTooLarge(limit);
     }
     buffer.addAll(chunk);
   }
   return buffer;
 }
 
-ApiException _bodyTooLarge() =>
-    ApiException(413, errValidation, 'request body exceeds the 256KB limit');
+ApiException _bodyTooLarge(int limit) => ApiException(
+  413,
+  errValidation,
+  'request body exceeds the ${limit ~/ 1024}KB limit',
+);
 
 Middleware catchApiErrors() {
   return (inner) => (request) async {

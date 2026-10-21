@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/sync/sync_outbox.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 final class ReminderWriter {
@@ -40,6 +41,7 @@ final class ReminderWriter {
             triggerTime: triggerTime,
           ),
         );
+    await SyncOutbox.enqueueUpsert(db, RecordType.reminder, id);
     tx.applied(
       _recordType(parentType),
       parentId,
@@ -52,7 +54,9 @@ final class ReminderWriter {
     final row = await (db.select(
       db.reminders,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
+    final targets = await SyncOutbox.captureDeletes(db, RecordType.reminder, [id]);
     await (db.delete(db.reminders)..where((t) => t.id.equals(id))).go();
+    await SyncOutbox.enqueueDeletes(db, targets);
     if (row == null) return;
     tx.removed(
       _recordType(row.parentType),
@@ -68,11 +72,13 @@ final class ReminderWriter {
     int parentId,
   ) async {
     final ids = await idsOfParent(db, parentType, parentId);
+    final targets = await SyncOutbox.captureDeletes(db, RecordType.reminder, ids);
     await (db.delete(db.reminders)..where(
           (t) =>
               t.parentType.equals(parentType) & t.parentId.equals(parentId),
         ))
         .go();
+    await SyncOutbox.enqueueDeletes(db, targets);
     if (ids.isEmpty) return;
     tx.removed(_recordType(parentType), parentId, reminderIds: ids);
   }

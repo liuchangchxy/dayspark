@@ -99,6 +99,7 @@ class IcalConverter {
       description: Value(vevent.description),
       location: Value(vevent.location),
       rrule: Value(vevent.recurrenceRule?.toString()),
+      icsUid: Value(vevent.uid),
     );
   }
 
@@ -124,6 +125,7 @@ class IcalConverter {
       startDate: Value(vtodo.start),
       completedAt: Value(vtodo.completed),
       percentComplete: Value(vtodo.percentComplete ?? 0),
+      icsUid: Value(vtodo.uid),
     );
   }
 

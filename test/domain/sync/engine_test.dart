@@ -129,6 +129,7 @@ void main() {
         parentId: 0,
         triggerTime: DateTime(2020),
         isTriggered: false,
+        serverRev: 0,
       ),
     );
   });
@@ -691,6 +692,56 @@ void main() {
       expect(pending.single.recordId, 'allocation-sync-id');
     },
   );
+
+  test(
+    'newly enabled reminder/tag/attachment capability rewinds the shared cursor once',
+    () async {
+      cursors.value = 50;
+      cursors.reminderTagAttachmentCapabilityEnabled = false;
+      api.onPush = (request) => PushResponse(
+        results: const [],
+        piggyback: const [],
+        cursor: request.cursor ?? 0,
+      );
+      api.onPull = (cursor) {
+        expect(cursor, 0, reason: 'backfill starts at the beginning');
+        return PullResponse(changes: const [], nextCursor: 60, hasMore: false);
+      };
+
+      await buildEngine().start();
+
+      expect(api.pushCalls.single.cursor, 0);
+      expect(api.pullCalls, [0]);
+      expect(cursors.value, 60);
+      expect(cursors.reminderTagAttachmentCapabilityEnabled, isTrue);
+    },
+  );
+
+  test(
+    'server without the reminder/tag/attachment capability keeps tag ops queued',
+    () async {
+      cursors.value = 0;
+      api.serverCapabilities = const [SyncCapability.todoRecurrenceV1];
+      final tagId = await db
+          .into(db.tags)
+          .insert(
+            TagsCompanion.insert(name: 'work', syncId: Value('tag-1')),
+          );
+      await SyncOutbox.enqueueUpsert(db, RecordType.tag, tagId);
+
+      await buildEngine().start();
+
+      expect(
+        api.pushCalls.single.ops.where((op) => op.type == RecordType.tag),
+        isEmpty,
+      );
+      final pending = await (db.select(
+        db.syncOutbox,
+      )..where((row) => row.type.equals('tag'))).get();
+      expect(pending, hasLength(1));
+    },
+  );
+
 
   test(
     'newly enabled TaskAllocation capability rewinds the shared cursor once',

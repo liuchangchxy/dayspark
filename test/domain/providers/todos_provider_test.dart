@@ -27,6 +27,7 @@ void main() {
         parentId: 0,
         triggerTime: DateTime(2020),
         isTriggered: false,
+        serverRev: 0,
       ),
     );
   });

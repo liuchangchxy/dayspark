@@ -3,8 +3,8 @@
 Self-hosted DaySpark sync server (Docker + Docker Compose, e.g. on a NAS).
 自托管 DaySpark 同步后端（Docker + Docker Compose，适用于 NAS 等常开设备）。
 
-All state lives in **one SQLite file** at `/data/dayspark.db` inside the `dayspark-data` volume — backup and restore are that file.
-全部数据就是 `dayspark-data` 卷里的**一个 SQLite 文件** `/data/dayspark.db` —— 备份与恢复即拷贝该文件。
+All state lives inside the `dayspark-data` volume: the SQLite file `/data/dayspark.db` plus attachment blobs in `/data/attachments` (`ATTACHMENT_DIR`, pinned in the image). Backing up the volume backs up both — a db-only copy restores rows whose attachment files are gone.
+全部数据都在 `dayspark-data` 卷里：SQLite 文件 `/data/dayspark.db`，以及 `/data/attachments` 里的附件文件（`ATTACHMENT_DIR`，镜像里已固定）。备份该卷即备份两者 —— 只拷数据库会恢复出「有行、没文件」的附件。
 
 ---
 
@@ -152,7 +152,7 @@ docker run --rm -v dayspark-data:/data -v "$PWD":/backup alpine \
 docker compose start
 ```
 
-The archive holds `dayspark.db` (+ `-wal`/`-shm`) — that is the entire server state（压缩包里的 `dayspark.db` 即服务端全部状态）. Copy it off-device（再拷到别处做异地备份）.
+The archive holds `dayspark.db` (+ `-wal`/`-shm`) and `attachments/` — that is the entire server state（压缩包里的 `dayspark.db` 与 `attachments/` 即服务端全部状态）. Copy it off-device（再拷到别处做异地备份）.
 
 ## 6. Restore / 恢复
 

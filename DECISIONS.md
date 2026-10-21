@@ -483,3 +483,23 @@
 - **Rulings 裁定披露**：
   - 独立平台存储键替代快照内的 pendingTaps 数组 → 判错代价：需逐条命令读写和 ack，但彻底杜绝了原生小组件与应用刷新并发时的丢点击竞争。
   - 原生端零直写 SQLite，坚持 Single-Writer 架构 → 判错代价：小组件打勾依赖应用激活或后台服务排空才能落库，但保护了 SQLite 事务完整性与跨平台数据同步单一权威。
+
+### [2026-10-21] 审计收口 — 附件闭环、zip 备份与重复规则 legacy 清理
+- **触发背景**：审计报告指出四项未清零 —— DS-023（客户端只存 `filePath` 并发元数据，文件本体从不过网，也没有正常客户端的下载/删除闭环）、DS-024（备份只含附件 metadata）、OE-012（`sync_engine.dart` 仍有 `recurrenceLegacyState`/`knownZoned` 分支）、OE-013（三套 capability 探测与历史 state）。用户拍板：DS-023 做**完整闭环**、DS-024 用 **zip 包**、OE-012/013 **只删 recurrence legacy 分支**（能力机制保留）。
+- **核心决策（Rulings A–F）**：
+  1. **Ruling A — OE-013 明确不执行（deliberately not executed）**：`taskAllocationV1`/`todoRecurrenceV1`/`taskInstanceStateV1` 的探测、`/sync/capabilities`、capability state 与 backfill 全部保留。用户裁定该机制是 2026-10-04 的设计（旧客户端保护），不属于本轮删除范围；OE-012 只删客户端 `_buildOps` 里把 `recurrenceLegacyState == 'knownZoned'` 与能力探测配对的剥离分支。
+  2. **Ruling B — `dirtyFields` 的重复规则整组保留（偏离提案原文）**：本轮原提案包含「删掉 recurrence 组打包」，实证后**否掉**：服务端 `_mergeTodoPayload` 在只收到组内部分字段时抛 `'recurrence updates must include the full group'`，删掉会让只改标题的重复待办推送失败。它不是 legacy 残留，是服务端契约。
+  3. **Ruling C — applier 的 `rrule` → `unknownLegacy` 归类保留**：该分支与 ICS 导入同一条领域规则（解析不出结构化重复就不猜、标成待确认）。首次尝试删除时 `flutter test` 的「old recurring Todo payload becomes unknownLegacy」立刻变红，遂回滚并把注释改成领域理由而非兼容理由。
+  4. **Ruling D — 附件写入「先行、后文件」，删除「行 → 文件 → blob（尽力而为）」**：行缺失是可补偿状态（`serverFileRef IS NULL` 由 `uploadPending` 补传），文件缺失是不可见垃圾；blob 删除失败只记日志，接受**孤儿 blob**（占磁盘，但因 tombstone 已先行而不会复活数据）。
+  5. **Ruling E — 备份契约换代为 zip，同时保留 JSON 恢复路径**：`exportZip()`/`restoreZip()` 是新的 UI 路径（UI 文案「完整备份」），`exportJson()`/`restoreFromJson()` 保留，因此**旧 JSON 备份仍可恢复**；zip 缺 `db.json` 时 `FormatException` 拒绝整体恢复，不做半恢复。恢复时若 `filePath` 指向本机不存在的文件则清空该字段。
+  6. **Ruling F — Web 不承诺附件持久化**：`localFiles=false`，打开附件走浏览器下载；因此「Web 上附件永久可用」不成立，UI 以「未上传」副标题暴露 `serverFileRef == null` 的行，避免把同步问题伪装成打开失败。
+  7. **Ruling G — 新记录类型必须过 capability 门（本轮自查补的洞）**：`reminder`/`tag`/`tag_association`/`attachment` 四类记录由服务端按 `reminder_tag_attachment_v1` 过滤后才下发。理由：v0.27 客户端把未知 `type` 解析成 `FormatException`，会让**整轮 pull 失败**——NAS 先升级、手机后升级是部署文档的主路径，不设门就是一次全员同步中断。被过滤的行仍推进 raw-seq 水位线（与既有 capability 过滤同一条规则），客户端首次声明该能力时从 cursor 0 回扫一次。服务端不反向拒绝未声明客户端的这四类 op：v0.27 客户端根本产生不了它们。
+  8. **Ruling H — 附件 blob 按用户隔离（review blocking finding）**：blob 存 `<ATTACHMENT_DIR>/<userId>/<ref>`，ref 保持 opaque。此前只校验「已登录」，任何账号拿到 ref 就能下载/删除别人的文件；现在别人的 ref 在自己的目录里不存在 → 下载 404、删除幂等空操作。用目录做 namespace 而不是新表/ownership service：身份来自 auth context，一段路径就能表达，且不引入新抽象。
+
+- **对应 SPEC 章节**：SPEC.md §3.2（同步协议，规则 10–12）与 §4.2（附件通道）。
+- **影响范围**：`lib/domain/services/attachment_service.dart`、`lib/domain/services/attachment_files.dart`、`lib/domain/records/writers/attachment_writer.dart`、`lib/domain/providers/attachments_provider.dart`、`lib/domain/services/backup_service.dart`、`lib/domain/sync/{sync_engine,sync_api_client}.dart`、`lib/ui/widgets/attachment_list.dart`、`lib/ui/pages/settings/settings_sections/import_export_section.dart`、`server/lib/src/{http,routes/attachments}.dart`、`packages/dayspark_contracts/lib/src/attachment_api.dart`。
+- **Rulings 裁定披露**：
+  - OE-013 不执行 → 判错代价：能力分支与历史 state 继续留在仓库里（认知成本、审计会再次点名），但保住了旧客户端保护；若将来确认无旧客户端，应整机制一次删除，而不是继续零星清理。
+  - 附件先写行后写文件 → 判错代价：上传失败会留下「未上传」行（用户可见的降级状态），但不会产生无人知晓的孤儿文件，且离线可用。
+  - blob 删除尽力而为 → 判错代价：接受服务端孤儿文件，需要运维偶尔清理，换取离线删除不被阻断。
+  - zip 备份 → 判错代价：备份不再是可直接阅读的纯 JSON，需要额外 `archive` 依赖；换来附件本体随包走、恢复后能真正打开。

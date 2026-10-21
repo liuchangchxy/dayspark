@@ -10,4 +10,8 @@ class Attachments extends Table {
   IntColumn get fileSize => integer().withDefault(const Constant(0))();
   TextColumn get mimeType => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  TextColumn get syncId => text().nullable()();
+  TextColumn get parentSyncId => text().nullable()();
+  TextColumn get serverFileRef => text().nullable()();
+  IntColumn get serverRev => integer().withDefault(const Constant(0))();
 }

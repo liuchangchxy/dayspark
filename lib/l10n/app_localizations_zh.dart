@@ -384,6 +384,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get export => '导出';
 
   @override
+  String get fullBackup => '完整备份';
+
+  @override
+  String get fullBackupDesc => '包含全部数据和附件文件的归档';
+
+  @override
+  String get restore => '恢复';
+
+  @override
+  String get backupRestored => '备份已恢复';
+
+  @override
+  String restoreFailed(String error) {
+    return '恢复失败：$error';
+  }
+
+  @override
   String get import => '导入';
 
   @override
@@ -718,6 +735,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get addAttachment => '添加附件';
+
+  @override
+  String get openAttachment => '打开附件';
+
+  @override
+  String get attachmentLocalOnly => '未上传';
+
+  @override
+  String get attachmentUnavailable => '该附件尚未同步到本设备';
+
+  @override
+  String attachmentReady(String name) {
+    return '附件已保存：$name';
+  }
+
+  @override
+  String attachmentFailed(String error) {
+    return '附件操作失败：$error';
+  }
 
   @override
   String get editTag => '编辑标签';

@@ -10,6 +10,7 @@ class Config {
     this.accessTtl = const Duration(minutes: 15),
     this.refreshTtl = const Duration(days: 30),
     this.sseHeartbeat = const Duration(seconds: 25),
+    this.attachmentDir = './data/attachments',
   });
 
   factory Config.fromEnv([Map<String, String>? environ]) {
@@ -31,6 +32,7 @@ class Config {
       jwtSecret: jwtSecret.isEmpty
           ? 'dayspark-dev-insecure-secret'
           : jwtSecret,
+      attachmentDir: env['ATTACHMENT_DIR'] ?? './data/attachments',
     );
   }
 
@@ -40,4 +42,9 @@ class Config {
   final Duration accessTtl;
   final Duration refreshTtl;
   final Duration sseHeartbeat;
+
+  /// Attachment blobs are files, not rows: they need their own mount (a
+  /// volume in Docker) so a container rebuild does not take user files with
+  /// it while the SQLite db survives.
+  final String attachmentDir;
 }
