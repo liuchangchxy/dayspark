@@ -494,6 +494,8 @@
   5. **Ruling E — 备份契约换代为 zip，同时保留 JSON 恢复路径**：`exportZip()`/`restoreZip()` 是新的 UI 路径（UI 文案「完整备份」），`exportJson()`/`restoreFromJson()` 保留，因此**旧 JSON 备份仍可恢复**；zip 缺 `db.json` 时 `FormatException` 拒绝整体恢复，不做半恢复。恢复时若 `filePath` 指向本机不存在的文件则清空该字段。
   6. **Ruling F — Web 不承诺附件持久化**：`localFiles=false`，打开附件走浏览器下载；因此「Web 上附件永久可用」不成立，UI 以「未上传」副标题暴露 `serverFileRef == null` 的行，避免把同步问题伪装成打开失败。
   7. **Ruling G — 新记录类型必须过 capability 门（本轮自查补的洞）**：`reminder`/`tag`/`tag_association`/`attachment` 四类记录由服务端按 `reminder_tag_attachment_v1` 过滤后才下发。理由：v0.27 客户端把未知 `type` 解析成 `FormatException`，会让**整轮 pull 失败**——NAS 先升级、手机后升级是部署文档的主路径，不设门就是一次全员同步中断。被过滤的行仍推进 raw-seq 水位线（与既有 capability 过滤同一条规则），客户端首次声明该能力时从 cursor 0 回扫一次。服务端不反向拒绝未声明客户端的这四类 op：v0.27 客户端根本产生不了它们。
+  8. **Ruling H — 附件 blob 按用户隔离（review blocking finding）**：blob 存 `<ATTACHMENT_DIR>/<userId>/<ref>`，ref 保持 opaque。此前只校验「已登录」，任何账号拿到 ref 就能下载/删除别人的文件；现在别人的 ref 在自己的目录里不存在 → 下载 404、删除幂等空操作。用目录做 namespace 而不是新表/ownership service：身份来自 auth context，一段路径就能表达，且不引入新抽象。
+
 - **对应 SPEC 章节**：SPEC.md §3.2（同步协议，规则 10–12）与 §4.2（附件通道）。
 - **影响范围**：`lib/domain/services/attachment_service.dart`、`lib/domain/services/attachment_files.dart`、`lib/domain/records/writers/attachment_writer.dart`、`lib/domain/providers/attachments_provider.dart`、`lib/domain/services/backup_service.dart`、`lib/domain/sync/{sync_engine,sync_api_client}.dart`、`lib/ui/widgets/attachment_list.dart`、`lib/ui/pages/settings/settings_sections/import_export_section.dart`、`server/lib/src/{http,routes/attachments}.dart`、`packages/dayspark_contracts/lib/src/attachment_api.dart`。
 - **Rulings 裁定披露**：

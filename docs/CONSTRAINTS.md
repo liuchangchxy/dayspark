@@ -459,6 +459,12 @@
 - **Web 没有持久文件系统**：`localFiles=false` 时不落盘，`loadBytes` 直接走服务端下载；因此 Web 上「打开附件」= 浏览器下载，不是本地打开
 - **Date**: 2026-10-21
 
+### 附件 blob 必须按用户 namespace 存放（2026-10-21）
+- 路径固定为 `<ATTACHMENT_DIR>/<userId>/<serverFileRef>`；`serverFileRef` 仍是不含 userId 的 opaque token
+- 下载/删除都只在 `context.userId` 自己的目录里解析 ref：**只校验「已登录」等于没有隔离**——拿到别人 ref 的账号会一路 404（下载）或无声无操作（删除），但绝不能碰到对方的文件
+- 用户段与 ref 段共用同一条 `_plainSegment` 校验（拒绝分隔符、`.`/`..`、`%`、`\`）；userId 虽然来自签名 token，文件系统路径也不该依赖这一点
+- **Date**: 2026-10-21
+
 ### 附件通道有独立体积上限（25MB），不要与 JSON 控制面对齐（2026-10-21）
 - `readBodyBytes(request, maxBytes: maxAttachmentBytes)`（25MB）只用于 `/attachments` 上传；其余端点仍走 `maxRequestBodyBytes`（256KB）
 - 反代（nginx `client_max_body_size`）若照抄 256KB 会把附件上传打成 413；部署文档 `docs/DEPLOY.md` 已把这两条分开写

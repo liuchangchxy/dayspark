@@ -32,7 +32,10 @@ Future<Response> _request(
 Future<Map<String, dynamic>> _json(Response response) async =>
     jsonDecode(await response.readAsString()) as Map<String, dynamic>;
 
-Future<String> _register(AppServer app, String email) async {
+Future<({String token, String userId})> _register(
+  AppServer app,
+  String email,
+) async {
   final response = await _request(
     app.handler,
     'POST',
@@ -40,7 +43,11 @@ Future<String> _register(AppServer app, String email) async {
     body: {'email': email, 'password': 'password123'},
   );
   expect(response.statusCode, 201);
-  return (await _json(response))['accessToken'] as String;
+  final json = await _json(response);
+  return (
+    token: json['accessToken'] as String,
+    userId: json['userId'] as String,
+  );
 }
 
 Future<String> _upload(
@@ -63,6 +70,7 @@ void main() {
   late AppServer app;
   late Directory storage;
   late String token;
+  late String userId;
 
   setUp(() async {
     storage = Directory.systemTemp.createTempSync('dayspark_att_test');
@@ -74,7 +82,9 @@ void main() {
         attachmentDir: storage.path,
       ),
     );
-    token = await _register(app, 'a@example.com');
+    final account = await _register(app, 'a@example.com');
+    token = account.token;
+    userId = account.userId;
   });
 
   tearDown(() async {
@@ -151,7 +161,8 @@ void main() {
 
   test('delete removes the blob and is idempotent', () async {
     final ref = await _upload(app, token, const <int>[7, 7, 7]);
-    expect(File('${storage.path}/$ref').existsSync(), isTrue);
+    final path = '${storage.path}/$userId/$ref';
+    expect(File(path).existsSync(), isTrue);
 
     final first = await _request(
       app.handler,
@@ -160,7 +171,7 @@ void main() {
       token: token,
     );
     expect(first.statusCode, 200);
-    expect(File('${storage.path}/$ref').existsSync(), isFalse);
+    expect(File(path).existsSync(), isFalse);
 
     final second = await _request(
       app.handler,
@@ -177,6 +188,72 @@ void main() {
       token: token,
     );
     expect(download.statusCode, 404);
+  });
+
+  test('a blob is only visible inside its owner namespace', () async {
+    final payload = Uint8List.fromList(const [1, 2, 3, 4, 5, 6]);
+    final refA = await _upload(app, token, payload);
+    final accountB = await _register(app, 'b@example.com');
+
+    final aDownload = await _request(
+      app.handler,
+      'GET',
+      '/attachments/$refA',
+      token: token,
+    );
+    expect(aDownload.statusCode, 200);
+    expect(await aDownload.read().expand((c) => c).toList(), payload);
+
+    final bDownload = await _request(
+      app.handler,
+      'GET',
+      '/attachments/$refA',
+      token: accountB.token,
+    );
+    expect(
+      bDownload.statusCode,
+      404,
+      reason: "B must not resolve A's ref",
+    );
+
+    final bDelete = await _request(
+      app.handler,
+      'DELETE',
+      '/attachments/$refA',
+      token: accountB.token,
+    );
+    expect(bDelete.statusCode, 200, reason: 'delete stays idempotent');
+    expect(
+      File('${storage.path}/$userId/$refA').existsSync(),
+      isTrue,
+      reason: "B's delete must not touch A's file",
+    );
+
+    final aReDownload = await _request(
+      app.handler,
+      'GET',
+      '/attachments/$refA',
+      token: token,
+    );
+    expect(aReDownload.statusCode, 200);
+    expect(await aReDownload.read().expand((c) => c).toList(), payload);
+
+    final aDelete = await _request(
+      app.handler,
+      'DELETE',
+      '/attachments/$refA',
+      token: token,
+    );
+    expect(aDelete.statusCode, 200);
+    expect(File('${storage.path}/$userId/$refA').existsSync(), isFalse);
+
+    final afterDelete = await _request(
+      app.handler,
+      'GET',
+      '/attachments/$refA',
+      token: token,
+    );
+    expect(afterDelete.statusCode, 404);
   });
 
   test('a ref that tries to escape the storage directory is rejected', () async {

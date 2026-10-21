@@ -30,7 +30,9 @@ void registerAttachmentRoutes(
         throw ApiException(400, errValidation, 'attachment body cannot be empty');
       }
       final fileRef = newOpId();
-      final file = File('${dir.path}/$fileRef');
+      final userDir = _userDir(dir, context.userId);
+      await userDir.create(recursive: true);
+      final file = File(p.join(userDir.path, fileRef));
       await file.writeAsBytes(bytes, flush: true);
       return jsonResponse(200, {'serverFileRef': fileRef, 'fileSize': bytes.length});
     }),
@@ -40,7 +42,7 @@ void registerAttachmentRoutes(
   router.get(
     '/attachments/<ref>',
     auth.requireAuth((request, context) async {
-      final file = _attachmentFile(dir, request.params['ref']);
+      final file = _attachmentFile(dir, context.userId, request.params['ref']);
       if (!file.existsSync()) {
         throw ApiException(404, 'not_found', 'attachment file not found');
       }
@@ -61,12 +63,18 @@ void registerAttachmentRoutes(
   router.delete(
     '/attachments/<ref>',
     auth.requireAuth((request, context) async {
-      final file = _attachmentFile(dir, request.params['ref']);
+      final file = _attachmentFile(dir, context.userId, request.params['ref']);
       if (file.existsSync()) await file.delete();
       return jsonResponse(200, {'deleted': true});
     }),
   );
 }
+
+/// Blobs live under their owner's directory, so a ref only resolves inside
+/// the caller's namespace: another account holding the same opaque token
+/// finds nothing there (404 on download, no-op on delete).
+Directory _userDir(Directory root, String userId) =>
+    Directory(p.join(root.path, _plainSegment(userId, 'user scope')));
 
 /// Resolves a ref to a blob path.
 ///
@@ -74,19 +82,26 @@ void registerAttachmentRoutes(
 /// file-name token — a path separator, a dot segment, or a percent-encoded
 /// form of either (shelf_router does not decode `%2F`, so `..%2Fsecret`
 /// would otherwise be looked up as a literal name) — is a traversal
-/// attempt rather than a ref.
-File _attachmentFile(Directory dir, String? ref) {
+/// attempt rather than a ref. The user id gets the same rule; it is signed
+/// by us, but a filesystem path should never depend on that.
+File _attachmentFile(Directory root, String userId, String? ref) {
   if (ref == null || ref.isEmpty) {
     throw ApiException(400, errValidation, 'file ref required');
   }
-  final isPlainName =
-      ref == p.basename(ref) &&
-      !ref.contains('%') &&
-      !ref.contains('\\') &&
-      ref != '.' &&
-      ref != '..';
-  if (!isPlainName) {
-    throw ApiException(400, errValidation, 'invalid file ref');
+  return File(
+    p.join(_userDir(root, userId).path, _plainSegment(ref, 'file ref')),
+  );
+}
+
+String _plainSegment(String value, String field) {
+  final isPlain =
+      value != '.' &&
+      value != '..' &&
+      value == p.basename(value) &&
+      !value.contains('%') &&
+      !value.contains('\\');
+  if (!isPlain) {
+    throw ApiException(400, errValidation, 'invalid $field');
   }
-  return File(p.join(dir.path, ref));
+  return value;
 }
