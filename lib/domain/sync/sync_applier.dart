@@ -146,6 +146,9 @@ class SyncApplier {
       }
     }
 
+    // A payload carrying only the rrule projection (no recurrence group) is
+    // classified unknownLegacy — the same rule ICS import uses: recurrence
+    // that cannot be resolved is flagged for confirmation, never guessed.
     final recurrence =
         payload.containsKey('recurrenceSpec') ||
             payload.containsKey('recurrenceRevision') ||

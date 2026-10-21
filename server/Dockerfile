@@ -32,7 +32,10 @@ COPY --from=build /app/dayspark_server /usr/local/bin/dayspark_server
 
 # REQUIRE_JWT_SECRET makes startup fail fast when JWT_SECRET is missing
 # or empty (Config.fromEnv throws) — never bake secrets into the image.
+# Attachment blobs are files next to the db, not rows: pin the directory
+# explicitly so it stays inside the /data volume regardless of WORKDIR.
 ENV DB_PATH=/data/dayspark.db \
+    ATTACHMENT_DIR=/data/attachments \
     PORT=8787 \
     REQUIRE_JWT_SECRET=1
 

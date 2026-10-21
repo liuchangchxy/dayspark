@@ -452,6 +452,35 @@
 - **Why**: 部分反代下 SSE 长连接静默滞留不 FIN（T4），监听器既不 error 也不重连、信号断流；前台靠定时拉取兜底，回前台立即一轮覆盖离线期变更（changelog/ROADMAP 的「回前台触发」即此）
 - **Date**: 2026-09-23
 
+### 附件本体不在记录平面里：先写行，后写文件（2026-10-21）
+- 附件**元数据**是同步记录（`RecordType.attachment`），**文件本体**走 `/attachments` 二进制通道，两者故意分开
+- 写入顺序固定为 `AttachmentWriter.add` → 写本地文件 → `AttachmentWriter.update(filePath)` → 尽力上传。理由：`serverFileRef IS NULL` 是**可补偿**状态（下一轮 `uploadPending` 补传），而「有文件没行」是**不可见垃圾**（没行就没人知道它存在，也永远不会被清）
+- 上传/删除 blob 都是尽力而为（失败只 `debugPrint`）：离线设备必须还能新建、删除附件；残留 blob 只占磁盘，不会复活数据（tombstone 已先行）
+- **Web 没有持久文件系统**：`localFiles=false` 时不落盘，`loadBytes` 直接走服务端下载；因此 Web 上「打开附件」= 浏览器下载，不是本地打开
+- **Date**: 2026-10-21
+
+### 附件通道有独立体积上限（25MB），不要与 JSON 控制面对齐（2026-10-21）
+- `readBodyBytes(request, maxBytes: maxAttachmentBytes)`（25MB）只用于 `/attachments` 上传；其余端点仍走 `maxRequestBodyBytes`（256KB）
+- 反代（nginx `client_max_body_size`）若照抄 256KB 会把附件上传打成 413；部署文档 `docs/DEPLOY.md` 已把这两条分开写
+- 服务端 blob 目录由 `ATTACHMENT_DIR` 指定（镜像内固定 `/data/attachments`），**必须在持久卷内**——放到容器临时层等于每次重建丢文件；只备份 `dayspark.db` 会恢复出「有行、没文件」的附件
+- **Date**: 2026-10-21
+
+### 载荷差分不能拆开发重复规则组（服务端整组校验）（2026-10-21）
+- `sync_payload.dart` 的 `dirtyFields` 会把 `recurrenceSpec`/`recurrenceRevision`/`recurrenceLegacyState` 绑成一组：任一字段 dirty 就整组发送
+- 原因在服务端：`record_writer.dart` 的 `_mergeTodoPayload` 在只收到组内部分字段时直接抛 `'recurrence updates must include the full group'`
+- **Why**: 这条看起来像「legacy 兼容残留」，其实是**服务端契约**。删除它会让只改标题的重复待办推送失败；OE-012 清理时因此保留（见 `DECISIONS.md` 2026-10-21 Ruling B）
+- **Date**: 2026-10-21
+
+### 备份是 zip：entry 名必须由同一函数生成（2026-10-21）
+- 包内固定 `db.json` + `attachments/<syncId|local<id>>_<sanitizedFileName>`；导出与恢复都调用 `BackupService.attachmentEntryName(...)`，**禁止两处各写一份拼法**——名字一旦漂移，恢复时「找不到文件」会被当成「备份里本来就没有」
+- 缺 `db.json` 的包直接 `FormatException`，不做半恢复；恢复后若备份里的 `filePath` 在本机不存在则清空该字段，避免悬空路径让 UI 以为文件还在
+- **Date**: 2026-10-21
+
+### 分享附件用 `XFile.fromData`，Linux / 旧 Windows 会降级为提示（2026-10-21）
+- `share_plus` 的 MethodChannel 实现会把无 path 的 `XFile` 写成临时文件并**保留 `XFile.name`**，所以 Android/iOS/macOS/Windows(≥RS5) 直接 `XFile.fromData(bytes, name:, mimeType:)` 即可，无需自己落临时文件
+- Linux 的 `shareXFiles()` 与旧 Windows 会抛 `UnimplementedError`：UI 捕获后提示「附件已保存」。此时文件确实在应用文档目录的 `attachments/` 下（native 侧 `localFiles=true` 本来就落盘），只是没有系统分享面板可弹
+- **Date**: 2026-10-21
+
 ## MCP / AI 接口
 
 ### MCP 协议壳不要换官方 SDK（2026-09-24 实测）

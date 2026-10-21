@@ -67,7 +67,9 @@ class SyncEngine {
     required this.snapshots,
     required this.deviceId,
     SyncApplier? applier,
-  }) : _applier = applier ?? SyncApplier(db) {
+    Future<void> Function()? beforeRound,
+  }) : _applier = applier ?? SyncApplier(db),
+       _beforeRound = beforeRound {
     _statusController = StreamController<SyncStatus>.broadcast(
       onListen: () => _statusController.add(_status),
     );
@@ -83,6 +85,11 @@ class SyncEngine {
   final SyncSnapshotStore snapshots;
   final String deviceId;
   final SyncApplier _applier;
+
+  /// Runs before the outbox is read, so work it enqueues (attachment blob
+  /// uploads) rides the same round instead of needing a follow-up. Must not
+  /// throw — a round is not the place to surface side-work failures.
+  final Future<void> Function()? _beforeRound;
 
   SyncStatus _status = const SyncStatus();
   late final StreamController<SyncStatus> _statusController;
@@ -181,6 +188,15 @@ class SyncEngine {
 
   Future<bool> _runRound() async {
     try {
+      final beforeRound = _beforeRound;
+      if (beforeRound != null) {
+        try {
+          await beforeRound();
+        } catch (e) {
+          debugPrint('sync: pre-round work failed: $e');
+        }
+      }
+
       _emit(
         SyncStatus(
           phase: SyncPhase.pushing,
@@ -209,6 +225,9 @@ class SyncEngine {
       final taskInstanceStateEnabled = serverCapabilities.contains(
         SyncCapability.taskInstanceStateV1,
       );
+      final reminderTagAttachmentEnabled = serverCapabilities.contains(
+        SyncCapability.reminderTagAttachmentV1,
+      );
       final priorTaskAllocationEnabled = await cursorStore
           .readTaskAllocationCapabilityState();
       final capabilityBackfill =
@@ -221,10 +240,16 @@ class SyncEngine {
           .readTaskInstanceStateCapabilityState();
       final taskInstanceStateBackfill =
           taskInstanceStateEnabled && priorTaskInstanceStateEnabled != true;
+      final priorReminderTagAttachmentEnabled = await cursorStore
+          .readReminderTagAttachmentCapabilityState();
+      final reminderTagAttachmentBackfill =
+          reminderTagAttachmentEnabled &&
+          priorReminderTagAttachmentEnabled != true;
       final roundCursor =
           capabilityBackfill ||
               todoRecurrenceBackfill ||
-              taskInstanceStateBackfill
+              taskInstanceStateBackfill ||
+              reminderTagAttachmentBackfill
           ? 0
           : cursor;
 
@@ -250,6 +275,7 @@ class SyncEngine {
             SyncCapability.taskAllocationV1,
             SyncCapability.todoRecurrenceV1,
             SyncCapability.taskInstanceStateV1,
+            SyncCapability.reminderTagAttachmentV1,
           ],
         ),
       );
@@ -332,6 +358,9 @@ class SyncEngine {
       await cursorStore.writeTaskInstanceStateCapabilityState(
         taskInstanceStateEnabled,
       );
+      await cursorStore.writeReminderTagAttachmentCapabilityState(
+        reminderTagAttachmentEnabled,
+      );
 
       _backoffSeconds = 1;
       _emit(
@@ -372,6 +401,12 @@ class SyncEngine {
           !serverCapabilities.contains(SyncCapability.taskInstanceStateV1)) {
         continue;
       }
+      if (_reminderTagAttachmentTypes.contains(type) &&
+          !serverCapabilities.contains(
+            SyncCapability.reminderTagAttachmentV1,
+          )) {
+        continue;
+      }
       var baseRev = entry.baseRev;
       var fields = entry.payloadJson == null
           ? null
@@ -385,26 +420,11 @@ class SyncEngine {
             fields != null &&
             type != RecordType.taskInstanceState) {
           final dirty = dirtyFields(fields, snapshot.payload);
-          if (type == RecordType.todo &&
-              !serverCapabilities.contains(SyncCapability.todoRecurrenceV1)) {
-            if (fields['recurrenceLegacyState'] == 'knownZoned') continue;
-            dirty.remove('recurrenceSpec');
-            dirty.remove('recurrenceRevision');
-            dirty.remove('recurrenceLegacyState');
-          }
           if (dirty.isEmpty) {
             converged.add(entry.opId);
             continue;
           }
           fields = dirty;
-        } else if (type == RecordType.todo &&
-            fields != null &&
-            !serverCapabilities.contains(SyncCapability.todoRecurrenceV1)) {
-          if (fields['recurrenceLegacyState'] == 'knownZoned') continue;
-          fields = Map<String, dynamic>.from(fields)
-            ..remove('recurrenceSpec')
-            ..remove('recurrenceRevision')
-            ..remove('recurrenceLegacyState');
         }
       }
       ops.add(
@@ -521,3 +541,10 @@ class SyncEngine {
     if (!_statusController.isClosed) _statusController.add(next);
   }
 }
+
+const _reminderTagAttachmentTypes = {
+  RecordType.reminder,
+  RecordType.tag,
+  RecordType.tagAssociation,
+  RecordType.attachment,
+};

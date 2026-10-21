@@ -1,7 +1,7 @@
 name: dayspark
 description: DaySpark / 灵光 — AI-powered cross-platform calendar & todo app.
 publish_to: 'none'
-version: 0.27.0+28
+version: 0.28.0+28
 
 environment:
   sdk: '>=3.11.0 <4.0.0'
@@ -80,6 +80,8 @@ dependencies:
   dayspark_recurrence:
     path: packages/dayspark_recurrence
   uuid: ^4.5.3
+  # Backup packages: db.json + attachment bodies in one zip
+  archive: ^4.0.9
   connectivity_plus: ^7.3.1
   web: ^1.1.1
 

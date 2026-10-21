@@ -163,6 +163,7 @@ void main() {
       'task_allocation_v1',
       'todo_recurrence_v1',
       'task_instance_state_v1',
+      'reminder_tag_attachment_v1',
     ]);
 
     final unsupportedPush = await _push(
@@ -300,6 +301,86 @@ void main() {
     );
     expect((capable['changes'] as List).single['type'], 'task_allocation');
   });
+
+  test(
+    'reminder / tag / attachment rows stay hidden until the capability is declared',
+    () async {
+      final account = await _register(app, 'structured-records@example.com');
+      final token = account['token']!;
+      await _push(
+        app,
+        token,
+        ops: [
+          _upsertOp(
+            opId: 'tag-op',
+            recordId: 'tag-1',
+            type: 'tag',
+            fields: {'name': 'work', 'color': '#6B7280'},
+          ),
+          _upsertOp(
+            opId: 'reminder-op',
+            recordId: 'reminder-1',
+            type: 'reminder',
+            fields: {
+              'parentType': 'event',
+              'parentSyncId': 'event-1',
+              'triggerTime': '2030-01-01T00:00:00.000Z',
+            },
+          ),
+          _upsertOp(
+            opId: 'attachment-op',
+            recordId: 'attachment-1',
+            type: 'attachment',
+            fields: {
+              'parentType': 'event',
+              'parentSyncId': 'event-1',
+              'fileName': 'note.pdf',
+              'fileSize': 12,
+              'serverFileRef': 'blob-1',
+            },
+          ),
+          _upsertOp(
+            opId: 'association-op',
+            recordId: 'association-1',
+            type: 'tag_association',
+            fields: {'parentType': 'event', 'parentSyncId': 'event-1'},
+          ),
+          _upsertOp(
+            opId: 'event-op',
+            recordId: 'event-1',
+            type: 'event',
+            fields: {'title': 'E'},
+          ),
+        ],
+      );
+
+      final legacy = await _pull(app, token, cursor: 0, limit: 10);
+      expect(
+        [for (final change in legacy['changes'] as List) change['type']],
+        ['event'],
+        reason: 'an old client would fail the whole pull on an unknown type',
+      );
+      expect(
+        legacy['nextCursor'],
+        5,
+        reason: 'filtered rows must still advance the raw-seq watermark',
+      );
+
+      final capable = await _pull(
+        app,
+        token,
+        cursor: 0,
+        limit: 10,
+        capabilities: ['reminder_tag_attachment_v1'],
+      );
+      expect(
+        {
+          for (final change in capable['changes'] as List) change['type'],
+        },
+        {'tag', 'reminder', 'attachment', 'tag_association', 'event'},
+      );
+    },
+  );
 
   test(
     'completion invalidates only future active allocations; hard delete tombstones them',

@@ -28,6 +28,7 @@ void registerSyncRoutes(
             SyncCapability.taskAllocationV1,
             SyncCapability.todoRecurrenceV1,
             SyncCapability.taskInstanceStateV1,
+            SyncCapability.reminderTagAttachmentV1,
           ],
         ).toJson(),
       );
@@ -201,9 +202,20 @@ List<RecordRow> _filterCapabilities(
         !capabilities.contains(SyncCapability.taskInstanceStateV1)) {
       return false;
     }
+    if (_reminderTagAttachmentTypes.contains(row.type) &&
+        !capabilities.contains(SyncCapability.reminderTagAttachmentV1)) {
+      return false;
+    }
     return true;
   }).toList();
 }
+
+const _reminderTagAttachmentTypes = {
+  'reminder',
+  'tag',
+  'tag_association',
+  'attachment',
+};
 
 Future<List<RecordRow>> _changesSince(
   AppDatabase db,

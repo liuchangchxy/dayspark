@@ -1,3 +1,4 @@
+export 'src/attachment_api.dart' show AttachmentUploadResponse;
 export 'src/device_dto.dart' show DeviceDto, DeviceListResponse;
 export 'src/errors.dart';
 export 'src/record_dto.dart'

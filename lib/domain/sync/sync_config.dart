@@ -54,6 +54,13 @@ abstract class SyncCursorStore {
   Future<bool?> readTaskInstanceStateCapabilityState();
   Future<void> writeTaskInstanceStateCapabilityState(bool enabled);
 
+  /// Whether the server dataset has been scanned with reminder / tag /
+  /// attachment records enabled. Null on a client that upgraded from a build
+  /// which never declared the capability: its cursor may already sit past
+  /// rows the server withheld, so the first round must rescan from zero.
+  Future<bool?> readReminderTagAttachmentCapabilityState();
+  Future<void> writeReminderTagAttachmentCapabilityState(bool enabled);
+
   /// Identity/server switch: a watermark only means anything relative to
   /// the dataset it was raised against (account_provider resets it there).
   Future<void> clear();
@@ -69,6 +76,8 @@ class PrefsSyncCursorStore implements SyncCursorStore {
       'sync_todo_recurrence_capability_enabled';
   static const _taskInstanceStateCapabilityKey =
       'sync_task_instance_state_capability_enabled';
+  static const _reminderTagAttachmentCapabilityKey =
+      'sync_reminder_tag_attachment_capability_enabled';
 
   final SharedPreferences _prefs;
 
@@ -103,11 +112,20 @@ class PrefsSyncCursorStore implements SyncCursorStore {
       _prefs.setBool(_taskInstanceStateCapabilityKey, enabled);
 
   @override
+  Future<bool?> readReminderTagAttachmentCapabilityState() async =>
+      _prefs.getBool(_reminderTagAttachmentCapabilityKey);
+
+  @override
+  Future<void> writeReminderTagAttachmentCapabilityState(bool enabled) =>
+      _prefs.setBool(_reminderTagAttachmentCapabilityKey, enabled);
+
+  @override
   Future<void> clear() async {
     await _prefs.remove(_key);
     await _prefs.remove(_taskAllocationCapabilityKey);
     await _prefs.remove(_todoRecurrenceCapabilityKey);
     await _prefs.remove(_taskInstanceStateCapabilityKey);
+    await _prefs.remove(_reminderTagAttachmentCapabilityKey);
   }
 }
 

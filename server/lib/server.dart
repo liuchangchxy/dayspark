@@ -74,7 +74,12 @@ class AppServer {
     registerAuthRoutes(router, db: db, auth: auth);
     registerOauthRoutes(router, db: db, auth: auth);
     registerDeviceRoutes(router, db: db, auth: auth);
-    registerAttachmentRoutes(router, db: db, auth: auth);
+    registerAttachmentRoutes(
+      router,
+      db: db,
+      auth: auth,
+      storageDir: config.attachmentDir,
+    );
     registerSyncRoutes(router, db: db, auth: auth, notifySeq: _notifySeq);
     registerStreamRoutes(
       router,

@@ -3,11 +3,40 @@
 **TL;DR / 快速了解**
 - 2026-10-06：重复 Todo 架构回正：实例完成状态按 `(series syncId, occurrenceId)` 稀疏存储；完成/撤销只影响选定 occurrence；新 schema v14 不推断旧 `COMPLETED` series 的实例；同步、Busy Time 与 MCP 同步接入。PR #2 已建立；本轮 hard-delete 生命周期、MCP occurrence 查询与 missed-obligation 语义修正由 PR 更新承载。
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.27.0+28** — 设备注册 + 双语护栏：账号能看到自己的已连接设备（`POST /devices/register`、`GET /devices`、`x-device-id` 真正发出去、设置页设备列表），AI 按界面语言回答而不是碰运气，切换语言会重发已排期的提醒，另加四道本地化护栏（字典键对齐 / 裸文案扫描 / 文案出口清单 / 门禁总账） / Sync devices + localization guards: an account can now see its connected devices, the AI answers in the app language instead of guessing, switching language re-issues already-scheduled reminders, plus four guards over the localization surface
-- 上一版本 / Previous: **v0.26.0+27** — Web 白屏修复：平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言（白屏即红） / Web blank-screen fix: every `Platform.*` read funnels through one guarded helper, with a static guard test and a CI screenshot smoke gate (blank page = red)
+- 最新版本 / Latest: **v0.28.0+28** — 同步补齐最后一块：提醒/标签/附件元数据跨设备同步（schema v15），附件本体真正上传与按需下载，删附件时本地文件 + 行 + 服务端 blob 一起清，整机备份升级成 zip（`db.json` + 附件本体），客户端残留的重复规则 legacy 分支删除 / Sync closes the last gaps: reminders, tags and attachment metadata cross devices (schema v15), attachment blobs are really uploaded and fetched on demand, deleting one clears local file + row + server blob, backup is one zip (`db.json` plus attachment bodies), and the client's leftover recurrence-legacy branches are gone
+- 上一版本 / Previous: **v0.27.0+28** — 设备注册 + 双语护栏：账号能看到自己的已连接设备（`POST /devices/register`、`GET /devices`、`x-device-id` 真正发出去、设置页设备列表），AI 按界面语言回答而不是碰运气，切换语言会重发已排期的提醒，另加四道本地化护栏（字典键对齐 / 裸文案扫描 / 文案出口清单 / 门禁总账） / Sync devices + localization guards: an account can now see its connected devices, the AI answers in the app language instead of guessing, switching language re-issues already-scheduled reminders, plus four guards over the localization surface
 - 更早 / Earlier: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
 - 最新流程改进 / Pipeline: **门禁总账 + 变异实证（一条没红过的门禁视为不存在）+ 出口清单 + 流程文档五件** — 2026-10-01
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
+
+---
+
+## v0.28.0+28 — Sync Closure & Full Backup / 同步补齐与整机备份
+
+**用户反馈原文 / User feedback:** 「DS-023 Attachments Sync ⚠️ 未完全清零 —— Server 已有 upload/download，测试也能手工上传下载，但生产客户端 createAttachmentProvider 仍只保存本地 filePath + enqueue metadata，没有实际把文件上传到 Server，也没有正常客户端的下载/删除文件闭环」「DS-024 Native Backup ❌ 未清零 —— BackupService 只备份 Attachment metadata / filePath / serverFileRef，没有把附件文件本体打进备份包；测试也只验证 metadata」「OE-012 recurrence legacy ❌ 没做 —— 当前 sync_engine.dart 仍存在 recurrenceLegacyState、knownZoned 等 legacy 分支」→「修复这些问题。」
+
+### Features / 新功能
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|------|
+| 1 | **提醒 / 标签 / 附件元数据同步** | schema v15 给 `reminders`、`tags`、`event_tags`、`todo_tags`、`attachments` 补 `sync_id`/`parent_sync_id`/`server_rev`，`calendars` 补 `sync_id`，事件与待办补 `ics_uid`（同一条 ICS 在两个设备上可被认出，而不是各导入一份）；出站队列、载荷差分、应用器与服务端 `record_writer` 四条链路一起覆盖这四类记录（DS-003/DS-007/DS-022） |
+| 2 | **附件本体真正过网** | `AttachmentService` 在新建附件时上传文件、在本地文件缺失时按需下载；服务端新增 `DELETE /attachments/<ref>`，附件通道单独 25MB 上限（JSON 控制面仍是 256KB）；离线新建的附件在下一轮同步前由 `beforeRound` 钩子补传，因此不会出现「行同步了、文件永远到不了」 |
+| 3 | **删除附件三处一起清** | 本地行 → 本地文件 → 服务端 blob；blob 删除是尽力而为（失败只记日志），因为离线设备也必须能删掉记录，残留 blob 只占磁盘、不会复活任何数据 |
+| 4 | **整机备份改为 zip 包** | 备份是一个 zip：`db.json` + 每个附件本体一条二进制 entry；恢复同时重建行与文件，并且当备份里的 `filePath` 指向本机已不存在的文件时清空该字段而不是留一个悬空路径（DS-024） |
+| 5 | **客户端重复规则 legacy 分支删除** | `sync_engine.dart` 不再有 `recurrenceLegacyState`/`knownZoned` 与能力探测配对的剥离逻辑，也不再有 `knownZoned` 字样；能力机制本身（`taskAllocationV1`/`todoRecurrenceV1`/`taskInstanceStateV1` 探测、capability state、backfill）按裁定保留（OE-012；OE-013 未执行） |
+
+### Fixes / 修复
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|------|
+| 1 | **附件在 Web 上也能用** | Web 没有文件系统：`localFiles=false` 时不落盘，打开附件改走浏览器下载（新增二进制下载 seam），不再抛 `UnsupportedError` |
+| 2 | **同步测试不再往仓库里写文件** | 集成测试的 `AppServer` 显式传 `attachmentDir` 到临时目录；`.gitignore` 加 `/data/` 兜底，避免下次再长出未跟踪目录 |
+| 3 | **旧客户端不会被新记录类型打断** | 新增 `reminder_tag_attachment_v1` capability：服务端只向声明它的客户端返回 `reminder`/`tag`/`tag_association`/`attachment` 行（被过滤的行仍推进 raw-seq 水位线，不会卡住游标）；v0.27 客户端把未知 `type` 解析成 `FormatException` 会让整轮 pull 失败，所以不能靠"反正大家都会升级"。v0.28 客户端首次声明该能力时从 cursor 0 回扫一次，补上旧版本窗口里被服务端扣下的记录 |
+
+### Constraints / 新增约束
+
+- 附件写入顺序固定为「先写行、后写文件」，因为 `serverFileRef IS NULL` 是可补偿状态（下一轮 `uploadPending` 补传），而「有文件没行」是不可见的垃圾
+- 附件通道与服务端 25MB 上限对齐；超限请改上限而不是绕过（见 `docs/CONSTRAINTS.md`）
 
 ---
 

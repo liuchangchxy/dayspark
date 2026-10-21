@@ -384,6 +384,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get export => 'Export';
 
   @override
+  String get fullBackup => 'Full backup';
+
+  @override
+  String get fullBackupDesc => 'Archive with all data and attachment files';
+
+  @override
+  String get restore => 'Restore';
+
+  @override
+  String get backupRestored => 'Backup restored';
+
+  @override
+  String restoreFailed(String error) {
+    return 'Restore failed: $error';
+  }
+
+  @override
   String get import => 'Import';
 
   @override
@@ -718,6 +735,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addAttachment => 'Add attachment';
+
+  @override
+  String get openAttachment => 'Open attachment';
+
+  @override
+  String get attachmentLocalOnly => 'Not uploaded';
+
+  @override
+  String get attachmentUnavailable => 'This attachment is not available on this device yet';
+
+  @override
+  String attachmentReady(String name) {
+    return 'Attachment saved: $name';
+  }
+
+  @override
+  String attachmentFailed(String error) {
+    return 'Attachment failed: $error';
+  }
 
   @override
   String get editTag => 'Edit Tag';

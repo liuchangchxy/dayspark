@@ -134,6 +134,9 @@ TaskAllocation 的领域状态为单一字段：
   - 规则 7：账号切换与数据域隔离。切换账号或切换服务器身份（identity = normalized baseUrl + userId）时，客户端必须清空待发 Outbox、Cursor 游标及服务端快照，防止旧账号未同步的本地操作跨越边界上推至新账号；严禁将已有同步身份的本地记录的 `syncId` 强行置空并在新账号上执行全量重基线上推（baseline sweep）；各账号/服务器数据域物理独立，杜绝跨账号数据污染。
   - 规则 8：设备身份注册隔离。设备身份与账号绑定，客户端按账号维度派生或生成独立的 deviceId（基于 installationId 与 account identity 隔离），确保同一物理设备切换不同账号登录时，各自持有合法的独立设备注册身份，服务端避免 409 注册失败。
   - 规则 9：ICS 导入入库与同步链路。ICS 导入记录（VEVENT 与 VTODO）必须走正常领域写入并 enqueue Outbox 产生稳定同步身份（syncId），确保导入记录能够跨设备同步，第二设备可见；导入与导出必须支持明确指定目标日历，杜绝写死首个日历。
+  - 规则 10：提醒 / 标签 / 附件元数据同步。`reminder`、`tag`、`tag_association`、`attachment` 四类记录由 capability `reminder_tag_attachment_v1` 门控：服务端只向声明该能力的客户端返回这些类型，过滤掉的记录仍推进 raw-seq 水位线（不得阻塞游标）。客户端首次声明该能力时必须从 cursor 0 回扫一次，补上旧版本窗口内被扣下的记录。理由：未声明客户端把未知 `type` 解析为 `FormatException` 会让整轮 pull 失败，不能以"所有客户端都会同步升级"为前提。
+  - 规则 11：附件本体不走记录平面。附件**元数据**是同步记录，**文件本体**只经 `/attachments` 二进制通道传输；写入顺序固定为「先写行、后写文件、尽力上传」（`serverFileRef IS NULL` 是可补偿状态，由下一轮补传；反之「有文件没行」是不可见垃圾）。删除顺序为行 → 本地文件 → 服务端 blob，blob 删除尽力而为（离线设备必须仍可删除记录，残留 blob 不得复活任何数据）。
+  - 规则 12：整机备份是一个 zip 包：`db.json` + `attachments/<syncId|localId>_<fileName>`。恢复必须同时重建行与文件；缺 `db.json` 整体拒绝，不做半恢复；备份里的 `filePath` 指向本机不存在的文件时清空该字段。旧版纯 JSON 备份仍可恢复。
 
 ### 3.3 核心功能 C：MCP AI 读写（P3）
 - **业务规则契约**：
@@ -219,6 +222,9 @@ Todo 的 `recurrenceTimeZone` 是重复系列的 IANA 时区，必须写入 Todo
 | `POST /sync/push` | `{ops:[{opId, type: upsert\|delete, recordId, fields, baseRev}]}` | 逐条 `{status: applied\|conflict\|rejected}` + piggyback 远端变更 | 幂等；绝不整批回滚 |
 | `GET /sync/pull` | `cursor, limit` | `{changes[], nextCursor, hasMore}` | cursor 单调不透明 |
 | `GET /sync/stream` | SSE | `{cursor}` 信号 | 只发信号不发载荷 |
+| `POST /attachments/upload` | 二进制 body（≤25MB） | `{serverFileRef, fileSize}` | 附件本体；与 JSON 控制面 256KB 上限分离 |
+| `GET /attachments/<ref>` | — | 二进制 body | 附件下载；未知 ref 404 |
+| `DELETE /attachments/<ref>` | — | `{deleted:true}` | 幂等；文件不存在同样 200 |
 
 TaskAllocation 同步使用 `RecordType.task_allocation` 和正式 capability `task_allocation_v1`。客户端每次 push body 与 pull 查询均声明 capabilities；缺失按空集合处理，未知字符串忽略。服务端 capability discovery 返回当前受支持集合；新客户端在 discovery 不可用（旧服务端 404）时继续同步 Event/Todo，但保留 Allocation outbox，不发送未被服务端声明支持的类型。旧客户端不声明该 capability 时，服务端不得向其 push piggyback 或 pull 返回 TaskAllocation。
 

@@ -2,12 +2,12 @@
 
 > 2026-10-06 update: recurring per-instance completion is implemented on `fix/recurring-task-instance-completion`; PR #2 tracks delivery and current Hosted CI evidence. The Todo UI remains a series row with an occurrence selector.
 
-> Last updated / 最后更新: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Previous: v0.27.0+28 | 2026-10-01 | Sync devices +全双语护栏: every account can now see its connected devices (`POST /devices/register`, `GET /devices`, `x-device-id` actually sent, in-app device list), the AI answers in the app language instead of guessing, switching language now re-issues already-scheduled reminders, and four new guards cover the localization surface (dictionary parity, raw-text scan, outlet inventory, gate ledger). Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
+> Last updated / 最后更新: v0.28.0+28 | 2026-10-21 | Sync closure: reminders, tags and attachment metadata now sync (schema v15); attachment blobs are uploaded by the client and fetched on demand, with deletion clearing local file + row + server blob; backup is one zip carrying `db.json` plus attachment bodies; the client's recurrence-legacy branches are removed. Previous: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Previous: v0.27.0+28 | 2026-10-01 | Sync devices +全双语护栏: every account can now see its connected devices (`POST /devices/register`, `GET /devices`, `x-device-id` actually sent, in-app device list), the AI answers in the app language instead of guessing, switching language now re-issues already-scheduled reminders, and four new guards cover the localization surface (dictionary parity, raw-text scan, outlet inventory, gate ledger). Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.27.0+28** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.28.0+28** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
 - 最新变化：**视觉重设计（v0.26.0）** — 从 Linear 式冷淡高密度转向 Apple 日历式温和清晰：iOS 系统色板、6 级字阶（主标题/正文 1.7 倍差带测试守护）、iOS 圆角与分层阴影、锁死的 5 套预设主题色取代自由选色器、设置页改分组卡片、四个空状态差异化；`DESIGN.md` 重写，全项目 token 清剿
 - 上一版：**Web 白屏修复（v0.25.1）** — 平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言
@@ -329,6 +329,16 @@
 | **Android signing keys removed from git tracking** — new random-password keystore generated, `key.properties` + `release-keystore.jks` added to `.gitignore`, old files `git rm`'d. / **Android 签名密钥移出 git 追踪** | [Security / 安全] |
 | **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
 | **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
+
+### v0.28.0 | 2026-10-21 | Sync Closure & Full Backup / 同步补齐与整机备份
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **Reminders, tags and attachment metadata sync** — schema v15 gives `reminders`, `tags`, `event_tags`, `todo_tags` and `attachments` their `sync_id`/`parent_sync_id`/`server_rev` columns, and `calendars` a `sync_id`; the outbox, payload differ and applier gained the four record types, and the server's `record_writer` accepts them. Events and todos also carry `ics_uid` so an imported ICS item can be recognised on another device. / **提醒、标签、附件元数据进入同步**——schema v15 补列，出站/载荷/应用器与服务端四条链路打通 | DS-003, DS-007, DS-022 |
+| **Attachment files actually move** — the client uploads the blob when an attachment is created and downloads it on demand when the local file is missing; the server gained `DELETE /attachments/<ref>` and a 25 MB body cap for blobs (the JSON plane keeps its 256 KB cap). / **附件本体真正上传/按需下载**——新增删除接口与 25MB 上限 | DS-023 |
+| **Deleting an attachment clears all three places** — local row, local file and server blob, with the blob delete best-effort so an offline device can still drop the record. / **删除附件三处一起清** | DS-023 |
+| **Backup is a zip package** — `backup.zip` = `db.json` + one entry per attachment body; restore reconstructs both rows and files and clears a `filePath` that points at a file the device no longer has. / **整机备份改为 zip 包**——`db.json` + 附件本体 | DS-024 |
+| **Client recurrence-legacy branches removed** — `sync_engine.dart` no longer pairs `recurrenceLegacyState == 'knownZoned'` with a capability probe; the capability mechanism itself stays. / **客户端重复规则 legacy 分支删除**——能力探测机制保留 | OE-012 |
 
 ### v0.27.0 | 2026-10-01 | Connected Devices + Localization Guards / 设备注册与本地化护栏
 
@@ -673,7 +683,7 @@
 | 2 | **ICS import bypasses outbox / ICS 导入绕过出站队列** — `ics_service.dart` still raw-`insert`s; imported rows have NULL `sync_id` and don't push until first edited. / `ics_service.dart` 仍裸 `insert`，导入行 `sync_id` 为 NULL，首次编辑前不推送 | Enqueue exit is provider-bound; import path deferred / 入队出口绑定在 provider，导入路径遗留 |
 | 3 | **`calendarId` multi-calendar heuristic / `calendarId` 多日历启发式** — calendars don't sync in P2; unknown `calendar_id` falls back to the first local calendar, so calendar attribution may drift across devices. / 日历 P2 不同步；未知 `calendar_id` 回退首个本地日历，跨设备日历归属可能漂移 | Needs calendar sync or a calendar map / 需日历同步或映射表 |
 | 4 | **`parentSyncId` late re-link / `parentSyncId` 迟到回链** — if the parent row isn't on the device at apply time the child stays top-level; the parent arriving later does **not** re-link. / 应用时父行不在本机则子行置顶层，父行之后到达**不会**回链 | Candidate: re-link by `parentSyncId` later / 候选：按 `parentSyncId` 回链 |
-| 5 | Tag / reminder / attachment payloads not applied / tag、提醒、附件载荷不同步 | P2 applier covers event + todo only / P2 应用器只覆盖 event+todo |
+| 5 | ~~**Tag / reminder / attachment payloads not applied / tag、提醒、附件载荷不同步**~~ — ✅ **交付于 v0.28.0**：schema v15 补 `sync_id`/`parent_sync_id`/`server_rev`，出站队列/载荷差分/应用器/服务端 `record_writer` 四条链路全部覆盖 `reminder`/`tag`/`tagAssociation`/`attachment`；附件本体另有上传/下载/删除闭环（不在记录平面内） / ~~**tag、提醒、附件载荷不同步**~~ — ✅ v0.28.0 交付 | ✅ 已关单 (v0.28.0) |
 
 ---
 
@@ -706,4 +716,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.27.0+28 |
+| Version / 版本 | v0.28.0+28 |

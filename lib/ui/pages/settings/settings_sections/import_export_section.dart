@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
@@ -10,7 +11,10 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:dayspark/data/file_downloader.dart';
 import 'package:dayspark/data/file_reader.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/services/backup_service.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
@@ -49,8 +53,92 @@ class ImportExportSection extends ConsumerWidget {
           subtitle: Text(l.calendarData),
           onTap: () => _showIcsDialog(context, ref),
         ),
+        ListTile(
+          leading: const Icon(CupertinoIcons.archivebox),
+          title: Text(l.fullBackup),
+          subtitle: Text(l.fullBackupDesc),
+          onTap: () => _showBackupDialog(context, ref),
+        ),
       ],
     );
+  }
+
+  void _showBackupDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.fullBackup),
+        content: Text(l.fullBackupDesc),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _restoreBackup(context, ref);
+            },
+            child: Text(l.restore),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _exportBackup(context, ref);
+            },
+            child: Text(l.export),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await BackupService(ref.read(databaseProvider)).exportZip();
+      final filename =
+          'dayspark-backup-${DateTime.now().millisecondsSinceEpoch}.zip';
+      if (ref.read(isWebProvider)) {
+        ref.read(webBytesDownloaderProvider)(
+          bytes: bytes,
+          filename: filename,
+          mimeType: 'application/zip',
+        );
+        return;
+      }
+      final dir = await getApplicationDocumentsDirectory();
+      final path = '${dir.path}/$filename';
+      await File(path).writeAsBytes(bytes, flush: true);
+      try {
+        await Share.shareXFiles([XFile(path)], subject: 'DaySpark Backup');
+      } on UnimplementedError {
+        messenger.showSnackBar(SnackBar(content: Text(l.exportedTo(path))));
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l.exportFailed('$e'))),
+      );
+    }
+  }
+
+  Future<void> _restoreBackup(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final picked = result.files.first;
+    try {
+      final bytes = picked.bytes ??
+          (picked.path == null ? null : await File(picked.path!).readAsBytes());
+      if (bytes == null) throw StateError('backup file has no content');
+      await BackupService(ref.read(databaseProvider)).restoreZip(bytes);
+      messenger.showSnackBar(SnackBar(content: Text(l.backupRestored)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(l.restoreFailed('$e'))));
+    }
   }
 
   void _showIcsDialog(BuildContext context, WidgetRef ref) async {

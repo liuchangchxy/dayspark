@@ -15,6 +15,8 @@ import 'package:dayspark/domain/records/writers/task_instance_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/domain/services/attachment_files.dart';
+import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:dayspark_server/server.dart' as srv;
@@ -43,6 +45,9 @@ class _Device {
     cursors = MemoryCursorStore();
     snapshots = MemorySnapshotStore();
     api = AuthSyncApiClient(transport: transport, tokens: tokens);
+    attachmentDir = Directory.systemTemp.createTempSync('dayspark_att_$name');
+    files = AttachmentFileStore(root: () async => attachmentDir);
+    attachments = AttachmentService(db: db, api: api, files: files);
     engine = SyncEngine(
       db: db,
       api: api,
@@ -61,12 +66,16 @@ class _Device {
   late final MemoryCursorStore cursors;
   late final MemorySnapshotStore snapshots;
   late final AuthSyncApiClient api;
+  late final Directory attachmentDir;
+  late final AttachmentFileStore files;
+  late final AttachmentService attachments;
   late final SyncEngine engine;
   late int calendarId;
 
   Future<void> dispose() async {
     await engine.stop();
     await db.close();
+    if (attachmentDir.existsSync()) attachmentDir.deleteSync(recursive: true);
   }
 }
 
@@ -95,15 +104,25 @@ class _GatedTransport implements SyncTransport {
         'capabilities=task_allocation_v1',
       );
     }
-    if (legacyClient &&
-        method == 'POST' &&
-        path == '/sync/push' &&
-        body is String) {
-      final request = jsonDecode(body) as Map<String, dynamic>;
+    // Simulates a client that predates structured recurrence: it neither
+    // declares the capability nor understands the recurrence group, so the
+    // group must not leave the device either. `/sync/push` bodies are Maps
+    // (PushRequest.toJson) — the `is String` form covers transports that
+    // serialise before handing off.
+    if (legacyClient && method == 'POST' && path == '/sync/push') {
+      final decoded = body is String ? jsonDecode(body) : body;
+      if (decoded is! Map<String, dynamic>) {
+        throw StateError('unexpected push body: $body');
+      }
+      final request = decoded;
       final capabilities = request['capabilities'];
       if (capabilities is List) {
         request['capabilities'] = capabilities
-            .where((value) => value != 'todo_recurrence_v1')
+            .where(
+              (value) =>
+                  value != 'todo_recurrence_v1' &&
+                  value != 'reminder_tag_attachment_v1',
+            )
             .toList();
       }
       final ops = request['ops'];
@@ -131,7 +150,11 @@ class _GatedTransport implements SyncTransport {
       final capabilities = payload['capabilities'];
       if (capabilities is List) {
         payload['capabilities'] = capabilities
-            .where((value) => value != 'todo_recurrence_v1')
+            .where(
+              (value) =>
+                  value != 'todo_recurrence_v1' &&
+                  value != 'reminder_tag_attachment_v1',
+            )
             .toList();
       }
       return SyncHttpResponse(
@@ -164,6 +187,33 @@ class _GatedTransport implements SyncTransport {
         _stripRecurrenceGroup(child);
       }
     }
+  }
+
+  // Attachment blobs ride the same gate as the control plane: an offline
+  // device must not be able to upload one either.
+  @override
+  Future<SyncHttpResponse> sendBytes({
+    required String method,
+    required String path,
+    Map<String, String> headers = const {},
+    required List<int> body,
+  }) {
+    if (!online) return Future.error(const SyncTransportException(0));
+    return _inner.sendBytes(
+      method: method,
+      path: path,
+      headers: headers,
+      body: body,
+    );
+  }
+
+  @override
+  Future<List<int>> fetchBytes({
+    required String path,
+    Map<String, String> headers = const {},
+  }) {
+    if (!online) return Future.error(const SyncTransportException(0));
+    return _inner.fetchBytes(path: path, headers: headers);
   }
 
   @override
@@ -340,6 +390,8 @@ void main() {
         dbPath: '${tempDir.path}/server.db',
         port: 0,
         jwtSecret: 'e2e-secret',
+        // Without this the server writes blobs to ./data under the repo.
+        attachmentDir: '${tempDir.path}/attachments',
       ),
     );
     http = await app.serve();
@@ -1690,88 +1742,80 @@ void main() {
     expect(todoTagBAfter, isNull);
   });
 
-  test('attachments sync metadata and server file references (DS-023)', () async {
-    // Device A uploads an attachment to server
-    final token = await a.tokens.readAccessToken();
-    final fileBytes = utf8.encode('Hello attachment test content');
-    final uploadUri = Uri.parse('${a.baseUrl}/attachments/upload');
-    final client = HttpClient();
-    final req = await client.postUrl(uploadUri);
-    req.headers.set('authorization', 'Bearer $token');
-    req.headers.set('content-type', 'application/octet-stream');
-    req.add(fileBytes);
-    final resp = await req.close();
-    expect(resp.statusCode, 200);
-    final respBody = jsonDecode(await utf8.decodeStream(resp)) as Map<String, dynamic>;
-    final serverFileRef = respBody['serverFileRef'] as String;
-    expect(serverFileRef, isNotEmpty);
-
-    // Device A adds attachment to a todo
-    final todoA = await a.db.transaction(() async {
-      final id = await a.db.into(a.db.todos).insert(
-        TodosCompanion.insert(
-          calendarId: 1,
-          summary: 'Task with attachment',
+  test(
+    'attachment blob round trip goes through the client, not the test (DS-023)',
+    () async {
+      const content = 'Hello attachment test content';
+      final todoA = await RecordScope.run(
+        a.db,
+        (tx) => TodoWriter.create(
+          a.db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: a.calendarId,
+            summary: 'Task with attachment',
+          ),
         ),
       );
-      await SyncOutbox.enqueueUpsert(a.db, RecordType.todo, id);
-      return id;
-    });
 
-    final attIdA = await a.db.transaction(() async {
-      final id = await a.db.into(a.db.attachments).insert(
-        AttachmentsCompanion.insert(
-          parentType: 'todo',
-          parentId: todoA,
-          filePath: '/local/deviceA/test.txt',
-          fileName: 'test.txt',
-          fileSize: const Value(29),
-          serverFileRef: Value(serverFileRef),
-        ),
+      // The picker's file is somewhere outside the app; create must copy it
+      // into app-owned storage and upload it without the caller doing either.
+      final picked = File('${a.attachmentDir.path}/picked.txt')
+        ..writeAsStringSync(content);
+      final attIdA = await a.attachments.create(
+        parentType: 'todo',
+        parentId: todoA,
+        fileName: 'notes.txt',
+        mimeType: 'text/plain',
+        sourcePath: picked.path,
       );
-      await SyncOutbox.enqueueUpsert(a.db, RecordType.attachment, id);
-      return id;
-    });
 
-    // Sync A -> B
-    await _round(a);
-    await _round(b);
+      final attRowA = (await a.attachments.rowOf(attIdA))!;
+      expect(attRowA.serverFileRef, isNotNull);
+      expect(attRowA.fileSize, utf8.encode(content).length);
+      expect(attRowA.filePath, isNot(picked.path));
+      expect(File(attRowA.filePath).existsSync(), isTrue);
 
-    final todoSyncId = await _syncIdOfTodo(a.db, todoA);
-    final todoB = await _todoBySyncId(b.db, todoSyncId);
-    expect(todoB.summary, 'Task with attachment');
+      await _round(a);
+      await _round(b);
 
-    final attRowA = await (a.db.select(a.db.attachments)..where((at) => at.id.equals(attIdA))).getSingle();
-    expect(attRowA.syncId, isNotNull);
+      final todoB = await _todoBySyncId(
+        b.db,
+        await _syncIdOfTodo(a.db, todoA),
+      );
+      expect(todoB.summary, 'Task with attachment');
 
-    final attRowB = await (b.db.select(b.db.attachments)..where((at) => at.syncId.equals(attRowA.syncId!))).getSingleOrNull();
-    expect(attRowB, isNotNull);
-    expect(attRowB!.parentId, todoB.id);
-    expect(attRowB.parentType, 'todo');
-    expect(attRowB.fileName, 'test.txt');
-    expect(attRowB.serverFileRef, serverFileRef);
+      final attRowB =
+          await (b.db.select(b.db.attachments)
+                ..where((at) => at.syncId.equals(attRowA.syncId!)))
+              .getSingleOrNull();
+      expect(attRowB, isNotNull);
+      expect(attRowB!.parentId, todoB.id);
+      expect(attRowB.fileName, 'notes.txt');
+      expect(attRowB.serverFileRef, attRowA.serverFileRef);
+      // Metadata only: B has never held the bytes.
+      expect(attRowB.filePath, isEmpty);
 
-    // Device B downloads attachment file content from server using serverFileRef
-    final tokenB = await b.tokens.readAccessToken();
-    final downloadUri = Uri.parse('${b.baseUrl}/attachments/$serverFileRef');
-    final getReq = await client.getUrl(downloadUri);
-    getReq.headers.set('authorization', 'Bearer $tokenB');
-    final getResp = await getReq.close();
-    expect(getResp.statusCode, 200);
-    final downloadedBytes = await getResp.fold<List<int>>(<int>[], (acc, chunk) => acc..addAll(chunk));
-    expect(utf8.decode(downloadedBytes), 'Hello attachment test content');
+      final downloaded = await b.attachments.loadBytes(attRowB.id);
+      expect(utf8.decode(downloaded!), content);
+      final attRowBAfter = (await b.attachments.rowOf(attRowB.id))!;
+      expect(File(attRowBAfter.filePath).existsSync(), isTrue);
 
-    // Delete attachment on A -> Sync -> Removed on B
-    await a.db.transaction(() async {
-      final targets = await SyncOutbox.captureDeletes(a.db, RecordType.attachment, [attIdA]);
-      await (a.db.delete(a.db.attachments)..where((at) => at.id.equals(attIdA))).go();
-      await SyncOutbox.enqueueDeletes(a.db, targets);
-    });
+      // Delete on A removes the row, the local copy, and the server blob.
+      await a.attachments.delete(attIdA);
+      expect(File(attRowA.filePath).existsSync(), isFalse);
+      await expectLater(
+        b.api.downloadAttachment(attRowA.serverFileRef!),
+        throwsA(isA<SyncApiException>()),
+      );
 
-    await _round(a);
-    await _round(b);
-
-    final attRowBAfter = await (b.db.select(b.db.attachments)..where((at) => at.syncId.equals(attRowA.syncId!))).getSingleOrNull();
-    expect(attRowBAfter, isNull);
-  });
+      await _round(a);
+      await _round(b);
+      final attRowBDeleted =
+          await (b.db.select(b.db.attachments)
+                ..where((at) => at.syncId.equals(attRowA.syncId!)))
+              .getSingleOrNull();
+      expect(attRowBDeleted, isNull);
+    },
+  );
 }

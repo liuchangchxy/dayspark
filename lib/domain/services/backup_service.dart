@@ -1,14 +1,43 @@
 import 'dart:convert';
+import 'package:archive/archive.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
+
 import '../../data/local/database/app_database.dart';
+import 'attachment_files.dart';
 
 /// Full DaySpark native backup & restore service.
-/// Exports entire local database state to a JSON string or file,
-/// and restores from a previously exported backup payload.
+///
+/// The package is a zip: `db.json` (every table) plus `attachments/<key>`
+/// entries holding the attachment bodies. Metadata-only backups look
+/// complete but restore into rows whose files nobody has — the blobs are
+/// the part that cannot be reconstructed from anywhere else.
 class BackupService {
-  final AppDatabase _db;
+  static const dbEntryName = 'db.json';
+  static const attachmentDir = 'attachments';
 
-  BackupService(this._db);
+  final AppDatabase _db;
+  final AttachmentFileStore _files;
+
+  /// Web has no durable local store: bodies cannot be written back, so the
+  /// restored rows stay fileless and fetch on first open.
+  final bool localFiles;
+
+  BackupService(
+    this._db, {
+    AttachmentFileStore? files,
+    bool? localFiles,
+  }) : _files = files ?? AttachmentFileStore(),
+       localFiles = localFiles ?? !kIsWeb;
+
+  /// Zip entry holding [fileName]'s bytes. Derived from the row rather than
+  /// stored in `db.json` so restore recomputes it instead of trusting a
+  /// path (absolute paths from another device mean nothing here).
+  static String attachmentEntryName({
+    required int id,
+    String? syncId,
+    required String fileName,
+  }) => '$attachmentDir/${syncId ?? 'local$id'}_${sanitizeFileName(fileName)}';
 
   /// Exports all tables to a structured map.
   Future<Map<String, dynamic>> exportData() async {
@@ -124,6 +153,49 @@ class BackupService {
     return const JsonEncoder.withIndent('  ').convert(map);
   }
 
+  /// The full package: database plus every attachment body this device
+  /// still holds. A row whose file is already gone is exported without
+  /// bytes — restore leaves it fileless and the first open re-fetches it
+  /// from the server, which is strictly better than failing the export.
+  Future<Uint8List> exportZip() async {
+    final archive = Archive();
+    final json = utf8.encode(await exportJson());
+    archive.addFile(ArchiveFile(dbEntryName, json.length, json));
+    final attachments = await _db.select(_db.attachments).get();
+    for (final a in attachments) {
+      final bytes = await _files.read(a.filePath);
+      if (bytes == null) continue;
+      archive.addFile(
+        ArchiveFile(
+          attachmentEntryName(
+            id: a.id,
+            syncId: a.syncId,
+            fileName: a.fileName,
+          ),
+          bytes.length,
+          bytes,
+        ),
+      );
+    }
+    return ZipEncoder().encodeBytes(archive);
+  }
+
+  /// Restores a package produced by [exportZip], writing the attachment
+  /// bodies back to local storage and repointing their rows at the files.
+  Future<void> restoreZip(List<int> bytes) async {
+    final archive = ZipDecoder().decodeBytes(bytes);
+    final entry = archive.findFile(dbEntryName);
+    final raw = entry?.readBytes();
+    if (raw == null) {
+      throw const FormatException('backup is missing $dbEntryName');
+    }
+    final dynamic decoded = jsonDecode(utf8.decode(raw));
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Invalid backup JSON payload');
+    }
+    await restoreData(decoded, archive: archive);
+  }
+
   /// Restores database state from a backup JSON string or decoded map.
   Future<void> restoreFromJson(String jsonString) async {
     final dynamic decoded = jsonDecode(jsonString);
@@ -134,7 +206,14 @@ class BackupService {
   }
 
   /// Restores data from a parsed backup map inside a single transaction.
-  Future<void> restoreData(Map<String, dynamic> data) async {
+  ///
+  /// With [archive] the attachment bodies in it are written back and each
+  /// row is repointed at the restored file; without it (JSON-only backup)
+  /// rows keep a path only when that file still exists on this device.
+  Future<void> restoreData(
+    Map<String, dynamic> data, {
+    Archive? archive,
+  }) async {
     await _db.transaction(() async {
       final calendars = (data['calendars'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final c in calendars) {
@@ -243,14 +322,25 @@ class BackupService {
 
       final attachments = (data['attachments'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final a in attachments) {
+        final id = a['id'] as int;
+        final fileName = a['fileName'] as String;
+        final restored = await _restoreAttachmentFile(
+          archive: archive,
+          id: id,
+          syncId: a['syncId'] as String?,
+          fileName: fileName,
+          recordedPath: a['filePath'] as String? ?? '',
+        );
         await _db.into(_db.attachments).insertOnConflictUpdate(
           AttachmentsCompanion(
-            id: Value(a['id'] as int),
+            id: Value(id),
             parentType: Value(a['parentType'] as String),
             parentId: Value(a['parentId'] as int),
-            filePath: Value(a['filePath'] as String? ?? ''),
-            fileName: Value(a['fileName'] as String),
-            fileSize: Value(a['fileSize'] as int? ?? 0),
+            filePath: Value(restored?.path ?? ''),
+            fileName: Value(fileName),
+            fileSize: Value(
+              restored?.size ?? (a['fileSize'] as int? ?? 0),
+            ),
             mimeType: Value(a['mimeType'] as String?),
             syncId: Value(a['syncId'] as String?),
             parentSyncId: Value(a['parentSyncId'] as String?),
@@ -259,5 +349,34 @@ class BackupService {
         );
       }
     });
+  }
+
+  Future<({String path, int size})?> _restoreAttachmentFile({
+    required Archive? archive,
+    required int id,
+    required String? syncId,
+    required String fileName,
+    required String recordedPath,
+  }) async {
+    final entry = archive?.findFile(
+      attachmentEntryName(id: id, syncId: syncId, fileName: fileName),
+    );
+    final bytes = entry?.readBytes();
+    if (bytes != null) {
+      if (!localFiles) return null;
+      final path = await _files.write(
+        key: attachmentFileKey(id),
+        fileName: fileName,
+        bytes: bytes,
+      );
+      return (path: path, size: bytes.length);
+    }
+    // No body in the package: keep the recorded path only when this device
+    // really has that file (same-device restore). Otherwise leave the row
+    // fileless — a dangling path looks like a working attachment until the
+    // user opens it, while an empty one reads as "fetch it from the server".
+    final local = await _files.read(recordedPath);
+    if (local == null) return null;
+    return (path: recordedPath, size: local.length);
   }
 }

@@ -7,10 +7,21 @@ void downloadFileWeb({
   required String content,
   required String filename,
 }) {
-  final bytes = Uint8List.fromList(utf8.encode(content));
+  downloadBytesWeb(
+    bytes: Uint8List.fromList(utf8.encode(content)),
+    filename: filename,
+    mimeType: 'text/calendar;charset=utf-8',
+  );
+}
+
+void downloadBytesWeb({
+  required Uint8List bytes,
+  required String filename,
+  required String mimeType,
+}) {
   final blob = web.Blob(
     [bytes.toJS].toJS,
-    web.BlobPropertyBag(type: 'text/calendar;charset=utf-8'),
+    web.BlobPropertyBag(type: mimeType),
   );
   final url = web.URL.createObjectURL(blob);
   final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
