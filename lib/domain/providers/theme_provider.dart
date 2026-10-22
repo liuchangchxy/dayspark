@@ -11,7 +11,7 @@ const _keyThemeColor = 'theme_color';
 /// Users pick a preset, never a raw color — a free picker lets one bad hue
 /// drag the whole surface family off the token table.
 enum AppAccent {
-  blue('blue', '蓝', 'Blue', Color(0xFF007AFF), Color(0xFF0A84FF)),
+  blue('blue', '蓝', 'Blue', Color(0xFF2457D6), Color(0xFF0A84FF)),
   green('green', '绿', 'Green', Color(0xFF34C759), Color(0xFF30D158)),
   orange('orange', '橙', 'Orange', Color(0xFFFF9500), Color(0xFFFF9F0A)),
   purple('purple', '紫', 'Purple', Color(0xFFAF52DE), Color(0xFFBF5AF2)),
@@ -31,10 +31,8 @@ enum AppAccent {
   String nameFor(Locale locale) =>
       locale.languageCode == 'zh' ? zhName : enName;
 
-  static AppAccent fromId(String? id) => values.firstWhere(
-    (a) => a.id == id,
-    orElse: () => AppAccent.blue,
-  );
+  static AppAccent fromId(String? id) =>
+      values.firstWhere((a) => a.id == id, orElse: () => AppAccent.blue);
 
   /// Maps a color stored by the old free-picker onto the nearest preset.
   static AppAccent fromLegacyColor(int? argb) {

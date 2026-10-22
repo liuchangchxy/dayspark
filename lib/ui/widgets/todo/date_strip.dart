@@ -46,7 +46,12 @@ class DateStrip extends StatelessWidget {
             selectedDate!.day != today.day);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      // Desktop already sits on the shared 28dp content origin, so the strip
+      // must not add a second inset there.
+      padding: EdgeInsets.symmetric(
+        horizontal: MediaQuery.sizeOf(context).width >= 1000 ? 0 : 8,
+        vertical: 4,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -152,52 +157,55 @@ class DateStrip extends StatelessWidget {
                             DateTime(date.year, date.month, date.day),
                           ),
                           borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AppSpacing.md,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? theme.colorScheme.primary
-                                  : isToday
-                                  ? theme.colorScheme.primary.withValues(
-                                      alpha: 0.3,
-                                    )
-                                  : null,
-                              borderRadius: BorderRadius.circular(8),
-                              border: isToday && !isSelected
-                                  ? Border.all(
-                                      color: theme.colorScheme.primary,
-                                      width: 1,
-                                    )
-                                  : null,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  weekdayLabel,
-                                  style: TextStyle(
-                                    fontSize: AppTypography.overline.fontSize,
-                                    color: isSelected
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.textTheme.bodySmall?.color,
+                          child: Center(
+                            child: Container(
+                              width: 42,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.md,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : isToday
+                                    ? theme.colorScheme.primary.withValues(
+                                        alpha: 0.3,
+                                      )
+                                    : null,
+                                borderRadius: BorderRadius.circular(8),
+                                border: isToday && !isSelected
+                                    ? Border.all(
+                                        color: theme.colorScheme.primary,
+                                        width: 1,
+                                      )
+                                    : null,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    weekdayLabel,
+                                    style: TextStyle(
+                                      fontSize: AppTypography.overline.fontSize,
+                                      color: isSelected
+                                          ? theme.colorScheme.onPrimary
+                                          : theme.textTheme.bodySmall?.color,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: AppSpacing.xs),
-                                Text(
-                                  '${date.day}',
-                                  style: TextStyle(
-                                    fontSize: AppTypography.body.fontSize,
-                                    fontWeight: isToday
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.textTheme.bodyMedium?.color,
+                                  const SizedBox(height: AppSpacing.xs),
+                                  Text(
+                                    '${date.day}',
+                                    style: TextStyle(
+                                      fontSize: AppTypography.body.fontSize,
+                                      fontWeight: isToday
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: isSelected
+                                          ? theme.colorScheme.onPrimary
+                                          : theme.textTheme.bodyMedium?.color,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),

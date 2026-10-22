@@ -2,7 +2,13 @@
   "preview": "预览",
   "legacyRecurrencePreview": "后续日期预览",
   "legacyRecurrenceEvidence": "导入来源：{source}；时间语义：{semantic}{tzid}",
-  "@legacyRecurrenceEvidence": {"placeholders": {"source": {}, "semantic": {}, "tzid": {}}},
+  "@legacyRecurrenceEvidence": {
+    "placeholders": {
+      "source": {},
+      "semantic": {},
+      "tzid": {}
+    }
+  },
   "legacyVTimezonePresent": "原日历包含 VTIMEZONE 时区定义。",
   "legacyRecurrenceEvidenceMissing": "此旧记录没有可用的导入来源证据。",
   "selectTodoOccurrence": "选择重复事项",
@@ -489,5 +495,11 @@
   "earlierHistory": "更早历史…",
   "todayTasks": "今日任务",
   "missed": "已遗漏",
-  "recurringTask": "重复"
+  "recurringTask": "重复",
+  "actionNow": "现在",
+  "actionDetails": "详情",
+  "calendarDeadlineLane": "截止",
+  "calendarLegendEvent": "事件",
+  "calendarLegendAllocation": "安排",
+  "actionAll": "全部"
 }

@@ -172,6 +172,72 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets(
+    'desktop inspector appears only after selection and preserves edit route',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final id = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Review a deliberately long bilingual title 设计评审与交付',
+              dueDate: Value(fixedDate),
+            ),
+          );
+      Todo? opened;
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: ActionSection(onTodoTap: (todo) => opened = todo),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => fixedDate),
+          ],
+        ),
+      );
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byKey(const ValueKey('action-inspector')), findsNothing);
+      await tester.tap(
+        find.text('Review a deliberately long bilingual title 设计评审与交付'),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('action-inspector')), findsOneWidget);
+      expect(opened, isNull);
+      await tester.tap(find.text('Edit Todo'));
+      expect(opened?.id, id);
+      expect(tester.takeException(), isNull);
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets('mobile week strip changes the existing projection date without overflow', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_wrapWithApp(
+      child: const ActionSection(),
+      overrides: [databaseProvider.overrideWithValue(db), actionDateProvider.overrideWith((ref) => fixedDate)],
+    ));
+    for (var i = 0; i < 10; i++) { await tester.pump(const Duration(milliseconds: 50)); }
+    for (var i = 0; i < 7; i++) {
+      final cell = find.byKey(ValueKey('action-week-$i'));
+      expect(tester.getSize(cell).width, greaterThanOrEqualTo(48));
+      expect(tester.getSize(cell).height, greaterThanOrEqualTo(48));
+    }
+    await tester.tap(find.byKey(const ValueKey('action-week-6')));
+    await tester.pump();
+    final container = ProviderScope.containerOf(tester.element(find.byType(ActionSection)));
+    expect(container.read(actionDateProvider), DateTime(2026, 10, 11));
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
   testWidgets('checking allocation checkbox completes ordinary todo without mutating dueDate', (
     tester,
   ) async {

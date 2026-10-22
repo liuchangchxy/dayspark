@@ -1223,4 +1223,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recurringTask => 'Recurring';
+
+  @override
+  String get actionNow => 'Now';
+
+  @override
+  String get actionDetails => 'Details';
+
+  @override
+  String get calendarDeadlineLane => 'Deadlines';
+
+  @override
+  String get calendarLegendEvent => 'Event';
+
+  @override
+  String get calendarLegendAllocation => 'Scheduled';
+
+  @override
+  String get actionAll => 'All';
 }

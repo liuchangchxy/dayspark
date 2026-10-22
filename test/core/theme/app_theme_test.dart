@@ -35,11 +35,11 @@ void main() {
       expect(ratio, greaterThanOrEqualTo(1.7));
     });
 
-    test('card border radius is 16px', () {
+    test('card border radius matches compact D Final surfaces', () {
       final theme = AppTheme.light();
       final shape = theme.cardTheme.shape as RoundedRectangleBorder?;
       final borderRadius = shape?.borderRadius as BorderRadius?;
-      expect(borderRadius?.topLeft.x, 16);
+      expect(borderRadius?.topLeft.x, 10);
     });
 
     test('accent override replaces only the accent pair', () {

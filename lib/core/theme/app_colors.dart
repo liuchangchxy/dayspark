@@ -5,28 +5,34 @@ import 'package:flutter/material.dart';
 /// Do not use raw Color() values elsewhere — import from here.
 @immutable
 abstract final class AppColors {
+  static const Color sidebar = Color(0xFF191C22);
+  static const Color sidebarSelected = Color(0xFF242933);
+  static const Color sidebarInk = Color(0xFFE9ECF1);
+  static const Color sidebarMuted = Color(0xFFADB5C3);
+  static const Color brandWarm = Color(0xFFC2410C);
+
   // --- Light Mode ---
-  static const Color lightBackground = Color(0xFFF2F2F7);
+  static const Color lightBackground = Color(0xFFF5F6F8);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceSecondary = Color(0xFFE5E5EA);
-  static const Color lightTextPrimary = Color(0xFF1C1C1E);
-  static const Color lightTextSecondary = Color(0xFF8A8A8E);
-  static const Color lightTextTertiary = Color(0xFFC7C7CC);
-  static const Color lightAccent = Color(0xFF007AFF);
-  static const Color lightAccentHover = Color(0xFF0062CC);
-  static const Color lightSeparator = Color(0xFFE5E5EA);
-  static const Color lightSeparatorSoft = Color(0xFFF0F0F3);
-  static const Color lightSuccess = Color(0xFF34C759);
-  static const Color lightWarning = Color(0xFFFF9500);
-  static const Color lightError = Color(0xFFFF3B30);
+  static const Color lightSurfaceSecondary = Color(0xFFE3E6EB);
+  static const Color lightTextPrimary = Color(0xFF171A20);
+  static const Color lightTextSecondary = Color(0xFF667080);
+  static const Color lightTextTertiary = Color(0xFF667080);
+  static const Color lightAccent = Color(0xFF2457D6);
+  static const Color lightAccentHover = Color(0xFF1947BA);
+  static const Color lightSeparator = Color(0xFFE3E6EB);
+  static const Color lightSeparatorSoft = Color(0xFFEEF0F3);
+  static const Color lightSuccess = Color(0xFF2F7D5A);
+  static const Color lightWarning = Color(0xFFA95D08);
+  static const Color lightError = Color(0xFFBF3A32);
 
   // --- Dark Mode ---
   static const Color darkBackground = Color(0xFF0A0A0C);
-  static const Color darkSurface = Color(0xFF1C1C1E);
+  static const Color darkSurface = Color(0xFF171A20);
   static const Color darkSurfaceSecondary = Color(0xFF2C2C2E);
   static const Color darkTextPrimary = Color(0xFFFFFFFF);
-  static const Color darkTextSecondary = Color(0xFF98989D);
-  static const Color darkTextTertiary = Color(0xFF48484A);
+  static const Color darkTextSecondary = Color(0xFFADB5C3);
+  static const Color darkTextTertiary = Color(0xFF858F9F);
   static const Color darkAccent = Color(0xFF0A84FF);
   static const Color darkAccentHover = Color(0xFF409CFF);
   static const Color darkSeparator = Color(0xFF38383A);

@@ -2,7 +2,13 @@
   "preview": "Preview",
   "legacyRecurrencePreview": "Next occurrences (preview)",
   "legacyRecurrenceEvidence": "Import evidence: {source}; time meaning: {semantic}{tzid}",
-  "@legacyRecurrenceEvidence": {"placeholders": {"source": {}, "semantic": {}, "tzid": {}}},
+  "@legacyRecurrenceEvidence": {
+    "placeholders": {
+      "source": {},
+      "semantic": {},
+      "tzid": {}
+    }
+  },
   "legacyVTimezonePresent": "The calendar includes VTIMEZONE data.",
   "legacyRecurrenceEvidenceMissing": "No import evidence is available for this legacy record.",
   "selectTodoOccurrence": "Select occurrence",
@@ -680,5 +686,11 @@
   "earlierHistory": "Earlier history…",
   "todayTasks": "Today's Tasks",
   "missed": "Missed",
-  "recurringTask": "Recurring"
+  "recurringTask": "Recurring",
+  "actionNow": "Now",
+  "actionDetails": "Details",
+  "calendarDeadlineLane": "Deadlines",
+  "calendarLegendEvent": "Event",
+  "calendarLegendAllocation": "Scheduled",
+  "actionAll": "All"
 }

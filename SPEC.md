@@ -393,3 +393,12 @@ TaskAllocation payload 只包含 `todoSyncId`、可空 `occurrenceId`、`startAt
 9. **派生态一致性**：记录写入的派生态失效由 post-commit 领域事件驱动；事务回滚不得产生事件；事件批量边界 = 事务边界
 10. **跨进程写入**：外部进程直写库文件（CLI）不产生领域事件，客户端靠冷启动/恢复前台重算收敛
 11. **Web 平台防御**：`dart:io` 的 `Platform.*` 在 dart2js 产物里是一调用就抛的 stub——`runApp` 之前任何一次读取即整页白屏（v0.25.0 事故，见 DECISIONS 2026-09-26）。全仓平台判断只允许经唯一读点 `lib/core/utils/platform_target.dart`（`kIsWeb` 短路在前，导出 `isAndroid`/`isIOS`/`isNativeMobile`）；禁止用 `defaultTargetPlatform` 替代 `Platform.isX`（web 上它按浏览器 UA 返回 android/iOS，会去调不存在的原生实现）。防复发：静态守卫测试（`test/architecture/web_platform_guard_test.dart`）+ CI 与 release 双链路 web 冒烟截图断言（`tool/web_smoke.dart`，纯白即红）
+
+### D Final 表现层契约（2026-10-23）
+
+- 视觉基线为 PR #71 `docs/design/ui-ux-prototypes/d-final/` 四张冻结截图；不改变上述领域及 occurrence 契约。
+- Action 以现在、接下来、今日截止及待处理分组行表达；详情仅选中后出现，完成操作继续调用既有 Provider。
+- Calendar 的 Event 使用浅色实心块，TaskAllocation 使用表面底和虚线边框，Deadline 使用独立非占时泳道；保留 kalender 时间、拖拽与可见窗口展开逻辑。
+- Todo 主行展示标题、核心日期和必要状态，完成控件独立且直接可用，重复系列继续显式选择 occurrence。
+- 桌面固定深色侧栏与统一内容起点；移动端独立节奏和 Action / Calendar / Todo 底部导航，触控目标至少 48dp。浅深主题均需可用，辅助文字至少 11sp。
+- 不新增领域实体、调度模型、依赖框架或视觉 CI 门禁；不修改数据库、同步、提醒、附件、标签、备份、MCP 及已关闭功能问题。

@@ -10,14 +10,9 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 
-Widget _app({
-  required AppDatabase db,
-  required DateTime Function() clock,
-}) {
+Widget _app({required AppDatabase db, required DateTime Function() clock}) {
   return ProviderScope(
-    overrides: [
-      databaseProvider.overrideWithValue(db),
-    ],
+    overrides: [databaseProvider.overrideWithValue(db)],
     child: MaterialApp(
       localizationsDelegates: const [
         ...AppLocalizations.localizationsDelegates,
@@ -46,7 +41,9 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    calendarId = await db.into(db.calendars).insert(
+    calendarId = await db
+        .into(db.calendars)
+        .insert(
           CalendarsCompanion.insert(
             name: 'Default',
             color: const Value('#2196F3'),
@@ -65,7 +62,9 @@ void main() {
       var currentTime = DateTime(2026, 10, 6, 23, 59, 50);
 
       // Todo A is due on Day N (2026-10-06)
-      await db.into(db.todos).insert(
+      await db
+          .into(db.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calendarId,
               summary: 'Task Due Day N',
@@ -74,7 +73,9 @@ void main() {
           );
 
       // Todo B is due on Day N+1 (2026-10-07)
-      await db.into(db.todos).insert(
+      await db
+          .into(db.todos)
+          .insert(
             TodosCompanion.insert(
               calendarId: calendarId,
               summary: 'Task Due Day N+1',
@@ -108,7 +109,9 @@ void main() {
       // - Task Due Day N+1 is now Due Today
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsOneWidget);
-      expect(find.textContaining('Overdue'), findsOneWidget);
+      // The overdue section header is distinct from the D Final summary line,
+      // which also renders an "N Overdue" fragment on desktop.
+      expect(find.textContaining('Overdue (1)'), findsOneWidget);
       expect(find.textContaining('Due Today'), findsOneWidget);
 
       // 2. Rollover to Day N+2 via app resume

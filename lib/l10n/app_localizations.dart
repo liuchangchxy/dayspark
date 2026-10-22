@@ -2362,6 +2362,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recurring'**
   String get recurringTask;
+
+  /// No description provided for @actionNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get actionNow;
+
+  /// No description provided for @actionDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get actionDetails;
+
+  /// No description provided for @calendarDeadlineLane.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadlines'**
+  String get calendarDeadlineLane;
+
+  /// No description provided for @calendarLegendEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get calendarLegendEvent;
+
+  /// No description provided for @calendarLegendAllocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get calendarLegendAllocation;
+
+  /// No description provided for @actionAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get actionAll;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

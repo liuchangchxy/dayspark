@@ -86,9 +86,7 @@ abstract final class AppTheme {
       ],
       cardTheme: CardThemeData(
         color: surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         elevation: 0,
         margin: EdgeInsets.zero,
       ),
@@ -98,12 +96,29 @@ abstract final class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 64,
+        backgroundColor: surface,
+        indicatorColor: accent.withValues(alpha: 0.10),
+        labelTextStyle: WidgetStatePropertyAll(AppTypography.overline),
+        elevation: 0,
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: const CircleBorder(),
+        side: BorderSide(color: textSecondary, width: 1),
+        materialTapTargetSize: MaterialTapTargetSize.padded,
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+      ),
       dividerTheme: DividerThemeData(color: separator, thickness: 1, space: 1),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.md,
@@ -156,7 +171,9 @@ abstract final class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -164,7 +181,9 @@ abstract final class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
@@ -233,7 +252,11 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       textTertiary: Color.lerp(textTertiary, other.textTertiary, t)!,
       separator: Color.lerp(separator, other.separator, t)!,
       separatorSoft: Color.lerp(separatorSoft, other.separatorSoft, t)!,
-      surfaceSecondary: Color.lerp(surfaceSecondary, other.surfaceSecondary, t)!,
+      surfaceSecondary: Color.lerp(
+        surfaceSecondary,
+        other.surfaceSecondary,
+        t,
+      )!,
       accentHover: Color.lerp(accentHover, other.accentHover, t)!,
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,

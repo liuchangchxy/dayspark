@@ -1217,4 +1217,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recurringTask => '重复';
+
+  @override
+  String get actionNow => '现在';
+
+  @override
+  String get actionDetails => '详情';
+
+  @override
+  String get calendarDeadlineLane => '截止';
+
+  @override
+  String get calendarLegendEvent => '事件';
+
+  @override
+  String get calendarLegendAllocation => '安排';
+
+  @override
+  String get actionAll => '全部';
 }

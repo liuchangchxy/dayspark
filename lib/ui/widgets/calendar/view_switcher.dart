@@ -35,7 +35,7 @@ class ViewSwitcher extends StatelessWidget {
       selected: {currentMode},
       onSelectionChanged: (s) => onModeChanged(s.first),
       style: ButtonStyle(
-        visualDensity: VisualDensity.compact,
+        minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: const WidgetStatePropertyAll(
           EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -45,19 +45,19 @@ class ViewSwitcher extends StatelessWidget {
         ),
         backgroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return scheme.primary;
+            return scheme.surface;
           }
           return scheme.surfaceContainerHighest.withValues(alpha: 0.6);
         }),
         foregroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return scheme.onPrimary;
+            return scheme.onSurface;
           }
           return scheme.onSurfaceVariant;
         }),
         side: const WidgetStatePropertyAll(BorderSide.none),
         shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
       ),
     );

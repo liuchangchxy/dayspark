@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
@@ -21,7 +22,8 @@ class EventTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final stripe = event.color ?? (isDark ? AppColors.darkAccent : AppColors.lightAccent);
+    final stripe =
+        event.color ?? (isDark ? AppColors.darkAccent : AppColors.lightAccent);
 
     final tile = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 20),
@@ -39,31 +41,51 @@ class EventTile extends StatelessWidget {
         ),
         // kalender gives tiles tight, sometimes very short constraints
         // (e.g. 1h slots, all-day bar); scale content instead of overflowing.
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.topLeft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                event.title,
-                style: AppTypography.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
+        child: LayoutBuilder(
+          builder: (context, constraints) => ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.topLeft,
+              minHeight: 0,
+              maxHeight: double.infinity,
+              child: SizedBox(
+                width: constraints.maxWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.circle_fill,
+                          size: 6,
+                          color: stripe,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            event.title,
+                            style: AppTypography.caption.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!event.isAllDay)
+                      Text(
+                        DateFormatters.formatTime(event.start),
+                        style: AppTypography.caption.copyWith(
+                          color: context.semantic.textSecondary,
+                        ),
+                        maxLines: 1,
+                      ),
+                  ],
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-              if (!event.isAllDay)
-                Text(
-                  DateFormatters.formatTime(event.start),
-                  style: AppTypography.overline.copyWith(
-                    color: context.semantic.textSecondary,
-                  ),
-                  maxLines: 1,
-                ),
-            ],
+            ),
           ),
         ),
       ),
