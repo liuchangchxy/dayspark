@@ -124,3 +124,41 @@ python3 -m http.server 8766
 ```
 
 或直接打开 `index.html`。等待 Chat-8 审定。
+
+## 7. D · DaySpark Final（追加）
+
+2026-10-23，在 A/B/C 之后制作最终候选 D，仍只做视觉原型。
+
+### 实际执行的检测
+
+```bash
+"/Users/chang/Desktop/Code/dayspark/.claude/skills/impeccable/scripts/impeccable" detect --json /tmp/dayspark-ui-design/d-final
+```
+
+- 退出码 0，`[]`。首轮曾出现 3 条 `side-tab`（日历事件类别色条）与 1 条 `layout-transition`（检查器 padding 过渡），均已通过改为类别圆点/空心方点、移除布局过渡消除。
+- 原始 JSON：`/tmp/dayspark-ui-design/detector-d-final.json`。
+
+### 浏览器测量
+
+最终四页在 1440×900 / 390×844 实测：
+
+| 页面 | 横向溢出 | 控制台/页面错误 | Tabler 字体 | 零宽图标 | 内容贴合 |
+|---|---|---|---|---|---|
+| Action | 0 | 0 | loaded | 0 | 底 866 / 878 |
+| Calendar | 0 | 0 | loaded | 0 | 网格 636 / 652 |
+| Todo | 0 | 0 | loaded | 0 | 底 866 / 878 |
+| Mobile | 0 | 0 | loaded | 0 | 底 779 / 782 |
+
+桌面检查器打开时 Action 内容右缩 372px，行尾不再被浮层遮挡；关闭/Esc 恢复全宽。
+
+### 评审
+
+- 两个隔离评审 Agent：一轮 Impeccable critique（Nielsen + P0–P3），一轮 design-taste-frontend 反模板检查。
+- 修复后终审：无 P0/P1；确认 7 项 B 问题全部达成（Action 非表格、Todo 去列、检查器按需、移动端 A 节奏、深色侧栏去后台感、克制的品牌细节、标签不冗余）。
+- 剩余 P2/P3（已记录在 `d-final/README.md`）：页面栅格对齐、10px 级辅助字、Action 时间线为 7/12 切片（有“完整日程”入口）、移动端 Action 只承担“接下来”。
+
+### 截图
+
+`d-final/shots/d-desktop-action.png` / `d-desktop-calendar.png` / `d-desktop-todo.png` / `d-mobile-action.png`。
+
+未运行 Flutter，未修改业务源码。

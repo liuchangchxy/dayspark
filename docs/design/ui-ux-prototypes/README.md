@@ -1,8 +1,10 @@
 # DaySpark UI Exploration — 三方向对比
 
 日期：2026-10-22  
-范围：只做视觉设计。未修改 DaySpark 仓库源码，未实施 Flutter，未开 PR。  
+范围：只做视觉设计。未修改 Flutter 业务源码，未实施 Flutter；原型已随 Draft PR #71 上传。  
 入口：`index.html`（画廊） · `shots/contact-sheet.png`（12 页总览）
+
+> **最终候选：D · DaySpark Final → [`d-final/`](d-final/)**。B 的桌面骨架 + A 的移动留白 + 克制的 C 暖色品牌。下面的 A/B/C 对比保留为过程记录。
 
 ## 1. 共同前提
 
