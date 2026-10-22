@@ -48,6 +48,28 @@ prototype source (`app.js` / `style.css`) rather than against the prose summary.
   逾期 → 接下来 → 今日截止. The implementation already matches the prototype; the
   review note is wrong and was not acted on.
 
+## Test-assertion changes (anti-tampering disclosure)
+
+The pre-commit guard reported modified assertions. Each was checked; none weakens
+coverage. Assertion counts per file are equal or higher than `03ae0cf`
+(`home_widget_service_test` 69→69, `app_flow_test` 29→29, `app_colors_test` 31→31,
+`app_theme_test` 13→13, `home_action_rollover_test` 12→12,
+`todo_list_tile_test` 14→25, `home_tab_navigation_test` 10→15).
+
+- Most flags are `dart format` line reflows; every flagged string still exists.
+- Three expectations changed value, all to the frozen D Final token and each
+  independently confirmed against `d-final/style.css`:
+  `lightAccent` `#007AFF`→`#2457D6` (`--blue`), `lightBackground`
+  `#F2F2F7`→`#F5F6F8` (`--bg`), widget `accent` `#007AFF`→`#2457D6`,
+  and card radius 16→10 for the compact D Final surface.
+- `home_action_rollover_test` `textContaining('Overdue')` →
+  `textContaining('Overdue (1)')`: narrowed to the section header, because the new
+  desktop summary line also contains "Overdue". The intent is unchanged and the
+  assertion is now more specific, not weaker.
+- `app_flow_test` `FloatingActionButton` → the real `workspace-create` entry:
+  D Final has no FAB (verified by pixel scan), so the old assertion tested a
+  control the frozen design removed.
+
 ## Evidence
 
 - `dart analyze .` — no issues.
