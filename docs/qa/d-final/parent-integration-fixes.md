@@ -77,7 +77,9 @@ coverage. Assertion counts per file are equal or higher than `03ae0cf`
 - Real captures from the production `DaySparkApp` (web build of
   `tool/ui_acceptance/main.dart`, isolated seeded Drift database, real sidebar
   navigation): desktop Action / Calendar / Todo at 1440×900 and mobile Action at
-  390×844 — see `shots/`. A dark-theme Action capture was also reviewed.
+  390×844, plus the same three desktop pages in dark theme — see `shots/`.
+  Dark was captured from a separate `--dart-define=QA_THEME=dark` build and
+  confirmed by pixel sampling (content surface `#171A20`, top bar `#0A0A0C`).
 - Measured desktop content origin after the fix: Action 229, Todo 229
   (was 229 / 221). The Calendar toolbar is unindented; its remaining first-glyph
   offset is the segmented control's own internal label padding, and its container
@@ -88,10 +90,11 @@ coverage. Assertion counts per file are equal or higher than `03ae0cf`
 - The acceptance harness binds a single viewport per build, so the captures are the
   web build of the real app rather than a macOS window. The production widget tree,
   router, providers and Home are the shipped ones.
-- Dark theme and English/long-content checks were reviewed by reading the rendered
-  build and the code paths, not captured as frozen shots for every page. The dark
-  Action capture was inspected; long bilingual strings are covered by widget tests
-  (overdue run-over check) rather than by screenshots.
+- Dark theme and the four required pages were captured for every desktop page; mobile
+  dark and English-locale captures were reviewed via the rendered build and widget
+  tests rather than stored as frozen shots for every page. Long bilingual strings are
+  covered by widget tests with real geometry assertions (overdue-run overflow,
+  390dp two-line title, 48dp target).
 - Calendar's absolute origin still differs from Action/Todo by the segmented
   control's internal padding; this is a control-internal inset, not a container
   misalignment, and is recorded here rather than silently claimed as fixed.
