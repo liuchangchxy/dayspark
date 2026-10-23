@@ -191,6 +191,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startDate => '开始日期';
 
   @override
+  String get startAfterDeadline => '开始日期不能晚于截止时间。';
+
+  @override
   String get endDate => '结束日期';
 
   @override

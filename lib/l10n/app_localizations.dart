@@ -455,6 +455,12 @@ abstract class AppLocalizations {
   /// **'Starts at'**
   String get startDate;
 
+  /// No description provided for @startAfterDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Starts at has to come before the deadline.'**
+  String get startAfterDeadline;
+
   /// No description provided for @endDate.
   ///
   /// In en, this message translates to:

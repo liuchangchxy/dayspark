@@ -67,6 +67,7 @@
   "description": "Description",
   "location": "Location",
   "startDate": "Starts at",
+  "startAfterDeadline": "Starts at has to come before the deadline.",
   "endDate": "Ends at",
   "dueDate": "Due date",
   "dueTime": "Time",

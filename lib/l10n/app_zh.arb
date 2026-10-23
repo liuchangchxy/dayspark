@@ -60,6 +60,7 @@
   "description": "备注",
   "location": "地点",
   "startDate": "开始日期",
+  "startAfterDeadline": "开始日期不能晚于截止时间。",
   "endDate": "结束日期",
   "dueDate": "截止日期",
   "dueTime": "具体时间",

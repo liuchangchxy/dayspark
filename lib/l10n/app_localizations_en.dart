@@ -191,6 +191,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startDate => 'Starts at';
 
   @override
+  String get startAfterDeadline => 'Starts at has to come before the deadline.';
+
+  @override
   String get endDate => 'Ends at';
 
   @override

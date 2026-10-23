@@ -161,7 +161,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         _deadline != null &&
         _startDate!.isAfter(_deadline!)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${l.startDate} > ${l.deadlineTime}')),
+        SnackBar(content: Text(l.startAfterDeadline)),
       );
       return;
     }
