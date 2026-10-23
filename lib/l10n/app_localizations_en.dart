@@ -113,13 +113,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventNotFound => 'Event Not Found';
 
   @override
-  String get missingEventParam => 'Missing event parameter to edit.';
+  String get missingEventParam => 'This link did not carry an event. Open it from the calendar instead.';
 
   @override
   String get todoNotFound => 'Todo Not Found';
 
   @override
-  String get missingTodoParam => 'Missing todo parameter to edit.';
+  String get missingTodoParam => 'This link did not carry a todo. Open it from a list instead.';
 
   @override
   String get editCalendar => 'Edit Calendar';

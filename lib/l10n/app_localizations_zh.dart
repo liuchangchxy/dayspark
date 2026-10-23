@@ -113,13 +113,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get eventNotFound => '日程未找到';
 
   @override
-  String get missingEventParam => '缺少待编辑的日程参数。';
+  String get missingEventParam => '这个链接没有带上日程，请从日历打开。';
 
   @override
   String get todoNotFound => '待办未找到';
 
   @override
-  String get missingTodoParam => '缺少待编辑的待办参数。';
+  String get missingTodoParam => '这个链接没有带上待办，请从清单打开。';
 
   @override
   String get editCalendar => '编辑日历';

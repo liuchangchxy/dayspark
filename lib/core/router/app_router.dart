@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_interactivity.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
@@ -69,7 +70,23 @@ class _MissingObjectPage extends StatelessWidget {
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(message, textAlign: TextAlign.center),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                CupertinoIcons.exclamationmark_triangle,
+                size: 28,
+                color: context.semantic.textTertiary,
+              ),
+              const SizedBox(height: 12),
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => GoRouter.maybeOf(context)?.go('/'),
+                child: Text(l?.returnToHome ?? 'Return to Home'),
+              ),
+            ],
+          ),
         ),
       ),
     );

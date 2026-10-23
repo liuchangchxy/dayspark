@@ -302,7 +302,7 @@ abstract class AppLocalizations {
   /// No description provided for @missingEventParam.
   ///
   /// In en, this message translates to:
-  /// **'Missing event parameter to edit.'**
+  /// **'This link did not carry an event. Open it from the calendar instead.'**
   String get missingEventParam;
 
   /// No description provided for @todoNotFound.
@@ -314,7 +314,7 @@ abstract class AppLocalizations {
   /// No description provided for @missingTodoParam.
   ///
   /// In en, this message translates to:
-  /// **'Missing todo parameter to edit.'**
+  /// **'This link did not carry a todo. Open it from a list instead.'**
   String get missingTodoParam;
 
   /// No description provided for @editCalendar.
