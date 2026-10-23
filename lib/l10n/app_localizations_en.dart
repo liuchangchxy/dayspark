@@ -12,6 +12,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preview => 'Preview';
 
   @override
+  String get legacyRepeatFrom => 'Repeats from';
+
+  @override
   String get legacyRecurrencePreview => 'Next occurrences (preview)';
 
   @override

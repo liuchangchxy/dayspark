@@ -12,6 +12,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preview => '预览';
 
   @override
+  String get legacyRepeatFrom => '从哪天开始重复';
+
+  @override
   String get legacyRecurrencePreview => '后续日期预览';
 
   @override

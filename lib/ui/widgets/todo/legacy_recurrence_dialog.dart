@@ -172,7 +172,7 @@ Future<bool> confirmLegacyRecurrence(
                     ],
                   ),
                   ScheduleRow(
-                    label: l.startDate,
+                    label: l.legacyRepeatFrom,
                     value: formatDeadline(context, anchor),
                     onTap: () async {
                       final picked = await pickDeadline(

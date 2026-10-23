@@ -1,5 +1,6 @@
 {
   "preview": "预览",
+  "legacyRepeatFrom": "从哪天开始重复",
   "legacyRecurrencePreview": "后续日期预览",
   "selectTodoOccurrence": "选择重复事项",
   "earlierThirtyDays": "更早 30 天",

@@ -1,5 +1,6 @@
 {
   "preview": "Preview",
+  "legacyRepeatFrom": "Repeats from",
   "legacyRecurrencePreview": "Next occurrences (preview)",
   "selectTodoOccurrence": "Select occurrence",
   "earlierThirtyDays": "Earlier 30 days",

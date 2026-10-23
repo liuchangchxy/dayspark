@@ -101,6 +101,12 @@ abstract class AppLocalizations {
   /// **'Preview'**
   String get preview;
 
+  /// No description provided for @legacyRepeatFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeats from'**
+  String get legacyRepeatFrom;
+
   /// No description provided for @legacyRecurrencePreview.
   ///
   /// In en, this message translates to:

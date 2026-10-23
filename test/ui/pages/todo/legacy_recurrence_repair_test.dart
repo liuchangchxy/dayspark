@@ -124,7 +124,7 @@ void main() {
     expect(find.text('Confirm recurring Todo'), findsOneWidget);
     expect(find.textContaining('vtimezoneConflict'), findsNothing);
     expect(find.textContaining('VTIMEZONE data'), findsNothing);
-    expect(find.text('Starts at'), findsOneWidget);
+    expect(find.text('Repeats from'), findsOneWidget);
     await tester.tap(find.text('Preview'));
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));
