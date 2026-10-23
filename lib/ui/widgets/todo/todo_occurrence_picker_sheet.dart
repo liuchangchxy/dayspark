@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -33,10 +34,12 @@ class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
     try {
       freshTodo = todo.syncId == null
           ? await ref.read(ensureTodoSyncIdentityProvider)(todo.id)
-          : (await (ref.read(databaseProvider).select(ref.read(databaseProvider).todos)
-                ..where((row) => row.id.equals(todo.id)))
-              .getSingleOrNull() ??
-            todo);
+          : (await (ref
+                        .read(databaseProvider)
+                        .select(ref.read(databaseProvider).todos)
+                      ..where((row) => row.id.equals(todo.id)))
+                    .getSingleOrNull() ??
+                todo);
     } catch (_) {
       freshTodo = todo;
     }
@@ -44,17 +47,20 @@ class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
 
     if (TodoRecurrence.fromTodo(freshTodo).isUnknownLegacy) {
       if (!legacyRuleIsSupported(freshTodo.rrule ?? '')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.unsupportedLegacyRecurrence)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.unsupportedLegacyRecurrence)));
         return null;
       }
       final confirmed = await confirmLegacyRecurrence(context, ref, freshTodo);
       if (!confirmed || !context.mounted) return null;
-      freshTodo = (await (ref.read(databaseProvider).select(ref.read(databaseProvider).todos)
+      freshTodo =
+          (await (ref
+                  .read(databaseProvider)
+                  .select(ref.read(databaseProvider).todos)
                 ..where((row) => row.id.equals(todo.id)))
               .getSingleOrNull() ??
-            freshTodo);
+          freshTodo);
       if (!context.mounted) return null;
     }
 
@@ -174,7 +180,11 @@ class _TodoOccurrencePickerSheetState
                             ),
                           ),
                           trailing: item.isCompleted
-                              ? const Icon(Icons.check, color: Colors.green)
+                              ? Icon(
+                                  CupertinoIcons.checkmark,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.primary,
+                                )
                               : null,
                           onTap: () => Navigator.of(context).pop(item),
                         ),
