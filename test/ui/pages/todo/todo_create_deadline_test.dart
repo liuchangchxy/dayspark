@@ -104,48 +104,85 @@ void main() {
     },
   );
 
-  testWidgets('new ordinary Todo saves dueDate when user explicitly picks a date', (
+  testWidgets(
+    'new ordinary Todo saves dueDate when user explicitly picks a date',
+    (tester) async {
+      await tester.pumpWidget(_wrap(db));
+      await _settle(tester);
+
+      final textField = find.byType(TextField).first;
+      await tester.enterText(textField, 'Item due tomorrow');
+      await tester.pump();
+
+      await tester.tap(find.text('No deadline').last);
+      await _settle(tester);
+
+      final dialog = find.byType(DatePickerDialog);
+      expect(dialog, findsOneWidget);
+      final now = DateTime.now();
+      final tomorrow = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).add(const Duration(days: 1));
+      await tester.tap(
+        find.descendant(of: dialog, matching: find.text('${tomorrow.day}')),
+      );
+      await tester.pump();
+      await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
+      await _settle(tester);
+
+      final saveButton = find.text('Save');
+      await tester.tap(saveButton);
+      await _settle(tester);
+
+      final todos = await db.select(db.todos).get();
+      expect(todos, hasLength(1));
+      expect(todos.first.summary, 'Item due tomorrow');
+      expect(todos.first.dueDate, isNotNull);
+      expect(todos.first.dueDate!.year, tomorrow.year);
+      expect(todos.first.dueDate!.month, tomorrow.month);
+      expect(todos.first.dueDate!.day, tomorrow.day);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets('a new Todo can carry an execution block without saving first', (
     tester,
   ) async {
     await tester.pumpWidget(_wrap(db));
     await _settle(tester);
 
-    final textField = find.byType(TextField).first;
-    await tester.enterText(textField, 'Item due tomorrow');
+    await tester.enterText(find.byType(TextField).first, 'Item I will do now');
     await tester.pump();
 
-    await tester.tap(find.text('No deadline').last);
+    // Scheduling is offered while the todo is still a draft; the old flow
+    // forced a save, a reopen, and a second trip to this same sheet.
+    await tester.tap(find.text('Add execution time'));
     await _settle(tester);
 
-    final dialog = find.byType(DatePickerDialog);
-    expect(dialog, findsOneWidget);
-    final now = DateTime.now();
-    final tomorrow = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).add(const Duration(days: 1));
-    await tester.tap(
-      find.descendant(
-        of: dialog,
-        matching: find.text('${tomorrow.day}'),
-      ),
-    );
-    await tester.pump();
-    await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
+    final sheetSave = find.widgetWithText(FilledButton, 'Save');
+    expect(sheetSave, findsOneWidget);
+    await tester.tap(sheetSave);
     await _settle(tester);
 
-    final saveButton = find.text('Save');
-    await tester.tap(saveButton);
+    await tester.tap(find.text('Save'));
     await _settle(tester);
 
     final todos = await db.select(db.todos).get();
     expect(todos, hasLength(1));
-    expect(todos.first.summary, 'Item due tomorrow');
-    expect(todos.first.dueDate, isNotNull);
-    expect(todos.first.dueDate!.year, tomorrow.year);
-    expect(todos.first.dueDate!.month, tomorrow.month);
-    expect(todos.first.dueDate!.day, tomorrow.day);
+    final allocations = await db.select(db.taskAllocations).get();
+    expect(
+      allocations,
+      hasLength(1),
+      reason: 'the draft block must be written together with the todo',
+    );
+    expect(allocations.single.todoId, todos.single.id);
+    expect(
+      allocations.single.endAt.isAfter(allocations.single.startAt),
+      isTrue,
+    );
 
     await _unmount(tester);
   });
