@@ -113,7 +113,9 @@ class TodoDetailPage extends ConsumerWidget {
             placeholder: current.dueDate == null,
             emptyValue: l.noDeadline,
           ),
-          if (current.startDate != null)
+          // The start date is only the anchor a series repeats from, so it
+          // appears exactly when the form asks for it.
+          if (current.rrule != null && current.startDate != null)
             ScheduleRow(
               label: l.startDate,
               value: formatDeadline(context, current.startDate!),
