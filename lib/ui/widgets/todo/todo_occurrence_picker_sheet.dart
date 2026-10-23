@@ -6,6 +6,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 
 class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
@@ -166,7 +167,12 @@ class _TodoOccurrencePickerSheetState
                         padding: EdgeInsets.zero,
                         onPressed: () => Navigator.of(context).pop(item),
                         child: ListTile(
-                          title: Text(item.occurrence.displayLabel),
+                          title: Text(
+                            formatOccurrenceAnchor(
+                              context,
+                              item.occurrence.displayLabel,
+                            ),
+                          ),
                           trailing: item.isCompleted
                               ? const Icon(Icons.check, color: Colors.green)
                               : null,

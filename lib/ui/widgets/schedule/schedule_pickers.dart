@@ -125,3 +125,26 @@ String formatExecutionRange(
   end,
   includeDate: includeDate,
 );
+
+/// A recurring instance's nominal anchor, as a person reads it.
+///
+/// The stored canonical string (`2026-10-23` or `2026-10-23T18:00:00`) is a
+/// machine format — showing it verbatim wraps mid-number in a narrow column and
+/// tells the user nothing about what day it is. Parse it back into a local
+/// value and let the same vocabulary that formats deadlines and moments
+/// describe it.
+String formatOccurrenceAnchor(BuildContext context, String canonical) {
+  final datePart = canonical.split('T').first.split('-');
+  if (datePart.length != 3) return canonical;
+  final year = int.tryParse(datePart[0]);
+  final month = int.tryParse(datePart[1]);
+  final day = int.tryParse(datePart[2]);
+  if (year == null || month == null || day == null) return canonical;
+  final clock = canonical.split('T').length > 1
+      ? canonical.split('T')[1].split(':')
+      : const <String>[];
+  final hour = clock.isNotEmpty ? int.tryParse(clock[0]) : null;
+  final minute = clock.length > 1 ? int.tryParse(clock[1]) : null;
+  final value = DateTime(year, month, day, hour ?? 0, minute ?? 0);
+  return hour == null ? formatDeadline(context, value) : formatMoment(context, value);
+}

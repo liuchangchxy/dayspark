@@ -34,7 +34,6 @@ class DateStrip extends StatelessWidget {
     final selectedDate = view is TodosDayView ? (view as TodosDayView).day : null;
 
     final anchor = selectedDate ?? today;
-    final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
 
     final monthLabel = DateFormat.yM(locale).format(anchor);
     final showTodayButton = selectedDate != null && selectedDate != today;
@@ -107,99 +106,136 @@ class DateStrip extends StatelessWidget {
           // and Inbox are not attached to a date, so they drop it rather than
           // leave a dead control on screen.
           if (selectedDate != null)
-            Row(
-              key: const ValueKey('date-strip-week'),
-              children: [
-                IconButton(
-                  icon: const Icon(CupertinoIcons.chevron_left, size: 18),
-                  onPressed: () =>
-                      onViewSelected(TodosDayView(_shiftWeek(anchor, weekStart, -7))),
-                ),
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(7, (i) {
-                      final date = weekStart.add(Duration(days: i));
-                      final isSelected = date == selectedDate;
-                      final isToday = date == today;
-                      final weekdayLabel = DateFormat.E(
-                        locale,
-                      ).format(date).characters.take(2).toString();
-
-                      return Expanded(
-                        child: Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                          child: InkWell(
-                            onTap: () => onViewSelected(TodosDayView(date)),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Center(
-                              child: Container(
-                                width: double.infinity,
-                                margin: const EdgeInsets.symmetric(horizontal: 2),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: AppSpacing.md,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? theme.colorScheme.primary
-                                      : isToday
-                                      ? theme.colorScheme.primary.withValues(
-                                          alpha: 0.3,
-                                        )
-                                      : null,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: isToday && !isSelected
-                                      ? Border.all(
-                                          color: theme.colorScheme.primary,
-                                        )
-                                      : null,
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      weekdayLabel,
-                                      style: TextStyle(
-                                        fontSize:
-                                            AppTypography.overline.fontSize,
-                                        color: isSelected
-                                            ? theme.colorScheme.onPrimary
-                                            : context.semantic.textSecondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: AppSpacing.xs),
-                                    Text(
-                                      '${date.day}',
-                                      style: TextStyle(
-                                        fontSize: AppTypography.body.fontSize,
-                                        fontWeight: isToday
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                        color: isSelected
-                                            ? theme.colorScheme.onPrimary
-                                            : theme.colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(CupertinoIcons.chevron_right, size: 18),
-                  onPressed: () =>
-                      onViewSelected(TodosDayView(_shiftWeek(anchor, weekStart, 7))),
-                ),
-              ],
+            TodoWeekStrip(
+              anchor: anchor,
+              selectedDate: selectedDate,
+              today: today,
+              locale: locale,
+              onSelected: (date) => onViewSelected(TodosDayView(date)),
             ),
         ],
       ),
+    );
+  }
+
+}
+
+/// One week of days, with a selected day and a today marker.
+///
+/// Shared by the mobile header and the desktop toolbar: a desktop user needs to
+/// move to another day just as much as a phone user does, and duplicating the
+/// strip is how the two layouts drifted apart in the first place.
+class TodoWeekStrip extends StatelessWidget {
+  const TodoWeekStrip({
+    super.key,
+    required this.anchor,
+    required this.selectedDate,
+    required this.today,
+    required this.locale,
+    required this.onSelected,
+  });
+
+  final DateTime anchor;
+  final DateTime selectedDate;
+  final DateTime today;
+  final String locale;
+  final ValueChanged<DateTime> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
+    return Row(
+      key: const ValueKey('date-strip-week'),
+      children: [
+        IconButton(
+          icon: const Icon(CupertinoIcons.chevron_left, size: 18),
+          tooltip: MaterialLocalizations.of(context).previousMonthTooltip,
+          onPressed: () => onSelected(
+            _shiftWeek(anchor, weekStart, -7),
+          ),
+        ),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(7, (i) {
+              final date = weekStart.add(Duration(days: i));
+              final isSelected = date == selectedDate;
+              final isToday = date == today;
+              final weekdayLabel = DateFormat.E(
+                locale,
+              ).format(date).characters.take(2).toString();
+
+              return Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    onTap: () => onSelected(date),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Center(
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.md,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : isToday
+                              ? theme.colorScheme.primary.withValues(
+                                  alpha: 0.3,
+                                )
+                              : null,
+                          borderRadius: BorderRadius.circular(8),
+                          border: isToday && !isSelected
+                              ? Border.all(
+                                  color: theme.colorScheme.primary,
+                                )
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              weekdayLabel,
+                              style: TextStyle(
+                                fontSize: AppTypography.overline.fontSize,
+                                color: isSelected
+                                    ? theme.colorScheme.onPrimary
+                                    : context.semantic.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              '${date.day}',
+                              style: TextStyle(
+                                fontSize: AppTypography.body.fontSize,
+                                fontWeight: isToday
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(CupertinoIcons.chevron_right, size: 18),
+          tooltip: MaterialLocalizations.of(context).nextMonthTooltip,
+          onPressed: () => onSelected(_shiftWeek(anchor, weekStart, 7)),
+        ),
+      ],
     );
   }
 
@@ -240,7 +276,7 @@ class TodoDesktopToolbar extends StatelessWidget {
     final anchor = selectedDate ?? today;
     final showTodayButton = selectedDate != null && selectedDate != today;
 
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Row(
         children: [
@@ -300,6 +336,20 @@ class TodoDesktopToolbar extends StatelessWidget {
           ...trailing,
         ],
       ),
+    );
+
+    if (selectedDate == null) return row;
+    return Column(
+      children: [
+        row,
+        TodoWeekStrip(
+          anchor: anchor,
+          selectedDate: selectedDate,
+          today: today,
+          locale: locale,
+          onSelected: (date) => onViewSelected(TodosDayView(date)),
+        ),
+      ],
     );
   }
 }

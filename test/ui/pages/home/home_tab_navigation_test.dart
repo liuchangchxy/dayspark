@@ -207,7 +207,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('desktop todo swaps the week strip for the compact toolbar', (
+  testWidgets('desktop todo keeps its day navigation in the toolbar', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -220,7 +220,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     expect(find.byType(TodoDesktopToolbar), findsOneWidget);
-    expect(find.byKey(const ValueKey('date-strip-week')), findsNothing);
+    // Moving to another day is not a mobile-only need: the same strip is
+    // rendered under the compact toolbar rather than dropped.
+    expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
     // The filters themselves stay available.
     expect(
       find.descendant(

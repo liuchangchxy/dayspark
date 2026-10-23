@@ -431,7 +431,10 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                 (instance) => _ActionRow(
                   key: ValueKey('action-instance-${instance.occurrenceId}'),
                   time: null,
-                  dateHint: instance.occurrence.displayLabel,
+                  dateHint: formatOccurrenceAnchor(
+                    context,
+                    instance.occurrence.displayLabel,
+                  ),
                   icon: CupertinoIcons.repeat,
                   iconColor: theme.colorScheme.secondary,
                   title: instance.todo.summary,
@@ -558,7 +561,10 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     return _ActionRow(
       key: ValueKey('action-missed-${instance.occurrenceId}'),
       time: null,
-      dateHint: instance.occurrence.displayLabel,
+      dateHint: formatOccurrenceAnchor(
+                    context,
+                    instance.occurrence.displayLabel,
+                  ),
       icon: CupertinoIcons.exclamationmark_triangle,
       iconColor: Theme.of(context).colorScheme.error,
       title: instance.todo.summary,
