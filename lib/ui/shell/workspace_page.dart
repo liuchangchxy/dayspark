@@ -53,42 +53,57 @@ class WorkspacePage extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
+    // The header belongs to the content column, not to the window: a title
+    // pinned to the far left above a centred 720px form reads as two unrelated
+    // things stacked on top of each other.
+    Widget header = SizedBox(
+      height: 48,
+      child: Padding(
+        // Same horizontal inset as the content column below, so the title sits
+        // on the same optical line as the first field of the form.
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(CupertinoIcons.back, size: 18),
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              onPressed: () => _leave(context),
+              visualDensity: VisualDensity.compact,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child:
+                  titleWidget ??
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            ...actions,
+          ],
+        ),
+      ),
+    );
+    if (maxContentWidth != null) {
+      header = Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxContentWidth!),
+          child: header,
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: 48,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.back, size: 18),
-                    tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                    onPressed: () => _leave(context),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child:
-                        titleWidget ??
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.body.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  ...actions,
-                ],
-              ),
-            ),
-          ),
+          header,
           Container(height: 1, color: context.semantic.separator),
           Expanded(
             child: maxContentWidth == null
