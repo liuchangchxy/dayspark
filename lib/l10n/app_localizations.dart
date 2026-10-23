@@ -107,24 +107,6 @@ abstract class AppLocalizations {
   /// **'Next occurrences (preview)'**
   String get legacyRecurrencePreview;
 
-  /// No description provided for @legacyRecurrenceEvidence.
-  ///
-  /// In en, this message translates to:
-  /// **'Import evidence: {source}; time meaning: {semantic}{tzid}'**
-  String legacyRecurrenceEvidence(Object source, Object semantic, Object tzid);
-
-  /// No description provided for @legacyVTimezonePresent.
-  ///
-  /// In en, this message translates to:
-  /// **'The calendar includes VTIMEZONE data.'**
-  String get legacyVTimezonePresent;
-
-  /// No description provided for @legacyRecurrenceEvidenceMissing.
-  ///
-  /// In en, this message translates to:
-  /// **'No import evidence is available for this legacy record.'**
-  String get legacyRecurrenceEvidenceMissing;
-
   /// No description provided for @selectTodoOccurrence.
   ///
   /// In en, this message translates to:
@@ -188,44 +170,14 @@ abstract class AppLocalizations {
   /// No description provided for @confirmLegacyRecurrenceBody.
   ///
   /// In en, this message translates to:
-  /// **'This older recurring Todo has no reliable time zone. Choose how to interpret it. Your device time zone is only a suggestion and will be saved only after confirmation.'**
+  /// **'This repeating todo was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.'**
   String get confirmLegacyRecurrenceBody;
-
-  /// No description provided for @recurrenceTimeZone.
-  ///
-  /// In en, this message translates to:
-  /// **'Series time zone'**
-  String get recurrenceTimeZone;
-
-  /// No description provided for @recurrenceTimeZoneSuggested.
-  ///
-  /// In en, this message translates to:
-  /// **'Suggested from this device; verify before confirming.'**
-  String get recurrenceTimeZoneSuggested;
 
   /// No description provided for @legacyAnchorEvidence.
   ///
   /// In en, this message translates to:
   /// **'Stored date and time'**
   String get legacyAnchorEvidence;
-
-  /// No description provided for @legacyAnchorValue.
-  ///
-  /// In en, this message translates to:
-  /// **'Series anchor date and time'**
-  String get legacyAnchorValue;
-
-  /// No description provided for @legacyDateFormatHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a date as YYYY-MM-DD.'**
-  String get legacyDateFormatHint;
-
-  /// No description provided for @legacyDateTimeFormatHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a local date and time as YYYY-MM-DDTHH:mm:ss.'**
-  String get legacyDateTimeFormatHint;
 
   /// No description provided for @dateOnly.
   ///
@@ -2410,6 +2362,306 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All'**
   String get actionAll;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @todoDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo'**
+  String get todoDetails;
+
+  /// No description provided for @eventDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get eventDetails;
+
+  /// No description provided for @deadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline'**
+  String get deadline;
+
+  /// No description provided for @deadlineTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline time'**
+  String get deadlineTime;
+
+  /// No description provided for @executionSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution time'**
+  String get executionSchedule;
+
+  /// No description provided for @addExecution.
+  ///
+  /// In en, this message translates to:
+  /// **'Add execution time'**
+  String get addExecution;
+
+  /// No description provided for @notScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not scheduled'**
+  String get notScheduled;
+
+  /// No description provided for @execution.
+  ///
+  /// In en, this message translates to:
+  /// **'Execution'**
+  String get execution;
+
+  /// No description provided for @repeatAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat options'**
+  String get repeatAdvanced;
+
+  /// No description provided for @seriesTimeZoneShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Time zone for all repeats'**
+  String get seriesTimeZoneShort;
+
+  /// No description provided for @startsAtHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Earliest day this can be done'**
+  String get startsAtHint;
+
+  /// No description provided for @noDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'No deadline'**
+  String get noDeadline;
+
+  /// No description provided for @setDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Set deadline'**
+  String get setDeadline;
+
+  /// No description provided for @executionNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No execution time yet'**
+  String get executionNone;
+
+  /// No description provided for @scheduleNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule now'**
+  String get scheduleNow;
+
+  /// No description provided for @actionNothingNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing needs you right now'**
+  String get actionNothingNow;
+
+  /// No description provided for @actionNothingNowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming events and deadlines will show up here on the day.'**
+  String get actionNothingNowHint;
+
+  /// No description provided for @recurringNeedsRepair.
+  ///
+  /// In en, this message translates to:
+  /// **'Some repeating todos need a one-time fix'**
+  String get recurringNeedsRepair;
+
+  /// No description provided for @recurringNeedsRepairHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These were imported without a time zone. Open one to confirm when it repeats.'**
+  String get recurringNeedsRepairHint;
+
+  /// No description provided for @recurringBroken.
+  ///
+  /// In en, this message translates to:
+  /// **'A repeating todo cannot be calculated'**
+  String get recurringBroken;
+
+  /// No description provided for @recurringBrokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Its repeat rule is no longer valid. Open it to set a new one.'**
+  String get recurringBrokenHint;
+
+  /// No description provided for @laterToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Later today'**
+  String get laterToday;
+
+  /// No description provided for @nothingScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled'**
+  String get nothingScheduled;
+
+  /// No description provided for @minutesShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min'**
+  String minutesShort(Object count);
+
+  /// No description provided for @hoursShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} h'**
+  String hoursShort(Object count);
+
+  /// No description provided for @repeatNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Does not repeat'**
+  String get repeatNever;
+
+  /// No description provided for @repeatDaily.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get repeatDaily;
+
+  /// No description provided for @repeatWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Every week'**
+  String get repeatWeekly;
+
+  /// No description provided for @repeatMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Every month'**
+  String get repeatMonthly;
+
+  /// No description provided for @repeatYearly.
+  ///
+  /// In en, this message translates to:
+  /// **'Every year'**
+  String get repeatYearly;
+
+  /// No description provided for @repeatCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom repeat…'**
+  String get repeatCustom;
+
+  /// No description provided for @repeatEndsNever.
+  ///
+  /// In en, this message translates to:
+  /// **'No end date'**
+  String get repeatEndsNever;
+
+  /// No description provided for @repeatEndsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends on {date}'**
+  String repeatEndsOn(Object date);
+
+  /// No description provided for @repeatEndsAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends after {count} times'**
+  String repeatEndsAfter(Object count);
+
+  /// No description provided for @repeatEveryN.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {count} {unit}'**
+  String repeatEveryN(Object count, Object unit);
+
+  /// No description provided for @repeatEveryNDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {count} days'**
+  String repeatEveryNDays(Object count);
+
+  /// No description provided for @repeatEveryNWeeks.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {count} weeks'**
+  String repeatEveryNWeeks(Object count);
+
+  /// No description provided for @repeatEveryNMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {count} months'**
+  String repeatEveryNMonths(Object count);
+
+  /// No description provided for @repeatEveryNYears.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {count} years'**
+  String repeatEveryNYears(Object count);
+
+  /// No description provided for @eventDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get eventDuration;
+
+  /// No description provided for @durationAllDay.
+  ///
+  /// In en, this message translates to:
+  /// **'All day'**
+  String get durationAllDay;
+
+  /// No description provided for @executionBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get executionBlock;
+
+  /// No description provided for @executionWhen.
+  ///
+  /// In en, this message translates to:
+  /// **'When'**
+  String get executionWhen;
+
+  /// No description provided for @startTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get startTime;
+
+  /// No description provided for @endTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get endTime;
+
+  /// No description provided for @repeatNeedsDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Give it a date first, then it can repeat.'**
+  String get repeatNeedsDate;
+
+  /// No description provided for @recurringSeriesNoticeShort.
+  ///
+  /// In en, this message translates to:
+  /// **'This repeats. Edits apply to every occurrence.'**
+  String get recurringSeriesNoticeShort;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

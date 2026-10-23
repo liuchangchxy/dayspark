@@ -1,13 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 
 const _calendarColors = [
@@ -31,21 +31,17 @@ class CalendarsPage extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final calendarsAsync = ref.watch(calendarsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
-          onPressed: () => context.pop(),
+    return WorkspacePage(
+      title: l.manageCalendars,
+      maxContentWidth: 720,
+      actions: [
+        IconButton(
+          icon: const Icon(CupertinoIcons.add, size: 18),
+          onPressed: () => _showCreateDialog(context, ref),
+          visualDensity: VisualDensity.compact,
         ),
-        title: Text(l.manageCalendars),
-        actions: [
-          IconButton(
-            icon: const Icon(CupertinoIcons.add),
-            onPressed: () => _showCreateDialog(context, ref),
-          ),
-        ],
-      ),
-      body: calendarsAsync.when(
+      ],
+      child: calendarsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(l.error('$e'))),
         data: (calendars) {

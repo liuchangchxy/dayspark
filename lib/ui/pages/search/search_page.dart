@@ -13,6 +13,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
@@ -54,46 +55,46 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       todoPage: _todoPage,
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
-          onPressed: () => context.pop(),
-        ),
-        title: TextField(
-          controller: _searchController,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: l.search,
-            border: InputBorder.none,
+    return WorkspacePage(
+      title: l.search,
+      titleWidget: TextField(
+        controller: _searchController,
+        autofocus: true,
+        style: AppTypography.body,
+        decoration: InputDecoration(
+          hintText: l.search,
+          isDense: true,
+          border: InputBorder.none,
+          hintStyle: AppTypography.body.copyWith(
+            color: context.semantic.textTertiary,
           ),
-          textInputAction: TextInputAction.search,
-          onSubmitted: _submitSearch,
-          onChanged: (v) {
-            if (v.trim().isEmpty) {
-              _debounceTimer?.cancel();
+        ),
+        textInputAction: TextInputAction.search,
+        onSubmitted: _submitSearch,
+        onChanged: (v) {
+          if (v.trim().isEmpty) {
+            _debounceTimer?.cancel();
+            setState(() {
+              _query = '';
+              _eventPage = 1;
+              _todoPage = 1;
+            });
+            return;
+          }
+          _debounceTimer?.cancel();
+          _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+            final text = _searchController.text.trim();
+            if (text.isNotEmpty) {
               setState(() {
-                _query = '';
+                _query = text;
                 _eventPage = 1;
                 _todoPage = 1;
               });
-              return;
             }
-            _debounceTimer?.cancel();
-            _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-              final text = _searchController.text.trim();
-              if (text.isNotEmpty) {
-                setState(() {
-                  _query = text;
-                  _eventPage = 1;
-                  _todoPage = 1;
-                });
-              }
-            });
-          },
-        ),
+          });
+        },
       ),
-      body: _query.isEmpty
+      child: _query.isEmpty
           ? EmptyState(
               icon: CupertinoIcons.search,
               title: l.searchEmptyTitle,
@@ -131,7 +132,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               ),
                               onTap: () {
                                 context.push(
-                                  '/event/edit',
+                                  '/event/detail',
                                   extra: CalendaEventAdapter.fromDrift(event),
                                 );
                               },
@@ -175,7 +176,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                                     occurrenceId: occurrenceId,
                                   ),
                               onTap: () {
-                                context.push('/todo/edit', extra: todo);
+                                context.push('/todo/detail', extra: todo);
                               },
                             ),
                           ),
@@ -231,7 +232,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   isCompleted: isCompleted,
                   occurrenceId: occurrenceId,
                 ),
-            onTap: () => context.push('/todo/edit', extra: todo),
+            onTap: () => context.push('/todo/detail', extra: todo),
           ),
       ],
     );

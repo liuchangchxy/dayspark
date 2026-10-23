@@ -9,7 +9,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
-import 'package:dayspark/ui/widgets/workspace_sidebar.dart';
+import 'package:dayspark/ui/shell/workspace_sidebar.dart';
 
 Widget _app(AppDatabase db) {
   return ProviderScope(

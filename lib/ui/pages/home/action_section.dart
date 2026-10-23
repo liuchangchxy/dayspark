@@ -4,10 +4,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:intl/intl.dart';
-import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -17,54 +17,67 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
-import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
-import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
+/// Action answers exactly one question: what needs me now.
+///
+/// It therefore holds no filters, no management affordances and no diagnostics.
+/// Everything it lists is either happening, overdue, or due today — and each
+/// row opens the object's detail, never a form.
 class ActionSection extends ConsumerStatefulWidget {
   const ActionSection({
     super.key,
-    this.onNavigateToTodos,
     this.onNavigateToCalendar,
     this.onEventTap,
     this.onTodoTap,
+    this.onEventEdit,
+    this.onTodoEdit,
   });
 
-  final VoidCallback? onNavigateToTodos;
   final VoidCallback? onNavigateToCalendar;
   final void Function(CalendaEventAdapter event)? onEventTap;
   final void Function(Todo todo)? onTodoTap;
+  final void Function(CalendaEventAdapter event)? onEventEdit;
+  final void Function(Todo todo)? onTodoEdit;
 
   @override
   ConsumerState<ActionSection> createState() => _ActionSectionState();
 }
 
 class _ActionSectionState extends ConsumerState<ActionSection> {
-  int _filter = 0;
   Todo? _selectedTodo;
   CalendaEventAdapter? _selectedEvent;
 
+  bool get _hasSelection => _selectedTodo != null || _selectedEvent != null;
+
   void _selectTodo(BuildContext context, Todo todo) {
-    if (MediaQuery.sizeOf(context).width < 1000) {
+    if (!isWorkspaceLayout(context)) {
       widget.onTodoTap?.call(todo);
-    } else {
-      setState(() {
-        _selectedTodo = todo;
-        _selectedEvent = null;
-      });
+      return;
     }
+    setState(() {
+      _selectedTodo = todo;
+      _selectedEvent = null;
+    });
   }
 
   void _selectEvent(BuildContext context, CalendaEventAdapter event) {
-    if (MediaQuery.sizeOf(context).width < 1000) {
+    if (!isWorkspaceLayout(context)) {
       widget.onEventTap?.call(event);
-    } else {
-      setState(() {
-        _selectedEvent = event;
-        _selectedTodo = null;
-      });
+      return;
     }
+    setState(() {
+      _selectedEvent = event;
+      _selectedTodo = null;
+    });
   }
+
+  void _clearSelection() => setState(() {
+    _selectedTodo = null;
+    _selectedEvent = null;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -74,27 +87,10 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
         Expanded(child: _buildContent(context, ref)),
       ],
     );
-    if (MediaQuery.sizeOf(context).width < 1000 ||
-        (_selectedTodo == null && _selectedEvent == null)) {
-      return content;
-    }
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final details = _selectedTodo?.description ?? _selectedEvent?.description;
-    final selectedAllocations =
-        ref
-            .watch(actionProjectionProvider)
-            .valueOrNull
-            ?.allocations
-            .where((item) => item.todo.id == _selectedTodo?.id)
-            .toList() ??
-        <TaskAllocationCalendarItem>[];
+    if (!isWorkspaceLayout(context) || !_hasSelection) return content;
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () => setState(() {
-          _selectedTodo = null;
-          _selectedEvent = null;
-        }),
+        const SingleActivator(LogicalKeyboardKey.escape): _clearSelection,
       },
       child: Focus(
         autofocus: true,
@@ -102,91 +98,17 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: content),
-            Container(
-              key: const ValueKey('action-inspector'),
-              width: 320,
-              margin: const EdgeInsets.only(top: 16, right: 24),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.colorScheme.outlineVariant),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _selectedTodo != null ? l.todos : l.eventLabel,
-                          style: AppTypography.caption,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => setState(() {
-                          _selectedTodo = null;
-                          _selectedEvent = null;
-                        }),
-                        icon: const Icon(CupertinoIcons.xmark),
-                        tooltip: MaterialLocalizations.of(
-                          context,
-                        ).closeButtonTooltip,
-                      ),
-                    ],
-                  ),
-                  Text(
-                    _selectedTodo?.summary ?? _selectedEvent!.title,
-                    style: AppTypography.headline,
-                  ),
-                  const SizedBox(height: 20),
-                  if (_selectedTodo?.dueDate != null)
-                    Text(
-                      l.deadlinePrefix(
-                        DateFormatters.formatDate(_selectedTodo!.dueDate!),
-                      ),
-                    ),
-                  if (_selectedEvent != null)
-                    Text(
-                      '${DateFormatters.formatTime(_selectedEvent!.start)} – ${DateFormatters.formatTime(_selectedEvent!.end)}',
-                    ),
-                  if (details != null && details.trim().isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      details,
-                      maxLines: 8,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.body,
-                    ),
-                  ],
-                  for (final item in selectedAllocations)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(
-                        '${l.plannedExecution} · ${DateFormatters.formatTime(item.allocation.startAt.toLocal())} – ${DateFormatters.formatTime(item.allocation.endAt.toLocal())}',
-                        style: AppTypography.caption,
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        if (_selectedTodo != null) {
-                          widget.onTodoTap?.call(_selectedTodo!);
-                        } else {
-                          widget.onEventTap?.call(_selectedEvent!);
-                        }
-                      },
-                      icon: const Icon(CupertinoIcons.pencil, size: 16),
-                      label: Text(
-                        _selectedTodo != null ? l.editTodo : l.editEvent,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            _Inspector(
+              todo: _selectedTodo,
+              event: _selectedEvent,
+              onClose: _clearSelection,
+              onEdit: () {
+                if (_selectedTodo != null) {
+                  widget.onTodoEdit?.call(_selectedTodo!);
+                } else {
+                  widget.onEventEdit?.call(_selectedEvent!);
+                }
+              },
             ),
           ],
         ),
@@ -200,14 +122,18 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     final mobile = MediaQuery.sizeOf(context).width < 700;
     final date = ref.watch(actionDateProvider);
     final monday = date.subtract(Duration(days: date.weekday - 1));
-    final six = ref.watch(sixThingsModeProvider).valueOrNull ?? false;
     return Padding(
-      padding: EdgeInsets.fromLTRB(mobile ? 16 : 28, 0, mobile ? 16 : 28, 8),
+      padding: EdgeInsets.fromLTRB(
+        mobile ? AppSpacing.lg : 28,
+        0,
+        mobile ? AppSpacing.lg : 28,
+        AppSpacing.sm,
+      ),
       child: Column(
         children: [
           if (mobile)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: Row(
                 children: List.generate(7, (index) {
                   final day = monday.add(Duration(days: index));
@@ -239,13 +165,12 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                               DateFormat.E(
                                 Localizations.localeOf(context).toString(),
                               ).format(day),
-                              style: const TextStyle(fontSize: 11),
+                              style: AppTypography.overline,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppSpacing.xs),
                             Text(
                               '${day.day}',
-                              style: TextStyle(
-                                fontSize: 17,
+                              style: AppTypography.title.copyWith(
                                 fontWeight: selected
                                     ? FontWeight.w700
                                     : FontWeight.w400,
@@ -261,57 +186,13 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
             ),
           Row(
             children: [
-              // D Final keeps the All / Events / Todos pills on mobile only;
-              // desktop expresses the same information as a summary line.
-              if (mobile)
-                ...[
-                  l.actionAll,
-                  l.calendarLegendEvent,
-                  l.todos,
-                ].asMap().entries.map(
-                  (entry) => Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(48, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        foregroundColor: _filter == entry.key
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant,
-                        backgroundColor: _filter == entry.key
-                            ? theme.colorScheme.primary.withValues(alpha: .08)
-                            : null,
-                      ),
-                      onPressed: () => setState(() => _filter = entry.key),
-                      child: Text(
-                        entry.value,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ),
-                )
-              else
-                _buildSummary(context, ref, theme, l),
-              const Spacer(),
-              // The mobile row already carries three filter pills plus the
-              // calendar action, so the six-things toggle stays desktop-only
-              // here; mobile reaches it from the Todo tab strip.
-              if (!mobile)
-                TextButton.icon(
-                  onPressed: () => ref.read(setSixThingsModeProvider)(!six),
-                  icon: Icon(
-                    six
-                        ? CupertinoIcons.checkmark_square_fill
-                        : CupertinoIcons.square_grid_2x2,
-                    size: 16,
-                  ),
-                  label: Text(l.sixThings),
-                ),
+              Expanded(child: _buildSummary(context, ref, theme, l)),
               if (widget.onNavigateToCalendar != null)
                 IconButton(
                   tooltip: l.calendar,
                   onPressed: widget.onNavigateToCalendar,
                   icon: const Icon(CupertinoIcons.calendar, size: 18),
+                  visualDensity: VisualDensity.compact,
                 ),
             ],
           ),
@@ -351,7 +232,7 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
 
     return Padding(
       key: const ValueKey('action-rhythm'),
-      padding: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final trackWidth = math.max(80.0, constraints.maxWidth - 12 - 138);
@@ -400,7 +281,7 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               SizedBox(
                 width: 138,
                 child: Row(
@@ -409,9 +290,10 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                     for (final hour in [6, 9, 12, 15, 18, 21])
                       Text(
                         hour.toString().padLeft(2, '0'),
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                        style: AppTypography.overline.copyWith(
+                          fontFeatures: const [
+                            FontFeature.tabularFigures(),
+                          ],
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -452,24 +334,32 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     final overdue =
         (data?.overdueTodos.length ?? 0) +
         (data?.missedTaskInstances.length ?? 0);
+    if (events == 0 && allocations == 0 && overdue == 0) {
+      return Text(
+        l.nothingScheduled,
+        style: AppTypography.caption.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
     final separator = Text(
       ' · ',
-      style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+      style: AppTypography.caption.copyWith(
+        color: theme.colorScheme.outline,
+      ),
     );
     return Row(
       children: [
         Text(
           '$events ${l.calendarLegendEvent}',
-          style: TextStyle(
-            fontSize: 12,
+          style: AppTypography.caption.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         separator,
         Text(
           '$allocations ${l.calendarLegendAllocation}',
-          style: TextStyle(
-            fontSize: 12,
+          style: AppTypography.caption.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
@@ -477,8 +367,7 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
           separator,
           Text(
             '$overdue ${l.overdue}',
-            style: TextStyle(
-              fontSize: 12,
+            style: AppTypography.caption.copyWith(
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.error,
             ),
@@ -492,293 +381,143 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final projectionAsync = ref.watch(actionProjectionProvider);
+    final horizontal = isWorkspaceLayout(context) ? 28.0 : AppSpacing.lg;
 
     return projectionAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text(l.error('$e'))),
       data: (data) {
-        if (data.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    CupertinoIcons.sparkles,
-                    size: 48,
-                    color: theme.colorScheme.primary.withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    l.emptyActionHint,
-                    style: AppTypography.body.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _buildInboxCard(context, ref, data, l, theme),
-                ],
-              ),
-            ),
-          );
-        }
-
         final totalOverdue =
             data.overdueTodos.length + data.missedTaskInstances.length;
         final totalCompleted =
             data.completedTodayTodos.length +
             data.completedTodayTaskInstances.length;
+        final hasTimeline =
+            data.events.isNotEmpty || data.allocations.isNotEmpty;
+        final hasDueToday = data.dueTodayTodos.isNotEmpty;
+        final hasTodayTasks = data.todayTaskInstances.isNotEmpty;
+
+        if (totalOverdue == 0 &&
+            !hasTimeline &&
+            !hasDueToday &&
+            !hasTodayTasks &&
+            totalCompleted == 0) {
+          return _emptyState(context, ref, l, theme);
+        }
 
         return ListView(
           padding: EdgeInsets.symmetric(
-            horizontal: MediaQuery.sizeOf(context).width >= 1000 ? 28 : 16,
-            vertical: 16,
+            horizontal: horizontal,
+            vertical: AppSpacing.lg,
           ),
           children: [
-            // Ruling C: Unconfirmed legacy/unsupported recurrence discovery card
-            // 0. Recurrence expansion errors (Ruling A / C distinction)
-            if (data.recurrenceExpansionErrors.isNotEmpty) ...[
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(
-                    color: theme.colorScheme.error.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Column(
-                  children: data.recurrenceExpansionErrors.map((err) {
-                    final message = err.error is RecurrenceExpansionException
-                        ? (((err.error as RecurrenceExpansionException).message
-                                  .contains('horizon'))
-                              ? l.recurrenceTimezoneHorizonError
-                              : (((err.error as RecurrenceExpansionException)
-                                        .message
-                                        .contains('limit'))
-                                    ? l.recurrenceOccurrenceLimitError
-                                    : (err.error
-                                              as RecurrenceExpansionException)
-                                          .message))
-                        : '${err.error}';
-                    return ListTile(
-                      leading: Icon(
-                        CupertinoIcons.exclamationmark_circle,
-                        color: theme.colorScheme.error,
-                      ),
-                      title: Text(
-                        err.todo.summary,
-                        style: AppTypography.body.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        message,
-                        style: AppTypography.caption.copyWith(
-                          color: theme.colorScheme.error,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
+            if (totalOverdue > 0) ...[
+              _SectionHeader(
+                title: '${l.overdue} · $totalOverdue',
+                accent: theme.colorScheme.error,
               ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-
-            // 0. Unconfirmed recurrence card (Ruling C)
-            if (data.unconfirmedRecurringCount > 0) ...[
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.errorContainer.withValues(alpha: 0.2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(
-                    color: theme.colorScheme.error.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: ListTile(
-                  leading: Icon(
-                    CupertinoIcons.exclamationmark_triangle_fill,
-                    color: theme.colorScheme.error,
-                  ),
-                  title: Text(
-                    l.recurringNeedConfirmationCount(
-                      data.unconfirmedRecurringCount,
-                    ),
-                    style: AppTypography.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    l.legacyRecurrenceRequiresConfirmation,
-                    style: AppTypography.caption,
-                  ),
-                  trailing: const Icon(
-                    CupertinoIcons.chevron_forward,
-                    size: 14,
-                  ),
-                  onTap: () async {
-                    if (data.unconfirmedRecurringTodos.isNotEmpty) {
-                      await TaskAllocationsSection.confirmLegacyRecurrence(
-                        context,
-                        ref,
-                        data.unconfirmedRecurringTodos.first,
-                      );
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-
-            // 1. Overdue & Missed section
-            if (_filter != 1 &&
-                (totalOverdue > 0 ||
-                    data.hasEarlierMissed ||
-                    data.hasEarlierHistory)) ...[
-              _buildSectionHeader(
-                context,
-                title: '${l.overdue} ($totalOverdue)',
-                icon: CupertinoIcons.exclamationmark_triangle_fill,
-                color: theme.colorScheme.error,
-              ),
-              const SizedBox(height: AppSpacing.xs),
               ...data.overdueTodos.map(
-                (todo) => _buildOverdueTile(context, ref, todo, l, theme),
+                (todo) => _buildOverdueTile(context, ref, todo, l),
               ),
               ...data.missedTaskInstances.map(
                 (instance) =>
-                    _buildMissedInstanceTile(context, ref, instance, l, theme),
+                    _buildMissedInstanceTile(context, ref, instance, l),
               ),
-              ...data.earlierMissedSeries.map(
-                (series) =>
-                    _buildEarlierMissedTile(context, ref, series, l, theme),
-              ),
-              ...data.earlierHistorySeries.map(
-                (series) =>
-                    _buildEarlierHistoryTile(context, ref, series, l, theme),
-              ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.lg),
             ],
-
-            // 2. Today's timeline (Events + TaskAllocations)
-            if (data.events.isNotEmpty || data.allocations.isNotEmpty) ...[
-              _buildSectionHeader(
-                context,
-                title: l.todayTimeline,
-                icon: CupertinoIcons.clock,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              ..._buildTimelineItems(context, ref, data, l, theme),
-              const SizedBox(height: AppSpacing.md),
-            ],
-
-            // 3. Today's actionable recurring TaskInstances
-            if (_filter != 1 && data.todayTaskInstances.isNotEmpty) ...[
-              _buildSectionHeader(
-                context,
-                title: '${l.todayTasks} (${data.todayTaskInstances.length})',
-                icon: CupertinoIcons.repeat,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: AppSpacing.xs),
+            if (data.todayTaskInstances.isNotEmpty) ...[
+              _SectionHeader(title: l.todayTasks),
               ...data.todayTaskInstances.map(
-                (instance) =>
-                    _buildTodayInstanceTile(context, ref, instance, l, theme),
+                (instance) => _ActionRow(
+                  key: ValueKey('action-instance-${instance.occurrenceId}'),
+                  time: null,
+                  dateHint: instance.occurrence.displayLabel,
+                  icon: CupertinoIcons.repeat,
+                  iconColor: theme.colorScheme.secondary,
+                  title: instance.todo.summary,
+                  meta: l.recurringTask,
+                  completed: false,
+                  onToggle: () => ref.read(toggleTodoProvider)(
+                    id: instance.todoId,
+                    isCompleted: true,
+                    occurrenceId: instance.occurrenceId,
+                  ),
+                  onTap: () => _selectTodo(context, instance.todo),
+                ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.lg),
             ],
-
-            // 4. Due Today section (ordinary todos)
-            if (_filter != 1 && data.dueTodayTodos.isNotEmpty) ...[
-              _buildSectionHeader(
-                context,
-                title: '${l.dueTodaySection} (${data.dueTodayTodos.length})',
-                icon: CupertinoIcons.calendar_today,
-                color: theme.colorScheme.secondary,
+            if (hasTimeline) ...[
+              ..._buildTimelineItems(context, ref, data, l, theme),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+            if (hasDueToday) ...[
+              _SectionHeader(
+                title: '${l.dueTodaySection} · ${data.dueTodayTodos.length}',
+                accent: theme.colorScheme.primary,
               ),
-              const SizedBox(height: AppSpacing.xs),
               ...data.dueTodayTodos.map(
-                (todo) => _buildDueTodayTile(context, ref, todo, l, theme),
+                (todo) => _buildDueTodayTile(context, ref, todo, l),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.lg),
             ],
-
-            // 5. Compact Inbox / Unplanned entry
-            _buildInboxCard(context, ref, data, l, theme),
-            const SizedBox(height: AppSpacing.md),
-
-            // 6. Completed section (collapsed by default)
-            if (_filter != 1 && totalCompleted > 0) ...[
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.3,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ExpansionTile(
-                  leading: const Icon(CupertinoIcons.checkmark_seal),
-                  title: Text(
-                    '${l.completedTodaySection} ($totalCompleted)',
-                    style: AppTypography.caption.copyWith(
-                      fontWeight: FontWeight.w600,
+            if (totalCompleted > 0)
+              _CompletedFold(
+                count: totalCompleted,
+                children: [
+                  ...data.completedTodayTodos.map(
+                    (todo) => _buildCompletedTile(context, ref, todo, l, theme),
+                  ),
+                  ...data.completedTodayTaskInstances.map(
+                    (instance) => _buildCompletedInstanceTile(
+                      context,
+                      ref,
+                      instance,
+                      l,
+                      theme,
                     ),
                   ),
-                  children: [
-                    ...data.completedTodayTodos.map(
-                      (todo) =>
-                          _buildCompletedTile(context, ref, todo, l, theme),
-                    ),
-                    ...data.completedTodayTaskInstances.map(
-                      (instance) => _buildCompletedInstanceTile(
-                        context,
-                        ref,
-                        instance,
-                        l,
-                        theme,
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.md),
-            ],
           ],
         );
       },
     );
   }
 
-  Widget _buildSectionHeader(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Text(
-              title,
-              style: AppTypography.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: color,
+  /// Nothing to do is a good outcome, so it is stated plainly rather than
+  /// filled with management shortcuts.
+  Widget _emptyState(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+    ThemeData theme,
+  ) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ExcludeSemantics(
+              child: Icon(
+                CupertinoIcons.bolt,
+                size: 40,
+                color: theme.colorScheme.primary.withValues(alpha: 0.4),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.md),
+            Text(l.actionNothingNow, style: AppTypography.title),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              l.actionNothingNowHint,
+              textAlign: TextAlign.center,
+              style: AppTypography.caption.copyWith(
+                color: context.semantic.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -788,42 +527,25 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     WidgetRef ref,
     Todo todo,
     AppLocalizations l,
-    ThemeData theme,
   ) {
-    return _ActionRowSurface(
-      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-      elevation: 0,
-      color: theme.colorScheme.errorContainer.withValues(alpha: 0.25),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.3)),
-      ),
-      child: ListTile(
-        leading: Checkbox(
-          value: false,
-          activeColor: theme.colorScheme.error,
-          onChanged: (val) async {
-            if (val == true) {
-              await ref.read(toggleTodoProvider)(
-                id: todo.id,
-                isCompleted: true,
-              );
-            }
-          },
-        ),
-        title: Text(
-          todo.summary,
-          style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          todo.dueDate != null
-              ? l.deadlinePrefix(DateFormatters.formatDate(todo.dueDate!))
-              : l.overdue,
-          style: AppTypography.caption.copyWith(color: theme.colorScheme.error),
-        ),
-        trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
-        onTap: () => _selectTodo(context, todo),
-      ),
+    return _ActionRow(
+      key: ValueKey('action-overdue-${todo.id}'),
+      time: todo.dueDate == null
+          ? null
+          : DateFormatters.formatTime(todo.dueDate!),
+      dateHint: todo.dueDate == null
+          ? null
+          : DateFormatters.formatShortDate(todo.dueDate!),
+      icon: CupertinoIcons.exclamationmark_triangle,
+      iconColor: Theme.of(context).colorScheme.error,
+      title: todo.summary,
+      meta: todo.dueDate == null
+          ? l.overdue
+          : l.deadlinePrefix(DateFormatters.formatDate(todo.dueDate!)),
+      completed: false,
+      onToggle: () =>
+          ref.read(toggleTodoProvider)(id: todo.id, isCompleted: true),
+      onTap: () => _selectTodo(context, todo),
     );
   }
 
@@ -832,184 +554,22 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     WidgetRef ref,
     ProjectedTaskInstance instance,
     AppLocalizations l,
-    ThemeData theme,
   ) {
-    return _ActionRowSurface(
-      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-      elevation: 0,
-      color: theme.colorScheme.errorContainer.withValues(alpha: 0.25),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.3)),
+    return _ActionRow(
+      key: ValueKey('action-missed-${instance.occurrenceId}'),
+      time: null,
+      dateHint: instance.occurrence.displayLabel,
+      icon: CupertinoIcons.exclamationmark_triangle,
+      iconColor: Theme.of(context).colorScheme.error,
+      title: instance.todo.summary,
+      meta: l.missed,
+      completed: false,
+      onToggle: () => ref.read(toggleTodoProvider)(
+        id: instance.todoId,
+        isCompleted: true,
+        occurrenceId: instance.occurrenceId,
       ),
-      child: ListTile(
-        leading: Checkbox(
-          value: false,
-          activeColor: theme.colorScheme.error,
-          onChanged: (val) async {
-            if (val == true) {
-              await ref.read(toggleTodoProvider)(
-                id: instance.todoId,
-                isCompleted: true,
-                occurrenceId: instance.occurrenceId,
-              );
-            }
-          },
-        ),
-        title: Text(
-          instance.todo.summary,
-          style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          '${instance.occurrence.displayLabel} · ${l.missed}',
-          style: AppTypography.caption.copyWith(color: theme.colorScheme.error),
-        ),
-        trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
-        onTap: () => _selectTodo(context, instance.todo),
-      ),
-    );
-  }
-
-  Widget _buildEarlierMissedTile(
-    BuildContext context,
-    WidgetRef ref,
-    Todo series,
-    AppLocalizations l,
-    ThemeData theme,
-  ) {
-    return _ActionRowSurface(
-      key: ValueKey('earlier-missed-${series.id}'),
-      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: ListTile(
-        leading: Icon(
-          CupertinoIcons.time,
-          color: theme.colorScheme.onSurfaceVariant,
-          size: 20,
-        ),
-        title: Text(
-          '${l.earlierMissed} · ${series.summary}',
-          style: AppTypography.body.copyWith(
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
-        onTap: () async {
-          final selected = await TodoOccurrencePickerSheet.show(
-            context,
-            ref: ref,
-            todo: series,
-            initialPage: 2,
-          );
-          if (selected != null) {
-            await ref.read(toggleTodoProvider)(
-              id: selected.todoId,
-              isCompleted: !selected.isCompleted,
-              occurrenceId: selected.occurrenceId,
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildEarlierHistoryTile(
-    BuildContext context,
-    WidgetRef ref,
-    Todo series,
-    AppLocalizations l,
-    ThemeData theme,
-  ) {
-    return _ActionRowSurface(
-      key: ValueKey('earlier-history-${series.id}'),
-      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: ListTile(
-        leading: Icon(
-          CupertinoIcons.time,
-          color: theme.colorScheme.onSurfaceVariant,
-          size: 20,
-        ),
-        title: Text(
-          '${l.earlierHistory} · ${series.summary}',
-          style: AppTypography.body.copyWith(
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
-        onTap: () async {
-          final selected = await TodoOccurrencePickerSheet.show(
-            context,
-            ref: ref,
-            todo: series,
-            initialPage: 26,
-          );
-          if (selected != null) {
-            await ref.read(toggleTodoProvider)(
-              id: selected.todoId,
-              isCompleted: !selected.isCompleted,
-              occurrenceId: selected.occurrenceId,
-            );
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildTodayInstanceTile(
-    BuildContext context,
-    WidgetRef ref,
-    ProjectedTaskInstance instance,
-    AppLocalizations l,
-    ThemeData theme,
-  ) {
-    return _ActionRowSurface(
-      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        leading: Checkbox(
-          value: false,
-          onChanged: (val) async {
-            if (val == true) {
-              await ref.read(toggleTodoProvider)(
-                id: instance.todoId,
-                isCompleted: true,
-                occurrenceId: instance.occurrenceId,
-              );
-            }
-          },
-        ),
-        title: Text(
-          instance.todo.summary,
-          style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          '${instance.occurrence.displayLabel} · ${l.recurringTask}',
-          style: AppTypography.caption.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
-        onTap: () => _selectTodo(context, instance.todo),
-      ),
+      onTap: () => _selectTodo(context, instance.todo),
     );
   }
 
@@ -1020,55 +580,42 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     AppLocalizations l,
     ThemeData theme,
   ) {
-    // Combine events and allocations, sorted chronologically
+    final now = DateTime.now();
+    final date = ref.read(actionDateProvider);
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
     final items = <_TimelineEntry>[
-      ...data.events
-          .where((_) => _filter != 2)
-          .map((e) => _TimelineEntry.event(e)),
-      ...data.allocations
-          .where((_) => _filter != 1)
-          .map((a) => _TimelineEntry.allocation(a)),
+      ...data.events.map(_TimelineEntry.event),
+      ...data.allocations.map(_TimelineEntry.allocation),
     ]..sort((a, b) => a.start.compareTo(b.start));
 
-    final now = DateTime.now();
+    // "Now" and "Later today" only mean something on the actual current day.
+    // Any other day is simply that day's schedule, in time order.
+    if (!isToday) {
+      return [
+        _SectionHeader(title: l.todayTimeline),
+        for (final entry in items)
+          _buildTimelineEntry(context, ref, entry, l, theme),
+      ];
+    }
+
     final current = items
         .where((entry) => !entry.start.isAfter(now) && entry.end.isAfter(now))
         .toList();
-    final remaining = items
-        .where(
-          (entry) =>
-              !current.contains(entry) &&
-              (MediaQuery.sizeOf(context).width >= 700 ||
-                  entry.end.isAfter(now)),
-        )
-        .toList();
-    final future = remaining
-        .where((entry) => entry.start.isAfter(now))
-        .toList();
-    final ordered = [...current, ...remaining];
+    final later = items.where((entry) => entry.start.isAfter(now)).toList();
+
     final rows = <Widget>[];
-    for (final entry in ordered) {
-      if (current.isNotEmpty && entry == current.first) {
-        rows.add(
-          _buildSectionHeader(
-            context,
-            title: l.actionNow,
-            icon: CupertinoIcons.clock,
-            color: AppColors.brandWarm,
-          ),
-        );
+    if (current.isNotEmpty) {
+      rows.add(_SectionHeader(title: l.actionNow, accent: AppColors.brandWarm));
+      for (final entry in current) {
+        rows.add(_buildTimelineEntry(context, ref, entry, l, theme, warm: true));
       }
-      if (future.isNotEmpty && entry == future.first) {
-        rows.add(
-          _buildSectionHeader(
-            context,
-            title: l.upcoming,
-            icon: CupertinoIcons.arrow_right,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        );
+    }
+    if (later.isNotEmpty) {
+      rows.add(_SectionHeader(title: l.laterToday));
+      for (final entry in later) {
+        rows.add(_buildTimelineEntry(context, ref, entry, l, theme));
       }
-      rows.add(_buildTimelineEntry(context, ref, entry, l, theme));
     }
     return rows;
   }
@@ -1078,88 +625,41 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     WidgetRef ref,
     _TimelineEntry entry,
     AppLocalizations l,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    bool warm = false,
+  }) {
     if (entry.isEvent) {
       final event = entry.event!;
-      return _ActionRowSurface(
-        warm:
-            !entry.start.isAfter(DateTime.now()) &&
-            entry.end.isAfter(DateTime.now()),
-        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-        elevation: 0,
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-          ),
-        ),
-        child: ListTile(
-          leading: Icon(
-            CupertinoIcons.calendar,
-            color: event.color ?? theme.colorScheme.primary,
-          ),
-          title: Text(
-            event.title,
-            style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
-          ),
-          subtitle: Text(
-            '${DateFormatters.formatTime(event.start)} – ${DateFormatters.formatTime(event.end)} · ${l.eventLabel}',
-            style: AppTypography.caption.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
-          onTap: () => _selectEvent(context, event),
-        ),
-      );
-    } else {
-      final item = entry.allocation!;
-      return _ActionRowSurface(
-        warm:
-            !entry.start.isAfter(DateTime.now()) &&
-            entry.end.isAfter(DateTime.now()),
-        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-        elevation: 0,
-        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.35),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: theme.colorScheme.secondary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: ListTile(
-          leading: Checkbox(
-            key: ValueKey('allocation-checkbox-${item.allocation.id}'),
-            value: false,
-            activeColor: theme.colorScheme.secondary,
-            onChanged: (val) async {
-              if (val == true) {
-                await ref.read(toggleTodoProvider)(
-                  id: item.todo.id,
-                  isCompleted: true,
-                  occurrenceId: item.allocation.occurrenceId,
-                );
-              }
-            },
-          ),
-          title: Text(
-            item.todo.summary,
-            style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
-          ),
-          subtitle: Text(
-            '${DateFormatters.formatTime(item.allocation.startAt.toLocal())} – ${DateFormatters.formatTime(item.allocation.endAt.toLocal())} · ${l.plannedExecution}',
-            style: AppTypography.caption.copyWith(
-              color: theme.colorScheme.secondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
-          onTap: () => _selectTodo(context, item.todo),
-        ),
+      return _ActionRow(
+        key: ValueKey('action-event-${event.drifId}-${event.start.millisecondsSinceEpoch}'),
+        time: DateFormatters.formatTime(entry.start),
+        icon: CupertinoIcons.circle_fill,
+        iconColor: event.color ?? theme.colorScheme.primary,
+        title: event.title,
+        meta:
+            '${DateFormatters.formatTime(entry.start)} – ${DateFormatters.formatTime(entry.end)}',
+        warm: warm,
+        onTap: () => _selectEvent(context, event),
       );
     }
+    final item = entry.allocation!;
+    return _ActionRow(
+      key: ValueKey('action-allocation-${item.allocation.id}'),
+      time: DateFormatters.formatTime(item.allocation.startAt.toLocal()),
+      icon: CupertinoIcons.square,
+      iconColor: theme.colorScheme.secondary,
+      title: item.todo.summary,
+      meta:
+          '${DateFormatters.formatTime(item.allocation.startAt.toLocal())} – ${DateFormatters.formatTime(item.allocation.endAt.toLocal())} · ${l.plannedExecution}',
+      warm: warm,
+      completed: false,
+      onToggle: () => ref.read(toggleTodoProvider)(
+        id: item.todo.id,
+        isCompleted: true,
+        occurrenceId: item.allocation.occurrenceId,
+      ),
+      onTap: () => _selectTodo(context, item.todo),
+    );
   }
 
   Widget _buildDueTodayTile(
@@ -1167,75 +667,19 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     WidgetRef ref,
     Todo todo,
     AppLocalizations l,
-    ThemeData theme,
   ) {
-    return _ActionRowSurface(
-      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        leading: Checkbox(
-          value: false,
-          onChanged: (val) async {
-            if (val == true) {
-              await ref.read(toggleTodoProvider)(
-                id: todo.id,
-                isCompleted: true,
-              );
-            }
-          },
-        ),
-        title: Text(
-          todo.summary,
-          style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          l.deadlineToday,
-          style: AppTypography.caption.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: const Icon(CupertinoIcons.chevron_forward, size: 14),
-        onTap: () => _selectTodo(context, todo),
-      ),
-    );
-  }
-
-  Widget _buildInboxCard(
-    BuildContext context,
-    WidgetRef ref,
-    ActionProjectionData data,
-    AppLocalizations l,
-    ThemeData theme,
-  ) {
-    return _ActionRowSurface(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: ListTile(
-        leading: Icon(
-          CupertinoIcons.tray_full,
-          color: theme.colorScheme.primary,
-        ),
-        title: Text(
-          l.unplannedInbox,
-          style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          l.unplannedCount(data.unplannedCount),
-          style: AppTypography.caption.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: const Icon(CupertinoIcons.chevron_forward, size: 16),
-        onTap: widget.onNavigateToTodos,
-      ),
+    return _ActionRow(
+      key: ValueKey('action-due-${todo.id}'),
+      time: todo.dueDate == null
+          ? null
+          : DateFormatters.formatTime(todo.dueDate!),
+      icon: CupertinoIcons.flag,
+      iconColor: context.semantic.warning,
+      title: todo.summary,
+      meta: l.deadlineToday,
+      completed: false,
+      onToggle: () => ref.read(toggleTodoProvider)(id: todo.id, isCompleted: true),
+      onTap: () => _selectTodo(context, todo),
     );
   }
 
@@ -1246,30 +690,14 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     AppLocalizations l,
     ThemeData theme,
   ) {
-    return ListTile(
-      leading: Checkbox(
-        value: true,
-        onChanged: (val) async {
-          if (val == false) {
-            await ref.read(toggleTodoProvider)(id: todo.id, isCompleted: false);
-          }
-        },
-      ),
-      title: Text(
-        todo.summary,
-        style: AppTypography.body.copyWith(
-          decoration: TextDecoration.lineThrough,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-        ),
-      ),
-      subtitle: todo.completedAt != null
-          ? Text(
-              DateFormatters.formatTime(todo.completedAt!),
-              style: AppTypography.caption.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-            )
-          : null,
+    return _ActionRow(
+      time: todo.completedAt == null
+          ? null
+          : DateFormatters.formatTime(todo.completedAt!),
+      title: todo.summary,
+      completed: true,
+      onToggle: () =>
+          ref.read(toggleTodoProvider)(id: todo.id, isCompleted: false),
       onTap: () => _selectTodo(context, todo),
     );
   }
@@ -1281,31 +709,16 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     AppLocalizations l,
     ThemeData theme,
   ) {
-    return ListTile(
-      leading: Checkbox(
-        value: true,
-        onChanged: (val) async {
-          if (val == false) {
-            await ref.read(toggleTodoProvider)(
-              id: instance.todoId,
-              isCompleted: false,
-              occurrenceId: instance.occurrenceId,
-            );
-          }
-        },
-      ),
-      title: Text(
-        instance.todo.summary,
-        style: AppTypography.body.copyWith(
-          decoration: TextDecoration.lineThrough,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-        ),
-      ),
-      subtitle: Text(
-        '${instance.occurrence.displayLabel}${instance.completedAt != null ? ' · ${DateFormatters.formatTime(instance.completedAt!)}' : ''}',
-        style: AppTypography.caption.copyWith(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-        ),
+    return _ActionRow(
+      time: instance.completedAt == null
+          ? null
+          : DateFormatters.formatTime(instance.completedAt!),
+      title: instance.todo.summary,
+      completed: true,
+      onToggle: () => ref.read(toggleTodoProvider)(
+        id: instance.todoId,
+        isCompleted: false,
+        occurrenceId: instance.occurrenceId,
       ),
       onTap: () => _selectTodo(context, instance.todo),
     );
@@ -1331,74 +744,50 @@ class _TimelineEntry {
   DateTime get end => event?.end ?? allocation!.allocation.endAt.toLocal();
 }
 
-class _ActionRowSurface extends StatelessWidget {
-  const _ActionRowSurface({
+/// One action row: time on the left, what it is in the middle, done on the
+/// right. Flat — a hairline separates rows, nothing draws a box around one.
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
     super.key,
-    required this.child,
-    this.margin,
-    this.elevation,
-    this.color,
-    this.shape,
+    required this.title,
+    this.time,
+    this.dateHint,
+    this.icon,
+    this.iconColor,
+    this.meta,
     this.warm = false,
+    this.completed,
+    this.onToggle,
+    required this.onTap,
   });
-  final Widget child;
-  final EdgeInsetsGeometry? margin;
-  final double? elevation;
-  final Color? color;
-  final ShapeBorder? shape;
+
+  final String title;
+  final String? time;
+  final String? dateHint;
+  final IconData? icon;
+  final Color? iconColor;
+  final String? meta;
   final bool warm;
+  final bool? completed;
+  final VoidCallback? onToggle;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final warmInk = theme.brightness == Brightness.dark
-        ? AppColors.darkWarning
-        : AppColors.brandWarm;
-    if (child is! ListTile) return child;
-    final tile = child as ListTile;
     final mobile = MediaQuery.sizeOf(context).width < 700;
-    final l = AppLocalizations.of(context)!;
-    final metadata = tile.subtitle is Text
-        ? (tile.subtitle as Text).data ?? ''
-        : '';
-    final time = RegExp(r'^\d{2}:\d{2}').firstMatch(metadata)?.group(0);
-    final checkbox = tile.leading is Checkbox ? tile.leading : null;
-    final planned = metadata.contains(l.plannedExecution);
-    final deadline =
-        metadata == l.deadlineToday ||
-        metadata.startsWith(l.deadlinePrefix('').trim());
-    final recurring =
-        metadata.contains(l.recurringTask) || metadata.contains(l.missed);
-    final icon = tile.leading is Icon
-        ? tile.leading!
-        : Icon(
-            planned
-                ? CupertinoIcons.clock
-                : recurring
-                ? CupertinoIcons.repeat
-                : deadline
-                ? CupertinoIcons.flag
-                : CupertinoIcons.exclamationmark_triangle,
-            size: 16,
-            color: warm || deadline
-                ? warmInk
-                : theme.colorScheme.onSurfaceVariant,
-          );
-    final title = tile.title is Text
-        ? (tile.title as Text).copyWithActionStyle(theme)
-        : tile.title;
-    final subtitle = Text(
-      metadata,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 12,
-        color: warm ? warmInk : theme.colorScheme.onSurfaceVariant,
-      ),
+    final muted = context.semantic.textSecondary;
+    final titleStyle = AppTypography.body.copyWith(
+      fontWeight: FontWeight.w500,
+      color: theme.colorScheme.onSurface,
+      decoration: completed == true ? TextDecoration.lineThrough : null,
     );
     return Material(
-      color: warm ? warmInk.withValues(alpha: .06) : Colors.transparent,
+      color: warm
+          ? AppColors.brandWarm.withValues(alpha: .06)
+          : Colors.transparent,
       child: InkWell(
-        onTap: tile.onTap,
+        onTap: onTap,
         child: Container(
           constraints: BoxConstraints(minHeight: mobile ? 56 : 48),
           decoration: BoxDecoration(
@@ -1411,53 +800,110 @@ class _ActionRowSurface extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(
-                width: mobile ? 48 : 64,
-                child: Text(
-                  time ?? (deadline ? '—' : ''),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurfaceVariant,
+                width: mobile ? 52 : 64,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      time ?? (dateHint ?? ''),
+                      style: AppTypography.caption.copyWith(
+                        color: muted,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (icon != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: Icon(
+                    icon,
+                    size: 12,
+                    color:
+                        iconColor ??
+                        (completed == true
+                            ? context.semantic.textTertiary
+                            : muted),
                   ),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: mobile
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: titleStyle,
+                            ),
+                            if (meta != null && meta!.isNotEmpty)
+                              Text(
+                                meta!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.caption.copyWith(
+                                  color: warm
+                                      ? (theme.brightness == Brightness.dark
+                                            ? AppColors.darkWarning
+                                            : AppColors.brandWarm)
+                                      : muted,
+                                ),
+                              ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: titleStyle,
+                              ),
+                            ),
+                            if (meta != null && meta!.isNotEmpty) ...[
+                              const SizedBox(width: AppSpacing.md),
+                              Flexible(
+                                child: Text(
+                                  meta!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.caption.copyWith(
+                                    color: warm
+                                        ? (theme.brightness == Brightness.dark
+                                              ? AppColors.darkWarning
+                                              : AppColors.brandWarm)
+                                        : muted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                 ),
               ),
               SizedBox(
-                width: 28,
-                child: Center(
-                  child: IconTheme(
-                    data: const IconThemeData(size: 16),
-                    child: icon,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: mobile
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (title != null) title,
-                          if (metadata.isNotEmpty) subtitle,
-                        ],
+                width: 48,
+                height: 48,
+                child: onToggle == null
+                    ? Center(
+                        child: Icon(
+                          CupertinoIcons.chevron_forward,
+                          size: 14,
+                          color: context.semantic.textTertiary,
+                        ),
                       )
-                    : Row(
-                        children: [
-                          Flexible(child: title ?? const SizedBox.shrink()),
-                          if (metadata.isNotEmpty) ...[
-                            const SizedBox(width: 12),
-                            Flexible(child: subtitle),
-                          ],
-                        ],
+                    : Checkbox(
+                        value: completed ?? false,
+                        onChanged: (_) => onToggle!(),
                       ),
               ),
-              if (checkbox != null)
-                SizedBox(width: 48, height: 48, child: checkbox)
-              else
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Center(child: tile.trailing),
-                ),
             ],
           ),
         ),
@@ -1466,15 +912,176 @@ class _ActionRowSurface extends StatelessWidget {
   }
 }
 
-extension on Text {
-  Widget copyWithActionStyle(ThemeData theme) => Text(
-    data ?? '',
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-    style: AppTypography.body.copyWith(
-      fontSize: 14,
-      fontWeight: FontWeight.w500,
-      color: theme.colorScheme.onSurface,
-    ),
-  );
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.accent});
+
+  final String title;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs, top: AppSpacing.xs),
+      child: Text(
+        title,
+        style: AppTypography.overline.copyWith(
+          color: accent ?? context.semantic.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _CompletedFold extends StatelessWidget {
+  const _CompletedFold({required this.count, required this.children});
+
+  final int count;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        leading: Icon(
+          CupertinoIcons.checkmark_seal,
+          size: 16,
+          color: context.semantic.textTertiary,
+        ),
+        title: Text(
+          '${l.completedTodaySection} · $count',
+          style: AppTypography.overline.copyWith(
+            color: context.semantic.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        children: children,
+      ),
+    );
+  }
+}
+
+/// Desktop-only reading pane for the selected action item.
+///
+/// It is a detail surface, not an editor: it shows what the row cannot (the
+/// note, the planned block) and offers Edit as a separate, deliberate step.
+class _Inspector extends ConsumerWidget {
+  const _Inspector({
+    required this.todo,
+    required this.event,
+    required this.onClose,
+    required this.onEdit,
+  });
+
+  final Todo? todo;
+  final CalendaEventAdapter? event;
+  final VoidCallback onClose;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final isTodo = todo != null;
+    final description = todo?.description ?? event?.description;
+    final allocations = isTodo
+        ? ref
+              .watch(actionProjectionProvider)
+              .valueOrNull
+              ?.allocations
+              .where((item) => item.todo.id == todo!.id)
+              .toList()
+        : null;
+
+    return Container(
+      key: const ValueKey('action-inspector'),
+      width: 340,
+      margin: const EdgeInsets.only(
+        top: AppSpacing.lg,
+        right: AppSpacing.xl,
+        bottom: AppSpacing.lg,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isTodo ? l.todoDetails : l.eventDetails,
+                    style: AppTypography.overline.copyWith(
+                      color: context.semantic.textSecondary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(CupertinoIcons.xmark, size: 16),
+                  tooltip: MaterialLocalizations.of(
+                    context,
+                  ).closeButtonTooltip,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              todo?.summary ?? event!.title,
+              style: AppTypography.headline,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (todo?.dueDate != null)
+              ScheduleRow(
+                label: l.deadline,
+                value: formatDeadline(context, todo!.dueDate!),
+              ),
+            if (event != null) ...[
+              ScheduleRow(
+                label: l.startTime,
+                value: DateFormatters.formatTime(event!.start),
+              ),
+              ScheduleRow(
+                label: l.endTime,
+                value: DateFormatters.formatTime(event!.end),
+              ),
+            ],
+            for (final item in allocations ?? const [])
+              ScheduleRow(
+                label: l.executionSchedule,
+                value: formatExecutionRange(
+                  context,
+                  item.allocation.startAt,
+                  item.allocation.endAt,
+                  includeDate: false,
+                ),
+              ),
+            if (description != null && description.trim().isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Text(description, style: AppTypography.body),
+            ],
+            const SizedBox(height: AppSpacing.xl),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(CupertinoIcons.pencil, size: 15),
+                label: Text(isTodo ? l.editTodo : l.editEvent),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

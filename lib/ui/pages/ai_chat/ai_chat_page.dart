@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
@@ -15,6 +14,7 @@ import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
@@ -101,23 +101,19 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final messages = ref.watch(aiChatProvider);
     final isConfigured = ref.watch(isAiConfiguredProvider).value ?? false;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(l.aiAssistant),
-        actions: [
-          if (messages.isNotEmpty)
-            IconButton(
-              icon: const Icon(CupertinoIcons.delete),
-              onPressed: () => ref.read(aiChatProvider.notifier).clear(),
-              tooltip: l.clearChat,
-            ),
-        ],
-      ),
-      body: isConfigured
+    return WorkspacePage(
+      title: l.aiAssistant,
+      maxContentWidth: 860,
+      actions: [
+        if (messages.isNotEmpty)
+          IconButton(
+            icon: const Icon(CupertinoIcons.delete, size: 18),
+            onPressed: () => ref.read(aiChatProvider.notifier).clear(),
+            tooltip: l.clearChat,
+            visualDensity: VisualDensity.compact,
+          ),
+      ],
+      child: isConfigured
           ? Column(
               children: [
                 Expanded(

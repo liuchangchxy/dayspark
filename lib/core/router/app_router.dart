@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -6,10 +7,10 @@ import 'package:dayspark/infrastructure/platform/home_widget_interactivity.dart'
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
-import 'package:dayspark/ui/pages/event/event_create_page.dart';
-import 'package:dayspark/ui/pages/event/event_edit_page.dart';
-import 'package:dayspark/ui/pages/todo/todo_create_page.dart';
-import 'package:dayspark/ui/pages/todo/todo_edit_page.dart';
+import 'package:dayspark/ui/pages/event/event_detail_page.dart';
+import 'package:dayspark/ui/pages/event/event_form_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/ui/pages/calendar/calendars_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
@@ -18,6 +19,8 @@ import 'package:dayspark/ui/pages/about/about_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 import 'package:dayspark/ui/pages/feedback/feedback_page.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/ui/shell/workspace_page.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
 CustomTransitionPage<void> _fadeTransition(Widget child) {
   return CustomTransitionPage(
@@ -47,6 +50,32 @@ class _NavObserver extends NavigatorObserver {
   }
 }
 
+/// Shown when a detail route is opened without its object — happens only on
+/// deep links, since every in-app navigation passes `extra`.
+Widget _missingObjectPage(String message) {
+  return _MissingObjectPage(message: message);
+}
+
+class _MissingObjectPage extends StatelessWidget {
+  const _MissingObjectPage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return WorkspacePage(
+      title: l?.navigationError ?? 'Navigation Error',
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(message, textAlign: TextAlign.center),
+        ),
+      ),
+    );
+  }
+}
+
 abstract final class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/',
@@ -69,15 +98,19 @@ abstract final class AppRouter {
         debugPrint('[GoRouter] ERROR at ${state.matchedLocation}: ${state.error}');
       }
       final l = AppLocalizations.of(context);
-      return Scaffold(
-        appBar: AppBar(title: Text(l?.navigationError ?? 'Navigation Error')),
-        body: Center(
+      return WorkspacePage(
+        title: l?.navigationError ?? 'Navigation Error',
+        child: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                Icon(
+                  CupertinoIcons.exclamationmark_triangle,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.error,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   l?.pageNotFound(state.uri.toString()) ??
@@ -85,7 +118,7 @@ abstract final class AppRouter {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
+                FilledButton(
                   onPressed: () => context.go('/'),
                   child: Text(l?.returnToHome ?? 'Return to Home'),
                 ),
@@ -106,151 +139,158 @@ abstract final class AppRouter {
           );
         },
       ),
-      GoRoute(
-        path: '/settings',
-        name: 'settings',
-        builder: (context, state) => const SettingsPage(),
-      ),
-      GoRoute(
-        path: '/event/new',
-        name: 'eventCreate',
-        pageBuilder: (context, state) {
-          final start = state.uri.queryParameters['start'];
-          final end = state.uri.queryParameters['end'];
-          return _fadeTransition(
-            EventCreatePage(
-              initialStart: start != null
-                  ? DateTime.fromMillisecondsSinceEpoch(int.tryParse(start) ?? DateTime.now().millisecondsSinceEpoch)
-                  : DateTime.now(),
-              initialEnd: end != null
-                  ? DateTime.fromMillisecondsSinceEpoch(int.tryParse(end) ?? DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch)
-                  : DateTime.now().add(const Duration(hours: 1)),
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/event/edit',
-        name: 'eventEdit',
-        pageBuilder: (context, state) {
-          if (state.extra is! CalendaEventAdapter) {
-            final l = AppLocalizations.of(context);
-            return _fadeTransition(
-              Scaffold(
-                appBar: AppBar(title: Text(l?.eventNotFound ?? 'Event Not Found')),
-                body: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
-                        const SizedBox(height: 16),
-                        Text(
-                          l?.missingEventParam ?? 'Missing event parameter to edit.',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => context.go('/'),
-                          child: Text(l?.returnToHome ?? 'Return to Home'),
-                        ),
-                      ],
-                    ),
-                  ),
+      // Every other destination nests inside the workspace shell, so the
+      // desktop rail persists across the whole app instead of only on Home.
+      ShellRoute(
+        builder: (context, state, child) => WorkspaceScaffold(child: child),
+        routes: [
+          GoRoute(
+            path: '/settings',
+            name: 'settings',
+            builder: (context, state) => const SettingsPage(),
+          ),
+          GoRoute(
+            path: '/event/new',
+            name: 'eventCreate',
+            pageBuilder: (context, state) {
+              final start = state.uri.queryParameters['start'];
+              final end = state.uri.queryParameters['end'];
+              return _fadeTransition(
+                EventFormPage(
+                  initialStart: start != null
+                      ? DateTime.fromMillisecondsSinceEpoch(
+                          int.tryParse(start) ??
+                              DateTime.now().millisecondsSinceEpoch,
+                        )
+                      : DateTime.now(),
+                  initialEnd: end != null
+                      ? DateTime.fromMillisecondsSinceEpoch(
+                          int.tryParse(end) ??
+                              DateTime.now()
+                                  .add(const Duration(hours: 1))
+                                  .millisecondsSinceEpoch,
+                        )
+                      : DateTime.now().add(const Duration(hours: 1)),
                 ),
-              ),
-            );
-          }
-          final event = state.extra as CalendaEventAdapter;
-          return _fadeTransition(EventEditPage(event: event));
-        },
-      ),
-      GoRoute(
-        path: '/todo/new',
-        name: 'todoCreate',
-        pageBuilder: (context, state) {
-          final parentIdParam = state.uri.queryParameters['parentId'];
-          final parentId = parentIdParam != null ? int.tryParse(parentIdParam) : null;
-          return _fadeTransition(
-            TodoCreatePage(
-              parentId: parentId,
-              source: state.uri.queryParameters['source'],
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/todo/edit',
-        name: 'todoEdit',
-        pageBuilder: (context, state) {
-          if (state.extra is! Todo) {
-            final l = AppLocalizations.of(context);
-            return _fadeTransition(
-              Scaffold(
-                appBar: AppBar(title: Text(l?.todoNotFound ?? 'Todo Not Found')),
-                body: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
-                        const SizedBox(height: 16),
-                        Text(
-                          l?.missingTodoParam ?? 'Missing todo parameter to edit.',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => context.go('/'),
-                          child: Text(l?.returnToHome ?? 'Return to Home'),
-                        ),
-                      ],
-                    ),
+              );
+            },
+          ),
+          GoRoute(
+            path: '/event/detail',
+            name: 'eventDetail',
+            pageBuilder: (context, state) {
+              final event = state.extra;
+              if (event is! CalendaEventAdapter) {
+                return _fadeTransition(
+                  _missingObjectPage(
+                    AppLocalizations.of(context)?.missingEventParam ??
+                        'Missing event parameter.',
                   ),
+                );
+              }
+              return _fadeTransition(EventDetailPage(event: event));
+            },
+          ),
+          GoRoute(
+            path: '/event/edit',
+            name: 'eventEdit',
+            pageBuilder: (context, state) {
+              final event = state.extra;
+              if (event is! CalendaEventAdapter) {
+                return _fadeTransition(
+                  _missingObjectPage(
+                    AppLocalizations.of(context)?.missingEventParam ??
+                        'Missing event parameter.',
+                  ),
+                );
+              }
+              return _fadeTransition(EventFormPage(event: event));
+            },
+          ),
+          GoRoute(
+            path: '/todo/new',
+            name: 'todoCreate',
+            pageBuilder: (context, state) {
+              final parentIdParam = state.uri.queryParameters['parentId'];
+              final parentId = parentIdParam != null
+                  ? int.tryParse(parentIdParam)
+                  : null;
+              return _fadeTransition(
+                TodoFormPage(
+                  parentId: parentId,
+                  source: state.uri.queryParameters['source'],
                 ),
-              ),
-            );
-          }
-          final todo = state.extra as Todo;
-          return _fadeTransition(TodoEditPage(todo: todo));
-        },
-      ),
-      GoRoute(
-        path: '/search',
-        name: 'search',
-        builder: (context, state) => const SearchPage(),
-      ),
-      GoRoute(
-        path: '/tags',
-        name: 'tags',
-        builder: (context, state) => const TagsPage(),
-      ),
-      GoRoute(
-        path: '/calendars',
-        name: 'calendars',
-        builder: (context, state) => const CalendarsPage(),
-      ),
-      GoRoute(
-        path: '/ai-chat',
-        name: 'aiChat',
-        builder: (context, state) => const AiChatPage(),
-      ),
-      GoRoute(
-        path: '/about',
-        name: 'about',
-        builder: (context, state) => const AboutPage(),
-      ),
-      GoRoute(
-        path: '/trash',
-        name: 'trash',
-        builder: (context, state) => const TrashPage(),
-      ),
-      GoRoute(
-        path: '/feedback',
-        name: 'feedback',
-        builder: (context, state) => const FeedbackPage(),
+              );
+            },
+          ),
+          GoRoute(
+            path: '/todo/detail',
+            name: 'todoDetail',
+            pageBuilder: (context, state) {
+              final todo = state.extra;
+              if (todo is! Todo) {
+                return _fadeTransition(
+                  _missingObjectPage(
+                    AppLocalizations.of(context)?.missingTodoParam ??
+                        'Missing todo parameter.',
+                  ),
+                );
+              }
+              return _fadeTransition(TodoDetailPage(todo: todo));
+            },
+          ),
+          GoRoute(
+            path: '/todo/edit',
+            name: 'todoEdit',
+            pageBuilder: (context, state) {
+              final todo = state.extra;
+              if (todo is! Todo) {
+                return _fadeTransition(
+                  _missingObjectPage(
+                    AppLocalizations.of(context)?.missingTodoParam ??
+                        'Missing todo parameter.',
+                  ),
+                );
+              }
+              return _fadeTransition(TodoFormPage(todo: todo));
+            },
+          ),
+          GoRoute(
+            path: '/search',
+            name: 'search',
+            builder: (context, state) => const SearchPage(),
+          ),
+          GoRoute(
+            path: '/tags',
+            name: 'tags',
+            builder: (context, state) => const TagsPage(),
+          ),
+          GoRoute(
+            path: '/calendars',
+            name: 'calendars',
+            builder: (context, state) => const CalendarsPage(),
+          ),
+          GoRoute(
+            path: '/ai-chat',
+            name: 'aiChat',
+            builder: (context, state) => const AiChatPage(),
+          ),
+          GoRoute(
+            path: '/about',
+            name: 'about',
+            builder: (context, state) => const AboutPage(),
+          ),
+          GoRoute(
+            path: '/trash',
+            name: 'trash',
+            builder: (context, state) => const TrashPage(),
+          ),
+          GoRoute(
+            path: '/feedback',
+            name: 'feedback',
+            builder: (context, state) => const FeedbackPage(),
+          ),
+        ],
       ),
     ],
   );

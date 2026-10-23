@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/widgets/centered_content.dart';
+import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'settings_sections/about_section.dart';
 import 'settings_sections/account_section.dart';
 import 'settings_sections/ai_section.dart';
@@ -46,47 +46,40 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(l.settings),
-      ),
-      body: CenteredContent(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
-          children: [
-            // No header over these two: their first row already says what
-            // they are, and a header would just repeat it.
-            for (final group in <(String?, Widget)>[
-              (null, const AppearanceSection()),
-              (
-                l.calendar,
-                ListTile(
-                  leading: const Icon(CupertinoIcons.calendar),
-                  title: Text(l.manageCalendars),
-                  trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
-                  onTap: () => context.push('/calendars'),
-                ),
+    return WorkspacePage(
+      title: l.settings,
+      maxContentWidth: 720,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+        children: [
+          // No header over these two: their first row already says what
+          // they are, and a header would just repeat it.
+          for (final group in <(String?, Widget)>[
+            (null, const AppearanceSection()),
+            (
+              l.calendar,
+              ListTile(
+                leading: const Icon(CupertinoIcons.calendar),
+                title: Text(l.manageCalendars),
+                trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+                onTap: () => context.push('/calendars'),
               ),
-              (null, const TodosSection()),
-              (l.data, const ImportExportSection()),
-              (l.account, const AccountSection()),
-              (l.advancedFeatures, const AiSection()),
-              // The notification rows are platform-gated; without them the
-              // section would render an empty card under a bare label.
-              if (hasNotificationSettings)
-                (l.notifications, const NotificationsSection()),
-            ])
-              SettingsGroup(
-                title: group.$1,
-                child: group.$2,
-              ),
-            _AdvancedGroup(version: _cachedVersion ?? ''),
-          ],
-        ),
+            ),
+            (null, const TodosSection()),
+            (l.data, const ImportExportSection()),
+            (l.account, const AccountSection()),
+            (l.advancedFeatures, const AiSection()),
+            // The notification rows are platform-gated; without them the
+            // section would render an empty card under a bare label.
+            if (hasNotificationSettings)
+              (l.notifications, const NotificationsSection()),
+          ])
+            SettingsGroup(
+              title: group.$1,
+              child: group.$2,
+            ),
+          _AdvancedGroup(version: _cachedVersion ?? ''),
+        ],
       ),
     );
   }

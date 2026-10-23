@@ -6,7 +6,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
+import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 
 class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
   final Todo todo;
@@ -42,17 +42,13 @@ class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
     if (!context.mounted) return null;
 
     if (TodoRecurrence.fromTodo(freshTodo).isUnknownLegacy) {
-      if (!TaskAllocationsSection.legacyRuleIsSupported(freshTodo.rrule ?? '')) {
+      if (!legacyRuleIsSupported(freshTodo.rrule ?? '')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l.unsupportedLegacyRecurrence)),
         );
         return null;
       }
-      final confirmed = await TaskAllocationsSection.confirmLegacyRecurrence(
-        context,
-        ref,
-        freshTodo,
-      );
+      final confirmed = await confirmLegacyRecurrence(context, ref, freshTodo);
       if (!confirmed || !context.mounted) return null;
       freshTodo = (await (ref.read(databaseProvider).select(ref.read(databaseProvider).todos)
                 ..where((row) => row.id.equals(todo.id)))

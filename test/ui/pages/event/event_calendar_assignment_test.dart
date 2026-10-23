@@ -12,8 +12,7 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/pages/event/event_create_page.dart';
-import 'package:dayspark/ui/pages/event/event_edit_page.dart';
+import 'package:dayspark/ui/pages/event/event_form_page.dart';
 
 GoRouter _router({CalendaEventAdapter? event}) => GoRouter(
   initialLocation: event == null ? '/new' : '/edit',
@@ -24,14 +23,14 @@ GoRouter _router({CalendaEventAdapter? event}) => GoRouter(
       routes: [
         GoRoute(
           path: 'new',
-          builder: (_, __) => EventCreatePage(
+          builder: (_, __) => EventFormPage(
             initialStart: DateTime(2026, 10, 5, 9),
             initialEnd: DateTime(2026, 10, 5, 10),
           ),
         ),
         GoRoute(
           path: 'edit',
-          builder: (_, __) => EventEditPage(event: event!),
+          builder: (_, __) => EventFormPage(event: event!),
         ),
       ],
     ),
@@ -77,11 +76,11 @@ Future<void> _unmount(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 20));
 }
 
-Finder _field(String label) => find.byWidgetPredicate(
-  (widget) => widget is TextField && widget.decoration?.labelText == label,
+Finder _field(String hint) => find.byWidgetPredicate(
+  (widget) => widget is TextField && widget.decoration?.hintText == hint,
 );
 
-Finder get _picker => find.byType(DropdownButtonFormField<int>);
+Finder get _picker => find.text('Calendar');
 
 Future<void> _chooseCalendar(WidgetTester tester, String name) async {
   await tester.tap(_picker);
@@ -133,7 +132,12 @@ void main() {
     expect(seeded.length, 1);
 
     await _pump(tester, db);
-    expect(_picker, findsNothing, reason: 'one calendar is not a choice');
+    // The row still says which calendar receives the event; it just has
+    // nothing to choose from, so tapping it opens no sheet.
+    expect(_picker, findsOneWidget);
+    await tester.tap(_picker);
+    await _settle(tester);
+    expect(find.byType(ListTile), findsNothing);
 
     await tester.enterText(_field('Title'), 'Solo event');
     await _save(tester);
@@ -294,9 +298,9 @@ void main() {
 
     // Reopen from the row the calendar would hand back.
     final saved = await _event(db, id);
+    expect(saved.calendarId, work);
     await _pump(tester, db, event: CalendaEventAdapter.fromDrift(saved));
-    final dropdown = tester.widget<DropdownButtonFormField<int>>(_picker);
-    expect(dropdown.initialValue, work);
+    expect(find.text('Work'), findsOneWidget);
     await _unmount(tester);
   });
 

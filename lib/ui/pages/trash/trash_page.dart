@@ -6,6 +6,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
@@ -23,23 +24,19 @@ class TrashPage extends ConsumerWidget {
     final events = deletedEventsAsync.valueOrNull ?? [];
     final hasAny = todos.isNotEmpty || events.isNotEmpty;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(l.trash),
-        actions: [
-          if (hasAny)
-            IconButton(
-              icon: const Icon(CupertinoIcons.trash),
-              tooltip: l.emptyTrash,
-              onPressed: () => _confirmEmptyTrash(context, ref, l),
-            ),
-        ],
-      ),
-      body: deletedAsync.when(
+    return WorkspacePage(
+      title: l.trash,
+      maxContentWidth: 720,
+      actions: [
+        if (hasAny)
+          IconButton(
+            icon: const Icon(CupertinoIcons.trash, size: 18),
+            tooltip: l.emptyTrash,
+            onPressed: () => _confirmEmptyTrash(context, ref, l),
+            visualDensity: VisualDensity.compact,
+          ),
+      ],
+      child: deletedAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(l.error('$e'))),
         data: (todoRows) => deletedEventsAsync.when(

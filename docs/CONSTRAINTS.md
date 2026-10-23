@@ -171,6 +171,28 @@
 
 ## Routing / 路由
 
+### 桌面壳层在路由之外渲染时，取 router 必须用 `GoRouter.maybeOf`（2026-10-23）
+- 现象：`WorkspaceSidebar` 通过 `ShellRoute` 常驻后，仍可能在**没有路由**的上下文里构建——`HomePage` 自己包 `WorkspaceScaffold`，测试也直接挂页面；此时 `GoRouter.of(context)` 抛 `GoError: There is no GoRouterState above the current context`，页面整块炸掉（表现为 `RenderFlex overflowed by 98560 pixels` 这种离谱数值）
+- 对策：`WorkspaceSidebar.currentPath` 用 `GoRouter.maybeOf(context)`，拿不到就返回 `/`；跳转同样 `GoRouter.maybeOf(context)?.go(...)`
+- **Why**: 壳层是"可缺席的装饰"，不是路由的一部分；把 router 当必需依赖会把纯组件变成只能在特定挂载方式下工作
+- **Date**: 2026-10-23
+
+### 导航状态只有两个写点，跨页跳转必须走 URL（2026-10-23）
+- 现象：侧栏点"待办"只改 `workspaceTabProvider`，但 Home 若重新挂载会从 `defaultTabProvider` 读回默认值 → 点了没反应
+- 对策：侧栏跳转统一 `go('/?tab=N')`（`HomePage` 的 `initialTab` 消费它），provider 只做当前会话的单一所有者
+- **Why**: provider 是"当前选中"，URL 是"要去哪"；两者混用会出现"状态改了、界面没动"
+- **Date**: 2026-10-23
+
+### 新页面一律走 `WorkspacePage`，不要自建 Scaffold + AppBar + 返回箭头（2026-10-23）
+- 自建外壳在桌面端会退回手机形态（页面里再出现一条导航栏和返回按钮），与常驻侧栏叠加成两层壳
+- `WorkspacePage` 在移动端是 AppBar，在桌面端是紧凑工作区头；`maxContentWidth` 控制宽屏内容列
+- **Date**: 2026-10-23
+
+### 新建与编辑共用一个表单页，点开对象先进只读详情（2026-10-23）
+- `TodoFormPage` / `EventFormPage` 传对象即编辑、不传即新建；点开列表项进 `TodoDetailPage` / `EventDetailPage`
+- **Why**: "看"和"改"若共用同一个手势，误触会直接改坏一行数据；两个页面也曾经长出两套不一致的字段与校验
+- **Date**: 2026-10-23
+
 ### URL query params 用 tryParse 不用 parse
 - `app_router.dart` 里 `int.tryParse` 而不是 `int.parse`
 - state.extra 使用前必须做类型检查

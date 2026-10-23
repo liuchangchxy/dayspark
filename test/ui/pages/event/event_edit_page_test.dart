@@ -13,7 +13,7 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/pages/event/event_edit_page.dart';
+import 'package:dayspark/ui/pages/event/event_form_page.dart';
 
 /// `/edit` is a child of `/` so `context.pop()` after saving has somewhere to
 /// land, exactly like the real router stack.
@@ -26,7 +26,7 @@ GoRouter _router(CalendaEventAdapter event) => GoRouter(
       routes: [
         GoRoute(
           path: 'edit',
-          builder: (_, __) => EventEditPage(event: event),
+          builder: (_, __) => EventFormPage(event: event),
         ),
       ],
     ),
@@ -76,8 +76,8 @@ Future<void> _unmount(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 20));
 }
 
-Finder _field(String label) => find.byWidgetPredicate(
-  (widget) => widget is TextField && widget.decoration?.labelText == label,
+Finder _field(String hint) => find.byWidgetPredicate(
+  (widget) => widget is TextField && widget.decoration?.hintText == hint,
 );
 
 Future<void> _save(WidgetTester tester) async {
@@ -215,12 +215,9 @@ void main() {
 
       await _pump(tester, db, seeded.occurrence);
 
-      expect(find.textContaining('changes the whole series'), findsOneWidget);
       expect(
-        find.textContaining('not supported yet'),
+        find.text('This repeats. Edits apply to every occurrence.'),
         findsOneWidget,
-        reason:
-            'the single-occurrence limitation has to be stated, not implied',
       );
       await _unmount(tester);
     });
@@ -235,8 +232,8 @@ void main() {
 
       // The tapped occurrence renders at 2026-10-03; the fields must show the
       // row's own DTSTART so the write cannot smuggle the tapped date in.
-      expect(find.text('2026-10-01 09:00'), findsOneWidget);
-      expect(find.text('2026-10-03 09:00'), findsNothing);
+      expect(find.text('10/1 09:00'), findsOneWidget);
+      expect(find.text('10/3 09:00'), findsNothing);
       await _unmount(tester);
     });
 
@@ -256,7 +253,7 @@ void main() {
 
       await _pump(tester, db, CalendaEventAdapter.fromDrift(row));
 
-      expect(find.textContaining('changes the whole series'), findsNothing);
+      expect(find.text('This repeats. Edits apply to every occurrence.'), findsNothing);
       await _unmount(tester);
     });
 
@@ -268,9 +265,9 @@ void main() {
       await _pump(tester, db, seeded.occurrence);
 
       // Start 2026-10-01 -> 2026-10-05, time kept (09:00).
-      await _pickDate(tester, 'Starts at', '5');
+      await _pickDate(tester, 'Start', '5');
       // End 2026-10-01 -> 2026-10-07, time kept (09:30).
-      await _pickDate(tester, 'Ends at', '7');
+      await _pickDate(tester, 'End', '7');
 
       await _save(tester);
 
@@ -289,9 +286,11 @@ void main() {
       await _pump(tester, db, seeded.occurrence);
 
       // Switch Daily -> Weekly through the real rule editor.
-      await tester.tap(find.text('Daily').last);
+      await tester.tap(find.text('Every day').last);
       await _settle(tester);
-      await tester.tap(find.text('Weekly').last);
+      await tester.tap(find.text('Every week').last);
+      await _settle(tester);
+      await tester.tap(find.text('Done'));
       await _settle(tester);
       await _save(tester);
 
@@ -315,9 +314,11 @@ void main() {
       await _pump(tester, db, seeded.occurrence);
 
       // Switch Daily -> Never through the real rule editor.
-      await tester.tap(find.text('Daily').last);
+      await tester.tap(find.text('Every day').last);
       await _settle(tester);
-      await tester.tap(find.text('Never').last);
+      await tester.tap(find.text('Does not repeat').last);
+      await _settle(tester);
+      await tester.tap(find.text('Done'));
       await _settle(tester);
       await _save(tester);
 
@@ -338,7 +339,7 @@ void main() {
       final seeded = await _seedSeries(db);
 
       await _pump(tester, db, seeded.occurrence);
-      await tester.tap(find.byIcon(CupertinoIcons.delete));
+      await tester.tap(find.byIcon(CupertinoIcons.trash));
       await _settle(tester);
 
       expect(
@@ -451,8 +452,8 @@ void main() {
       final row = await _row(db, id);
 
       await _pump(tester, db, CalendaEventAdapter.fromDrift(row));
-      await _pickDate(tester, 'Starts at', '9');
-      await _pickDate(tester, 'Ends at', '9');
+      await _pickDate(tester, 'Start', '9');
+      await _pickDate(tester, 'End', '9');
       await _save(tester);
 
       final after = await _row(db, id);
@@ -478,7 +479,9 @@ void main() {
       final row = await _row(db, id);
 
       await _pump(tester, db, CalendaEventAdapter.fromDrift(row));
-      await _pickDate(tester, 'Starts at', '9');
+      // Moving the end earlier than the start is the only way to produce an
+      // inverted range now that moving the start preserves the duration.
+      await _pickDate(tester, 'End', '2');
       await _save(tester);
 
       expect(find.text('End time must be after start time'), findsOneWidget);
@@ -503,7 +506,7 @@ void main() {
       final row = await _row(db, id);
 
       await _pump(tester, db, CalendaEventAdapter.fromDrift(row));
-      await _pickDateOnly(tester, 'Starts at', '9');
+      await _pickDateOnly(tester, 'End', '2');
       await _save(tester);
 
       expect(find.text('End time must be after start time'), findsOneWidget);

@@ -3,14 +3,47 @@
 **TL;DR / 快速了解**
 - 2026-10-06：重复 Todo 架构回正：实例完成状态按 `(series syncId, occurrenceId)` 稀疏存储；完成/撤销只影响选定 occurrence；新 schema v14 不推断旧 `COMPLETED` series 的实例；同步、Busy Time 与 MCP 同步接入。PR #2 已建立；本轮 hard-delete 生命周期、MCP occurrence 查询与 missed-obligation 语义修正由 PR 更新承载。
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.28.0+28** — 同步补齐最后一块：提醒/标签/附件元数据跨设备同步（schema v15），附件本体真正上传与按需下载，删附件时本地文件 + 行 + 服务端 blob 一起清，整机备份升级成 zip（`db.json` + 附件本体），客户端残留的重复规则 legacy 分支删除 / Sync closes the last gaps: reminders, tags and attachment metadata cross devices (schema v15), attachment blobs are really uploaded and fetched on demand, deleting one clears local file + row + server blob, backup is one zip (`db.json` plus attachment bodies), and the client's leftover recurrence-legacy branches are gone
-- 上一版本 / Previous: **v0.27.0+28** — 设备注册 + 双语护栏：账号能看到自己的已连接设备（`POST /devices/register`、`GET /devices`、`x-device-id` 真正发出去、设置页设备列表），AI 按界面语言回答而不是碰运气，切换语言会重发已排期的提醒，另加四道本地化护栏（字典键对齐 / 裸文案扫描 / 文案出口清单 / 门禁总账） / Sync devices + localization guards: an account can now see its connected devices, the AI answers in the app language instead of guessing, switching language re-issues already-scheduled reminders, plus four guards over the localization surface
+- 最新版本 / Latest: **v0.29.0+29** — 全局 UI/UX 骨架统一：顶层只剩 Action / Calendar / Todo（Today/Inbox 成为 Todo 内部视图），Action 只回答"现在/今天该做什么"，Todo 只问截止时间与执行时间且执行时间新建时即可安排，新建与编辑合并为同一个表单页、点开对象先看详情再决定编辑，桌面侧栏通过 `ShellRoute` 全站常驻、所有页面统一 `WorkspacePage`；旧重复待办的一次性修复不再暴露 RRULE / 导入证据 / 手打时区，只剩"从哪天开始重复"一个问题 / One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox are Todo views), Action answers only "what now/today", Todo asks only deadline and execution time (schedule at creation), create and edit are one form while tapping an item opens a read-only detail, the desktop rail persists across the whole app through `ShellRoute`, and the one-time legacy repair asks only which day the series repeats from
+- 上一版本 / Previous: **v0.28.0+28** — 同步补齐最后一块：提醒/标签/附件元数据跨设备同步（schema v15），附件本体真正上传与按需下载，删附件时本地文件 + 行 + 服务端 blob 一起清，整机备份升级成 zip（`db.json` + 附件本体），客户端残留的重复规则 legacy 分支删除 / Sync closes the last gaps: reminders, tags and attachment metadata cross devices (schema v15), attachment blobs are really uploaded and fetched on demand, deleting one clears local file + row + server blob, backup is one zip (`db.json` plus attachment bodies), and the client's leftover recurrence-legacy branches are gone
 - 更早 / Earlier: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
 - 最新流程改进 / Pipeline: **门禁总账 + 变异实证（一条没红过的门禁视为不存在）+ 出口清单 + 流程文档五件** — 2026-10-01
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
 
 ---
 
+## v0.29.0+29 — One Product / 全局 UI/UX 骨架统一
+
+**用户反馈原文 / User feedback:** 「Home 的三页换了皮，别的地方还是旧软件」「先冻结正确的产品骨架，然后直接实施」「避免不必要的次级标签和说明文字，让布局本身说明功能」「不要改数据库 schema / sync protocol / 领域模型 / 重写 recurrence engine」「如果已经完成，不要主动制造下一阶段。」
+
+### Features / 新功能
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|------|
+| 1 | **顶层导航只剩 Action / Calendar / Todo** | Today 与 Inbox 不再是并列的顶层页，而是 Todo 内部的视图（`TodosView` 三态：某一天 / 收件箱 / 全部）；「六件事」跟着 Todo 走，不再由 Action 去控制另一个页面。导航只有唯一所有者 `workspaceTabProvider` + `todosViewProvider`，侧栏、底栏、页面标题都读它 |
+| 2 | **Action 只回答"现在/今天该做什么"** | 保留：正在发生（暖色）、稍后、今日时间轴、今日截止、逾期。移出：重复规则修复、引擎诊断、技术错误、Todo 管理能力。桌面右侧 Inspector 是只读详情面，编辑是独立的第二步 |
+| 3 | **Todo 只问两个时间问题** | `截止时间`（by when）与`执行时间`（when I'll do it）。执行时间在**新建时**就能填，不再"先保存、再打开、再安排"；时间区间的长度是选项而不是让用户自己减 |
+| 4 | **Todo / Event 各自只有一个表单页** | 新建与编辑是同一个 `TodoFormPage` / `EventFormPage`（传不传对象而已），点开对象进入只读 `TodoDetailPage` / `EventDetailPage`。"看"和"改"不再共用同一个手势，误触不会改坏一行数据 |
+| 5 | **桌面 Shell 真正全局** | `ShellRoute` 包住 settings / search / tags / calendars / ai-chat / about / trash / feedback / 新建 / 详情 / 编辑，侧栏在整站常驻；所有页面统一 `WorkspacePage`（移动端 AppBar、桌面端紧凑工作区头），不再出现"桌面里套手机页 + 自己的返回箭头" |
+| 6 | **排期词汇表统一** | `ScheduleRow` / `SectionLabel` / `RowDivider` + `pickDeadline` / `pickDateTime` / `formatMoment` / `formatDeadline` / `formatExecutionRange`：截止与执行靠布局区分，不靠说明文字 |
+
+### Fixes / 修复
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|------|
+| 1 | **全天事件不再问钟点** | 全天事件的起止走日期选择器；给一个没有钟点的东西问时间，是用户已经回答过的问题 |
+| 2 | **事件日历被删后不再静默搬家** | 悬空 `calendarId` 会在表单里标为"日历不可用"并要求重新选择；此前会悄悄落到第一个日历 |
+| 3 | **过去的时间不再被叫"逾期"** | `formatMoment` 只描述"事情发生在什么时候"，"逾期"是另一件事（截止）的判词 |
+| 4 | **重复规则不再显示成"自定义"** | 带 `COUNT`/`UNTIL` 的规则仍然是每天/每周/…，行里按 `FREQ` 说话，细节留在面板里 |
+| 5 | **移动端 Todo 头部不再溢出** | 月份与三个视图筛选在 390pt 宽度下从一行改为两段（筛选横向可滚），不再 `RenderFlex overflowed` |
+| 6 | **旧重复待办的一次性修复只问一个问题** | 对话框不再展示 RRULE 字符串、导入证据（如 `vtimezoneConflict`）、VTIMEZONE 说明，也不再让人手打时区名与 `YYYY-MM-DDTHH:mm:ss`；只问"从哪天开始重复"，并给出后续日期预览，时区取设备值 |
+
+### Constraints / 新增约束
+
+- 桌面壳层用 `GoRouter.maybeOf`：`WorkspaceSidebar` 可能在路由之外渲染（如测试里直接挂页面），拿不到 router 时降级为 `/`，不抛 `GoError`
+- `WorkspacePage` 是页面唯一外壳：新增页面不要自己 `Scaffold` + `AppBar` + 返回箭头，否则桌面端会退回手机形态
+- 导航状态只有 `workspaceTabProvider` / `todosViewProvider` 两个写点；侧栏跳转用 `go('/?tab=N')` 而不是只改 provider，否则新挂载的 Home 会读回默认值
+
+---
 ## v0.28.0+28 — Sync Closure & Full Backup / 同步补齐与整机备份
 
 **用户反馈原文 / User feedback:** 「DS-023 Attachments Sync ⚠️ 未完全清零 —— Server 已有 upload/download，测试也能手工上传下载，但生产客户端 createAttachmentProvider 仍只保存本地 filePath + enqueue metadata，没有实际把文件上传到 Server，也没有正常客户端的下载/删除文件闭环」「DS-024 Native Backup ❌ 未清零 —— BackupService 只备份 Attachment metadata / filePath / serverFileRef，没有把附件文件本体打进备份包；测试也只验证 metadata」「OE-012 recurrence legacy ❌ 没做 —— 当前 sync_engine.dart 仍存在 recurrenceLegacyState、knownZoned 等 legacy 分支」→「修复这些问题。」

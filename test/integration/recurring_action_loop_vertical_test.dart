@@ -272,9 +272,14 @@ void main() {
       final checkboxFinder = find.byType(Checkbox);
       expect(checkboxFinder, findsWidgets);
 
-      // Target the exact occurrence-bound allocation Checkbox via its unique ValueKey
-      final allocationCheckboxFinder = find.byKey(
-        ValueKey('allocation-checkbox-${allocation.id}'),
+      // Target the exact occurrence-bound allocation row, then the checkbox
+      // inside it: tapping the row itself opens the todo, not completion.
+      final allocationRow = find.byKey(
+        ValueKey('action-allocation-${allocation.id}'),
+      );
+      final allocationCheckboxFinder = find.descendant(
+        of: allocationRow,
+        matching: find.byType(Checkbox),
       );
       expect(
         allocationCheckboxFinder,

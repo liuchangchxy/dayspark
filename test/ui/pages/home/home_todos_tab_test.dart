@@ -18,7 +18,7 @@ GoRouter _router() => GoRouter(
   routes: [
     GoRoute(path: '/', builder: (_, __) => const HomePage(initialTab: 2)),
     GoRoute(
-      path: '/todo/edit',
+      path: '/todo/detail',
       builder: (_, __) => const Scaffold(body: SizedBox.shrink()),
     ),
     GoRoute(
