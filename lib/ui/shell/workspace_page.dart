@@ -43,7 +43,7 @@ class WorkspacePage extends StatelessWidget {
     if (!desktop) {
       return Scaffold(
         appBar: AppBar(
-          leading: BackButton(onPressed: () => context.pop()),
+          leading: BackButton(onPressed: () => _leave(context)),
           title: titleWidget ?? Text(title),
           actions: actions,
         ),
@@ -67,7 +67,7 @@ class WorkspacePage extends StatelessWidget {
                   IconButton(
                     icon: const Icon(CupertinoIcons.back, size: 18),
                     tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                    onPressed: () => context.pop(),
+                    onPressed: () => _leave(context),
                     visualDensity: VisualDensity.compact,
                   ),
                   const SizedBox(width: AppSpacing.xs),
@@ -109,6 +109,17 @@ class WorkspacePage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Deep links and the desktop rail can land on a page with nothing beneath it,
+/// so leaving has to fall back to Home instead of throwing.
+void _leave(BuildContext context) {
+  final router = GoRouter.maybeOf(context);
+  if (router != null && router.canPop()) {
+    context.pop();
+    return;
+  }
+  router?.go('/');
 }
 
 /// Primary action on a [WorkspacePage] — same shape in the mobile AppBar and
