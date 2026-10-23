@@ -10,6 +10,16 @@ import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
+/// "Today" is a place, not a mode: selecting any other day inside Todo leaves
+/// the day view active, so the label only lights up when the day really is
+/// today.
+bool _viewIsToday(TodosView view) {
+  if (view is! TodosDayView) return false;
+  final now = DateTime.now();
+  final day = view.day;
+  return day.year == now.year && day.month == now.month && day.day == now.day;
+}
+
 /// Desktop workspace rail. Lives outside the router so every destination —
 /// Home, Settings, Search, a pushed detail — keeps the same chrome; the
 /// selected destination is derived from the current location, not from the
@@ -70,7 +80,7 @@ class WorkspaceSidebar extends ConsumerWidget {
                 // children of it rather than as three more destinations.
                 _SubNavigationItem(
                   label: l.today,
-                  selected: tab == AppTab.todos && view is TodosDayView,
+                  selected: tab == AppTab.todos && _viewIsToday(view),
                   onTap: () {
                     final now = DateTime.now();
                     _goTodosView(
@@ -136,9 +146,7 @@ class WorkspaceSidebar extends ConsumerWidget {
   /// Without a router (a bare page in a test or an embedding host) the
   /// provider write above is the whole interaction.
   static void _goHome(BuildContext context, AppTab tab) {
-    GoRouter.maybeOf(
-      context,
-    )?.go('/?tab=${AppTab.values.indexOf(tab)}');
+    GoRouter.maybeOf(context)?.go('/?tab=${AppTab.values.indexOf(tab)}');
   }
 
   static void _goTab(BuildContext context, WidgetRef ref, AppTab tab) {
@@ -167,7 +175,12 @@ class _WorkspaceHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.xs, AppSpacing.sm, 0),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.xs,
+        AppSpacing.sm,
+        0,
+      ),
       child: Row(
         children: [
           Container(
@@ -328,7 +341,8 @@ class _SubNavigationItem extends StatelessWidget {
   }
 }
 
-class _SidebarRow extends StatelessWidget {  const _SidebarRow({
+class _SidebarRow extends StatelessWidget {
+  const _SidebarRow({
     required this.child,
     required this.selected,
     required this.onTap,

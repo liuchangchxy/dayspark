@@ -5,6 +5,7 @@ import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
@@ -37,6 +38,29 @@ String expansionError(AppLocalizations l, Object error) {
   return l.error('$error');
 }
 
+/// The zone a pre-migration series actually belongs to.
+///
+/// The evidence row often still carries the TZID the series was imported with,
+/// and re-homing that series to the device zone would shift every occurrence.
+/// An unrecognisable or missing TZID leaves the device zone as the only
+/// defensible reading.
+String legacyRecurrenceTimeZone(Todo todo) {
+  String? rawTzid;
+  try {
+    rawTzid = LegacyRecurrenceEvidence.decode(todo.recurrenceEvidence)?.rawTzid;
+  } on FormatException {
+    rawTzid = null;
+  }
+  if (rawTzid == null) return tz.local.name;
+  ensureTodoRecurrenceTimeZonesInitialized();
+  try {
+    tz.getLocation(rawTzid);
+  } on tz.LocationNotFoundException {
+    return tz.local.name;
+  }
+  return rawTzid;
+}
+
 /// The one-time conversation for a pre-migration recurring todo.
 ///
 /// Older rows carry a rule whose anchor and zone were never recorded, so the app
@@ -61,6 +85,9 @@ Future<bool> confirmLegacyRecurrence(
   final source = freshTodo.startDate != null
       ? RecurrenceAnchorSource.start
       : RecurrenceAnchorSource.due;
+  // Preview and save must agree on the zone, or the dates shown would not be
+  // the dates written.
+  final timeZone = legacyRecurrenceTimeZone(freshTodo);
   var previewLabels = <String>[];
   String? previewError;
   var previewed = false;
@@ -81,9 +108,9 @@ Future<bool> confirmLegacyRecurrence(
               source: source,
               value: _localValue(anchor, asDate),
             ),
-            // The zone was never recorded; the device's own is the only
-            // defensible default, and it is what the series will run on.
-            timeZone: tz.local.name,
+            // The evidence's own zone when it is still recognisable; the
+            // device's otherwise.
+            timeZone: timeZone,
             rrule: freshTodo.rrule!.startsWith('RRULE:')
                 ? freshTodo.rrule!.substring(6)
                 : freshTodo.rrule!,
@@ -119,7 +146,9 @@ Future<bool> confirmLegacyRecurrence(
                   )
                 : InstantWindow(
                     startInclusive: instantWindowStart,
-                    endExclusive: instantWindowStart.add(const Duration(days: 90)),
+                    endExclusive: instantWindowStart.add(
+                      const Duration(days: 90),
+                    ),
                   ),
             limit: 100,
           );
@@ -251,7 +280,7 @@ Future<bool> confirmLegacyRecurrence(
   try {
     await ref.read(confirmLegacyRecurrenceProvider)(
       todoId: freshTodo.id,
-      timeZone: tz.local.name,
+      timeZone: timeZone,
       interpretation: RecurrenceAnchor(
         source: source,
         value: _localValue(anchor, asDate),

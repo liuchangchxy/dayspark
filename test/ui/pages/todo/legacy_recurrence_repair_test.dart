@@ -9,6 +9,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 void main() {
   late AppDatabase db;
@@ -85,7 +86,9 @@ void main() {
       find.text('Some repeating todos need a one-time fix'),
       findsNWidgets(2),
     );
-    await tester.tap(find.text('Some repeating todos need a one-time fix').last);
+    await tester.tap(
+      find.text('Some repeating todos need a one-time fix').last,
+    );
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -94,7 +97,10 @@ void main() {
     // The repair asks for the day the series repeats from and nothing else:
     // the rule string, the import evidence and the zone id are not questions
     // a person can answer.
-    expect(find.textContaining('imported before the app recorded'), findsOneWidget);
+    expect(
+      find.textContaining('imported before the app recorded'),
+      findsOneWidget,
+    );
     expect(find.textContaining('FREQ='), findsNothing);
     expect(find.text('Series time zone'), findsNothing);
     await unmount(tester);
@@ -116,7 +122,9 @@ void main() {
     );
 
     await pumpForm(tester, todo);
-    await tester.tap(find.text('Some repeating todos need a one-time fix').last);
+    await tester.tap(
+      find.text('Some repeating todos need a one-time fix').last,
+    );
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -139,8 +147,43 @@ void main() {
       db.todos,
     )..where((row) => row.id.equals(2))).getSingle();
     expect(confirmed.recurrenceLegacyState, 'knownZoned');
-    expect(confirmed.recurrenceTimeZone, isNotEmpty);
+    // The imported series keeps the zone it was imported in; the device zone
+    // would move every occurrence.
+    expect(confirmed.recurrenceTimeZone, 'America/New_York');
     expect(confirmed.recurrenceAnchorValue, '2026-10-05T09:00:00');
+    await unmount(tester);
+  });
+
+  testWidgets('legacy confirmation falls back to the device zone', (
+    tester,
+  ) async {
+    final todo = await insertLegacy(
+      4,
+      rrule: 'FREQ=WEEKLY;COUNT=4',
+      startDate: DateTime(2026, 10, 5, 9),
+    );
+
+    await pumpForm(tester, todo);
+    await tester.tap(
+      find.text('Some repeating todos need a one-time fix').last,
+    );
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.tap(find.text('Preview'));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.tap(find.text('Save').last);
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    final confirmed = await (db.select(
+      db.todos,
+    )..where((row) => row.id.equals(4))).getSingle();
+    expect(confirmed.recurrenceLegacyState, 'knownZoned');
+    expect(confirmed.recurrenceTimeZone, tz.local.name);
     await unmount(tester);
   });
 

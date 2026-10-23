@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
@@ -121,7 +120,6 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     final theme = Theme.of(context);
     final mobile = MediaQuery.sizeOf(context).width < 700;
     final date = ref.watch(actionDateProvider);
-    final monday = date.subtract(Duration(days: date.weekday - 1));
     return Padding(
       padding: EdgeInsets.fromLTRB(
         mobile ? AppSpacing.lg : 28,
@@ -131,59 +129,6 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
       ),
       child: Column(
         children: [
-          if (mobile)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Row(
-                children: List.generate(7, (index) {
-                  final day = monday.add(Duration(days: index));
-                  final selected = DateUtils.isSameDay(day, date);
-                  return Expanded(
-                    child: SizedBox(
-                      height: 64,
-                      child: TextButton(
-                        key: ValueKey('action-week-$index'),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          foregroundColor: selected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                          backgroundColor: selected
-                              ? theme.colorScheme.primary.withValues(alpha: .09)
-                              : null,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        onPressed: () =>
-                            ref.read(actionDateProvider.notifier).state =
-                                DateTime(day.year, day.month, day.day),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              DateFormat.E(
-                                Localizations.localeOf(context).toString(),
-                              ).format(day),
-                              style: AppTypography.overline,
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              '${day.day}',
-                              style: AppTypography.title.copyWith(
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
           Row(
             children: [
               Expanded(child: _buildSummary(context, ref, theme, l)),
@@ -291,9 +236,7 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                       Text(
                         hour.toString().padLeft(2, '0'),
                         style: AppTypography.overline.copyWith(
-                          fontFeatures: const [
-                            FontFeature.tabularFigures(),
-                          ],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -344,9 +287,7 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     }
     final separator = Text(
       ' · ',
-      style: AppTypography.caption.copyWith(
-        color: theme.colorScheme.outline,
-      ),
+      style: AppTypography.caption.copyWith(color: theme.colorScheme.outline),
     );
     return Row(
       children: [
@@ -568,9 +509,9 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
       key: ValueKey('action-missed-${instance.occurrenceId}'),
       time: null,
       dateHint: formatOccurrenceAnchor(
-                    context,
-                    instance.occurrence.displayLabel,
-                  ),
+        context,
+        instance.occurrence.displayLabel,
+      ),
       icon: CupertinoIcons.exclamationmark_triangle,
       iconColor: Theme.of(context).colorScheme.error,
       title: instance.todo.summary,
@@ -620,7 +561,9 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     if (current.isNotEmpty) {
       rows.add(_SectionHeader(title: l.actionNow, accent: AppColors.brandWarm));
       for (final entry in current) {
-        rows.add(_buildTimelineEntry(context, ref, entry, l, theme, warm: true));
+        rows.add(
+          _buildTimelineEntry(context, ref, entry, l, theme, warm: true),
+        );
       }
     }
     if (later.isNotEmpty) {
@@ -643,7 +586,9 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     if (entry.isEvent) {
       final event = entry.event!;
       return _ActionRow(
-        key: ValueKey('action-event-${event.drifId}-${event.start.millisecondsSinceEpoch}'),
+        key: ValueKey(
+          'action-event-${event.drifId}-${event.start.millisecondsSinceEpoch}',
+        ),
         time: DateFormatters.formatTime(entry.start),
         icon: CupertinoIcons.circle_fill,
         iconColor: event.color ?? theme.colorScheme.primary,
@@ -688,7 +633,8 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
       title: todo.summary,
       meta: l.deadlineToday,
       completed: false,
-      onToggle: () => ref.read(toggleTodoProvider)(id: todo.id, isCompleted: true),
+      onToggle: () =>
+          ref.read(toggleTodoProvider)(id: todo.id, isCompleted: true),
       onTap: () => _selectTodo(context, todo),
     );
   }
@@ -1038,18 +984,13 @@ class _Inspector extends ConsumerWidget {
                 IconButton(
                   onPressed: onClose,
                   icon: const Icon(CupertinoIcons.xmark, size: 16),
-                  tooltip: MaterialLocalizations.of(
-                    context,
-                  ).closeButtonTooltip,
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                   visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              todo?.summary ?? event!.title,
-              style: AppTypography.headline,
-            ),
+            Text(todo?.summary ?? event!.title, style: AppTypography.headline),
             const SizedBox(height: AppSpacing.lg),
             if (todo?.dueDate != null)
               ScheduleRow(
