@@ -55,12 +55,15 @@ class DateStrip extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top row: month label + today + calendar + todo box
+          // Top row: month label + today + calendar + filter chips. The chip
+          // group scrolls so long localized labels cannot overflow the row.
           Row(
             children: [
-              Expanded(
+              Flexible(
                 child: Text(
                   monthLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -88,33 +91,44 @@ class DateStrip extends StatelessWidget {
                 onPressed: onCalendarTap,
               ),
               const SizedBox(width: 4),
-              _chip(
-                context: context,
-                label: l.allTasks,
-                selected: showAllMode,
-                accentColor: theme.colorScheme.primary,
-                onTap: () => onShowAll?.call(),
-              ),
-              const SizedBox(width: 4),
-              _chip(
-                context: context,
-                label: l.inbox,
-                selected: selectedDate == null && !showAllMode,
-                accentColor: theme.colorScheme.tertiary,
-                onTap: () => onDateSelected(null),
-              ),
-              const SizedBox(width: 4),
-              _chip(
-                context: context,
-                label: l.sixThings,
-                selected: sixThingsMode,
-                accentColor: theme.colorScheme.secondary,
-                onTap: () => onSixThingsToggle?.call(),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  reverse: true,
+                  child: Row(
+                    children: [
+                      _filterChip(
+                        context: context,
+                        label: l.allTasks,
+                        selected: showAllMode,
+                        accentColor: theme.colorScheme.primary,
+                        onTap: () => onShowAll?.call(),
+                      ),
+                      const SizedBox(width: 4),
+                      _filterChip(
+                        context: context,
+                        label: l.inbox,
+                        selected: selectedDate == null && !showAllMode,
+                        accentColor: theme.colorScheme.tertiary,
+                        onTap: () => onDateSelected(null),
+                      ),
+                      const SizedBox(width: 4),
+                      _filterChip(
+                        context: context,
+                        label: l.sixThings,
+                        selected: sixThingsMode,
+                        accentColor: theme.colorScheme.secondary,
+                        onTap: () => onSixThingsToggle?.call(),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
           // Date row: left arrow + 7 days + right arrow
           Row(
+            key: const ValueKey('date-strip-week'),
             children: [
               IconButton(
                 icon: const Icon(CupertinoIcons.chevron_left, size: 18),
@@ -231,48 +245,145 @@ class DateStrip extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _chip({
-    required BuildContext context,
-    required String label,
-    required bool selected,
-    required Color accentColor,
-    required VoidCallback onTap,
-  }) {
+class TodoDesktopToolbar extends StatelessWidget {
+  final DateTime? selectedDate;
+  final ValueChanged<DateTime?> onDateSelected;
+  final VoidCallback? onCalendarTap;
+  final bool showAllMode;
+  final VoidCallback? onShowAll;
+  final bool sixThingsMode;
+  final VoidCallback? onSixThingsToggle;
+  final List<Widget> trailing;
+
+  const TodoDesktopToolbar({
+    super.key,
+    required this.selectedDate,
+    required this.onDateSelected,
+    this.onCalendarTap,
+    this.showAllMode = false,
+    this.onShowAll,
+    this.sixThingsMode = false,
+    this.onSixThingsToggle,
+    this.trailing = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Semantics(
-      label: label,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
+    final l = AppLocalizations.of(context)!;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final locale = Localizations.localeOf(context).toString();
+    final anchor = selectedDate ?? today;
+    final monthLabel = DateFormat.yM(locale).format(anchor);
+    final showTodayButton =
+        selectedDate != null && !DateUtils.isSameDay(selectedDate, today);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Text(
+            monthLabel,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
-            decoration: BoxDecoration(
-              color: selected ? accentColor : null,
-              borderRadius: BorderRadius.circular(8),
-              border: !selected
-                  ? Border.all(color: theme.dividerColor, width: 1)
-                  : null,
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: AppTypography.caption.fontSize,
-                fontWeight: FontWeight.w600,
-                color: selected
-                    ? theme.colorScheme.onTertiary
-                    : theme.textTheme.bodySmall?.color,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          if (showTodayButton)
+            TextButton(
+              onPressed: () => onDateSelected(today),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               ),
+              child: Text(
+                l.today,
+                style: TextStyle(
+                  fontSize: AppTypography.caption.fontSize,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(CupertinoIcons.calendar, size: 18),
+            onPressed: onCalendarTap,
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          _filterChip(
+            context: context,
+            label: l.allTasks,
+            selected: showAllMode,
+            accentColor: theme.colorScheme.primary,
+            onTap: () => onShowAll?.call(),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          _filterChip(
+            context: context,
+            label: l.inbox,
+            selected: selectedDate == null && !showAllMode,
+            accentColor: theme.colorScheme.tertiary,
+            onTap: () => onDateSelected(null),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          _filterChip(
+            context: context,
+            label: l.sixThings,
+            selected: sixThingsMode,
+            accentColor: theme.colorScheme.secondary,
+            onTap: () => onSixThingsToggle?.call(),
+          ),
+          const Spacer(),
+          ...trailing,
+        ],
+      ),
+    );
+  }
+}
+
+Widget _filterChip({
+  required BuildContext context,
+  required String label,
+  required bool selected,
+  required Color accentColor,
+  required VoidCallback onTap,
+}) {
+  final theme = Theme.of(context);
+  return Semantics(
+    label: label,
+    child: Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: selected ? accentColor : null,
+            borderRadius: BorderRadius.circular(8),
+            border: !selected
+                ? Border.all(color: theme.dividerColor, width: 1)
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: AppTypography.caption.fontSize,
+              fontWeight: FontWeight.w600,
+              color: selected
+                  ? theme.colorScheme.onTertiary
+                  : theme.textTheme.bodySmall?.color,
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

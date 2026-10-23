@@ -169,10 +169,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get search => '搜索';
 
   @override
+  String get searchTasksAndEvents => '搜索任务与事件';
+
+  @override
   String get newEvent => '新建日程';
 
   @override
   String get newTodo => '新建待办';
+
+  @override
+  String get newItem => '新建';
 
   @override
   String get editEvent => '编辑日程';

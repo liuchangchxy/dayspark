@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
@@ -313,7 +315,127 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                 ),
             ],
           ),
+          if (!mobile) _buildRhythm(context, ref, theme, date),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRhythm(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    DateTime date,
+  ) {
+    const startMinute = 6 * 60;
+    const endMinute = 22 * 60;
+    const span = endMinute - startMinute;
+    final data = ref.watch(actionProjectionProvider).valueOrNull;
+    final entries = <_TimelineEntry>[
+      if (data != null) ...data.events.map(_TimelineEntry.event),
+      if (data != null) ...data.allocations.map(_TimelineEntry.allocation),
+    ];
+    final now = DateTime.now();
+    final dayStart = DateTime(date.year, date.month, date.day);
+    double ratio(DateTime value) =>
+        ((value.difference(dayStart).inMinutes - startMinute) / span).clamp(
+          0.0,
+          1.0,
+        );
+    final showNow =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    final nowRatio = ((now.hour * 60 + now.minute - startMinute) / span).clamp(
+      0.0,
+      1.0,
+    );
+
+    return Padding(
+      key: const ValueKey('action-rhythm'),
+      padding: const EdgeInsets.only(top: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final trackWidth = math.max(80.0, constraints.maxWidth - 12 - 138);
+          return Row(
+            children: [
+              SizedBox(
+                width: trackWidth,
+                height: 10,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                    for (final entry in entries)
+                      if (entry.end.difference(dayStart).inMinutes >
+                              startMinute &&
+                          entry.start.difference(dayStart).inMinutes <
+                              endMinute)
+                        Positioned(
+                          left: ratio(entry.start) * trackWidth,
+                          width: math.max(
+                            2.0,
+                            (ratio(entry.end) - ratio(entry.start)) *
+                                trackWidth,
+                          ),
+                          top: 1,
+                          bottom: 1,
+                          child: _rhythmBlock(theme, entry),
+                        ),
+                    if (showNow)
+                      Positioned(
+                        left: nowRatio * trackWidth - 0.75,
+                        top: -2,
+                        bottom: -2,
+                        child: Container(
+                          width: 1.5,
+                          color: AppColors.brandWarm,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 138,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    for (final hour in [6, 9, 12, 15, 18, 21])
+                      Text(
+                        hour.toString().padLeft(2, '0'),
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _rhythmBlock(ThemeData theme, _TimelineEntry entry) {
+    final color = entry.isEvent
+        ? (entry.event!.color ?? theme.colorScheme.primary)
+        : theme.colorScheme.secondary;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: entry.isEvent ? .36 : .12),
+        borderRadius: BorderRadius.circular(2),
+        border: entry.isEvent
+            ? null
+            : Border.all(color: color.withValues(alpha: .55), width: 1),
       ),
     );
   }

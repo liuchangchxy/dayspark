@@ -169,10 +169,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get search => 'Search';
 
   @override
+  String get searchTasksAndEvents => 'Search tasks and events';
+
+  @override
   String get newEvent => 'New Event';
 
   @override
   String get newTodo => 'New Todo';
+
+  @override
+  String get newItem => 'New';
 
   @override
   String get editEvent => 'Edit Event';

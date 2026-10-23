@@ -116,4 +116,71 @@ Future<void> _seed(ProviderContainer container, AppDatabase db) async {
   await meeting('设计评审', at(11, 30), 60);
   await meeting('跨团队项目同步', at(14), 60);
   await meeting('发布准备会', now.add(const Duration(minutes: 30)), 30);
+
+  // Calendar acceptance density: the frozen D Final Calendar shot is a full
+  // week with several time slots per day, a multi-day all-day block and
+  // deadlines spread across the week. Seed the whole visible week so the
+  // high-density layout can be compared against it.
+  final weekStart = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).subtract(Duration(days: now.weekday - 1));
+  DateTime weekDay(int index, int hour, [int minute = 0]) {
+    final day = weekStart.add(Duration(days: index));
+    return DateTime(day.year, day.month, day.day, hour, minute);
+  }
+
+  for (final entry in <int, String>{
+    0: '整理周一行动项',
+    1: '提交客户回访纪要',
+    3: '确认供应商合同条款',
+    4: '汇总本周发布指标',
+    6: '准备下周计划草稿',
+  }.entries) {
+    await todo(entry.value, due: weekDay(entry.key, 18));
+  }
+
+  await meeting('周会', weekDay(0, 9, 30), 45);
+  await meeting('客户回访', weekDay(0, 14), 60);
+  await meeting('产品评审', weekDay(1, 10), 90);
+  await meeting('一对一沟通', weekDay(1, 16), 30);
+  await meeting('深度工作时段', weekDay(2, 9), 120);
+  await meeting('供应商会议', weekDay(2, 15), 45);
+  await meeting('设计走查', weekDay(3, 11), 45);
+  await meeting('周报同步', weekDay(3, 16, 30), 30);
+  await meeting('发布准备', weekDay(4, 10), 60);
+  await meeting('周复盘', weekDay(4, 15), 60);
+  await meeting('家庭安排', weekDay(5, 10), 120);
+  await meeting('下周计划', weekDay(6, 19), 45);
+  await event(
+    calendarId: calendar,
+    summary: '设计与研发联合工作坊',
+    startDt: weekDay(2, 0),
+    endDt: weekDay(4, 0),
+    isAllDay: true,
+  );
+
+  final planning = await todo('准备 Q4 复盘材料', due: weekDay(4, 18));
+  await allocate(
+    todoId: budget,
+    startAt: weekDay(1, 16, 30),
+    endAt: weekDay(1, 17, 30),
+  );
+  await allocate(
+    todoId: budget,
+    startAt: weekDay(3, 15),
+    endAt: weekDay(3, 16),
+  );
+  await allocate(todoId: focus, startAt: weekDay(0, 10), endAt: weekDay(0, 11));
+  await allocate(
+    todoId: focus,
+    startAt: weekDay(2, 14),
+    endAt: weekDay(2, 15, 30),
+  );
+  await allocate(
+    todoId: planning,
+    startAt: weekDay(2, 10),
+    endAt: weekDay(2, 11, 30),
+  );
 }

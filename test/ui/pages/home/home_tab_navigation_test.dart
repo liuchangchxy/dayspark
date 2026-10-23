@@ -8,6 +8,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
+import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/workspace_sidebar.dart';
 
 Widget _app(AppDatabase db) {
@@ -203,6 +204,54 @@ void main() {
       lessThanOrEqualTo(1),
       reason: 'Action=$actionLeft Todos=$todoLeft',
     );
+    await _unmount(tester);
+  });
+
+  testWidgets('desktop todo swaps the week strip for the compact toolbar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
+    await tester.pumpWidget(_app(db));
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byType(TodoDesktopToolbar), findsOneWidget);
+    expect(find.byKey(const ValueKey('date-strip-week')), findsNothing);
+    // The filters themselves stay available.
+    expect(
+      find.descendant(
+        of: find.byType(TodoDesktopToolbar),
+        matching: find.text('All Tasks'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(TodoDesktopToolbar),
+        matching: find.text('To-do Box'),
+      ),
+      findsOneWidget,
+    );
+    await _unmount(tester);
+  });
+
+  testWidgets('mobile todo keeps the touch week strip', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
+    await tester.pumpWidget(_app(db));
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byType(TodoDesktopToolbar), findsNothing);
+    expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 }

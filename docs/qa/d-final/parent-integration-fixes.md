@@ -40,9 +40,12 @@ prototype source (`app.js` / `style.css`) rather than against the prose summary.
   already carries three pills plus the calendar action at 390dp; adding it produced a
   measured 76px `RenderFlex` overflow. Mobile reaches the toggle from the Todo tab
   strip instead, keeping the "mobile first screen is not crowded" requirement.
-- **Todo ordinal column, `?tab=` deep-link, sidebar inventory, `rhythm` strip,
-  status bar, alarm/notification sheet.** Pre-existing behaviour outside this
-  redesign's boundary, or unreachable in the acceptance harness.
+- **Todo ordinal column, `?tab=` deep-link, sidebar inventory, status bar,
+  alarm/notification sheet.** Pre-existing behaviour outside this redesign's
+  boundary, or unreachable in the acceptance harness.
+- **`rhythm` strip and the desktop Todo date strip** were listed here in round 1;
+  the follow-up review required both, and they were implemented in round 2 — see
+  `review-round-2.md`.
 - **Detector/review claims about mobile ordering.** `detector-review.md` states D Final
   prioritises the current task over overdue on mobile; `app.js:400-403` renders
   逾期 → 接下来 → 今日截止. The implementation already matches the prototype; the

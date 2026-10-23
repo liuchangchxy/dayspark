@@ -407,6 +407,12 @@ abstract class AppLocalizations {
   /// **'Search'**
   String get search;
 
+  /// No description provided for @searchTasksAndEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tasks and events'**
+  String get searchTasksAndEvents;
+
   /// No description provided for @newEvent.
   ///
   /// In en, this message translates to:
@@ -418,6 +424,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New Todo'**
   String get newTodo;
+
+  /// No description provided for @newItem.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get newItem;
 
   /// No description provided for @editEvent.
   ///
