@@ -201,7 +201,7 @@ abstract final class AppRouter {
                 return _fadeTransition(
                   _missingObjectPage(
                     AppLocalizations.of(context)?.missingEventParam ??
-                        'Missing event parameter.',
+                        'This link did not carry an event.',
                   ),
                 );
               }
@@ -217,7 +217,7 @@ abstract final class AppRouter {
                 return _fadeTransition(
                   _missingObjectPage(
                     AppLocalizations.of(context)?.missingEventParam ??
-                        'Missing event parameter.',
+                        'This link did not carry an event.',
                   ),
                 );
               }
@@ -249,7 +249,7 @@ abstract final class AppRouter {
                 return _fadeTransition(
                   _missingObjectPage(
                     AppLocalizations.of(context)?.missingTodoParam ??
-                        'Missing todo parameter.',
+                        'This link did not carry a todo.',
                   ),
                 );
               }
@@ -265,7 +265,7 @@ abstract final class AppRouter {
                 return _fadeTransition(
                   _missingObjectPage(
                     AppLocalizations.of(context)?.missingTodoParam ??
-                        'Missing todo parameter.',
+                        'This link did not carry a todo.',
                   ),
                 );
               }
