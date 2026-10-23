@@ -2465,12 +2465,6 @@ abstract class AppLocalizations {
   /// **'Set deadline'**
   String get setDeadline;
 
-  /// No description provided for @executionNone.
-  ///
-  /// In en, this message translates to:
-  /// **'No execution time yet'**
-  String get executionNone;
-
   /// No description provided for @scheduleNow.
   ///
   /// In en, this message translates to:

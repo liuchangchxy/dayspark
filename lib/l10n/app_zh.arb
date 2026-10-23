@@ -506,7 +506,6 @@
   "startsAtHint": "最早可以开始做的日子",
   "noDeadline": "无截止",
   "setDeadline": "设置截止",
-  "executionNone": "还没安排执行时间",
   "scheduleNow": "现在安排",
   "actionNothingNow": "现在没有需要你处理的事",
   "actionNothingNowHint": "有日程或截止事项时，当天会出现在这里。",

@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
@@ -99,32 +98,22 @@ class _DraftExecutions extends StatelessWidget {
                 )
               : null,
         ),
-        if (draft.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Text(
-              l.executionNone,
-              style: AppTypography.caption.copyWith(
-                color: context.semantic.textTertiary,
-              ),
+        for (final item in draft)
+          ScheduleRow(
+            label: l.execution,
+            value: formatExecutionRange(
+              context,
+              item.start,
+              item.end,
+              includeDate: false,
             ),
-          )
-        else
-          for (final item in draft)
-            ScheduleRow(
-              label: l.execution,
-              value: formatExecutionRange(
-                context,
-                item.start,
-                item.end,
-                includeDate: false,
-              ),
-              onClear: enabled
-                  ? () => onChanged(
-                      [...draft]..removeWhere((other) => other.start == item.start),
-                    )
-                  : null,
-            ),
+            onClear: enabled
+                ? () => onChanged(
+                    [...draft]
+                      ..removeWhere((other) => other.start == item.start),
+                  )
+                : null,
+          ),
       ],
     );
   }
@@ -167,9 +156,7 @@ class _PersistedExecutions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final allocationsAsync = ref.watch(
-      taskAllocationsForTodoProvider(todo.id),
-    );
+    final allocationsAsync = ref.watch(taskAllocationsForTodoProvider(todo.id));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -187,17 +174,6 @@ class _PersistedExecutions extends ConsumerWidget {
             final active = allocations
                 .where((item) => item.state == 'active')
                 .toList();
-            if (active.isEmpty && draft.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                child: Text(
-                  l.executionNone,
-                  style: AppTypography.caption.copyWith(
-                    color: context.semantic.textTertiary,
-                  ),
-                ),
-              );
-            }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -227,10 +203,9 @@ class _PersistedExecutions extends ConsumerWidget {
                     ),
                     onClear: enabled && onDraftChanged != null
                         ? () => onDraftChanged!(
-                            [...draft]
-                              ..removeWhere(
-                                (other) => other.start == item.start,
-                              ),
+                            [...draft]..removeWhere(
+                              (other) => other.start == item.start,
+                            ),
                           )
                         : null,
                   ),
@@ -244,13 +219,17 @@ class _PersistedExecutions extends ConsumerWidget {
     );
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref, AppLocalizations l) async {
+  Future<void> _add(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+  ) async {
     String? occurrenceId;
     if (todo.rrule != null && todo.rrule!.isNotEmpty) {
       if (!_isConfirmableOccurrence(todo)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.unsupportedRecurrence)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.unsupportedRecurrence)));
         return;
       }
       final selected = await TodoOccurrencePickerSheet.show(
@@ -384,13 +363,11 @@ Future<DraftExecution?> showExecutionSheet(
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(
-                    DraftExecution(start: start, end: start.add(length)),
-                  ),
+                  onPressed: () => Navigator.of(
+                    ctx,
+                  ).pop(DraftExecution(start: start, end: start.add(length))),
                   child: Text(l.save),
                 ),
               ),

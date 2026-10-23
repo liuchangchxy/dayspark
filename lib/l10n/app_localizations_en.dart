@@ -1274,9 +1274,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get setDeadline => 'Set deadline';
 
   @override
-  String get executionNone => 'No execution time yet';
-
-  @override
   String get scheduleNow => 'Schedule now';
 
   @override

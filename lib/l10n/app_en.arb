@@ -697,7 +697,6 @@
   "startsAtHint": "Earliest day this can be done",
   "noDeadline": "No deadline",
   "setDeadline": "Set deadline",
-  "executionNone": "No execution time yet",
   "scheduleNow": "Schedule now",
   "actionNothingNow": "Nothing needs you right now",
   "actionNothingNowHint": "Upcoming events and deadlines will show up here on the day.",

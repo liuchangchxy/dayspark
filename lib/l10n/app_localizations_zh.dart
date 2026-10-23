@@ -1268,9 +1268,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get setDeadline => '设置截止';
 
   @override
-  String get executionNone => '还没安排执行时间';
-
-  @override
   String get scheduleNow => '现在安排';
 
   @override
