@@ -169,10 +169,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get search => '搜索';
 
   @override
+  String get searchTasksAndEvents => '搜索任务与事件';
+
+  @override
   String get newEvent => '新建日程';
 
   @override
   String get newTodo => '新建待办';
+
+  @override
+  String get newItem => '新建';
 
   @override
   String get editEvent => '编辑日程';
@@ -1217,4 +1223,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recurringTask => '重复';
+
+  @override
+  String get actionNow => '现在';
+
+  @override
+  String get actionDetails => '详情';
+
+  @override
+  String get calendarDeadlineLane => '截止';
+
+  @override
+  String get calendarLegendEvent => '事件';
+
+  @override
+  String get calendarLegendAllocation => '安排';
+
+  @override
+  String get actionAll => '全部';
 }

@@ -1,4 +1,8 @@
 import 'dart:async';
+import 'package:intl/intl.dart';
+import 'package:lunar/lunar.dart';
+import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/ui/widgets/workspace_sidebar.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter/cupertino.dart';
@@ -26,6 +30,7 @@ import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
@@ -240,7 +245,6 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-
   Future<void> _handleNotificationAction(
     String actionId,
     int parentId,
@@ -316,38 +320,39 @@ class _HomePageState extends ConsumerState<HomePage>
       _calendarTabWasActive = false;
     }
 
-    return Scaffold(
+    final desktop = MediaQuery.sizeOf(context).width >= 1000;
+    final pageLabel = isActionTab
+        ? l.action
+        : isCalendarTab
+        ? l.calendar
+        : l.todos;
+    final content = Scaffold(
+      backgroundColor: desktop ? Theme.of(context).colorScheme.surface : null,
       appBar: AppBar(
         titleSpacing: AppSpacing.lg,
         centerTitle: false,
-        title: isCalendarTab
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Text(
-                      _calendarTitle ?? '',
-                      key: ValueKey(_calendarTitle ?? ''),
-                      style: AppTypography.display,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if ((_calendarSubtitle ?? '').isNotEmpty)
-                    Text(
-                      _calendarSubtitle!,
-                      style: AppTypography.caption.copyWith(
-                        color: context.semantic.textSecondary,
-                      ),
-                    ),
-                ],
-              )
-            : isActionTab
-                ? Text(l.action, style: AppTypography.display)
-                : null,
+        toolbarHeight: desktop ? 48 : 52,
+        title: Text(
+          desktop ? '${l.appName}  ›  $pageLabel' : l.appName,
+          style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: context.semantic.separator),
+        ),
         actions: [
+          if (desktop)
+            _buildDesktopSearchEntry(context, l)
+          else
+            Semantics(
+              button: true,
+              label: l.search,
+              child: IconButton(
+                icon: const Icon(CupertinoIcons.search),
+                tooltip: l.search,
+                onPressed: () => context.push('/search'),
+              ),
+            ),
           if (ref
                   .watch(featureFlagsProvider)
                   .valueOrNull
@@ -364,15 +369,6 @@ class _HomePageState extends ConsumerState<HomePage>
             ),
           Semantics(
             button: true,
-            label: l.search,
-            child: IconButton(
-              icon: const Icon(CupertinoIcons.search),
-              tooltip: l.search,
-              onPressed: () => context.push('/search'),
-            ),
-          ),
-          Semantics(
-            button: true,
             label: l.settings,
             child: IconButton(
               icon: const Icon(CupertinoIcons.settings),
@@ -380,60 +376,157 @@ class _HomePageState extends ConsumerState<HomePage>
               onPressed: () => context.push('/settings'),
             ),
           ),
+          const SizedBox(width: AppSpacing.xs),
+          _buildCreateEntry(
+            context,
+            desktop: desktop,
+            isCalendarTab: isCalendarTab,
+          ),
+          SizedBox(width: desktop ? AppSpacing.lg : AppSpacing.xs),
         ],
       ),
-      body: isActionTab
-          ? _buildActionTab()
-          : isCalendarTab
-              ? _buildCalendarTab()
-              : _buildTodoTab(),
-      floatingActionButton: Semantics(
-        button: true,
-        label: isCalendarTab ? l.newEvent : l.newTodo,
-        child: FloatingActionButton(
-          onPressed: () {
-            if (isCalendarTab) {
-              // Prefill with the date the calendar is showing (week view:
-              // Monday anchor) so creation lands on the browsed week, not today.
-              final viewed = ref.read(viewedDateProvider);
-              context.push(
-                '/event/new?start=${viewed.millisecondsSinceEpoch}'
-                '&end=${viewed.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
-              );
-            } else {
-              context.push('/todo/new');
-            }
-          },
-          tooltip: isCalendarTab ? l.newEvent : l.newTodo,
-          child: const Icon(CupertinoIcons.add),
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentTab,
-        onDestinationSelected: (i) => setState(() {
-          _userChangedTab = true;
-          _currentTab = i;
-        }),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.bolt),
-            label: l.action,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              desktop ? 28 : 16,
+              16,
+              desktop ? 28 : 16,
+              12,
+            ),
+            child: Column(
+              crossAxisAlignment: desktop
+                  ? CrossAxisAlignment.start
+                  : CrossAxisAlignment.center,
+              children: [
+                Text(
+                  isCalendarTab
+                      ? (_calendarTitle ?? pageLabel)
+                      : isActionTab
+                      ? DateFormat.MMMMd(
+                          Localizations.localeOf(context).toString(),
+                        ).format(ref.watch(actionDateProvider))
+                      : l.todos,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.display,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isCalendarTab
+                      ? (_calendarSubtitle ?? '')
+                      : isActionTab
+                      ? _actionDateNote(ref.watch(actionDateProvider))
+                      : l.allTasks,
+                  style: AppTypography.overline.copyWith(
+                    color: context.semantic.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.calendar),
-            label: l.calendar,
-          ),
-          NavigationDestination(
-            icon: const Icon(CupertinoIcons.checkmark_rectangle),
-            label: l.todos,
+          Expanded(
+            child: KeyedSubtree(
+              key: ValueKey('workspace-content-$_currentTab'),
+              child: isActionTab
+                  ? _buildActionTab()
+                  : isCalendarTab
+                  ? Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: desktop ? 28 : 0,
+                      ),
+                      child: _buildCalendarTab(),
+                    )
+                  : Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: desktop ? 28 : 0,
+                      ),
+                      child: _buildTodoTab(),
+                    ),
+            ),
           ),
         ],
       ),
+      bottomNavigationBar: desktop
+          ? null
+          : NavigationBar(
+              selectedIndex: _currentTab,
+              onDestinationSelected: (i) => setState(() {
+                _userChangedTab = true;
+                _currentTab = i;
+              }),
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(CupertinoIcons.bolt),
+                  label: l.action,
+                ),
+                NavigationDestination(
+                  icon: const Icon(CupertinoIcons.calendar),
+                  label: l.calendar,
+                ),
+                NavigationDestination(
+                  icon: const Icon(CupertinoIcons.checkmark_rectangle),
+                  label: l.todos,
+                ),
+              ],
+            ),
     );
+    if (!desktop) return content;
+    return Row(
+      children: [
+        WorkspaceSidebar(
+          selectedIndex: _currentTab,
+          onSelected: (i) => setState(() {
+            _userChangedTab = true;
+            _currentTab = i;
+          }),
+          onInbox: () => setState(() {
+            _userChangedTab = true;
+            _currentTab = 2;
+            _selectedDate = null;
+            _showAllTodos = false;
+          }),
+          onToday: () => setState(() {
+            _userChangedTab = true;
+            _currentTab = 2;
+            _selectedDate = DateUtils.dateOnly(_now());
+            _showAllTodos = false;
+          }),
+        ),
+        Expanded(
+          child: Column(
+            children: [
+              const SizedBox(
+                height: 2,
+                child: ColoredBox(
+                  color: AppColors.brandWarm,
+                  child: SizedBox.expand(),
+                ),
+              ),
+              Expanded(child: content),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _actionDateNote(DateTime date) {
+    final locale = Localizations.localeOf(context);
+    final weekday = DateFormat.EEEE(locale.toString()).format(date);
+    if (locale.languageCode != 'zh') return weekday;
+    final lunar = Lunar.fromDate(date);
+    final l = AppLocalizations.of(context)!;
+    return '$weekday · ${lunar.getMonthInChinese()}${l.month}${lunar.getDayInChinese()}';
   }
 
   Widget _buildActionTab() {
     return ActionSection(
+      onNavigateToCalendar: () => setState(() {
+        _userChangedTab = true;
+        _currentTab = 1;
+      }),
       onNavigateToTodos: () => setState(() {
         _userChangedTab = true;
         _currentTab = 2;
@@ -453,6 +546,15 @@ class _HomePageState extends ConsumerState<HomePage>
       taskAllocationsInDateRangeProvider(rangeKey),
     );
     final viewed = ref.watch(viewedDateProvider);
+    final deadlineTodos = (ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
+        .where(
+          (todo) =>
+              todo.rrule == null &&
+              todo.dueDate != null &&
+              todo.status != 'COMPLETED' &&
+              todo.status != 'CANCELLED',
+        )
+        .toList();
 
     final calendar = eventsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -470,6 +572,21 @@ class _HomePageState extends ConsumerState<HomePage>
           );
           return CalendarSection(
             events: adapters,
+            deadlines: deadlineTodos
+                .map(
+                  (todo) => CalendarDeadline(
+                    todoId: todo.id,
+                    title: todo.summary,
+                    due: todo.dueDate!,
+                  ),
+                )
+                .toList(),
+            onDeadlineTapped: (deadline) {
+              final todo = deadlineTodos.firstWhere(
+                (todo) => todo.id == deadline.todoId,
+              );
+              context.push('/todo/edit', extra: todo);
+            },
             allocations: allocationItems
                 .map(TaskAllocationCalendarAdapter.fromItem)
                 .toList(),
@@ -524,17 +641,18 @@ class _HomePageState extends ConsumerState<HomePage>
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            AppLocalizations.of(context)!
-                                .scheduledTodoSuccess(todo.summary),
+                            AppLocalizations.of(
+                              context,
+                            )!.scheduledTodoSuccess(todo.summary),
                           ),
                         ),
                       );
                     }
                   } catch (e) {
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('$e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('$e')));
                     }
                   }
                 },
@@ -568,47 +686,246 @@ class _HomePageState extends ConsumerState<HomePage>
     return calendar;
   }
 
+  Widget _buildDesktopSearchEntry(BuildContext context, AppLocalizations l) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: l.search,
+      child: Tooltip(
+        message: l.search,
+        child: InkWell(
+          onTap: () => context.push('/search'),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            width: 236,
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: .45,
+              ),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  CupertinoIcons.search,
+                  size: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l.searchTasksAndEvents,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreateEntry(
+    BuildContext context, {
+    required bool desktop,
+    required bool isCalendarTab,
+  }) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final tooltip = isCalendarTab ? l.newEvent : l.newTodo;
+    void onPressed() {
+      if (isCalendarTab) {
+        final viewed = ref.read(viewedDateProvider);
+        context.push(
+          '/event/new?start=${viewed.millisecondsSinceEpoch}'
+          '&end=${viewed.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
+        );
+      } else {
+        context.push('/todo/new');
+      }
+    }
+
+    if (desktop) {
+      return Tooltip(
+        message: tooltip,
+        child: TextButton.icon(
+          key: const ValueKey('workspace-create'),
+          onPressed: onPressed,
+          style: TextButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            minimumSize: const Size(0, 32),
+            padding: const EdgeInsets.symmetric(horizontal: 11),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          icon: const Icon(CupertinoIcons.add, size: 14),
+          label: Text(l.newItem),
+        ),
+      );
+    }
+    return Tooltip(
+      message: tooltip,
+      child: TextButton(
+        key: const ValueKey('workspace-create'),
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            CupertinoIcons.add,
+            size: 18,
+            color: theme.colorScheme.onPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tagFilterChip(BuildContext context, Tag tag) {
+    final selected = _selectedTagIds.contains(tag.id);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      child: FilterChip(
+        label: Text(tag.name),
+        selected: selected,
+        selectedColor: ColorUtils.parseHex(tag.color).withValues(alpha: 0.3),
+        checkmarkColor: ColorUtils.parseHex(tag.color),
+        onSelected: (v) {
+          setState(() {
+            if (v) {
+              _selectedTagIds.add(tag.id);
+            } else {
+              _selectedTagIds.remove(tag.id);
+            }
+          });
+        },
+      ),
+    );
+  }
+
   Widget _buildTodoTab() {
     final l = AppLocalizations.of(context)!;
+    final desktop = MediaQuery.sizeOf(context).width >= 1000;
     final tagsAsync = ref.watch(tagsProvider);
+    final six = ref.watch(sixThingsModeProvider).valueOrNull ?? false;
+
+    void selectDate(DateTime? date) {
+      setState(() {
+        _selectedDate = date;
+        _showAllTodos = false;
+        _sixThingsExpanded = false;
+      });
+    }
+
+    void toggleSixThings() {
+      setState(() => _sixThingsExpanded = false);
+      ref.read(setSixThingsModeProvider)(!six);
+    }
+
+    Future<void> pickDate() async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate ?? DateTime.now(),
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100),
+      );
+      if (picked != null) {
+        setState(() {
+          _selectedDate = DateTime(picked.year, picked.month, picked.day);
+        });
+      }
+    }
+
+    final manageButton = Semantics(
+      button: true,
+      label: l.manageTags,
+      child: IconButton(
+        icon: const Icon(CupertinoIcons.tag, size: 18),
+        tooltip: l.manageTags,
+        onPressed: () => context.push('/tags'),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+    final trashButton = Semantics(
+      button: true,
+      label: l.trash,
+      child: IconButton(
+        icon: const Icon(CupertinoIcons.trash, size: 18),
+        tooltip: l.trash,
+        onPressed: () => context.push('/trash'),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+
     return Column(
       children: [
-        // Date strip
-        DateStrip(
-          selectedDate: _selectedDate,
-          showAllMode: _showAllTodos,
-          sixThingsMode: ref.watch(sixThingsModeProvider).valueOrNull ?? false,
-          onSixThingsToggle: () {
-            final current =
-                ref.read(sixThingsModeProvider).valueOrNull ?? false;
-            setState(() => _sixThingsExpanded = false);
-            ref.read(setSixThingsModeProvider)(!current);
-          },
-          onDateSelected: (date) => setState(() {
-            _selectedDate = date;
-            _showAllTodos = false;
-            _sixThingsExpanded = false;
-          }),
-          onShowAll: () => setState(() => _showAllTodos = true),
-          onCalendarTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _selectedDate ?? DateTime.now(),
-              firstDate: DateTime(2000),
-              lastDate: DateTime(2100),
-            );
-            if (picked != null) {
-              setState(() {
-                _selectedDate = DateTime(picked.year, picked.month, picked.day);
-              });
-            }
-          },
-        ),
-        // Tag filter chips + manage button
+        if (desktop)
+          // D Final's desktop Todo head is a single compact row: filters and
+          // tools, then straight into the flat list. The touch-sized week
+          // strip stays on mobile only.
+          TodoDesktopToolbar(
+            selectedDate: _selectedDate,
+            showAllMode: _showAllTodos,
+            sixThingsMode: six,
+            onDateSelected: selectDate,
+            onShowAll: () => setState(() => _showAllTodos = true),
+            onSixThingsToggle: toggleSixThings,
+            onCalendarTap: pickDate,
+            trailing: [manageButton, trashButton],
+          )
+        else
+          DateStrip(
+            selectedDate: _selectedDate,
+            showAllMode: _showAllTodos,
+            sixThingsMode: six,
+            onSixThingsToggle: toggleSixThings,
+            onDateSelected: selectDate,
+            onShowAll: () => setState(() => _showAllTodos = true),
+            onCalendarTap: pickDate,
+          ),
         tagsAsync.when(
           data: (tags) {
+            if (desktop) {
+              if (tags.isEmpty) return const SizedBox.shrink();
+              return SizedBox(
+                height: 44,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(right: AppSpacing.md),
+                  children: tags
+                      .map((tag) => _tagFilterChip(context, tag))
+                      .toList(),
+                ),
+              );
+            }
             return SizedBox(
-              height: 36,
+              height: 48,
               child: Row(
                 children: [
                   Expanded(
@@ -617,55 +934,13 @@ class _HomePageState extends ConsumerState<HomePage>
                         : ListView(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
-                            children: tags.map((tag) {
-                              final selected = _selectedTagIds.contains(tag.id);
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.xs,
-                                ),
-                                child: FilterChip(
-                                  label: Text(tag.name),
-                                  selected: selected,
-                                  selectedColor: ColorUtils.parseHex(
-                                    tag.color,
-                                  ).withValues(alpha: 0.3),
-                                  checkmarkColor: ColorUtils.parseHex(
-                                    tag.color,
-                                  ),
-                                  onSelected: (v) {
-                                    setState(() {
-                                      if (v) {
-                                        _selectedTagIds.add(tag.id);
-                                      } else {
-                                        _selectedTagIds.remove(tag.id);
-                                      }
-                                    });
-                                  },
-                                ),
-                              );
-                            }).toList(),
+                            children: tags
+                                .map((tag) => _tagFilterChip(context, tag))
+                                .toList(),
                           ),
                   ),
-                  Semantics(
-                    button: true,
-                    label: l.manageTags,
-                    child: IconButton(
-                      icon: const Icon(CupertinoIcons.tag, size: 18),
-                      tooltip: l.manageTags,
-                      onPressed: () => context.push('/tags'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                  Semantics(
-                    button: true,
-                    label: l.trash,
-                    child: IconButton(
-                      icon: const Icon(CupertinoIcons.trash, size: 18),
-                      tooltip: l.trash,
-                      onPressed: () => context.push('/trash'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
+                  manageButton,
+                  trashButton,
                 ],
               ),
             );
@@ -690,6 +965,7 @@ class _HomePageState extends ConsumerState<HomePage>
       if (tags == null) return false;
       return _selectedTagIds.any((id) => tags.contains(id));
     }
+
     final tagKey = _selectedTagIds.isEmpty
         ? ''
         : (_selectedTagIds.toList()..sort()).join(',');
@@ -706,7 +982,10 @@ class _HomePageState extends ConsumerState<HomePage>
               .toList();
           final completed = hideCompleted
               ? <Todo>[]
-              : todos.where((t) => t.status == 'COMPLETED').where(matchesTags).toList();
+              : todos
+                    .where((t) => t.status == 'COMPLETED')
+                    .where(matchesTags)
+                    .toList();
           if (pending.isEmpty && completed.isEmpty) return _emptyState(l);
           return CustomScrollView(
             slivers: [
@@ -812,9 +1091,7 @@ class _HomePageState extends ConsumerState<HomePage>
         // Filter completed for the selected date
         final dateCompleted = hideCompleted
             ? <Todo>[]
-            : completed
-                .where(matchesTags)
-                .where((t) {
+            : completed.where(matchesTags).where((t) {
                 if (t.completedAt == null) return false;
                 final c = DateTime(
                   t.completedAt!.year,
@@ -1090,7 +1367,14 @@ class _HomePageState extends ConsumerState<HomePage>
 
   Widget _sectionHeader(String title, int count, Color? accentColor) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      // Keeps the Todo section headers on the shared 28dp desktop content
+      // origin that Action and Calendar already use.
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.sizeOf(context).width >= 1000 ? 0 : 16,
+        12,
+        MediaQuery.sizeOf(context).width >= 1000 ? 0 : 16,
+        4,
+      ),
       child: Row(
         children: [
           Text(
@@ -1119,7 +1403,6 @@ class _HomePageState extends ConsumerState<HomePage>
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: TodoListTile(
-        index: index,
         summary: todo.summary,
         isCompleted: isCompleted,
         priority: todo.priority,

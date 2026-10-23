@@ -169,10 +169,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get search => 'Search';
 
   @override
+  String get searchTasksAndEvents => 'Search tasks and events';
+
+  @override
   String get newEvent => 'New Event';
 
   @override
   String get newTodo => 'New Todo';
+
+  @override
+  String get newItem => 'New';
 
   @override
   String get editEvent => 'Edit Event';
@@ -1223,4 +1229,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recurringTask => 'Recurring';
+
+  @override
+  String get actionNow => 'Now';
+
+  @override
+  String get actionDetails => 'Details';
+
+  @override
+  String get calendarDeadlineLane => 'Deadlines';
+
+  @override
+  String get calendarLegendEvent => 'Event';
+
+  @override
+  String get calendarLegendAllocation => 'Scheduled';
+
+  @override
+  String get actionAll => 'All';
 }

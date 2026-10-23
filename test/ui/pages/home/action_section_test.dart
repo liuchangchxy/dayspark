@@ -50,7 +50,9 @@ void main() {
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    calendarId = await db.into(db.calendars).insert(
+    calendarId = await db
+        .into(db.calendars)
+        .insert(
           CalendarsCompanion.insert(
             name: 'Default',
             color: const Value('#2196F3'),
@@ -88,145 +90,235 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('visually distinguishes Event, Planned Allocation, and Deadline', (
-    tester,
-  ) async {
-    // 1. Event
-    await db.into(db.events).insert(
-          EventsCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Client Call',
-            startDt: DateTime(2026, 10, 6, 10, 0),
-            endDt: DateTime(2026, 10, 6, 11, 0),
-            isAllDay: const Value(false),
-          ),
-        );
+  testWidgets(
+    'visually distinguishes Event, Planned Allocation, and Deadline',
+    (tester) async {
+      // 1. Event
+      await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Client Call',
+              startDt: DateTime(2026, 10, 6, 10, 0),
+              endDt: DateTime(2026, 10, 6, 11, 0),
+              isAllDay: const Value(false),
+            ),
+          );
 
-    // 2. Ordinary Todo with TaskAllocation
-    final scheduledTodoId = await db.into(db.todos).insert(
-          TodosCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Write Spec',
-          ),
-        );
-    final container = ProviderContainer(
-      overrides: [databaseProvider.overrideWithValue(db)],
-    );
-    await container.read(createTaskAllocationProvider)(
-      todoId: scheduledTodoId,
-      startAt: DateTime(2026, 10, 6, 14, 0),
-      endAt: DateTime(2026, 10, 6, 15, 30),
-    );
-    container.dispose();
+      // 2. Ordinary Todo with TaskAllocation
+      final scheduledTodoId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Write Spec',
+            ),
+          );
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      await container.read(createTaskAllocationProvider)(
+        todoId: scheduledTodoId,
+        startAt: DateTime(2026, 10, 6, 14, 0),
+        endAt: DateTime(2026, 10, 6, 15, 30),
+      );
+      container.dispose();
 
-    // 3. Ordinary Todo due today
-    await db.into(db.todos).insert(
-          TodosCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Submit Invoice',
-            dueDate: Value(DateTime(2026, 10, 6, 18, 0)),
-          ),
-        );
+      // 3. Ordinary Todo due today
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Submit Invoice',
+              dueDate: Value(DateTime(2026, 10, 6, 18, 0)),
+            ),
+          );
 
-    // 4. Overdue Todo with past deadline
-    await db.into(db.todos).insert(
-          TodosCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Fix Bug',
-            dueDate: Value(DateTime(2026, 10, 2, 9, 0)),
-          ),
-        );
+      // 4. Overdue Todo with past deadline
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Fix Bug',
+              dueDate: Value(DateTime(2026, 10, 2, 9, 0)),
+            ),
+          );
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        child: const ActionSection(),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
-        ],
-      ),
-    );
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: const ActionSection(),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => fixedDate),
+          ],
+        ),
+      );
 
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
 
-    // Overdue section
-    expect(find.text('Overdue (1)'), findsOneWidget);
-    expect(find.text('Fix Bug'), findsOneWidget);
-    expect(find.text('Deadline: 2026-10-02'), findsOneWidget);
+      // Overdue section
+      expect(find.text('Overdue (1)'), findsOneWidget);
+      expect(find.text('Fix Bug'), findsOneWidget);
+      expect(find.text('Deadline: 2026-10-02'), findsOneWidget);
 
-    // Today's schedule section
-    expect(find.text("Today's Schedule"), findsOneWidget);
-    expect(find.text('Client Call'), findsOneWidget);
-    expect(find.text('10:00 – 11:00 · Event'), findsOneWidget);
+      // Today's schedule section
+      expect(find.text("Today's Schedule"), findsOneWidget);
+      expect(find.text('Client Call'), findsOneWidget);
+      expect(find.text('10:00 – 11:00 · Event'), findsOneWidget);
 
-    expect(find.text('Write Spec'), findsOneWidget);
-    expect(find.text('14:00 – 15:30 · Planned'), findsOneWidget);
+      expect(find.text('Write Spec'), findsOneWidget);
+      expect(find.text('14:00 – 15:30 · Planned'), findsOneWidget);
 
-    // Due Today section
-    expect(find.text('Due Today (1)'), findsOneWidget);
-    expect(find.text('Submit Invoice'), findsOneWidget);
-    expect(find.text('Due today'), findsOneWidget);
+      // Due Today section
+      expect(find.text('Due Today (1)'), findsOneWidget);
+      expect(find.text('Submit Invoice'), findsOneWidget);
+      expect(find.text('Due today'), findsOneWidget);
 
-    await _unmount(tester);
-  });
+      await _unmount(tester);
+    },
+  );
 
-  testWidgets('checking allocation checkbox completes ordinary todo without mutating dueDate', (
-    tester,
-  ) async {
-    final originalDueDate = DateTime(2026, 10, 6, 23, 59);
-    final todoId = await db.into(db.todos).insert(
-          TodosCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Ship Feature',
-            dueDate: Value(originalDueDate),
-          ),
-        );
+  testWidgets(
+    'desktop inspector appears only after selection and preserves edit route',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final id = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Review a deliberately long bilingual title 设计评审与交付',
+              dueDate: Value(fixedDate),
+            ),
+          );
+      Todo? opened;
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: ActionSection(onTodoTap: (todo) => opened = todo),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => fixedDate),
+          ],
+        ),
+      );
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byKey(const ValueKey('action-inspector')), findsNothing);
+      await tester.tap(
+        find.text('Review a deliberately long bilingual title 设计评审与交付'),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('action-inspector')), findsOneWidget);
+      expect(opened, isNull);
+      await tester.tap(find.text('Edit Todo'));
+      expect(opened?.id, id);
+      expect(tester.takeException(), isNull);
+      await _unmount(tester);
+    },
+  );
 
-    final container = ProviderContainer(
-      overrides: [databaseProvider.overrideWithValue(db)],
-    );
-    await container.read(createTaskAllocationProvider)(
-      todoId: todoId,
-      startAt: DateTime(2026, 10, 6, 9, 0),
-      endAt: DateTime(2026, 10, 6, 10, 0),
-    );
-    container.dispose();
+  testWidgets(
+    'mobile week strip changes the existing projection date without overflow',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: const ActionSection(),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => fixedDate),
+          ],
+        ),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      for (var i = 0; i < 7; i++) {
+        final cell = find.byKey(ValueKey('action-week-$i'));
+        expect(tester.getSize(cell).width, greaterThanOrEqualTo(48));
+        expect(tester.getSize(cell).height, greaterThanOrEqualTo(48));
+      }
+      await tester.tap(find.byKey(const ValueKey('action-week-6')));
+      await tester.pump();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ActionSection)),
+      );
+      expect(container.read(actionDateProvider), DateTime(2026, 10, 11));
+      expect(tester.takeException(), isNull);
+      await _unmount(tester);
+    },
+  );
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        child: const ActionSection(),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
-        ],
-      ),
-    );
+  testWidgets(
+    'checking allocation checkbox completes ordinary todo without mutating dueDate',
+    (tester) async {
+      final originalDueDate = DateTime(2026, 10, 6, 23, 59);
+      final todoId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Ship Feature',
+              dueDate: Value(originalDueDate),
+            ),
+          );
 
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      await container.read(createTaskAllocationProvider)(
+        todoId: todoId,
+        startAt: DateTime(2026, 10, 6, 9, 0),
+        endAt: DateTime(2026, 10, 6, 10, 0),
+      );
+      container.dispose();
 
-    // Find checkbox in today's schedule for Ship Feature and tap it
-    final checkboxes = find.byType(Checkbox);
-    expect(checkboxes, findsWidgets);
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: const ActionSection(),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => fixedDate),
+          ],
+        ),
+      );
 
-    // Tap the first checkbox (Ship Feature in timeline)
-    await tester.tap(checkboxes.first);
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
 
-    // Verify in DB that the todo is COMPLETED and dueDate is UNMUTED
-    final updatedTodo = await (db.select(db.todos)
-          ..where((t) => t.id.equals(todoId)))
-        .getSingle();
-    expect(updatedTodo.status, 'COMPLETED');
-    expect(updatedTodo.dueDate, originalDueDate);
+      // Find checkbox in today's schedule for Ship Feature and tap it
+      final checkboxes = find.byType(Checkbox);
+      expect(checkboxes, findsWidgets);
 
-    await _unmount(tester);
-  });
+      // Tap the first checkbox (Ship Feature in timeline)
+      await tester.tap(checkboxes.first);
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      // Verify in DB that the todo is COMPLETED and dueDate is UNMUTED
+      final updatedTodo = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
+      expect(updatedTodo.status, 'COMPLETED');
+      expect(updatedTodo.dueDate, originalDueDate);
+
+      await _unmount(tester);
+    },
+  );
 
   testWidgets('tapping Inbox card invokes onNavigateToTodos callback', (
     tester,
@@ -234,9 +326,7 @@ void main() {
     var navigated = false;
     await tester.pumpWidget(
       _wrapWithApp(
-        child: ActionSection(
-          onNavigateToTodos: () => navigated = true,
-        ),
+        child: ActionSection(onNavigateToTodos: () => navigated = true),
         overrides: [
           databaseProvider.overrideWithValue(db),
           actionDateProvider.overrideWith((ref) => fixedDate),
@@ -256,233 +346,285 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('Phase 2: renders today recurring instance and checkbox completes exact instance', (
-    tester,
-  ) async {
-    final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    final occId = 'v2:DATE:$todayStr';
+  testWidgets(
+    'Phase 2: renders today recurring instance and checkbox completes exact instance',
+    (tester) async {
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final todayStr =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final occId = 'v2:DATE:$todayStr';
 
-    final spec = RecurrenceSpec.parse(
-      anchor: RecurrenceAnchor(
-        source: RecurrenceAnchorSource.due,
-        value: LocalDate(today.year, today.month, today.day),
-      ),
-      timeZone: 'Asia/Shanghai',
-      rrule: 'FREQ=DAILY',
-    );
-    final seriesId = await RecordScope.run(
-      db,
-      (tx) => TodoWriter.create(
-        db,
-        tx,
-        TodosCompanion.insert(
-          calendarId: calendarId,
-          summary: 'Daily Yoga',
-          rrule: Value(spec.rule.canonical),
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.due,
+          value: LocalDate(today.year, today.month, today.day),
         ),
-        recurrenceSpec: spec,
-      ),
-    );
-
-    await tester.pumpWidget(
-      _wrapWithApp(
-        child: const ActionSection(),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => todayDate),
-        ],
-      ),
-    );
-
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    expect(find.text('Daily Yoga'), findsOneWidget);
-    expect(find.text("Today's Tasks (1)"), findsOneWidget);
-
-    // Find and tap the checkbox for Daily Yoga
-    final checkbox = find.byType(Checkbox);
-    expect(checkbox, findsOneWidget);
-    await tester.tap(checkbox);
-
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    // Verify parent series remains NEEDS-ACTION
-    final parent = await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
-    expect(parent.status, 'NEEDS-ACTION');
-
-    // Verify taskInstanceState has completed
-    final state = await (db.select(db.taskInstanceStates)
-          ..where((s) => s.todoSyncId.equals(parent.syncId!) & s.occurrenceId.equals(occId)))
-        .getSingle();
-    expect(state.status, 'completed');
-
-    // Verify UI moved Daily Yoga into Completed Today
-    expect(find.text('Completed Today (1)'), findsOneWidget);
-
-    await _unmount(tester);
-  });
-
-  testWidgets('Phase 2 regression: earlier missed tiles carry exact series identity for multiple series', (
-    tester,
-  ) async {
-    final specA = RecurrenceSpec.parse(
-      anchor: RecurrenceAnchor(
-        source: RecurrenceAnchorSource.due,
-        value: LocalDate(2026, 8, 20),
-      ),
-      timeZone: 'Asia/Shanghai',
-      rrule: 'FREQ=DAILY;COUNT=5',
-    );
-    final seriesAId = await RecordScope.run(
-      db,
-      (tx) => TodoWriter.create(
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY',
+      );
+      final seriesId = await RecordScope.run(
         db,
-        tx,
-        TodosCompanion.insert(
-          calendarId: calendarId,
-          summary: 'Series Alpha',
-          rrule: Value(specA.rule.canonical),
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Daily Yoga',
+            rrule: Value(spec.rule.canonical),
+          ),
+          recurrenceSpec: spec,
         ),
-        recurrenceSpec: specA,
-      ),
-    );
+      );
 
-    final specB = RecurrenceSpec.parse(
-      anchor: RecurrenceAnchor(
-        source: RecurrenceAnchorSource.due,
-        value: LocalDate(2026, 8, 20),
-      ),
-      timeZone: 'Asia/Shanghai',
-      rrule: 'FREQ=DAILY;COUNT=5',
-    );
-    final seriesBId = await RecordScope.run(
-      db,
-      (tx) => TodoWriter.create(
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: const ActionSection(),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => todayDate),
+          ],
+        ),
+      );
+
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(find.text('Daily Yoga'), findsOneWidget);
+      expect(find.text("Today's Tasks (1)"), findsOneWidget);
+
+      // Find and tap the checkbox for Daily Yoga
+      final checkbox = find.byType(Checkbox);
+      expect(checkbox, findsOneWidget);
+      await tester.tap(checkbox);
+
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      // Verify parent series remains NEEDS-ACTION
+      final parent = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(seriesId))).getSingle();
+      expect(parent.status, 'NEEDS-ACTION');
+
+      // Verify taskInstanceState has completed
+      final state =
+          await (db.select(db.taskInstanceStates)..where(
+                (s) =>
+                    s.todoSyncId.equals(parent.syncId!) &
+                    s.occurrenceId.equals(occId),
+              ))
+              .getSingle();
+      expect(state.status, 'completed');
+
+      // Verify UI moved Daily Yoga into Completed Today
+      expect(find.text('Completed Today (1)'), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'Phase 2 regression: earlier missed tiles carry exact series identity for multiple series',
+    (tester) async {
+      final specA = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.due,
+          value: LocalDate(2026, 8, 20),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=5',
+      );
+      final seriesAId = await RecordScope.run(
         db,
-        tx,
-        TodosCompanion.insert(
-          calendarId: calendarId,
-          summary: 'Series Beta',
-          rrule: Value(specB.rule.canonical),
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Series Alpha',
+            rrule: Value(specA.rule.canonical),
+          ),
+          recurrenceSpec: specA,
         ),
-        recurrenceSpec: specB,
-      ),
-    );
+      );
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        child: const ActionSection(),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
-        ],
-      ),
-    );
-
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    expect(find.byKey(ValueKey('earlier-missed-$seriesAId')), findsOneWidget);
-    expect(find.byKey(ValueKey('earlier-missed-$seriesBId')), findsOneWidget);
-    expect(find.text('Earlier missed… · Series Alpha'), findsOneWidget);
-    expect(find.text('Earlier missed… · Series Beta'), findsOneWidget);
-
-    await _unmount(tester);
-  });
-
-  testWidgets('Phase 2 regression: expansion failure shows dedicated error tile without legacy confirmation card', (
-    tester,
-  ) async {
-    await db.into(db.todos).insert(
-      TodosCompanion.insert(
-        calendarId: calendarId,
-        summary: 'Corrupted Series',
-        rrule: const Value('INVALID'),
-        recurrenceLegacyState: const Value('knownZoned'),
-        recurrenceRule: const Value('INVALID'),
-        recurrenceAnchorSource: const Value('due'),
-        recurrenceValueType: const Value('date'),
-        recurrenceAnchorValue: const Value('2026-10-06'),
-        recurrenceTimeZone: const Value('UTC'),
-      ),
-    );
-
-    await tester.pumpWidget(
-      _wrapWithApp(
-        child: const ActionSection(),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
-        ],
-      ),
-    );
-
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    expect(find.text('Corrupted Series'), findsOneWidget);
-    expect(find.textContaining('need confirmation'), findsNothing);
-
-    await _unmount(tester);
-  });
-
-  testWidgets('Phase 2 regression: earlier history tile renders distinct key and label for unprobed series', (
-    tester,
-  ) async {
-    final spec = RecurrenceSpec.parse(
-      anchor: RecurrenceAnchor(
-        source: RecurrenceAnchorSource.due,
-        value: LocalDate(2024, 7, 28),
-      ),
-      timeZone: 'Asia/Shanghai',
-      rrule: 'FREQ=DAILY',
-    );
-    final seriesId = await RecordScope.run(
-      db,
-      (tx) => TodoWriter.create(
+      final specB = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.due,
+          value: LocalDate(2026, 8, 20),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=5',
+      );
+      final seriesBId = await RecordScope.run(
         db,
-        tx,
-        TodosCompanion.insert(
-          calendarId: calendarId,
-          summary: 'Ancient Habit',
-          rrule: Value(spec.rule.canonical),
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Series Beta',
+            rrule: Value(specB.rule.canonical),
+          ),
+          recurrenceSpec: specB,
         ),
-        recurrenceSpec: spec,
-      ),
-    );
-    final series = await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
+      );
 
-    await tester.pumpWidget(
-      _wrapWithApp(
-        child: const ActionSection(),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
-          actionProjectionProvider.overrideWith(
-            (ref) => AsyncValue.data(
-              ActionProjectionData(
-                earlierHistorySeries: [series],
-                hasEarlierHistory: true,
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: const ActionSection(),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => fixedDate),
+          ],
+        ),
+      );
+
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(find.byKey(ValueKey('earlier-missed-$seriesAId')), findsOneWidget);
+      expect(find.byKey(ValueKey('earlier-missed-$seriesBId')), findsOneWidget);
+      expect(find.text('Earlier missed… · Series Alpha'), findsOneWidget);
+      expect(find.text('Earlier missed… · Series Beta'), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'Phase 2 regression: expansion failure shows dedicated error tile without legacy confirmation card',
+    (tester) async {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Corrupted Series',
+              rrule: const Value('INVALID'),
+              recurrenceLegacyState: const Value('knownZoned'),
+              recurrenceRule: const Value('INVALID'),
+              recurrenceAnchorSource: const Value('due'),
+              recurrenceValueType: const Value('date'),
+              recurrenceAnchorValue: const Value('2026-10-06'),
+              recurrenceTimeZone: const Value('UTC'),
+            ),
+          );
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: const ActionSection(),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => fixedDate),
+          ],
+        ),
+      );
+
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(find.text('Corrupted Series'), findsOneWidget);
+      expect(find.textContaining('need confirmation'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'Phase 2 regression: earlier history tile renders distinct key and label for unprobed series',
+    (tester) async {
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.due,
+          value: LocalDate(2024, 7, 28),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY',
+      );
+      final seriesId = await RecordScope.run(
+        db,
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Ancient Habit',
+            rrule: Value(spec.rule.canonical),
+          ),
+          recurrenceSpec: spec,
+        ),
+      );
+      final series = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(seriesId))).getSingle();
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: const ActionSection(),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => fixedDate),
+            actionProjectionProvider.overrideWith(
+              (ref) => AsyncValue.data(
+                ActionProjectionData(
+                  earlierHistorySeries: [series],
+                  hasEarlierHistory: true,
+                ),
               ),
             ),
-          ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(ValueKey('earlier-history-$seriesId')), findsOneWidget);
+      expect(find.text('Earlier history… · Ancient Habit'), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets('rhythm strip is desktop-only', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
         ],
       ),
     );
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byKey(const ValueKey('action-rhythm')), findsOneWidget);
 
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(ValueKey('earlier-history-$seriesId')), findsOneWidget);
-    expect(find.text('Earlier history… · Ancient Habit'), findsOneWidget);
-
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byKey(const ValueKey('action-rhythm')), findsNothing);
+    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 }

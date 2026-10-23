@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
@@ -94,128 +95,162 @@ class TodoListTile extends ConsumerWidget {
         : theme.textTheme.bodyMedium?.color;
     final tagsAsync = ref.watch(todoTagsProvider(todoId));
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          if (_priorityColor(theme.brightness) != Colors.transparent)
-            Semantics(
-              label: priority == 1 ? l.highPriority : l.mediumPriority,
-              child: Container(
-                width: 4,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: _priorityColor(theme.brightness),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 600;
+        final date = Text(
+          _dueDateLabel(context),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            color: !isCompleted && _isOverdue
+                ? theme.colorScheme.error
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        );
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: theme.dividerColor.withValues(alpha: 0.45),
               ),
-            )
-          else
-            const SizedBox(width: 4),
-          const SizedBox(width: 8),
-          if (index != null) ...[
-            Container(
-              width: 20,
-              alignment: Alignment.center,
-              child: Text(
-                '${index! + 1}',
-                style: TextStyle(
-                  fontSize: AppTypography.caption.fontSize,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-          ],
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: isCompleted
-                  ? Semantics(
-                      button: true,
-                      label: l.markIncomplete,
-                      child: Checkbox(
-                        value: true,
-                        onChanged: (_) => _toggle(context, ref),
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    )
-                  : Semantics(
-                      button: true,
-                      label: l.markComplete,
-                      child: Checkbox(
-                        value: false,
-                        onChanged: (_) => _toggle(context, ref),
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Semantics(
-              button: true,
-              hint: l.openTodoDetails,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: InkWell(
-                  onTap: onTap,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        summary,
-                        style: TextStyle(
-                          fontSize: AppTypography.body.fontSize,
-                          color: textColor,
-                          decoration: isCompleted
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Text(
-                                _dueDateLabel(context),
-                                style: TextStyle(
-                                  fontSize: AppTypography.caption.fontSize,
-                                  color: _isOverdue
-                                      ? theme.colorScheme.error
-                                      : (dueDate == null
-                                            ? theme.colorScheme.onSurfaceVariant
-                                            : theme.textTheme.bodySmall?.color),
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                          tagsAsync.when(
-                            data: (tags) => _tagDots(context, tags),
-                            loading: () => const SizedBox.shrink(),
-                            error: (_, __) => const SizedBox.shrink(),
-                          ),
-                        ],
-                      ),
-                    ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 2,
+                  height: 18,
+                  child: Semantics(
+                    label: priority == 1 ? l.highPriority : l.mediumPriority,
+                    excludeSemantics:
+                        _priorityColor(theme.brightness) == Colors.transparent,
+                    child: ColoredBox(color: _priorityColor(theme.brightness)),
                   ),
                 ),
-              ),
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Semantics(
+                    button: true,
+                    label: isCompleted ? l.markIncomplete : l.markComplete,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Checkbox(
+                        value: isCompleted,
+                        onChanged: (_) => _toggle(context, ref),
+                        materialTapTargetSize: MaterialTapTargetSize.padded,
+                        visualDensity: VisualDensity.standard,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (index != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text(
+                      '${index! + 1}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    hint: l.openTodoDetails,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: InkWell(
+                        onTap: onTap,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              summary,
+                                              style: TextStyle(
+                                                fontSize:
+                                                    AppTypography.body.fontSize,
+                                                color: textColor,
+                                                decoration: isCompleted
+                                                    ? TextDecoration.lineThrough
+                                                    : null,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (todo?.rrule != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                left: 6,
+                                              ),
+                                              child: Icon(
+                                                CupertinoIcons.repeat,
+                                                size: 14,
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      if (compact && dueDate != null) ...[
+                                        const SizedBox(height: 4),
+                                        date,
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                tagsAsync.when(
+                                  data: (tags) => _tagDots(context, tags),
+                                  loading: () => const SizedBox.shrink(),
+                                  error: (_, __) => const SizedBox.shrink(),
+                                ),
+                                if (!compact && dueDate != null) ...[
+                                  const SizedBox(width: 16),
+                                  Flexible(
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: date,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

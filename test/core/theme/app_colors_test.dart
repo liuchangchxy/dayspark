@@ -26,13 +26,13 @@ void main() {
       expect(AppColors.darkBorder, isA<Color>());
     });
 
-    test('accent values match DESIGN.md (iOS systemBlue)', () {
-      expect(AppColors.lightAccent, const Color(0xFF007AFF));
+    test('accent values match frozen D Final cobalt', () {
+      expect(AppColors.lightAccent, const Color(0xFF2457D6));
       expect(AppColors.darkAccent, const Color(0xFF0A84FF));
     });
 
-    test('light background is #F2F2F7', () {
-      expect(AppColors.lightBackground, const Color(0xFFF2F2F7));
+    test('light background matches D Final #F5F6F8', () {
+      expect(AppColors.lightBackground, const Color(0xFFF5F6F8));
     });
 
     test('dark background is #0A0A0C', () {

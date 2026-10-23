@@ -66,34 +66,38 @@ void main() {
     await _settle(tester);
 
     expect(find.byType(AppBar), findsOneWidget);
-    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byKey(const ValueKey('workspace-create')), findsOneWidget);
     expect(find.text('Action'), findsWidgets);
     expect(find.text('Calendar'), findsOneWidget);
+    // D Final keeps the Action filter pills on mobile only, so this desktop
+    // surface exposes "Todos" solely through the bottom navigation label.
     expect(find.text('Todos'), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.settings), findsOneWidget);
     expect(find.byType(PopupMenuButton<String>), findsNothing);
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
 
-  testWidgets('FAB opens todo create on action tab', (tester) async {
+  testWidgets('create entry opens todo create on action tab', (tester) async {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byKey(const ValueKey('workspace-create')));
     await _settle(tester);
 
     expect(find.text('New Todo'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
   });
 
-  testWidgets('FAB opens event create on calendar tab', (tester) async {
+  testWidgets('create entry opens event create on calendar tab', (
+    tester,
+  ) async {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
     await tester.tap(find.text('Calendar'));
     await _settle(tester);
 
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byKey(const ValueKey('workspace-create')));
     await _settle(tester);
 
     expect(find.text('New Event'), findsOneWidget);
@@ -107,7 +111,7 @@ void main() {
     await tester.tap(find.text('Calendar'));
     await _settle(tester);
 
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byKey(const ValueKey('workspace-create')));
     await _settle(tester);
 
     expect(find.text('Starts at'), findsOneWidget);

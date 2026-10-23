@@ -49,8 +49,9 @@ void main() {
             parentId: parentId != null ? Value(parentId) : const Value.absent(),
             syncId: syncId != null ? Value(syncId) : const Value.absent(),
             rrule: rrule != null ? Value(rrule) : const Value.absent(),
-            deletedAt:
-                deletedAt != null ? Value(deletedAt) : const Value.absent(),
+            deletedAt: deletedAt != null
+                ? Value(deletedAt)
+                : const Value.absent(),
           ),
         );
   }
@@ -73,7 +74,9 @@ void main() {
             endDt: endDt,
             isAllDay: Value(isAllDay),
             rrule: rrule != null ? Value(rrule) : const Value.absent(),
-            deletedAt: deletedAt != null ? Value(deletedAt) : const Value.absent(),
+            deletedAt: deletedAt != null
+                ? Value(deletedAt)
+                : const Value.absent(),
           ),
         );
   }
@@ -90,8 +93,12 @@ void main() {
         .insert(
           TaskAllocationsCompanion.insert(
             todoId: Value(todoId),
-            todoSyncId: todoSyncId != null ? Value(todoSyncId) : const Value.absent(),
-            occurrenceId: occurrenceId != null ? Value(occurrenceId) : const Value.absent(),
+            todoSyncId: todoSyncId != null
+                ? Value(todoSyncId)
+                : const Value.absent(),
+            occurrenceId: occurrenceId != null
+                ? Value(occurrenceId)
+                : const Value.absent(),
             startAt: startAt,
             endAt: endAt,
           ),
@@ -214,10 +221,17 @@ void main() {
 
       final actionRows = today['actions'] as List;
       expect(actionRows.any((a) => a['summary'] == 'Quarterly Taxes'), isTrue);
-      expect(actionRows.any((a) => a['summary'] == 'Daily Standup Notes'), isTrue);
+      expect(
+        actionRows.any((a) => a['summary'] == 'Daily Standup Notes'),
+        isTrue,
+      );
 
       final statusMap = today['status'] as Map<String, dynamic>;
-      expect(statusMap.keys.toSet(), {'overdueCount', 'missedCount', 'unplannedCount'});
+      expect(statusMap.keys.toSet(), {
+        'overdueCount',
+        'missedCount',
+        'unplannedCount',
+      });
 
       // Downlevel compatibility fields
       expect(decoded['todayEvents'], isA<List>());
@@ -278,7 +292,9 @@ void main() {
 
       final upcoming = await HomeWidgetService.upcomingItems(db, now: fallDate);
       expect(upcoming, isA<List>());
-      final syncItem = upcoming.firstWhere((i) => i['summary'] == 'Post-DST Sync');
+      final syncItem = upcoming.firstWhere(
+        (i) => i['summary'] == 'Post-DST Sync',
+      );
       // Must not drift to previous or next day due to 24h duration arithmetic
       expect(syncItem['date'], '10/26');
       expect(syncItem['time'], '10:00');
@@ -291,7 +307,11 @@ void main() {
       // 2. Pure civil date arithmetic verification:
       // Even if instant delta is 23h or 25h, civil date advance DateTime(y, m, d + 1)
       // always yields exact civil calendar next day without minute or hour shifting
-      final civilTomorrow = DateTime(fallDate.year, fallDate.month, fallDate.day + 1);
+      final civilTomorrow = DateTime(
+        fallDate.year,
+        fallDate.month,
+        fallDate.day + 1,
+      );
       expect(civilTomorrow.year, 2026);
       expect(civilTomorrow.month, 10);
       expect(civilTomorrow.day, 26);
@@ -299,7 +319,11 @@ void main() {
 
       // Spring transition test (March 29 European spring forward / 23h wall day)
       final springDate = DateTime(2026, 3, 28, 14, 0);
-      final springTomorrow = DateTime(springDate.year, springDate.month, springDate.day + 1);
+      final springTomorrow = DateTime(
+        springDate.year,
+        springDate.month,
+        springDate.day + 1,
+      );
       expect(springTomorrow.year, 2026);
       expect(springTomorrow.month, 3);
       expect(springTomorrow.day, 29);
@@ -336,30 +360,44 @@ void main() {
       );
     });
 
-    test('monthDots marks commitment days from both events and allocations', () async {
-      final now = DateTime(2026, 10, 7, 10, 0);
+    test(
+      'monthDots marks commitment days from both events and allocations',
+      () async {
+        final now = DateTime(2026, 10, 7, 10, 0);
 
-      // Event on October 5
-      await insertEvent(
-        summary: 'Event Oct 5',
-        startDt: DateTime(2026, 10, 5, 10, 0),
-        endDt: DateTime(2026, 10, 5, 11, 0),
-      );
+        // Event on October 5
+        await insertEvent(
+          summary: 'Event Oct 5',
+          startDt: DateTime(2026, 10, 5, 10, 0),
+          endDt: DateTime(2026, 10, 5, 11, 0),
+        );
 
-      // Allocation on October 18
-      final todo = await insertTodo(summary: 'Allocated Todo Oct 18');
-      await insertAllocation(
-        todoId: todo,
-        startAt: DateTime(2026, 10, 18, 14, 0),
-        endAt: DateTime(2026, 10, 18, 15, 0),
-      );
+        // Allocation on October 18
+        final todo = await insertTodo(summary: 'Allocated Todo Oct 18');
+        await insertAllocation(
+          todoId: todo,
+          startAt: DateTime(2026, 10, 18, 14, 0),
+          endAt: DateTime(2026, 10, 18, 15, 0),
+        );
 
-      final dots = await HomeWidgetService.monthDots(db, now: now);
+        final dots = await HomeWidgetService.monthDots(db, now: now);
 
-      final markedDays = dots.where((pair) => pair[1] == true).map((pair) => pair[0]).toSet();
-      expect(markedDays.contains(5), isTrue, reason: 'October 5 had an event');
-      expect(markedDays.contains(18), isTrue, reason: 'October 18 had a task allocation');
-    });
+        final markedDays = dots
+            .where((pair) => pair[1] == true)
+            .map((pair) => pair[0])
+            .toSet();
+        expect(
+          markedDays.contains(5),
+          isTrue,
+          reason: 'October 5 had an event',
+        );
+        expect(
+          markedDays.contains(18),
+          isTrue,
+          reason: 'October 18 had a task allocation',
+        );
+      },
+    );
   });
 
   group('HomeWidgetService legacy pendingTaps codec', () {
@@ -372,10 +410,7 @@ void main() {
             'action': 'complete',
             'at': '2026-10-07T10:00:00.000Z',
           },
-          {
-            'todoId': 'invalid',
-            'action': 'complete',
-          },
+          {'todoId': 'invalid', 'action': 'complete'},
         ],
       });
 
@@ -420,34 +455,58 @@ void main() {
     test('theme block contains valid hex tokens and mode', () {
       final light = HomeWidgetService.buildThemeBlock(dark: false);
       expect(light['dark'], false);
-      expect((light['colors'] as Map)['accent'], '#007AFF');
+      expect((light['colors'] as Map)['accent'], '#2457D6');
 
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
       expect((dark['colors'] as Map)['accent'], '#0A84FF');
     });
 
-    test('cross-contract regression: builder allocationId runtimeType is String matching v3 fixture', () async {
-      // 1. Verify v3 fixture schema
-      final fixtureFile = File('test/fixtures/widget/widget_snapshot_v3.json');
-      final fixtureJson = jsonDecode(await fixtureFile.readAsString()) as Map<String, dynamic>;
-      final fixtureTimeline = (fixtureJson['today'] as Map<String, dynamic>)['timeline'] as List;
-      final fixtureAlloc = fixtureTimeline.firstWhere((item) => item['kind'] == 'taskAllocation') as Map<String, dynamic>;
-      expect(fixtureAlloc['allocationId'], isA<String>(), reason: 'v3 fixture allocationId must be String');
+    test(
+      'cross-contract regression: builder allocationId runtimeType is String matching v3 fixture',
+      () async {
+        // 1. Verify v3 fixture schema
+        final fixtureFile = File(
+          'test/fixtures/widget/widget_snapshot_v3.json',
+        );
+        final fixtureJson =
+            jsonDecode(await fixtureFile.readAsString())
+                as Map<String, dynamic>;
+        final fixtureTimeline =
+            (fixtureJson['today'] as Map<String, dynamic>)['timeline'] as List;
+        final fixtureAlloc =
+            fixtureTimeline.firstWhere(
+                  (item) => item['kind'] == 'taskAllocation',
+                )
+                as Map<String, dynamic>;
+        expect(
+          fixtureAlloc['allocationId'],
+          isA<String>(),
+          reason: 'v3 fixture allocationId must be String',
+        );
 
-      // 2. Verify HomeWidgetService builder produces identical String wire type
-      final todoId = await insertTodo(summary: 'Type Check');
-      final allocId = await insertAllocation(
-        todoId: todoId,
-        startAt: DateTime(2026, 10, 7, 9, 0),
-        endAt: DateTime(2026, 10, 7, 10, 0),
-      );
-      final projection = await ActionProjectionQuery.fetch(db, date: DateTime(2026, 10, 7));
-      final timeline = HomeWidgetService.todayTimeline(projection);
-      final allocRow = timeline.firstWhere((item) => item['kind'] == 'taskAllocation');
-      expect(allocRow['allocationId'], isA<String>());
-      expect(allocRow['allocationId'].runtimeType, fixtureAlloc['allocationId'].runtimeType);
-      expect(allocRow['allocationId'], allocId.toString());
-    });
+        // 2. Verify HomeWidgetService builder produces identical String wire type
+        final todoId = await insertTodo(summary: 'Type Check');
+        final allocId = await insertAllocation(
+          todoId: todoId,
+          startAt: DateTime(2026, 10, 7, 9, 0),
+          endAt: DateTime(2026, 10, 7, 10, 0),
+        );
+        final projection = await ActionProjectionQuery.fetch(
+          db,
+          date: DateTime(2026, 10, 7),
+        );
+        final timeline = HomeWidgetService.todayTimeline(projection);
+        final allocRow = timeline.firstWhere(
+          (item) => item['kind'] == 'taskAllocation',
+        );
+        expect(allocRow['allocationId'], isA<String>());
+        expect(
+          allocRow['allocationId'].runtimeType,
+          fixtureAlloc['allocationId'].runtimeType,
+        );
+        expect(allocRow['allocationId'], allocId.toString());
+      },
+    );
   });
 }

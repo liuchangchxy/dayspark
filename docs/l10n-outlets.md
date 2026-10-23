@@ -12,7 +12,7 @@
 
 | # | 出口 | 文案来源 | 语言取自 | 语言切换时如何刷新 | 覆盖手段 |
 |---|---|---|---|---|---|
-| 1 | 应用内 UI | `AppLocalizations`（经 `AppStr` 之外的直接 `l.xxx`；含 Todo 安排/编辑时的 legacy recurrence 确认、来源证据、occurrence 预览与错误提示） | `MaterialApp.locale` ← `localeProvider` | 重建即生效 | `test/architecture/no_raw_text_guard_test.dart`（裸文案）+ `l10n_parity_guard_test.dart`（键对齐）+ `test/ui/widgets/todo/task_allocations_section_test.dart` |
+| 1 | 应用内 UI | `AppLocalizations`（经 `AppStr` 之外的直接 `l.xxx`；含 D Final Shell、Action Inspector、Calendar 截止泳道，以及 Todo 安排/编辑时的 legacy recurrence 确认、来源证据、occurrence 预览与错误提示） | `MaterialApp.locale` ← `localeProvider` | 重建即生效 | `test/architecture/no_raw_text_guard_test.dart`（裸文案）+ `l10n_parity_guard_test.dart`（键对齐）+ `test/ui/widgets/todo/task_allocations_section_test.dart` |
 | 2 | 本地通知（提醒） | `loadNotificationStrings()` | `resolveNotificationLocale()`：持久化 prefs → 系统 | **`ReminderReconciler.onLocaleChanged()`**：清掉已交给 OS 的 `_applied` 条目 → `_reconcileAll(force: true)` 重排 | `test/domain/records/reminder_reconciler_test.dart` 测试 18 |
 | 3 | 桌面 / 锁屏小组件 | `WidgetUiStrings` 快照（预本地化后交给原生；v3 新增 `overdue`/`missed`/`unplanned` 出口，源自 `l.overdue`/`l.missed`/`l.unplannedInbox`） | 同上 | `home_page.dart` 监听 `localeProvider` → `_refreshHomeWidget()` | `test/infrastructure/home_widget_interactivity_test.dart` + `home_widget_service_test.dart` |
 | 4 | 通知动作按钮 / 渠道名 | 原生资源（Android `strings.xml` / iOS） | 系统语言，**不随 App 内切换** | 不适用（系统级，切换需改系统语言） | ⚠️ 未覆盖——见下方"已知缺口" |

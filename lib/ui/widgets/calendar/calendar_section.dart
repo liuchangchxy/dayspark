@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,8 @@ import 'package:dayspark/core/theme/app_typography.dart';
 
 class CalendarSection extends ConsumerStatefulWidget {
   final List<CalendaEventAdapter> events;
+  final List<CalendarDeadline> deadlines;
+  final ValueChanged<CalendarDeadline>? onDeadlineTapped;
   final List<TaskAllocationCalendarAdapter> allocations;
   final void Function(CalendaEventAdapter event)? onEventTapped;
   final void Function(DateTimeRange range)? onTimeSlotTapped;
@@ -46,6 +49,8 @@ class CalendarSection extends ConsumerStatefulWidget {
   const CalendarSection({
     super.key,
     required this.events,
+    this.deadlines = const [],
+    this.onDeadlineTapped,
     this.allocations = const [],
     this.onEventTapped,
     this.onTimeSlotTapped,
@@ -253,8 +258,10 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
 
   Widget _buildToolbar(AppLocalizations l) {
     return Padding(
+      // When Home hosts the calendar it already supplies the shared 28dp
+      // content origin, so the toolbar must not add a second inset.
       padding: EdgeInsets.fromLTRB(
-        AppSpacing.lg,
+        widget.hideHeader ? 0 : AppSpacing.lg,
         widget.hideHeader ? AppSpacing.sm : AppSpacing.xs,
         AppSpacing.sm,
         AppSpacing.sm,
@@ -278,7 +285,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
                   ),
-                  minimumSize: Size.zero,
+                  minimumSize: const Size(48, 48),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(l.goToToday),
@@ -286,6 +293,41 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
             ),
           ],
           const Spacer(),
+          if (MediaQuery.sizeOf(context).width >= 1050) ...[
+            Icon(
+              CupertinoIcons.circle_fill,
+              size: 7,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              l.calendarLegendEvent,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(width: 16),
+            Icon(
+              CupertinoIcons.square,
+              size: 12,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              l.calendarLegendAllocation,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(width: 16),
+            Icon(
+              CupertinoIcons.flag,
+              size: 12,
+              color: Theme.of(context).colorScheme.secondary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              l.calendarDeadlineLane,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(width: 16),
+          ],
           Semantics(
             button: true,
             label: l.previousPeriod,
@@ -507,8 +549,8 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
         multiDayComponentStyles: MultiDayComponentStyles(
           bodyStyles: MultiDayBodyComponentStyles(
             timeIndicatorStyle: TimeIndicatorStyle(
-              lineColor: theme.colorScheme.error,
-              circleColor: theme.colorScheme.error,
+              lineColor: context.semantic.warning,
+              circleColor: context.semantic.warning,
             ),
             // Grid recedes: derived from divider at ~1/3 so events lead.
             hourLinesStyle: HourLinesStyle(
@@ -563,10 +605,31 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
           ),
         ),
       ),
-      header: CalendarHeader(
-        callbacks: _buildCallbacks(),
-        interaction: _interaction,
-        multiDayTileComponents: _tileComponents,
+      header: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CalendarHeader(
+            callbacks: _buildCallbacks(),
+            interaction: _interaction,
+            multiDayTileComponents: _tileComponents,
+          ),
+          if (_viewMode != CalendarViewMode.month &&
+              widget.deadlines.isNotEmpty)
+            CalendarDeadlineLane(
+              dates: List.generate(_viewMode == CalendarViewMode.day ? 1 : 7, (
+                index,
+              ) {
+                final start = _viewMode == CalendarViewMode.day
+                    ? _anchorDate
+                    : _anchorDate.subtract(
+                        Duration(days: _anchorDate.weekday - 1),
+                      );
+                return DateTime(start.year, start.month, start.day + index);
+              }),
+              deadlines: widget.deadlines,
+              onTapped: widget.onDeadlineTapped,
+            ),
+        ],
       ),
       body: CalendarBody(
         callbacks: _buildCallbacks(),
@@ -599,7 +662,9 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
               ),
               // Empty grid reads as a dead spreadsheet; float one
               // non-interactive hint instead (taps pass through to slots).
-              if (widget.events.isEmpty && _viewMode != CalendarViewMode.month)
+              if (widget.events.isEmpty &&
+                  widget.allocations.isEmpty &&
+                  _viewMode != CalendarViewMode.month)
                 Positioned(
                   // Clears the day-header row so the hint never sits on the
                   // weekday labels.
