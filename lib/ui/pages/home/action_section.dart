@@ -525,6 +525,14 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     );
   }
 
+  /// A date-only deadline has no clock. Printing 00:00 invents a time the
+  /// user never set, so the column falls back to the date it already shows.
+  String? _deadlineClock(DateTime? due) {
+    if (due == null) return null;
+    if (due.hour == 0 && due.minute == 0) return null;
+    return DateFormatters.formatTime(due);
+  }
+
   Widget _buildOverdueTile(
     BuildContext context,
     WidgetRef ref,
@@ -533,9 +541,7 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
   ) {
     return _ActionRow(
       key: ValueKey('action-overdue-${todo.id}'),
-      time: todo.dueDate == null
-          ? null
-          : DateFormatters.formatTime(todo.dueDate!),
+      time: _deadlineClock(todo.dueDate),
       dateHint: todo.dueDate == null
           ? null
           : DateFormatters.formatShortDate(todo.dueDate!),
@@ -676,9 +682,7 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
   ) {
     return _ActionRow(
       key: ValueKey('action-due-${todo.id}'),
-      time: todo.dueDate == null
-          ? null
-          : DateFormatters.formatTime(todo.dueDate!),
+      time: _deadlineClock(todo.dueDate),
       icon: CupertinoIcons.flag,
       iconColor: context.semantic.warning,
       title: todo.summary,
