@@ -64,7 +64,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         decoration: InputDecoration(
           hintText: l.search,
           isDense: true,
+          // The field *is* the page header here, so it must not inherit the
+          // filled form-field ground — a dark capsule stretched across the
+          // whole toolbar reads as a second navigation bar.
+          filled: false,
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
           hintStyle: AppTypography.body.copyWith(
             color: context.semantic.textTertiary,
           ),
