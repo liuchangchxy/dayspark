@@ -59,6 +59,11 @@ TaskAllocation-domain, notification or routing change.
 
 ## Evidence
 
+- Anti-tampering disclosure: the pre-commit guard flagged `expect(...)` strings in
+  the two touched test files, but they moved because `dart format` reflowed the
+  file. Assertion counts rose, not fell: `action_section_test` 41 → 44,
+  `home_tab_navigation_test` 15 → 22; every flagged literal is still present.
+
 - Rebuilt `tool/ui_acceptance/main.dart` for web twice (`QA_THEME=light|dark`,
   `QA_LOCALE=zh`), served the build, drove the real `DaySparkApp` with sidebar
   navigation at 1440×900 and 390×844.
