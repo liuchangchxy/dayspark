@@ -14,6 +14,8 @@ bool get isNativeMobile => isAndroid || isIOS;
 
 bool get isWindows => !kIsWeb && Platform.isWindows;
 
+bool get isMacOS => !kIsWeb && Platform.isMacOS;
+
 TargetPlatform? homeWidgetPlatformOn({
   required bool isWeb,
   required TargetPlatform platform,

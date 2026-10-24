@@ -152,9 +152,14 @@ class _TodoOccurrencePickerSheetState
                     );
                   }
                   if (snapshot.hasError) {
+                    // A raw exception here names tables and types the user
+                    // never chose; the log keeps the detail.
+                    debugPrint(
+                      'occurrence picker: load error: ${snapshot.error}',
+                    );
                     return Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text('${snapshot.error}'),
+                      child: Text(l.error),
                     );
                   }
                   final items = snapshot.data ?? const [];

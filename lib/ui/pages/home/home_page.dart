@@ -103,8 +103,7 @@ class _HomePageState extends ConsumerState<HomePage>
   /// The active destination has exactly one owner — [workspaceTabProvider] —
   /// so the sidebar (which lives outside this page) and the in-page tab bar
   /// can never disagree about which pane is showing.
-  int get _currentTab =>
-      _tabIndexFor(ref.watch(workspaceTabProvider));
+  int get _currentTab => _tabIndexFor(ref.watch(workspaceTabProvider));
 
   void _initCurrentTab() {
     final index = widget.initialTab >= 0
@@ -357,10 +356,7 @@ class _HomePageState extends ConsumerState<HomePage>
               ),
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(1),
-                child: Container(
-                  height: 1,
-                  color: context.semantic.separator,
-                ),
+                child: Container(height: 1, color: context.semantic.separator),
               ),
               actions: [
                 Semantics(
@@ -403,7 +399,14 @@ class _HomePageState extends ConsumerState<HomePage>
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildPageHeader(context, l, desktop, isActionTab, isCalendarTab, pageLabel),
+          _buildPageHeader(
+            context,
+            l,
+            desktop,
+            isActionTab,
+            isCalendarTab,
+            pageLabel,
+          ),
           Expanded(
             child: KeyedSubtree(
               key: ValueKey('workspace-content-$_currentTab'),
@@ -463,12 +466,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final (title, subtitle) = isCalendarTab
         ? (_calendarTitle ?? pageLabel, _calendarSubtitle ?? '')
         : isActionTab
-        ? (
-            DateFormat.MMMMd(
-              Localizations.localeOf(context).toString(),
-            ).format(ref.watch(actionDateProvider)),
-            _actionDateNote(ref.watch(actionDateProvider)),
-          )
+        ? (l.today, _actionDateNote(ref.watch(actionDateProvider)))
         : (l.todos, '');
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -527,8 +525,6 @@ class _HomePageState extends ConsumerState<HomePage>
       onNavigateToCalendar: () => _setTab(1),
       onEventTap: (event) => context.push('/event/detail', extra: event),
       onTodoTap: (todo) => context.push('/todo/detail', extra: todo),
-      onEventEdit: (event) => context.push('/event/edit', extra: event),
-      onTodoEdit: (todo) => context.push('/todo/edit', extra: todo),
     );
   }
 
@@ -554,17 +550,25 @@ class _HomePageState extends ConsumerState<HomePage>
 
     return eventsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(l.error('$e'))),
+      error: (e, _) => Center(child: Text(l.error)),
       data: (events) => allocationsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(l.error('$e'))),
+        error: (e, _) => Center(child: Text(l.error)),
         data: (allocationItems) {
           // Visible-window expansion: month grid reaches ~6 weeks around the
           // anchor ([-7, +34] days); ±45d covers it with margin.
+          // Event tiles carry the calendar's colour, so the colour a user
+          // picks in Manage Calendars is the one they see on the grid.
+          final calendarColors = {
+            for (final calendar
+                in ref.watch(calendarsProvider).valueOrNull ?? const [])
+              calendar.id: ColorUtils.parseHex(calendar.color),
+          };
           final adapters = expandRecurringEvents(
             events,
             before: viewed.subtract(const Duration(days: 45)),
             after: viewed.add(const Duration(days: 45)),
+            colorForCalendar: (id) => calendarColors[id],
           );
           return CalendarSection(
             events: adapters,
@@ -623,6 +627,10 @@ class _HomePageState extends ConsumerState<HomePage>
                 },
                 loadSchedulableTodos: () =>
                     ref.read(databaseProvider).todosDao.getSchedulableTodos(),
+                onCreateTodoHere: () => context.push(
+                  '/todo/new?start=${range.start.millisecondsSinceEpoch}'
+                  '&end=${range.end.millisecondsSinceEpoch}',
+                ),
                 onScheduleTodo: (todo, [occurrenceId]) async {
                   try {
                     await ref.read(createTaskAllocationProvider)(
@@ -646,10 +654,15 @@ class _HomePageState extends ConsumerState<HomePage>
                       );
                     }
                   } catch (e) {
+                    debugPrint('calendar: schedule todo failed: $e');
                     if (mounted) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('$e')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            AppLocalizations.of(context)!.schedulingFailed,
+                          ),
+                        ),
+                      );
                     }
                   }
                 },
@@ -687,38 +700,43 @@ class _HomePageState extends ConsumerState<HomePage>
   }) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final tooltip = isCalendarTab ? l.newEvent : l.newTodo;
+    final label = isCalendarTab ? l.newEvent : l.newTodo;
     void onPressed() {
       if (isCalendarTab) {
+        // Creating from the calendar means "on the day I am looking at", not
+        // "at midnight": a new event should start at a plausible hour.
         final viewed = ref.read(viewedDateProvider);
+        final now = DateTime.now();
+        final isToday =
+            viewed.year == now.year &&
+            viewed.month == now.month &&
+            viewed.day == now.day;
+        final start = isToday
+            ? DateTime(now.year, now.month, now.day, now.hour + 1)
+            : DateTime(viewed.year, viewed.month, viewed.day, 9);
         context.push(
-          '/event/new?start=${viewed.millisecondsSinceEpoch}'
-          '&end=${viewed.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
+          '/event/new?start=${start.millisecondsSinceEpoch}'
+          '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
         );
       } else {
         context.push('/todo/new');
       }
     }
 
-    return Tooltip(
-      message: tooltip,
-      child: TextButton.icon(
-        key: const ValueKey('workspace-create'),
-        onPressed: onPressed,
-        style: TextButton.styleFrom(
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: theme.colorScheme.onPrimary,
-          minimumSize: const Size(48, 48),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          textStyle: AppTypography.caption.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        icon: const Icon(CupertinoIcons.add, size: 15),
-        label: Text(l.newItem),
+    return TextButton.icon(
+      key: const ValueKey('workspace-create'),
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: AppTypography.caption.copyWith(fontWeight: FontWeight.w600),
       ),
+      icon: const Icon(CupertinoIcons.add, size: 15),
+      label: Text(label),
     );
   }
 
@@ -749,7 +767,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final desktop = isWorkspaceLayout(context);
     final view = ref.watch(todosViewProvider);
     final tagsAsync = ref.watch(tagsProvider);
-    final six = ref.watch(sixThingsModeProvider).valueOrNull ?? false;
+    final six = ref.watch(sixThingsModeProvider);
 
     return Column(
       children: [
@@ -760,10 +778,7 @@ class _HomePageState extends ConsumerState<HomePage>
             onViewSelected: (next) =>
                 ref.read(todosViewProvider.notifier).state = next,
             onSixThingsToggle: _toggleSixThings,
-            trailing: [
-              _manageTagsButton(context, l),
-              _trashButton(context, l),
-            ],
+            trailing: [_manageTagsButton(context, l), _trashButton(context, l)],
           )
         else
           DateStrip(
@@ -821,8 +836,9 @@ class _HomePageState extends ConsumerState<HomePage>
 
   void _toggleSixThings() {
     setState(() => _sixThingsExpanded = false);
-    final six = ref.read(sixThingsModeProvider).valueOrNull ?? false;
-    ref.read(setSixThingsModeProvider)(!six);
+    ref
+        .read(sixThingsModeProvider.notifier)
+        .setEnabled(!ref.read(sixThingsModeProvider));
   }
 
   Widget _manageTagsButton(BuildContext context, AppLocalizations l) {
@@ -854,7 +870,7 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget _buildTodoList(TodosView view) {
     final l = AppLocalizations.of(context)!;
     final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
-    final sixThingsOn = ref.watch(sixThingsModeProvider).valueOrNull ?? false;
+    final sixThingsOn = ref.watch(sixThingsModeProvider);
     final todoTagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
     final hasTagFilter = _selectedTagIds.isNotEmpty;
     bool matchesTags(Todo t) {
@@ -872,7 +888,7 @@ class _HomePageState extends ConsumerState<HomePage>
       final allAsync = ref.watch(allTodosProvider);
       return allAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(l.error('$e'))),
+        error: (e, _) => Center(child: Text(l.error)),
         data: (todos) {
           final pending = todos
               .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
@@ -917,7 +933,7 @@ class _HomePageState extends ConsumerState<HomePage>
       final completedAsync = ref.watch(completedTodosProvider);
       return inboxAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(l.error('$e'))),
+        error: (e, _) => Center(child: Text(l.error)),
         data: (inboxTodos) {
           final filteredInbox = inboxTodos.where(matchesTags).toList();
           final completed = hideCompleted
@@ -959,7 +975,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
     return tagFilteredAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(l.error('$e'))),
+      error: (e, _) => Center(child: Text(l.error)),
       data: (allPending) {
         final completed = completedAsync.valueOrNull ?? [];
         final now = DateTime.now();
@@ -1061,9 +1077,13 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
               if (_sixThingsExpanded && sixThingsOn && date == today)
                 SliverToBoxAdapter(
-                  child: _foldRow(l.collapseList, CupertinoIcons.chevron_up, () {
-                    setState(() => _sixThingsExpanded = false);
-                  }),
+                  child: _foldRow(
+                    l.collapseList,
+                    CupertinoIcons.chevron_up,
+                    () {
+                      setState(() => _sixThingsExpanded = false);
+                    },
+                  ),
                 ),
             ],
             if (dateCompleted.isNotEmpty) ...[
@@ -1098,21 +1118,51 @@ class _HomePageState extends ConsumerState<HomePage>
     ref.read(reorderTodosProvider)(list.map((t) => t.id).toList());
   }
 
+  /// Numbers that describe a position in an order only mean something when
+  /// the order is the feature — that is Six Things on today.
+  bool get _showsSequenceNumber {
+    if (!ref.read(sixThingsModeProvider)) return false;
+    final view = ref.read(todosViewProvider);
+    if (view is! TodosDayView) return false;
+    final now = DateTime.now();
+    return view.day.year == now.year &&
+        view.day.month == now.month &&
+        view.day.day == now.day;
+  }
+
   Widget _reorderableTodoTile(Todo todo, Key key, {required int index}) {
+    final sixThingsNumber = _showsSequenceNumber ? index : null;
+    final desktopDrag =
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows;
     // Per-tile Material: during a reorder drag the tile is reparented into
     // the drag overlay, where the Scaffold Material may already be defunct.
-    final tile = MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: Material(
-        type: MaterialType.transparency,
-        child: _todoTile(todo, index: index),
+    final tile = Material(
+      type: MaterialType.transparency,
+      child: _todoTile(
+        todo,
+        index: sixThingsNumber,
+        dragHandle: desktopDrag
+            ? ReorderableDragStartListener(
+                index: index,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.grab,
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Icon(
+                      CupertinoIcons.line_horizontal_3,
+                      size: 16,
+                      color: context.semantic.textTertiary,
+                    ),
+                  ),
+                ),
+              )
+            : null,
       ),
     );
-    if (defaultTargetPlatform == TargetPlatform.linux ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.windows) {
-      return ReorderableDragStartListener(key: key, index: index, child: tile);
-    }
+    if (desktopDrag) return KeyedSubtree(key: key, child: tile);
     return ReorderableDelayedDragStartListener(
       key: key,
       index: index,
@@ -1162,10 +1212,7 @@ class _HomePageState extends ConsumerState<HomePage>
           child: ExpansionTile(
             title: Row(
               children: [
-                Text(
-                  label,
-                  style: AppTypography.title,
-                ),
+                Text(label, style: AppTypography.title),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   '${todos.length}',
@@ -1269,10 +1316,16 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  Widget _todoTile(Todo todo, {bool isCompleted = false, int? index}) {
+  Widget _todoTile(
+    Todo todo, {
+    bool isCompleted = false,
+    int? index,
+    Widget? dragHandle,
+  }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: TodoListTile(
+        dragHandle: dragHandle,
         summary: todo.summary,
         isCompleted: isCompleted,
         priority: todo.priority,

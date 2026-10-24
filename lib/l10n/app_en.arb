@@ -11,8 +11,8 @@
   "noOccurrencesAvailable": "No occurrences are available in the next 90 days.",
   "occurrenceWindowHint": "Showing matches only within the next 90 days. The series may continue outside this window.",
   "orphanTaskAllocation": "Its recurring occurrence no longer exists. The scheduled time is retained.",
-  "confirmLegacyRecurrenceTitle": "Confirm recurring Todo",
-  "confirmLegacyRecurrenceBody": "This repeating todo was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.",
+  "confirmLegacyRecurrenceTitle": "Confirm repeating task",
+  "confirmLegacyRecurrenceBody": "This repeating task was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.",
   "legacyAnchorEvidence": "Stored date and time",
   "dateOnly": "Date only",
   "dateAndTime": "Date and time",
@@ -42,22 +42,22 @@
   "returnToHome": "Return to Home",
   "eventNotFound": "Event Not Found",
   "missingEventParam": "This link did not carry an event. Open it from the calendar instead.",
-  "todoNotFound": "Todo Not Found",
-  "missingTodoParam": "This link did not carry a todo. Open it from a list instead.",
+  "todoNotFound": "Task Not Found",
+  "missingTodoParam": "This link did not carry a task. Open it from a list instead.",
   "editCalendar": "Edit Calendar",
   "deleteCalendar": "Delete Calendar",
   "calendarName": "Calendar Name",
   "cannotDeleteOnlyCalendar": "Cannot delete the only calendar",
   "calendar": "Calendar",
-  "todos": "Todos",
+  "todos": "Tasks",
   "settings": "Settings",
   "search": "Search",
   "searchTasksAndEvents": "Search tasks and events",
   "newEvent": "New Event",
-  "newTodo": "New Todo",
+  "newTodo": "New Task",
   "newItem": "New",
   "editEvent": "Edit Event",
-  "editTodo": "Edit Todo",
+  "editTodo": "Edit Task",
   "save": "Save",
   "cancel": "Cancel",
   "delete": "Delete",
@@ -89,7 +89,7 @@
   "apiKey": "API Key",
   "baseUrl": "Base URL",
   "model": "Model",
-  "aiHint": "Ask me to create events or todos",
+  "aiHint": "Ask me to create events or tasks",
   "aiExample": "e.g. \"Meeting with John tomorrow 3pm\"",
   "aiNotConfigured": "AI is not configured",
   "aiGoToSettings": "Go to Settings > AI to configure your API key",
@@ -100,7 +100,7 @@
   "themeLight": "Light",
   "themeDark": "Dark",
   "about": "About",
-  "noPendingTodos": "No pending todos",
+  "noPendingTodos": "No pending tasks",
   "tapToCreate": "Tap + to create one",
   "noResults": "No results",
   "enterTitle": "Please enter a title",
@@ -131,25 +131,18 @@
     }
   },
   "eventCreated": "Event created",
-  "todoCreated": "Todo created",
+  "todoCreated": "Task created",
   "importExport": "Import / Export",
   "export": "Export",
   "fullBackup": "Full backup",
   "fullBackupDesc": "Archive with all data and attachment files",
   "restore": "Restore",
-  "backupRestored": "Backup restored",
-  "restoreFailed": "Restore failed: {error}",
-  "@restoreFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "backupRestored": "Backup merged",
+  "restoreFailed": "Merge failed",
   "import": "Import",
   "advancedFeatures": "Advanced Features",
   "attachments": "Attachments",
-  "calendarData": "Calendar data",
+  "calendarData": "Import or export .ics files",
   "add": "Add",
   "exportedTo": "Exported to {path}",
   "@exportedTo": {
@@ -159,24 +152,10 @@
       }
     }
   },
-  "exportFailed": "Export failed: {error}",
-  "@exportFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "exportFailed": "Export failed",
   "noCalendarToImport": "No calendar found to import into",
-  "importFailed": "Import failed: {error}",
-  "@importFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
-  "importedResult": "Imported {events} event(s) and {todos} todo(s)",
+  "importFailed": "Import failed",
+  "importedResult": "Imported {events} event(s) and {todos} task(s)",
   "@importedResult": {
     "placeholders": {
       "events": {
@@ -187,7 +166,7 @@
       }
     }
   },
-  "importedResultWithFailed": "Imported {events} event(s) and {todos} todo(s) ({failed} failed)",
+  "importedResultWithFailed": "Imported {events} event(s) and {todos} task(s) ({failed} failed)",
   "@importedResultWithFailed": {
     "placeholders": {
       "events": {
@@ -201,25 +180,13 @@
       }
     }
   },
-  "importExportDesc": "Export calendar events and todos to .ics, or import from a .ics file.",
-  "error": "Error: {error}",
-  "@error": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "importExportDesc": "Export calendar events and tasks to .ics, or import from a .ics file.",
+  "error": "Something went wrong. Please try again.",
   "endBeforeStart": "End time must be after start time",
   "aiNotConfiguredHint": "AI not configured. Go to Settings > AI.",
-  "aiError": "AI error: {error}",
-  "@aiError": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "aiError": "The assistant couldn't finish that",
+  "aiFilled": "Filled in: {fields}",
+  "@aiFilled": {"placeholders": {"fields": {"type": "String"}}},
   "deleteEventConfirm": "Delete \"{title}\"?",
   "@deleteEventConfirm": {
     "placeholders": {
@@ -242,43 +209,16 @@
   "noTimeSlots": "No time slot suggestions available",
   "suggestedTimeSlots": "Suggested Time Slots",
   "timeSlotConflict": "The selected time slot is now occupied or no longer available. Please select another slot.",
-  "schedulingFailed": "Scheduling failed: {error}",
-  "@schedulingFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "schedulingFailed": "Couldn't schedule that",
   "noSubtaskSuggestions": "No subtask suggestions available",
   "taskBreakdown": "Task Breakdown",
-  "todoCreatedShort": "Todo created",
-  "failedCreateTodo": "Failed to create todo: {error}",
-  "@failedCreateTodo": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
-  "breakdownFailed": "Breakdown failed: {error}",
-  "@breakdownFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "todoCreatedShort": "Task created",
+  "failedCreateTodo": "Couldn't create the task",
+  "breakdownFailed": "Couldn't break that down",
   "eventCreatedShort": "Event created",
-  "failedAction": "Failed: {error}",
-  "@failedAction": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "failedAction": "Couldn't do that",
   "noAttachments": "No attachments",
+  "openTask": "Not completed",
   "completed": "Completed",
   "dayAfterTomorrow": "Day after",
   "nextWeek": "Next week",
@@ -286,7 +226,7 @@
   "allTasks": "All Tasks",
   "noDueDate": "No due date",
   "moveToToday": "Move to today",
-  "moveToTodayPrompt": "You have {count} overdue todo(s). Move due dates to today?",
+  "moveToTodayPrompt": "You have {count} overdue task(s). Move due dates to today?",
   "@moveToTodayPrompt": {
     "placeholders": {
       "count": {
@@ -294,7 +234,7 @@
       }
     }
   },
-  "movedToToday": "Moved {count} todo(s) to today",
+  "movedToToday": "Moved {count} task(s) to today",
   "@movedToToday": {
     "placeholders": {
       "count": {
@@ -306,11 +246,8 @@
   "pendingTodos": "Pending",
   "goToToday": "Return to Today",
   "ok": "OK",
-  "defaultTab": "Tab Order",
-  "defaultTabDesc": "Choose the order of calendar and todos tabs",
-  "calendarFirst": "Calendar First",
-  "todosFirst": "Todos First",
-  "inbox": "To-do Box",
+  "defaultTab": "Startup view",
+  "inbox": "Inbox",
   "trash": "Trash",
   "emptyTrash": "Empty Trash",
   "restoreTodo": "Restore",
@@ -332,6 +269,7 @@
       }
     }
   },
+  "openUpdatePage": "View release",
   "checkUpdate": "Check for Updates",
   "upToDate": "Already up to date",
   "newVersionAvailable": "New version available: {version}",
@@ -343,7 +281,6 @@
     }
   },
   "currentVersion": "Current version",
-  "downloadUpdate": "Download Update",
   "starOnGithub": "Star on GitHub",
   "reportIssue": "Report an Issue",
   "aiProvider": "Provider",
@@ -351,6 +288,7 @@
   "detectModels": "Detect Models",
   "detectingModels": "Detecting...",
   "noModelsFound": "No models found",
+  "modelDetectFailed": "Couldn’t reach that provider. Check the URL and API key.",
   "selectModel": "Select Model",
   "data": "Data",
   "tutorial": "Tutorial",
@@ -368,6 +306,16 @@
   "snooze": "Snooze",
   "themeColor": "Theme Color",
   "resetColor": "Reset",
+  "colorRed": "Red",
+  "colorAmber": "Amber",
+  "colorGreen": "Green",
+  "colorBlue": "Blue",
+  "colorPurple": "Purple",
+  "colorPink": "Pink",
+  "colorGray": "Gray",
+  "colorTeal": "Teal",
+  "colorOrange": "Orange",
+  "colorIndigo": "Indigo",
   "feedback": "Feedback",
   "feedbackHint": "Describe your feedback or bug report...",
   "feedbackSubmit": "Submit Feedback",
@@ -375,11 +323,11 @@
   "whatsNew": "What's New",
   "changelogDismiss": "OK",
   "addEventShort": "Add Event",
-  "addTodoShort": "Add Todo",
+  "addTodoShort": "Add Task",
   "schedule": "Schedule",
   "breakDown": "Break Down",
   "eventReminder": "Event Reminder",
-  "todoReminder": "Todo Reminder",
+  "todoReminder": "Task Reminder",
   "snoozedReminder": "Snoozed reminder",
   "eventStartingSoon": "Event starting soon",
   "taskDueSoon": "Task due soon",
@@ -395,19 +343,15 @@
       }
     }
   },
-  "attachmentFailed": "Attachment failed: {error}",
-  "@attachmentFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
+  "attachmentFailed": "Attachment action failed",
   "editTag": "Edit Tag",
   "thirdPartyLicenses": "Third-Party Licenses",
   "security": "Security",
   "recurringDragDisabled": "Recurring events cannot be moved by drag",
   "eventMoved": "Event moved",
+  "notificationPermission": "Notification permission",
+  "notificationPermissionDesc": "Allow DaySpark to send reminder notifications",
+  "notificationPermissionAsked": "Requested — change it in System Settings if nothing appears",
   "systemAlarm": "System Alarm",
   "systemAlarmDesc": "Play alarm sound for reminders",
   "exactAlarmTitle": "Exact alarm permission",
@@ -454,7 +398,7 @@
     }
   },
   "gitHub": "GitHub",
-  "openTodoDetails": "Open todo details",
+  "openTodoDetails": "Open task details",
   "highPriority": "High priority",
   "mediumPriority": "Medium priority",
   "markIncomplete": "Mark incomplete",
@@ -534,7 +478,7 @@
   },
   "collapseList": "Collapse",
   "hideCompleted": "Hide completed",
-  "hideCompletedDesc": "Hide completed items from todo lists",
+  "hideCompletedDesc": "Hide completed items from task lists",
   "advancedSettings": "Advanced",
   "emptySlotSemantics": "Empty time slot, activate to create an event",
   "emptyCalendarHint": "Tap an empty slot to create your first event",
@@ -568,7 +512,7 @@
   "@searchEmptyTitle": {
     "description": "Search your calendar"
   },
-  "searchEmptyHint": "Find events and todos by title or notes.",
+  "searchEmptyHint": "Find events and tasks by title or notes.",
   "@searchEmptyHint": {
     "description": "Find events and todos by title or notes."
   },
@@ -576,11 +520,11 @@
   "@searchSuggestions": {
     "description": "From your inbox"
   },
-  "trashEmptyHint": "Deleted events and todos wait here until you remove them.",
+  "trashEmptyHint": "Deleted events and tasks wait here until you remove them.",
   "@trashEmptyHint": {
     "description": "Deleted events and todos wait here until you remove them."
   },
-  "trashEmptyAction": "Back to todos",
+  "trashEmptyAction": "Back to Tasks",
   "@trashEmptyAction": {
     "description": "Back to todos"
   },
@@ -600,7 +544,7 @@
   "@tagsEmptyAction": {
     "description": "Create a tag"
   },
-  "tagEmptyHint": "Tags group your todos so you can filter by area.",
+  "tagEmptyHint": "Tags group your tasks so you can filter by area.",
   "@tagEmptyHint": {
     "description": "Tags group your todos so you can filter by area."
   },
@@ -621,16 +565,15 @@
   "noTaskAllocations": "No scheduled time",
   "cancelTaskAllocation": "Cancel schedule",
   "cancelledTaskAllocation": "Cancelled",
-  "scheduleTodo": "Schedule Todo",
-  "scheduleTodoDesc": "Allocate calendar time for an existing todo",
-  "createEventOption": "Create Event",
-  "createEventDesc": "Add a new calendar event",
-  "selectTodoToSchedule": "Select Todo to Schedule",
-  "noSchedulableTodos": "No pending todos available to schedule",
+  "scheduleTodo": "Schedule Task",
+  "scheduleTodoDesc": "Give an existing task a time here",
+  "createEventOption": "New Event",
+  "createEventDesc": "Add an event at this time",
+  "selectTodoToSchedule": "Select a Task to Schedule",
+  "noSchedulableTodos": "No pending tasks available to schedule",
   "action": "Action",
-  "actionFirst": "Action First",
   "scheduledSection": "Scheduled",
-  "dueTodaySection": "Due Today",
+  "dueTodaySection": "To do today",
   "unplannedInbox": "Inbox",
   "unplannedCount": "{count} unplanned",
   "@unplannedCount": {
@@ -680,16 +623,16 @@
   "actionDetails": "Details",
   "calendarDeadlineLane": "Deadlines",
   "calendarLegendEvent": "Event",
-  "calendarLegendAllocation": "Scheduled",
+  "calendarLegendAllocation": "Scheduled time",
   "actionAll": "All",
   "edit": "Edit",
   "done": "Done",
   "close": "Close",
-  "todoDetails": "Todo",
+  "todoDetails": "Task",
   "eventDetails": "Event",
   "deadline": "Deadline",
   "deadlineTime": "Deadline time",
-  "executionSchedule": "Execution time",
+  "executionSchedule": "Scheduled time",
   "addExecution": "Add execution time",
   "notScheduled": "Not scheduled",
   "execution": "Execution",
@@ -701,11 +644,13 @@
   "scheduleNow": "Schedule now",
   "actionNothingNow": "Nothing needs you right now",
   "actionNothingNowHint": "Upcoming events and deadlines will show up here on the day.",
-  "recurringNeedsRepair": "Some repeating todos need a one-time fix",
+  "recurringNeedsRepair": "Some repeating tasks need a one-time fix",
   "recurringNeedsRepairHint": "These were imported without a time zone. Open one to confirm when it repeats.",
-  "recurringBroken": "A repeating todo cannot be calculated",
+  "recurringBroken": "A repeating task cannot be calculated",
   "recurringBrokenHint": "Its repeat rule is no longer valid. Open it to set a new one.",
-  "laterToday": "Later today",
+  "untilTime": "until {time}",
+  "@untilTime": {"placeholders": {"time": {"type": "String"}}},
+  "laterToday": "Next up",
   "nothingScheduled": "Nothing scheduled",
   "minutesShort": "{count} min",
   "hoursShort": "{count} h",
@@ -730,5 +675,139 @@
   "startTime": "Start",
   "endTime": "End",
   "repeatNeedsDate": "Give it a date first, then it can repeat.",
-  "recurringSeriesNoticeShort": "This repeats. Edits apply to every occurrence."
+  "recurringSeriesNoticeShort": "This repeats. Edits apply to every occurrence.",
+  "actionFailedRetry": "That didn't work. Please try again.",
+  "discardChanges": "Discard changes?",
+  "discardChangesBody": "Your edits to this item haven't been saved.",
+  "keepEditing": "Keep editing",
+  "discard": "Discard",
+  "clearDeadline": "Clear deadline",
+  "cancelSchedule": "Cancel scheduled time",
+  "removeReminder": "Remove reminder",
+  "removeAttachment": "Remove attachment",
+  "removeSubtask": "Remove subtask",
+  "duration": "Duration",
+  "lengthLabel": "Duration",
+  "searchFailed": "Search failed. Please try again.",
+  "scheduledTimeLower": "Scheduled time",
+  "executionRow": "Scheduled time",
+  "deadlineRow": "Deadline",
+  "remindOnTime": "On time",
+  "remindMinutesBefore": "{count} min before",
+  "@remindMinutesBefore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remindHoursBefore": "{count} h before",
+  "@remindHoursBefore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remindDaysBefore": "{count} day(s) before",
+  "@remindDaysBefore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "remindCustom": "Custom time",
+  "reminderNeedsAnchor": "Set a deadline or start time first, then reminders can be relative to it.",
+  "actionEarlierToday": "Earlier today",
+  "createTodoAndSchedule": "New Task",
+  "calendarHasContents": "This calendar holds {events} events and {todos} tasks.",
+  "@calendarHasContents": {
+    "placeholders": {
+      "events": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      }
+    }
+  },
+  "moveContentsTo": "Move them to",
+  "deleteCalendarAndContents": "Delete them with the calendar",
+  "importTo": "Import into",
+  "nothingToExport": "Nothing to export yet",
+  "exportAllCalendars": "Export all calendars",
+  "mergeBackup": "Merge backup",
+  "mergeBackupDesc": "Adds everything from the backup. Items already on this device are updated; nothing is removed.",
+  "accountLoadFailed": "Couldn't load your account.",
+  "copyFeedback": "Copy feedback",
+  "submitOnGitHub": "Submit on GitHub",
+  "clearChatAction": "Clear",
+  "clearChatConfirm": "Clear this conversation? It can't be restored.",
+  "openUpdatePage": "View release",
+  "couldNotOpenLink": "Couldn't open that link.",
+  "invalidTimeRange": "The end has to come after the start.",
+  "deleteThisOccurrence": "This occurrence only",
+  "deleteWholeSeries": "The whole series",
+  "deleteScopeTitle": "Delete which?",
+  "editOccurrenceNotice": "You're editing one occurrence of a repeating event.",
+  "repeatUntil": "until {date}",
+  "@repeatUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "repeatEveryNWeekdays": "Every {interval} weeks on {days}",
+  "@repeatEveryNWeekdays": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "interval": {
+        "type": "int"
+      }
+    }
+  },
+  "repeatOnDays": "Every week on {days}",
+  "@repeatOnDays": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "repeatMonthlyOnDay": "Every month on day {day}",
+  "@repeatMonthlyOnDay": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "goneFromHere": "This item is no longer here.",
+  "createTodoAndScheduleDesc": "Start a task and place it in this slot",
+  "tagNameRequired": "Tag name is required.",
+  "tagNameTooLong": "Tag names can be at most {count} characters.",
+  "tagDeleteBody": "Remove the tag \"{name}\"? It will be removed from every task that uses it.",
+  "tagDuplicate": "A tag with that name already exists.",
+  "@tagNameTooLong": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@tagDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarNameRequired": "Calendar name is required.",
+  "signOutConfirm": "Log out?",
+  "signOutBody": "Your data stays on this device. Syncing stops until you log in again.",
+  "signOut": "Log out"
 }

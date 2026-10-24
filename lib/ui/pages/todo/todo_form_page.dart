@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
@@ -13,6 +15,8 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/attachments_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
@@ -22,24 +26,138 @@ import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
-import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
+import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:timezone/timezone.dart' as tz;
+
+/// A subtask the form has staged but not written yet.
+class DraftSubtask {
+  const DraftSubtask({
+    required this.summary,
+    this.id,
+    this.isCompleted = false,
+  });
+
+  final int? id;
+  final String summary;
+  final bool isCompleted;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DraftSubtask &&
+      other.id == id &&
+      other.summary == summary &&
+      other.isCompleted == isCompleted;
+
+  @override
+  int get hashCode => Object.hash(id, summary, isCompleted);
+}
+
+/// Everything the form is holding. Two snapshots difference decides whether
+/// leaving has to ask for confirmation.
+class _TodoSnapshot {
+  const _TodoSnapshot({
+    required this.summary,
+    required this.description,
+    required this.calendarId,
+    required this.priority,
+    required this.deadline,
+    required this.startDate,
+    required this.rrule,
+    required this.tagIds,
+    required this.executions,
+    required this.reminders,
+    required this.attachments,
+    required this.subtasks,
+    required this.removedSubtasks,
+  });
+
+  final String summary;
+  final String description;
+  final int? calendarId;
+  final int priority;
+  final DateTime? deadline;
+  final DateTime? startDate;
+  final String? rrule;
+  final Set<int> tagIds;
+  final List<DraftExecution> executions;
+  final List<DraftReminder> reminders;
+  final List<DraftAttachment> attachments;
+  final List<DraftSubtask> subtasks;
+  final Set<int> removedSubtasks;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _TodoSnapshot &&
+      other.summary == summary &&
+      other.description == description &&
+      other.calendarId == calendarId &&
+      other.priority == priority &&
+      other.deadline == deadline &&
+      other.startDate == startDate &&
+      other.rrule == rrule &&
+      _setEquals(other.tagIds, tagIds) &&
+      _listEquals(other.executions, executions) &&
+      _listEquals(other.reminders, reminders) &&
+      _listEquals(other.attachments, attachments) &&
+      _listEquals(other.subtasks, subtasks) &&
+      _setEquals(other.removedSubtasks, removedSubtasks);
+
+  @override
+  int get hashCode => Object.hash(
+    summary,
+    description,
+    calendarId,
+    priority,
+    deadline,
+    startDate,
+    rrule,
+    Object.hashAll(tagIds),
+    Object.hashAll(executions),
+    Object.hashAll(reminders),
+    Object.hashAll(attachments),
+    Object.hashAll(subtasks),
+    Object.hashAll(removedSubtasks),
+  );
+}
+
+bool _setEquals<T>(Set<T> a, Set<T> b) =>
+    a.length == b.length && a.containsAll(b);
+
+bool _listEquals<T>(List<T> a, List<T> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
 
 /// One page for "write a todo": creating and editing differ only in whether a
 /// row already exists, and splitting them is what made the app feel like two
 /// products. Passing [todo] edits it; omitting it creates one.
 ///
-/// The two time questions are the whole form's spine:
-///   deadline  — by when it must be done
-///   execution — when the user intends to do it
-/// Nothing else here exposes a model concept.
+/// Everything in the form is a draft until Save. That is what makes Cancel mean
+/// what it says: leaving writes nothing at all, including tags, reminders,
+/// attachments and subtasks.
 class TodoFormPage extends ConsumerStatefulWidget {
-  const TodoFormPage({super.key, this.todo, this.parentId, this.source});
+  const TodoFormPage({
+    super.key,
+    this.todo,
+    this.parentId,
+    this.source,
+    this.initialExecutionStart,
+    this.initialExecutionEnd,
+  });
 
   final Todo? todo;
   final int? parentId;
   final String? source;
+
+  /// Set when the form was opened from a calendar slot: the new todo arrives
+  /// already scheduled there, in one save instead of create-then-schedule.
+  final DateTime? initialExecutionStart;
+  final DateTime? initialExecutionEnd;
 
   @override
   ConsumerState<TodoFormPage> createState() => _TodoFormPageState();
@@ -49,19 +167,30 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   final _summaryController = TextEditingController();
   final _descriptionController = TextEditingController();
   int? _calendarId;
-  int _priority = 5;
+  int _priority = 0;
   DateTime? _deadline;
   DateTime? _startDate;
   String? _rrule;
   bool _saving = false;
   bool _aiLoading = false;
-  final Set<int> _selectedTagIds = {};
-  final List<DraftExecution> _draftExecutions = [];
+  Set<int> _tagIds = {};
+  List<DraftExecution> _executions = [];
+  List<DraftReminder> _reminders = [];
+  List<DraftAttachment> _attachments = [];
+  List<DraftSubtask> _subtasks = [];
+  final Set<int> _removedSubtaskIds = {};
+
+  /// The values the form opened with. Dirty means "differs from these", which
+  /// is the only thing that decides whether leaving asks for confirmation.
+  /// Null while the existing associations are still being read, because until
+  /// then the form has no honest baseline to compare against.
+  _TodoSnapshot? _initial;
 
   bool get _isEditing => widget.todo != null;
 
   /// An imported recurrence the app cannot interpret yet. Its date fields are
-  /// left untouched until the user says what they mean.
+  /// left untouched until the user says what they mean. This affects how the
+  /// recurrence fields are read, never whether Save updates or creates.
   bool get _unknownLegacy =>
       _isEditing && TodoRecurrence.fromTodo(widget.todo!).isUnknownLegacy;
 
@@ -77,15 +206,86 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       _deadline = todo.dueDate;
       _startDate = todo.startDate;
       _rrule = todo.rrule;
+      _seedAssociations(todo.id);
     } else {
-      _deadline = null;
+      final start = widget.initialExecutionStart;
+      final end = widget.initialExecutionEnd;
+      if (start != null && end != null) {
+        _executions = [DraftExecution(start: start, end: end)];
+        _deadline = DateTime(start.year, start.month, start.day);
+      }
       Future.microtask(() async {
         final calendars = await ref.read(calendarsProvider.future);
         if (calendars.isNotEmpty && mounted) {
           setState(() => _calendarId = calendars.first.id);
         }
+        if (mounted) setState(() => _initial = _snapshot());
       });
     }
+  }
+
+  /// The existing tags, reminders, attachments and subtasks are the baseline
+  /// the draft is compared against. Reading them before the user can type is
+  /// what stops a freshly opened form from looking dirty.
+  Future<void> _seedAssociations(int todoId) async {
+    final tags = await ref.read(todoTagsProvider(todoId).future);
+    final reminders = await ref.read(todoRemindersProvider(todoId).future);
+    final attachments = await ref.read(todoAttachmentsProvider(todoId).future);
+    final executions = await ref.read(
+      taskAllocationsForTodoProvider(todoId).future,
+    );
+    final subtasks = await ref.read(subtasksProvider(todoId).future);
+    if (!mounted) return;
+    setState(() {
+      _tagIds = tags.map((tag) => tag.id).toSet();
+      _reminders = [
+        for (final row in reminders)
+          DraftReminder(id: row.id, triggerTime: row.triggerTime),
+      ];
+      _attachments = [
+        for (final row in attachments) DraftAttachment.fromRow(row),
+      ];
+      _executions = [
+        for (final row in executions.where((row) => row.state == 'active'))
+          DraftExecution(
+            id: row.id,
+            start: row.startAt,
+            end: row.endAt,
+            occurrenceId: row.occurrenceId,
+          ),
+      ];
+      _subtasks = [
+        for (final row in subtasks)
+          DraftSubtask(
+            id: row.id,
+            summary: row.summary,
+            isCompleted: row.status == 'COMPLETED',
+          ),
+      ];
+      _initial = _snapshot();
+    });
+  }
+
+  _TodoSnapshot _snapshot() => _TodoSnapshot(
+    summary: _summaryController.text.trim(),
+    description: _descriptionController.text.trim(),
+    calendarId: _calendarId,
+    priority: _priority,
+    deadline: _deadline,
+    startDate: _startDate,
+    rrule: _rrule,
+    tagIds: {..._tagIds},
+    executions: [..._executions],
+    reminders: [..._reminders],
+    attachments: [..._attachments],
+    subtasks: [..._subtasks],
+    removedSubtasks: {..._removedSubtaskIds},
+  );
+
+  bool get _isDirty {
+    final initial = _initial;
+    if (initial == null) return false;
+    return _snapshot() != initial;
   }
 
   @override
@@ -136,21 +336,17 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       final spec = TodoRecurrence.fromTodo(widget.todo!).spec;
       if (spec != null) return spec.timeZone;
     }
-    return DateTime.now().timeZoneName == 'UTC'
-        ? 'UTC'
-        : _localZoneName();
-  }
-
-  static String _localZoneName() {
-    try {
-      return DateTime.now().timeZoneName;
-    } on Object {
-      return 'UTC';
-    }
+    // `DateTime.timeZoneName` is an abbreviation ("CST", "GMT+8") on most
+    // platforms and cannot be resolved by the tz database, which made saving a
+    // recurring todo fail with "Unknown IANA timezone". tz.local is the id the
+    // rest of the recurrence code already uses (`recurrenceFromTodoFields`).
+    ensureTodoRecurrenceTimeZonesInitialized();
+    return tz.local.name;
   }
 
   Future<void> _save() async {
     final l = AppLocalizations.of(context)!;
+    if (_saving) return;
     if (_summaryController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -160,29 +356,36 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     if (_startDate != null &&
         _deadline != null &&
         _startDate!.isAfter(_deadline!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.startAfterDeadline)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.startAfterDeadline)));
       return;
     }
 
     setState(() => _saving = true);
     try {
       final calendars = await ref.read(calendarsProvider.future);
+      if (!mounted) return;
       if (calendars.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l.noCalendar)));
-        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.noCalendar)));
+        setState(() => _saving = false);
         return;
       }
       final calendarId = _calendarId ?? calendars.first.id;
       final description = _descriptionController.text.trim();
 
-      if (_isEditing && !_unknownLegacy) {
+      // Whether this write updates or creates is decided by one thing only:
+      // whether the form was opened on an existing row. A legacy recurrence
+      // rule changes how the recurrence fields are interpreted — it must
+      // never turn an edit into a second insert, which is how editing an old
+      // recurring todo used to leave the original untouched and add a copy.
+      final int todoId;
+      if (_isEditing) {
+        todoId = widget.todo!.id;
         await ref.read(updateTodoProvider)(
-          widget.todo!.id,
+          todoId,
           TodosCompanion(
             calendarId: Value(calendarId),
             summary: Value(_summaryController.text.trim()),
@@ -196,114 +399,203 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
           recurrenceSpec: _recurrenceSpecForSave(),
           replaceRecurrence: true,
         );
-        await _writeDraftExecutions(widget.todo!.id);
-        if (mounted) context.pop();
-        return;
-      }
-
-      final todoId = await ref
-          .read(createTodoProvider)
-          .call(
-            calendarId: calendarId,
-            summary: _summaryController.text.trim(),
-            priority: _priority,
-            status: 'NEEDS-ACTION',
-            dueDate: _deadline,
-            startDate: _startDate,
-            description: description.isEmpty ? null : description,
-            rrule: _rrule,
-            recurrenceSpec: _recurrenceSpecForSave(),
-            parentId: widget.parentId,
-          );
-
-      final failures = <String>[];
-      for (final tagId in _selectedTagIds) {
-        try {
-          await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
-        } catch (e) {
-          debugPrint('todo_form: addTag error: $e');
-          failures.add('$e');
-        }
-      }
-      await _writeDraftExecutions(todoId, failures: failures);
-
-      if (!mounted) return;
-      if (failures.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.failedAction(failures.join(', ')))),
+      } else {
+        todoId = await ref.read(createTodoProvider)(
+          calendarId: calendarId,
+          summary: _summaryController.text.trim(),
+          priority: _priority,
+          status: 'NEEDS-ACTION',
+          dueDate: _deadline,
+          startDate: _startDate,
+          description: description.isEmpty ? null : description,
+          rrule: _rrule,
+          recurrenceSpec: _recurrenceSpecForSave(),
+          parentId: widget.parentId,
         );
       }
+
+      final failures = await _commitDrafts(todoId, calendarId);
+      if (!mounted) return;
+      if (failures.isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+        debugPrint('todo_form: partial save failures: ${failures.join(', ')}');
+      }
       context.pop();
-    } catch (e) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l.error('$e'))));
+        ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+        debugPrint('todo_form: save error: $error');
       }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  Future<void> _writeDraftExecutions(
-    int todoId, {
-    List<String>? failures,
-  }) async {
-    for (final item in _draftExecutions) {
+  /// Writes everything the form staged, now that the todo row exists.
+  ///
+  /// Each block is independent: one failing must not abandon the rest, so the
+  /// failures are collected and reported once instead of surfacing a raw
+  /// exception from the middle of the commit.
+  Future<List<String>> _commitDrafts(int todoId, int calendarId) async {
+    final failures = <String>[];
+
+    // Executions, reminders, tags and subtasks are diffed against what the
+    // form opened with: a row that survived the draft is untouched, one that
+    // vanished is removed, one that appeared is written.
+    final initial = _initial;
+    final initialExecutions = initial?.executions ?? const <DraftExecution>[];
+    for (final item in initialExecutions.where((item) => item.id != null)) {
+      if (_executions.any((other) => other.id == item.id)) continue;
+      try {
+        await ref.read(cancelTaskAllocationProvider)(item.id!);
+      } catch (error) {
+        debugPrint('todo_form: cancel execution error: $error');
+        failures.add('execution');
+      }
+    }
+    for (final item in _executions.where((item) => item.id == null)) {
       try {
         await ref.read(createTaskAllocationProvider)(
           todoId: todoId,
           startAt: item.start,
           endAt: item.end,
+          occurrenceId: item.occurrenceId,
         );
-      } catch (e) {
-        debugPrint('todo_form: execution error: $e');
-        failures?.add('$e');
+      } catch (error) {
+        debugPrint('todo_form: execution error: $error');
+        failures.add('execution');
       }
     }
-  }
 
-  Future<void> _delete() async {
-    final l = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.moveToTrash),
-        content: Text(l.confirmDelete),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.moveToTrash),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    final todoId = widget.todo!.id;
-    final restore = ref.read(restoreTodoProvider);
-    await ref.read(deleteTodoProvider)(todoId);
-    if (!mounted) return;
-    context.pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.deleted),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(label: l.undo, onPressed: () => restore(todoId)),
-      ),
-    );
+    final initialTags = initial?.tagIds ?? const <int>{};
+    for (final tagId in _tagIds.difference(initialTags)) {
+      try {
+        await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
+      } catch (error) {
+        debugPrint('todo_form: addTag error: $error');
+        failures.add('tag');
+      }
+    }
+    for (final tagId in initialTags.difference(_tagIds)) {
+      try {
+        await ref.read(removeTagFromTodoProvider)(todoId: todoId, tagId: tagId);
+      } catch (error) {
+        debugPrint('todo_form: removeTag error: $error');
+        failures.add('tag');
+      }
+    }
+
+    final initialReminders = initial?.reminders ?? const <DraftReminder>[];
+    for (final item in initialReminders.where((item) => item.id != null)) {
+      if (_reminders.any((other) => other.id == item.id)) continue;
+      try {
+        await ref.read(deleteReminderProvider)(item.id!);
+      } catch (error) {
+        debugPrint('todo_form: removeReminder error: $error');
+        failures.add('reminder');
+      }
+    }
+    for (final item in _reminders.where((item) => item.id == null)) {
+      try {
+        await ref.read(createReminderProvider)(
+          parentType: 'todo',
+          parentId: todoId,
+          triggerTime: item.triggerTime,
+        );
+      } catch (error) {
+        debugPrint('todo_form: reminder error: $error');
+        failures.add('reminder');
+      }
+    }
+
+    final initialAttachments =
+        initial?.attachments ?? const <DraftAttachment>[];
+    for (final item in initialAttachments.where((item) => item.id != null)) {
+      if (_attachments.any((other) => other.id == item.id)) continue;
+      try {
+        await ref.read(deleteAttachmentProvider)(item.id!);
+      } catch (error) {
+        debugPrint('todo_form: removeAttachment error: $error');
+        failures.add('attachment');
+      }
+    }
+    for (final item in _attachments.where((item) => item.id == null)) {
+      try {
+        await ref.read(createAttachmentProvider)(
+          parentType: 'todo',
+          parentId: todoId,
+          fileName: item.fileName,
+          mimeType: item.mimeType,
+          bytes: item.bytes,
+          sourcePath: item.sourcePath,
+        );
+      } catch (error) {
+        debugPrint('todo_form: attachment error: $error');
+        failures.add('attachment');
+      }
+    }
+
+    final initialSubtasks = initial?.subtasks ?? const <DraftSubtask>[];
+    for (final id in _removedSubtaskIds) {
+      try {
+        await ref.read(deleteTodoProvider)(id);
+      } catch (error) {
+        debugPrint('todo_form: removeSubtask error: $error');
+        failures.add('subtask');
+      }
+    }
+    for (final item in _subtasks.where((item) => item.id == null)) {
+      try {
+        await ref.read(createTodoProvider)(
+          calendarId: calendarId,
+          summary: item.summary,
+          priority: 0,
+          status: 'NEEDS-ACTION',
+          parentId: todoId,
+        );
+      } catch (error) {
+        debugPrint('todo_form: subtask error: $error');
+        failures.add('subtask');
+      }
+    }
+    final knownSubtasks = initialSubtasks
+        .where((item) => item.id != null)
+        .map((item) => item.id!)
+        .toSet();
+    for (final item in _subtasks.where((item) => item.id != null)) {
+      final before = initialSubtasks
+          .where((other) => other.id == item.id)
+          .firstOrNull;
+      if (before != null && before.isCompleted != item.isCompleted) {
+        try {
+          await ref.read(toggleTodoProvider)(
+            id: item.id!,
+            isCompleted: item.isCompleted,
+          );
+        } catch (error) {
+          debugPrint('todo_form: toggle subtask error: $error');
+          failures.add('subtask');
+        }
+      }
+    }
+    debugPrint('todo_form: subtasks kept: ${knownSubtasks.length}');
+
+    return failures;
   }
 
   Future<void> _aiParse() async {
     final l = AppLocalizations.of(context)!;
     final text = _summaryController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
+      return;
+    }
     final config = ref.read(aiConfigProvider).value;
     if (config == null) {
       ScaffoldMessenger.of(
@@ -319,66 +611,124 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         type: 'todo',
       );
       if (!mounted) return;
+      // The parse only fills fields the user has not answered themselves, so
+      // asking the assistant to read the title never silently discards a date
+      // that was already picked. Whatever it did fill is named in a snackbar:
+      // fields changing without a word is indistinguishable from a bug.
+      final filled = <String>[];
       setState(() {
-        if (result['summary'] != null) {
-          _summaryController.text = result['summary'] as String;
+        // The title is the text the user just wrote, so it is never replaced;
+        // the assistant only fills what is still empty.
+        final due = result['due_date'];
+        if (due is String && _deadline == null) {
+          final parsedDue = DateTime.tryParse(due);
+          if (parsedDue != null) {
+            _deadline = parsedDue;
+            filled.add(l.deadlineRow);
+          }
         }
-        if (result['due_date'] != null) {
-          _deadline = DateTime.parse(result['due_date'] as String);
+        final priority = result['priority'];
+        if (priority is int && _priority == 0) {
+          _priority = priority;
+          filled.add(l.priority);
         }
-        if (result['priority'] != null) {
-          _priority = result['priority'] as int;
-        }
-        if (result['description'] != null) {
-          _descriptionController.text = result['description'] as String;
+        final description = result['description'];
+        if (description is String && _descriptionController.text.isEmpty) {
+          _descriptionController.text = description;
+          filled.add(l.description);
         }
       });
-    } catch (e) {
+      if (filled.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.aiFilled(filled.join(', ')))));
+      }
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l.aiError('$e'))));
+        ).showSnackBar(SnackBar(content: Text(l.aiError)));
       }
     } finally {
       if (mounted) setState(() => _aiLoading = false);
     }
   }
 
+  /// Leaving with unsaved edits asks first. A form that silently throws work
+  /// away on Back is the reason people stop trusting Back.
+  Future<void> _confirmDiscard() async {
+    final l = AppLocalizations.of(context)!;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.discardChanges),
+        content: Text(l.discardChangesBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.keepEditing),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l.discard),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final desktop = MediaQuery.sizeOf(context).width >= 1000;
-    return WorkspacePage(
-      title: _isEditing ? l.editTodo : l.newTodo,
-      maxContentWidth: desktop ? 720 : null,
-      actions: [
-        if (_isEditing)
-          IconButton(
-            icon: const Icon(CupertinoIcons.trash, size: 18),
-            onPressed: _saving ? null : _delete,
-            tooltip: l.moveToTrash,
-            visualDensity: VisualDensity.compact,
-          ),
-        IconButton(
-          icon: _aiLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(CupertinoIcons.sparkles, size: 18),
-          onPressed: _aiLoading ? null : _aiParse,
-          tooltip: l.aiParse,
-          visualDensity: VisualDensity.compact,
+    final desktop = isWorkspaceLayout(context);
+    // Escape belongs to the form: it goes through the same PopScope path as
+    // the back button, so unsaved work is never dropped without asking.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (!_isDirty) {
+            Navigator.of(context).maybePop();
+          } else {
+            _confirmDiscard();
+          }
+        },
+      },
+      child: PopScope(
+        canPop: !_isDirty,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _confirmDiscard();
+        },
+        child: WorkspacePage(
+          title: _isEditing ? l.editTodo : l.newTodo,
+          maxContentWidth: desktop ? 720 : null,
+          actions: [
+            if (_isEditing)
+              IconButton(
+                icon: const Icon(CupertinoIcons.trash, size: 18),
+                onPressed: _saving ? null : _delete,
+                tooltip: l.moveToTrash,
+              ),
+            IconButton(
+              icon: _aiLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(CupertinoIcons.sparkles, size: 18),
+              onPressed: _aiLoading ? null : _aiParse,
+              tooltip: l.aiParse,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            PageSaveButton(label: l.save, saving: _saving, onPressed: _save),
+          ],
+          child: _form(context, l, desktop),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        PageSaveButton(
-          label: l.save,
-          saving: _saving,
-          onPressed: _save,
-        ),
-      ],
-      child: _form(context, l, desktop),
+      ),
     );
   }
 
@@ -397,6 +747,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
           autofocus: !_isEditing,
           textCapitalization: TextCapitalization.sentences,
           style: AppTypography.headline,
+          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             hintText: l.title,
             filled: false,
@@ -417,12 +768,13 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         ] else ...[
           const SizedBox(height: AppSpacing.sm),
           ScheduleRow(
-            label: l.deadline,
+            label: l.deadlineRow,
             value: _deadline == null
                 ? l.noDeadline
                 : formatDeadline(context, _deadline!),
             placeholder: _deadline == null,
             emptyValue: l.noDeadline,
+            clearTooltip: l.clearDeadline,
             onTap: () => _pickDeadline(context),
             onClear: _deadline == null
                 ? null
@@ -433,51 +785,34 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
                     tooltip: l.deadlineTime,
                     icon: const Icon(CupertinoIcons.clock, size: 16),
                     padding: EdgeInsets.zero,
-                    onSelected: (addTime) => _pickDeadline(
-                      context,
-                      withTime: addTime,
-                    ),
+                    onSelected: (addTime) =>
+                        _pickDeadline(context, withTime: addTime),
                     itemBuilder: (ctx) => [
-                      PopupMenuItem(
-                        value: false,
-                        child: Text(l.setDeadline),
-                      ),
-                      PopupMenuItem(
-                        value: true,
-                        child: Text(l.deadlineTime),
-                      ),
+                      PopupMenuItem(value: false, child: Text(l.setDeadline)),
+                      PopupMenuItem(value: true, child: Text(l.deadlineTime)),
                     ],
                   ),
           ),
-          // A start date is only meaningful as the anchor a series repeats
-          // from. Showing it on every todo would present a third time question
-          // the user never asked; a repeat falls back to the deadline instead.
-          if (_rrule != null)
-            ScheduleRow(
-              label: l.startDate,
-              value: _startDate == null
-                  ? l.notSet
-                  : formatDeadline(context, _startDate!),
-              placeholder: _startDate == null,
-              emptyValue: l.notSet,
-              onTap: () => _pickStartDate(context),
-              onClear: _startDate == null
-                  ? null
-                  : () => setState(() => _startDate = null),
-            ),
           RepeatRow(
             rrule: _rrule,
             anchorDate: _anchorDate,
-            anchorLabel: _anchorDate == null ? null : l.startsAtHint,
+            anchorLabel: null,
+            // A repeat needs a date to count from, and its anchor is a detail
+            // of the rule, not a third time field the user has to answer.
             onChanged: (value) => setState(() => _rrule = value),
+            onStartDateChanged: (value) => setState(() {
+              _startDate = value;
+              if (value == null) _rrule = null;
+            }),
+            startDate: _startDate,
+            needsDate: _anchorDate == null,
           ),
           const SizedBox(height: AppSpacing.lg),
           const RowDivider(),
           ExecutionScheduleSection(
             todo: widget.todo,
-            draft: _draftExecutions,
-            onDraftChanged: (value) =>
-                setState(() => _draftExecutions..clear()..addAll(value)),
+            draft: _executions,
+            onDraftChanged: (value) => setState(() => _executions = value),
             deadline: _deadline,
           ),
         ],
@@ -500,23 +835,32 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
               color: context.semantic.textTertiary,
             ),
           ),
+          onChanged: (_) => setState(() {}),
           maxLines: 4,
           textCapitalization: TextCapitalization.sentences,
         ),
         const SizedBox(height: AppSpacing.lg),
-        _buildTags(l),
-        if (_isEditing) ...[
-          const SizedBox(height: AppSpacing.lg),
-          RemindersSection(
-            parentType: 'todo',
-            parentId: widget.todo!.id,
-            defaultTriggerTime: _deadline,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          AttachmentList(parentType: 'todo', parentId: widget.todo!.id),
-          const SizedBox(height: AppSpacing.lg),
-          _buildSubtasks(l),
-        ],
+        TagChips(
+          selectedIds: _tagIds,
+          onSelectedIdsChanged: (value) => setState(() => _tagIds = value),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        RemindersSection(
+          parentType: 'todo',
+          parentId: widget.todo?.id,
+          anchorTime: _deadline,
+          draft: _reminders,
+          onDraftChanged: (value) => setState(() => _reminders = value),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AttachmentList(
+          parentType: 'todo',
+          parentId: widget.todo?.id,
+          draft: _attachments,
+          onDraftChanged: (value) => setState(() => _attachments = value),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _buildSubtasks(l),
       ],
     );
   }
@@ -550,7 +894,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
               onPressed: _repairLegacyRecurrence,
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 32),
+                minimumSize: const Size(48, 48),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 textStyle: AppTypography.caption.copyWith(
                   fontWeight: FontWeight.w600,
@@ -567,11 +911,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   /// The one question the app genuinely cannot answer for the user: which date
   /// the old series repeats from. Everything else about it is then derived.
   Future<void> _repairLegacyRecurrence() async {
-    final repaired = await confirmLegacyRecurrence(
-      context,
-      ref,
-      widget.todo!,
-    );
+    final repaired = await confirmLegacyRecurrence(context, ref, widget.todo!);
     if (!repaired || !mounted) return;
     final fresh = await ref.read(allTodosProvider.future);
     final row = fresh.where((t) => t.id == widget.todo!.id).firstOrNull;
@@ -624,7 +964,8 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       data: (calendars) {
         if (calendars.isEmpty) return const SizedBox.shrink();
         final selected = _calendarId ?? calendars.first.id;
-        final current = calendars.where((c) => c.id == selected).firstOrNull ??
+        final current =
+            calendars.where((c) => c.id == selected).firstOrNull ??
             calendars.first;
         return ScheduleRow(
           label: l.calendar,
@@ -669,84 +1010,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     );
   }
 
-  Widget _buildTags(AppLocalizations l) {
-    if (_isEditing) {
-      return ref
-          .watch(todoTagsProvider(widget.todo!.id))
-          .when(
-            data: (tags) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l.tags,
-                  style: AppTypography.caption.copyWith(
-                    color: context.semantic.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TagChips(
-                  parentType: 'todo',
-                  parentId: widget.todo!.id,
-                  assignedTags: tags,
-                ),
-              ],
-            ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          );
-    }
-    final tagsAsync = ref.watch(tagsProvider);
-    return tagsAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (allTags) {
-        if (allTags.isEmpty) {
-          return TextButton.icon(
-            onPressed: () => context.push('/tags'),
-            icon: const Icon(CupertinoIcons.tag, size: 14),
-            label: Text(l.createTag),
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l.tags,
-              style: AppTypography.caption.copyWith(
-                color: context.semantic.textSecondary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
-              children: allTags.map((tag) {
-                final selected = _selectedTagIds.contains(tag.id);
-                return FilterChip(
-                  label: Text(tag.name),
-                  selected: selected,
-                  selectedColor: ColorUtils.parseHex(
-                    tag.color,
-                  ).withValues(alpha: 0.3),
-                  checkmarkColor: ColorUtils.parseHex(tag.color),
-                  onSelected: (value) => setState(() {
-                    if (value) {
-                      _selectedTagIds.add(tag.id);
-                    } else {
-                      _selectedTagIds.remove(tag.id);
-                    }
-                  }),
-                );
-              }).toList(),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildSubtasks(AppLocalizations l) {
-    final subtasksAsync = ref.watch(subtasksProvider(widget.todo!.id));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -757,7 +1021,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             icon: const Icon(CupertinoIcons.add, size: 13),
             label: Text(l.addSubtask),
             style: TextButton.styleFrom(
-              minimumSize: const Size(0, 28),
+              minimumSize: const Size(0, 48),
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               textStyle: AppTypography.caption.copyWith(
@@ -766,62 +1030,71 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             ),
           ),
         ),
-        subtasksAsync.when(
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
-          data: (subtasks) {
-            if (subtasks.isEmpty) return const SizedBox.shrink();
-            return Column(
-              children: subtasks.map((sub) {
-                final done = sub.status == 'COMPLETED';
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          done
-                              ? CupertinoIcons.checkmark_circle_fill
-                              : CupertinoIcons.circle,
-                          size: 18,
-                          color: done
-                              ? Theme.of(context).colorScheme.primary
-                              : context.semantic.textTertiary,
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () => ref.read(toggleTodoProvider)(
+        if (_subtasks.isEmpty)
+          Text(
+            l.noSubtasks,
+            style: AppTypography.caption.copyWith(
+              color: context.semantic.textTertiary,
+            ),
+          )
+        else
+          for (final sub in _subtasks)
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      sub.isCompleted
+                          ? CupertinoIcons.checkmark_circle_fill
+                          : CupertinoIcons.circle,
+                      size: 18,
+                      color: sub.isCompleted
+                          ? Theme.of(context).colorScheme.primary
+                          : context.semantic.textTertiary,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                    onPressed: () => setState(() {
+                      final index = _subtasks.indexOf(sub);
+                      _subtasks = [..._subtasks]
+                        ..[index] = DraftSubtask(
                           id: sub.id,
-                          isCompleted: !done,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          sub.summary,
-                          style: AppTypography.body.copyWith(
-                            decoration: done ? TextDecoration.lineThrough : null,
-                            color: done
-                                ? context.semantic.textTertiary
-                                : null,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          CupertinoIcons.xmark,
-                          size: 14,
-                          color: context.semantic.textTertiary,
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () =>
-                            ref.read(deleteTodoProvider)(sub.id),
-                      ),
-                    ],
+                          summary: sub.summary,
+                          isCompleted: !sub.isCompleted,
+                        );
+                    }),
                   ),
-                );
-              }).toList(),
-            );
-          },
-        ),
+                  Expanded(
+                    child: Text(
+                      sub.summary,
+                      style: AppTypography.body.copyWith(
+                        decoration: sub.isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                        color: sub.isCompleted
+                            ? context.semantic.textTertiary
+                            : null,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.xmark, size: 14),
+                    tooltip: l.removeSubtask,
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                    onPressed: () => setState(() {
+                      _subtasks = [..._subtasks]..remove(sub);
+                      if (sub.id != null) _removedSubtaskIds.add(sub.id!);
+                    }),
+                  ),
+                ],
+              ),
+            ),
       ],
     );
   }
@@ -836,12 +1109,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
           controller: controller,
           autofocus: true,
           decoration: InputDecoration(hintText: l.subtaskHint),
-          onSubmitted: (_) {
-            if (controller.text.trim().isNotEmpty) {
-              _createSubtask(controller.text.trim());
-              Navigator.of(ctx).pop();
-            }
-          },
+          onSubmitted: (_) => _addSubtask(ctx, controller.text),
         ),
         actions: [
           TextButton(
@@ -849,12 +1117,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             child: Text(l.cancel),
           ),
           FilledButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                _createSubtask(controller.text.trim());
-                Navigator.of(ctx).pop();
-              }
-            },
+            onPressed: () => _addSubtask(ctx, controller.text),
             child: Text(l.add),
           ),
         ],
@@ -862,28 +1125,12 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     );
   }
 
-  Future<void> _createSubtask(String text) async {
-    try {
-      final calendars = await ref.read(calendarsProvider.future);
-      if (calendars.isEmpty || !_isEditing) return;
-      final parentCalendar = widget.todo!.calendarId;
-      final effective = calendars.any((c) => c.id == parentCalendar)
-          ? parentCalendar
-          : calendars.first.id;
-      await ref.read(createTodoProvider)(
-        calendarId: effective,
-        summary: text,
-        priority: 0,
-        status: 'NEEDS-ACTION',
-        parentId: widget.todo!.id,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    }
+  void _addSubtask(BuildContext context, String text) {
+    if (text.trim().isEmpty) return;
+    setState(
+      () => _subtasks = [..._subtasks, DraftSubtask(summary: text.trim())],
+    );
+    Navigator.of(context).pop();
   }
 
   Future<void> _pickDeadline(BuildContext context, {bool? withTime}) async {
@@ -896,14 +1143,43 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     if (picked != null && mounted) setState(() => _deadline = picked);
   }
 
-  Future<void> _pickStartDate(BuildContext context) async {
-    final picked = await pickDeadline(
-      context,
-      initial: _startDate ?? _deadline ?? DateTime.now(),
-    );
-    if (picked != null && mounted) setState(() => _startDate = picked);
-  }
-
   static bool _isDateOnly(DateTime value) =>
       value.hour == 0 && value.minute == 0;
+
+  Future<void> _delete() async {
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.moveToTrash),
+        content: Text(l.confirmDelete),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l.moveToTrash),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final todoId = widget.todo!.id;
+    final restore = ref.read(restoreTodoProvider);
+    await ref.read(deleteTodoProvider)(todoId);
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.deleted),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(label: l.undo, onPressed: () => restore(todoId)),
+      ),
+    );
+  }
 }

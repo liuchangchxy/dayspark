@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +14,6 @@ import 'settings_sections/appearance_section.dart';
 import 'settings_sections/import_export_section.dart';
 import 'settings_sections/notifications_section.dart';
 import 'settings_sections/todos_section.dart';
-import 'package:dayspark/core/utils/platform_target.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/ui/widgets/settings_group.dart';
 
@@ -74,10 +74,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             if (hasNotificationSettings)
               (l.notifications, const NotificationsSection()),
           ])
-            SettingsGroup(
-              title: group.$1,
-              child: group.$2,
-            ),
+            SettingsGroup(title: group.$1, child: group.$2),
           _AdvancedGroup(version: _cachedVersion ?? ''),
         ],
       ),
@@ -87,7 +84,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
 /// Notification rows exist only where the platform can actually schedule
 /// them (web cannot).
-bool get hasNotificationSettings => isAndroid || isIOS || isWindows;
+bool get hasNotificationSettings =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS);
 
 /// Collapsed tail of the settings page: the advanced/about material stays
 /// behind an expansion so the everyday groups are all that is on screen.
