@@ -71,7 +71,7 @@ void main() {
     expect(find.text('Calendar'), findsOneWidget);
     // D Final keeps the Action filter pills on mobile only, so this desktop
     // surface exposes "Todos" solely through the bottom navigation label.
-    expect(find.text('Todos'), findsOneWidget);
+    expect(find.text('Tasks'), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.settings), findsOneWidget);
     expect(find.byType(PopupMenuButton<String>), findsNothing);
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
@@ -84,7 +84,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('workspace-create')));
     await _settle(tester);
 
-    expect(find.text('New Todo'), findsOneWidget);
+    expect(find.text('New Task'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
   });
 
@@ -202,7 +202,7 @@ void main() {
     await _settle(tester);
 
     expect(find.byType(TodoFormPage), findsOneWidget);
-    expect(find.text('New Todo'), findsOneWidget);
+    expect(find.text('New Task'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
   });
 }

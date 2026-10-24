@@ -186,4 +186,62 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('changing the deadline date keeps the time it already had', (
+    tester,
+  ) async {
+    final calendarId = (await db.select(db.calendars).get()).first.id;
+    await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Call the bank',
+            dueDate: Value(DateTime(2026, 10, 30, 18)),
+          ),
+        );
+    final todo = (await db.select(db.todos).get()).single;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(db)],
+        child: MaterialApp(
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: TodoFormPage(todo: todo),
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    // A deadline that has a time keeps asking for one: the date is what the
+    // user is changing, and the hour they already chose must survive it.
+    await tester.tap(find.textContaining('Oct 30').last);
+    await _settle(tester);
+
+    final dialog = find.byType(DatePickerDialog);
+    expect(dialog, findsOneWidget);
+    await tester.tap(find.descendant(of: dialog, matching: find.text('31')));
+    await tester.pump();
+    await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
+    await _settle(tester);
+
+    final sheet = find.byType(BottomSheet);
+    expect(sheet, findsOneWidget, reason: 'the time step still asks');
+    await tester.tap(find.descendant(of: sheet, matching: find.text('OK')));
+    await _settle(tester);
+
+    await tester.tap(find.text('Save'));
+    await _settle(tester);
+
+    final after = (await db.select(db.todos).get()).single;
+    expect(after.dueDate, DateTime(2026, 10, 31, 18));
+    await _unmount(tester);
+  });
 }

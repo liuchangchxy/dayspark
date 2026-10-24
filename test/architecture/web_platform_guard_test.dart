@@ -17,7 +17,8 @@ const String _allowlistRelativePath = 'lib/core/utils/platform_target.dart';
 ///
 /// 这是棘轮：新增受保护的读取要显式改这个数。2026-09-28 由 2 提到 3，
 /// 因为设置页要按平台隐藏通知分组，新增 `isWindows` 谓词（同样 kIsWeb 短路）。
-const int _expectedGuardedReads = 3;
+/// 2026-10-24 由 3 提到 4：设置页要给 macOS 加通知入口，新增 `isMacOS`。
+const int _expectedGuardedReads = 4;
 
 final RegExp _platformRead = RegExp(
   r'(?<![A-Za-z0-9_])Platform\s*\.\s*(is[A-Za-z]+|operatingSystem)\b',

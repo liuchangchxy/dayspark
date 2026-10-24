@@ -31,8 +31,7 @@ Future<void> _pumpSettings(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 350));
 }
 
-double _y(WidgetTester tester, Finder finder) =>
-    tester.getTopLeft(finder).dy;
+double _y(WidgetTester tester, Finder finder) => tester.getTopLeft(finder).dy;
 
 void main() {
   setUp(() {
@@ -50,14 +49,22 @@ void main() {
       'advanced group collapsed at the end', (tester) async {
     await _pumpSettings(tester);
 
-    expect(_y(tester, find.byType(AppearanceSection)),
-        lessThan(_y(tester, find.byType(TodosSection))));
-    expect(_y(tester, find.byType(TodosSection)),
-        lessThan(_y(tester, find.byType(ImportExportSection))));
-    expect(_y(tester, find.byType(ImportExportSection)),
-        lessThan(_y(tester, find.byType(AccountSection))));
-    expect(_y(tester, find.byType(AccountSection)),
-        lessThan(_y(tester, find.byType(AiSection))));
+    expect(
+      _y(tester, find.byType(AppearanceSection)),
+      lessThan(_y(tester, find.byType(TodosSection))),
+    );
+    expect(
+      _y(tester, find.byType(TodosSection)),
+      lessThan(_y(tester, find.byType(ImportExportSection))),
+    );
+    expect(
+      _y(tester, find.byType(ImportExportSection)),
+      lessThan(_y(tester, find.byType(AccountSection))),
+    );
+    expect(
+      _y(tester, find.byType(AccountSection)),
+      lessThan(_y(tester, find.byType(AiSection))),
+    );
 
     final advanced = tester.widget<ExpansionTile>(
       find.ancestor(
@@ -67,24 +74,35 @@ void main() {
     );
     expect(advanced.initiallyExpanded, isFalse);
     expect(find.byType(AboutSection), findsNothing);
-    expect(_y(tester, find.byType(AiSection)),
-        lessThan(_y(tester, find.text('Advanced'))));
+    expect(
+      _y(tester, find.byType(AiSection)),
+      lessThan(_y(tester, find.text('Advanced'))),
+    );
   });
 
-  testWidgets('expanding advanced reveals about below the functional groups',
-      (tester) async {
+  testWidgets('expanding advanced reveals about below the functional groups', (
+    tester,
+  ) async {
     await _pumpSettings(tester);
 
     await tester.tap(find.text('Advanced'));
-    await tester.pumpAndSettle();
+    // The account group shows a spinner while its state is unknown (there is
+    // no database behind this test), so the page never reaches a settled
+    // frame; pump the expansion animation instead of waiting for one.
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
 
     expect(find.byType(AboutSection), findsOneWidget);
-    expect(_y(tester, find.byType(AiSection)),
-        lessThan(_y(tester, find.byType(AboutSection))));
+    expect(
+      _y(tester, find.byType(AiSection)),
+      lessThan(_y(tester, find.byType(AboutSection))),
+    );
   });
 
-  testWidgets('list-behavior toggles render inside the todos section',
-      (tester) async {
+  testWidgets('list-behavior toggles render inside the todos section', (
+    tester,
+  ) async {
     await _pumpSettings(tester);
 
     expect(find.byType(TodosSection), findsOneWidget);

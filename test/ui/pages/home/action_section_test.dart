@@ -160,70 +160,71 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // Overdue section
-      expect(find.text('Overdue · 1'), findsOneWidget);
+      // Overdue section: no count, no duplicated deadline label.
+      expect(find.text('Overdue'), findsOneWidget);
       expect(find.text('Fix Bug'), findsOneWidget);
       expect(find.text('Deadline: 2026-10-02'), findsOneWidget);
 
-      // The selected day's schedule
-      expect(find.text("Today's Schedule"), findsOneWidget);
+      // The day's schedule. End time is stated once, not as a range that
+      // repeats the time in the left column.
       expect(find.text('Client Call'), findsOneWidget);
-      expect(find.text('10:00 – 11:00'), findsOneWidget);
+      expect(find.text('until 11:00'), findsOneWidget);
 
       expect(find.text('Write Spec'), findsOneWidget);
-      expect(find.text('14:00 – 15:30 · Planned'), findsOneWidget);
+      expect(find.text('Scheduled time'), findsOneWidget);
 
-      // Due Today section
-      expect(find.text('Due Today · 1'), findsOneWidget);
+      // To do today merges due-today todos with today's recurring instances.
+      expect(find.text('To do today'), findsOneWidget);
       expect(find.text('Submit Invoice'), findsOneWidget);
-      expect(find.text('Due today'), findsOneWidget);
 
-      await _unmount(tester);
-    },
-  );
-
-  testWidgets(
-    'desktop inspector appears only after selection and preserves edit route',
-    (tester) async {
-      tester.view.physicalSize = const Size(1400, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final id = await db
-          .into(db.todos)
-          .insert(
-            TodosCompanion.insert(
-              calendarId: calendarId,
-              summary: 'Review a deliberately long bilingual title 设计评审与交付',
-              dueDate: Value(fixedDate),
-            ),
-          );
-      Todo? opened;
-      await tester.pumpWidget(
-        _wrapWithApp(
-          child: ActionSection(onTodoEdit: (todo) => opened = todo),
-          overrides: [
-            databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => fixedDate),
-          ],
-        ),
-      );
-      for (var i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      // The old rhythm strip, inspector and section counters are gone.
+      expect(find.byKey(const ValueKey('action-rhythm')), findsNothing);
       expect(find.byKey(const ValueKey('action-inspector')), findsNothing);
-      await tester.tap(
-        find.text('Review a deliberately long bilingual title 设计评审与交付'),
-      );
-      await tester.pump();
-      expect(find.byKey(const ValueKey('action-inspector')), findsOneWidget);
-      expect(opened, isNull);
-      await tester.tap(find.text('Edit Todo'));
-      expect(opened?.id, id);
-      expect(tester.takeException(), isNull);
+
       await _unmount(tester);
     },
   );
+
+  testWidgets('every Action row opens the object detail, on desktop too', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final id = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Review a deliberately long bilingual title 设计评审与交付',
+            dueDate: Value(fixedDate),
+          ),
+        );
+    Todo? opened;
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: ActionSection(onTodoTap: (todo) => opened = todo),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.tap(
+      find.text('Review a deliberately long bilingual title 设计评审与交付'),
+    );
+    await tester.pump();
+    // One tap, straight to detail: there is no desktop side pane to select
+    // into first.
+    expect(opened?.id, id);
+    expect(find.byKey(const ValueKey('action-inspector')), findsNothing);
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
 
   testWidgets('mobile Action has no date switcher: it stays on today', (
     tester,
@@ -366,7 +367,7 @@ void main() {
       }
 
       expect(find.text('Daily Yoga'), findsOneWidget);
-      expect(find.text("Today's Tasks"), findsOneWidget);
+      expect(find.text('To do today'), findsOneWidget);
 
       // Find and tap the checkbox for Daily Yoga
       final checkbox = find.byType(Checkbox);
@@ -393,14 +394,14 @@ void main() {
               .getSingle();
       expect(state.status, 'completed');
 
-      // Verify UI moved Daily Yoga into Completed Today
-      expect(find.text('Completed Today · 1'), findsOneWidget);
+      // Verify UI moved Daily Yoga into the completed section
+      expect(find.text('Earlier today'), findsOneWidget);
 
       await _unmount(tester);
     },
   );
 
-  testWidgets('rhythm strip is desktop-only', (tester) async {
+  testWidgets('no rhythm strip and no side pane at any width', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -417,22 +418,8 @@ void main() {
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    expect(find.byKey(const ValueKey('action-rhythm')), findsOneWidget);
-
-    tester.view.physicalSize = const Size(390, 844);
-    await tester.pumpWidget(
-      _wrapWithApp(
-        child: const ActionSection(),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
-        ],
-      ),
-    );
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
     expect(find.byKey(const ValueKey('action-rhythm')), findsNothing);
+    expect(find.byKey(const ValueKey('action-inspector')), findsNothing);
     expect(tester.takeException(), isNull);
     await _unmount(tester);
   });

@@ -1,6 +1,6 @@
-// 设置页「系统闹钟」闸门的 **native 侧回归**：`!kIsWeb` 只该在 web 上关掉它，
-// 非 web 平台的可见性必须与改动前逐位一致（android / iOS / windows 显示；
-// macOS / linux / fuchsia 本就不显示）。
+// 设置页「系统闹钟」闸门的 **native 侧回归**：开关只有 alarm 插件真的支持
+// （Android / iOS）才出现。Windows 以前会显示一个翻转后无人读取的开关，
+// 2026-10-24 起按「界面不得提供无效操作」移除；macOS 改由通知权限入口负责。
 //
 // 两条守卫都覆盖：①「系统闹钟」开关（SwitchListTile）②精确闹钟授权入口
 // （CupertinoIcons.timer，仅 Android 且未授权时显示）。
@@ -59,30 +59,37 @@ void main() {
   for (final platform in <TargetPlatform>[
     TargetPlatform.android,
     TargetPlatform.iOS,
-    TargetPlatform.windows,
   ]) {
-    testWidgets('$platform：系统闹钟开关仍在（= 改动前的可见性）', (tester) async {
+    testWidgets('$platform：系统闹钟开关出现（插件支持该平台）', (tester) async {
       await _pumpNotificationsSection(tester, platform);
       expect(
         find.byType(SwitchListTile),
         findsOneWidget,
-        reason: '非 web 平台上 `!kIsWeb &&` 必须恒为真，开关不得消失',
+        reason: 'alarm 插件只在 Android / iOS 上真正排程',
       );
       debugDefaultTargetPlatformOverride = null;
     });
   }
 
   for (final platform in <TargetPlatform>[
+    TargetPlatform.windows,
     TargetPlatform.macOS,
     TargetPlatform.linux,
     TargetPlatform.fuchsia,
   ]) {
-    testWidgets('$platform：本就不显示（= 改动前的可见性）', (tester) async {
+    testWidgets('$platform：不显示系统闹钟开关（无实现，不能提供无效操作）', (tester) async {
       await _pumpNotificationsSection(tester, platform);
       expect(find.byType(SwitchListTile), findsNothing);
       debugDefaultTargetPlatformOverride = null;
     });
   }
+
+  testWidgets('macOS：提供通知权限入口（该平台确实会发提醒）', (tester) async {
+    await _pumpNotificationsSection(tester, TargetPlatform.macOS);
+    expect(find.byIcon(CupertinoIcons.bell), findsOneWidget);
+    expect(find.text('Notification permission'), findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
+  });
 
   // 守卫②：精确闹钟授权入口（`!kIsWeb && android && 未授权` 才显示）。它与守卫①
   // 用的是两套控件（ListTile + CupertinoIcons.timer），故必须分别断言。

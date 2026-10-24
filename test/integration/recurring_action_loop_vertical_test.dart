@@ -48,16 +48,16 @@ void main() {
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    calendarId = await db.into(db.calendars).insert(
+    calendarId = await db
+        .into(db.calendars)
+        .insert(
           CalendarsCompanion.insert(
             name: 'Default',
             color: const Value('#2196F3'),
           ),
         );
     container = ProviderContainer(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-      ],
+      overrides: [databaseProvider.overrideWithValue(db)],
     );
   });
 
@@ -88,7 +88,11 @@ void main() {
       final slotRange = DateTimeRange(start: slotStart, end: slotEnd);
 
       // Derive Action day from the slot start date
-      final actionDay = DateTime(slotStart.year, slotStart.month, slotStart.day);
+      final actionDay = DateTime(
+        slotStart.year,
+        slotStart.month,
+        slotStart.day,
+      );
       container.read(actionDateProvider.notifier).state = actionDay;
 
       // -------------------------------------------------------------
@@ -118,9 +122,14 @@ void main() {
         ),
       );
 
-      final initialSeries =
-          await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
-      expect(initialSeries.dueDate, isNull, reason: 'Recurring series dueDate is null');
+      final initialSeries = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(seriesId))).getSingle();
+      expect(
+        initialSeries.dueDate,
+        isNull,
+        reason: 'Recurring series dueDate is null',
+      );
       expect(initialSeries.status, 'NEEDS-ACTION');
       expect(initialSeries.syncId, isNotNull);
       final seriesSyncId = initialSeries.syncId!;
@@ -144,10 +153,14 @@ void main() {
                     context: ctx,
                     range: slotRange,
                     onCreateEvent: () {
-                      fail('Should not trigger onCreateEvent during Schedule Todo flow');
+                      fail(
+                        'Should not trigger onCreateEvent during Schedule Todo flow',
+                      );
                     },
-                    loadSchedulableTodos: () =>
-                        container.read(databaseProvider).todosDao.getSchedulableTodos(),
+                    loadSchedulableTodos: () => container
+                        .read(databaseProvider)
+                        .todosDao
+                        .getSchedulableTodos(),
                     onScheduleTodo: (todo, [occurrenceId]) async {
                       await container.read(createTaskAllocationProvider)(
                         todoId: todo.id,
@@ -170,7 +183,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap Schedule Todo
-      await tester.tap(find.text('Schedule Todo'));
+      await tester.tap(find.text('Schedule Task'));
       await tester.pumpAndSettle();
 
       // Should display candidate picker with recurring Todo and repeat icon/indicator
@@ -186,10 +199,12 @@ void main() {
       expect(find.text('Select occurrence'), findsOneWidget);
 
       // Target the first occurrence list tile inside the dialog
-      final occurrenceTile = find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.byType(ListTile),
-      ).first;
+      final occurrenceTile = find
+          .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(ListTile),
+          )
+          .first;
       expect(occurrenceTile, findsOneWidget);
 
       await tester.tap(occurrenceTile);
@@ -203,10 +218,18 @@ void main() {
       //    - Visible in Calendar and Action projection
       // -------------------------------------------------------------
       final allocations = await db.select(db.taskAllocations).get();
-      expect(allocations, hasLength(1), reason: 'Exactly one TaskAllocation created');
+      expect(
+        allocations,
+        hasLength(1),
+        reason: 'Exactly one TaskAllocation created',
+      );
       final allocation = allocations.first;
       expect(allocation.todoId, seriesId);
-      expect(allocation.occurrenceId, isNotNull, reason: 'Recurring allocation must have explicit occurrenceId');
+      expect(
+        allocation.occurrenceId,
+        isNotNull,
+        reason: 'Recurring allocation must have explicit occurrenceId',
+      );
       expect(allocation.occurrenceId, startsWith('v2:DATE:'));
       final chosenOccurrenceId = allocation.occurrenceId!;
 
@@ -216,12 +239,21 @@ void main() {
 
       // Assert no Event created
       final events = await db.select(db.events).get();
-      expect(events, isEmpty, reason: 'Scheduling a Todo must NOT create an Event');
+      expect(
+        events,
+        isEmpty,
+        reason: 'Scheduling a Todo must NOT create an Event',
+      );
 
       // Assert Todo series dueDate is strictly untouched
-      final seriesAfterSchedule =
-          await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
-      expect(seriesAfterSchedule.dueDate, isNull, reason: 'Series dueDate must remain null');
+      final seriesAfterSchedule = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(seriesId))).getSingle();
+      expect(
+        seriesAfterSchedule.dueDate,
+        isNull,
+        reason: 'Series dueDate must remain null',
+      );
       expect(seriesAfterSchedule.status, 'NEEDS-ACTION');
 
       // Assert visible in Calendar query
@@ -238,17 +270,31 @@ void main() {
       }
 
       final calendarItems =
-          container.read(taskAllocationsInDateRangeProvider(calendarRangeKey)).valueOrNull ?? [];
-      expect(calendarItems, hasLength(1), reason: 'Visible in Calendar allocation query');
+          container
+              .read(taskAllocationsInDateRangeProvider(calendarRangeKey))
+              .valueOrNull ??
+          [];
+      expect(
+        calendarItems,
+        hasLength(1),
+        reason: 'Visible in Calendar allocation query',
+      );
       expect(calendarItems.first.todo.id, seriesId);
       expect(calendarItems.first.allocation.occurrenceId, chosenOccurrenceId);
 
       // Assert visible in Action projection
       final actionData = container.read(actionProjectionProvider).valueOrNull;
       expect(actionData, isNotNull);
-      expect(actionData!.allocations, hasLength(1), reason: 'Allocation visible in Action timeline');
+      expect(
+        actionData!.allocations,
+        hasLength(1),
+        reason: 'Allocation visible in Action timeline',
+      );
       expect(actionData.allocations.first.todo.id, seriesId);
-      expect(actionData.allocations.first.allocation.occurrenceId, chosenOccurrenceId);
+      expect(
+        actionData.allocations.first.allocation.occurrenceId,
+        chosenOccurrenceId,
+      );
 
       calSub.close();
       actSub.close();
@@ -257,10 +303,7 @@ void main() {
       // 5. Action projection UI execution: complete through Action UI
       // -------------------------------------------------------------
       await tester.pumpWidget(
-        _wrapWithScope(
-          container: container,
-          child: const ActionSection(),
-        ),
+        _wrapWithScope(container: container, child: const ActionSection()),
       );
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 50));
@@ -284,7 +327,8 @@ void main() {
       expect(
         allocationCheckboxFinder,
         findsOneWidget,
-        reason: 'Timeline allocation checkbox for this exact allocation must be visible',
+        reason:
+            'Timeline allocation checkbox for this exact allocation must be visible',
       );
       await tester.tap(allocationCheckboxFinder);
       await tester.pumpAndSettle();
@@ -298,17 +342,29 @@ void main() {
       //    - No Event created
       // -------------------------------------------------------------
       final states = await db.select(db.taskInstanceStates).get();
-      expect(states, hasLength(1), reason: 'Only the exact chosen occurrence is recorded');
+      expect(
+        states,
+        hasLength(1),
+        reason: 'Only the exact chosen occurrence is recorded',
+      );
       expect(states.first.todoSyncId, seriesSyncId);
       expect(states.first.occurrenceId, chosenOccurrenceId);
       expect(states.first.status, 'completed');
 
-      final seriesAfterInstanceComplete =
-          await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
-      expect(seriesAfterInstanceComplete.status, 'NEEDS-ACTION',
-          reason: 'Parent series must remain NEEDS-ACTION when completing single instance');
-      expect(seriesAfterInstanceComplete.dueDate, isNull,
-          reason: 'Parent series dueDate must remain null');
+      final seriesAfterInstanceComplete = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(seriesId))).getSingle();
+      expect(
+        seriesAfterInstanceComplete.status,
+        'NEEDS-ACTION',
+        reason:
+            'Parent series must remain NEEDS-ACTION when completing single instance',
+      );
+      expect(
+        seriesAfterInstanceComplete.dueDate,
+        isNull,
+        reason: 'Parent series dueDate must remain null',
+      );
 
       final updatedAllocations = await db.select(db.taskAllocations).get();
       expect(updatedAllocations, hasLength(1));
@@ -335,8 +391,9 @@ void main() {
       expect(statesAfterReopen.first.status, 'pending');
       expect(statesAfterReopen.first.completedAt, isNull);
 
-      final seriesAfterReopen =
-          await (db.select(db.todos)..where((t) => t.id.equals(seriesId))).getSingle();
+      final seriesAfterReopen = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(seriesId))).getSingle();
       expect(seriesAfterReopen.status, 'NEEDS-ACTION');
       expect(seriesAfterReopen.dueDate, isNull);
     },

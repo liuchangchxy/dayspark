@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -66,7 +67,7 @@ void main() {
       // Verify labels
       expect(find.text('Action'), findsWidgets);
       expect(find.text('Calendar'), findsWidgets);
-      expect(find.text('Todos'), findsWidgets);
+      expect(find.text('Tasks'), findsWidgets);
 
       await _unmount(tester);
     },
@@ -121,7 +122,7 @@ void main() {
     expect(navBar.selectedIndex, 1);
 
     // Tap Todos destination
-    await tester.tap(find.text('Todos'));
+    await tester.tap(find.text('Tasks'));
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -148,7 +149,7 @@ void main() {
     final origin = tester.getTopLeft(
       find.byKey(const ValueKey('workspace-content-0')),
     );
-    for (final entry in [(1, 'Calendar'), (2, 'Todos'), (0, 'Action')]) {
+    for (final entry in [(1, 'Calendar'), (2, 'Tasks'), (0, 'Action')]) {
       await tester.tap(
         find.descendant(
           of: find.byType(WorkspaceSidebar),
@@ -177,6 +178,21 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
+    // Both tabs need list content: an empty Action renders a centred empty
+    // state, and comparing a centred message with a left-aligned one would
+    // not test the shared origin.
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calId,
+            summary: 'Origin check',
+            dueDate: Value(DateTime.now()),
+          ),
+        );
     await tester.pumpWidget(_app(db));
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
@@ -200,7 +216,7 @@ void main() {
     // Action rows and the Todo section header are both plain list content:
     // neither should carry an extra inset relative to the other.
     final actionLeft = await firstTextLeft('Action', 0);
-    final todoLeft = await firstTextLeft('Todos', 2);
+    final todoLeft = await firstTextLeft('Tasks', 2);
     expect(
       (actionLeft - todoLeft).abs(),
       lessThanOrEqualTo(1),
@@ -236,7 +252,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(TodoDesktopToolbar),
-        matching: find.text('To-do Box'),
+        matching: find.text('Inbox'),
       ),
       findsOneWidget,
     );
@@ -310,5 +326,40 @@ void main() {
     await pumpDesktopSidebar(tester, TodosDayView(tomorrow));
     expect(sidebarRowColor(tester, 'Today'), isNot(AppColors.sidebarSelected));
     await _unmount(tester);
+  });
+
+  testWidgets('the rail appears exactly at the workspace breakpoint', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+
+    for (final (width, expectRail) in [
+      (390.0, false),
+      (768.0, false),
+      (999.0, false),
+      (1000.0, true),
+      (1440.0, true),
+    ]) {
+      tester.view.physicalSize = Size(width, 900);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(_app(db));
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(
+        find.byType(WorkspaceSidebar),
+        expectRail ? findsOneWidget : findsNothing,
+        reason: 'width $width',
+      );
+      expect(
+        find.byType(NavigationBar),
+        expectRail ? findsNothing : findsOneWidget,
+        reason: 'width $width',
+      );
+      expect(tester.takeException(), isNull, reason: 'width $width');
+      await _unmount(tester);
+    }
   });
 }

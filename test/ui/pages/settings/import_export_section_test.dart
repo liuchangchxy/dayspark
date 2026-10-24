@@ -24,89 +24,94 @@ void main() {
       await db.close();
     });
 
-    testWidgets('triggers real web download with standard filename and exact ICS content',
-        (tester) async {
-      final existingCals = await db.select(db.calendars).get();
-      final calId = existingCals.first.id;
+    testWidgets(
+      'triggers real web download with standard filename and exact ICS content',
+      (tester) async {
+        final existingCals = await db.select(db.calendars).get();
+        final calId = existingCals.first.id;
 
-      await db.into(db.events).insert(
-            EventsCompanion.insert(
-              calendarId: calId,
-              summary: 'Web Export Meeting',
-              startDt: DateTime(2026, 10, 10, 14, 0),
-              endDt: DateTime(2026, 10, 10, 15, 0),
-            ),
-          );
-      await db.into(db.todos).insert(
-            TodosCompanion.insert(
-              calendarId: calId,
-              summary: 'Web Export Todo Task',
-            ),
-          );
+        await db
+            .into(db.events)
+            .insert(
+              EventsCompanion.insert(
+                calendarId: calId,
+                summary: 'Web Export Meeting',
+                startDt: DateTime(2026, 10, 10, 14, 0),
+                endDt: DateTime(2026, 10, 10, 15, 0),
+              ),
+            );
+        await db
+            .into(db.todos)
+            .insert(
+              TodosCompanion.insert(
+                calendarId: calId,
+                summary: 'Web Export Todo Task',
+              ),
+            );
 
-      final expectedIcs = await IcsService(db).exportCalendar(calId);
+        // Export covers every calendar, which is what the row promises.
+        final expectedIcs = await IcsService(db).exportCalendar();
 
-      final recordedDownloads = <({String content, String filename})>[];
-      void testDownloader({required String content, required String filename}) {
-        recordedDownloads.add((content: content, filename: filename));
-      }
+        final recordedDownloads = <({String content, String filename})>[];
+        void testDownloader({
+          required String content,
+          required String filename,
+        }) {
+          recordedDownloads.add((content: content, filename: filename));
+        }
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            databaseProvider.overrideWithValue(db),
-            isWebProvider.overrideWithValue(true),
-            webFileDownloaderProvider.overrideWithValue(testDownloader),
-          ],
-          child: const MaterialApp(
-            locale: Locale('en'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: ImportExportSection(),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              databaseProvider.overrideWithValue(db),
+              isWebProvider.overrideWithValue(true),
+              webFileDownloaderProvider.overrideWithValue(testDownloader),
+            ],
+            child: const MaterialApp(
+              locale: Locale('en'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(body: ImportExportSection()),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Open the Import/Export dialog
-      await tester.tap(
-        find.widgetWithText(ListTile, 'Import / Export'),
-      );
-      await tester.pumpAndSettle();
+        // Export is its own row now: no dialog, one tap.
+        await tester.tap(find.text('Export all calendars'));
+        await tester.pumpAndSettle();
 
-      // Tap the Export button
-      expect(find.text('Export'), findsOneWidget);
-      await tester.tap(find.text('Export'));
-      await tester.pumpAndSettle();
+        // Verify that the web downloader seam was invoked exactly once
+        expect(recordedDownloads.length, 1);
+        final download = recordedDownloads.first;
 
-      // Verify that the web downloader seam was invoked exactly once
-      expect(recordedDownloads.length, 1);
-      final download = recordedDownloads.first;
+        // Verify filename pattern: dayspark-calendars-<timestamp>.ics
+        final filenamePattern = RegExp(r'^dayspark-calendars-\d+\.ics$');
+        expect(
+          filenamePattern.hasMatch(download.filename),
+          isTrue,
+          reason:
+              'Filename must follow dayspark-calendars-<timestamp>.ics: '
+              '${download.filename}',
+        );
 
-      // Verify filename pattern: calendar_export_<timestamp>.ics
-      final filenamePattern = RegExp(r'^calendar_export_\d+\.ics$');
-      expect(
-        filenamePattern.hasMatch(download.filename),
-        isTrue,
-        reason: 'Filename must follow calendar_export_<timestamp>.ics pattern: ${download.filename}',
-      );
+        // Verify content fidelity: must match exact string from IcsService.exportCalendar
+        expect(download.content, expectedIcs);
 
-      // Verify content fidelity: must match exact string from IcsService.exportCalendar
-      expect(download.content, expectedIcs);
+        // Verify content is valid UTF-8 iCalendar data containing exported items
+        expect(download.content, contains('BEGIN:VCALENDAR'));
+        expect(download.content, contains('SUMMARY:Web Export Meeting'));
+        expect(download.content, contains('SUMMARY:Web Export Todo Task'));
+        expect(download.content, contains('END:VCALENDAR'));
 
-      // Verify content is valid UTF-8 iCalendar data containing exported items
-      expect(download.content, contains('BEGIN:VCALENDAR'));
-      expect(download.content, contains('SUMMARY:Web Export Meeting'));
-      expect(download.content, contains('SUMMARY:Web Export Todo Task'));
-      expect(download.content, contains('END:VCALENDAR'));
+        final encoded = utf8.encode(download.content);
+        expect(utf8.decode(encoded), download.content);
+      },
+    );
 
-      final encoded = utf8.encode(download.content);
-      expect(utf8.decode(encoded), download.content);
-    });
-
-    testWidgets('export does nothing when no calendars exist on web', (tester) async {
+    testWidgets('export does nothing when no calendars exist on web', (
+      tester,
+    ) async {
       await db.delete(db.calendars).go();
       final recordedDownloads = <({String content, String filename})>[];
 
@@ -115,42 +120,33 @@ void main() {
           overrides: [
             databaseProvider.overrideWithValue(db),
             isWebProvider.overrideWithValue(true),
-            webFileDownloaderProvider.overrideWithValue(
-              ({required content, required filename}) {
-                recordedDownloads.add((content: content, filename: filename));
-              },
-            ),
+            webFileDownloaderProvider.overrideWithValue(({
+              required content,
+              required filename,
+            }) {
+              recordedDownloads.add((content: content, filename: filename));
+            }),
           ],
           child: const MaterialApp(
             locale: Locale('en'),
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: ImportExportSection(),
-            ),
+            home: Scaffold(body: ImportExportSection()),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      // Open dialog and tap Export
-      await tester.tap(
-        find.widgetWithText(ListTile, 'Import / Export'),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Export'));
+      await tester.tap(find.text('Export all calendars'));
       await tester.pumpAndSettle();
 
       expect(recordedDownloads, isEmpty);
+      expect(find.text('Nothing to export yet'), findsOneWidget);
     });
 
     test('downloadFileWeb native stub throws UnsupportedError', () {
       expect(
-        () => downloadFileWeb(
-          content: 'test',
-          filename: 'test.ics',
-        ),
+        () => downloadFileWeb(content: 'test', filename: 'test.ics'),
         throwsA(isA<UnsupportedError>()),
       );
     });
@@ -200,17 +196,20 @@ void main() {
       },
     );
 
-    test('decodeWebIcsBytes throws FormatException on malformed UTF-8 bytes', () {
-      final malformedBytes = <int>[0xFF, 0xFE, 0xFD];
-      expect(
-        () => decodeWebIcsBytes(malformedBytes),
-        throwsA(isA<FormatException>()),
-      );
-      expect(
-        () => decodeIcsBytes(malformedBytes),
-        throwsA(isA<FormatException>()),
-      );
-    });
+    test(
+      'decodeWebIcsBytes throws FormatException on malformed UTF-8 bytes',
+      () {
+        final malformedBytes = <int>[0xFF, 0xFE, 0xFD];
+        expect(
+          () => decodeWebIcsBytes(malformedBytes),
+          throwsA(isA<FormatException>()),
+        );
+        expect(
+          () => decodeIcsBytes(malformedBytes),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test(
       'production decoding path preserves non-ASCII calendar data through IcsService import',
@@ -263,4 +262,3 @@ void main() {
     );
   });
 }
-
