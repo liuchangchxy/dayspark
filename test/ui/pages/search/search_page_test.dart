@@ -35,8 +35,8 @@ void main() {
       routes: [
         GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
         GoRoute(
-          path: '/todo/edit',
-          builder: (_, __) => const Scaffold(body: Text('Todo edit route')),
+          path: '/todo/detail',
+          builder: (_, __) => const Scaffold(body: Text('Todo detail route')),
         ),
       ],
     );
@@ -79,13 +79,13 @@ void main() {
     await tester.pump();
 
     expect(completionCalls, 1);
-    expect(find.text('Todo edit route'), findsNothing);
+    expect(find.text('Todo detail route'), findsNothing);
     expect(router.routeInformationProvider.value.uri.path, '/search');
 
     await tester.tap(find.text(todo.summary));
     await tester.pumpAndSettle();
 
-    expect(find.text('Todo edit route'), findsOneWidget);
+    expect(find.text('Todo detail route'), findsOneWidget);
     expect(completionCalls, 1);
     debugDefaultTargetPlatformOverride = null;
     router.dispose();
@@ -114,8 +114,8 @@ void main() {
       routes: [
         GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
         GoRoute(
-          path: '/todo/edit',
-          builder: (_, __) => const Scaffold(body: Text('Todo edit route')),
+          path: '/todo/detail',
+          builder: (_, __) => const Scaffold(body: Text('Todo detail route')),
         ),
       ],
     );
@@ -165,13 +165,13 @@ void main() {
     await tester.pump();
 
     expect(completionCalls, 1);
-    expect(find.text('Todo edit route'), findsNothing);
+    expect(find.text('Todo detail route'), findsNothing);
     expect(router.routeInformationProvider.value.uri.path, '/search');
 
     await tester.tap(find.text('GUI验收-普通Todo-Edit').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Todo edit route'), findsOneWidget);
+    expect(find.text('Todo detail route'), findsOneWidget);
     expect(completionCalls, 1);
     debugDefaultTargetPlatformOverride = null;
     router.dispose();

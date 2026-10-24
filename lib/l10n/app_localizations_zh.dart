@@ -12,18 +12,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preview => '预览';
 
   @override
+  String get legacyRepeatFrom => '从哪天开始重复';
+
+  @override
   String get legacyRecurrencePreview => '后续日期预览';
-
-  @override
-  String legacyRecurrenceEvidence(Object source, Object semantic, Object tzid) {
-    return '导入来源：$source；时间语义：$semantic$tzid';
-  }
-
-  @override
-  String get legacyVTimezonePresent => '原日历包含 VTIMEZONE 时区定义。';
-
-  @override
-  String get legacyRecurrenceEvidenceMissing => '此旧记录没有可用的导入来源证据。';
 
   @override
   String get selectTodoOccurrence => '选择重复事项';
@@ -56,25 +48,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get confirmLegacyRecurrenceTitle => '确认重复待办';
 
   @override
-  String get confirmLegacyRecurrenceBody => '这条旧重复待办没有可靠的时区信息。请选择解释方式。设备时区仅作建议，只有确认后才会保存。';
-
-  @override
-  String get recurrenceTimeZone => '重复系列时区';
-
-  @override
-  String get recurrenceTimeZoneSuggested => '设备提供的建议值；确认前请核对。';
+  String get confirmLegacyRecurrenceBody => '这条重复待办是在旧版本导入的，没有记录从哪天开始重复。选一次那个日期，其余由应用推算。';
 
   @override
   String get legacyAnchorEvidence => '已保存的日期和时间';
-
-  @override
-  String get legacyAnchorValue => '重复系列锚点日期和时间';
-
-  @override
-  String get legacyDateFormatHint => '日期格式：YYYY-MM-DD。';
-
-  @override
-  String get legacyDateTimeFormatHint => '本地日期时间格式：YYYY-MM-DDTHH:mm:ss。';
 
   @override
   String get dateOnly => '仅日期';
@@ -136,13 +113,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get eventNotFound => '日程未找到';
 
   @override
-  String get missingEventParam => '缺少待编辑的日程参数。';
+  String get missingEventParam => '这个链接没有带上日程，请从日历打开。';
 
   @override
   String get todoNotFound => '待办未找到';
 
   @override
-  String get missingTodoParam => '缺少待编辑的待办参数。';
+  String get missingTodoParam => '这个链接没有带上待办，请从清单打开。';
 
   @override
   String get editCalendar => '编辑日历';
@@ -212,6 +189,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startDate => '开始日期';
+
+  @override
+  String get startAfterDeadline => '开始日期不能晚于截止时间。';
 
   @override
   String get endDate => '结束日期';
@@ -1241,4 +1221,169 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get actionAll => '全部';
+
+  @override
+  String get edit => '编辑';
+
+  @override
+  String get done => '完成';
+
+  @override
+  String get close => '关闭';
+
+  @override
+  String get todoDetails => '待办';
+
+  @override
+  String get eventDetails => '日程';
+
+  @override
+  String get deadline => '截止';
+
+  @override
+  String get deadlineTime => '截止时间';
+
+  @override
+  String get executionSchedule => '执行时间';
+
+  @override
+  String get addExecution => '添加执行时间';
+
+  @override
+  String get notScheduled => '未安排';
+
+  @override
+  String get execution => '执行';
+
+  @override
+  String get repeatAdvanced => '重复选项';
+
+  @override
+  String get seriesTimeZoneShort => '全部重复使用的时区';
+
+  @override
+  String get startsAtHint => '最早可以开始做的日子';
+
+  @override
+  String get noDeadline => '无截止';
+
+  @override
+  String get setDeadline => '设置截止';
+
+  @override
+  String get scheduleNow => '现在安排';
+
+  @override
+  String get actionNothingNow => '现在没有需要你处理的事';
+
+  @override
+  String get actionNothingNowHint => '有日程或截止事项时，当天会出现在这里。';
+
+  @override
+  String get recurringNeedsRepair => '有重复待办需要一次性确认';
+
+  @override
+  String get recurringNeedsRepairHint => '这些是导入进来的，缺少时区。打开其中一条确认重复方式即可。';
+
+  @override
+  String get recurringBroken => '有一条重复待办无法计算';
+
+  @override
+  String get recurringBrokenHint => '它的重复规则已失效。打开它重新设置。';
+
+  @override
+  String get laterToday => '今日稍后';
+
+  @override
+  String get nothingScheduled => '暂无安排';
+
+  @override
+  String minutesShort(Object count) {
+    return '$count 分钟';
+  }
+
+  @override
+  String hoursShort(Object count) {
+    return '$count 小时';
+  }
+
+  @override
+  String get repeatNever => '不重复';
+
+  @override
+  String get repeatDaily => '每天';
+
+  @override
+  String get repeatWeekly => '每周';
+
+  @override
+  String get repeatMonthly => '每月';
+
+  @override
+  String get repeatYearly => '每年';
+
+  @override
+  String get repeatCustom => '自定义重复…';
+
+  @override
+  String get repeatEndsNever => '不限结束';
+
+  @override
+  String repeatEndsOn(Object date) {
+    return '$date 结束';
+  }
+
+  @override
+  String repeatEndsAfter(Object count) {
+    return '重复 $count 次后结束';
+  }
+
+  @override
+  String repeatEveryN(Object count, Object unit) {
+    return '每 $count $unit';
+  }
+
+  @override
+  String repeatEveryNDays(Object count) {
+    return '每 $count 天';
+  }
+
+  @override
+  String repeatEveryNWeeks(Object count) {
+    return '每 $count 周';
+  }
+
+  @override
+  String repeatEveryNMonths(Object count) {
+    return '每 $count 个月';
+  }
+
+  @override
+  String repeatEveryNYears(Object count) {
+    return '每 $count 年';
+  }
+
+  @override
+  String get eventDuration => '时长';
+
+  @override
+  String get durationAllDay => '全天';
+
+  @override
+  String get executionBlock => '时段';
+
+  @override
+  String get executionWhen => '时间';
+
+  @override
+  String get startTime => '开始';
+
+  @override
+  String get endTime => '结束';
+
+  @override
+  String get repeatNeedsDate => '请先设置日期，才能设置重复。';
+
+  @override
+  String get recurringSeriesNoticeShort => '这是重复日程，修改会应用到每一次。';
 }

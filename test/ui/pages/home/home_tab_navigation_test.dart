@@ -5,15 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
-import 'package:dayspark/ui/widgets/workspace_sidebar.dart';
+import 'package:dayspark/ui/shell/workspace_navigation.dart';
+import 'package:dayspark/ui/shell/workspace_sidebar.dart';
 
-Widget _app(AppDatabase db) {
+Widget _app(AppDatabase db, {List<Override> overrides = const []}) {
   return ProviderScope(
-    overrides: [databaseProvider.overrideWithValue(db)],
+    overrides: [databaseProvider.overrideWithValue(db), ...overrides],
     child: MaterialApp(
       localizationsDelegates: const [
         ...AppLocalizations.localizationsDelegates,
@@ -207,7 +209,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('desktop todo swaps the week strip for the compact toolbar', (
+  testWidgets('desktop todo keeps its day navigation in the toolbar', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -220,7 +222,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     expect(find.byType(TodoDesktopToolbar), findsOneWidget);
-    expect(find.byKey(const ValueKey('date-strip-week')), findsNothing);
+    // Moving to another day is not a mobile-only need: the same strip is
+    // rendered under the compact toolbar rather than dropped.
+    expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
     // The filters themselves stay available.
     expect(
       find.descendant(
@@ -252,6 +256,59 @@ void main() {
     expect(find.byType(TodoDesktopToolbar), findsNothing);
     expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
+  /// The sidebar row alone carries the selection colour, so reading the
+  /// nearest Material above the label says whether that row is highlighted.
+  Color? sidebarRowColor(WidgetTester tester, String label) {
+    final material = tester.widget<Material>(
+      find
+          .ancestor(
+            of: find.descendant(
+              of: find.byType(WorkspaceSidebar),
+              matching: find.text(label),
+            ),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    return material.color;
+  }
+
+  Future<void> pumpDesktopSidebar(WidgetTester tester, TodosView view) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
+    await tester.pumpWidget(
+      _app(db, overrides: [todosViewProvider.overrideWith((ref) => view)]),
+    );
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+  }
+
+  testWidgets('sidebar highlights Today when the day view is today', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    await pumpDesktopSidebar(
+      tester,
+      TodosDayView(DateTime(now.year, now.month, now.day)),
+    );
+    expect(sidebarRowColor(tester, 'Today'), AppColors.sidebarSelected);
+    await _unmount(tester);
+  });
+
+  testWidgets('sidebar leaves Today unhighlighted on another day', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    await pumpDesktopSidebar(tester, TodosDayView(tomorrow));
+    expect(sidebarRowColor(tester, 'Today'), isNot(AppColors.sidebarSelected));
     await _unmount(tester);
   });
 }

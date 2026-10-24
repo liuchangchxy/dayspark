@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -6,7 +7,8 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/widgets/todo/task_allocations_section.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
+import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 
 class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
   final Todo todo;
@@ -32,32 +34,33 @@ class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
     try {
       freshTodo = todo.syncId == null
           ? await ref.read(ensureTodoSyncIdentityProvider)(todo.id)
-          : (await (ref.read(databaseProvider).select(ref.read(databaseProvider).todos)
-                ..where((row) => row.id.equals(todo.id)))
-              .getSingleOrNull() ??
-            todo);
+          : (await (ref
+                        .read(databaseProvider)
+                        .select(ref.read(databaseProvider).todos)
+                      ..where((row) => row.id.equals(todo.id)))
+                    .getSingleOrNull() ??
+                todo);
     } catch (_) {
       freshTodo = todo;
     }
     if (!context.mounted) return null;
 
     if (TodoRecurrence.fromTodo(freshTodo).isUnknownLegacy) {
-      if (!TaskAllocationsSection.legacyRuleIsSupported(freshTodo.rrule ?? '')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.unsupportedLegacyRecurrence)),
-        );
+      if (!legacyRuleIsSupported(freshTodo.rrule ?? '')) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.unsupportedLegacyRecurrence)));
         return null;
       }
-      final confirmed = await TaskAllocationsSection.confirmLegacyRecurrence(
-        context,
-        ref,
-        freshTodo,
-      );
+      final confirmed = await confirmLegacyRecurrence(context, ref, freshTodo);
       if (!confirmed || !context.mounted) return null;
-      freshTodo = (await (ref.read(databaseProvider).select(ref.read(databaseProvider).todos)
+      freshTodo =
+          (await (ref
+                  .read(databaseProvider)
+                  .select(ref.read(databaseProvider).todos)
                 ..where((row) => row.id.equals(todo.id)))
               .getSingleOrNull() ??
-            freshTodo);
+          freshTodo);
       if (!context.mounted) return null;
     }
 
@@ -170,9 +173,18 @@ class _TodoOccurrencePickerSheetState
                         padding: EdgeInsets.zero,
                         onPressed: () => Navigator.of(context).pop(item),
                         child: ListTile(
-                          title: Text(item.occurrence.displayLabel),
+                          title: Text(
+                            formatOccurrenceAnchor(
+                              context,
+                              item.occurrence.displayLabel,
+                            ),
+                          ),
                           trailing: item.isCompleted
-                              ? const Icon(Icons.check, color: Colors.green)
+                              ? Icon(
+                                  CupertinoIcons.checkmark,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.primary,
+                                )
                               : null,
                           onTap: () => Navigator.of(context).pop(item),
                         ),

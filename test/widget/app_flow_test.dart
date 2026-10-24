@@ -9,9 +9,9 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/about/about_page.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
-import 'package:dayspark/ui/pages/event/event_create_page.dart';
+import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
-import 'package:dayspark/ui/pages/todo/todo_create_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
 GoRouter _createRouter() => GoRouter(
@@ -21,7 +21,7 @@ GoRouter _createRouter() => GoRouter(
     GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
     GoRoute(
       path: '/event/new',
-      builder: (_, __) => EventCreatePage(
+      builder: (_, __) => EventFormPage(
         initialStart: DateTime(2026, 5, 1),
         initialEnd: DateTime(2026, 5, 1).add(const Duration(hours: 1)),
       ),
@@ -29,7 +29,7 @@ GoRouter _createRouter() => GoRouter(
     GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
     GoRoute(path: '/about', builder: (_, __) => const AboutPage()),
     GoRoute(path: '/trash', builder: (_, __) => const TrashPage()),
-    GoRoute(path: '/todo/new', builder: (_, __) => const TodoCreatePage()),
+    GoRoute(path: '/todo/new', builder: (_, __) => const TodoFormPage()),
   ],
 );
 
@@ -114,8 +114,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('workspace-create')));
     await _settle(tester);
 
-    expect(find.text('Starts at'), findsOneWidget);
-    expect(find.text('Ends at'), findsOneWidget);
+    expect(find.text('Start'), findsOneWidget);
+    expect(find.text('End'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Description'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Location'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
@@ -201,7 +201,7 @@ void main() {
     router.go('/todo/new');
     await _settle(tester);
 
-    expect(find.byType(TodoCreatePage), findsOneWidget);
+    expect(find.byType(TodoFormPage), findsOneWidget);
     expect(find.text('New Todo'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
   });

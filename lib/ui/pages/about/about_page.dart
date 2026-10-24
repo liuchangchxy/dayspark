@@ -5,7 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/widgets/centered_content.dart';
+import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 
 class AboutPage extends StatefulWidget {
@@ -117,16 +117,10 @@ class _AboutPageState extends State<AboutPage> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(l.about),
-      ),
-      body: CenteredContent(
-        child: ListView(
+    return WorkspacePage(
+      title: l.about,
+      maxContentWidth: 640,
+      child: ListView(
           padding: const EdgeInsets.all(24),
         children: [
           Icon(
@@ -278,7 +272,6 @@ class _AboutPageState extends State<AboutPage> {
           ),
         ],
         ),
-      ),
     );
   }
 }

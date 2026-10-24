@@ -485,13 +485,15 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
     if (_viewConfiguration == null || _configMode != mode) {
       _configMode = mode;
       _viewConfiguration = switch (mode) {
+        // Half an hour above the first working hour: landing exactly on 8:00
+        // clips the label that explains where you are.
         CalendarViewMode.day => MultiDayViewConfiguration.singleDay(
           initialDateTime: _anchorDate,
-          initialTimeOfDay: const TimeOfDay(hour: 8, minute: 0),
+          initialTimeOfDay: const TimeOfDay(hour: 7, minute: 30),
         ),
         CalendarViewMode.week => MultiDayViewConfiguration.week(
           initialDateTime: _anchorDate,
-          initialTimeOfDay: const TimeOfDay(hour: 8, minute: 0),
+          initialTimeOfDay: const TimeOfDay(hour: 7, minute: 30),
         ),
         CalendarViewMode.month => MonthViewConfiguration.singleMonth(
           initialDateTime: _anchorDate,

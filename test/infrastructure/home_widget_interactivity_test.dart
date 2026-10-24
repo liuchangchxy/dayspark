@@ -12,7 +12,7 @@ import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_interactivity.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/pages/todo/todo_create_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
 import '../helpers/test_database.dart';
 
@@ -82,7 +82,7 @@ void main() {
     expect(widgetDeepLinkLocation(null), isNull);
   });
 
-  testWidgets('quick-add location resolves to TodoCreatePage with source', (
+  testWidgets('quick-add location resolves to TodoFormPage with source', (
     tester,
   ) async {
     AppRouter.router.go('/');
@@ -92,7 +92,7 @@ void main() {
     AppRouter.router.go(quickAddLocation);
     await settle(tester);
 
-    final page = tester.widget<TodoCreatePage>(find.byType(TodoCreatePage));
+    final page = tester.widget<TodoFormPage>(find.byType(TodoFormPage));
     expect(page.source, 'widget');
 
     await teardownTree(tester);
@@ -108,7 +108,7 @@ void main() {
     await widgetInteractivityCallback(Uri.parse('dayspark://quick-add'));
     await settle(tester);
 
-    final page = tester.widget<TodoCreatePage>(find.byType(TodoCreatePage));
+    final page = tester.widget<TodoFormPage>(find.byType(TodoFormPage));
     expect(page.source, 'widget');
 
     expect(await testDb.select(testDb.todos).get(), isEmpty);
@@ -125,7 +125,7 @@ void main() {
     await widgetInteractivityCallback(Uri.parse('dayspark://boom'));
     await settle(tester);
 
-    expect(find.byType(TodoCreatePage), findsNothing);
+    expect(find.byType(TodoFormPage), findsNothing);
     expect(await testDb.select(testDb.todos).get(), isEmpty);
     expect(await testDb.select(testDb.syncOutbox).get(), isEmpty);
 

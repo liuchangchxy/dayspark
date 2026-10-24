@@ -2,16 +2,16 @@
 
 > 2026-10-06 update: recurring per-instance completion is implemented on `fix/recurring-task-instance-completion`; PR #2 tracks delivery and current Hosted CI evidence. The Todo UI remains a series row with an occurrence selector.
 
-> Last updated / 最后更新: v0.28.0+28 | 2026-10-21 | Sync closure: reminders, tags and attachment metadata now sync (schema v15); attachment blobs are uploaded by the client and fetched on demand, with deletion clearing local file + row + server blob; backup is one zip carrying `db.json` plus attachment bodies; the client's recurrence-legacy branches are removed. Previous: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Previous: v0.27.0+28 | 2026-10-01 | Sync devices +全双语护栏: every account can now see its connected devices (`POST /devices/register`, `GET /devices`, `x-device-id` actually sent, in-app device list), the AI answers in the app language instead of guessing, switching language now re-issues already-scheduled reminders, and four new guards cover the localization surface (dictionary parity, raw-text scan, outlet inventory, gate ledger). Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: the app moves from a Linear-style cool/dense language to an Apple Calendar-style warm/clear one — iOS system palette, a 6-step type scale with a guarded display-to-body ratio, iOS radii, layered elevation, and a locked five-preset accent palette replacing the free colour picker (`DESIGN.md` rewritten)
+> Last updated / 最后更新: v0.29.0+29 | 2026-10-23 | One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox become Todo views), Action answers only "what now/today", Todo asks only deadline and execution time (execution schedulable at creation), create and edit collapse into one form page per object with a read-only detail surface, and the desktop rail persists across the whole app through `ShellRoute`. Previous: v0.28.0+28 | 2026-10-21 | Sync closure: reminders, tags and attachment metadata now sync (schema v15); attachment blobs are uploaded by the client and fetched on demand, with deletion clearing local file + row + server blob; backup is one zip carrying `db.json` plus attachment bodies; the client's recurrence-legacy branches are removed. Previous: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Earlier: v0.27.0+28 | 2026-10-01 | Sync devices + localization guards: every account can see its connected devices, the AI answers in the app language, switching language re-issues already-scheduled reminders, and four guards cover the localization surface. Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: Apple Calendar-style warm/clear language — iOS system palette, 6-step type scale, iOS radii, layered elevation, five locked accent presets (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.28.0+28** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.29.0+29** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
-- 最新变化：**视觉重设计（v0.26.0）** — 从 Linear 式冷淡高密度转向 Apple 日历式温和清晰：iOS 系统色板、6 级字阶（主标题/正文 1.7 倍差带测试守护）、iOS 圆角与分层阴影、锁死的 5 套预设主题色取代自由选色器、设置页改分组卡片、四个空状态差异化；`DESIGN.md` 重写，全项目 token 清剿
-- 上一版：**Web 白屏修复（v0.25.1）** — 平台判断收敛到唯一 `kIsWeb` 守卫入口 + 静态守卫测试 + CI 冒烟截图断言
-- 更早：**债务2 统一事件缝（v0.25.0）** — 派生态失效从三条临时通道收敛为 post-commit 领域事件（`record-applied`/`record-removed`）：远端改期重挂本机提醒（关 P2.5#1）、远端删除撤销已排队通知（幽灵响铃）、事件回收站恢复重挂
+- 最新变化：**全局 UI/UX 骨架统一（v0.29.0）** — 顶层只剩 Action / Calendar / Todo，Today 与 Inbox 变成 Todo 内部视图；Action 只回答"现在/今天该做什么"；Todo 只问截止时间与执行时间（执行时间新建时即可安排）；新建与编辑合并为同一表单页，点开对象先进只读详情；桌面侧栏经 `ShellRoute` 全站常驻，所有页面统一 `WorkspacePage`；旧重复待办的一次性修复只问"从哪天开始重复"
+- 上一版：**同步补齐与整机备份（v0.28.0）** — 提醒/标签/附件元数据进入同步（schema v15）、附件本体上传与按需下载、备份升级为 zip
+- 更早：**视觉重设计（v0.26.0）** — Apple 日历式温和清晰：iOS 系统色板、6 级字阶、iOS 圆角与分层阴影、锁死的 5 套预设主题色（`DESIGN.md` 重写）
 - 更早：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）；Web 缺口见 Pending **#9（ICS 导出不可用）/#10（通知静默未初始化）**
 
@@ -329,6 +329,19 @@
 | **Android signing keys removed from git tracking** — new random-password keystore generated, `key.properties` + `release-keystore.jks` added to `.gitignore`, old files `git rm`'d. / **Android 签名密钥移出 git 追踪** | [Security / 安全] |
 | **CI injects keystore via GitHub Secrets** — `release.yml` decodes base64 keystore + writes `key.properties` from `${{ secrets.ANDROID_KEYSTORE }}` etc. / **CI 改为从 Secrets 注入签名** | [Security / 安全] |
 | **Cleanup ~8 GB local build cache** — `build/`, `.dart_tool/`, `.opencode/node_modules/` removed. / **清理 ~8GB 本地构建缓存** | [Maintenance / 维护] |
+
+### v0.29.0 | 2026-10-23 | One Product / 全局 UI/UX 骨架统一
+
+| Change / 变更 | Source / 来源 |
+|------|------|
+| **Top-level navigation is Action / Calendar / Todo** — Today and Inbox stopped competing as siblings and became views inside Todo (`TodosView`: a day, Inbox, All); the six-things cap follows Todo instead of being an Action control over another page. One owner (`workspaceTabProvider` + `todosViewProvider`) drives the rail, the bottom bar and the page title. / **顶层导航只剩三页**，Today/Inbox 成为 Todo 内部视图 | [User / 用户] |
+| **Action answers only "what now/today"** — currently happening, later today, today's timeline, today's deadlines and overdue stay; recurrence repair, engine diagnostics, technical errors and Todo management left the page. The desktop inspector is a read-only pane and editing is a separate step. / **Action 只回答"现在/今天该做什么"** | [User / 用户] |
+| **Todo asks two time questions** — deadline (by when) and execution (when I'll do it), with execution schedulable while creating rather than only after saving and reopening; block length is a choice, not an end time to compute. / **Todo 只问截止与执行时间**，执行时间新建即可安排 | [User / 用户] |
+| **One form page per object, plus a real detail surface** — `TodoFormPage` / `EventFormPage` handle create and edit; tapping an item opens `TodoDetailPage` / `EventDetailPage`, so viewing and editing are no longer the same gesture. / **新建=编辑，点开先看详情** | [User / 用户] |
+| **Desktop shell is global** — a `ShellRoute` wraps settings, search, tags, calendars, AI chat, about, trash, feedback, create, detail and edit, so the rail persists app-wide; every page renders through `WorkspacePage` instead of its own Scaffold + AppBar + back button. / **桌面 Shell 全站常驻** | [User / 用户] |
+| **Visual sweep fixes** — desktop Todo regained the day strip (shared `TodoWeekStrip` with mobile), page headers align with the content column, search's header field stopped looking like a second nav bar, back falls through to Home when there is nothing beneath, a deep link missing its object says so in words and offers a way out, the empty execution caption is gone, the calendar opens at 7:30 so the first hour label is not clipped, and the occurrence picker uses the app's own checkmark. / **视觉走查后的修正** | [Engineering / 工程] |
+| **Shared schedule vocabulary** — `ScheduleRow` / `SectionLabel` / `RowDivider` plus `pickDeadline` / `pickDateTime` / `formatMoment` / `formatDeadline` / `formatExecutionRange`, so deadline versus execution reads from layout rather than prose. / **统一排期词汇表** | [Engineering / 工程] |
+| **Legacy repair asks one question** — the one-time dialog no longer shows the RRULE string, import evidence (`vtimezoneConflict`), VTIMEZONE notes, a free-text zone field or `YYYY-MM-DDTHH:mm:ss`; it asks which day the series repeats from and previews the next dates. / **旧重复修复只问一个可回答的问题** | [User / 用户] |
 
 ### v0.28.0 | 2026-10-21 | Sync Closure & Full Backup / 同步补齐与整机备份
 
@@ -716,4 +729,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.28.0+28 |
+| Version / 版本 | v0.29.0+29 |

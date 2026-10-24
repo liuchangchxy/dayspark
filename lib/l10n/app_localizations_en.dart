@@ -12,18 +12,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preview => 'Preview';
 
   @override
+  String get legacyRepeatFrom => 'Repeats from';
+
+  @override
   String get legacyRecurrencePreview => 'Next occurrences (preview)';
-
-  @override
-  String legacyRecurrenceEvidence(Object source, Object semantic, Object tzid) {
-    return 'Import evidence: $source; time meaning: $semantic$tzid';
-  }
-
-  @override
-  String get legacyVTimezonePresent => 'The calendar includes VTIMEZONE data.';
-
-  @override
-  String get legacyRecurrenceEvidenceMissing => 'No import evidence is available for this legacy record.';
 
   @override
   String get selectTodoOccurrence => 'Select occurrence';
@@ -56,25 +48,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirmLegacyRecurrenceTitle => 'Confirm recurring Todo';
 
   @override
-  String get confirmLegacyRecurrenceBody => 'This older recurring Todo has no reliable time zone. Choose how to interpret it. Your device time zone is only a suggestion and will be saved only after confirmation.';
-
-  @override
-  String get recurrenceTimeZone => 'Series time zone';
-
-  @override
-  String get recurrenceTimeZoneSuggested => 'Suggested from this device; verify before confirming.';
+  String get confirmLegacyRecurrenceBody => 'This repeating todo was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.';
 
   @override
   String get legacyAnchorEvidence => 'Stored date and time';
-
-  @override
-  String get legacyAnchorValue => 'Series anchor date and time';
-
-  @override
-  String get legacyDateFormatHint => 'Enter a date as YYYY-MM-DD.';
-
-  @override
-  String get legacyDateTimeFormatHint => 'Enter a local date and time as YYYY-MM-DDTHH:mm:ss.';
 
   @override
   String get dateOnly => 'Date only';
@@ -136,13 +113,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventNotFound => 'Event Not Found';
 
   @override
-  String get missingEventParam => 'Missing event parameter to edit.';
+  String get missingEventParam => 'This link did not carry an event. Open it from the calendar instead.';
 
   @override
   String get todoNotFound => 'Todo Not Found';
 
   @override
-  String get missingTodoParam => 'Missing todo parameter to edit.';
+  String get missingTodoParam => 'This link did not carry a todo. Open it from a list instead.';
 
   @override
   String get editCalendar => 'Edit Calendar';
@@ -212,6 +189,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startDate => 'Starts at';
+
+  @override
+  String get startAfterDeadline => 'Starts at has to come before the deadline.';
 
   @override
   String get endDate => 'Ends at';
@@ -1247,4 +1227,169 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actionAll => 'All';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get done => 'Done';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get todoDetails => 'Todo';
+
+  @override
+  String get eventDetails => 'Event';
+
+  @override
+  String get deadline => 'Deadline';
+
+  @override
+  String get deadlineTime => 'Deadline time';
+
+  @override
+  String get executionSchedule => 'Execution time';
+
+  @override
+  String get addExecution => 'Add execution time';
+
+  @override
+  String get notScheduled => 'Not scheduled';
+
+  @override
+  String get execution => 'Execution';
+
+  @override
+  String get repeatAdvanced => 'Repeat options';
+
+  @override
+  String get seriesTimeZoneShort => 'Time zone for all repeats';
+
+  @override
+  String get startsAtHint => 'Earliest day this can be done';
+
+  @override
+  String get noDeadline => 'No deadline';
+
+  @override
+  String get setDeadline => 'Set deadline';
+
+  @override
+  String get scheduleNow => 'Schedule now';
+
+  @override
+  String get actionNothingNow => 'Nothing needs you right now';
+
+  @override
+  String get actionNothingNowHint => 'Upcoming events and deadlines will show up here on the day.';
+
+  @override
+  String get recurringNeedsRepair => 'Some repeating todos need a one-time fix';
+
+  @override
+  String get recurringNeedsRepairHint => 'These were imported without a time zone. Open one to confirm when it repeats.';
+
+  @override
+  String get recurringBroken => 'A repeating todo cannot be calculated';
+
+  @override
+  String get recurringBrokenHint => 'Its repeat rule is no longer valid. Open it to set a new one.';
+
+  @override
+  String get laterToday => 'Later today';
+
+  @override
+  String get nothingScheduled => 'Nothing scheduled';
+
+  @override
+  String minutesShort(Object count) {
+    return '$count min';
+  }
+
+  @override
+  String hoursShort(Object count) {
+    return '$count h';
+  }
+
+  @override
+  String get repeatNever => 'Does not repeat';
+
+  @override
+  String get repeatDaily => 'Every day';
+
+  @override
+  String get repeatWeekly => 'Every week';
+
+  @override
+  String get repeatMonthly => 'Every month';
+
+  @override
+  String get repeatYearly => 'Every year';
+
+  @override
+  String get repeatCustom => 'Custom repeat…';
+
+  @override
+  String get repeatEndsNever => 'No end date';
+
+  @override
+  String repeatEndsOn(Object date) {
+    return 'Ends on $date';
+  }
+
+  @override
+  String repeatEndsAfter(Object count) {
+    return 'Ends after $count times';
+  }
+
+  @override
+  String repeatEveryN(Object count, Object unit) {
+    return 'Every $count $unit';
+  }
+
+  @override
+  String repeatEveryNDays(Object count) {
+    return 'Every $count days';
+  }
+
+  @override
+  String repeatEveryNWeeks(Object count) {
+    return 'Every $count weeks';
+  }
+
+  @override
+  String repeatEveryNMonths(Object count) {
+    return 'Every $count months';
+  }
+
+  @override
+  String repeatEveryNYears(Object count) {
+    return 'Every $count years';
+  }
+
+  @override
+  String get eventDuration => 'Duration';
+
+  @override
+  String get durationAllDay => 'All day';
+
+  @override
+  String get executionBlock => 'Block';
+
+  @override
+  String get executionWhen => 'When';
+
+  @override
+  String get startTime => 'Start';
+
+  @override
+  String get endTime => 'End';
+
+  @override
+  String get repeatNeedsDate => 'Give it a date first, then it can repeat.';
+
+  @override
+  String get recurringSeriesNoticeShort => 'This repeats. Edits apply to every occurrence.';
 }

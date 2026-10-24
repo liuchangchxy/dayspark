@@ -1,10 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/widgets/centered_content.dart';
+import 'package:dayspark/ui/shell/workspace_page.dart';
 
 class FeedbackPage extends StatefulWidget {
   const FeedbackPage({super.key});
@@ -26,16 +25,10 @@ class _FeedbackPageState extends State<FeedbackPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(l.feedback),
-      ),
-      body: CenteredContent(
-        child: ListView(
+    return WorkspacePage(
+      title: l.feedback,
+      maxContentWidth: 640,
+      child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           TextField(
@@ -83,7 +76,6 @@ class _FeedbackPageState extends State<FeedbackPage> {
             label: Text(l.gitHub),
           ),
         ],
-        ),
       ),
     );
   }

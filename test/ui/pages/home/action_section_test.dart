@@ -80,12 +80,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    expect(
-      find.text('No events, scheduled tasks, or deadlines for today.'),
-      findsOneWidget,
-    );
-    expect(find.text('Inbox'), findsOneWidget);
-    expect(find.text('0 unplanned'), findsOneWidget);
+    expect(find.text('Nothing needs you right now'), findsOneWidget);
+    // Action is a read surface: it offers no inbox shortcut and no counters
+    // for things that belong to other destinations.
+    expect(find.text('Inbox'), findsNothing);
+    expect(find.textContaining('unplanned'), findsNothing);
 
     await _unmount(tester);
   });
@@ -162,20 +161,20 @@ void main() {
       }
 
       // Overdue section
-      expect(find.text('Overdue (1)'), findsOneWidget);
+      expect(find.text('Overdue · 1'), findsOneWidget);
       expect(find.text('Fix Bug'), findsOneWidget);
       expect(find.text('Deadline: 2026-10-02'), findsOneWidget);
 
-      // Today's schedule section
+      // The selected day's schedule
       expect(find.text("Today's Schedule"), findsOneWidget);
       expect(find.text('Client Call'), findsOneWidget);
-      expect(find.text('10:00 – 11:00 · Event'), findsOneWidget);
+      expect(find.text('10:00 – 11:00'), findsOneWidget);
 
       expect(find.text('Write Spec'), findsOneWidget);
       expect(find.text('14:00 – 15:30 · Planned'), findsOneWidget);
 
       // Due Today section
-      expect(find.text('Due Today (1)'), findsOneWidget);
+      expect(find.text('Due Today · 1'), findsOneWidget);
       expect(find.text('Submit Invoice'), findsOneWidget);
       expect(find.text('Due today'), findsOneWidget);
 
@@ -202,7 +201,7 @@ void main() {
       Todo? opened;
       await tester.pumpWidget(
         _wrapWithApp(
-          child: ActionSection(onTodoTap: (todo) => opened = todo),
+          child: ActionSection(onTodoEdit: (todo) => opened = todo),
           overrides: [
             databaseProvider.overrideWithValue(db),
             actionDateProvider.overrideWith((ref) => fixedDate),
@@ -226,40 +225,41 @@ void main() {
     },
   );
 
-  testWidgets(
-    'mobile week strip changes the existing projection date without overflow',
-    (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        _wrapWithApp(
-          child: const ActionSection(),
-          overrides: [
-            databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => fixedDate),
-          ],
-        ),
+  testWidgets('mobile Action has no date switcher: it stays on today', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    for (var i = 0; i < 7; i++) {
+      expect(
+        find.byKey(ValueKey('action-week-$i')),
+        findsNothing,
+        reason:
+            'Action answers "now", so browsing future days belongs to '
+            'the Calendar',
       );
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-      for (var i = 0; i < 7; i++) {
-        final cell = find.byKey(ValueKey('action-week-$i'));
-        expect(tester.getSize(cell).width, greaterThanOrEqualTo(48));
-        expect(tester.getSize(cell).height, greaterThanOrEqualTo(48));
-      }
-      await tester.tap(find.byKey(const ValueKey('action-week-6')));
-      await tester.pump();
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(ActionSection)),
-      );
-      expect(container.read(actionDateProvider), DateTime(2026, 10, 11));
-      expect(tester.takeException(), isNull);
-      await _unmount(tester);
-    },
-  );
+    }
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(ActionSection)),
+    );
+    expect(container.read(actionDateProvider), fixedDate);
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
 
   testWidgets(
     'checking allocation checkbox completes ordinary todo without mutating dueDate',
@@ -320,32 +320,6 @@ void main() {
     },
   );
 
-  testWidgets('tapping Inbox card invokes onNavigateToTodos callback', (
-    tester,
-  ) async {
-    var navigated = false;
-    await tester.pumpWidget(
-      _wrapWithApp(
-        child: ActionSection(onNavigateToTodos: () => navigated = true),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
-        ],
-      ),
-    );
-
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    await tester.tap(find.text('Inbox'));
-    await tester.pump();
-
-    expect(navigated, isTrue);
-
-    await _unmount(tester);
-  });
-
   testWidgets(
     'Phase 2: renders today recurring instance and checkbox completes exact instance',
     (tester) async {
@@ -392,7 +366,7 @@ void main() {
       }
 
       expect(find.text('Daily Yoga'), findsOneWidget);
-      expect(find.text("Today's Tasks (1)"), findsOneWidget);
+      expect(find.text("Today's Tasks"), findsOneWidget);
 
       // Find and tap the checkbox for Daily Yoga
       final checkbox = find.byType(Checkbox);
@@ -420,172 +394,7 @@ void main() {
       expect(state.status, 'completed');
 
       // Verify UI moved Daily Yoga into Completed Today
-      expect(find.text('Completed Today (1)'), findsOneWidget);
-
-      await _unmount(tester);
-    },
-  );
-
-  testWidgets(
-    'Phase 2 regression: earlier missed tiles carry exact series identity for multiple series',
-    (tester) async {
-      final specA = RecurrenceSpec.parse(
-        anchor: RecurrenceAnchor(
-          source: RecurrenceAnchorSource.due,
-          value: LocalDate(2026, 8, 20),
-        ),
-        timeZone: 'Asia/Shanghai',
-        rrule: 'FREQ=DAILY;COUNT=5',
-      );
-      final seriesAId = await RecordScope.run(
-        db,
-        (tx) => TodoWriter.create(
-          db,
-          tx,
-          TodosCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Series Alpha',
-            rrule: Value(specA.rule.canonical),
-          ),
-          recurrenceSpec: specA,
-        ),
-      );
-
-      final specB = RecurrenceSpec.parse(
-        anchor: RecurrenceAnchor(
-          source: RecurrenceAnchorSource.due,
-          value: LocalDate(2026, 8, 20),
-        ),
-        timeZone: 'Asia/Shanghai',
-        rrule: 'FREQ=DAILY;COUNT=5',
-      );
-      final seriesBId = await RecordScope.run(
-        db,
-        (tx) => TodoWriter.create(
-          db,
-          tx,
-          TodosCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Series Beta',
-            rrule: Value(specB.rule.canonical),
-          ),
-          recurrenceSpec: specB,
-        ),
-      );
-
-      await tester.pumpWidget(
-        _wrapWithApp(
-          child: const ActionSection(),
-          overrides: [
-            databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => fixedDate),
-          ],
-        ),
-      );
-
-      for (var i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
-      expect(find.byKey(ValueKey('earlier-missed-$seriesAId')), findsOneWidget);
-      expect(find.byKey(ValueKey('earlier-missed-$seriesBId')), findsOneWidget);
-      expect(find.text('Earlier missed… · Series Alpha'), findsOneWidget);
-      expect(find.text('Earlier missed… · Series Beta'), findsOneWidget);
-
-      await _unmount(tester);
-    },
-  );
-
-  testWidgets(
-    'Phase 2 regression: expansion failure shows dedicated error tile without legacy confirmation card',
-    (tester) async {
-      await db
-          .into(db.todos)
-          .insert(
-            TodosCompanion.insert(
-              calendarId: calendarId,
-              summary: 'Corrupted Series',
-              rrule: const Value('INVALID'),
-              recurrenceLegacyState: const Value('knownZoned'),
-              recurrenceRule: const Value('INVALID'),
-              recurrenceAnchorSource: const Value('due'),
-              recurrenceValueType: const Value('date'),
-              recurrenceAnchorValue: const Value('2026-10-06'),
-              recurrenceTimeZone: const Value('UTC'),
-            ),
-          );
-
-      await tester.pumpWidget(
-        _wrapWithApp(
-          child: const ActionSection(),
-          overrides: [
-            databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => fixedDate),
-          ],
-        ),
-      );
-
-      for (var i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
-      expect(find.text('Corrupted Series'), findsOneWidget);
-      expect(find.textContaining('need confirmation'), findsNothing);
-
-      await _unmount(tester);
-    },
-  );
-
-  testWidgets(
-    'Phase 2 regression: earlier history tile renders distinct key and label for unprobed series',
-    (tester) async {
-      final spec = RecurrenceSpec.parse(
-        anchor: RecurrenceAnchor(
-          source: RecurrenceAnchorSource.due,
-          value: LocalDate(2024, 7, 28),
-        ),
-        timeZone: 'Asia/Shanghai',
-        rrule: 'FREQ=DAILY',
-      );
-      final seriesId = await RecordScope.run(
-        db,
-        (tx) => TodoWriter.create(
-          db,
-          tx,
-          TodosCompanion.insert(
-            calendarId: calendarId,
-            summary: 'Ancient Habit',
-            rrule: Value(spec.rule.canonical),
-          ),
-          recurrenceSpec: spec,
-        ),
-      );
-      final series = await (db.select(
-        db.todos,
-      )..where((t) => t.id.equals(seriesId))).getSingle();
-
-      await tester.pumpWidget(
-        _wrapWithApp(
-          child: const ActionSection(),
-          overrides: [
-            databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => fixedDate),
-            actionProjectionProvider.overrideWith(
-              (ref) => AsyncValue.data(
-                ActionProjectionData(
-                  earlierHistorySeries: [series],
-                  hasEarlierHistory: true,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(ValueKey('earlier-history-$seriesId')), findsOneWidget);
-      expect(find.text('Earlier history… · Ancient Habit'), findsOneWidget);
+      expect(find.text('Completed Today · 1'), findsOneWidget);
 
       await _unmount(tester);
     },

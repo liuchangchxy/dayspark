@@ -625,7 +625,9 @@ void main() {
     expect(find.text('Zero hour day'), findsWidgets);
   });
 
-  testWidgets('day and week views open scrolled to 08:00', (tester) async {
+  // Half an hour above the first working hour, so the 8:00 label is not
+  // clipped by the top edge of the grid on open.
+  testWidgets('day and week views open scrolled to 07:30', (tester) async {
     await _pumpCalendar(tester, events: []);
 
     final weekConfig = tester.widget<CalendarView>(find.byType(CalendarView));
@@ -633,7 +635,7 @@ void main() {
     expect(
       (weekConfig.viewConfiguration as MultiDayViewConfiguration)
           .initialTimeOfDay,
-      const TimeOfDay(hour: 8, minute: 0),
+      const TimeOfDay(hour: 7, minute: 30),
     );
 
     await tester.tap(find.text('Day'));
@@ -644,7 +646,7 @@ void main() {
     expect(
       (dayConfig.viewConfiguration as MultiDayViewConfiguration)
           .initialTimeOfDay,
-      const TimeOfDay(hour: 8, minute: 0),
+      const TimeOfDay(hour: 7, minute: 30),
     );
   });
 
