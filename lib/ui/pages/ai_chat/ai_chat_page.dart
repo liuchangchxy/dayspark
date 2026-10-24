@@ -616,7 +616,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           .call(
                             calendarId: calId,
                             summary: s,
-                            priority: 5,
+                            // A suggested subtask carries no priority signal;
+                            // 5 would claim the assistant judged it medium.
+                            priority: 0,
                             status: 'NEEDS-ACTION',
                           );
                       String? reminderError;
@@ -675,8 +677,15 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     String? promptInput,
   }) async {
     if (_writing) return;
+    // The flag covers the parse too, not only the write: two taps in a row
+    // would otherwise queue two confirmations, and the user agreeing to both
+    // would land the same task twice.
+    setState(() => _writing = true);
     final config = ref.read(aiConfigProvider).value;
-    if (config == null) return;
+    if (config == null) {
+      if (mounted) setState(() => _writing = false);
+      return;
+    }
     final l = AppLocalizations.of(context)!;
 
     // Use explicit promptInput if provided; otherwise fallback to finding the message
@@ -688,7 +697,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     }
 
     try {
-      final result = await parseNaturalLanguage(
+      final result = await ref.read(parseNaturalLanguageProvider)(
         config: config,
         input: input,
         type: type,
@@ -765,7 +774,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
               .call(
                 calendarId: calId,
                 summary: summary,
-                priority: result['priority'] as int? ?? 5,
+                priority: result['priority'] as int? ?? 0,
                 status: 'NEEDS-ACTION',
                 dueDate: dueDate,
                 description: result['description'] as String?,
@@ -783,6 +792,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
           context,
         ).showSnackBar(SnackBar(content: Text(l.failedAction)));
       }
+    } finally {
+      if (mounted) setState(() => _writing = false);
     }
   }
 
