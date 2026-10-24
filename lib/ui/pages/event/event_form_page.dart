@@ -351,8 +351,8 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
         fileName: item.draft.fileName,
         mimeType: item.draft.mimeType,
         data: item.bytes,
+        onFileWritten: stagedFiles.add,
       );
-      stagedFiles.add(stage.filePath);
       uploaded.add((id: stage.id, bytes: item.bytes));
     }
   }

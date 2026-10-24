@@ -179,51 +179,43 @@ void main() {
     // A form commits its whole draft in one transaction. The attachment row
     // and its local file are written inside it, so a rollback has to take the
     // file too — SQLite can hand the same id to a later insert, which would
-    // then adopt the orphan as its own.
-    final stage = await RecordScope.run(
-      db,
-      (tx) => service.insertRow(
-        tx,
-        parentType: 'todo',
-        parentId: todoId,
-        fileName: 'rolled-back.txt',
-        mimeType: 'text/plain',
-        data: const <int>[9, 9, 9],
-      ),
-    );
-    expect(File(stage.filePath!).existsSync(), isTrue);
-    expect(await service.rowOf(stage.id), isNotNull);
-
+    // then adopt the orphan as its own. The path is reported through the
+    // callback the moment the file exists, so a rollback *at any point after*
+    // is covered.
+    final staged = <String?>[];
     await expectLater(
       RecordScope.run(db, (tx) async {
-        await service.insertRow(
+        final doomed = await service.insertRow(
           tx,
           parentType: 'todo',
           parentId: todoId,
           fileName: 'doomed.txt',
           mimeType: 'text/plain',
           data: const <int>[7],
+          onFileWritten: staged.add,
+        );
+        expect(File(doomed.filePath!).existsSync(), isTrue);
+        expect(
+          await service.rowOf(doomed.id),
+          isNotNull,
+          reason: 'the row is written in the same transaction as the file',
         );
         throw StateError('the draft failed after the attachment');
       }),
       throwsA(isA<StateError>()),
     );
 
-    // What the caller does about its own rollback, in miniature.
-    await service.discardStagedFiles(<String?>[stage.filePath]);
+    // What a form does on the way past its own rethrow.
+    await service.discardStagedFiles(staged);
 
-    expect(File(stage.filePath!).existsSync(), isFalse);
+    expect(staged.single, isNotNull);
+    expect(File(staged.single!).existsSync(), isFalse);
     expect(
       (await db.select(db.attachments).get()).where(
         (a) => a.fileName == 'doomed.txt',
       ),
       isEmpty,
       reason: 'the transaction took the row with it',
-    );
-    expect(
-      File('${dir.path}/a${stage.id}_rolled-back.txt').existsSync(),
-      isFalse,
-      reason: 'the orphan file is gone, so a reused id cannot inherit it',
     );
   });
 

@@ -114,6 +114,7 @@ final insertAttachmentRowProvider =
         required String fileName,
         String? mimeType,
         required List<int> data,
+        required void Function(String?) onFileWritten,
       })
     >((ref) {
       final service = ref.read(attachmentServiceProvider);

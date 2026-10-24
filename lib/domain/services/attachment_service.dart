@@ -91,17 +91,25 @@ class AttachmentService {
       sourcePath: sourcePath,
       fileName: fileName,
     );
-    final stage = await RecordScope.run(
-      db,
-      (tx) => insertRow(
-        tx,
-        parentType: parentType,
-        parentId: parentId,
-        fileName: fileName,
-        mimeType: mimeType,
-        data: data,
-      ),
-    );
+    final orphaned = <String?>[];
+    late final AttachmentStage stage;
+    try {
+      stage = await RecordScope.run(
+        db,
+        (tx) => insertRow(
+          tx,
+          parentType: parentType,
+          parentId: parentId,
+          fileName: fileName,
+          mimeType: mimeType,
+          data: data,
+          onFileWritten: orphaned.add,
+        ),
+      );
+    } catch (_) {
+      await discardStagedFiles(orphaned);
+      rethrow;
+    }
     await uploadAfterCommit([(id: stage.id, bytes: data)]);
     return stage.id;
   }
@@ -130,10 +138,9 @@ class AttachmentService {
   /// request that can take minutes has no business holding a database
   /// transaction open.
   ///
-  /// The returned path is the file this call created. A caller whose
-  /// transaction rolls back afterwards has to hand it to
-  /// [discardStagedFiles]: the row is gone, and SQLite may hand the same id
-  /// to a later insert, which would inherit the orphan.
+  /// The file's path is reported through [onFileWritten] *before* the row is
+  /// updated with it, so a rollback at any later point — including one this
+  /// call itself provokes — leaves the path where the caller can clean it up.
   Future<AttachmentStage> insertRow(
     RecordScope tx, {
     required String parentType,
@@ -141,6 +148,7 @@ class AttachmentService {
     required String fileName,
     String? mimeType,
     required List<int> data,
+    required void Function(String?) onFileWritten,
   }) async {
     final id = await AttachmentWriter.add(
       db,
@@ -157,6 +165,7 @@ class AttachmentService {
       fileName: fileName,
       bytes: data,
     );
+    onFileWritten(path);
     await AttachmentWriter.update(
       db,
       tx,
