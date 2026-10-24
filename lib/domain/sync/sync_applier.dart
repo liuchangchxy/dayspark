@@ -75,11 +75,13 @@ class SyncApplier {
     }
 
     final companion = EventsCompanion(
-      calendarId: Value(await resolveCalendarId(
-        db,
-        payload['calendarId'],
-        calendarSyncId: optionalString(payload['calendarSyncId']),
-      )),
+      calendarId: Value(
+        await resolveCalendarId(
+          db,
+          payload['calendarId'],
+          calendarSyncId: optionalString(payload['calendarSyncId']),
+        ),
+      ),
       summary: Value(requireString(payload, 'summary')),
       startDt: Value(requireDateTime(payload, 'startDt')),
       endDt: Value(requireDateTime(payload, 'endDt')),
@@ -87,6 +89,7 @@ class SyncApplier {
       description: Value(optionalString(payload['description'])),
       location: Value(optionalString(payload['location'])),
       rrule: Value(optionalString(payload['rrule'])),
+      exdates: Value(optionalString(payload['exdates'])),
       deletedAt: Value(parseIso(payload['deletedAt'])),
       createdAt: Value(parseIso(payload['createdAt']) ?? DateTime.now()),
       updatedAt: Value(parseIso(payload['updatedAt']) ?? record.serverTs),
@@ -158,11 +161,13 @@ class SyncApplier {
               ? TodoRecurrence.none()
               : TodoRecurrence.unknownLegacy());
     final companion = TodosCompanion(
-      calendarId: Value(await resolveCalendarId(
-        db,
-        payload['calendarId'],
-        calendarSyncId: optionalString(payload['calendarSyncId']),
-      )),
+      calendarId: Value(
+        await resolveCalendarId(
+          db,
+          payload['calendarId'],
+          calendarSyncId: optionalString(payload['calendarSyncId']),
+        ),
+      ),
       summary: Value(requireString(payload, 'summary')),
       dueDate: Value(parseIso(payload['dueDate'])),
       startDate: Value(parseIso(payload['startDate'])),
@@ -311,13 +316,15 @@ class SyncApplier {
   }
 
   Future<bool> _applyReminder(SyncRecord record, RecordScope tx) async {
-    final existing = await (db.select(db.reminders)
-          ..where((t) => t.syncId.equals(record.id)))
-        .getSingleOrNull();
+    final existing = await (db.select(
+      db.reminders,
+    )..where((t) => t.syncId.equals(record.id))).getSingleOrNull();
 
     if (record.deleted) {
       if (existing == null) return false;
-      await (db.delete(db.reminders)..where((t) => t.id.equals(existing.id))).go();
+      await (db.delete(
+        db.reminders,
+      )..where((t) => t.id.equals(existing.id))).go();
       return true;
     }
 
@@ -330,10 +337,14 @@ class SyncApplier {
     var parentId = 0;
     if (parentSyncId != null && parentSyncId.isNotEmpty) {
       if (parentType == 'event') {
-        final ev = await (db.select(db.events)..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
+        final ev = await (db.select(
+          db.events,
+        )..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
         if (ev != null) parentId = ev.id;
       } else {
-        final td = await (db.select(db.todos)..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
+        final td = await (db.select(
+          db.todos,
+        )..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
         if (td != null) parentId = td.id;
       }
     }
@@ -351,20 +362,26 @@ class SyncApplier {
     if (existing == null) {
       await db.into(db.reminders).insert(companion);
     } else {
-      await (db.update(db.reminders)..where((t) => t.id.equals(existing.id))).write(companion);
+      await (db.update(
+        db.reminders,
+      )..where((t) => t.id.equals(existing.id))).write(companion);
     }
     return true;
   }
 
   Future<bool> _applyTag(SyncRecord record, RecordScope tx) async {
-    final existing = await (db.select(db.tags)
-          ..where((t) => t.syncId.equals(record.id)))
-        .getSingleOrNull();
+    final existing = await (db.select(
+      db.tags,
+    )..where((t) => t.syncId.equals(record.id))).getSingleOrNull();
 
     if (record.deleted) {
       if (existing == null) return false;
-      await (db.delete(db.eventTags)..where((t) => t.tagId.equals(existing.id))).go();
-      await (db.delete(db.todoTags)..where((t) => t.tagId.equals(existing.id))).go();
+      await (db.delete(
+        db.eventTags,
+      )..where((t) => t.tagId.equals(existing.id))).go();
+      await (db.delete(
+        db.todoTags,
+      )..where((t) => t.tagId.equals(existing.id))).go();
       await (db.delete(db.tags)..where((t) => t.id.equals(existing.id))).go();
       return true;
     }
@@ -382,14 +399,20 @@ class SyncApplier {
 
     if (existing == null) {
       // Check if a tag with this name already exists without a syncId
-      final byName = await (db.select(db.tags)..where((t) => t.name.equals(name))).getSingleOrNull();
+      final byName = await (db.select(
+        db.tags,
+      )..where((t) => t.name.equals(name))).getSingleOrNull();
       if (byName != null) {
-        await (db.update(db.tags)..where((t) => t.id.equals(byName.id))).write(companion);
+        await (db.update(
+          db.tags,
+        )..where((t) => t.id.equals(byName.id))).write(companion);
       } else {
         await db.into(db.tags).insert(companion);
       }
     } else {
-      await (db.update(db.tags)..where((t) => t.id.equals(existing.id))).write(companion);
+      await (db.update(
+        db.tags,
+      )..where((t) => t.id.equals(existing.id))).write(companion);
     }
     return true;
   }
@@ -400,55 +423,67 @@ class SyncApplier {
     final parentSyncId = requireString(payload, 'parentSyncId');
     final tagSyncId = requireString(payload, 'tagSyncId');
 
-    final tag = await (db.select(db.tags)..where((t) => t.syncId.equals(tagSyncId))).getSingleOrNull();
+    final tag = await (db.select(
+      db.tags,
+    )..where((t) => t.syncId.equals(tagSyncId))).getSingleOrNull();
     if (tag == null) return false;
 
     if (parentType == 'event') {
-      final ev = await (db.select(db.events)..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
+      final ev = await (db.select(
+        db.events,
+      )..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
       if (ev == null) return false;
       if (record.deleted) {
-        await (db.delete(db.eventTags)
-              ..where((t) => t.eventId.equals(ev.id) & t.tagId.equals(tag.id)))
-            .go();
+        await (db.delete(
+          db.eventTags,
+        )..where((t) => t.eventId.equals(ev.id) & t.tagId.equals(tag.id))).go();
       } else {
-        await db.into(db.eventTags).insertOnConflictUpdate(
-          EventTagsCompanion(
-            eventId: Value(ev.id),
-            tagId: Value(tag.id),
-            syncId: Value(record.id),
-            serverRev: Value(record.rev),
-          ),
-        );
+        await db
+            .into(db.eventTags)
+            .insertOnConflictUpdate(
+              EventTagsCompanion(
+                eventId: Value(ev.id),
+                tagId: Value(tag.id),
+                syncId: Value(record.id),
+                serverRev: Value(record.rev),
+              ),
+            );
       }
     } else {
-      final td = await (db.select(db.todos)..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
+      final td = await (db.select(
+        db.todos,
+      )..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
       if (td == null) return false;
       if (record.deleted) {
-        await (db.delete(db.todoTags)
-              ..where((t) => t.todoId.equals(td.id) & t.tagId.equals(tag.id)))
-            .go();
+        await (db.delete(
+          db.todoTags,
+        )..where((t) => t.todoId.equals(td.id) & t.tagId.equals(tag.id))).go();
       } else {
-        await db.into(db.todoTags).insertOnConflictUpdate(
-          TodoTagsCompanion(
-            todoId: Value(td.id),
-            tagId: Value(tag.id),
-            syncId: Value(record.id),
-            serverRev: Value(record.rev),
-          ),
-        );
+        await db
+            .into(db.todoTags)
+            .insertOnConflictUpdate(
+              TodoTagsCompanion(
+                todoId: Value(td.id),
+                tagId: Value(tag.id),
+                syncId: Value(record.id),
+                serverRev: Value(record.rev),
+              ),
+            );
       }
     }
     return true;
   }
 
   Future<bool> _applyAttachment(SyncRecord record, RecordScope tx) async {
-    final existing = await (db.select(db.attachments)
-          ..where((t) => t.syncId.equals(record.id)))
-        .getSingleOrNull();
+    final existing = await (db.select(
+      db.attachments,
+    )..where((t) => t.syncId.equals(record.id))).getSingleOrNull();
 
     if (record.deleted) {
       if (existing == null) return false;
-      await (db.delete(db.attachments)..where((t) => t.id.equals(existing.id))).go();
+      await (db.delete(
+        db.attachments,
+      )..where((t) => t.id.equals(existing.id))).go();
       return true;
     }
 
@@ -463,10 +498,14 @@ class SyncApplier {
     var parentId = 0;
     if (parentSyncId != null && parentSyncId.isNotEmpty) {
       if (parentType == 'event') {
-        final ev = await (db.select(db.events)..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
+        final ev = await (db.select(
+          db.events,
+        )..where((e) => e.syncId.equals(parentSyncId))).getSingleOrNull();
         if (ev != null) parentId = ev.id;
       } else {
-        final td = await (db.select(db.todos)..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
+        final td = await (db.select(
+          db.todos,
+        )..where((t) => t.syncId.equals(parentSyncId))).getSingleOrNull();
         if (td != null) parentId = td.id;
       }
     }
@@ -487,7 +526,9 @@ class SyncApplier {
     if (existing == null) {
       await db.into(db.attachments).insert(companion);
     } else {
-      await (db.update(db.attachments)..where((t) => t.id.equals(existing.id))).write(companion);
+      await (db.update(
+        db.attachments,
+      )..where((t) => t.id.equals(existing.id))).write(companion);
     }
     return true;
   }

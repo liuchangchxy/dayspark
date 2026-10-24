@@ -54,7 +54,7 @@ void main() {
 
     await pumpSection(tester, todo);
 
-    expect(find.text('Execution time'), findsOneWidget);
+    expect(find.text('Scheduled time'), findsOneWidget);
     expect(find.text('Add execution time'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));

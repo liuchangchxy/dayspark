@@ -448,13 +448,13 @@ void main() {
     });
 
     test(
-      'v11 → v15 marks legacy recurrence without inferring timezone or inventing instance state',
+      'v11 → v16 marks legacy recurrence without inferring timezone or inventing instance state',
       () async {
         final file = _createV11Database();
         try {
           final db = AppDatabase.forExecutor(NativeDatabase(file));
           try {
-            expect(db.schemaVersion, 15);
+            expect(db.schemaVersion, 16);
             final todos = await (db.select(
               db.todos,
             )..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
@@ -509,10 +509,10 @@ void main() {
       },
     );
 
-    test('fresh database at v15 initializes correctly', () async {
+    test('fresh database at v16 initializes correctly', () async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       try {
-        expect(db.schemaVersion, 15);
+        expect(db.schemaVersion, 16);
         expect(db.migration.onCreate, isNotNull);
         expect(db.migration.onUpgrade, isNotNull);
 
@@ -524,9 +524,9 @@ void main() {
       }
     });
 
-    test('schema snapshot exists for v15', () async {
+    test('schema snapshot exists for v16', () async {
       final schemaFile = File(
-        'drift_schemas/app_database/drift_schema_v15.json',
+        'drift_schemas/app_database/drift_schema_v16.json',
       );
       expect(
         await schemaFile.exists(),

@@ -32,13 +32,7 @@ Future<DateTime?> pickDeadline(
     initialTime: TimeOfDay.fromDateTime(initial),
   );
   if (time == null) return null;
-  return DateTime(
-    date.year,
-    date.month,
-    date.day,
-    time.hour,
-    time.minute,
-  );
+  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
 }
 
 /// A single date+time, used for "I'll do it then" and for event boundaries.
@@ -58,13 +52,7 @@ Future<DateTime?> pickDateTime(
     initialTime: TimeOfDay.fromDateTime(initial),
   );
   if (time == null) return null;
-  return DateTime(
-    date.year,
-    date.month,
-    date.day,
-    time.hour,
-    time.minute,
-  );
+  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
 }
 
 /// Length of a scheduled block. Fixed choices rather than a second picker: the
@@ -108,7 +96,9 @@ String formatDeadline(BuildContext context, DateTime value) {
       ? l.today
       : day == today.add(const Duration(days: 1))
       ? l.tomorrow
-      : DateFormat.MMMd(Localizations.localeOf(context).toString()).format(value);
+      : DateFormat.MMMd(
+          Localizations.localeOf(context).toString(),
+        ).format(value);
   if (dateOnly) return dayLabel;
   return '$dayLabel · ${DateFormatters.formatTime(value)}';
 }
@@ -146,5 +136,7 @@ String formatOccurrenceAnchor(BuildContext context, String canonical) {
   final hour = clock.isNotEmpty ? int.tryParse(clock[0]) : null;
   final minute = clock.length > 1 ? int.tryParse(clock[1]) : null;
   final value = DateTime(year, month, day, hour ?? 0, minute ?? 0);
-  return hour == null ? formatDeadline(context, value) : formatMoment(context, value);
+  return hour == null
+      ? formatDeadline(context, value)
+      : formatMoment(context, value);
 }

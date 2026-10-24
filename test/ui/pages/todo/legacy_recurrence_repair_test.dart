@@ -83,17 +83,17 @@ void main() {
     await pumpForm(tester, todo);
 
     expect(
-      find.text('Some repeating todos need a one-time fix'),
+      find.text('Some repeating tasks need a one-time fix'),
       findsNWidgets(2),
     );
     await tester.tap(
-      find.text('Some repeating todos need a one-time fix').last,
+      find.text('Some repeating tasks need a one-time fix').last,
     );
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    expect(find.text('Confirm recurring Todo'), findsOneWidget);
+    expect(find.text('Confirm repeating task'), findsOneWidget);
     // The repair asks for the day the series repeats from and nothing else:
     // the rule string, the import evidence and the zone id are not questions
     // a person can answer.
@@ -123,13 +123,13 @@ void main() {
 
     await pumpForm(tester, todo);
     await tester.tap(
-      find.text('Some repeating todos need a one-time fix').last,
+      find.text('Some repeating tasks need a one-time fix').last,
     );
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    expect(find.text('Confirm recurring Todo'), findsOneWidget);
+    expect(find.text('Confirm repeating task'), findsOneWidget);
     expect(find.textContaining('vtimezoneConflict'), findsNothing);
     expect(find.textContaining('VTIMEZONE data'), findsNothing);
     expect(find.text('Repeats from'), findsOneWidget);
@@ -165,7 +165,7 @@ void main() {
 
     await pumpForm(tester, todo);
     await tester.tap(
-      find.text('Some repeating todos need a one-time fix').last,
+      find.text('Some repeating tasks need a one-time fix').last,
     );
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));
@@ -200,8 +200,8 @@ void main() {
 
     // A rule the engine cannot interpret gets no repair affordance at all —
     // offering one would write a series the app still cannot expand.
-    expect(find.text('A repeating todo cannot be calculated'), findsOneWidget);
-    expect(find.text('Some repeating todos need a one-time fix'), findsNothing);
+    expect(find.text('A repeating task cannot be calculated'), findsOneWidget);
+    expect(find.text('Some repeating tasks need a one-time fix'), findsNothing);
     await unmount(tester);
   });
 }

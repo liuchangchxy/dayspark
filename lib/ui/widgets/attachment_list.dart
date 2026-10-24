@@ -5,22 +5,81 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/data/file_downloader.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/attachments_provider.dart';
 import 'package:dayspark/domain/services/attachment_files.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 
+/// A file the form is holding. [id] is set for a row that is already stored,
+/// so the form can tell an add from a keep when it commits.
+class DraftAttachment {
+  const DraftAttachment({
+    required this.fileName,
+    this.id,
+    this.mimeType,
+    this.bytes,
+    this.sourcePath,
+    this.fileSize = 0,
+    this.serverFileRef,
+  });
+
+  final int? id;
+  final String fileName;
+  final String? mimeType;
+  final List<int>? bytes;
+  final String? sourcePath;
+  final int fileSize;
+  final String? serverFileRef;
+
+  static DraftAttachment fromRow(Attachment row) => DraftAttachment(
+    id: row.id,
+    fileName: row.fileName,
+    mimeType: row.mimeType,
+    fileSize: row.fileSize,
+    serverFileRef: row.serverFileRef,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is DraftAttachment &&
+      other.id == id &&
+      other.fileName == fileName &&
+      other.mimeType == mimeType &&
+      other.sourcePath == sourcePath &&
+      other.bytes == bytes;
+
+  @override
+  int get hashCode => Object.hash(id, fileName, mimeType, sourcePath, bytes);
+}
+
+/// Files attached to one object.
+///
+/// Pass [draft] to hold them in a form instead of writing immediately: the form
+/// then owns the list and decides when an add or a removal reaches the
+/// database. Omit it to act on the stored rows directly.
 class AttachmentList extends ConsumerStatefulWidget {
-  final String parentType;
-  final int parentId;
-
   const AttachmentList({
     super.key,
     required this.parentType,
-    required this.parentId,
-  });
+    this.parentId,
+    this.draft,
+    this.onDraftChanged,
+    this.enabled = true,
+  }) : assert(
+         draft != null || parentId != null,
+         'either a parent row or a draft list is required',
+       );
+
+  final String parentType;
+  final int? parentId;
+  final List<DraftAttachment>? draft;
+  final ValueChanged<List<DraftAttachment>>? onDraftChanged;
+  final bool enabled;
 
   @override
   ConsumerState<AttachmentList> createState() => _AttachmentListState();
@@ -31,70 +90,140 @@ class _AttachmentListState extends ConsumerState<AttachmentList> {
   /// a second tap start a second download.
   final Set<int> _busy = <int>{};
 
+  bool get _isDraft => widget.draft != null;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final attachmentsAsync = widget.parentType == 'event'
-        ? ref.watch(eventAttachmentsProvider(widget.parentId))
-        : ref.watch(todoAttachmentsProvider(widget.parentId));
-
-    return attachmentsAsync.when(
-      data: (attachments) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                l.attachments,
-                style: const TextStyle(fontWeight: FontWeight.w500),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionLabel(
+          l.attachments,
+          action: widget.enabled
+              ? TextButton.icon(
+                  onPressed: () => _pickFile(context),
+                  icon: const Icon(CupertinoIcons.paperclip, size: 13),
+                  label: Text(l.addAttachment),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: AppTypography.caption.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              : null,
+        ),
+        if (_isDraft)
+          _draftBody(context)
+        else
+          ref
+              .watch(
+                widget.parentType == 'event'
+                    ? eventAttachmentsProvider(widget.parentId!)
+                    : todoAttachmentsProvider(widget.parentId!),
+              )
+              .when(
+                data: (rows) => rows.isEmpty
+                    ? _empty(context, l)
+                    : Column(
+                        children: [for (final row in rows) _row(context, row)],
+                      ),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => _empty(context, l),
               ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(CupertinoIcons.paperclip, size: 20),
-                tooltip: l.addAttachment,
-                onPressed: () => _pickFile(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          if (attachments.isEmpty)
-            Text(
-              l.noAttachments,
-              style: TextStyle(
-                fontSize: AppTypography.caption.fontSize,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            )
-          else
-            ...attachments.map((a) => _row(context, a)),
-        ],
-      ),
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      ],
     );
   }
+
+  Widget _draftBody(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final items = widget.draft!;
+    if (items.isEmpty) return _empty(context, l);
+    return Column(
+      children: [
+        for (final item in items)
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              children: [
+                Icon(
+                  CupertinoIcons.doc_text,
+                  size: 18,
+                  color: context.semantic.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    item.fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.body,
+                  ),
+                ),
+                if (widget.enabled)
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.xmark, size: 16),
+                    tooltip: l.removeAttachment,
+                    onPressed: () => widget.onDraftChanged!(
+                      [...items]..removeWhere((other) => other == item),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _empty(BuildContext context, AppLocalizations l) => Text(
+    l.noAttachments,
+    style: AppTypography.caption.copyWith(color: context.semantic.textTertiary),
+  );
 
   Widget _row(BuildContext context, Attachment a) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final busy = _busy.contains(a.id);
-    return ListTile(
-      dense: true,
-      leading: const Icon(CupertinoIcons.doc_text, size: 20),
-      title: Text(
-        a.fileName,
-        style: TextStyle(fontSize: AppTypography.body.fontSize),
-      ),
-      subtitle: Text(
-        _subtitle(context, a),
-        style: TextStyle(
-          fontSize: AppTypography.caption.fontSize,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Row(
         children: [
+          Icon(
+            CupertinoIcons.doc_text,
+            size: 18,
+            color: context.semantic.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  a.fileName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.body,
+                ),
+                Text(
+                  _subtitle(context, a),
+                  style: AppTypography.caption.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
           if (busy)
             const SizedBox(
               width: 16,
@@ -106,15 +235,17 @@ class _AttachmentListState extends ConsumerState<AttachmentList> {
               icon: const Icon(CupertinoIcons.arrow_down_doc, size: 18),
               tooltip: l.openAttachment,
               onPressed: () => _open(context, a),
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             ),
-          IconButton(
-            icon: const Icon(CupertinoIcons.xmark, size: 16),
-            tooltip: l.delete,
-            onPressed: busy ? null : () => _delete(a),
-          ),
+          if (widget.enabled)
+            IconButton(
+              icon: const Icon(CupertinoIcons.xmark, size: 16),
+              tooltip: l.removeAttachment,
+              onPressed: busy ? null : () => _delete(a),
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            ),
         ],
       ),
-      contentPadding: EdgeInsets.zero,
     );
   }
 
@@ -135,20 +266,34 @@ class _AttachmentListState extends ConsumerState<AttachmentList> {
     final result = await FilePicker.platform.pickFiles(withData: true);
     if (result == null || result.files.isEmpty) return;
     final file = result.files.first;
+    final mimeType = attachmentMimeType(
+      stored: file.extension,
+      fileName: file.name,
+    );
+    if (_isDraft) {
+      widget.onDraftChanged!([
+        ...widget.draft!,
+        DraftAttachment(
+          fileName: file.name,
+          mimeType: mimeType,
+          bytes: file.bytes,
+          sourcePath: file.path,
+          fileSize: file.size,
+        ),
+      ]);
+      return;
+    }
     try {
       await ref.read(createAttachmentProvider)(
         parentType: widget.parentType,
-        parentId: widget.parentId,
+        parentId: widget.parentId!,
         fileName: file.name,
-        mimeType: attachmentMimeType(
-          stored: file.extension,
-          fileName: file.name,
-        ),
+        mimeType: mimeType,
         bytes: file.bytes,
         sourcePath: file.path,
       );
     } catch (e) {
-      if (context.mounted) _toast(context, l.attachmentFailed('$e'));
+      if (context.mounted) _toast(context, l.attachmentFailed);
     }
   }
 
@@ -186,7 +331,7 @@ class _AttachmentListState extends ConsumerState<AttachmentList> {
         if (context.mounted) _toast(context, l.attachmentReady(a.fileName));
       }
     } catch (e) {
-      if (context.mounted) _toast(context, l.attachmentFailed('$e'));
+      if (context.mounted) _toast(context, l.attachmentFailed);
     } finally {
       if (mounted) setState(() => _busy.remove(a.id));
     }

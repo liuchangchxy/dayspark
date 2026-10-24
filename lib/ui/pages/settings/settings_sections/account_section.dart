@@ -69,17 +69,52 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
               AppSpacing.lg,
               AppSpacing.xs,
             ),
-            child: Text(
-              l.account,
-              style: AppTypography.title,
-            ),
+            child: Text(l.account, style: AppTypography.title),
           ),
+        // A failure to read the account is not the same as being logged out:
+        // showing the sign-in form would invite a second login over a session
+        // that still exists.
         ...account.when(
           data: (state) => state.email == null
               ? _buildLoggedOut(l, state)
               : _buildLoggedIn(l, state),
-          loading: () => const [SizedBox.shrink()],
-          error: (_, __) => _buildLoggedOut(l, const AccountAuthState()),
+          loading: () => const [
+            Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ],
+          error: (error, _) {
+            debugPrint('account: state error: $error');
+            return [
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l.accountLoadFailed,
+                        style: AppTypography.body.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => ref.invalidate(accountAuthProvider),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                      child: Text(l.retry),
+                    ),
+                  ],
+                ),
+              ),
+            ];
+          },
         ),
       ],
     );
@@ -108,10 +143,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               autocorrect: false,
-              decoration: InputDecoration(
-                labelText: l.email,
-                isDense: true,
-              ),
+              decoration: InputDecoration(labelText: l.email, isDense: true),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -119,10 +151,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
               obscureText: true,
               autocorrect: false,
               enableSuggestions: false,
-              decoration: InputDecoration(
-                labelText: l.password,
-                isDense: true,
-              ),
+              decoration: InputDecoration(labelText: l.password, isDense: true),
             ),
             if (error != null) ...[
               const SizedBox(height: 8),
@@ -224,11 +253,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
             MouseRegion(
               cursor: SystemMouseCursors.click,
               child: OutlinedButton(
-                onPressed: state.busy
-                    ? null
-                    : () => unawaited(
-                        ref.read(accountAuthProvider.notifier).logout(),
-                      ),
+                onPressed: state.busy ? null : () => _confirmLogout(l),
                 style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
                 child: Text(l.logout),
               ),
@@ -238,6 +263,33 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
       ),
       const SizedBox(height: 8),
     ];
+  }
+
+  /// Logging out stops sync on a device that may be the only place the data
+  /// lives, so it is confirmed rather than fired on the first tap.
+  Future<void> _confirmLogout(AppLocalizations l) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.signOutConfirm),
+        content: Text(l.signOutBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: Text(l.signOut),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(accountAuthProvider.notifier).logout();
   }
 
   Future<void> _submit({required bool registering}) async {
@@ -277,29 +329,34 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
             builder: (ctx, ref, _) {
               final devices = ref.watch(connectedDevicesProvider);
               return switch (devices) {
-                AsyncData(:final value) when value.isEmpty => Text(l.devicesEmpty),
+                AsyncData(:final value) when value.isEmpty => Text(
+                  l.devicesEmpty,
+                ),
                 AsyncData(:final value) => Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final d in value)
-                        ListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(CupertinoIcons.device_laptop, size: 20),
-                          title: Text(d.name ?? l.deviceUnknownName),
-                          subtitle: Text(
-                            l.deviceLastSeen(
-                              DateFormatters.formatRelativeTime(d.lastSeen, l),
-                            ),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final d in value)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          CupertinoIcons.device_laptop,
+                          size: 20,
+                        ),
+                        title: Text(d.name ?? l.deviceUnknownName),
+                        subtitle: Text(
+                          l.deviceLastSeen(
+                            DateFormatters.formatRelativeTime(d.lastSeen, l),
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
+                ),
                 AsyncError() => Text(l.devicesLoadFailed),
                 _ => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
               };
             },
           ),

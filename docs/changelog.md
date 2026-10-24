@@ -47,6 +47,9 @@
 | 15 | **“开始日期晚于截止”不再用符号表达** | 原来是 `Starts at > Deadline time`（向量记法）；改成一句完整的话，中英各一条 `startAfterDeadline` |
 | 16 | **详情页的开始日期跟随表单规则** | 表单只在有重复规则时问开始日期，详情页原来对任何存过 `startDate` 的行都显示；现在两边一致，数据不动 |
 | 17 | **Action 不再给只有日期的截止时间编一个钟点** | 时间列原来把每个截止都格式化成 `HH:mm`，纯日期因此显示成 `00:00`，读起来像午夜约会；现在这一列让给日期本身 |
+| 18 | **表单保存要么整份落地、要么什么都不落地** | 原来先存主对象、再逐项写 execution/tag/reminder/attachment/subtask，每项失败只记进 `failures` 然后照样 `context.pop()`：标题改了、附件没存上，页面也退了。现在整份 draft 在同一个 `RecordScope.run` 里提交，任何一项失败都会把标题一起回滚，表单留在原处；附件字节在事务外先解析（源文件丢了在写任何东西之前就失败），上传与残留清理放在提交之后（网络和文件系统不该抱着一个开着的事务） |
+| 19 | **备份带上"只删这一次"与重复待办** | 事件补 `exdates`（否则"仅删除这一次"的重复日程备份→恢复后会重新出现）；待办补 `rrule` 与整组 recurrence 列（`recurrenceAnchorSource`/`ValueType`/`AnchorValue`/`TimeZone`/`Rule`/`LegacyState`/`Evidence`/`Revision`）、`percentComplete`、`sortOrder` —— 少任何一列，一条每周重复的待办恢复后会静默变成一次性。旧备份缺这些键时按空值恢复，不会报错 |
+| 20 | **删日历时"移动内容"走同步** | `deleteCalendarProvider` 原来直接 `db.update` 改 `calendarId`，绕过 `EventWriter`/`TodoWriter`，因此没有 enqueue `SyncOutbox`：本机换了 Calendar，其他设备收不到这次 re-home。现在搬移与删除都在一个 `RecordScope.run` 里经 writer 完成，每条记录都进队；仍持有记录的日历拒绝删除，而不是留一堆悬空 `calendarId` |
 
 ### Constraints / 新增约束
 

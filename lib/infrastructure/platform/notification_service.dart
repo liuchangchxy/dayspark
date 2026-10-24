@@ -113,26 +113,32 @@ class NotificationService {
     );
 
     if (isAndroid) {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       await android?.requestNotificationsPermission();
       // Create notification channel with action support
       await android?.createNotificationChannel(
-            const AndroidNotificationChannel(
-              'calendar_todo_reminders',
-              'Reminders',
-              description: 'Notifications for calendar events and todos',
-              importance: Importance.high,
-            ),
-          );
+        const AndroidNotificationChannel(
+          'calendar_todo_reminders',
+          'Reminders',
+          description: 'Notifications for calendar events and todos',
+          importance: Importance.high,
+        ),
+      );
     }
 
     _initialized = true;
   }
 
   void Function(int parentId, String parentType)? onNotificationTapped;
-  void Function(String actionId, int parentId, String parentType, int? reminderId)?
+  void Function(
+    String actionId,
+    int parentId,
+    String parentType,
+    int? reminderId,
+  )?
   onNotificationAction;
 
   void _onNotificationTapped(NotificationResponse response) {
@@ -164,18 +170,39 @@ class NotificationService {
   /// Whether exact alarms may currently be scheduled (Android 12+ gate).
   Future<bool> canScheduleExactAlarms() async {
     if (!isAndroid) return true;
-    final android = _plugin.resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin
-    >();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     return await android?.canScheduleExactNotifications() ?? false;
+  }
+
+  /// Asks for notification permission. On macOS and iOS the ask is a single
+  /// system prompt, and a user who dismissed it needs a way back to it.
+  Future<void> requestPermission() async {
+    if (!_initialized) await init();
+    if (isIOS) {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+    } else if (isMacOS) {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin
+          >()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+    }
   }
 
   /// Opens the system screen that grants the exact-alarm permission.
   Future<void> requestExactAlarmsPermission() async {
     if (!isAndroid) return;
-    final android = _plugin.resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin
-    >();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await android?.requestExactAlarmsPermission();
   }
 

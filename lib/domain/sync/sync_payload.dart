@@ -50,7 +50,9 @@ DateTime? parseIso(Object? raw) {
 }
 
 Future<String> ensureCalendarSyncId(AppDatabase db, int calendarId) async {
-  final cal = await (db.select(db.calendars)..where((c) => c.id.equals(calendarId))).getSingleOrNull();
+  final cal = await (db.select(
+    db.calendars,
+  )..where((c) => c.id.equals(calendarId))).getSingleOrNull();
   if (cal != null && cal.syncId != null && cal.syncId!.isNotEmpty) {
     return cal.syncId!;
   }
@@ -74,6 +76,7 @@ Future<Map<String, Object?>> eventToPayload(AppDatabase db, Event e) async {
     'description': e.description,
     'location': e.location,
     'rrule': e.rrule,
+    'exdates': e.exdates,
     'deletedAt': isoOf(e.deletedAt),
     'createdAt': isoOf(e.createdAt),
     'updatedAt': isoOf(e.updatedAt),
@@ -155,14 +158,15 @@ Map<String, Object?> tagAssociationToPayload({
   'tagSyncId': tagSyncId,
 };
 
-Map<String, Object?> attachmentToPayload(Attachment attachment) => <String, Object?>{
-  'parentType': attachment.parentType,
-  'parentSyncId': attachment.parentSyncId,
-  'fileName': attachment.fileName,
-  'fileSize': attachment.fileSize,
-  'mimeType': attachment.mimeType,
-  'serverFileRef': attachment.serverFileRef,
-};
+Map<String, Object?> attachmentToPayload(Attachment attachment) =>
+    <String, Object?>{
+      'parentType': attachment.parentType,
+      'parentSyncId': attachment.parentSyncId,
+      'fileName': attachment.fileName,
+      'fileSize': attachment.fileSize,
+      'mimeType': attachment.mimeType,
+      'serverFileRef': attachment.serverFileRef,
+    };
 
 String requireString(Map<String, Object?> payload, String key) {
   final value = payload[key];
@@ -197,9 +201,9 @@ Future<int> resolveCalendarId(
   String? calendarSyncId,
 }) async {
   if (calendarSyncId != null && calendarSyncId.isNotEmpty) {
-    final bySyncId = await (db.select(db.calendars)
-          ..where((t) => t.syncId.equals(calendarSyncId)))
-        .getSingleOrNull();
+    final bySyncId = await (db.select(
+      db.calendars,
+    )..where((t) => t.syncId.equals(calendarSyncId))).getSingleOrNull();
     if (bySyncId != null) return bySyncId.id;
   }
 
@@ -209,10 +213,13 @@ Future<int> resolveCalendarId(
       db.calendars,
     )..where((t) => t.id.equals(raw))).getSingleOrNull();
     if (byId != null) {
-      if (calendarSyncId != null && calendarSyncId.isNotEmpty && byId.syncId == null) {
+      if (calendarSyncId != null &&
+          calendarSyncId.isNotEmpty &&
+          byId.syncId == null) {
         // Link the incoming syncId to the local calendar
-        await (db.update(db.calendars)..where((t) => t.id.equals(raw)))
-            .write(CalendarsCompanion(syncId: Value(calendarSyncId)));
+        await (db.update(db.calendars)..where((t) => t.id.equals(raw))).write(
+          CalendarsCompanion(syncId: Value(calendarSyncId)),
+        );
       }
       return raw;
     }
@@ -224,7 +231,9 @@ Future<int> resolveCalendarId(
             ..limit(1))
           .getSingleOrNull();
   if (first != null) {
-    if (calendarSyncId != null && calendarSyncId.isNotEmpty && first.syncId == null) {
+    if (calendarSyncId != null &&
+        calendarSyncId.isNotEmpty &&
+        first.syncId == null) {
       await (db.update(db.calendars)..where((t) => t.id.equals(first.id)))
           .write(CalendarsCompanion(syncId: Value(calendarSyncId)));
     }
@@ -233,8 +242,12 @@ Future<int> resolveCalendarId(
 
   return db
       .into(db.calendars)
-      .insert(CalendarsCompanion.insert(
-        name: 'Personal',
-        syncId: calendarSyncId != null ? Value(calendarSyncId) : const Value.absent(),
-      ));
+      .insert(
+        CalendarsCompanion.insert(
+          name: 'Personal',
+          syncId: calendarSyncId != null
+              ? Value(calendarSyncId)
+              : const Value.absent(),
+        ),
+      );
 }

@@ -43,11 +43,16 @@ class MarkedMonthDayHeader extends StatelessWidget {
   final MonthDayHeaderStyle? style;
   final bool dim;
 
+  /// A month cell is too small for the item itself, but a dot is enough to
+  /// say "something is due that day" without opening the day.
+  final bool hasDeadline;
+
   const MarkedMonthDayHeader({
     super.key,
     required this.date,
     this.style,
     this.dim = false,
+    this.hasDeadline = false,
   });
 
   @override
@@ -99,6 +104,20 @@ class MarkedMonthDayHeader extends StatelessWidget {
                 style: numberStyle,
                 textAlign: TextAlign.center,
               ),
+            if (hasDeadline) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Semantics(
+                label: l.calendarDeadlineLane,
+                child: Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.error,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
             if (holidayMark != null) ...[
               const SizedBox(width: AppSpacing.xs),
               Container(

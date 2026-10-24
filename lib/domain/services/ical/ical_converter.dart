@@ -3,6 +3,7 @@ import 'package:enough_icalendar/enough_icalendar.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../data/local/database/app_database.dart';
+import '../../utils/recurring_event_helper.dart';
 
 class IcalConverter {
   String eventToIcal(Event event) {
@@ -26,6 +27,14 @@ class IcalConverter {
     if (event.rrule != null && event.rrule!.isNotEmpty) {
       final recurrence = Recurrence.parse(event.rrule!);
       vevent.recurrenceRule = recurrence;
+    }
+    // A series that dropped single occurrences must say so on export, or the
+    // receiving calendar would resurrect them.
+    final excluded = parseExdates(event.exdates);
+    if (excluded.isNotEmpty) {
+      vevent.excludingRecurrenceDates = excluded
+          .map((value) => DateTimeOrDuration(value, null))
+          .toList();
     }
 
     cal.children.add(vevent);
@@ -99,8 +108,18 @@ class IcalConverter {
       description: Value(vevent.description),
       location: Value(vevent.location),
       rrule: Value(vevent.recurrenceRule?.toString()),
+      exdates: Value(_exdatesFromIcal(vevent)),
       icsUid: Value(vevent.uid),
     );
+  }
+
+  /// Imported EXDATEs land in the same newline-delimited form the app writes.
+  static String? _exdatesFromIcal(VEvent vevent) {
+    final values = vevent.excludingRecurrenceDates
+        ?.whereType<DateTime>()
+        .toList();
+    if (values == null || values.isEmpty) return null;
+    return encodeExdates(values);
   }
 
   TodosCompanion icalToTodoCompanion(String icalData, int calendarId) {

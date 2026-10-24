@@ -169,6 +169,146 @@ void main() {
     expect(restoredAttachments.first.filePath, isEmpty);
   });
 
+  test('an excluded occurrence survives a backup round trip', () async {
+    // "Delete just this one" on a recurring event is stored as an EXDATE on
+    // the series row. A backup that drops the column resurrects the
+    // occurrence the user deleted, which is silent data loss.
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final eventId = await db
+        .into(db.events)
+        .insert(
+          EventsCompanion.insert(
+            calendarId: calId,
+            summary: 'Daily standup',
+            startDt: DateTime.utc(2026, 10, 1, 9),
+            endDt: DateTime.utc(2026, 10, 1, 9, 30),
+            rrule: const Value('FREQ=DAILY;COUNT=5'),
+            exdates: const Value(
+              '2026-10-03T09:00:00.000Z\n2026-10-04T09:00:00.000Z',
+            ),
+          ),
+        );
+
+    final json = await service.exportJson();
+    expect(
+      json,
+      contains('exdates'),
+      reason: 'the export has to carry the field at all',
+    );
+
+    await db.delete(db.events).go();
+    await service.restoreFromJson(json);
+
+    final restored = await (db.select(
+      db.events,
+    )..where((t) => t.id.equals(eventId))).getSingle();
+    expect(
+      restored.exdates,
+      '2026-10-03T09:00:00.000Z\n2026-10-04T09:00:00.000Z',
+      reason: 'the excluded dates are part of the series, not decoration',
+    );
+    expect(restored.rrule, 'FREQ=DAILY;COUNT=5');
+  });
+
+  test('a repeating todo survives a backup round trip as itself', () async {
+    // The recurrence lives in nine columns, not one: the RRULE, the anchor it
+    // counts from, and the state that says whether it has been reconciled.
+    // Sync carries the whole set; a backup that carries only `rrule` restores
+    // a todo the recurrence engine can no longer expand — it reads as a
+    // one-off the user never asked for.
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final todoId = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calId,
+            summary: 'Weekly report',
+            dueDate: Value(DateTime.utc(2026, 10, 5)),
+            rrule: const Value('FREQ=WEEKLY;BYDAY=MO'),
+            recurrenceAnchorSource: const Value('due'),
+            recurrenceValueType: const Value('date'),
+            recurrenceAnchorValue: const Value('2026-10-05'),
+            recurrenceTimeZone: const Value('UTC'),
+            recurrenceRule: const Value('FREQ=WEEKLY;BYDAY=MO'),
+            recurrenceLegacyState: const Value('knownZoned'),
+            recurrenceRevision: const Value(3),
+            percentComplete: const Value(40),
+            sortOrder: const Value(7),
+          ),
+        );
+
+    final json = await service.exportJson();
+    expect(json, contains('recurrenceRule'));
+
+    await db.delete(db.todos).go();
+    await service.restoreFromJson(json);
+
+    final restored = await (db.select(
+      db.todos,
+    )..where((t) => t.id.equals(todoId))).getSingle();
+    expect(restored.rrule, 'FREQ=WEEKLY;BYDAY=MO');
+    expect(restored.recurrenceAnchorSource, 'due');
+    expect(restored.recurrenceValueType, 'date');
+    expect(restored.recurrenceAnchorValue, '2026-10-05');
+    expect(restored.recurrenceTimeZone, 'UTC');
+    expect(restored.recurrenceRule, 'FREQ=WEEKLY;BYDAY=MO');
+    expect(restored.recurrenceLegacyState, 'knownZoned');
+    expect(restored.recurrenceRevision, 3);
+    expect(restored.percentComplete, 40);
+    expect(restored.sortOrder, 7);
+  });
+
+  test('a todo from before the recurrence columns restores as a one-off', () async {
+    // Old packages have no recurrence keys. Restoring one must leave a plain
+    // todo rather than throw on a missing field.
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final json =
+        '{"version":1,"exportedAt":"2026-01-01T00:00:00.000Z",'
+        '"calendars":[{"id":$calId,"name":"Personal","color":"#2563EB",'
+        '"timezone":"UTC","isActive":true,"sortOrder":0,"syncId":null}],'
+        '"todos":[{"id":1,"calendarId":$calId,"summary":"Old task",'
+        '"description":null,"dueDate":null,"startDate":null,"status":null,'
+        '"completedAt":null,"priority":0,"parentId":null,"deletedAt":null,'
+        '"syncId":null,"icsUid":null}]}';
+
+    await service.restoreFromJson(json);
+
+    final restored = await db.select(db.todos).getSingle();
+    expect(restored.summary, 'Old task');
+    expect(restored.rrule, isNull);
+    expect(restored.recurrenceRule, isNull);
+    expect(restored.percentComplete, 0);
+  });
+
+  test('a backup from before the column restores with it unset', () async {
+    // Old packages have no `exdates` key. Restoring one must leave the series
+    // with no exclusions rather than throw on a missing field.
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final json =
+        '{"version":1,"exportedAt":"2026-01-01T00:00:00.000Z",'
+        '"calendars":[{"id":$calId,"name":"Personal","color":"#2563EB",'
+        '"timezone":"UTC","isActive":true,"sortOrder":0,"syncId":null}],'
+        '"events":[{"id":1,"calendarId":$calId,"summary":"Old series",'
+        '"description":null,"startDt":"2026-10-01T09:00:00.000Z",'
+        '"endDt":"2026-10-01T09:30:00.000Z","isAllDay":false,"location":null,'
+        '"rrule":"FREQ=DAILY;COUNT=5","deletedAt":null,"syncId":null,'
+        '"icsUid":null}]}';
+
+    await service.restoreFromJson(json);
+
+    final restored = await db.select(db.events).getSingle();
+    expect(restored.summary, 'Old series');
+    expect(restored.exdates, isNull);
+  });
+
   group('zip package', () {
     late Directory sourceDir;
     late Directory restoreDir;

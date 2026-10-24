@@ -2,10 +2,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
+import 'package:dayspark/ui/widgets/color_swatch_grid.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 
 const _tagColors = [
@@ -21,6 +25,8 @@ const _tagColors = [
   '#6366F1',
 ];
 
+const int _maxTagNameLength = 50;
+
 class TagsPage extends ConsumerWidget {
   const TagsPage({super.key});
 
@@ -35,13 +41,28 @@ class TagsPage extends ConsumerWidget {
       actions: [
         IconButton(
           icon: const Icon(CupertinoIcons.add, size: 18),
-          onPressed: () => _showCreateDialog(context, ref),
-          visualDensity: VisualDensity.compact,
+          tooltip: l.createTag,
+          onPressed: () => _editTag(context, ref, null),
         ),
       ],
       child: tagsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(l.error('$e'))),
+        error: (error, _) {
+          debugPrint('tags: load error: $error');
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l.actionFailedRetry, style: AppTypography.body),
+                const SizedBox(height: AppSpacing.sm),
+                TextButton(
+                  onPressed: () => ref.invalidate(tagsProvider),
+                  child: Text(l.retry),
+                ),
+              ],
+            ),
+          );
+        },
         data: (tags) {
           if (tags.isEmpty) {
             return EmptyState(
@@ -49,7 +70,7 @@ class TagsPage extends ConsumerWidget {
               title: l.noTags,
               hint: l.tagEmptyHint,
               action: FilledButton.icon(
-                onPressed: () => _showCreateDialog(context, ref),
+                onPressed: () => _editTag(context, ref, null),
                 icon: const Icon(CupertinoIcons.add, size: 18),
                 label: Text(l.tagsEmptyAction),
               ),
@@ -65,9 +86,10 @@ class TagsPage extends ConsumerWidget {
                   radius: 14,
                 ),
                 title: Text(tag.name),
-                onTap: () => _showEditDialog(context, ref, tag),
+                onTap: () => _editTag(context, ref, tag),
                 trailing: IconButton(
                   icon: const Icon(CupertinoIcons.delete, size: 20),
+                  tooltip: l.deleteTag,
                   onPressed: () => _confirmDeleteTag(context, ref, tag),
                 ),
               );
@@ -78,23 +100,26 @@ class TagsPage extends ConsumerWidget {
     );
   }
 
-  void _confirmDeleteTag(BuildContext context, WidgetRef ref, dynamic tag) {
+  Future<void> _confirmDeleteTag(
+    BuildContext context,
+    WidgetRef ref,
+    Tag tag,
+  ) async {
     final l = AppLocalizations.of(context)!;
-    showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.deleteTag),
-        content: Text(l.confirmDelete),
+        // A delete that says which tag, and what happens to the records, is
+        // the difference between a mistake and a decision.
+        content: Text(l.tagDeleteBody(tag.name)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(l.cancel),
           ),
           TextButton(
-            onPressed: () {
-              ref.read(deleteTagProvider)(tag.id);
-              Navigator.of(ctx).pop();
-            },
+            onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
@@ -103,53 +128,42 @@ class TagsPage extends ConsumerWidget {
         ],
       ),
     );
+    if (confirmed != true) return;
+    await ref.read(deleteTagProvider)(tag.id);
   }
 
-  void _showEditDialog(BuildContext context, WidgetRef ref, dynamic tag) {
+  /// Create and edit are the same dialog: two different UIs for one field is
+  /// how validation ended up only on one of them.
+  Future<void> _editTag(BuildContext context, WidgetRef ref, Tag? tag) async {
     final l = AppLocalizations.of(context)!;
-    final nameController = TextEditingController(text: tag.name);
-    var selectedColor = tag.color;
-    final colors = _tagColors;
+    final existing = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
+    final nameController = TextEditingController(text: tag?.name ?? '');
+    var selectedColor = tag?.color ?? '#6B7280';
+    String? error;
+    var saving = false;
 
-    showDialog(
+    await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
-          title: Text(l.editTag),
+          title: Text(tag == null ? l.createTag : l.editTag),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
+                autofocus: tag == null,
+                maxLength: _maxTagNameLength,
                 decoration: InputDecoration(
                   labelText: l.tagName,
+                  errorText: error,
                 ),
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: colors.map((hex) {
-                  final isSelected = hex == selectedColor;
-                  return InkWell(
-                    onTap: () => setState(() => selectedColor = hex),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: ColorUtils.parseHex(hex),
-                        shape: BoxShape.circle,
-                        border: isSelected
-                            ? Border.all(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                width: 3,
-                              )
-                            : null,
-                      ),
-                    ),
-                  );
-                }).toList(),
+              const SizedBox(height: AppSpacing.sm),
+              ColorSwatchGrid(
+                colors: _tagColors,
+                selected: selectedColor,
+                onSelected: (hex) => setState(() => selectedColor = hex),
               ),
             ],
           ),
@@ -159,90 +173,58 @@ class TagsPage extends ConsumerWidget {
               child: Text(l.cancel),
             ),
             FilledButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                ref.read(updateTagProvider)(
-                  id: tag.id,
-                  name: name,
-                  color: selectedColor,
-                );
-                Navigator.of(ctx).pop();
-              },
-              child: Text(l.save),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showCreateDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final nameController = TextEditingController();
-    var selectedColor = '#6B7280';
-    final colors = _tagColors;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: Text(l.createTag),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: l.tagName,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: colors.map((hex) {
-                  final isSelected = hex == selectedColor;
-                  return InkWell(
-                    onTap: () => setState(() => selectedColor = hex),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: ColorUtils.parseHex(hex),
-                        shape: BoxShape.circle,
-                        border: isSelected
-                            ? Border.all(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                width: 3,
-                              )
-                            : null,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.cancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l.tagName)));
-                  return;
-                }
-                ref.read(createTagProvider)(name: name, color: selectedColor);
-                Navigator.of(ctx).pop();
-              },
-              child: Text(l.create),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) {
+                        setState(() => error = l.tagNameRequired);
+                        return;
+                      }
+                      if (name.length > _maxTagNameLength) {
+                        setState(
+                          () => error = l.tagNameTooLong(_maxTagNameLength),
+                        );
+                        return;
+                      }
+                      final clash = existing.any(
+                        (other) =>
+                            other.id != tag?.id &&
+                            other.name.toLowerCase() == name.toLowerCase(),
+                      );
+                      if (clash) {
+                        setState(() => error = l.tagDuplicate);
+                        return;
+                      }
+                      setState(() {
+                        saving = true;
+                        error = null;
+                      });
+                      try {
+                        if (tag == null) {
+                          await ref.read(createTagProvider)(
+                            name: name,
+                            color: selectedColor,
+                          );
+                        } else {
+                          await ref.read(updateTagProvider)(
+                            id: tag.id,
+                            name: name,
+                            color: selectedColor,
+                          );
+                        }
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                      } catch (failure) {
+                        debugPrint('tags: save error: $failure');
+                        if (ctx.mounted) {
+                          setState(() {
+                            saving = false;
+                            error = l.actionFailedRetry;
+                          });
+                        }
+                      }
+                    },
+              child: Text(tag == null ? l.create : l.save),
             ),
           ],
         ),

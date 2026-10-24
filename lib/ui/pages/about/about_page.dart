@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/version_compare.dart';
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -19,6 +20,7 @@ class _AboutPageState extends State<AboutPage> {
   static const _repo = 'liuchangchxy/dayspark';
 
   String _currentVersion = '';
+  String _currentBuild = '';
   bool _checking = false;
   Map<String, dynamic>? _latestRelease;
   String? _error;
@@ -31,7 +33,12 @@ class _AboutPageState extends State<AboutPage> {
 
   Future<void> _loadVersion() async {
     final info = await PackageInfo.fromPlatform();
-    if (mounted) setState(() => _currentVersion = info.version);
+    if (mounted) {
+      setState(() {
+        _currentVersion = info.version;
+        _currentBuild = info.buildNumber;
+      });
+    }
   }
 
   Future<void> _checkUpdate() async {
@@ -75,21 +82,7 @@ class _AboutPageState extends State<AboutPage> {
     if (_latestRelease == null) return false;
     final tag = (_latestRelease!['tag_name'] as String?) ?? '';
     final latest = tag.replaceFirst(RegExp(r'^v'), '');
-    return _compareVersions(latest, _currentVersion) > 0;
-  }
-
-  int _compareVersions(String a, String b) {
-    final pa = a.split('.').map(int.tryParse).toList();
-    final pb = b.split('.').map(int.tryParse).toList();
-    // Unparseable tag (e.g. "0.20.5-beta") → report no update instead of
-    // throwing during build.
-    if (pa.any((v) => v == null) || pb.any((v) => v == null)) return 0;
-    for (var i = 0; i < pa.length || i < pb.length; i++) {
-      final va = i < pa.length ? pa[i]! : 0;
-      final vb = i < pb.length ? pb[i]! : 0;
-      if (va != vb) return va - vb;
-    }
-    return 0;
+    return compareAppVersions(latest, _currentVersion) > 0;
   }
 
   String _friendlyError(dynamic e) {
@@ -105,10 +98,21 @@ class _AboutPageState extends State<AboutPage> {
     return l.updateCheckFailed(_repo);
   }
 
+  /// A link that cannot open must say so; a silent tap reads as a dead row.
   Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final l = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final uri = Uri.parse(url);
+      final launched =
+          await canLaunchUrl(uri) &&
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        messenger.showSnackBar(SnackBar(content: Text(l.couldNotOpenLink)));
+      }
+    } catch (error) {
+      debugPrint('about: launch failed: $error');
+      messenger.showSnackBar(SnackBar(content: Text(l.couldNotOpenLink)));
     }
   }
 
@@ -121,7 +125,7 @@ class _AboutPageState extends State<AboutPage> {
       title: l.about,
       maxContentWidth: 640,
       child: ListView(
-          padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         children: [
           Icon(
             CupertinoIcons.calendar_badge_plus,
@@ -138,7 +142,8 @@ class _AboutPageState extends State<AboutPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${l.currentVersion}: v$_currentVersion',
+            '${l.currentVersion}: v$_currentVersion'
+            '${_currentBuild.isEmpty ? '' : ' ($_currentBuild)'}',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall,
           ),
@@ -146,6 +151,7 @@ class _AboutPageState extends State<AboutPage> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
               onPressed: _checking ? null : _checkUpdate,
               icon: _checking
                   ? SizedBox(
@@ -164,7 +170,10 @@ class _AboutPageState extends State<AboutPage> {
             const SizedBox(height: 16),
             Text(
               _error!,
-              style: TextStyle(color: theme.colorScheme.error, fontSize: AppTypography.caption.fontSize),
+              style: TextStyle(
+                color: theme.colorScheme.error,
+                fontSize: AppTypography.caption.fontSize,
+              ),
             ),
           ],
           if (_latestRelease != null) ...[
@@ -216,7 +225,7 @@ class _AboutPageState extends State<AboutPage> {
                               _latestRelease!['html_url'] as String? ?? '';
                           if (htmlUrl.isNotEmpty) _openUrl(htmlUrl);
                         },
-                        child: Text(l.downloadUpdate),
+                        child: Text(l.openUpdatePage),
                       ),
                     ),
                   ],
@@ -271,7 +280,7 @@ class _AboutPageState extends State<AboutPage> {
             trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
           ),
         ],
-        ),
+      ),
     );
   }
 }

@@ -11,8 +11,12 @@ import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 class CalendarSlotSheet extends ConsumerStatefulWidget {
   final DateTimeRange range;
   final VoidCallback onCreateEvent;
-  final Function onScheduleTodo;
+  final Future<void> Function(Todo todo, String? occurrenceId) onScheduleTodo;
   final Future<List<Todo>> Function() loadSchedulableTodos;
+
+  /// Starts a todo form that will create the todo and its scheduled block in
+  /// one save. Null when the caller cannot offer it.
+  final VoidCallback? onCreateTodoHere;
 
   const CalendarSlotSheet({
     super.key,
@@ -20,14 +24,17 @@ class CalendarSlotSheet extends ConsumerStatefulWidget {
     required this.onCreateEvent,
     required this.onScheduleTodo,
     required this.loadSchedulableTodos,
+    this.onCreateTodoHere,
   });
 
   static Future<void> show({
     required BuildContext context,
     required DateTimeRange range,
     required VoidCallback onCreateEvent,
-    required Function onScheduleTodo,
+    required Future<void> Function(Todo todo, String? occurrenceId)
+    onScheduleTodo,
     required Future<List<Todo>> Function() loadSchedulableTodos,
+    VoidCallback? onCreateTodoHere,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -40,6 +47,7 @@ class CalendarSlotSheet extends ConsumerStatefulWidget {
         onCreateEvent: onCreateEvent,
         onScheduleTodo: onScheduleTodo,
         loadSchedulableTodos: loadSchedulableTodos,
+        onCreateTodoHere: onCreateTodoHere,
       ),
     );
   }
@@ -99,7 +107,9 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
@@ -130,6 +140,16 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
                 subtitle: Text(l.scheduleTodoDesc),
                 onTap: _openTodoPicker,
               ),
+              if (widget.onCreateTodoHere != null)
+                ListTile(
+                  leading: const Icon(CupertinoIcons.checkmark_rectangle),
+                  title: Text(l.createTodoAndSchedule),
+                  subtitle: Text(l.createTodoAndScheduleDesc),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    widget.onCreateTodoHere!();
+                  },
+                ),
             ] else ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -137,7 +157,8 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
                   children: [
                     IconButton(
                       icon: const Icon(CupertinoIcons.back),
-                      onPressed: () => setState(() => _showingTodoPicker = false),
+                      onPressed: () =>
+                          setState(() => _showingTodoPicker = false),
                     ),
                     Expanded(
                       child: Text(
@@ -194,8 +215,8 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
                           isRecurring
                               ? l.recurringTask
                               : (todo.dueDate != null
-                                  ? '${l.dueDate}: ${DateFormatters.formatShortDate(todo.dueDate!)}'
-                                  : l.noDueDate),
+                                    ? '${l.dueDate}: ${DateFormatters.formatShortDate(todo.dueDate!)}'
+                                    : l.noDueDate),
                           style: AppTypography.caption,
                         ),
                         onTap: () async {
@@ -203,11 +224,11 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
                           if (isRecurring) {
                             final selected =
                                 await TodoOccurrencePickerSheet.show(
-                              context,
-                              ref: ref,
-                              todo: todo,
-                              anchorDate: widget.range.start,
-                            );
+                                  context,
+                                  ref: ref,
+                                  todo: todo,
+                                  anchorDate: widget.range.start,
+                                );
                             if (selected == null || !mounted) return;
                             navigator.pop();
                             await _invokeScheduleTodo(
@@ -230,22 +251,6 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
     );
   }
 
-  Future<void> _invokeScheduleTodo(Todo todo, [String? occurrenceId]) async {
-    final fn = widget.onScheduleTodo;
-    if (fn is Future<void> Function(Todo, String?)) {
-      await fn(todo, occurrenceId);
-    } else if (fn is Future<void> Function(Todo, [String?])) {
-      await fn(todo, occurrenceId);
-    } else if (fn is Future<void> Function(Todo, {String? occurrenceId})) {
-      await fn(todo, occurrenceId: occurrenceId);
-    } else if (fn is Future<void> Function(Todo)) {
-      await fn(todo);
-    } else {
-      try {
-        await Function.apply(fn, [todo, occurrenceId]);
-      } catch (_) {
-        await Function.apply(fn, [todo]);
-      }
-    }
-  }
+  Future<void> _invokeScheduleTodo(Todo todo, [String? occurrenceId]) =>
+      widget.onScheduleTodo(todo, occurrenceId);
 }

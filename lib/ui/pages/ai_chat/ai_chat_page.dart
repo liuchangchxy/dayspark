@@ -13,6 +13,7 @@ import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
@@ -31,6 +32,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   bool _sending = false;
+  bool _writing = false;
 
   Future<int?> _selectCalendar(List<Calendar> calendars) async {
     if (calendars.isEmpty) return null;
@@ -52,7 +54,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                     height: 12,
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color: Color(int.tryParse(c.color.replaceFirst('#', '0xFF')) ?? 0xFF2563EB),
+                      color: Color(
+                        int.tryParse(c.color.replaceFirst('#', '0xFF')) ??
+                            0xFF2563EB,
+                      ),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -71,6 +76,31 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _confirmClear(AppLocalizations l) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.clearChat),
+        content: Text(l.clearChatConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: Text(l.clearChatAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    ref.read(aiChatProvider.notifier).clear();
   }
 
   Future<void> _send() async {
@@ -108,7 +138,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         if (messages.isNotEmpty)
           IconButton(
             icon: const Icon(CupertinoIcons.delete, size: 18),
-            onPressed: () => ref.read(aiChatProvider.notifier).clear(),
+            // Clearing is not undoable, so it asks once.
+            onPressed: () => _confirmClear(l),
             tooltip: l.clearChat,
             visualDensity: VisualDensity.compact,
           ),
@@ -168,7 +199,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                         context,
                                       ).textTheme.bodyMedium,
                                     ),
-                                    if (!isUser) ...[
+                                    // Answers are actions only while they are
+                                    // the latest one: an old reply's buttons
+                                    // would write rows the conversation has
+                                    // already moved past.
+                                    if (!isUser &&
+                                        index == messages.length - 1) ...[
                                       const SizedBox(height: AppSpacing.sm),
                                       Wrap(
                                         spacing: AppSpacing.sm,
@@ -178,50 +214,64 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                             icon: CupertinoIcons
                                                 .calendar_badge_plus,
                                             label: l.addEventShort,
-                                            onTap: () => _tryCreateFromChat(
-                                              ref,
-                                              msg.content,
-                                              'event',
-                                              promptInput: index > 0 &&
-                                                      messages[index - 1].role ==
-                                                          'user'
-                                                  ? messages[index - 1].content
-                                                  : null,
-                                            ),
+                                            onTap: _writing
+                                                ? null
+                                                : () => _tryCreateFromChat(
+                                                    ref,
+                                                    msg.content,
+                                                    'event',
+                                                    promptInput:
+                                                        index > 0 &&
+                                                            messages[index - 1]
+                                                                    .role ==
+                                                                'user'
+                                                        ? messages[index - 1]
+                                                              .content
+                                                        : null,
+                                                  ),
                                           ),
                                           _QuickActionChip(
                                             icon: CupertinoIcons
                                                 .checkmark_rectangle,
                                             label: l.addTodoShort,
-                                            onTap: () => _tryCreateFromChat(
-                                              ref,
-                                              msg.content,
-                                              'todo',
-                                              promptInput: index > 0 &&
-                                                      messages[index - 1].role ==
-                                                          'user'
-                                                  ? messages[index - 1].content
-                                                  : null,
-                                            ),
+                                            onTap: _writing
+                                                ? null
+                                                : () => _tryCreateFromChat(
+                                                    ref,
+                                                    msg.content,
+                                                    'todo',
+                                                    promptInput:
+                                                        index > 0 &&
+                                                            messages[index - 1]
+                                                                    .role ==
+                                                                'user'
+                                                        ? messages[index - 1]
+                                                              .content
+                                                        : null,
+                                                  ),
                                           ),
                                           _QuickActionChip(
                                             icon: CupertinoIcons.clock,
                                             label: l.schedule,
-                                            onTap: () => _suggestSchedule(
-                                              context,
-                                              ref,
-                                              msg.content,
-                                            ),
+                                            onTap: _writing
+                                                ? null
+                                                : () => _suggestSchedule(
+                                                    context,
+                                                    ref,
+                                                    msg.content,
+                                                  ),
                                           ),
                                           _QuickActionChip(
                                             icon: CupertinoIcons
                                                 .checkmark_rectangle,
                                             label: l.breakDown,
-                                            onTap: () => _breakDownTask(
-                                              context,
-                                              ref,
-                                              msg.content,
-                                            ),
+                                            onTap: _writing
+                                                ? null
+                                                : () => _breakDownTask(
+                                                    context,
+                                                    ref,
+                                                    msg.content,
+                                                  ),
                                           ),
                                         ],
                                       ),
@@ -295,21 +345,24 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final l = AppLocalizations.of(context)!;
     try {
       final db = ref.read(databaseProvider);
-      final todos = await (db.select(db.todos)
-            ..where((t) =>
-                t.deletedAt.isNull() &
-                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']))
-            ..orderBy([
-              (t) => OrderingTerm.asc(t.dueDate),
-              (t) => OrderingTerm.desc(t.priority),
-            ]))
-          .get();
+      final todos =
+          await (db.select(db.todos)
+                ..where(
+                  (t) =>
+                      t.deletedAt.isNull() &
+                      t.status.isNotIn(const ['COMPLETED', 'CANCELLED']),
+                )
+                ..orderBy([
+                  (t) => OrderingTerm.asc(t.dueDate),
+                  (t) => OrderingTerm.desc(t.priority),
+                ]))
+              .get();
 
       if (!context.mounted) return;
       if (todos.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.noSchedulableTodos)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.noSchedulableTodos)));
         return;
       }
 
@@ -330,9 +383,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                     todo.rrule != null && todo.rrule!.isNotEmpty;
                 return ListTile(
                   leading: Icon(
-                    isRecurring
-                        ? CupertinoIcons.repeat
-                        : CupertinoIcons.circle,
+                    isRecurring ? CupertinoIcons.repeat : CupertinoIcons.circle,
                     size: 20,
                   ),
                   title: Text(todo.summary),
@@ -340,8 +391,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                     isRecurring
                         ? l.recurringTask
                         : (todo.dueDate != null
-                            ? '${l.dueDate}: ${DateFormatters.formatShortDate(todo.dueDate!)}'
-                            : l.noDueDate),
+                              ? '${l.dueDate}: ${DateFormatters.formatShortDate(todo.dueDate!)}'
+                              : l.noDueDate),
                   ),
                   onTap: () => Navigator.of(ctx).pop(todo),
                 );
@@ -361,6 +412,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       // Step 2: If recurring series, select the exact occurrence
       String? occurrenceId;
+      String? occurrenceLabel;
       if (chosenTodo.rrule != null && chosenTodo.rrule!.isNotEmpty) {
         final selectedInstance = await TodoOccurrencePickerSheet.show(
           context,
@@ -369,6 +421,10 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         );
         if (selectedInstance == null || !context.mounted) return;
         occurrenceId = selectedInstance.occurrenceId;
+        occurrenceLabel = formatOccurrenceAnchor(
+          context,
+          selectedInstance.occurrence.displayLabel,
+        );
       }
 
       // Step 3: Fetch deterministic suggestions
@@ -401,7 +457,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                 final start = DateTime.tryParse(startStr);
                 final end = DateTime.tryParse(endStr);
                 final label = (start != null && end != null)
-                    ? DateFormatters.formatTaskAllocationRange(start, end, includeDate: true)
+                    ? DateFormatters.formatTaskAllocationRange(
+                        start,
+                        end,
+                        includeDate: true,
+                      )
                     : '$startStr - $endStr';
                 return ListTile(
                   title: Text(label),
@@ -441,15 +501,21 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                 chosenTodo.summary,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              if (occurrenceId != null) ...[
+              if (occurrenceLabel != null) ...[
                 const SizedBox(height: 4),
                 Text(
-                  '${l.recurringTask}: $occurrenceId',
+                  '${l.recurringTask}: $occurrenceLabel',
                   style: Theme.of(ctx).textTheme.bodySmall,
                 ),
               ],
               const SizedBox(height: 8),
-              Text(DateFormatters.formatTaskAllocationRange(start, end, includeDate: true)),
+              Text(
+                DateFormatters.formatTaskAllocationRange(
+                  start,
+                  end,
+                  includeDate: true,
+                ),
+              ),
             ],
           ),
           actions: [
@@ -501,7 +567,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed('$e'))));
+        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
       }
     }
   }
@@ -550,7 +616,9 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           .call(
                             calendarId: calId,
                             summary: s,
-                            priority: 5,
+                            // A suggested subtask carries no priority signal;
+                            // 5 would claim the assistant judged it medium.
+                            priority: 0,
                             status: 'NEEDS-ACTION',
                           );
                       String? reminderError;
@@ -565,17 +633,17 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       }
                       if (context.mounted) {
                         final msg = reminderError != null
-                            ? '${l.todoCreatedShort} (${l.failedAction(reminderError)})'
+                            ? '${l.todoCreatedShort} (${l.failedAction})'
                             : l.todoCreatedShort;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(msg)),
-                        );
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(msg)));
                       }
                     } catch (e) {
                       debugPrint('ai_chat: createTodoFromAction error: $e');
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l.failedCreateTodo('$e'))),
+                          SnackBar(content: Text(l.failedCreateTodo)),
                         );
                       }
                     }
@@ -597,7 +665,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l.breakdownFailed('$e'))));
+        ).showSnackBar(SnackBar(content: Text(l.breakdownFailed)));
       }
     }
   }
@@ -608,11 +676,17 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     String type, {
     String? promptInput,
   }) async {
+    if (_writing) return;
+    // The flag covers the parse too, not only the write: two taps in a row
+    // would otherwise queue two confirmations, and the user agreeing to both
+    // would land the same task twice.
+    setState(() => _writing = true);
     final config = ref.read(aiConfigProvider).value;
-    if (config == null) return;
-
-    final defaultEventTitle = AppLocalizations.of(context)!.newEvent;
-    final defaultTodoTitle = AppLocalizations.of(context)!.newTodo;
+    if (config == null) {
+      if (mounted) setState(() => _writing = false);
+      return;
+    }
+    final l = AppLocalizations.of(context)!;
 
     // Use explicit promptInput if provided; otherwise fallback to finding the message
     var input = promptInput ?? content;
@@ -623,18 +697,20 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     }
 
     try {
-      final result = await parseNaturalLanguage(
+      final result = await ref.read(parseNaturalLanguageProvider)(
         config: config,
         input: input,
         type: type,
       );
+      if (!mounted) return;
 
       final calendars = await ref.read(calendarsProvider.future);
-      if (calendars.isEmpty) return;
+      if (!mounted || calendars.isEmpty) return;
       final calId = await _selectCalendar(calendars);
-      if (calId == null) return;
+      if (calId == null || !mounted) return;
+      final calendarName =
+          calendars.where((c) => c.id == calId).firstOrNull?.name ?? '';
 
-      String? reminderError;
       if (type == 'event') {
         final start = result['start'] != null
             ? DateTime.parse(result['start'] as String)
@@ -642,69 +718,160 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         final end = result['end'] != null
             ? DateTime.parse(result['end'] as String)
             : start.add(const Duration(hours: 1));
-        final eventId = await ref.read(createEventProvider)(
-          calendarId: calId,
-          summary: result['summary'] as String? ?? defaultEventTitle,
-          startDt: start,
-          endDt: end,
-          isAllDay: result['is_all_day'] == true,
-          description: result['description'] as String?,
-          location: result['location'] as String?,
+        final summary = result['summary'] as String? ?? l.newEvent;
+
+        // Nothing is written before the user has seen what would be written.
+        final confirmed = await _confirmCreate(
+          l,
+          title: l.newEvent,
+          summary: summary,
+          rows: [
+            (l.startTime, formatMoment(context, start)),
+            (l.endTime, formatMoment(context, end)),
+            (l.calendar, calendarName),
+          ],
         );
-        try {
+        if (!confirmed || !mounted) return;
+
+        await _write(() async {
+          final eventId = await ref.read(createEventProvider)(
+            calendarId: calId,
+            summary: summary,
+            startDt: start,
+            endDt: end,
+            isAllDay: result['is_all_day'] == true,
+            description: result['description'] as String?,
+            location: result['location'] as String?,
+          );
           await ref.read(addDefaultEventRemindersProvider)(
             eventId: eventId,
             startDt: start,
           );
-        } catch (e) {
-          debugPrint('ai_chat: addEventReminders error: $e');
-          reminderError = '$e';
-        }
+        }, success: l.eventCreatedShort);
       } else {
         final dueDate = result['due_date'] != null
             ? DateTime.parse(result['due_date'] as String)
             : null;
-        final todoId = await ref
-            .read(createTodoProvider)
-            .call(
-              calendarId: calId,
-              summary: result['summary'] as String? ?? defaultTodoTitle,
-              priority: result['priority'] as int? ?? 5,
-              status: 'NEEDS-ACTION',
-              dueDate: dueDate,
-              description: result['description'] as String?,
-            );
-        try {
+        final summary = result['summary'] as String? ?? l.newTodo;
+
+        final confirmed = await _confirmCreate(
+          l,
+          title: l.newTodo,
+          summary: summary,
+          rows: [
+            (
+              l.deadlineRow,
+              dueDate == null ? l.noDueDate : formatMoment(context, dueDate),
+            ),
+            (l.calendar, calendarName),
+          ],
+        );
+        if (!confirmed || !mounted) return;
+
+        await _write(() async {
+          final todoId = await ref
+              .read(createTodoProvider)
+              .call(
+                calendarId: calId,
+                summary: summary,
+                priority: result['priority'] as int? ?? 0,
+                status: 'NEEDS-ACTION',
+                dueDate: dueDate,
+                description: result['description'] as String?,
+              );
           await ref.read(addDefaultTodoRemindersProvider)(
             todoId: todoId,
             dueDate: dueDate,
           );
-        } catch (e) {
-          debugPrint('ai_chat: addTodoReminders error: $e');
-          reminderError = '$e';
-        }
-      }
-
-      if (mounted) {
-        final l = AppLocalizations.of(context)!;
-        final baseMsg = type == 'event' ? l.eventCreatedShort : l.todoCreatedShort;
-        final msg = reminderError != null
-            ? '$baseMsg (${l.failedAction(reminderError)})'
-            : baseMsg;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-          ),
-        );
+        }, success: l.todoCreatedShort);
       }
     } catch (e) {
       debugPrint('ai_chat: createFromAI error: $e');
       if (mounted) {
-        final l = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l.failedAction('$e'))));
+        ).showSnackBar(SnackBar(content: Text(l.failedAction)));
       }
+    } finally {
+      if (mounted) setState(() => _writing = false);
+    }
+  }
+
+  /// The last look before a write: everything the assistant understood, in
+  /// the terms the form would use, and no internal identifiers.
+  Future<bool> _confirmCreate(
+    AppLocalizations l, {
+    required String title,
+    required String summary,
+    required List<(String, String)> rows,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(summary, style: TextTheme.of(ctx).titleMedium),
+            const SizedBox(height: AppSpacing.md),
+            for (final row in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 96,
+                      child: Text(
+                        row.$1,
+                        style: AppTypography.caption.copyWith(
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Text(row.$2)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.create),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  /// One write at a time: the chips are disabled while a row is being saved,
+  /// so a second tap cannot create a duplicate.
+  Future<void> _write(
+    Future<void> Function() action, {
+    required String success,
+  }) async {
+    setState(() => _writing = true);
+    try {
+      await action();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(success)));
+    } catch (e) {
+      debugPrint('ai_chat: write failed: $e');
+      if (!mounted) return;
+      final l = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.failedAction)));
+    } finally {
+      if (mounted) setState(() => _writing = false);
     }
   }
 }
@@ -712,7 +879,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 class _QuickActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _QuickActionChip({
     required this.icon,
@@ -722,27 +889,36 @@ class _QuickActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final color = enabled
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).disabledColor;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: AppTypography.caption.fontSize,
-                color: Theme.of(context).colorScheme.primary,
+      // Bubble chips are the only affordance on a reply, so they reach the
+      // 48dp minimum touch target.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppTypography.caption.fontSize,
+                  color: color,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -20,6 +20,7 @@ import 'package:dayspark/ui/widgets/calendar/task_allocation_tile.dart';
 import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 
@@ -148,7 +149,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
       final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.maybeOf(
         context,
-      )?.showSnackBar(SnackBar(content: Text(l.error('$error'))));
+      )?.showSnackBar(SnackBar(content: Text(l.error)));
     }
   }
 
@@ -161,7 +162,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
       final l = AppLocalizations.of(context)!;
       ScaffoldMessenger.maybeOf(
         context,
-      )?.showSnackBar(SnackBar(content: Text(l.error('$error'))));
+      )?.showSnackBar(SnackBar(content: Text(l.error)));
     }
   }
 
@@ -293,7 +294,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
             ),
           ],
           const Spacer(),
-          if (MediaQuery.sizeOf(context).width >= 1050) ...[
+          if (isWorkspaceLayout(context)) ...[
             Icon(
               CupertinoIcons.circle_fill,
               size: 7,
@@ -603,6 +604,12 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
               dim:
                   date.year != _anchorDate.year ||
                   date.month != _anchorDate.month,
+              hasDeadline: widget.deadlines.any(
+                (item) =>
+                    item.due.year == date.year &&
+                    item.due.month == date.month &&
+                    item.due.day == date.day,
+              ),
             ),
           ),
         ),

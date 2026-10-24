@@ -33,8 +33,29 @@ void main() {
         DateTime.utc(2026, 10, 5, 8),
         DateTime.utc(2026, 10, 6, 8),
         toLocal: addEightHours,
+        now: DateTime(2026, 10, 5),
       ),
       '10/5 16:00 – 10/6 16:00',
     );
   });
+
+  test(
+    'a date in another year keeps its year instead of reading as this year',
+    () {
+      expect(
+        DateFormatters.formatShortDate(
+          DateTime(2027, 1, 4),
+          now: DateTime(2026, 12, 30),
+        ),
+        '2027/1/4',
+      );
+      expect(
+        DateFormatters.formatShortDate(
+          DateTime(2026, 12, 30),
+          now: DateTime(2026, 12, 30),
+        ),
+        '12/30',
+      );
+    },
+  );
 }

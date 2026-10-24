@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,13 +30,20 @@ class NotificationsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
+    // Platform gates come from defaultTargetPlatform rather than dart:io so a
+    // widget test can exercise each platform's set of rows.
+    final platform = defaultTargetPlatform;
+    final showsAlarm =
+        !kIsWeb &&
+        (platform == TargetPlatform.android || platform == TargetPlatform.iOS);
+    final showsMacPermission = !kIsWeb && platform == TargetPlatform.macOS;
+    final showsExactAlarm = !kIsWeb && platform == TargetPlatform.android;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (!kIsWeb &&
-            (defaultTargetPlatform == TargetPlatform.android ||
-                defaultTargetPlatform == TargetPlatform.iOS ||
-                defaultTargetPlatform == TargetPlatform.windows)) ...[
+        // The alarm plugin only ships Android and iOS implementations, so on
+        // Windows the switch would flip a preference nothing reads.
+        if (showsAlarm) ...[
           const Divider(),
           SwitchListTile(
             secondary: const Icon(CupertinoIcons.alarm),
@@ -51,8 +57,23 @@ class NotificationsSection extends ConsumerWidget {
           ),
           const Divider(),
         ],
-        if (!kIsWeb &&
-            defaultTargetPlatform == TargetPlatform.android &&
+        if (showsMacPermission) ...[
+          const Divider(),
+          ListTile(
+            leading: const Icon(CupertinoIcons.bell),
+            title: Text(l.notificationPermission),
+            subtitle: Text(l.notificationPermissionDesc),
+            onTap: () async {
+              await NotificationService().requestPermission();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l.notificationPermissionAsked)),
+              );
+            },
+          ),
+          const Divider(),
+        ],
+        if (showsExactAlarm &&
             ref.watch(canScheduleExactProvider).valueOrNull == false) ...[
           const Divider(),
           ListTile(

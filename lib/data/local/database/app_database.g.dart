@@ -610,6 +610,17 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _exdatesMeta = const VerificationMeta(
+    'exdates',
+  );
+  @override
+  late final GeneratedColumn<String> exdates = GeneratedColumn<String>(
+    'exdates',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _deletedAtMeta = const VerificationMeta(
     'deletedAt',
   );
@@ -686,6 +697,7 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     description,
     location,
     rrule,
+    exdates,
     deletedAt,
     createdAt,
     updatedAt,
@@ -765,6 +777,12 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
       context.handle(
         _rruleMeta,
         rrule.isAcceptableOrUnknown(data['rrule']!, _rruleMeta),
+      );
+    }
+    if (data.containsKey('exdates')) {
+      context.handle(
+        _exdatesMeta,
+        exdates.isAcceptableOrUnknown(data['exdates']!, _exdatesMeta),
       );
     }
     if (data.containsKey('deleted_at')) {
@@ -848,6 +866,10 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         DriftSqlType.string,
         data['${effectivePrefix}rrule'],
       ),
+      exdates: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}exdates'],
+      ),
       deletedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
@@ -891,6 +913,14 @@ class Event extends DataClass implements Insertable<Event> {
   final String? description;
   final String? location;
   final String? rrule;
+
+  /// Excluded occurrence anchors, one ISO-8601 instant per line.
+  ///
+  /// Deleting a single occurrence of a series has to leave the series intact,
+  /// and RFC 5545's answer for that is EXDATE. Kept on the event row rather
+  /// than in a side table so the exception travels with the record through
+  /// sync, backup and iCal export without a second entity to reconcile.
+  final String? exdates;
   final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -907,6 +937,7 @@ class Event extends DataClass implements Insertable<Event> {
     this.description,
     this.location,
     this.rrule,
+    this.exdates,
     this.deletedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -931,6 +962,9 @@ class Event extends DataClass implements Insertable<Event> {
     }
     if (!nullToAbsent || rrule != null) {
       map['rrule'] = Variable<String>(rrule);
+    }
+    if (!nullToAbsent || exdates != null) {
+      map['exdates'] = Variable<String>(exdates);
     }
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
@@ -964,6 +998,9 @@ class Event extends DataClass implements Insertable<Event> {
       rrule: rrule == null && nullToAbsent
           ? const Value.absent()
           : Value(rrule),
+      exdates: exdates == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exdates),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
@@ -994,6 +1031,7 @@ class Event extends DataClass implements Insertable<Event> {
       description: serializer.fromJson<String?>(json['description']),
       location: serializer.fromJson<String?>(json['location']),
       rrule: serializer.fromJson<String?>(json['rrule']),
+      exdates: serializer.fromJson<String?>(json['exdates']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1015,6 +1053,7 @@ class Event extends DataClass implements Insertable<Event> {
       'description': serializer.toJson<String?>(description),
       'location': serializer.toJson<String?>(location),
       'rrule': serializer.toJson<String?>(rrule),
+      'exdates': serializer.toJson<String?>(exdates),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1034,6 +1073,7 @@ class Event extends DataClass implements Insertable<Event> {
     Value<String?> description = const Value.absent(),
     Value<String?> location = const Value.absent(),
     Value<String?> rrule = const Value.absent(),
+    Value<String?> exdates = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1050,6 +1090,7 @@ class Event extends DataClass implements Insertable<Event> {
     description: description.present ? description.value : this.description,
     location: location.present ? location.value : this.location,
     rrule: rrule.present ? rrule.value : this.rrule,
+    exdates: exdates.present ? exdates.value : this.exdates,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1072,6 +1113,7 @@ class Event extends DataClass implements Insertable<Event> {
           : this.description,
       location: data.location.present ? data.location.value : this.location,
       rrule: data.rrule.present ? data.rrule.value : this.rrule,
+      exdates: data.exdates.present ? data.exdates.value : this.exdates,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1093,6 +1135,7 @@ class Event extends DataClass implements Insertable<Event> {
           ..write('description: $description, ')
           ..write('location: $location, ')
           ..write('rrule: $rrule, ')
+          ..write('exdates: $exdates, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1114,6 +1157,7 @@ class Event extends DataClass implements Insertable<Event> {
     description,
     location,
     rrule,
+    exdates,
     deletedAt,
     createdAt,
     updatedAt,
@@ -1134,6 +1178,7 @@ class Event extends DataClass implements Insertable<Event> {
           other.description == this.description &&
           other.location == this.location &&
           other.rrule == this.rrule &&
+          other.exdates == this.exdates &&
           other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -1152,6 +1197,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
   final Value<String?> description;
   final Value<String?> location;
   final Value<String?> rrule;
+  final Value<String?> exdates;
   final Value<DateTime?> deletedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1168,6 +1214,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.description = const Value.absent(),
     this.location = const Value.absent(),
     this.rrule = const Value.absent(),
+    this.exdates = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1185,6 +1232,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.description = const Value.absent(),
     this.location = const Value.absent(),
     this.rrule = const Value.absent(),
+    this.exdates = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1205,6 +1253,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Expression<String>? description,
     Expression<String>? location,
     Expression<String>? rrule,
+    Expression<String>? exdates,
     Expression<DateTime>? deletedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1222,6 +1271,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       if (description != null) 'description': description,
       if (location != null) 'location': location,
       if (rrule != null) 'rrule': rrule,
+      if (exdates != null) 'exdates': exdates,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1241,6 +1291,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Value<String?>? description,
     Value<String?>? location,
     Value<String?>? rrule,
+    Value<String?>? exdates,
     Value<DateTime?>? deletedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1258,6 +1309,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       description: description ?? this.description,
       location: location ?? this.location,
       rrule: rrule ?? this.rrule,
+      exdates: exdates ?? this.exdates,
       deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1297,6 +1349,9 @@ class EventsCompanion extends UpdateCompanion<Event> {
     if (rrule.present) {
       map['rrule'] = Variable<String>(rrule.value);
     }
+    if (exdates.present) {
+      map['exdates'] = Variable<String>(exdates.value);
+    }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
@@ -1330,6 +1385,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
           ..write('description: $description, ')
           ..write('location: $location, ')
           ..write('rrule: $rrule, ')
+          ..write('exdates: $exdates, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -7227,6 +7283,7 @@ typedef $$EventsTableCreateCompanionBuilder =
       Value<String?> description,
       Value<String?> location,
       Value<String?> rrule,
+      Value<String?> exdates,
       Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -7245,6 +7302,7 @@ typedef $$EventsTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<String?> location,
       Value<String?> rrule,
+      Value<String?> exdates,
       Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -7339,6 +7397,11 @@ class $$EventsTableFilterComposer
 
   ColumnFilters<String> get rrule => $composableBuilder(
     column: $table.rrule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get exdates => $composableBuilder(
+    column: $table.exdates,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7470,6 +7533,11 @@ class $$EventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get exdates => $composableBuilder(
+    column: $table.exdates,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
@@ -7558,6 +7626,9 @@ class $$EventsTableAnnotationComposer
 
   GeneratedColumn<String> get rrule =>
       $composableBuilder(column: $table.rrule, builder: (column) => column);
+
+  GeneratedColumn<String> get exdates =>
+      $composableBuilder(column: $table.exdates, builder: (column) => column);
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
@@ -7663,6 +7734,7 @@ class $$EventsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> location = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
+                Value<String?> exdates = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -7679,6 +7751,7 @@ class $$EventsTableTableManager
                 description: description,
                 location: location,
                 rrule: rrule,
+                exdates: exdates,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -7697,6 +7770,7 @@ class $$EventsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> location = const Value.absent(),
                 Value<String?> rrule = const Value.absent(),
+                Value<String?> exdates = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -7713,6 +7787,7 @@ class $$EventsTableTableManager
                 description: description,
                 location: location,
                 rrule: rrule,
+                exdates: exdates,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

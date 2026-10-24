@@ -96,9 +96,7 @@ class _MissingObjectPage extends StatelessWidget {
 abstract final class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/',
-    observers: [
-      if (!kReleaseMode) _NavObserver(),
-    ],
+    observers: [if (!kReleaseMode) _NavObserver()],
     // Engine deep links (widget quick-add on Android/iOS/macOS) arrive as
     // raw scheme URIs (dayspark://quick-add) before any path match exists;
     // go_router only routes paths, so every scheme URI is funnelled through
@@ -112,7 +110,9 @@ abstract final class AppRouter {
     },
     errorBuilder: (context, state) {
       if (!kReleaseMode) {
-        debugPrint('[GoRouter] ERROR at ${state.matchedLocation}: ${state.error}');
+        debugPrint(
+          '[GoRouter] ERROR at ${state.matchedLocation}: ${state.error}',
+        );
       }
       final l = AppLocalizations.of(context);
       return WorkspacePage(
@@ -232,10 +232,20 @@ abstract final class AppRouter {
               final parentId = parentIdParam != null
                   ? int.tryParse(parentIdParam)
                   : null;
+              final start = state.uri.queryParameters['start'];
+              final end = state.uri.queryParameters['end'];
+              DateTime? parse(String? value) => value == null
+                  ? null
+                  : DateTime.tryParse(value) ??
+                        DateTime.fromMillisecondsSinceEpoch(
+                          int.tryParse(value) ?? 0,
+                        );
               return _fadeTransition(
                 TodoFormPage(
                   parentId: parentId,
                   source: state.uri.queryParameters['source'],
+                  initialExecutionStart: parse(start),
+                  initialExecutionEnd: parse(end),
                 ),
               );
             },
