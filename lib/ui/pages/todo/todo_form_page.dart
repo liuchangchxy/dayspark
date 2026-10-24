@@ -16,8 +16,11 @@ import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/attachments_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
+import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -376,52 +379,95 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       final calendarId = _calendarId ?? calendars.first.id;
       final description = _descriptionController.text.trim();
 
-      // Whether this write updates or creates is decided by one thing only:
-      // whether the form was opened on an existing row. A legacy recurrence
-      // rule changes how the recurrence fields are interpreted — it must
-      // never turn an edit into a second insert, which is how editing an old
-      // recurring todo used to leave the original untouched and add a copy.
-      final int todoId;
-      if (_isEditing) {
-        todoId = widget.todo!.id;
-        await ref.read(updateTodoProvider)(
-          todoId,
-          TodosCompanion(
-            calendarId: Value(calendarId),
-            summary: Value(_summaryController.text.trim()),
-            description: Value(description.isEmpty ? null : description),
-            priority: Value(_priority),
-            dueDate: Value(_deadline),
-            startDate: Value(_startDate),
-            rrule: Value(_rrule),
-            updatedAt: Value(DateTime.now()),
+      // Bytes first, and outside the transaction: a source file that has gone
+      // missing has to fail the save before anything is written, not halfway
+      // through it.
+      final staged = <({DraftAttachment draft, Uint8List bytes})>[];
+      for (final item in _attachments.where((a) => a.id == null)) {
+        staged.add((
+          draft: item,
+          bytes: await ref.read(stageAttachmentProvider)(
+            bytes: item.bytes,
+            sourcePath: item.sourcePath,
+            fileName: item.fileName,
           ),
-          recurrenceSpec: _recurrenceSpecForSave(),
-          replaceRecurrence: true,
-        );
-      } else {
-        todoId = await ref.read(createTodoProvider)(
-          calendarId: calendarId,
-          summary: _summaryController.text.trim(),
-          priority: _priority,
-          status: 'NEEDS-ACTION',
-          dueDate: _deadline,
-          startDate: _startDate,
-          description: description.isEmpty ? null : description,
-          rrule: _rrule,
-          recurrenceSpec: _recurrenceSpecForSave(),
-          parentId: widget.parentId,
-        );
+        ));
       }
 
-      final failures = await _commitDrafts(todoId, calendarId);
-      if (!mounted) return;
-      if (failures.isNotEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
-        debugPrint('todo_form: partial save failures: ${failures.join(', ')}');
+      final db = ref.read(databaseProvider);
+      final uploaded = <({int id, List<int>? bytes})>[];
+      final residue = <AttachmentResidue?>[];
+      final stagedFiles = <String?>[];
+
+      // One scope for the whole draft. Save means "the draft as a whole", so
+      // a failure anywhere has to leave the database exactly as it was —
+      // otherwise the title lands, the attachment does not, and the page
+      // closes on a form that only half exists.
+      await RecordScope.run(db, (tx) async {
+        // Whether this write updates or creates is decided by one thing only:
+        // whether the form was opened on an existing row. A legacy recurrence
+        // rule changes how the recurrence fields are interpreted — it must
+        // never turn an edit into a second insert, which is how editing an old
+        // recurring todo used to leave the original untouched and add a copy.
+        final int todoId;
+        if (_isEditing) {
+          todoId = widget.todo!.id;
+          await ref.read(updateTodoProvider)(
+            todoId,
+            TodosCompanion(
+              calendarId: Value(calendarId),
+              summary: Value(_summaryController.text.trim()),
+              description: Value(description.isEmpty ? null : description),
+              priority: Value(_priority),
+              dueDate: Value(_deadline),
+              startDate: Value(_startDate),
+              rrule: Value(_rrule),
+              updatedAt: Value(DateTime.now()),
+            ),
+            recurrenceSpec: _recurrenceSpecForSave(),
+            replaceRecurrence: true,
+          );
+        } else {
+          todoId = await ref.read(createTodoProvider)(
+            calendarId: calendarId,
+            summary: _summaryController.text.trim(),
+            priority: _priority,
+            status: 'NEEDS-ACTION',
+            dueDate: _deadline,
+            startDate: _startDate,
+            description: description.isEmpty ? null : description,
+            rrule: _rrule,
+            recurrenceSpec: _recurrenceSpecForSave(),
+            parentId: widget.parentId,
+          );
+        }
+
+        try {
+          await _commitDrafts(
+            tx,
+            todoId,
+            calendarId,
+            staged,
+            uploaded,
+            residue,
+            stagedFiles,
+          );
+        } catch (error) {
+          // The row is gone with the rollback, but the file this transaction
+          // already wrote is not — and SQLite may hand the same id to a later
+          // insert, which would adopt the orphan as its own.
+          await ref.read(discardStagedFilesProvider)(stagedFiles);
+          rethrow;
+        }
+      });
+
+      // Past the commit: the network and the filesystem have no business
+      // holding a transaction open, and neither can roll one back.
+      await ref.read(uploadAttachmentsProvider)(uploaded);
+      for (final item in residue) {
+        await ref.read(discardAttachmentResidueProvider)(item);
       }
+      if (!mounted) return;
       context.pop();
     } catch (error) {
       if (mounted) {
@@ -435,14 +481,20 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     }
   }
 
-  /// Writes everything the form staged, now that the todo row exists.
+  /// Writes everything the form staged, inside the caller's transaction.
   ///
-  /// Each block is independent: one failing must not abandon the rest, so the
-  /// failures are collected and reported once instead of surfacing a raw
-  /// exception from the middle of the commit.
-  Future<List<String>> _commitDrafts(int todoId, int calendarId) async {
-    final failures = <String>[];
-
+  /// Nothing is swallowed here. Save commits the whole draft, so a failed tag
+  /// write has to take the title down with it rather than leave a row that is
+  /// half of what the user was looking at.
+  Future<void> _commitDrafts(
+    RecordScope tx,
+    int todoId,
+    int calendarId,
+    List<({DraftAttachment draft, Uint8List bytes})> staged,
+    List<({int id, List<int>? bytes})> uploaded,
+    List<AttachmentResidue?> residue,
+    List<String?> stagedFiles,
+  ) async {
     // Executions, reminders, tags and subtasks are diffed against what the
     // form opened with: a row that survived the draft is untouched, one that
     // vanished is removed, one that appeared is written.
@@ -450,141 +502,81 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     final initialExecutions = initial?.executions ?? const <DraftExecution>[];
     for (final item in initialExecutions.where((item) => item.id != null)) {
       if (_executions.any((other) => other.id == item.id)) continue;
-      try {
-        await ref.read(cancelTaskAllocationProvider)(item.id!);
-      } catch (error) {
-        debugPrint('todo_form: cancel execution error: $error');
-        failures.add('execution');
-      }
+      await ref.read(cancelTaskAllocationProvider)(item.id!);
     }
     for (final item in _executions.where((item) => item.id == null)) {
-      try {
-        await ref.read(createTaskAllocationProvider)(
-          todoId: todoId,
-          startAt: item.start,
-          endAt: item.end,
-          occurrenceId: item.occurrenceId,
-        );
-      } catch (error) {
-        debugPrint('todo_form: execution error: $error');
-        failures.add('execution');
-      }
+      await ref.read(createTaskAllocationProvider)(
+        todoId: todoId,
+        startAt: item.start,
+        endAt: item.end,
+        occurrenceId: item.occurrenceId,
+      );
     }
 
     final initialTags = initial?.tagIds ?? const <int>{};
     for (final tagId in _tagIds.difference(initialTags)) {
-      try {
-        await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
-      } catch (error) {
-        debugPrint('todo_form: addTag error: $error');
-        failures.add('tag');
-      }
+      await ref.read(addTagToTodoProvider)(todoId: todoId, tagId: tagId);
     }
     for (final tagId in initialTags.difference(_tagIds)) {
-      try {
-        await ref.read(removeTagFromTodoProvider)(todoId: todoId, tagId: tagId);
-      } catch (error) {
-        debugPrint('todo_form: removeTag error: $error');
-        failures.add('tag');
-      }
+      await ref.read(removeTagFromTodoProvider)(todoId: todoId, tagId: tagId);
     }
 
     final initialReminders = initial?.reminders ?? const <DraftReminder>[];
     for (final item in initialReminders.where((item) => item.id != null)) {
       if (_reminders.any((other) => other.id == item.id)) continue;
-      try {
-        await ref.read(deleteReminderProvider)(item.id!);
-      } catch (error) {
-        debugPrint('todo_form: removeReminder error: $error');
-        failures.add('reminder');
-      }
+      await ref.read(deleteReminderProvider)(item.id!);
     }
     for (final item in _reminders.where((item) => item.id == null)) {
-      try {
-        await ref.read(createReminderProvider)(
-          parentType: 'todo',
-          parentId: todoId,
-          triggerTime: item.triggerTime,
-        );
-      } catch (error) {
-        debugPrint('todo_form: reminder error: $error');
-        failures.add('reminder');
-      }
+      await ref.read(createReminderProvider)(
+        parentType: 'todo',
+        parentId: todoId,
+        triggerTime: item.triggerTime,
+      );
     }
 
     final initialAttachments =
         initial?.attachments ?? const <DraftAttachment>[];
     for (final item in initialAttachments.where((item) => item.id != null)) {
       if (_attachments.any((other) => other.id == item.id)) continue;
-      try {
-        await ref.read(deleteAttachmentProvider)(item.id!);
-      } catch (error) {
-        debugPrint('todo_form: removeAttachment error: $error');
-        failures.add('attachment');
-      }
+      residue.add(await ref.read(deleteAttachmentRowProvider)(tx, item.id!));
     }
-    for (final item in _attachments.where((item) => item.id == null)) {
-      try {
-        await ref.read(createAttachmentProvider)(
-          parentType: 'todo',
-          parentId: todoId,
-          fileName: item.fileName,
-          mimeType: item.mimeType,
-          bytes: item.bytes,
-          sourcePath: item.sourcePath,
-        );
-      } catch (error) {
-        debugPrint('todo_form: attachment error: $error');
-        failures.add('attachment');
-      }
+    for (final item in staged) {
+      final stage = await ref.read(insertAttachmentRowProvider)(
+        tx,
+        parentType: 'todo',
+        parentId: todoId,
+        fileName: item.draft.fileName,
+        mimeType: item.draft.mimeType,
+        data: item.bytes,
+      );
+      stagedFiles.add(stage.filePath);
+      uploaded.add((id: stage.id, bytes: item.bytes));
     }
 
-    final initialSubtasks = initial?.subtasks ?? const <DraftSubtask>[];
     for (final id in _removedSubtaskIds) {
-      try {
-        await ref.read(deleteTodoProvider)(id);
-      } catch (error) {
-        debugPrint('todo_form: removeSubtask error: $error');
-        failures.add('subtask');
-      }
+      await ref.read(deleteTodoProvider)(id);
     }
     for (final item in _subtasks.where((item) => item.id == null)) {
-      try {
-        await ref.read(createTodoProvider)(
-          calendarId: calendarId,
-          summary: item.summary,
-          priority: 0,
-          status: 'NEEDS-ACTION',
-          parentId: todoId,
-        );
-      } catch (error) {
-        debugPrint('todo_form: subtask error: $error');
-        failures.add('subtask');
-      }
+      await ref.read(createTodoProvider)(
+        calendarId: calendarId,
+        summary: item.summary,
+        priority: 0,
+        status: 'NEEDS-ACTION',
+        parentId: todoId,
+      );
     }
-    final knownSubtasks = initialSubtasks
-        .where((item) => item.id != null)
-        .map((item) => item.id!)
-        .toSet();
+    final initialSubtasks = initial?.subtasks ?? const <DraftSubtask>[];
     for (final item in _subtasks.where((item) => item.id != null)) {
       final before = initialSubtasks
           .where((other) => other.id == item.id)
           .firstOrNull;
       if (before != null && before.isCompleted != item.isCompleted) {
-        try {
-          await ref.read(toggleTodoProvider)(
-            id: item.id!,
-            isCompleted: item.isCompleted,
-          );
-        } catch (error) {
-          debugPrint('todo_form: toggle subtask error: $error');
-          failures.add('subtask');
-        }
+        await ref.read(toggleTodoProvider)(
+          id: item.id!,
+          isCompleted: item.isCompleted,
+        );
       }
     }
-    debugPrint('todo_form: subtasks kept: ${knownSubtasks.length}');
-
-    return failures;
   }
 
   Future<void> _aiParse() async {

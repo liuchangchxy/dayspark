@@ -75,6 +75,7 @@ class BackupService {
                 'isAllDay': e.isAllDay,
                 'location': e.location,
                 'rrule': e.rrule,
+                'exdates': e.exdates,
                 'deletedAt': e.deletedAt?.toUtc().toIso8601String(),
                 'syncId': e.syncId,
                 'icsUid': e.icsUid,
@@ -255,6 +256,9 @@ class BackupService {
             isAllDay: Value(e['isAllDay'] as bool? ?? false),
             location: Value(e['location'] as String?),
             rrule: Value(e['rrule'] as String?),
+            // Excluding one occurrence is a user decision about the series;
+            // a backup that drops it resurrects the occurrence on restore.
+            exdates: Value(e['exdates'] as String?),
             deletedAt: Value(e['deletedAt'] == null ? null : DateTime.parse(e['deletedAt'] as String).toUtc()),
             syncId: Value(e['syncId'] as String?),
             icsUid: Value(e['icsUid'] as String?),

@@ -200,6 +200,98 @@ void main() {
       final todo = (await db.select(db.todos).get()).single;
       expect(todo.calendarId, personal, reason: 'moved, not deleted');
       expect(todo.deletedAt, isNull);
+
+      // A re-home is a change to a synced record. Writing the column directly
+      // left other devices pointing at a calendar they still had, with no way
+      // to learn about the move; the writer is what queues the new payload.
+      final todoEntry = (await db.select(db.syncOutbox).get()).where(
+        (e) => e.type == 'todo' && e.op == 'upsert',
+      );
+      expect(
+        todoEntry,
+        isNotEmpty,
+        reason: 'the moved todo has to be queued for the other devices',
+      );
+      expect(
+        todoEntry.last.payloadJson,
+        contains('"calendarId":$personal'),
+        reason: 'the payload carries the new calendar, not the old one',
+      );
+    });
+
+    testWidgets('moving contents queues every re-homed record', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final personal = (await db.select(db.calendars).get()).single.id;
+      final work = await db
+          .into(db.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Work'));
+      await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: work,
+              summary: 'Standup',
+              startDt: DateTime.utc(2026, 11, 1, 9),
+              endDt: DateTime.utc(2026, 11, 1, 9, 30),
+            ),
+          );
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(calendarId: work, summary: 'From work'),
+          );
+
+      await tester.pumpWidget(
+        createWidget(
+          calendars: [
+            Calendar(
+              id: personal,
+              name: 'Personal',
+              color: '#2563EB',
+              timezone: 'UTC',
+              isActive: true,
+              sortOrder: 0,
+            ),
+            Calendar(
+              id: work,
+              name: 'Work',
+              color: '#16A34A',
+              timezone: 'UTC',
+              isActive: true,
+              sortOrder: 1,
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(CupertinoIcons.trash).last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('Move them to'));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.tap(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.text('Personal'),
+        ),
+      );
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      final queued = await db.select(db.syncOutbox).get();
+      final types = queued.map((e) => e.type).toSet();
+      expect(types, containsAll(<String>['todo', 'event']));
+      for (final entry in queued) {
+        expect(entry.payloadJson, contains('"calendarId":$personal'));
+      }
     });
   });
 }

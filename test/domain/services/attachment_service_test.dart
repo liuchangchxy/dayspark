@@ -6,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/services/attachment_files.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
@@ -172,5 +173,67 @@ void main() {
     await service.delete(id);
 
     expect(await service.rowOf(id), isNull);
+  });
+
+  test('a rolled-back stage leaves no row and no file', () async {
+    // A form commits its whole draft in one transaction. The attachment row
+    // and its local file are written inside it, so a rollback has to take the
+    // file too — SQLite can hand the same id to a later insert, which would
+    // then adopt the orphan as its own.
+    final stage = await RecordScope.run(
+      db,
+      (tx) => service.insertRow(
+        tx,
+        parentType: 'todo',
+        parentId: todoId,
+        fileName: 'rolled-back.txt',
+        mimeType: 'text/plain',
+        data: const <int>[9, 9, 9],
+      ),
+    );
+    expect(File(stage.filePath!).existsSync(), isTrue);
+    expect(await service.rowOf(stage.id), isNotNull);
+
+    await expectLater(
+      RecordScope.run(db, (tx) async {
+        await service.insertRow(
+          tx,
+          parentType: 'todo',
+          parentId: todoId,
+          fileName: 'doomed.txt',
+          mimeType: 'text/plain',
+          data: const <int>[7],
+        );
+        throw StateError('the draft failed after the attachment');
+      }),
+      throwsA(isA<StateError>()),
+    );
+
+    // What the caller does about its own rollback, in miniature.
+    await service.discardStagedFiles(<String?>[stage.filePath]);
+
+    expect(File(stage.filePath!).existsSync(), isFalse);
+    expect(
+      (await db.select(db.attachments).get()).where(
+        (a) => a.fileName == 'doomed.txt',
+      ),
+      isEmpty,
+      reason: 'the transaction took the row with it',
+    );
+    expect(
+      File('${dir.path}/a${stage.id}_rolled-back.txt').existsSync(),
+      isFalse,
+      reason: 'the orphan file is gone, so a reused id cannot inherit it',
+    );
+  });
+
+  test('discarding a staged file never throws', () async {
+    // It runs while an error is on its way out; replacing that error with a
+    // cleanup failure would hide what actually went wrong.
+    await service.discardStagedFiles(<String?>[
+      null,
+      '/no/such/path/at/all',
+      '${dir.path}/never-written.txt',
+    ]);
   });
 }

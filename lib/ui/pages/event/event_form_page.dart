@@ -12,8 +12,11 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/attachments_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -212,46 +215,80 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
       }
       final calendarId = chosen ?? calendars.first.id;
 
-      // Editing or creating is decided only by whether the form opened on an
-      // event; nothing about the event's shape can turn one into the other.
-      final int eventId;
-      if (_isEditing) {
-        eventId = widget.event!.drifId;
-        final updated = widget.event!.copyWithData(
-          calendarId: calendarId,
-          seriesStart: start,
-          seriesEnd: end,
-          title: _titleController.text.trim(),
-          description: _descriptionText,
-          location: _locationText,
-          rrule: _rrule,
-          isAllDay: _isAllDay,
-        );
-        await ref.read(updateEventProvider)(
-          eventId,
-          updated.toUpdateCompanion(),
-        );
-      } else {
-        eventId = await ref.read(createEventProvider)(
-          calendarId: calendarId,
-          summary: _titleController.text.trim(),
-          startDt: start,
-          endDt: end,
-          isAllDay: _isAllDay,
-          description: _descriptionText,
-          location: _locationText,
-          rrule: _rrule,
-        );
+      // Bytes first, and outside the transaction: a source file that has gone
+      // missing has to fail the save before anything is written, not halfway
+      // through it.
+      final staged = <({DraftAttachment draft, Uint8List bytes})>[];
+      for (final item in _attachments.where((a) => a.id == null)) {
+        staged.add((
+          draft: item,
+          bytes: await ref.read(stageAttachmentProvider)(
+            bytes: item.bytes,
+            sourcePath: item.sourcePath,
+            fileName: item.fileName,
+          ),
+        ));
       }
 
-      final failures = await _commitDrafts(eventId);
-      if (!mounted) return;
-      if (failures.isNotEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
-        debugPrint('event_form: partial save failures: $failures');
+      final db = ref.read(databaseProvider);
+      final uploaded = <({int id, List<int>? bytes})>[];
+      final residue = <AttachmentResidue?>[];
+      final stagedFiles = <String?>[];
+
+      // One scope for the whole draft: Save commits the draft as a whole, so
+      // a failure anywhere leaves the database exactly as it was instead of
+      // a renamed event with half its tags.
+      await RecordScope.run(db, (tx) async {
+        // Editing or creating is decided only by whether the form opened on an
+        // event; nothing about the event's shape can turn one into the other.
+        final int eventId;
+        if (_isEditing) {
+          eventId = widget.event!.drifId;
+          final updated = widget.event!.copyWithData(
+            calendarId: calendarId,
+            seriesStart: start,
+            seriesEnd: end,
+            title: _titleController.text.trim(),
+            description: _descriptionText,
+            location: _locationText,
+            rrule: _rrule,
+            isAllDay: _isAllDay,
+          );
+          await ref.read(updateEventProvider)(
+            eventId,
+            updated.toUpdateCompanion(),
+          );
+        } else {
+          eventId = await ref.read(createEventProvider)(
+            calendarId: calendarId,
+            summary: _titleController.text.trim(),
+            startDt: start,
+            endDt: end,
+            isAllDay: _isAllDay,
+            description: _descriptionText,
+            location: _locationText,
+            rrule: _rrule,
+          );
+        }
+
+        try {
+          await _commitDrafts(tx, eventId, staged, uploaded, residue, stagedFiles);
+        } catch (error) {
+          // The row is gone with the rollback, but the file this transaction
+          // already wrote is not — and SQLite may hand the same id to a later
+          // insert, which would adopt the orphan as its own.
+          await ref.read(discardStagedFilesProvider)(stagedFiles);
+          rethrow;
+        }
+      });
+
+      // Past the commit: the network and the filesystem have no business
+      // holding a transaction open, and neither can roll one back.
+      await ref.read(uploadAttachmentsProvider)(uploaded);
+      for (final item in residue) {
+        await ref.read(discardAttachmentResidueProvider)(item);
       }
+      if (!mounted) return;
       context.pop();
     } catch (error) {
       if (mounted) {
@@ -265,82 +302,59 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
     }
   }
 
-  Future<List<String>> _commitDrafts(int eventId) async {
-    final failures = <String>[];
+  /// Writes everything the form staged, inside the caller's transaction.
+  ///
+  /// Nothing is swallowed here: Save commits the whole draft, so a failed tag
+  /// write has to take the title down with it.
+  Future<void> _commitDrafts(
+    RecordScope tx,
+    int eventId,
+    List<({DraftAttachment draft, Uint8List bytes})> staged,
+    List<({int id, List<int>? bytes})> uploaded,
+    List<AttachmentResidue?> residue,
+    List<String?> stagedFiles,
+  ) async {
     final initial = _initial;
 
     final initialTags = initial?.tagIds ?? const <int>{};
     for (final tagId in _tagIds.difference(initialTags)) {
-      try {
-        await ref.read(addTagToEventProvider)(eventId: eventId, tagId: tagId);
-      } catch (error) {
-        debugPrint('event_form: addTag error: $error');
-        failures.add('tag');
-      }
+      await ref.read(addTagToEventProvider)(eventId: eventId, tagId: tagId);
     }
     for (final tagId in initialTags.difference(_tagIds)) {
-      try {
-        await ref.read(removeTagFromEventProvider)(
-          eventId: eventId,
-          tagId: tagId,
-        );
-      } catch (error) {
-        debugPrint('event_form: removeTag error: $error');
-        failures.add('tag');
-      }
+      await ref.read(removeTagFromEventProvider)(eventId: eventId, tagId: tagId);
     }
 
     final initialReminders = initial?.reminders ?? const <DraftReminder>[];
     for (final item in initialReminders.where((item) => item.id != null)) {
       if (_reminders.any((other) => other.id == item.id)) continue;
-      try {
-        await ref.read(deleteReminderProvider)(item.id!);
-      } catch (error) {
-        debugPrint('event_form: removeReminder error: $error');
-        failures.add('reminder');
-      }
+      await ref.read(deleteReminderProvider)(item.id!);
     }
     for (final item in _reminders.where((item) => item.id == null)) {
-      try {
-        await ref.read(createReminderProvider)(
-          parentType: 'event',
-          parentId: eventId,
-          triggerTime: item.triggerTime,
-        );
-      } catch (error) {
-        debugPrint('event_form: reminder error: $error');
-        failures.add('reminder');
-      }
+      await ref.read(createReminderProvider)(
+        parentType: 'event',
+        parentId: eventId,
+        triggerTime: item.triggerTime,
+      );
     }
 
     final initialAttachments =
         initial?.attachments ?? const <DraftAttachment>[];
     for (final item in initialAttachments.where((item) => item.id != null)) {
       if (_attachments.any((other) => other.id == item.id)) continue;
-      try {
-        await ref.read(deleteAttachmentProvider)(item.id!);
-      } catch (error) {
-        debugPrint('event_form: removeAttachment error: $error');
-        failures.add('attachment');
-      }
+      residue.add(await ref.read(deleteAttachmentRowProvider)(tx, item.id!));
     }
-    for (final item in _attachments.where((item) => item.id == null)) {
-      try {
-        await ref.read(createAttachmentProvider)(
-          parentType: 'event',
-          parentId: eventId,
-          fileName: item.fileName,
-          mimeType: item.mimeType,
-          bytes: item.bytes,
-          sourcePath: item.sourcePath,
-        );
-      } catch (error) {
-        debugPrint('event_form: attachment error: $error');
-        failures.add('attachment');
-      }
+    for (final item in staged) {
+      final stage = await ref.read(insertAttachmentRowProvider)(
+        tx,
+        parentType: 'event',
+        parentId: eventId,
+        fileName: item.draft.fileName,
+        mimeType: item.draft.mimeType,
+        data: item.bytes,
+      );
+      stagedFiles.add(stage.filePath);
+      uploaded.add((id: stage.id, bytes: item.bytes));
     }
-
-    return failures;
   }
 
   Future<void> _confirmDiscard() async {

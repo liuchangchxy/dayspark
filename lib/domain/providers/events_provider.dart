@@ -197,6 +197,11 @@ final updateCalendarProvider =
 /// The column is a hard reference, so leaving rows behind would either fail the
 /// delete or strand records in a calendar nobody can see. [moveContentsTo]
 /// re-homes them; [deleteContents] moves them to the trash with the calendar.
+///
+/// Every row touched here is written through its writer, in one scope. A
+/// re-home is a change to a synced record like any other: writing the column
+/// directly would leave other devices holding the old calendar with no way to
+/// learn about the move.
 final deleteCalendarProvider =
     Provider<
       Future<void> Function(int id, {int? moveContentsTo, bool deleteContents})
@@ -218,29 +223,40 @@ final deleteCalendarProvider =
           db.todos,
         )..where((row) => row.calendarId.equals(id))).get();
 
-        if (moveContentsTo != null) {
-          await (db.update(db.events)
-                ..where((row) => row.calendarId.equals(id)))
-              .write(EventsCompanion(calendarId: Value(moveContentsTo)));
-          await (db.update(db.todos)..where((row) => row.calendarId.equals(id)))
-              .write(TodosCompanion(calendarId: Value(moveContentsTo)));
-        } else if (deleteContents) {
-          for (final row in events) {
-            await RecordScope.run(
-              db,
-              (tx) => EventWriter.softDelete(db, tx, row.id),
-            );
-          }
-          for (final row in todos) {
-            await RecordScope.run(
-              db,
-              (tx) => TodoWriter.softDelete(db, tx, row.id),
-            );
-          }
-        } else if (events.isNotEmpty || todos.isNotEmpty) {
+        if (moveContentsTo == null &&
+            !deleteContents &&
+            (events.isNotEmpty || todos.isNotEmpty)) {
           throw StateError('Calendar still holds records.');
         }
 
-        await db.calendarsDao.deleteCalendar(id);
+        await RecordScope.run(db, (tx) async {
+          if (moveContentsTo != null) {
+            for (final row in events) {
+              await EventWriter.update(
+                db,
+                tx,
+                row.id,
+                EventsCompanion(calendarId: Value(moveContentsTo)),
+              );
+            }
+            for (final row in todos) {
+              await TodoWriter.updateTodo(
+                db,
+                tx,
+                row.id,
+                TodosCompanion(calendarId: Value(moveContentsTo)),
+              );
+            }
+          } else if (deleteContents) {
+            for (final row in events) {
+              await EventWriter.softDelete(db, tx, row.id);
+            }
+            for (final row in todos) {
+              await TodoWriter.softDelete(db, tx, row.id);
+            }
+          }
+
+          await db.calendarsDao.deleteCalendar(id);
+        });
       };
     });
