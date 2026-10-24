@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DaySpark UI Exploration</title>
+<link rel="stylesheet" href="assets/tabler/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#f3f4f6; --sheet:#ffffff; --ink:#16181d; --ink2:#565d69; --ink3:#858c98;
+  --line:#dcdfe5; --line2:#eceef2; --blue:#007aff; --cobalt:#2b5ce6; --persimmon:#c24a2c;
+  --mono:"SF Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1360px;margin:0 auto;padding:0 32px}
+header{padding:56px 0 34px;border-bottom:1px solid var(--line)}
+.kicker{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;letter-spacing:1.6px;color:var(--ink3);text-transform:uppercase}
+.kicker .dot{width:5px;height:5px;background:var(--persimmon)}
+h1{font-size:46px;line-height:1.05;letter-spacing:-1.6px;font-weight:700;margin-top:18px;max-width:900px}
+.lede{max-width:720px;margin-top:14px;color:var(--ink2);font-size:15px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.chip{border:1px solid var(--line);background:var(--sheet);padding:4px 9px;font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+.chip b{color:var(--ink);font-weight:600}
+.rec{display:grid;grid-template-columns:150px 1fr;gap:24px;align-items:start;padding:24px 0;border-bottom:1px solid var(--line)}
+.rec .lab{font-family:var(--mono);font-size:10px;letter-spacing:1.4px;color:var(--ink3);text-transform:uppercase;padding-top:3px}
+.rec .body{display:flex;gap:24px;align-items:baseline;flex-wrap:wrap}
+.rec h2{font-size:22px;letter-spacing:-0.3px}
+.rec h2 span{font-family:var(--mono);font-size:10px;letter-spacing:1.2px;color:var(--cobalt);vertical-align:3px;margin-right:8px}
+.rec p{color:var(--ink2);max-width:800px;font-size:13.5px}
+.direction{padding:44px 0 8px;border-bottom:1px solid var(--line)}
+.dhead{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px}
+.dnum{font-family:var(--mono);font-size:11px;color:var(--ink3);padding-top:8px;width:24px;flex:none}
+.dname{font-size:27px;letter-spacing:-0.6px;line-height:1.1}
+.dname span{font-weight:400;color:var(--ink3);font-size:17px;letter-spacing:0;margin-left:8px}
+.dtag{margin-top:6px;color:var(--ink2);font-size:13px}
+.dverdict{margin-left:auto;text-align:right;font-family:var(--mono);font-size:10px;color:var(--ink3);line-height:1.7;white-space:nowrap;padding-top:2px}
+.dverdict b{display:block;color:var(--ink);font-weight:600;font-size:11px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 210px;gap:18px;align-items:start;margin-bottom:32px}
+.grid .shot.mobile{grid-column:4;grid-row:1 / span 2;width:210px;margin:0 auto}
+.grid .shot.mobile img{width:176px;height:auto;margin:0 auto}
+.grid .dnote{grid-column:1 / span 3;grid-row:2;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding-top:2px}
+.shot{display:block;background:var(--sheet);border:1px solid var(--line);border-radius:4px;overflow:hidden;transition:border-color .15s ease,transform .15s ease}
+.shot:hover{border-color:#aeb4bf;transform:translateY(-2px)}
+.shot .img{background:#eef0f3;border-bottom:1px solid var(--line2);overflow:hidden}
+.shot img{display:block;width:100%;height:auto}
+.shot.mobile .img{display:flex;justify-content:center;align-items:flex-start;padding:12px 0;background:#e9ebef}
+.shot.mobile img{width:auto;height:330px}
+.shot .cap{display:flex;align-items:center;gap:8px;padding:9px 10px}
+.shot .cap .nm{font-size:11.5px;font-weight:600}
+.shot .cap .ar{margin-left:auto;color:var(--ink3);font-size:13px}
+.shot .cap .tag{font-family:var(--mono);font-size:8.5px;color:var(--ink3);letter-spacing:.4px}
+.dnote{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.dnote h3{font-family:var(--mono);font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink3);margin-bottom:5px}
+.dnote p{font-size:12.5px;color:var(--ink2)}
+.dnote .best p{color:var(--ink)}
+.evidence{padding:34px 0 50px;display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.evidence h2{font-size:18px;margin-bottom:6px}
+.evidence p{font-size:12.5px;color:var(--ink2);max-width:600px}
+.evlinks{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.evlinks a{border:1px solid var(--line);background:var(--sheet);padding:5px 9px;font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+.evlinks a:hover{border-color:var(--ink3);color:var(--ink)}
+footer{border-top:1px solid var(--line);padding:18px 0 34px;display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--ink3)}
+footer .r{margin-left:auto}
+@media (max-width:1080px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid .shot.mobile{grid-column:auto;grid-row:auto;justify-self:start}
+  .grid .dnote{grid-column:1 / span 2;grid-row:auto;grid-template-columns:1fr 1fr}
+  .rec{grid-template-columns:1fr;gap:10px}
+}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  header{padding:34px 0 24px}
+  h1{font-size:31px;letter-spacing:-1px}
+  .lede{font-size:13.5px}
+  .direction{padding-top:32px}
+  .dhead{flex-wrap:wrap}
+  .dverdict{margin-left:0;text-align:left;width:100%;padding-top:0}
+  .grid{grid-template-columns:1fr;gap:14px}
+  .shot.mobile img{height:360px}
+  .grid .shot.mobile{grid-column:1;justify-self:center}
+  .grid .dnote{grid-column:1;grid-template-columns:1fr;gap:18px}
+  .evidence{grid-template-columns:1fr;gap:18px}
+  footer .r{margin-left:0;width:100%}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker"><span class="dot"></span>DaySpark · 灵光 · UI Exploration</div>
+    <h1>Same day, three different ways to run it.</h1>
+    <p class="lede">三套桌面与移动端高保真原型，共用同一份代表性数据：重叠事件、任务安排、截止事项、重复任务、逾期与完成状态都在场。方向差异来自信息结构与视觉语言，不是换色。</p>
+    <div class="meta">
+      <span class="chip"><b>12</b> screens</span>
+      <span class="chip">Desktop <b>1440×900</b></span>
+      <span class="chip">Mobile <b>390×844</b></span>
+      <span class="chip">Data <b>2026-10-22</b></span>
+      <span class="chip">Review <b>2 rounds</b></span>
+    </div>
+  </header>
+
+  <section class="rec">
+    <div class="lab">Recommendation</div>
+    <div class="body">
+      <h2><span>B</span>Precision Workspace</h2>
+      <p>它是唯一一套让 DaySpark 的领域模型直接变成视觉语法的方向：事件、安排、截止各有图标、时长、位置和行式，负载与缓冲冲突也能在首屏读到。移动端密度已收口，但仍是三套里最需要克制的方向。</p>
+    </div>
+  </section>
+
+  <section class="direction">
+    <div class="dhead">
+      <div class="dnum">A</div>
+      <div>
+        <div class="dname">Refined Native<span>精致原生</span></div>
+        <div class="dtag">iOS 日历的清晰骨架，克制的分组列表与轻量周视图。最低学习成本，最接近现有 DESIGN.md 的 Apple 语义。</div>
+      </div>
+      <div class="dverdict"><b>27 / 40</b>heuristic score<br>category-interchangeable</div>
+    </div>
+    <div class="grid">
+      <a class="shot" href="a-refined-native/action.html"><div class="img"><img src="shots/a-desktop-action.png" alt="A Refined Native desktop action"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Action</span><span class="ar">↗</span></div></a>
+      <a class="shot" href="a-refined-native/calendar.html"><div class="img"><img src="shots/a-desktop-calendar.png" alt="A Refined Native desktop calendar"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Calendar</span><span class="ar">↗</span></div></a>
+      <a class="shot" href="a-refined-native/todo.html"><div class="img"><img src="shots/a-desktop-todo.png" alt="A Refined Native desktop todo"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Todo</span><span class="ar">↗</span></div></a>
+      <a class="shot mobile" href="a-refined-native/mobile.html"><div class="img"><img src="shots/a-mobile-action.png" alt="A Refined Native mobile action"></div><div class="cap"><span class="tag">MOBILE</span><span class="nm">Action</span><span class="ar">↗</span></div></a>
+      <div class="dnote">
+      <div class="best"><h3>Best at</h3><p>跨平台一致性与移动端功能完整度；截止事项始终单独成组、不占时间轴。</p></div>
+      <div><h3>Watch</h3><p>蓝色同时承担主操作、选中日与工作标签，语义有轻微竞争；右侧栏与主列存在信息重复。</p></div>
+      <div><h3>Review fix</h3><p>补日历三行图例；移动端周切换加左右箭头；修复周视图底部 22px 裁切。</p></div>
+      </div>
+  </section>
+
+  <section class="direction">
+    <div class="dhead">
+      <div class="dnum">B</div>
+      <div>
+        <div class="dname">Precision Workspace<span>高密度工作空间</span></div>
+        <div class="dtag">深色侧栏、等宽数字、行式与固定检查器。把“事件 / 安排 / 截止”的差异写进每一行，而不只靠颜色。</div>
+      </div>
+      <div class="dverdict"><b>32 / 40</b>heuristic score<br>product-specific IA</div>
+    </div>
+    <div class="grid">
+      <a class="shot" href="b-precision/action.html"><div class="img"><img src="shots/b-desktop-action.png" alt="B Precision Workspace desktop action"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Action</span><span class="ar">↗</span></div></a>
+      <a class="shot" href="b-precision/calendar.html"><div class="img"><img src="shots/b-desktop-calendar.png" alt="B Precision Workspace desktop calendar"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Calendar</span><span class="ar">↗</span></div></a>
+      <a class="shot" href="b-precision/todo.html"><div class="img"><img src="shots/b-desktop-todo.png" alt="B Precision Workspace desktop todo"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Todo</span><span class="ar">↗</span></div></a>
+      <a class="shot mobile" href="b-precision/mobile.html"><div class="img"><img src="shots/b-mobile-action.png" alt="B Precision Workspace mobile action"></div><div class="cap"><span class="tag">MOBILE</span><span class="nm">Action</span><span class="ar">↗</span></div></a>
+      <div class="dnote">
+      <div class="best"><h3>Best at</h3><p>把领域语义、负载、缓冲冲突和六件事上限变成可扫读的工作台，而不是装饰性的卡片。</p></div>
+      <div><h3>Watch</h3><p>固定检查器会长期占用时间轴宽度；9–10px 的辅助信息需要继续守住可读性。</p></div>
+      <div><h3>Review fix</h3><p>移动端四格指标压成一行、密度条并入头部；正文与触控目标放大；密度条补图例；检查器收窄并补元数据。</p></div>
+      </div>
+  </section>
+
+  <section class="direction">
+    <div class="dhead">
+      <div class="dnum">C</div>
+      <div>
+        <div class="dname">DaySpark Signature<span>品牌签名</span></div>
+        <div class="dtag">暖纸、宋体大数字、柿色与橄榄色、24 小时光带。最像独立产品的一套，信息来源是编年账本而不是仪表盘。</div>
+      </div>
+      <div class="dverdict"><b>27 / 40</b>heuristic score<br>strongest identity</div>
+    </div>
+    <div class="grid">
+      <a class="shot" href="c-signature/action.html"><div class="img"><img src="shots/c-desktop-action.png" alt="C DaySpark Signature desktop action"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Action</span><span class="ar">↗</span></div></a>
+      <a class="shot" href="c-signature/calendar.html"><div class="img"><img src="shots/c-desktop-calendar.png" alt="C DaySpark Signature desktop calendar"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Calendar</span><span class="ar">↗</span></div></a>
+      <a class="shot" href="c-signature/todo.html"><div class="img"><img src="shots/c-desktop-todo.png" alt="C DaySpark Signature desktop todo"></div><div class="cap"><span class="tag">DESKTOP</span><span class="nm">Todo</span><span class="ar">↗</span></div></a>
+      <a class="shot mobile" href="c-signature/mobile.html"><div class="img"><img src="shots/c-mobile-action.png" alt="C DaySpark Signature mobile action"></div><div class="cap"><span class="tag">MOBILE</span><span class="nm">Action</span><span class="ar">↗</span></div></a>
+      <div class="dnote">
+      <div class="best"><h3>Best at</h3><p>品牌记忆点与日历图例——“占时间 / 可移动 / 不占时间”直接写出领域模型。</p></div>
+      <div><h3>Watch</h3><p>编辑性装饰会挤占首屏；浅灰小字对比度需要守住；柿色同时承担品牌、现在线、截止与逾期。</p></div>
+      <div><h3>Review fix</h3><p>提高辅助文字对比度并放大移动端字号；移动端补日切换、六件事入口与明确完成控件；截止标题降为墨色，只保留柿色标记。</p></div>
+      </div>
+  </section>
+
+  <section class="evidence">
+    <div>
+      <h2>Evidence</h2>
+      <p>两轮隔离评审：一轮十项启发式与视觉判断，一轮 Impeccable detector + 实际浏览器测量。所有页面最终复测无横向溢出、无控制台错误、图标字体已加载；仅移动端固定快照存在 5–10px 的内容尾部裁切，属于静态截图限制。</p>
+      <div class="evlinks">
+        <a href="README.md">README · 对比报告</a>
+        <a href="TOOLS-EVIDENCE.md">TOOLS-EVIDENCE · 调用记录</a>
+        <a href="shots/contact-sheet.png">Contact sheet</a>
+      </div>
+    </div>
+    <div>
+      <h2>Scope</h2>
+      <p>本轮只做视觉设计。未修改 DaySpark 仓库源码，未实施 Flutter，未开 PR。原型为静态 HTML/CSS/JS，仅用于校对布局、层级与语义，不作为交互实现。</p>
+      <div class="evlinks">
+        <a href="assets/data.js">Shared dataset</a>
+        <a href="shots/a-desktop-action.png">A full size</a>
+        <a href="shots/b-desktop-action.png">B full size</a>
+        <a href="shots/c-desktop-action.png">C full size</a>
+      </div>
+  </section>
+
+  <footer>
+    <span>DaySpark UI Exploration · 2026-10-22</span>
+    <span>Awaiting review by Chat-8</span>
+    <span class="r">No Flutter source changed</span>
+  </footer>
+</div>
+</body>
+</html>
