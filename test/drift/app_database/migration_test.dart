@@ -10,7 +10,8 @@ import 'generated/schema_v8.dart' as v8;
 import 'generated/schema_v9.dart' as v9;
 import 'generated/schema_v10.dart' as v10;
 import 'generated/schema_v11.dart' as v11;
-import 'generated/schema_v15.dart' as v15;
+import 'generated/schema_v16.dart' as v15;
+import 'generated/schema_v16.dart' as v16;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -62,8 +63,8 @@ void main() {
         sortOrder: 2,
       ),
     ];
-    final expectedNewCalendarsData = <v15.CalendarsData>[
-      const v15.CalendarsData(
+    final expectedNewCalendarsData = <v16.CalendarsData>[
+      const v16.CalendarsData(
         id: 1,
         name: 'Work',
         color: '#FF0000',
@@ -88,8 +89,8 @@ void main() {
         updatedAt: secs(rowTime),
       ),
     ];
-    final expectedNewEventsData = <v15.EventsData>[
-      v15.EventsData(
+    final expectedNewEventsData = <v16.EventsData>[
+      v16.EventsData(
         id: 1,
         calendarId: 1,
         summary: 'Meeting',
@@ -119,8 +120,8 @@ void main() {
         sortOrder: 0,
       ),
     ];
-    final expectedNewTodosData = <v15.TodosData>[
-      v15.TodosData(
+    final expectedNewTodosData = <v16.TodosData>[
+      v16.TodosData(
         id: 1,
         calendarId: 1,
         summary: 'Buy milk',
@@ -139,25 +140,25 @@ void main() {
     ];
 
     final oldTagsData = <v8.TagsData>[];
-    final expectedNewTagsData = <v15.TagsData>[];
+    final expectedNewTagsData = <v16.TagsData>[];
 
     final oldEventTagsData = <v8.EventTagsData>[];
-    final expectedNewEventTagsData = <v15.EventTagsData>[];
+    final expectedNewEventTagsData = <v16.EventTagsData>[];
 
     final oldTodoTagsData = <v8.TodoTagsData>[];
-    final expectedNewTodoTagsData = <v15.TodoTagsData>[];
+    final expectedNewTodoTagsData = <v16.TodoTagsData>[];
 
     final oldAttachmentsData = <v8.AttachmentsData>[];
-    final expectedNewAttachmentsData = <v15.AttachmentsData>[];
+    final expectedNewAttachmentsData = <v16.AttachmentsData>[];
 
     final oldRemindersData = <v8.RemindersData>[];
-    final expectedNewRemindersData = <v15.RemindersData>[];
+    final expectedNewRemindersData = <v16.RemindersData>[];
 
     await verifier.testWithDataIntegrity(
       oldVersion: 8,
-      newVersion: 15,
+      newVersion: 16,
       createOld: v8.DatabaseAtV8.new,
-      createNew: v15.DatabaseAtV15.new,
+      createNew: v16.DatabaseAtV16.new,
       openTestedDatabase: AppDatabase.new,
       createItems: (batch, oldDb) {
         batch.insertAll(oldDb.calendars, oldCalendarsData);
@@ -169,7 +170,7 @@ void main() {
         batch.insertAll(oldDb.attachments, oldAttachmentsData);
         batch.insertAll(oldDb.reminders, oldRemindersData);
       },
-      validateItems: (v15.DatabaseAtV15 newDb) async {
+      validateItems: (v16.DatabaseAtV16 newDb) async {
         expect(
           expectedNewCalendarsData,
           await newDb.select(newDb.calendars).get(),
@@ -206,15 +207,15 @@ void main() {
   });
 
   test(
-    'real v9 to v15 migration preserves records, indexes and FK behavior',
+    'real v9 to v16 migration preserves records, indexes and FK behavior',
     () async {
       final now = DateTime.utc(2026, 10, 4, 12).millisecondsSinceEpoch ~/ 1000;
       final trigger = now + 3600;
       await verifier.testWithDataIntegrity(
         oldVersion: 9,
-        newVersion: 15,
+        newVersion: 16,
         createOld: v9.DatabaseAtV9.new,
-        createNew: v15.DatabaseAtV15.new,
+        createNew: v16.DatabaseAtV16.new,
         openTestedDatabase: AppDatabase.new,
         createItems: (batch, oldDb) {
           batch.insert(
@@ -304,15 +305,15 @@ void main() {
             ),
           );
         },
-        validateItems: (v15.DatabaseAtV15 newDb) async {
-          expect(newDb.schemaVersion, 15);
+        validateItems: (v16.DatabaseAtV16 newDb) async {
+          expect(newDb.schemaVersion, 16);
           final calendars = await newDb.select(newDb.calendars).get();
           final events = await newDb.select(newDb.events).get();
           final todos = await newDb.select(newDb.todos).get();
           final reminders = await newDb.select(newDb.reminders).get();
           expect(
             calendars.single,
-            const v15.CalendarsData(
+            const v16.CalendarsData(
               id: 1,
               name: 'Work',
               color: '#123456',
@@ -323,7 +324,7 @@ void main() {
           );
           expect(
             events.single,
-            v15.EventsData(
+            v16.EventsData(
               id: 1,
               calendarId: 1,
               summary: 'v9 event',
@@ -342,7 +343,7 @@ void main() {
           );
           expect(
             todos.single,
-            v15.TodosData(
+            v16.TodosData(
               id: 1,
               calendarId: 1,
               summary: 'v9 todo',
@@ -372,7 +373,7 @@ void main() {
           );
           expect(
             reminders.single,
-            v15.RemindersData(
+            v16.RemindersData(
               id: 1,
               parentType: 'todo',
               parentId: 1,
@@ -383,12 +384,17 @@ void main() {
           );
           expect(
             (await newDb.select(newDb.tags).get()).single,
-            const v15.TagsData(id: 1, name: 'preserved', color: '#654321', serverRev: 0),
+            const v16.TagsData(
+              id: 1,
+              name: 'preserved',
+              color: '#654321',
+              serverRev: 0,
+            ),
           );
           expect(await newDb.select(newDb.eventTags).get(), hasLength(1));
           expect(await newDb.select(newDb.todoTags).get(), hasLength(1));
           expect(await newDb.select(newDb.attachments).get(), [
-            v15.AttachmentsData(
+            v16.AttachmentsData(
               id: 1,
               parentType: 'todo',
               parentId: 1,
@@ -426,7 +432,7 @@ void main() {
           final allocationId = await newDb
               .into(newDb.taskAllocations)
               .insert(
-                v15.TaskAllocationsCompanion.insert(
+                v16.TaskAllocationsCompanion.insert(
                   todoId: Value(todoId),
                   startAt: DateTime.utc(2026, 10, 5, 9).millisecondsSinceEpoch,
                   endAt: DateTime.utc(2026, 10, 5, 10).millisecondsSinceEpoch,
@@ -447,14 +453,14 @@ void main() {
   );
 
   test(
-    'v10 to v15 preserves allocations and permits unresolved parents',
+    'v10 to v16 preserves allocations and permits unresolved parents',
     () async {
       final now = DateTime.utc(2026, 10, 4, 12).millisecondsSinceEpoch ~/ 1000;
       await verifier.testWithDataIntegrity(
         oldVersion: 10,
-        newVersion: 15,
+        newVersion: 16,
         createOld: v10.DatabaseAtV10.new,
-        createNew: v15.DatabaseAtV15.new,
+        createNew: v16.DatabaseAtV16.new,
         openTestedDatabase: AppDatabase.new,
         createItems: (batch, oldDb) {
           batch.insert(
@@ -477,8 +483,8 @@ void main() {
             ),
           );
         },
-        validateItems: (v15.DatabaseAtV15 newDb) async {
-          expect(newDb.schemaVersion, 15);
+        validateItems: (v16.DatabaseAtV16 newDb) async {
+          expect(newDb.schemaVersion, 16);
           final migrated = await newDb.select(newDb.taskAllocations).get();
           expect(migrated, hasLength(1));
           expect(migrated.single.todoId, 1);
@@ -488,7 +494,7 @@ void main() {
           final unresolvedId = await newDb
               .into(newDb.taskAllocations)
               .insert(
-                v15.TaskAllocationsCompanion.insert(
+                v16.TaskAllocationsCompanion.insert(
                   todoId: const Value(null),
                   todoSyncId: const Value('todo-from-another-device'),
                   startAt: DateTime.utc(2026, 10, 5, 9).millisecondsSinceEpoch,

@@ -3,6 +3,44 @@ import 'package:rrule/rrule.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 
+/// The instants an EXDATE column excludes, one ISO-8601 value per line.
+///
+/// Stored as text on the event row so the exception travels with the record
+/// through sync, backup and iCal without a second entity to reconcile. Bad
+/// lines are dropped rather than failing the whole series.
+/// Always a fresh, mutable set: callers that add an exclusion (EXDATE) must not
+/// hit the empty constant, which is unmodifiable.
+Set<DateTime> parseExdates(String? raw) {
+  if (raw == null || raw.trim().isEmpty) return <DateTime>{};
+  final result = <DateTime>{};
+  for (final line in raw.split('\n')) {
+    final value = DateTime.tryParse(line.trim());
+    if (value != null) result.add(value);
+  }
+  return result;
+}
+
+String encodeExdates(Iterable<DateTime> values) =>
+    values.map((value) => value.toIso8601String()).join('\n');
+
+/// True when [instant] is one of the series' excluded occurrences.
+///
+/// Compared to the second, because the stored anchors and the expanded
+/// instances are produced by different code paths and can differ by
+/// sub-second noise.
+bool isExcludedOccurrence(Set<DateTime> exdates, DateTime instant) {
+  for (final excluded in exdates) {
+    if (excluded.year == instant.year &&
+        excluded.month == instant.month &&
+        excluded.day == instant.day &&
+        excluded.hour == instant.hour &&
+        excluded.minute == instant.minute) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /// Expands a list of Drift [Event] records into [CalendaEventAdapter] instances.
 ///
 /// Events without an RRULE produce a single adapter. Events with an RRULE
@@ -23,6 +61,8 @@ List<CalendaEventAdapter> expandRecurringEvents(
       result.add(CalendaEventAdapter.fromDrift(event, calendarColor: color));
       continue;
     }
+
+    final exdates = parseExdates(event.exdates);
 
     // Parse the RRULE and generate instances within the visible window only.
     try {
@@ -51,6 +91,7 @@ List<CalendaEventAdapter> expandRecurringEvents(
         if (instance.isBefore(windowStartUtc)) continue;
 
         final occurrenceStart = instance.copyWith(isUtc: false);
+        if (isExcludedOccurrence(exdates, occurrenceStart)) continue;
         result.add(
           CalendaEventAdapter(
             drifId: event.id,
