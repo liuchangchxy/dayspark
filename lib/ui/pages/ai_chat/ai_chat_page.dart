@@ -896,10 +896,10 @@ class _QuickActionChip extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      // Bubble chips are the only affordance on a reply, so they still reach
-      // the 44dp minimum height.
+      // Bubble chips are the only affordance on a reply, so they reach the
+      // 48dp minimum touch target.
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 44),
+        constraints: const BoxConstraints(minHeight: 48),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm,
