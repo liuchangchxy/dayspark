@@ -32,7 +32,8 @@ class WorkspaceSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final tab = ref.watch(workspaceTabProvider);
+    final isHome = currentPath(context) == '/';
+    final tab = isHome ? ref.watch(workspaceTabProvider) : null;
     final view = ref.watch(todosViewProvider);
     final showAi =
         ref
@@ -101,7 +102,13 @@ class WorkspaceSidebar extends ConsumerWidget {
                   selected: tab == AppTab.todos && view is TodosAllView,
                   onTap: () => _goTodosView(context, ref, const TodosAllView()),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
+                const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.sidebarSelected,
+                ),
+                const SizedBox(height: AppSpacing.md),
                 _NavigationItem(
                   label: l.manageTags,
                   icon: CupertinoIcons.tag,
