@@ -198,7 +198,7 @@ class EventDetailPage extends ConsumerWidget {
     var occurrenceOnly = false;
     if (row.rrule != null && row.isRecurringOccurrence) {
       final scope = await showDialog<bool>(
-        context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.deleteScopeTitle),
           content: Text(l.deleteEventConfirm(row.title)),
@@ -237,7 +237,7 @@ class EventDetailPage extends ConsumerWidget {
       }
     } else if (row.rrule != null) {
       final confirmed = await showDialog<bool>(
-        context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.moveToTrash),
           content: Text(l.deleteRecurringEventConfirm(row.title)),
@@ -259,7 +259,7 @@ class EventDetailPage extends ConsumerWidget {
       if (confirmed != true || !context.mounted) return;
     } else {
       final confirmed = await showDialog<bool>(
-        context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.moveToTrash),
           content: Text(l.deleteEventConfirm(row.title)),

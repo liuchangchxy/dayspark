@@ -86,7 +86,7 @@ class AppearanceSection extends ConsumerWidget {
     required ValueChanged<T> onSelected,
   }) async {
     final picked = await showDialog<T>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => SimpleDialog(
         title: Text(title),
         children: [
@@ -132,7 +132,7 @@ class AppearanceSection extends ConsumerWidget {
     final current = ref.watch(themeColorProvider);
     final brightness = Theme.of(context).brightness;
     showDialog(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.themeColor),
         content: Wrap(

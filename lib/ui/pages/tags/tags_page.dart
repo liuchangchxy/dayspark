@@ -107,7 +107,7 @@ class TagsPage extends ConsumerWidget {
   ) async {
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.deleteTag),
         // A delete that says which tag, and what happens to the records, is
@@ -143,7 +143,7 @@ class TagsPage extends ConsumerWidget {
     var saving = false;
 
     await showDialog<void>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
           title: Text(tag == null ? l.createTag : l.editTag),

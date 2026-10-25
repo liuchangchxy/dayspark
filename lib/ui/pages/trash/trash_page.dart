@@ -224,7 +224,7 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
   ) async {
     final result = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.permanentDelete),
         content: Text(l.confirmPermanentDelete),
@@ -252,7 +252,7 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
   ) {
     showDialog(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.emptyTrash),
         content: Text(l.confirmEmptyTrash),

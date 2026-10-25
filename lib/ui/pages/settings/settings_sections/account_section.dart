@@ -269,7 +269,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   /// lives, so it is confirmed rather than fired on the first tap.
   Future<void> _confirmLogout(AppLocalizations l) async {
     final confirmed = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.signOutConfirm),
         content: Text(l.signOutBody),
@@ -320,7 +320,7 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   void _showDevicesDialog(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     showDialog<void>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.connectedDevices),
         content: SizedBox(

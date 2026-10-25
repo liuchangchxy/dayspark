@@ -651,7 +651,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   Future<void> _confirmDiscard() async {
     final l = AppLocalizations.of(context)!;
     final discard = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.discardChanges),
         content: Text(l.discardChangesBody),
@@ -1095,7 +1095,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   void _showAddSubtaskDialog(AppLocalizations l) {
     final controller = TextEditingController();
     showDialog<void>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.addSubtask),
         content: TextField(
@@ -1142,7 +1142,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   Future<void> _delete() async {
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.moveToTrash),
         content: Text(l.confirmDelete),

@@ -93,7 +93,7 @@ Future<bool> confirmLegacyRecurrence(
   var previewed = false;
 
   final accepted = await showDialog<bool>(
-    context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setDialogState) {
         void invalidate() => setDialogState(() {

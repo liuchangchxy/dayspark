@@ -211,7 +211,7 @@ class TodoDetailPage extends ConsumerWidget {
     Todo current,
   ) async {
     final confirmed = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.moveToTrash),
         content: Text(l.confirmDelete),
