@@ -774,6 +774,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             trailing: _deadline == null
                 ? null
                 : PopupMenuButton<bool>(
+                    popUpAnimationStyle: AnimationStyle.noAnimation,
                     tooltip: l.deadlineTime,
                     icon: const Icon(CupertinoIcons.clock, size: 16),
                     padding: EdgeInsets.zero,
