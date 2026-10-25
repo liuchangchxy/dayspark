@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/ui/shell/workspace_sidebar.dart';
 
 /// Width at which the workspace rail appears. One constant so the shell and
@@ -27,20 +26,7 @@ class WorkspaceScaffold extends ConsumerWidget {
       body: Row(
         children: [
           const WorkspaceSidebar(),
-          Expanded(
-            child: Column(
-              children: [
-                const SizedBox(
-                  height: 2,
-                  child: ColoredBox(
-                    color: AppColors.brandWarm,
-                    child: SizedBox.expand(),
-                  ),
-                ),
-                Expanded(child: child),
-              ],
-            ),
-          ),
+          Expanded(child: child),
         ],
       ),
     );
