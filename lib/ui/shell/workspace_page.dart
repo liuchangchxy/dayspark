@@ -104,7 +104,6 @@ class WorkspacePage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           header,
-          Container(height: 1, color: context.semantic.separator),
           Expanded(
             child: maxContentWidth == null
                 ? child

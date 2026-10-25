@@ -778,7 +778,7 @@ class _HomePageState extends ConsumerState<HomePage>
             onViewSelected: (next) =>
                 ref.read(todosViewProvider.notifier).state = next,
             onSixThingsToggle: _toggleSixThings,
-            trailing: [_manageTagsButton(context, l), _trashButton(context, l)],
+            trailing: const [],
           )
         else
           DateStrip(

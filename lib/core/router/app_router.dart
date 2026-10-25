@@ -23,13 +23,8 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
-CustomTransitionPage<void> _fadeTransition(Widget child) {
-  return CustomTransitionPage(
-    child: child,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return FadeTransition(opacity: animation, child: child);
-    },
-  );
+Page<void> _pageTransition(Widget child) {
+  return NoTransitionPage(child: child);
 }
 
 class _NavObserver extends NavigatorObserver {
@@ -172,7 +167,7 @@ abstract final class AppRouter {
             pageBuilder: (context, state) {
               final start = state.uri.queryParameters['start'];
               final end = state.uri.queryParameters['end'];
-              return _fadeTransition(
+              return _pageTransition(
                 EventFormPage(
                   initialStart: start != null
                       ? DateTime.fromMillisecondsSinceEpoch(
@@ -198,14 +193,14 @@ abstract final class AppRouter {
             pageBuilder: (context, state) {
               final event = state.extra;
               if (event is! CalendaEventAdapter) {
-                return _fadeTransition(
+                return _pageTransition(
                   _missingObjectPage(
                     AppLocalizations.of(context)?.missingEventParam ??
                         'This link did not carry an event.',
                   ),
                 );
               }
-              return _fadeTransition(EventDetailPage(event: event));
+              return _pageTransition(EventDetailPage(event: event));
             },
           ),
           GoRoute(
@@ -214,14 +209,14 @@ abstract final class AppRouter {
             pageBuilder: (context, state) {
               final event = state.extra;
               if (event is! CalendaEventAdapter) {
-                return _fadeTransition(
+                return _pageTransition(
                   _missingObjectPage(
                     AppLocalizations.of(context)?.missingEventParam ??
                         'This link did not carry an event.',
                   ),
                 );
               }
-              return _fadeTransition(EventFormPage(event: event));
+              return _pageTransition(EventFormPage(event: event));
             },
           ),
           GoRoute(
@@ -240,7 +235,7 @@ abstract final class AppRouter {
                         DateTime.fromMillisecondsSinceEpoch(
                           int.tryParse(value) ?? 0,
                         );
-              return _fadeTransition(
+              return _pageTransition(
                 TodoFormPage(
                   parentId: parentId,
                   source: state.uri.queryParameters['source'],
@@ -256,14 +251,14 @@ abstract final class AppRouter {
             pageBuilder: (context, state) {
               final todo = state.extra;
               if (todo is! Todo) {
-                return _fadeTransition(
+                return _pageTransition(
                   _missingObjectPage(
                     AppLocalizations.of(context)?.missingTodoParam ??
                         'This link did not carry a todo.',
                   ),
                 );
               }
-              return _fadeTransition(TodoDetailPage(todo: todo));
+              return _pageTransition(TodoDetailPage(todo: todo));
             },
           ),
           GoRoute(
@@ -272,14 +267,14 @@ abstract final class AppRouter {
             pageBuilder: (context, state) {
               final todo = state.extra;
               if (todo is! Todo) {
-                return _fadeTransition(
+                return _pageTransition(
                   _missingObjectPage(
                     AppLocalizations.of(context)?.missingTodoParam ??
                         'This link did not carry a todo.',
                   ),
                 );
               }
-              return _fadeTransition(TodoFormPage(todo: todo));
+              return _pageTransition(TodoFormPage(todo: todo));
             },
           ),
           GoRoute(

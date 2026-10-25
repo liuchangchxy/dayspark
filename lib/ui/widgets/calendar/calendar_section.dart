@@ -20,7 +20,6 @@ import 'package:dayspark/ui/widgets/calendar/task_allocation_tile.dart';
 import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 
@@ -278,7 +277,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
             const SizedBox(width: AppSpacing.sm),
             Semantics(
               button: true,
-              label: l.goToToday,
+              label: l.today,
               child: TextButton(
                 onPressed: _goToToday,
                 style: TextButton.styleFrom(
@@ -289,46 +288,11 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                   minimumSize: const Size(48, 48),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(l.goToToday),
+                child: Text(l.today),
               ),
             ),
           ],
           const Spacer(),
-          if (isWorkspaceLayout(context)) ...[
-            Icon(
-              CupertinoIcons.circle_fill,
-              size: 7,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              l.calendarLegendEvent,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(width: 16),
-            Icon(
-              CupertinoIcons.square,
-              size: 12,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              l.calendarLegendAllocation,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(width: 16),
-            Icon(
-              CupertinoIcons.flag,
-              size: 12,
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              l.calendarDeadlineLane,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(width: 16),
-          ],
           Semantics(
             button: true,
             label: l.previousPeriod,

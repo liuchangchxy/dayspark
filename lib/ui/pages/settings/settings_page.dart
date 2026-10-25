@@ -57,7 +57,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           for (final group in <(String?, Widget)>[
             (null, const AppearanceSection()),
             (
-              l.calendar,
+              null,
               ListTile(
                 leading: const Icon(CupertinoIcons.calendar),
                 title: Text(l.manageCalendars),
