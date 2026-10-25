@@ -159,7 +159,7 @@ abstract final class AppRouter {
           GoRoute(
             path: '/settings',
             name: 'settings',
-            builder: (context, state) => const SettingsPage(),
+            pageBuilder: (context, state) => _pageTransition(const SettingsPage()),
           ),
           GoRoute(
             path: '/event/new',
@@ -280,37 +280,37 @@ abstract final class AppRouter {
           GoRoute(
             path: '/search',
             name: 'search',
-            builder: (context, state) => const SearchPage(),
+            pageBuilder: (context, state) => _pageTransition(const SearchPage()),
           ),
           GoRoute(
             path: '/tags',
             name: 'tags',
-            builder: (context, state) => const TagsPage(),
+            pageBuilder: (context, state) => _pageTransition(const TagsPage()),
           ),
           GoRoute(
             path: '/calendars',
             name: 'calendars',
-            builder: (context, state) => const CalendarsPage(),
+            pageBuilder: (context, state) => _pageTransition(const CalendarsPage()),
           ),
           GoRoute(
             path: '/ai-chat',
             name: 'aiChat',
-            builder: (context, state) => const AiChatPage(),
+            pageBuilder: (context, state) => _pageTransition(const AiChatPage()),
           ),
           GoRoute(
             path: '/about',
             name: 'about',
-            builder: (context, state) => const AboutPage(),
+            pageBuilder: (context, state) => _pageTransition(const AboutPage()),
           ),
           GoRoute(
             path: '/trash',
             name: 'trash',
-            builder: (context, state) => const TrashPage(),
+            pageBuilder: (context, state) => _pageTransition(const TrashPage()),
           ),
           GoRoute(
             path: '/feedback',
             name: 'feedback',
-            builder: (context, state) => const FeedbackPage(),
+            pageBuilder: (context, state) => _pageTransition(const FeedbackPage()),
           ),
         ],
       ),
