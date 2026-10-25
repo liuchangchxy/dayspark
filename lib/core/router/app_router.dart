@@ -144,15 +144,15 @@ abstract final class AppRouter {
       GoRoute(
         path: '/',
         name: 'home',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final tabParam = state.uri.queryParameters['tab'];
-          return HomePage(
-            initialTab: tabParam != null ? (int.tryParse(tabParam) ?? 0) : -1,
+          return _pageTransition(
+            HomePage(
+              initialTab: tabParam != null ? (int.tryParse(tabParam) ?? 0) : -1,
+            ),
           );
         },
       ),
-      // Every other destination nests inside the workspace shell, so the
-      // desktop rail persists across the whole app instead of only on Home.
       ShellRoute(
         builder: (context, state, child) => WorkspaceScaffold(child: child),
         routes: [
