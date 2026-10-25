@@ -250,6 +250,41 @@ void main() {
       expect(companion.startDt.value, events.first.startDt);
     });
 
+    test('event with EXDATE → ical → event keeps the exclusion', () async {
+      // "Delete just this one" is stored as an EXDATE on the series row, and
+      // that is exactly the field an import is most likely to drop: the
+      // package hands back DateTimeOrDuration wrappers, so a converter that
+      // filters for DateTime finds nothing and the occurrence comes back.
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calId,
+              summary: 'Daily standup',
+              startDt: DateTime.utc(2026, 7, 1, 9),
+              endDt: DateTime.utc(2026, 7, 1, 9, 30),
+              rrule: const Value('FREQ=DAILY;COUNT=5'),
+              exdates: const Value('2026-07-03T09:00:00.000Z'),
+            ),
+          );
+
+      final events = await testDb.select(testDb.events).get();
+      final ical = converter.eventToIcal(events.first);
+      expect(ical, contains('EXDATE'));
+
+      final companion = converter.icalToEventCompanion(ical, calId);
+
+      expect(
+        companion.exdates.value,
+        '2026-07-03T09:00:00.000Z',
+        reason: 'the excluded occurrence is part of the series, not decoration',
+      );
+      expect(companion.rrule.value, 'FREQ=DAILY;COUNT=5');
+    });
+
     test('todo → ical → todo preserves core data', () async {
       final calId = await testDb
           .into(testDb.calendars)

@@ -114,9 +114,15 @@ class IcalConverter {
   }
 
   /// Imported EXDATEs land in the same newline-delimited form the app writes.
+  ///
+  /// The package hands back [DateTimeOrDuration] wrappers, never bare
+  /// [DateTime]s — the same shape this converter writes on export. Filtering
+  /// for DateTime drops every value and silently imports the series with no
+  /// exclusions, so the deleted occurrences come back.
   static String? _exdatesFromIcal(VEvent vevent) {
     final values = vevent.excludingRecurrenceDates
-        ?.whereType<DateTime>()
+        ?.map((value) => value.dateTime)
+        .whereType<DateTime>()
         .toList();
     if (values == null || values.isEmpty) return null;
     return encodeExdates(values);
