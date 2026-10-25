@@ -402,7 +402,12 @@ void main() {
 
       await _dragTile(tester, 'Doomed move');
 
-      expect(find.textContaining('save failed'), findsOneWidget);
+      // The raw exception text stops at the log; the user gets the plain
+      // failure message.
+      expect(
+        find.text('Something went wrong. Please try again.'),
+        findsWidgets,
+      );
       expect(
         tester.getRect(find.byType(EventTile).first),
         before,
@@ -477,7 +482,12 @@ void main() {
         find.byType(TaskAllocationTile).first,
       );
       expect(tile.allocation.start, allocation.start);
-      expect(find.textContaining('save failed'), findsOneWidget);
+      // The raw exception text stops at the log; the user gets the plain
+      // failure message.
+      expect(
+        find.text('Something went wrong. Please try again.'),
+        findsWidgets,
+      );
     },
   );
 

@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -194,6 +194,11 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(attachments, attachments.parentSyncId);
         await m.addColumn(attachments, attachments.serverFileRef);
         await m.addColumn(attachments, attachments.serverRev);
+      }
+      if (from < 16) {
+        // EXDATE on the event row: "delete this occurrence" needs to leave the
+        // series intact, and a nullable column costs no rewrite.
+        await m.addColumn(events, events.exdates);
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

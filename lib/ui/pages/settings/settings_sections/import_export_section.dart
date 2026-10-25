@@ -42,16 +42,21 @@ class ImportExportSection extends ConsumerWidget {
               AppSpacing.lg,
               AppSpacing.xs,
             ),
-            child: Text(
-              l.data,
-              style: AppTypography.title,
-            ),
+            child: Text(l.data, style: AppTypography.title),
           ),
+        // Import and export ask different questions (which calendar do the
+        // events land in vs. which files do I get), so they are two rows
+        // rather than two buttons in one dialog.
         ListTile(
           leading: const Icon(CupertinoIcons.arrow_down_doc),
-          title: Text(l.importExport),
+          title: Text(l.importTo),
           subtitle: Text(l.calendarData),
-          onTap: () => _showIcsDialog(context, ref),
+          onTap: () => _importIcs(context, ref),
+        ),
+        ListTile(
+          leading: const Icon(CupertinoIcons.arrow_up_doc),
+          title: Text(l.exportAllCalendars),
+          onTap: () => _exportIcs(context, ref),
         ),
         ListTile(
           leading: const Icon(CupertinoIcons.archivebox),
@@ -69,14 +74,14 @@ class ImportExportSection extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.fullBackup),
-        content: Text(l.fullBackupDesc),
+        content: Text('${l.fullBackupDesc}\n\n${l.mergeBackupDesc}'),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              _restoreBackup(context, ref);
+              _mergeBackup(context, ref);
             },
-            child: Text(l.restore),
+            child: Text(l.mergeBackup),
           ),
           FilledButton(
             onPressed: () {
@@ -114,13 +119,14 @@ class ImportExportSection extends ConsumerWidget {
         messenger.showSnackBar(SnackBar(content: Text(l.exportedTo(path))));
       }
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l.exportFailed('$e'))),
-      );
+      debugPrint('backup: export failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(l.exportFailed)));
     }
   }
 
-  Future<void> _restoreBackup(BuildContext context, WidgetRef ref) async {
+  /// Restoring is an upsert, so it is offered as a merge and says so: nothing
+  /// on this device is removed by it.
+  Future<void> _mergeBackup(BuildContext context, WidgetRef ref) async {
     final l = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
     final result = await FilePicker.platform.pickFiles(
@@ -131,165 +137,121 @@ class ImportExportSection extends ConsumerWidget {
     if (result == null || result.files.isEmpty) return;
     final picked = result.files.first;
     try {
-      final bytes = picked.bytes ??
+      final bytes =
+          picked.bytes ??
           (picked.path == null ? null : await File(picked.path!).readAsBytes());
       if (bytes == null) throw StateError('backup file has no content');
       await BackupService(ref.read(databaseProvider)).restoreZip(bytes);
       messenger.showSnackBar(SnackBar(content: Text(l.backupRestored)));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(l.restoreFailed('$e'))));
+      debugPrint('backup: merge failed: $e');
+      messenger.showSnackBar(SnackBar(content: Text(l.restoreFailed)));
     }
   }
 
-  void _showIcsDialog(BuildContext context, WidgetRef ref) async {
+  /// Import asks one question the old combined dialog never made clear: which
+  /// calendar the file's events land in. The picker comes after the file, so
+  /// cancelling a file pick never leaves an unanswered dialog behind.
+  Future<void> _importIcs(BuildContext context, WidgetRef ref) async {
     final l = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
     final db = ref.read(databaseProvider);
-    final cals = await (db.select(db.calendars)).get();
 
+    final calendars = await (db.select(db.calendars)).get();
+    if (calendars.isEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(l.noCalendarToImport)));
+      return;
+    }
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['ics'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
     if (!context.mounted) return;
 
-    int? exportCalendarId; // null = all
-    var importCalendarId = cals.isNotEmpty ? cals.first.id : null;
-
-    showDialog(
+    final targetId = await showDialog<int>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(l.importExport),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(l.importExportDesc),
-              if (cals.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.md),
-                Text(l.targetCalendar, style: AppTypography.caption),
-                const SizedBox(height: AppSpacing.xs),
-                DropdownButton<int?>(
-                  isExpanded: true,
-                  value: importCalendarId,
-                  items: cals.map((c) {
-                    return DropdownMenuItem<int?>(
-                      value: c.id,
-                      child: Text(c.name),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDialogState(() => importCalendarId = val);
-                    }
-                  },
-                ),
-              ],
-            ],
+      builder: (ctx) => SimpleDialog(
+        title: Text(l.importTo),
+        children: [
+          for (final calendar in calendars)
+            SimpleDialogOption(
+              padding: EdgeInsets.zero,
+              onPressed: () => Navigator.of(ctx).pop(calendar.id),
+              child: ListTile(
+                title: Text(calendar.name),
+                trailing: const Icon(CupertinoIcons.chevron_forward, size: 16),
+              ),
+            ),
+          const Divider(height: 1),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.cancel),
           ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                try {
-                  if (cals.isEmpty) return;
-                  final service = IcsService(db);
-                  final content = await service.exportCalendar(exportCalendarId);
-                  final filename =
-                      'calendar_export_${DateTime.now().millisecondsSinceEpoch}.ics';
-                  final isWeb = ref.read(isWebProvider);
-                  if (isWeb) {
-                    ref.read(webFileDownloaderProvider)(
-                      content: content,
-                      filename: filename,
-                    );
-                  } else {
-                    final path = await service.saveIcsToFile(
-                      content,
-                      filename,
-                    );
-                    if (context.mounted) {
-                      try {
-                        await Share.shareXFiles([
-                          XFile(path),
-                        ], subject: 'DaySpark Calendar Export');
-                      } on UnimplementedError {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l.exportedTo(path))),
-                          );
-                        }
-                      }
-                    }
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(l.exportFailed('$e'))));
-                  }
-                }
-              },
-              child: Text(l.export),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                try {
-                  final result = await FilePicker.platform.pickFiles(
-                    type: FileType.custom,
-                    allowedExtensions: ['ics'],
-                  );
-                  if (result == null || result.files.isEmpty) return;
-
-                  String icsContent;
-                  final file = result.files.first;
-                  if (kIsWeb) {
-                    icsContent = decodeWebIcsBytes(file.bytes!);
-                  } else {
-                    icsContent = await readFileNative(file.path!);
-                  }
-
-                  if (cals.isEmpty || importCalendarId == null) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l.noCalendarToImport)),
-                      );
-                    }
-                    return;
-                  }
-
-                  final service = IcsService(db);
-                  final imported = await service.importIcsDetailed(
-                    icsContent,
-                    importCalendarId!,
-                  );
-                  if (context.mounted) {
-                    final message = imported.failed > 0
-                        ? l.importedResultWithFailed(
-                            imported.events,
-                            imported.todos,
-                            imported.failed,
-                          )
-                        : l.importedResult(imported.events, imported.todos);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(message)),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(l.importFailed('$e'))));
-                  }
-                }
-              },
-              child: Text(l.import),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.cancel),
-            ),
-          ],
-        ),
+        ],
       ),
     );
+    if (targetId == null) return;
+
+    try {
+      final file = result.files.first;
+      final String content;
+      if (kIsWeb) {
+        content = decodeWebIcsBytes(file.bytes!);
+      } else {
+        content = await readFileNative(file.path!);
+      }
+      final imported = await IcsService(
+        db,
+      ).importIcsDetailed(content, targetId);
+      final message = imported.failed > 0
+          ? l.importedResultWithFailed(
+              imported.events,
+              imported.todos,
+              imported.failed,
+            )
+          : l.importedResult(imported.events, imported.todos);
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    } catch (error) {
+      debugPrint('ics: import failed: $error');
+      messenger.showSnackBar(SnackBar(content: Text(l.importFailed)));
+    }
+  }
+
+  /// Export always writes every calendar: a partial export that silently
+  /// skipped calendars would look complete and not be.
+  Future<void> _exportIcs(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final db = ref.read(databaseProvider);
+    try {
+      if ((await (db.select(db.calendars)).get()).isEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(l.nothingToExport)));
+        return;
+      }
+      final service = IcsService(db);
+      final content = await service.exportCalendar();
+      final filename =
+          'dayspark-calendars-${DateTime.now().millisecondsSinceEpoch}.ics';
+      if (ref.read(isWebProvider)) {
+        ref.read(webFileDownloaderProvider)(
+          content: content,
+          filename: filename,
+        );
+        return;
+      }
+      final path = await service.saveIcsToFile(content, filename);
+      try {
+        await Share.shareXFiles([XFile(path)], subject: 'DaySpark Calendars');
+      } on UnimplementedError {
+        messenger.showSnackBar(SnackBar(content: Text(l.exportedTo(path))));
+      }
+    } catch (error) {
+      debugPrint('ics: export failed: $error');
+      messenger.showSnackBar(SnackBar(content: Text(l.exportFailed)));
+    }
   }
 }
 

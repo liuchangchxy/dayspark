@@ -1,11 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:rrule_generator/rrule_generator.dart';
 import 'package:dayspark/core/l10n/locale_aware_rrule_delegate.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 
 /// The shapes a rule can take at the top level. Anything the library can build
@@ -47,48 +50,74 @@ String repeatRuleFor(RepeatMode mode) => switch (mode) {
 
 /// One row that answers "does this repeat?". Opens a sheet; the row itself only
 /// ever prints a localized phrase.
-class RepeatRow extends StatelessWidget {
+///
+/// The date a series counts from belongs to the rule, not to the todo's main
+/// fields: it is asked once, inside the repeat sheet, and only when something
+/// repeats.
+class RepeatRow extends ConsumerWidget {
   const RepeatRow({
     super.key,
     required this.rrule,
     required this.onChanged,
     required this.anchorDate,
     this.anchorLabel,
+    this.startDate,
+    this.onStartDateChanged,
+    this.needsDate = false,
   });
 
   final String? rrule;
   final ValueChanged<String?> onChanged;
 
-  /// The date the series counts from. Null means the user has not given the
-  /// todo a date yet, so there is nothing to repeat from.
+  /// The date the series counts from — the deadline, or an explicit start date
+  /// once the user picks one.
   final DateTime? anchorDate;
 
   final String? anchorLabel;
 
+  /// The explicit start the user chose, if any.
+  final DateTime? startDate;
+  final ValueChanged<DateTime?>? onStartDateChanged;
+
+  /// True when the todo has no date at all yet, so there is nothing to repeat
+  /// from.
+  final bool needsDate;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     return ScheduleRow(
       label: l.recurrenceRule,
       value: describeRepeat(context, rrule),
       placeholder: rrule == null,
-      onTap: () => _openSheet(context, l),
+      onTap: () => _openSheet(context, l, ref),
+      clearTooltip: l.repeatNever,
+      onClear: rrule == null ? null : () => onChanged(null),
     );
   }
 
-  Future<void> _openSheet(BuildContext context, AppLocalizations l) async {
-    if (anchorDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.repeatNeedsDate)),
-      );
+  Future<void> _openSheet(
+    BuildContext context,
+    AppLocalizations l,
+    WidgetRef ref,
+  ) async {
+    final anchor = anchorDate;
+    if (anchor == null || needsDate) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.repeatNeedsDate)));
       return;
     }
     final result = await showModalBottomSheet<RepeatChoice>(
       context: context,
       builder: (ctx) => _RepeatSheet(
         rrule: rrule,
-        anchorDate: anchorDate!,
+        anchorDate: anchor,
+        explicitStart: startDate,
         anchorLabel: anchorLabel,
+        // Only a series with no date of its own needs this; the ordinary form
+        // takes its anchor from the deadline and must not ask twice.
+        onPickStart: startDate == null ? null : onStartDateChanged,
       ),
     );
     if (result == null) return;
@@ -107,30 +136,118 @@ class RepeatChoice {
 /// Human phrasing for a rule. A rule with an end date or a custom interval is
 /// still fundamentally daily/weekly/…, so the row says that rather than
 /// retreating to "Custom"; the sheet is where the details live.
+///
+/// The rule string is a machine format and never reaches the user: every part
+/// that changes what the series actually does — interval, weekdays, the end —
+/// is spelled out, because "Every week" for a Mon/Wed/Fri series would be a
+/// lie the user cannot see through.
 String describeRepeat(BuildContext context, String? rrule) {
   final l = AppLocalizations.of(context)!;
   if (rrule == null || rrule.trim().isEmpty) return l.repeatNever;
   final rule = rrule.startsWith('RRULE:') ? rrule.substring(6) : rrule;
-  final freq = RegExp(r'FREQ=([A-Z]+)').firstMatch(rule)?.group(1);
-  return switch (freq) {
-    'DAILY' => l.repeatDaily,
-    'WEEKLY' => l.repeatWeekly,
-    'MONTHLY' => l.repeatMonthly,
-    'YEARLY' => l.repeatYearly,
-    _ => l.repeatCustom,
-  };
+  final parts = <String, String>{};
+  for (final part in rule.split(';')) {
+    final split = part.indexOf('=');
+    if (split <= 0) continue;
+    parts[part.substring(0, split).toUpperCase()] = part.substring(split + 1);
+  }
+
+  final freq = parts['FREQ']?.toUpperCase();
+  final interval = int.tryParse(parts['INTERVAL'] ?? '') ?? 1;
+  final days = _weekdayNames(context, parts['BYDAY']);
+
+  final String base;
+  switch (freq) {
+    case 'DAILY':
+      base = interval > 1 ? l.repeatEveryNDays(interval) : l.repeatDaily;
+    case 'WEEKLY':
+      if (days.isNotEmpty) {
+        final label = days.join(', ');
+        base = interval > 1
+            ? l.repeatEveryNWeekdays(label, interval)
+            : l.repeatOnDays(label);
+      } else {
+        base = interval > 1 ? l.repeatEveryNWeeks(interval) : l.repeatWeekly;
+      }
+    case 'MONTHLY':
+      final day = int.tryParse(parts['BYMONTHDAY'] ?? '');
+      if (interval > 1) {
+        base = l.repeatEveryNMonths(interval);
+      } else {
+        base = day != null ? l.repeatMonthlyOnDay(day) : l.repeatMonthly;
+      }
+    case 'YEARLY':
+      base = interval > 1 ? l.repeatEveryNYears(interval) : l.repeatYearly;
+    default:
+      return l.repeatCustom;
+  }
+
+  final count = int.tryParse(parts['COUNT'] ?? '');
+  if (count != null && count > 0) {
+    return '$base · ${l.repeatEndsAfter(count)}';
+  }
+  final until = _parseUntil(parts['UNTIL']);
+  if (until != null) {
+    return '$base · ${l.repeatUntil(_formatRuleDate(context, until))}';
+  }
+  return base;
 }
+
+/// BYDAY carries weekday codes (`MO,TU`) and an optional ordinal (`2TU`). The
+/// ordinal is not something the app can create, so it is dropped rather than
+/// rendered as noise; the weekdays themselves are what the user recognises.
+List<String> _weekdayNames(BuildContext context, String? byDay) {
+  if (byDay == null || byDay.isEmpty) return const [];
+  const codes = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+  final locale = Localizations.localeOf(context).toString();
+  final names = <String>[];
+  for (final entry in byDay.split(',')) {
+    final code = entry.trim().toUpperCase();
+    final index = codes.indexWhere(code.endsWith);
+    if (index < 0) continue;
+    // 2024-01-01 was a Monday, so index maps straight onto that week.
+    final day = DateTime(2024, 1, 1 + index);
+    names.add(DateFormat.E(locale).format(day));
+  }
+  return names;
+}
+
+DateTime? _parseUntil(String? value) {
+  if (value == null || value.isEmpty) return null;
+  final compact = RegExp(r'^(\d{4})(\d{2})(\d{2})').firstMatch(value);
+  if (compact != null) {
+    return DateTime(
+      int.parse(compact.group(1)!),
+      int.parse(compact.group(2)!),
+      int.parse(compact.group(3)!),
+    );
+  }
+  return DateTime.tryParse(value);
+}
+
+String _formatRuleDate(BuildContext context, DateTime value) =>
+    DateFormat.yMMMd(Localizations.localeOf(context).toString()).format(value);
 
 class _RepeatSheet extends StatefulWidget {
   const _RepeatSheet({
     required this.rrule,
     required this.anchorDate,
     this.anchorLabel,
+    this.explicitStart,
+    this.onPickStart,
   });
 
   final String? rrule;
   final DateTime anchorDate;
   final String? anchorLabel;
+
+  /// An explicit start date, when the user has chosen one. Null means the
+  /// series counts from the todo's single date.
+  final DateTime? explicitStart;
+
+  /// Set when the sheet should offer "which day does it repeat from" — the
+  /// anchor the app cannot infer, notably for an imported legacy rule.
+  final ValueChanged<DateTime>? onPickStart;
 
   @override
   State<_RepeatSheet> createState() => _RepeatSheetState();
@@ -176,6 +293,24 @@ class _RepeatSheetState extends State<_RepeatSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (widget.onPickStart != null)
+                      _RepeatOption(
+                        label:
+                            '${l.legacyRepeatFrom}: '
+                            '${formatDeadline(context, widget.explicitStart ?? widget.anchorDate)}',
+                        selected: false,
+                        trailing: const Icon(CupertinoIcons.calendar, size: 14),
+                        onTap: () async {
+                          final picked = await pickDeadline(
+                            context,
+                            initial: widget.explicitStart ?? widget.anchorDate,
+                          );
+                          if (picked != null) {
+                            widget.onPickStart!(picked);
+                            if (context.mounted) Navigator.of(context).pop();
+                          }
+                        },
+                      ),
                     for (final mode in RepeatMode.values)
                       if (mode != RepeatMode.custom)
                         _RepeatOption(
@@ -212,7 +347,8 @@ class _RepeatSheetState extends State<_RepeatSheet> {
                           config: RRuleGeneratorConfig(),
                           initialRRule: _customRule,
                           withExcludeDates: false,
-                          onChange: (value) => setState(() => _customRule = value),
+                          onChange: (value) =>
+                              setState(() => _customRule = value),
                         ),
                       ),
                     ],
@@ -228,9 +364,8 @@ class _RepeatSheetState extends State<_RepeatSheet> {
                 0,
               ),
               child: FilledButton(
-                onPressed: () => Navigator.of(
-                  context,
-                ).pop(RepeatChoice(_resultingRule())),
+                onPressed: () =>
+                    Navigator.of(context).pop(RepeatChoice(_resultingRule())),
                 child: Text(l.done),
               ),
             ),

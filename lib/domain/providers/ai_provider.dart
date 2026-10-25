@@ -188,6 +188,20 @@ Future<Map<String, dynamic>> parseNaturalLanguage({
   return jsonDecode(jsonMatch.group(0)!) as Map<String, dynamic>;
 }
 
+/// The parse call as a provider, so a test can answer it without a network.
+/// The chat page is the one place that turns a parse into a write, and the
+/// question worth pinning is what happens between the two.
+typedef ParseNaturalLanguage =
+    Future<Map<String, dynamic>> Function({
+      required AiConfig config,
+      required String input,
+      required String type,
+    });
+
+final parseNaturalLanguageProvider = Provider<ParseNaturalLanguage>(
+  (ref) => parseNaturalLanguage,
+);
+
 /// AI chat message.
 class AiChatMessage {
   final String role;
@@ -279,7 +293,7 @@ ${type == 'event' ? '''{
 }''' : '''{
   "summary": "todo title",
   "due_date": "2026-05-15",
-  "priority": 5,
+  "priority": 0,
   "description": "optional description"
 }'''}
 

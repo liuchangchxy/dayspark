@@ -1,14 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/event_writer.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 
 // Static range key ("startMs-endMs") is part of the provider contract
 // (docs/CONSTRAINTS.md); autoDispose only releases unused instances.
-final eventsInDateRangeProvider =
-    StreamProvider.autoDispose.family<List<Event>, String>((ref, rangeKey) {
+final eventsInDateRangeProvider = StreamProvider.autoDispose
+    .family<List<Event>, String>((ref, rangeKey) {
       final db = ref.watch(databaseProvider);
       // Parse range key: "startMs-endMs"
       final parts = rangeKey.split('-');
@@ -23,8 +25,8 @@ final eventsInDateRangeProvider =
       return stream;
     });
 
-final eventCandidatesInDateRangeProvider =
-    StreamProvider.autoDispose.family<List<Event>, String>((ref, rangeKey) {
+final eventCandidatesInDateRangeProvider = StreamProvider.autoDispose
+    .family<List<Event>, String>((ref, rangeKey) {
       final db = ref.watch(databaseProvider);
       final parts = rangeKey.split('-');
       final startMs = int.tryParse(parts[0]);
@@ -41,6 +43,19 @@ final calendarsProvider = StreamProvider<List<Calendar>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.calendarsDao.watchAll();
 });
+
+/// One event row, kept live for the detail page so it never renders a stale
+/// snapshot after an edit or a delete from another surface.
+final liveEventProvider = StreamProvider.autoDispose
+    .family<CalendaEventAdapter?, int>((ref, id) {
+      final db = ref.watch(databaseProvider);
+      return (db.select(
+        db.events,
+      )..where((row) => row.id.equals(id))).watchSingleOrNull().map((row) {
+        if (row == null) return null;
+        return CalendaEventAdapter.fromDrift(row);
+      });
+    });
 
 final createEventProvider =
     Provider<
@@ -101,6 +116,22 @@ final deleteEventProvider = Provider<Future<void> Function(int)>((ref) {
       RecordScope.run(db, (tx) => EventWriter.softDelete(db, tx, id));
 });
 
+/// Excludes a single occurrence from a recurring series (RFC 5545 EXDATE).
+final excludeEventOccurrenceProvider =
+    Provider<
+      Future<void> Function({
+        required int id,
+        required DateTime occurrenceStart,
+      })
+    >((ref) {
+      final db = ref.read(databaseProvider);
+      return ({required int id, required DateTime occurrenceStart}) =>
+          RecordScope.run(
+            db,
+            (tx) => EventWriter.excludeOccurrence(db, tx, id, occurrenceStart),
+          );
+    });
+
 final deletedEventsProvider = StreamProvider<List<Event>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.eventsDao.watchDeletedEvents();
@@ -126,38 +157,106 @@ final emptyEventTrashProvider = Provider<Future<void> Function()>((ref) {
   return () => RecordScope.run(db, (tx) => EventWriter.emptyTrash(db, tx));
 });
 
-final createCalendarProvider = Provider<Future<int> Function({required String name, String? color})>((ref) {
-  final db = ref.read(databaseProvider);
-  return ({required name, color}) async {
-    return db.calendarsDao.insertCalendar(
-      CalendarsCompanion.insert(
-        name: name,
-        color: color != null ? Value(color) : const Value('#2563EB'),
-      ),
-    );
-  };
-});
+final createCalendarProvider =
+    Provider<Future<int> Function({required String name, String? color})>((
+      ref,
+    ) {
+      final db = ref.read(databaseProvider);
+      return ({required name, color}) async {
+        return db.calendarsDao.insertCalendar(
+          CalendarsCompanion.insert(
+            name: name,
+            color: color != null ? Value(color) : const Value('#2563EB'),
+          ),
+        );
+      };
+    });
 
-final updateCalendarProvider = Provider<Future<void> Function({required int id, required String name, String? color})>((ref) {
-  final db = ref.read(databaseProvider);
-  return ({required id, required name, color}) async {
-    await db.calendarsDao.updateCalendar(
-      id,
-      CalendarsCompanion(
-        name: Value(name),
-        color: color != null ? Value(color) : const Value.absent(),
-      ),
-    );
-  };
-});
+final updateCalendarProvider =
+    Provider<
+      Future<void> Function({
+        required int id,
+        required String name,
+        String? color,
+      })
+    >((ref) {
+      final db = ref.read(databaseProvider);
+      return ({required id, required name, color}) async {
+        await db.calendarsDao.updateCalendar(
+          id,
+          CalendarsCompanion(
+            name: Value(name),
+            color: color != null ? Value(color) : const Value.absent(),
+          ),
+        );
+      };
+    });
 
-final deleteCalendarProvider = Provider<Future<void> Function(int id)>((ref) {
-  final db = ref.read(databaseProvider);
-  return (int id) async {
-    final count = await (db.select(db.calendars)).get();
-    if (count.length <= 1) {
-      throw StateError('Cannot delete the only remaining calendar.');
-    }
-    await db.calendarsDao.deleteCalendar(id);
-  };
-});
+/// Deletes a calendar and decides what happens to the rows that referenced it.
+///
+/// The column is a hard reference, so leaving rows behind would either fail the
+/// delete or strand records in a calendar nobody can see. [moveContentsTo]
+/// re-homes them; [deleteContents] moves them to the trash with the calendar.
+///
+/// Every row touched here is written through its writer, in one scope. A
+/// re-home is a change to a synced record like any other: writing the column
+/// directly would leave other devices holding the old calendar with no way to
+/// learn about the move.
+final deleteCalendarProvider =
+    Provider<
+      Future<void> Function(int id, {int? moveContentsTo, bool deleteContents})
+    >((ref) {
+      final db = ref.read(databaseProvider);
+      return (
+        int id, {
+        int? moveContentsTo,
+        bool deleteContents = false,
+      }) async {
+        final all = await (db.select(db.calendars)).get();
+        if (all.length <= 1) {
+          throw StateError('Cannot delete the only remaining calendar.');
+        }
+        final events = await (db.select(
+          db.events,
+        )..where((row) => row.calendarId.equals(id))).get();
+        final todos = await (db.select(
+          db.todos,
+        )..where((row) => row.calendarId.equals(id))).get();
+
+        if (moveContentsTo == null &&
+            !deleteContents &&
+            (events.isNotEmpty || todos.isNotEmpty)) {
+          throw StateError('Calendar still holds records.');
+        }
+
+        await RecordScope.run(db, (tx) async {
+          if (moveContentsTo != null) {
+            for (final row in events) {
+              await EventWriter.update(
+                db,
+                tx,
+                row.id,
+                EventsCompanion(calendarId: Value(moveContentsTo)),
+              );
+            }
+            for (final row in todos) {
+              await TodoWriter.updateTodo(
+                db,
+                tx,
+                row.id,
+                TodosCompanion(calendarId: Value(moveContentsTo)),
+              );
+            }
+          } else if (deleteContents) {
+            for (final row in events) {
+              await EventWriter.softDelete(db, tx, row.id);
+            }
+            for (final row in todos) {
+              await TodoWriter.softDelete(db, tx, row.id);
+            }
+          }
+
+          await db.calendarsDao.deleteCalendar(id);
+        });
+      };
+    });

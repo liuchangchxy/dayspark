@@ -56,7 +56,7 @@ class WorkspaceSidebar extends ConsumerWidget {
               children: [
                 const _WorkspaceHeader(),
                 const SizedBox(height: AppSpacing.md),
-                SearchEntry(onTap: () => context.push('/search')),
+                SearchEntry(onTap: () => _goDestination(context, '/search')),
                 const SizedBox(height: AppSpacing.lg),
                 _NavigationItem(
                   label: l.action,
@@ -96,32 +96,37 @@ class WorkspaceSidebar extends ConsumerWidget {
                   onTap: () =>
                       _goTodosView(context, ref, const TodosInboxView()),
                 ),
+                _SubNavigationItem(
+                  label: l.allTasks,
+                  selected: tab == AppTab.todos && view is TodosAllView,
+                  onTap: () => _goTodosView(context, ref, const TodosAllView()),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 _NavigationItem(
                   label: l.manageTags,
                   icon: CupertinoIcons.tag,
                   selected: _locationIs(context, '/tags'),
-                  onTap: () => context.push('/tags'),
+                  onTap: () => _goDestination(context, '/tags'),
                 ),
                 _NavigationItem(
                   label: l.trash,
                   icon: CupertinoIcons.trash,
                   selected: _locationIs(context, '/trash'),
-                  onTap: () => context.push('/trash'),
+                  onTap: () => _goDestination(context, '/trash'),
                 ),
                 if (showAi)
                   _NavigationItem(
                     label: l.aiAssistant,
                     icon: CupertinoIcons.sparkles,
                     selected: _locationIs(context, '/ai-chat'),
-                    onTap: () => context.push('/ai-chat'),
+                    onTap: () => _goDestination(context, '/ai-chat'),
                   ),
                 const Spacer(),
                 _NavigationItem(
                   label: l.settings,
                   icon: CupertinoIcons.settings,
                   selected: _locationIs(context, '/settings'),
-                  onTap: () => context.push('/settings'),
+                  onTap: () => _goDestination(context, '/settings'),
                 ),
               ],
             ),
@@ -146,7 +151,25 @@ class WorkspaceSidebar extends ConsumerWidget {
   /// Without a router (a bare page in a test or an embedding host) the
   /// provider write above is the whole interaction.
   static void _goHome(BuildContext context, AppTab tab) {
-    GoRouter.maybeOf(context)?.go('/?tab=${AppTab.values.indexOf(tab)}');
+    final router = GoRouter.maybeOf(context);
+    if (router == null) return;
+    final target = '/?tab=${AppTab.values.indexOf(tab)}';
+    // Re-selecting the destination you are on is not a navigation: pushing a
+    // second copy of the same page is how the rail grew a back stack.
+    if (router.routerDelegate.currentConfiguration.uri.toString() == target) {
+      return;
+    }
+    router.go(target);
+  }
+
+  /// Secondary destinations are siblings, not children of whatever is open.
+  /// `go` keeps exactly one beneath the rail; `push` would stack a new page
+  /// on every click and leave a back button pointing at the previous one.
+  static void _goDestination(BuildContext context, String path) {
+    final router = GoRouter.maybeOf(context);
+    if (router == null) return;
+    if (router.routerDelegate.currentConfiguration.uri.path == path) return;
+    router.go(path);
   }
 
   static void _goTab(BuildContext context, WidgetRef ref, AppTab tab) {

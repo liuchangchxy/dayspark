@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:home_widget/home_widget.dart';
@@ -12,8 +11,10 @@ import 'core/utils/platform_target.dart';
 import 'core/utils/platform_scroll_behavior.dart';
 import 'domain/providers/home_widget_provider.dart';
 import 'domain/providers/record_bus_provider.dart';
-import 'domain/providers/sync_client_provider.dart' show deviceRegistrationProvider, syncRuntimeProvider;
-import 'domain/providers/theme_provider.dart' show themeModeProvider, themeColorProvider;
+import 'domain/providers/sync_client_provider.dart'
+    show deviceRegistrationProvider, syncRuntimeProvider;
+import 'domain/providers/theme_provider.dart'
+    show themeModeProvider, themeColorProvider;
 import 'domain/providers/locale_provider.dart';
 import 'infrastructure/platform/alarm_service.dart';
 import 'infrastructure/platform/home_widget_interactivity.dart';
@@ -87,32 +88,24 @@ class DaySparkApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     return ScrollConfiguration(
       behavior: AppScrollBehavior(),
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.escape): () {
-            final router = AppRouter.router;
-            if (router.canPop()) router.pop();
-          },
-        },
-        child: Focus(
-          autofocus: true,
-          child: MaterialApp.router(
-            title: 'DaySpark',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(accent: accent.light),
-            darkTheme: AppTheme.dark(accent: accent.dark),
-            themeMode: themeMode,
-            locale: locale,
-            localizationsDelegates: const [
-              ...AppLocalizations.localizationsDelegates,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: AppLocalizations.supportedLocales,
-            routerConfig: AppRouter.router,
-          ),
-        ),
+      // Escape is not bound app-wide: a page that has unsaved work owns its
+      // own escape handling, so the key cannot pop a form past its discard
+      // confirmation.
+      child: MaterialApp.router(
+        title: 'DaySpark',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(accent: accent.light),
+        darkTheme: AppTheme.dark(accent: accent.dark),
+        themeMode: themeMode,
+        locale: locale,
+        localizationsDelegates: const [
+          ...AppLocalizations.localizationsDelegates,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        routerConfig: AppRouter.router,
       ),
     );
   }

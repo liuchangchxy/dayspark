@@ -48,7 +48,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get confirmLegacyRecurrenceTitle => '确认重复待办';
 
   @override
-  String get confirmLegacyRecurrenceBody => '这条重复待办是在旧版本导入的，没有记录从哪天开始重复。选一次那个日期，其余由应用推算。';
+  String get confirmLegacyRecurrenceBody =>
+      '这条重复待办是在旧版本导入的，没有记录从哪天开始重复。选一次那个日期，其余由应用推算。';
 
   @override
   String get legacyAnchorEvidence => '已保存的日期和时间';
@@ -69,7 +70,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recurrenceAnchor => '重复系列锚点';
 
   @override
-  String get recurrenceEditAllocationWarning => '修改重复规则、锚点或时区不会移动已有时间安排；部分安排可能不再属于当前系列。';
+  String get recurrenceEditAllocationWarning =>
+      '修改重复规则、锚点或时区不会移动已有时间安排；部分安排可能不再属于当前系列。';
 
   @override
   String get recurrenceTimezoneHorizonError => '当前时区数据暂不支持计算该日期范围。';
@@ -379,12 +381,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restore => '恢复';
 
   @override
-  String get backupRestored => '备份已恢复';
+  String get backupRestored => '备份已合并';
 
   @override
-  String restoreFailed(String error) {
-    return '恢复失败：$error';
-  }
+  String get restoreFailed => '合并失败';
 
   @override
   String get import => '导入';
@@ -396,7 +396,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get attachments => '附件';
 
   @override
-  String get calendarData => '日历数据';
+  String get calendarData => '导入或导出台历 .ics 文件';
 
   @override
   String get add => '添加';
@@ -407,17 +407,13 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String exportFailed(String error) {
-    return '导出失败：$error';
-  }
+  String get exportFailed => '导出失败';
 
   @override
   String get noCalendarToImport => '没有可用的日历来导入数据';
 
   @override
-  String importFailed(String error) {
-    return '导入失败：$error';
-  }
+  String get importFailed => '导入失败';
 
   @override
   String importedResult(int events, int todos) {
@@ -433,9 +429,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get importExportDesc => '将日程和待办导出为 .ics 文件，或从 .ics 文件导入。';
 
   @override
-  String error(String error) {
-    return '出错了：$error';
-  }
+  String get error => '出错了，请重试。';
 
   @override
   String get endBeforeStart => '结束时间必须晚于开始时间';
@@ -444,8 +438,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiNotConfiguredHint => 'AI 未配置，请前往「设置 > AI」进行配置';
 
   @override
-  String aiError(String error) {
-    return 'AI 出错：$error';
+  String get aiError => 'AI 没有完成这次请求';
+
+  @override
+  String aiFilled(String fields) {
+    return '已填入：$fields';
   }
 
   @override
@@ -459,7 +456,8 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get recurringSeriesNotice => '这是重复日程。保存会修改整个系列；下面的时间是系列起始，不是你点开的那一次。暂不支持只修改单次实例。';
+  String get recurringSeriesNotice =>
+      '这是重复日程。保存会修改整个系列；下面的时间是系列起始，不是你点开的那一次。暂不支持只修改单次实例。';
 
   @override
   String get allDayDragDisabled => '全天日程无法通过拖拽移动';
@@ -477,9 +475,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get timeSlotConflict => '所选时间段已被占用或已过期，请重新选择时间。';
 
   @override
-  String schedulingFailed(String error) {
-    return '排程失败：$error';
-  }
+  String get schedulingFailed => '安排没有完成';
 
   @override
   String get noSubtaskSuggestions => '暂无子任务建议';
@@ -491,25 +487,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get todoCreatedShort => '待办已创建';
 
   @override
-  String failedCreateTodo(String error) {
-    return '创建待办失败：$error';
-  }
+  String get failedCreateTodo => '创建待办失败';
 
   @override
-  String breakdownFailed(String error) {
-    return '拆分失败：$error';
-  }
+  String get breakdownFailed => '拆分没有完成';
 
   @override
   String get eventCreatedShort => '日程已创建';
 
   @override
-  String failedAction(String error) {
-    return '操作失败：$error';
-  }
+  String get failedAction => '操作没有完成';
 
   @override
   String get noAttachments => '暂无附件';
+
+  @override
+  String get openTask => '未完成';
 
   @override
   String get completed => '已完成';
@@ -524,7 +517,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get custom => '自定义';
 
   @override
-  String get allTasks => '全部任务';
+  String get allTasks => '全部';
 
   @override
   String get noDueDate => '无截止日期';
@@ -555,19 +548,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ok => '确定';
 
   @override
-  String get defaultTab => '标签页顺序';
+  String get defaultTab => '启动时打开';
 
   @override
-  String get defaultTabDesc => '选择日历和待办的显示顺序';
-
-  @override
-  String get calendarFirst => '日历在前';
-
-  @override
-  String get todosFirst => '待办在前';
-
-  @override
-  String get inbox => '待办箱';
+  String get inbox => '收件箱';
 
   @override
   String get trash => '回收站';
@@ -605,6 +589,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get openUpdatePage => '查看更新';
+
+  @override
   String get checkUpdate => '检查更新';
 
   @override
@@ -617,9 +604,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get currentVersion => '当前版本';
-
-  @override
-  String get downloadUpdate => '下载更新';
 
   @override
   String get starOnGithub => '在 GitHub 上 Star';
@@ -641,6 +625,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noModelsFound => '未找到模型';
+
+  @override
+  String get modelDetectFailed => '连接不上这个服务商。请检查地址和 API Key。';
 
   @override
   String get selectModel => '选择模型';
@@ -675,6 +662,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resetColor => '重置';
 
   @override
+  String get colorRed => '红色';
+
+  @override
+  String get colorAmber => '琥珀色';
+
+  @override
+  String get colorGreen => '绿色';
+
+  @override
+  String get colorBlue => '蓝色';
+
+  @override
+  String get colorPurple => '紫色';
+
+  @override
+  String get colorPink => '粉色';
+
+  @override
+  String get colorGray => '灰色';
+
+  @override
+  String get colorTeal => '青色';
+
+  @override
+  String get colorOrange => '橙色';
+
+  @override
+  String get colorIndigo => '靛蓝色';
+
+  @override
   String get feedback => '反馈';
 
   @override
@@ -699,7 +716,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addTodoShort => '添加待办';
 
   @override
-  String get schedule => '排程';
+  String get schedule => '安排';
 
   @override
   String get breakDown => '拆分任务';
@@ -737,9 +754,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String attachmentFailed(String error) {
-    return '附件操作失败：$error';
-  }
+  String get attachmentFailed => '附件操作失败';
 
   @override
   String get editTag => '编辑标签';
@@ -755,6 +770,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get eventMoved => '日程已移动';
+
+  @override
+  String get notificationPermission => '通知权限';
+
+  @override
+  String get notificationPermissionDesc => '允许 DaySpark 发送提醒通知';
+
+  @override
+  String get notificationPermissionAsked => '已请求，若没弹出请到系统设置里开启';
 
   @override
   String get systemAlarm => '系统闹钟';
@@ -1119,13 +1143,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scheduleTodo => '安排待办';
 
   @override
-  String get scheduleTodoDesc => '为已有待办分配日历执行时间';
+  String get scheduleTodoDesc => '把已有待办安排到这个时间';
 
   @override
   String get createEventOption => '新建日程';
 
   @override
-  String get createEventDesc => '添加一条新的日历日程';
+  String get createEventDesc => '在这个时间新建一条日程';
 
   @override
   String get selectTodoToSchedule => '选择要安排的待办';
@@ -1137,13 +1161,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get action => '行动';
 
   @override
-  String get actionFirst => '行动优先';
-
-  @override
   String get scheduledSection => '计划执行';
 
   @override
-  String get dueTodaySection => '今日截止';
+  String get dueTodaySection => '今天要完成';
 
   @override
   String get unplannedInbox => '收件箱';
@@ -1217,7 +1238,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get calendarLegendEvent => '事件';
 
   @override
-  String get calendarLegendAllocation => '安排';
+  String get calendarLegendAllocation => '执行时间';
 
   @override
   String get actionAll => '全部';
@@ -1238,7 +1259,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get eventDetails => '日程';
 
   @override
-  String get deadline => '截止';
+  String get deadline => '截止时间';
 
   @override
   String get deadlineTime => '截止时间';
@@ -1271,7 +1292,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get setDeadline => '设置截止';
 
   @override
-  String get scheduleNow => '现在安排';
+  String get scheduleNow => '立即安排';
 
   @override
   String get actionNothingNow => '现在没有需要你处理的事';
@@ -1292,7 +1313,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recurringBrokenHint => '它的重复规则已失效。打开它重新设置。';
 
   @override
-  String get laterToday => '今日稍后';
+  String untilTime(String time) {
+    return '至 $time';
+  }
+
+  @override
+  String get laterToday => '接下来';
 
   @override
   String get nothingScheduled => '暂无安排';
@@ -1386,4 +1412,195 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get recurringSeriesNoticeShort => '这是重复日程，修改会应用到每一次。';
+
+  @override
+  String get actionFailedRetry => '操作没有完成，请重试。';
+
+  @override
+  String get discardChanges => '放弃修改？';
+
+  @override
+  String get discardChangesBody => '这一项的修改还没有保存。';
+
+  @override
+  String get keepEditing => '继续编辑';
+
+  @override
+  String get discard => '放弃修改';
+
+  @override
+  String get clearDeadline => '清除截止时间';
+
+  @override
+  String get cancelSchedule => '取消安排';
+
+  @override
+  String get removeReminder => '移除提醒';
+
+  @override
+  String get removeAttachment => '移除附件';
+
+  @override
+  String get removeSubtask => '移除子任务';
+
+  @override
+  String get duration => '时长';
+
+  @override
+  String get lengthLabel => '时长';
+
+  @override
+  String get searchFailed => '搜索失败，请重试。';
+
+  @override
+  String get scheduledTimeLower => '执行时间';
+
+  @override
+  String get executionRow => '执行时间';
+
+  @override
+  String get deadlineRow => '截止时间';
+
+  @override
+  String get remindOnTime => '准时';
+
+  @override
+  String remindMinutesBefore(int count) {
+    return '提前 $count 分钟';
+  }
+
+  @override
+  String remindHoursBefore(int count) {
+    return '提前 $count 小时';
+  }
+
+  @override
+  String remindDaysBefore(int count) {
+    return '提前 $count 天';
+  }
+
+  @override
+  String get remindCustom => '自定义时间';
+
+  @override
+  String get reminderNeedsAnchor => '先设置截止时间或开始时间，提醒才能相对它计算。';
+
+  @override
+  String get actionEarlierToday => '今日早前';
+
+  @override
+  String get createTodoAndSchedule => '新建待办';
+
+  @override
+  String calendarHasContents(int events, int todos) {
+    return '这个日历里有 $events 条日程和 $todos 条待办。';
+  }
+
+  @override
+  String get moveContentsTo => '移动到';
+
+  @override
+  String get deleteCalendarAndContents => '连同日历一起删除';
+
+  @override
+  String get importTo => '导入到';
+
+  @override
+  String get nothingToExport => '还没有可导出的内容';
+
+  @override
+  String get exportAllCalendars => '导出全部日历';
+
+  @override
+  String get mergeBackup => '合并备份';
+
+  @override
+  String get mergeBackupDesc => '把备份里的内容加入本机：已有条目会被更新，不会删除任何内容。';
+
+  @override
+  String get accountLoadFailed => '账户信息加载失败。';
+
+  @override
+  String get copyFeedback => '复制反馈内容';
+
+  @override
+  String get submitOnGitHub => '在 GitHub 提交';
+
+  @override
+  String get clearChatAction => '清空';
+
+  @override
+  String get clearChatConfirm => '清空这段对话？清空后无法恢复。';
+
+  @override
+  String get couldNotOpenLink => '无法打开这个链接。';
+
+  @override
+  String get invalidTimeRange => '结束时间必须晚于开始时间。';
+
+  @override
+  String get deleteThisOccurrence => '仅此次';
+
+  @override
+  String get deleteWholeSeries => '整个系列';
+
+  @override
+  String get deleteScopeTitle => '删除哪些？';
+
+  @override
+  String get editOccurrenceNotice => '你正在编辑重复日程中的一次。';
+
+  @override
+  String repeatUntil(String date) {
+    return '直到 $date';
+  }
+
+  @override
+  String repeatEveryNWeekdays(String days, int interval) {
+    return '每 $interval 周的 $days';
+  }
+
+  @override
+  String repeatOnDays(String days) {
+    return '每周的 $days';
+  }
+
+  @override
+  String repeatMonthlyOnDay(int day) {
+    return '每月 $day 日';
+  }
+
+  @override
+  String get goneFromHere => '这一项已经不在了。';
+
+  @override
+  String get createTodoAndScheduleDesc => '新建一条待办，并直接安排在此时段';
+
+  @override
+  String get tagNameRequired => '标签名称不能为空。';
+
+  @override
+  String tagNameTooLong(int count) {
+    return '标签名称最多 $count 个字符。';
+  }
+
+  @override
+  String tagDeleteBody(String name) {
+    return '删除标签「$name」？它也会从所有使用它的待办中移除。';
+  }
+
+  @override
+  String get tagDuplicate => '已存在同名标签。';
+
+  @override
+  String get calendarNameRequired => '日历名称不能为空。';
+
+  @override
+  String get signOutConfirm => '退出登录？';
+
+  @override
+  String get signOutBody => '本机数据会保留，同步会暂停，直到你重新登录。';
+
+  @override
+  String get signOut => '退出登录';
 }

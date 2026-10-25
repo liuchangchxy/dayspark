@@ -62,7 +62,8 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -70,7 +71,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -82,17 +84,18 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('zh')
+    Locale('zh'),
   ];
 
   /// No description provided for @preview.
@@ -170,13 +173,13 @@ abstract class AppLocalizations {
   /// No description provided for @confirmLegacyRecurrenceTitle.
   ///
   /// In en, this message translates to:
-  /// **'Confirm recurring Todo'**
+  /// **'Confirm repeating task'**
   String get confirmLegacyRecurrenceTitle;
 
   /// No description provided for @confirmLegacyRecurrenceBody.
   ///
   /// In en, this message translates to:
-  /// **'This repeating todo was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.'**
+  /// **'This repeating task was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.'**
   String get confirmLegacyRecurrenceBody;
 
   /// No description provided for @legacyAnchorEvidence.
@@ -308,13 +311,13 @@ abstract class AppLocalizations {
   /// No description provided for @todoNotFound.
   ///
   /// In en, this message translates to:
-  /// **'Todo Not Found'**
+  /// **'Task Not Found'**
   String get todoNotFound;
 
   /// No description provided for @missingTodoParam.
   ///
   /// In en, this message translates to:
-  /// **'This link did not carry a todo. Open it from a list instead.'**
+  /// **'This link did not carry a task. Open it from a list instead.'**
   String get missingTodoParam;
 
   /// No description provided for @editCalendar.
@@ -350,7 +353,7 @@ abstract class AppLocalizations {
   /// No description provided for @todos.
   ///
   /// In en, this message translates to:
-  /// **'Todos'**
+  /// **'Tasks'**
   String get todos;
 
   /// No description provided for @settings.
@@ -380,7 +383,7 @@ abstract class AppLocalizations {
   /// No description provided for @newTodo.
   ///
   /// In en, this message translates to:
-  /// **'New Todo'**
+  /// **'New Task'**
   String get newTodo;
 
   /// No description provided for @newItem.
@@ -398,7 +401,7 @@ abstract class AppLocalizations {
   /// No description provided for @editTodo.
   ///
   /// In en, this message translates to:
-  /// **'Edit Todo'**
+  /// **'Edit Task'**
   String get editTodo;
 
   /// No description provided for @save.
@@ -590,7 +593,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiHint.
   ///
   /// In en, this message translates to:
-  /// **'Ask me to create events or todos'**
+  /// **'Ask me to create events or tasks'**
   String get aiHint;
 
   /// No description provided for @aiExample.
@@ -656,7 +659,7 @@ abstract class AppLocalizations {
   /// No description provided for @noPendingTodos.
   ///
   /// In en, this message translates to:
-  /// **'No pending todos'**
+  /// **'No pending tasks'**
   String get noPendingTodos;
 
   /// No description provided for @tapToCreate.
@@ -794,7 +797,7 @@ abstract class AppLocalizations {
   /// No description provided for @todoCreated.
   ///
   /// In en, this message translates to:
-  /// **'Todo created'**
+  /// **'Task created'**
   String get todoCreated;
 
   /// No description provided for @importExport.
@@ -830,14 +833,14 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestored.
   ///
   /// In en, this message translates to:
-  /// **'Backup restored'**
+  /// **'Backup merged'**
   String get backupRestored;
 
   /// No description provided for @restoreFailed.
   ///
   /// In en, this message translates to:
-  /// **'Restore failed: {error}'**
-  String restoreFailed(String error);
+  /// **'Merge failed'**
+  String get restoreFailed;
 
   /// No description provided for @import.
   ///
@@ -860,7 +863,7 @@ abstract class AppLocalizations {
   /// No description provided for @calendarData.
   ///
   /// In en, this message translates to:
-  /// **'Calendar data'**
+  /// **'Import or export .ics files'**
   String get calendarData;
 
   /// No description provided for @add.
@@ -878,8 +881,8 @@ abstract class AppLocalizations {
   /// No description provided for @exportFailed.
   ///
   /// In en, this message translates to:
-  /// **'Export failed: {error}'**
-  String exportFailed(String error);
+  /// **'Export failed'**
+  String get exportFailed;
 
   /// No description provided for @noCalendarToImport.
   ///
@@ -890,32 +893,32 @@ abstract class AppLocalizations {
   /// No description provided for @importFailed.
   ///
   /// In en, this message translates to:
-  /// **'Import failed: {error}'**
-  String importFailed(String error);
+  /// **'Import failed'**
+  String get importFailed;
 
   /// No description provided for @importedResult.
   ///
   /// In en, this message translates to:
-  /// **'Imported {events} event(s) and {todos} todo(s)'**
+  /// **'Imported {events} event(s) and {todos} task(s)'**
   String importedResult(int events, int todos);
 
   /// No description provided for @importedResultWithFailed.
   ///
   /// In en, this message translates to:
-  /// **'Imported {events} event(s) and {todos} todo(s) ({failed} failed)'**
+  /// **'Imported {events} event(s) and {todos} task(s) ({failed} failed)'**
   String importedResultWithFailed(int events, int todos, int failed);
 
   /// No description provided for @importExportDesc.
   ///
   /// In en, this message translates to:
-  /// **'Export calendar events and todos to .ics, or import from a .ics file.'**
+  /// **'Export calendar events and tasks to .ics, or import from a .ics file.'**
   String get importExportDesc;
 
   /// No description provided for @error.
   ///
   /// In en, this message translates to:
-  /// **'Error: {error}'**
-  String error(String error);
+  /// **'Something went wrong. Please try again.'**
+  String get error;
 
   /// No description provided for @endBeforeStart.
   ///
@@ -932,8 +935,14 @@ abstract class AppLocalizations {
   /// No description provided for @aiError.
   ///
   /// In en, this message translates to:
-  /// **'AI error: {error}'**
-  String aiError(String error);
+  /// **'The assistant couldn\'t finish that'**
+  String get aiError;
+
+  /// No description provided for @aiFilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Filled in: {fields}'**
+  String aiFilled(String fields);
 
   /// No description provided for @deleteEventConfirm.
   ///
@@ -986,8 +995,8 @@ abstract class AppLocalizations {
   /// No description provided for @schedulingFailed.
   ///
   /// In en, this message translates to:
-  /// **'Scheduling failed: {error}'**
-  String schedulingFailed(String error);
+  /// **'Couldn\'t schedule that'**
+  String get schedulingFailed;
 
   /// No description provided for @noSubtaskSuggestions.
   ///
@@ -1004,20 +1013,20 @@ abstract class AppLocalizations {
   /// No description provided for @todoCreatedShort.
   ///
   /// In en, this message translates to:
-  /// **'Todo created'**
+  /// **'Task created'**
   String get todoCreatedShort;
 
   /// No description provided for @failedCreateTodo.
   ///
   /// In en, this message translates to:
-  /// **'Failed to create todo: {error}'**
-  String failedCreateTodo(String error);
+  /// **'Couldn\'t create the task'**
+  String get failedCreateTodo;
 
   /// No description provided for @breakdownFailed.
   ///
   /// In en, this message translates to:
-  /// **'Breakdown failed: {error}'**
-  String breakdownFailed(String error);
+  /// **'Couldn\'t break that down'**
+  String get breakdownFailed;
 
   /// No description provided for @eventCreatedShort.
   ///
@@ -1028,14 +1037,20 @@ abstract class AppLocalizations {
   /// No description provided for @failedAction.
   ///
   /// In en, this message translates to:
-  /// **'Failed: {error}'**
-  String failedAction(String error);
+  /// **'Couldn\'t do that'**
+  String get failedAction;
 
   /// No description provided for @noAttachments.
   ///
   /// In en, this message translates to:
   /// **'No attachments'**
   String get noAttachments;
+
+  /// No description provided for @openTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Not completed'**
+  String get openTask;
 
   /// No description provided for @completed.
   ///
@@ -1082,13 +1097,13 @@ abstract class AppLocalizations {
   /// No description provided for @moveToTodayPrompt.
   ///
   /// In en, this message translates to:
-  /// **'You have {count} overdue todo(s). Move due dates to today?'**
+  /// **'You have {count} overdue task(s). Move due dates to today?'**
   String moveToTodayPrompt(int count);
 
   /// No description provided for @movedToToday.
   ///
   /// In en, this message translates to:
-  /// **'Moved {count} todo(s) to today'**
+  /// **'Moved {count} task(s) to today'**
   String movedToToday(int count);
 
   /// No description provided for @skip.
@@ -1118,31 +1133,13 @@ abstract class AppLocalizations {
   /// No description provided for @defaultTab.
   ///
   /// In en, this message translates to:
-  /// **'Tab Order'**
+  /// **'Startup view'**
   String get defaultTab;
-
-  /// No description provided for @defaultTabDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose the order of calendar and todos tabs'**
-  String get defaultTabDesc;
-
-  /// No description provided for @calendarFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Calendar First'**
-  String get calendarFirst;
-
-  /// No description provided for @todosFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Todos First'**
-  String get todosFirst;
 
   /// No description provided for @inbox.
   ///
   /// In en, this message translates to:
-  /// **'To-do Box'**
+  /// **'Inbox'**
   String get inbox;
 
   /// No description provided for @trash.
@@ -1211,6 +1208,12 @@ abstract class AppLocalizations {
   /// **'{month}/{day}'**
   String dateLabel(int month, int day);
 
+  /// No description provided for @openUpdatePage.
+  ///
+  /// In en, this message translates to:
+  /// **'View release'**
+  String get openUpdatePage;
+
   /// No description provided for @checkUpdate.
   ///
   /// In en, this message translates to:
@@ -1234,12 +1237,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Current version'**
   String get currentVersion;
-
-  /// No description provided for @downloadUpdate.
-  ///
-  /// In en, this message translates to:
-  /// **'Download Update'**
-  String get downloadUpdate;
 
   /// No description provided for @starOnGithub.
   ///
@@ -1282,6 +1279,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No models found'**
   String get noModelsFound;
+
+  /// No description provided for @modelDetectFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn’t reach that provider. Check the URL and API key.'**
+  String get modelDetectFailed;
 
   /// No description provided for @selectModel.
   ///
@@ -1343,6 +1346,66 @@ abstract class AppLocalizations {
   /// **'Reset'**
   String get resetColor;
 
+  /// No description provided for @colorRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get colorRed;
+
+  /// No description provided for @colorAmber.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber'**
+  String get colorAmber;
+
+  /// No description provided for @colorGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get colorGreen;
+
+  /// No description provided for @colorBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get colorBlue;
+
+  /// No description provided for @colorPurple.
+  ///
+  /// In en, this message translates to:
+  /// **'Purple'**
+  String get colorPurple;
+
+  /// No description provided for @colorPink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get colorPink;
+
+  /// No description provided for @colorGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Gray'**
+  String get colorGray;
+
+  /// No description provided for @colorTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get colorTeal;
+
+  /// No description provided for @colorOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get colorOrange;
+
+  /// No description provided for @colorIndigo.
+  ///
+  /// In en, this message translates to:
+  /// **'Indigo'**
+  String get colorIndigo;
+
   /// No description provided for @feedback.
   ///
   /// In en, this message translates to:
@@ -1388,7 +1451,7 @@ abstract class AppLocalizations {
   /// No description provided for @addTodoShort.
   ///
   /// In en, this message translates to:
-  /// **'Add Todo'**
+  /// **'Add Task'**
   String get addTodoShort;
 
   /// No description provided for @schedule.
@@ -1412,7 +1475,7 @@ abstract class AppLocalizations {
   /// No description provided for @todoReminder.
   ///
   /// In en, this message translates to:
-  /// **'Todo Reminder'**
+  /// **'Task Reminder'**
   String get todoReminder;
 
   /// No description provided for @snoozedReminder.
@@ -1466,8 +1529,8 @@ abstract class AppLocalizations {
   /// No description provided for @attachmentFailed.
   ///
   /// In en, this message translates to:
-  /// **'Attachment failed: {error}'**
-  String attachmentFailed(String error);
+  /// **'Attachment action failed'**
+  String get attachmentFailed;
 
   /// No description provided for @editTag.
   ///
@@ -1498,6 +1561,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Event moved'**
   String get eventMoved;
+
+  /// No description provided for @notificationPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification permission'**
+  String get notificationPermission;
+
+  /// No description provided for @notificationPermissionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow DaySpark to send reminder notifications'**
+  String get notificationPermissionDesc;
+
+  /// No description provided for @notificationPermissionAsked.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested — change it in System Settings if nothing appears'**
+  String get notificationPermissionAsked;
 
   /// No description provided for @systemAlarm.
   ///
@@ -1652,7 +1733,7 @@ abstract class AppLocalizations {
   /// No description provided for @openTodoDetails.
   ///
   /// In en, this message translates to:
-  /// **'Open todo details'**
+  /// **'Open task details'**
   String get openTodoDetails;
 
   /// No description provided for @highPriority.
@@ -1880,7 +1961,7 @@ abstract class AppLocalizations {
   /// No description provided for @hideCompletedDesc.
   ///
   /// In en, this message translates to:
-  /// **'Hide completed items from todo lists'**
+  /// **'Hide completed items from task lists'**
   String get hideCompletedDesc;
 
   /// No description provided for @advancedSettings.
@@ -2066,7 +2147,7 @@ abstract class AppLocalizations {
   /// Find events and todos by title or notes.
   ///
   /// In en, this message translates to:
-  /// **'Find events and todos by title or notes.'**
+  /// **'Find events and tasks by title or notes.'**
   String get searchEmptyHint;
 
   /// From your inbox
@@ -2078,13 +2159,13 @@ abstract class AppLocalizations {
   /// Deleted events and todos wait here until you remove them.
   ///
   /// In en, this message translates to:
-  /// **'Deleted events and todos wait here until you remove them.'**
+  /// **'Deleted events and tasks wait here until you remove them.'**
   String get trashEmptyHint;
 
   /// Back to todos
   ///
   /// In en, this message translates to:
-  /// **'Back to todos'**
+  /// **'Back to Tasks'**
   String get trashEmptyAction;
 
   /// Connect an AI provider
@@ -2114,7 +2195,7 @@ abstract class AppLocalizations {
   /// Tags group your todos so you can filter by area.
   ///
   /// In en, this message translates to:
-  /// **'Tags group your todos so you can filter by area.'**
+  /// **'Tags group your tasks so you can filter by area.'**
   String get tagEmptyHint;
 
   /// No description provided for @connectedDevices.
@@ -2180,37 +2261,37 @@ abstract class AppLocalizations {
   /// No description provided for @scheduleTodo.
   ///
   /// In en, this message translates to:
-  /// **'Schedule Todo'**
+  /// **'Schedule Task'**
   String get scheduleTodo;
 
   /// No description provided for @scheduleTodoDesc.
   ///
   /// In en, this message translates to:
-  /// **'Allocate calendar time for an existing todo'**
+  /// **'Give an existing task a time here'**
   String get scheduleTodoDesc;
 
   /// No description provided for @createEventOption.
   ///
   /// In en, this message translates to:
-  /// **'Create Event'**
+  /// **'New Event'**
   String get createEventOption;
 
   /// No description provided for @createEventDesc.
   ///
   /// In en, this message translates to:
-  /// **'Add a new calendar event'**
+  /// **'Add an event at this time'**
   String get createEventDesc;
 
   /// No description provided for @selectTodoToSchedule.
   ///
   /// In en, this message translates to:
-  /// **'Select Todo to Schedule'**
+  /// **'Select a Task to Schedule'**
   String get selectTodoToSchedule;
 
   /// No description provided for @noSchedulableTodos.
   ///
   /// In en, this message translates to:
-  /// **'No pending todos available to schedule'**
+  /// **'No pending tasks available to schedule'**
   String get noSchedulableTodos;
 
   /// No description provided for @action.
@@ -2218,12 +2299,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Action'**
   String get action;
-
-  /// No description provided for @actionFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Action First'**
-  String get actionFirst;
 
   /// No description provided for @scheduledSection.
   ///
@@ -2234,7 +2309,7 @@ abstract class AppLocalizations {
   /// No description provided for @dueTodaySection.
   ///
   /// In en, this message translates to:
-  /// **'Due Today'**
+  /// **'To do today'**
   String get dueTodaySection;
 
   /// No description provided for @unplannedInbox.
@@ -2366,7 +2441,7 @@ abstract class AppLocalizations {
   /// No description provided for @calendarLegendAllocation.
   ///
   /// In en, this message translates to:
-  /// **'Scheduled'**
+  /// **'Scheduled time'**
   String get calendarLegendAllocation;
 
   /// No description provided for @actionAll.
@@ -2396,7 +2471,7 @@ abstract class AppLocalizations {
   /// No description provided for @todoDetails.
   ///
   /// In en, this message translates to:
-  /// **'Todo'**
+  /// **'Task'**
   String get todoDetails;
 
   /// No description provided for @eventDetails.
@@ -2420,7 +2495,7 @@ abstract class AppLocalizations {
   /// No description provided for @executionSchedule.
   ///
   /// In en, this message translates to:
-  /// **'Execution time'**
+  /// **'Scheduled time'**
   String get executionSchedule;
 
   /// No description provided for @addExecution.
@@ -2492,7 +2567,7 @@ abstract class AppLocalizations {
   /// No description provided for @recurringNeedsRepair.
   ///
   /// In en, this message translates to:
-  /// **'Some repeating todos need a one-time fix'**
+  /// **'Some repeating tasks need a one-time fix'**
   String get recurringNeedsRepair;
 
   /// No description provided for @recurringNeedsRepairHint.
@@ -2504,7 +2579,7 @@ abstract class AppLocalizations {
   /// No description provided for @recurringBroken.
   ///
   /// In en, this message translates to:
-  /// **'A repeating todo cannot be calculated'**
+  /// **'A repeating task cannot be calculated'**
   String get recurringBroken;
 
   /// No description provided for @recurringBrokenHint.
@@ -2513,10 +2588,16 @@ abstract class AppLocalizations {
   /// **'Its repeat rule is no longer valid. Open it to set a new one.'**
   String get recurringBrokenHint;
 
+  /// No description provided for @untilTime.
+  ///
+  /// In en, this message translates to:
+  /// **'until {time}'**
+  String untilTime(String time);
+
   /// No description provided for @laterToday.
   ///
   /// In en, this message translates to:
-  /// **'Later today'**
+  /// **'Next up'**
   String get laterToday;
 
   /// No description provided for @nothingScheduled.
@@ -2668,9 +2749,352 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This repeats. Edits apply to every occurrence.'**
   String get recurringSeriesNoticeShort;
+
+  /// No description provided for @actionFailedRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'That didn\'t work. Please try again.'**
+  String get actionFailedRetry;
+
+  /// No description provided for @discardChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get discardChanges;
+
+  /// No description provided for @discardChangesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your edits to this item haven\'t been saved.'**
+  String get discardChangesBody;
+
+  /// No description provided for @keepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get keepEditing;
+
+  /// No description provided for @discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discard;
+
+  /// No description provided for @clearDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear deadline'**
+  String get clearDeadline;
+
+  /// No description provided for @cancelSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel scheduled time'**
+  String get cancelSchedule;
+
+  /// No description provided for @removeReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove reminder'**
+  String get removeReminder;
+
+  /// No description provided for @removeAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove attachment'**
+  String get removeAttachment;
+
+  /// No description provided for @removeSubtask.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove subtask'**
+  String get removeSubtask;
+
+  /// No description provided for @duration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get duration;
+
+  /// No description provided for @lengthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get lengthLabel;
+
+  /// No description provided for @searchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed. Please try again.'**
+  String get searchFailed;
+
+  /// No description provided for @scheduledTimeLower.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled time'**
+  String get scheduledTimeLower;
+
+  /// No description provided for @executionRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled time'**
+  String get executionRow;
+
+  /// No description provided for @deadlineRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline'**
+  String get deadlineRow;
+
+  /// No description provided for @remindOnTime.
+  ///
+  /// In en, this message translates to:
+  /// **'On time'**
+  String get remindOnTime;
+
+  /// No description provided for @remindMinutesBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min before'**
+  String remindMinutesBefore(int count);
+
+  /// No description provided for @remindHoursBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} h before'**
+  String remindHoursBefore(int count);
+
+  /// No description provided for @remindDaysBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} day(s) before'**
+  String remindDaysBefore(int count);
+
+  /// No description provided for @remindCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom time'**
+  String get remindCustom;
+
+  /// No description provided for @reminderNeedsAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a deadline or start time first, then reminders can be relative to it.'**
+  String get reminderNeedsAnchor;
+
+  /// No description provided for @actionEarlierToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier today'**
+  String get actionEarlierToday;
+
+  /// No description provided for @createTodoAndSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'New Task'**
+  String get createTodoAndSchedule;
+
+  /// No description provided for @calendarHasContents.
+  ///
+  /// In en, this message translates to:
+  /// **'This calendar holds {events} events and {todos} tasks.'**
+  String calendarHasContents(int events, int todos);
+
+  /// No description provided for @moveContentsTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Move them to'**
+  String get moveContentsTo;
+
+  /// No description provided for @deleteCalendarAndContents.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete them with the calendar'**
+  String get deleteCalendarAndContents;
+
+  /// No description provided for @importTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Import into'**
+  String get importTo;
+
+  /// No description provided for @nothingToExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to export yet'**
+  String get nothingToExport;
+
+  /// No description provided for @exportAllCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'Export all calendars'**
+  String get exportAllCalendars;
+
+  /// No description provided for @mergeBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge backup'**
+  String get mergeBackup;
+
+  /// No description provided for @mergeBackupDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds everything from the backup. Items already on this device are updated; nothing is removed.'**
+  String get mergeBackupDesc;
+
+  /// No description provided for @accountLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your account.'**
+  String get accountLoadFailed;
+
+  /// No description provided for @copyFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy feedback'**
+  String get copyFeedback;
+
+  /// No description provided for @submitOnGitHub.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit on GitHub'**
+  String get submitOnGitHub;
+
+  /// No description provided for @clearChatAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearChatAction;
+
+  /// No description provided for @clearChatConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this conversation? It can\'t be restored.'**
+  String get clearChatConfirm;
+
+  /// No description provided for @couldNotOpenLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open that link.'**
+  String get couldNotOpenLink;
+
+  /// No description provided for @invalidTimeRange.
+  ///
+  /// In en, this message translates to:
+  /// **'The end has to come after the start.'**
+  String get invalidTimeRange;
+
+  /// No description provided for @deleteThisOccurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'This occurrence only'**
+  String get deleteThisOccurrence;
+
+  /// No description provided for @deleteWholeSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'The whole series'**
+  String get deleteWholeSeries;
+
+  /// No description provided for @deleteScopeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete which?'**
+  String get deleteScopeTitle;
+
+  /// No description provided for @editOccurrenceNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re editing one occurrence of a repeating event.'**
+  String get editOccurrenceNotice;
+
+  /// No description provided for @repeatUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'until {date}'**
+  String repeatUntil(String date);
+
+  /// No description provided for @repeatEveryNWeekdays.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {interval} weeks on {days}'**
+  String repeatEveryNWeekdays(String days, int interval);
+
+  /// No description provided for @repeatOnDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Every week on {days}'**
+  String repeatOnDays(String days);
+
+  /// No description provided for @repeatMonthlyOnDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Every month on day {day}'**
+  String repeatMonthlyOnDay(int day);
+
+  /// No description provided for @goneFromHere.
+  ///
+  /// In en, this message translates to:
+  /// **'This item is no longer here.'**
+  String get goneFromHere;
+
+  /// No description provided for @createTodoAndScheduleDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a task and place it in this slot'**
+  String get createTodoAndScheduleDesc;
+
+  /// No description provided for @tagNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag name is required.'**
+  String get tagNameRequired;
+
+  /// No description provided for @tagNameTooLong.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag names can be at most {count} characters.'**
+  String tagNameTooLong(int count);
+
+  /// No description provided for @tagDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the tag \"{name}\"? It will be removed from every task that uses it.'**
+  String tagDeleteBody(String name);
+
+  /// No description provided for @tagDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'A tag with that name already exists.'**
+  String get tagDuplicate;
+
+  /// No description provided for @calendarNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar name is required.'**
+  String get calendarNameRequired;
+
+  /// No description provided for @signOutConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Log out?'**
+  String get signOutConfirm;
+
+  /// No description provided for @signOutBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data stays on this device. Syncing stops until you log in again.'**
+  String get signOutBody;
+
+  /// No description provided for @signOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Log out'**
+  String get signOut;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -2679,25 +3103,26 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en': return AppLocalizationsEn();
-    case 'zh': return AppLocalizationsZh();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'zh':
+      return AppLocalizationsZh();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }

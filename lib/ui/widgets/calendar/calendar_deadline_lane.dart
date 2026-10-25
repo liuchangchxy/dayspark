@@ -63,40 +63,46 @@ class CalendarDeadlineLane extends StatelessWidget {
                     children: [
                       if (items.isEmpty) const SizedBox(height: 48),
                       ...items.map(
-                        (item) => Tooltip(
-                          message: item.title,
-                          child: InkWell(
-                            onTap: onTapped == null
-                                ? null
-                                : () => onTapped!(item),
-                            mouseCursor: SystemMouseCursors.click,
-                            child: Container(
-                              constraints: const BoxConstraints(minHeight: 48),
-                              alignment: Alignment.centerLeft,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 4,
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    CupertinoIcons.flag,
-                                    size: 12,
-                                    color: context.semantic.warning,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Expanded(
-                                    child: Text(
-                                      '${DateFormat.Hm().format(item.due)} ${item.title}',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: context.semantic.warning,
-                                          ),
+                        (item) => Semantics(
+                          button: onTapped != null,
+                          label: '${l.deadline}: ${item.title}',
+                          child: Tooltip(
+                            message: item.title,
+                            child: InkWell(
+                              onTap: onTapped == null
+                                  ? null
+                                  : () => onTapped!(item),
+                              mouseCursor: SystemMouseCursors.click,
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  minHeight: 48,
+                                ),
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 4,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.flag,
+                                      size: 12,
+                                      color: context.semantic.warning,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 3),
+                                    Expanded(
+                                      child: Text(
+                                        '${DateFormat.Hm().format(item.due)} ${item.title}',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: context.semantic.warning,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),

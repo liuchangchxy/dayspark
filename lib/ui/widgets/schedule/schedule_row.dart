@@ -18,6 +18,7 @@ class ScheduleRow extends StatelessWidget {
     this.placeholder = false,
     this.onTap,
     this.onClear,
+    this.clearTooltip,
     this.trailing,
     this.emptyValue,
   });
@@ -32,6 +33,11 @@ class ScheduleRow extends StatelessWidget {
 
   final VoidCallback? onTap;
   final VoidCallback? onClear;
+
+  /// What the clear button removes — "Clear deadline", "Cancel scheduled
+  /// time". A generic "Delete" reads as deleting the whole row.
+  final String? clearTooltip;
+
   final Widget? trailing;
 
   /// Announced instead of [value] when the row is empty, so screen readers do
@@ -43,7 +49,7 @@ class ScheduleRow extends StatelessWidget {
     final theme = Theme.of(context);
     final interactive = onTap != null;
     final row = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 44),
+      constraints: const BoxConstraints(minHeight: 48),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Row(
@@ -77,15 +83,25 @@ class ScheduleRow extends StatelessWidget {
                 ),
               ),
             ),
+            if (interactive && trailing == null) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                CupertinoIcons.chevron_forward,
+                size: 12,
+                color: context.semantic.textTertiary,
+              ),
+            ],
             if (onClear != null) ...[
               const SizedBox(width: AppSpacing.xs),
               IconButton(
                 icon: const Icon(CupertinoIcons.clear, size: 14),
                 onPressed: onClear,
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 padding: EdgeInsets.zero,
-                tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+                tooltip:
+                    clearTooltip ??
+                    MaterialLocalizations.of(context).deleteButtonTooltip,
               ),
             ],
             if (trailing != null) ...[

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
 void main() {
-  testWidgets('DS-020: 回收站左滑永久删除并在确认后真正触发删除', (tester) async {
+  testWidgets('DS-020: 回收站逐条永久删除并在确认后真正触发删除', (tester) async {
     int? deletedTodoId;
     int? deletedEventId;
 
@@ -44,9 +45,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          deletedTodosProvider.overrideWith(
-            (ref) => Stream.value([testTodo]),
-          ),
+          deletedTodosProvider.overrideWith((ref) => Stream.value([testTodo])),
           deletedEventsProvider.overrideWith(
             (ref) => Stream.value([testEvent]),
           ),
@@ -76,8 +75,13 @@ void main() {
     expect(find.text('测试废弃待办'), findsOneWidget);
     expect(find.text('测试废弃事件'), findsOneWidget);
 
-    // 1. 滑动待办从右向左（DismissDirection.endToStart）
-    await tester.drag(find.byKey(const ValueKey('todo-42')), const Offset(-500, 0));
+    // 1. 每行自带的删除按钮（不再用左滑：桌面上一次误拖就是不可逆删除）
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('trash-todo-42')),
+        matching: find.byIcon(CupertinoIcons.delete),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 弹窗确认对话框
@@ -88,8 +92,12 @@ void main() {
 
     expect(deletedTodoId, 42);
 
-    // 2. 滑动事件从右向左（DismissDirection.endToStart）
-    await tester.drag(find.byKey(const ValueKey('event-99')), const Offset(-500, 0));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('trash-event-99')),
+        matching: find.byIcon(CupertinoIcons.delete),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(AlertDialog), findsOneWidget);

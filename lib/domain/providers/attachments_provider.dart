@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/sync_client_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
 
@@ -87,6 +88,66 @@ final deleteAttachmentProvider = Provider<Future<void> Function(int)>((ref) {
   final service = ref.read(attachmentServiceProvider);
   return service.delete;
 });
+
+/// The two halves a form needs to write an attachment inside its own
+/// transaction: resolve the bytes first (a missing source must fail the save
+/// before anything is written), insert the row inside the scope, upload after
+/// the scope commits.
+final stageAttachmentProvider =
+    Provider<
+      Future<Uint8List> Function({
+        List<int>? bytes,
+        String? sourcePath,
+        required String fileName,
+      })
+    >((ref) {
+      final service = ref.read(attachmentServiceProvider);
+      return service.resolveBytes;
+    });
+
+final insertAttachmentRowProvider =
+    Provider<
+      Future<AttachmentStage> Function(
+        RecordScope tx, {
+        required String parentType,
+        required int parentId,
+        required String fileName,
+        String? mimeType,
+        required List<int> data,
+        required void Function(String?) onFileWritten,
+      })
+    >((ref) {
+      final service = ref.read(attachmentServiceProvider);
+      return service.insertRow;
+    });
+
+final discardStagedFilesProvider =
+    Provider<Future<void> Function(Iterable<String?>)>((ref) {
+      final service = ref.read(attachmentServiceProvider);
+      return service.discardStagedFiles;
+    });
+
+final deleteAttachmentRowProvider =
+    Provider<
+      Future<AttachmentResidue?> Function(RecordScope tx, int id)
+    >((ref) {
+      final service = ref.read(attachmentServiceProvider);
+      return service.deleteRow;
+    });
+
+final discardAttachmentResidueProvider =
+    Provider<Future<void> Function(AttachmentResidue?)>((ref) {
+      final service = ref.read(attachmentServiceProvider);
+      return service.discardResidue;
+    });
+
+final uploadAttachmentsProvider =
+    Provider<
+      Future<void> Function(Iterable<({int id, List<int>? bytes})>)
+    >((ref) {
+      final service = ref.read(attachmentServiceProvider);
+      return service.uploadAfterCommit;
+    });
 
 /// Bytes of an attachment, fetched from the server when this device only
 /// holds the synced metadata. Null when there is nothing to open.

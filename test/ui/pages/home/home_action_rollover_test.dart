@@ -93,7 +93,7 @@ void main() {
       // - Task Due Day N+1 does not appear in Action timeline/due/overdue
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsNothing);
-      expect(find.textContaining('Due Today'), findsOneWidget);
+      expect(find.text('To do today'), findsOneWidget);
       expect(find.textContaining('Overdue'), findsNothing);
 
       // 1. Rollover to Day N+1 via midnight timer
@@ -109,10 +109,10 @@ void main() {
       // - Task Due Day N+1 is now Due Today
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsOneWidget);
-      // The overdue section header is distinct from the D Final summary line,
-      // which also renders an "N Overdue" fragment on desktop.
-      expect(find.textContaining('Overdue · 1'), findsOneWidget);
-      expect(find.textContaining('Due Today'), findsOneWidget);
+      // The section header states the section, not a count: the counter was
+      // one of the pieces of chrome removed from Action.
+      expect(find.text('Overdue'), findsOneWidget);
+      expect(find.text('To do today'), findsOneWidget);
 
       // 2. Rollover to Day N+2 via app resume
       // Advance clock to Day N+2: 2026-10-08 10:00:00
@@ -124,12 +124,12 @@ void main() {
       }
 
       // On Day N+2 without restart:
-      // - Both tasks are now Overdue (Overdue · 2)
-      // - Due Today section is gone
+      // - Both tasks are now Overdue
+      // - The today section is gone
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsOneWidget);
-      expect(find.textContaining('Overdue · 2'), findsOneWidget);
-      expect(find.textContaining('Due Today'), findsNothing);
+      expect(find.text('Overdue'), findsOneWidget);
+      expect(find.text('To do today'), findsNothing);
 
       await _unmount(tester);
     },

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 
 class TodoListTile extends ConsumerWidget {
@@ -17,8 +19,18 @@ class TodoListTile extends ConsumerWidget {
   final int todoId;
   final DateTime? dueDate;
   final DateTime? startDate;
+
+  /// Shown only where an explicit order is the point (Six Things); everywhere
+  /// else the number would be an invented rank that changes as rows move.
   final int? index;
-  final Future<void> Function(String? occurrenceId, bool isCompleted) onToggle;
+
+  /// Desktop passes a handle: dragging a whole row fights with the row's own
+  /// tap target, so reordering gets its own small grip.
+  final Widget? dragHandle;
+
+  /// Omitted by surfaces that must stay read-only, such as search results,
+  /// where a tap means "open this" and nothing else.
+  final Future<void> Function(String? occurrenceId, bool isCompleted)? onToggle;
   final VoidCallback onTap;
   final Todo? todo;
 
@@ -31,7 +43,8 @@ class TodoListTile extends ConsumerWidget {
     this.dueDate,
     this.startDate,
     this.index,
-    required this.onToggle,
+    this.dragHandle,
+    this.onToggle,
     required this.onTap,
     this.todo,
   });
@@ -97,6 +110,8 @@ class TodoListTile extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Fit, not layout mode: whether the date can sit next to the title at
+        // this row width. The app's layout breakpoint stays kWorkspaceBreakpoint.
         final compact = constraints.maxWidth < 600;
         final date = Text(
           _dueDateLabel(context),
@@ -132,22 +147,37 @@ class TodoListTile extends ConsumerWidget {
                   ),
                 ),
                 MouseRegion(
-                  cursor: SystemMouseCursors.click,
+                  cursor: onToggle == null
+                      ? SystemMouseCursors.basic
+                      : SystemMouseCursors.click,
                   child: Semantics(
-                    button: true,
+                    button: onToggle != null,
                     label: isCompleted ? l.markIncomplete : l.markComplete,
                     child: SizedBox(
                       width: 48,
                       height: 48,
-                      child: Checkbox(
-                        value: isCompleted,
-                        onChanged: (_) => _toggle(context, ref),
-                        materialTapTargetSize: MaterialTapTargetSize.padded,
-                        visualDensity: VisualDensity.standard,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                      ),
+                      child: onToggle == null
+                          ? Center(
+                              child: Icon(
+                                isCompleted
+                                    ? CupertinoIcons.checkmark_circle_fill
+                                    : CupertinoIcons.circle,
+                                size: 20,
+                                color: isCompleted
+                                    ? theme.colorScheme.primary
+                                    : context.semantic.textTertiary,
+                              ),
+                            )
+                          : Checkbox(
+                              value: isCompleted,
+                              onChanged: (_) => _toggle(context, ref),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.padded,
+                              visualDensity: VisualDensity.standard,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -238,6 +268,7 @@ class TodoListTile extends ConsumerWidget {
                                     ),
                                   ),
                                 ],
+                                if (dragHandle != null) dragHandle!,
                               ],
                             ),
                           ),
@@ -280,28 +311,26 @@ class TodoListTile extends ConsumerWidget {
 
   Future<void> _toggle(BuildContext context, WidgetRef ref) async {
     final row = todo;
-    if (row?.rrule == null) {
-      await onToggle(null, !isCompleted);
-      return;
-    }
-    if (row!.status == 'COMPLETED') {
-      await onToggle(null, false);
-      return;
-    }
+    final toggle = onToggle;
+    if (toggle == null) return;
     try {
+      if (row?.rrule == null) {
+        await toggle(null, !isCompleted);
+        return;
+      }
+      if (row!.status == 'COMPLETED') {
+        await toggle(null, false);
+        return;
+      }
       final selected = await TodoOccurrencePickerSheet.show(
         context,
         ref: ref,
         todo: row,
       );
       if (!context.mounted || selected == null) return;
-      await onToggle(selected.occurrenceId, !selected.isCompleted);
+      await toggle(selected.occurrenceId, !selected.isCompleted);
     } on Object catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$error')));
-      }
+      if (context.mounted) showCompletionError(context, error);
     }
   }
 }

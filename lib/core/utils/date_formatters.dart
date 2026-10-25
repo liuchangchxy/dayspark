@@ -16,8 +16,14 @@ class DateFormatters {
   static String formatDate(DateTime dt) =>
       '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
-  /// Returns `M/D` (short locale-friendly date).
-  static String formatShortDate(DateTime dt) => '${dt.month}/${dt.day}';
+  /// Returns `M/D`, or `YYYY/M/D` when the date is not in the year the reader
+  /// is in. A bare `3/5` is ambiguous across a year boundary: a deadline six
+  /// months out looked like one in the current year.
+  static String formatShortDate(DateTime dt, {DateTime? now}) {
+    final today = now ?? DateTime.now();
+    if (dt.year == today.year) return '${dt.month}/${dt.day}';
+    return '${dt.year}/${dt.month}/${dt.day}';
+  }
 
   /// Formats an absolute TaskAllocation interval in the viewer's local time.
   /// Dates are shown for the Todo summary and whenever the interval crosses
@@ -27,6 +33,7 @@ class DateFormatters {
     DateTime endAt, {
     bool includeDate = true,
     DateTime Function(DateTime)? toLocal,
+    DateTime? now,
   }) {
     final localize = toLocal ?? (value) => value.toLocal();
     final start = localize(startAt);
@@ -41,8 +48,8 @@ class DateFormatters {
       final prefix = includeDate ? '${formatDate(start)}  ' : '';
       return '$prefix$startTime – $endTime';
     }
-    return '${formatShortDate(start)} $startTime – '
-        '${formatShortDate(end)} $endTime';
+    return '${formatShortDate(start, now: now)} $startTime – '
+        '${formatShortDate(end, now: now)} $endTime';
   }
 
   /// "just now" / "Nm ago" / "Nh ago", older falls back to `M/D HH:MM`.

@@ -27,28 +27,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newerOccurrences => 'Newer';
 
   @override
-  String get legacyRecurrenceRequiresConfirmation => 'Confirm this recurrence before scheduling an occurrence.';
+  String get legacyRecurrenceRequiresConfirmation =>
+      'Confirm this recurrence before scheduling an occurrence.';
 
   @override
-  String get unsupportedRecurrence => 'This recurrence rule cannot be expanded for scheduling.';
+  String get unsupportedRecurrence =>
+      'This recurrence rule cannot be expanded for scheduling.';
 
   @override
-  String get unsupportedLegacyRecurrence => 'This imported recurrence rule uses unsupported or invalid syntax and cannot be scheduled.';
+  String get unsupportedLegacyRecurrence =>
+      'This imported recurrence rule uses unsupported or invalid syntax and cannot be scheduled.';
 
   @override
-  String get noOccurrencesAvailable => 'No occurrences are available in the next 90 days.';
+  String get noOccurrencesAvailable =>
+      'No occurrences are available in the next 90 days.';
 
   @override
-  String get occurrenceWindowHint => 'Showing matches only within the next 90 days. The series may continue outside this window.';
+  String get occurrenceWindowHint =>
+      'Showing matches only within the next 90 days. The series may continue outside this window.';
 
   @override
-  String get orphanTaskAllocation => 'Its recurring occurrence no longer exists. The scheduled time is retained.';
+  String get orphanTaskAllocation =>
+      'Its recurring occurrence no longer exists. The scheduled time is retained.';
 
   @override
-  String get confirmLegacyRecurrenceTitle => 'Confirm recurring Todo';
+  String get confirmLegacyRecurrenceTitle => 'Confirm repeating task';
 
   @override
-  String get confirmLegacyRecurrenceBody => 'This repeating todo was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.';
+  String get confirmLegacyRecurrenceBody =>
+      'This repeating task was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.';
 
   @override
   String get legacyAnchorEvidence => 'Stored date and time';
@@ -63,25 +70,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recurrenceRule => 'Repeat rule';
 
   @override
-  String get recurrenceZoneBelongsToSeries => 'This time zone belongs to the whole series.';
+  String get recurrenceZoneBelongsToSeries =>
+      'This time zone belongs to the whole series.';
 
   @override
   String get recurrenceAnchor => 'Series anchor';
 
   @override
-  String get recurrenceEditAllocationWarning => 'Changing the repeat rule, anchor, or time zone will not move existing scheduled time blocks. Some may no longer match this series.';
+  String get recurrenceEditAllocationWarning =>
+      'Changing the repeat rule, anchor, or time zone will not move existing scheduled time blocks. Some may no longer match this series.';
 
   @override
-  String get recurrenceTimezoneHorizonError => 'The current time-zone data cannot calculate this date range yet.';
+  String get recurrenceTimezoneHorizonError =>
+      'The current time-zone data cannot calculate this date range yet.';
 
   @override
-  String get recurrenceOccurrenceLimitError => 'There are more matching occurrences than this selector can show. Narrow the date range.';
+  String get recurrenceOccurrenceLimitError =>
+      'There are more matching occurrences than this selector can show. Narrow the date range.';
 
   @override
   String get appName => 'DaySpark';
 
   @override
-  String get calendarUnavailable => 'Calendar unavailable. Please choose another calendar.';
+  String get calendarUnavailable =>
+      'Calendar unavailable. Please choose another calendar.';
 
   @override
   String get loadMore => 'Load More';
@@ -113,13 +125,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventNotFound => 'Event Not Found';
 
   @override
-  String get missingEventParam => 'This link did not carry an event. Open it from the calendar instead.';
+  String get missingEventParam =>
+      'This link did not carry an event. Open it from the calendar instead.';
 
   @override
-  String get todoNotFound => 'Todo Not Found';
+  String get todoNotFound => 'Task Not Found';
 
   @override
-  String get missingTodoParam => 'This link did not carry a todo. Open it from a list instead.';
+  String get missingTodoParam =>
+      'This link did not carry a task. Open it from a list instead.';
 
   @override
   String get editCalendar => 'Edit Calendar';
@@ -137,7 +151,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calendar => 'Calendar';
 
   @override
-  String get todos => 'Todos';
+  String get todos => 'Tasks';
 
   @override
   String get settings => 'Settings';
@@ -152,7 +166,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newEvent => 'New Event';
 
   @override
-  String get newTodo => 'New Todo';
+  String get newTodo => 'New Task';
 
   @override
   String get newItem => 'New';
@@ -161,7 +175,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editEvent => 'Edit Event';
 
   @override
-  String get editTodo => 'Edit Todo';
+  String get editTodo => 'Edit Task';
 
   @override
   String get save => 'Save';
@@ -257,7 +271,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get model => 'Model';
 
   @override
-  String get aiHint => 'Ask me to create events or todos';
+  String get aiHint => 'Ask me to create events or tasks';
 
   @override
   String get aiExample => 'e.g. \"Meeting with John tomorrow 3pm\"';
@@ -290,7 +304,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get about => 'About';
 
   @override
-  String get noPendingTodos => 'No pending todos';
+  String get noPendingTodos => 'No pending tasks';
 
   @override
   String get tapToCreate => 'Tap + to create one';
@@ -361,7 +375,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventCreated => 'Event created';
 
   @override
-  String get todoCreated => 'Todo created';
+  String get todoCreated => 'Task created';
 
   @override
   String get importExport => 'Import / Export';
@@ -379,12 +393,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restore => 'Restore';
 
   @override
-  String get backupRestored => 'Backup restored';
+  String get backupRestored => 'Backup merged';
 
   @override
-  String restoreFailed(String error) {
-    return 'Restore failed: $error';
-  }
+  String get restoreFailed => 'Merge failed';
 
   @override
   String get import => 'Import';
@@ -396,7 +408,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachments => 'Attachments';
 
   @override
-  String get calendarData => 'Calendar data';
+  String get calendarData => 'Import or export .ics files';
 
   @override
   String get add => 'Add';
@@ -407,35 +419,30 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String exportFailed(String error) {
-    return 'Export failed: $error';
-  }
+  String get exportFailed => 'Export failed';
 
   @override
   String get noCalendarToImport => 'No calendar found to import into';
 
   @override
-  String importFailed(String error) {
-    return 'Import failed: $error';
-  }
+  String get importFailed => 'Import failed';
 
   @override
   String importedResult(int events, int todos) {
-    return 'Imported $events event(s) and $todos todo(s)';
+    return 'Imported $events event(s) and $todos task(s)';
   }
 
   @override
   String importedResultWithFailed(int events, int todos, int failed) {
-    return 'Imported $events event(s) and $todos todo(s) ($failed failed)';
+    return 'Imported $events event(s) and $todos task(s) ($failed failed)';
   }
 
   @override
-  String get importExportDesc => 'Export calendar events and todos to .ics, or import from a .ics file.';
+  String get importExportDesc =>
+      'Export calendar events and tasks to .ics, or import from a .ics file.';
 
   @override
-  String error(String error) {
-    return 'Error: $error';
-  }
+  String get error => 'Something went wrong. Please try again.';
 
   @override
   String get endBeforeStart => 'End time must be after start time';
@@ -444,8 +451,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiNotConfiguredHint => 'AI not configured. Go to Settings > AI.';
 
   @override
-  String aiError(String error) {
-    return 'AI error: $error';
+  String get aiError => 'The assistant couldn\'t finish that';
+
+  @override
+  String aiFilled(String fields) {
+    return 'Filled in: $fields';
   }
 
   @override
@@ -459,7 +469,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get recurringSeriesNotice => 'This event repeats. Saving changes the whole series, and the times below are the series start rather than the occurrence you tapped. Editing a single occurrence is not supported yet.';
+  String get recurringSeriesNotice =>
+      'This event repeats. Saving changes the whole series, and the times below are the series start rather than the occurrence you tapped. Editing a single occurrence is not supported yet.';
 
   @override
   String get allDayDragDisabled => 'All-day events cannot be moved by drag';
@@ -474,12 +485,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get suggestedTimeSlots => 'Suggested Time Slots';
 
   @override
-  String get timeSlotConflict => 'The selected time slot is now occupied or no longer available. Please select another slot.';
+  String get timeSlotConflict =>
+      'The selected time slot is now occupied or no longer available. Please select another slot.';
 
   @override
-  String schedulingFailed(String error) {
-    return 'Scheduling failed: $error';
-  }
+  String get schedulingFailed => 'Couldn\'t schedule that';
 
   @override
   String get noSubtaskSuggestions => 'No subtask suggestions available';
@@ -488,28 +498,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get taskBreakdown => 'Task Breakdown';
 
   @override
-  String get todoCreatedShort => 'Todo created';
+  String get todoCreatedShort => 'Task created';
 
   @override
-  String failedCreateTodo(String error) {
-    return 'Failed to create todo: $error';
-  }
+  String get failedCreateTodo => 'Couldn\'t create the task';
 
   @override
-  String breakdownFailed(String error) {
-    return 'Breakdown failed: $error';
-  }
+  String get breakdownFailed => 'Couldn\'t break that down';
 
   @override
   String get eventCreatedShort => 'Event created';
 
   @override
-  String failedAction(String error) {
-    return 'Failed: $error';
-  }
+  String get failedAction => 'Couldn\'t do that';
 
   @override
   String get noAttachments => 'No attachments';
+
+  @override
+  String get openTask => 'Not completed';
 
   @override
   String get completed => 'Completed';
@@ -534,12 +541,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String moveToTodayPrompt(int count) {
-    return 'You have $count overdue todo(s). Move due dates to today?';
+    return 'You have $count overdue task(s). Move due dates to today?';
   }
 
   @override
   String movedToToday(int count) {
-    return 'Moved $count todo(s) to today';
+    return 'Moved $count task(s) to today';
   }
 
   @override
@@ -555,19 +562,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ok => 'OK';
 
   @override
-  String get defaultTab => 'Tab Order';
+  String get defaultTab => 'Startup view';
 
   @override
-  String get defaultTabDesc => 'Choose the order of calendar and todos tabs';
-
-  @override
-  String get calendarFirst => 'Calendar First';
-
-  @override
-  String get todosFirst => 'Todos First';
-
-  @override
-  String get inbox => 'To-do Box';
+  String get inbox => 'Inbox';
 
   @override
   String get trash => 'Trash';
@@ -588,7 +586,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moveToTrash => 'Move to Trash';
 
   @override
-  String get confirmPermanentDelete => 'Permanently delete? This cannot be undone.';
+  String get confirmPermanentDelete =>
+      'Permanently delete? This cannot be undone.';
 
   @override
   String get confirmEmptyTrash => 'Permanently delete all items in trash?';
@@ -605,6 +604,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get openUpdatePage => 'View release';
+
+  @override
   String get checkUpdate => 'Check for Updates';
 
   @override
@@ -617,9 +619,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get currentVersion => 'Current version';
-
-  @override
-  String get downloadUpdate => 'Download Update';
 
   @override
   String get starOnGithub => 'Star on GitHub';
@@ -641,6 +640,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noModelsFound => 'No models found';
+
+  @override
+  String get modelDetectFailed =>
+      'Couldn’t reach that provider. Check the URL and API key.';
 
   @override
   String get selectModel => 'Select Model';
@@ -675,6 +678,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetColor => 'Reset';
 
   @override
+  String get colorRed => 'Red';
+
+  @override
+  String get colorAmber => 'Amber';
+
+  @override
+  String get colorGreen => 'Green';
+
+  @override
+  String get colorBlue => 'Blue';
+
+  @override
+  String get colorPurple => 'Purple';
+
+  @override
+  String get colorPink => 'Pink';
+
+  @override
+  String get colorGray => 'Gray';
+
+  @override
+  String get colorTeal => 'Teal';
+
+  @override
+  String get colorOrange => 'Orange';
+
+  @override
+  String get colorIndigo => 'Indigo';
+
+  @override
   String get feedback => 'Feedback';
 
   @override
@@ -696,7 +729,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addEventShort => 'Add Event';
 
   @override
-  String get addTodoShort => 'Add Todo';
+  String get addTodoShort => 'Add Task';
 
   @override
   String get schedule => 'Schedule';
@@ -708,7 +741,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventReminder => 'Event Reminder';
 
   @override
-  String get todoReminder => 'Todo Reminder';
+  String get todoReminder => 'Task Reminder';
 
   @override
   String get snoozedReminder => 'Snoozed reminder';
@@ -729,7 +762,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachmentLocalOnly => 'Not uploaded';
 
   @override
-  String get attachmentUnavailable => 'This attachment is not available on this device yet';
+  String get attachmentUnavailable =>
+      'This attachment is not available on this device yet';
 
   @override
   String attachmentReady(String name) {
@@ -737,9 +771,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String attachmentFailed(String error) {
-    return 'Attachment failed: $error';
-  }
+  String get attachmentFailed => 'Attachment action failed';
 
   @override
   String get editTag => 'Edit Tag';
@@ -751,10 +783,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get security => 'Security';
 
   @override
-  String get recurringDragDisabled => 'Recurring events cannot be moved by drag';
+  String get recurringDragDisabled =>
+      'Recurring events cannot be moved by drag';
 
   @override
   String get eventMoved => 'Event moved';
+
+  @override
+  String get notificationPermission => 'Notification permission';
+
+  @override
+  String get notificationPermissionDesc =>
+      'Allow DaySpark to send reminder notifications';
+
+  @override
+  String get notificationPermissionAsked =>
+      'Requested — change it in System Settings if nothing appears';
 
   @override
   String get systemAlarm => 'System Alarm';
@@ -838,7 +882,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gitHub => 'GitHub';
 
   @override
-  String get openTodoDetails => 'Open todo details';
+  String get openTodoDetails => 'Open task details';
 
   @override
   String get highPriority => 'High priority';
@@ -903,7 +947,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invalidCredentials => 'Invalid email or password';
 
   @override
-  String get authFailed => 'Sign-in failed. Check the server address and try again.';
+  String get authFailed =>
+      'Sign-in failed. Check the server address and try again.';
 
   @override
   String get syncNow => 'Sync now';
@@ -964,16 +1009,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hideCompleted => 'Hide completed';
 
   @override
-  String get hideCompletedDesc => 'Hide completed items from todo lists';
+  String get hideCompletedDesc => 'Hide completed items from task lists';
 
   @override
   String get advancedSettings => 'Advanced';
 
   @override
-  String get emptySlotSemantics => 'Empty time slot, activate to create an event';
+  String get emptySlotSemantics =>
+      'Empty time slot, activate to create an event';
 
   @override
-  String get emptyCalendarHint => 'Tap an empty slot to create your first event';
+  String get emptyCalendarHint =>
+      'Tap an empty slot to create your first event';
 
   @override
   String get holidayRestBadge => 'Off';
@@ -1057,22 +1104,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchEmptyTitle => 'Search your calendar';
 
   @override
-  String get searchEmptyHint => 'Find events and todos by title or notes.';
+  String get searchEmptyHint => 'Find events and tasks by title or notes.';
 
   @override
   String get searchSuggestions => 'From your inbox';
 
   @override
-  String get trashEmptyHint => 'Deleted events and todos wait here until you remove them.';
+  String get trashEmptyHint =>
+      'Deleted events and tasks wait here until you remove them.';
 
   @override
-  String get trashEmptyAction => 'Back to todos';
+  String get trashEmptyAction => 'Back to Tasks';
 
   @override
   String get aichatNoKeyTitle => 'Connect an AI provider';
 
   @override
-  String get aichatNoKeyHint => 'DaySpark uses your own API key. Add one in Settings → AI assistant, then come back.';
+  String get aichatNoKeyHint =>
+      'DaySpark uses your own API key. Add one in Settings → AI assistant, then come back.';
 
   @override
   String get aichatSetupKey => 'Open AI settings';
@@ -1081,7 +1130,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagsEmptyAction => 'Create a tag';
 
   @override
-  String get tagEmptyHint => 'Tags group your todos so you can filter by area.';
+  String get tagEmptyHint => 'Tags group your tasks so you can filter by area.';
 
   @override
   String get connectedDevices => 'Connected devices';
@@ -1116,34 +1165,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancelledTaskAllocation => 'Cancelled';
 
   @override
-  String get scheduleTodo => 'Schedule Todo';
+  String get scheduleTodo => 'Schedule Task';
 
   @override
-  String get scheduleTodoDesc => 'Allocate calendar time for an existing todo';
+  String get scheduleTodoDesc => 'Give an existing task a time here';
 
   @override
-  String get createEventOption => 'Create Event';
+  String get createEventOption => 'New Event';
 
   @override
-  String get createEventDesc => 'Add a new calendar event';
+  String get createEventDesc => 'Add an event at this time';
 
   @override
-  String get selectTodoToSchedule => 'Select Todo to Schedule';
+  String get selectTodoToSchedule => 'Select a Task to Schedule';
 
   @override
-  String get noSchedulableTodos => 'No pending todos available to schedule';
+  String get noSchedulableTodos => 'No pending tasks available to schedule';
 
   @override
   String get action => 'Action';
 
   @override
-  String get actionFirst => 'Action First';
-
-  @override
   String get scheduledSection => 'Scheduled';
 
   @override
-  String get dueTodaySection => 'Due Today';
+  String get dueTodaySection => 'To do today';
 
   @override
   String get unplannedInbox => 'Inbox';
@@ -1157,7 +1203,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayTimeline => 'Today\'s Schedule';
 
   @override
-  String get emptyActionHint => 'No events, scheduled tasks, or deadlines for today.';
+  String get emptyActionHint =>
+      'No events, scheduled tasks, or deadlines for today.';
 
   @override
   String scheduledTodoSuccess(String summary) {
@@ -1223,7 +1270,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calendarLegendEvent => 'Event';
 
   @override
-  String get calendarLegendAllocation => 'Scheduled';
+  String get calendarLegendAllocation => 'Scheduled time';
 
   @override
   String get actionAll => 'All';
@@ -1238,7 +1285,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get close => 'Close';
 
   @override
-  String get todoDetails => 'Todo';
+  String get todoDetails => 'Task';
 
   @override
   String get eventDetails => 'Event';
@@ -1250,7 +1297,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deadlineTime => 'Deadline time';
 
   @override
-  String get executionSchedule => 'Execution time';
+  String get executionSchedule => 'Scheduled time';
 
   @override
   String get addExecution => 'Add execution time';
@@ -1283,22 +1330,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionNothingNow => 'Nothing needs you right now';
 
   @override
-  String get actionNothingNowHint => 'Upcoming events and deadlines will show up here on the day.';
+  String get actionNothingNowHint =>
+      'Upcoming events and deadlines will show up here on the day.';
 
   @override
-  String get recurringNeedsRepair => 'Some repeating todos need a one-time fix';
+  String get recurringNeedsRepair => 'Some repeating tasks need a one-time fix';
 
   @override
-  String get recurringNeedsRepairHint => 'These were imported without a time zone. Open one to confirm when it repeats.';
+  String get recurringNeedsRepairHint =>
+      'These were imported without a time zone. Open one to confirm when it repeats.';
 
   @override
-  String get recurringBroken => 'A repeating todo cannot be calculated';
+  String get recurringBroken => 'A repeating task cannot be calculated';
 
   @override
-  String get recurringBrokenHint => 'Its repeat rule is no longer valid. Open it to set a new one.';
+  String get recurringBrokenHint =>
+      'Its repeat rule is no longer valid. Open it to set a new one.';
 
   @override
-  String get laterToday => 'Later today';
+  String untilTime(String time) {
+    return 'until $time';
+  }
+
+  @override
+  String get laterToday => 'Next up';
 
   @override
   String get nothingScheduled => 'Nothing scheduled';
@@ -1391,5 +1446,204 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repeatNeedsDate => 'Give it a date first, then it can repeat.';
 
   @override
-  String get recurringSeriesNoticeShort => 'This repeats. Edits apply to every occurrence.';
+  String get recurringSeriesNoticeShort =>
+      'This repeats. Edits apply to every occurrence.';
+
+  @override
+  String get actionFailedRetry => 'That didn\'t work. Please try again.';
+
+  @override
+  String get discardChanges => 'Discard changes?';
+
+  @override
+  String get discardChangesBody =>
+      'Your edits to this item haven\'t been saved.';
+
+  @override
+  String get keepEditing => 'Keep editing';
+
+  @override
+  String get discard => 'Discard';
+
+  @override
+  String get clearDeadline => 'Clear deadline';
+
+  @override
+  String get cancelSchedule => 'Cancel scheduled time';
+
+  @override
+  String get removeReminder => 'Remove reminder';
+
+  @override
+  String get removeAttachment => 'Remove attachment';
+
+  @override
+  String get removeSubtask => 'Remove subtask';
+
+  @override
+  String get duration => 'Duration';
+
+  @override
+  String get lengthLabel => 'Duration';
+
+  @override
+  String get searchFailed => 'Search failed. Please try again.';
+
+  @override
+  String get scheduledTimeLower => 'Scheduled time';
+
+  @override
+  String get executionRow => 'Scheduled time';
+
+  @override
+  String get deadlineRow => 'Deadline';
+
+  @override
+  String get remindOnTime => 'On time';
+
+  @override
+  String remindMinutesBefore(int count) {
+    return '$count min before';
+  }
+
+  @override
+  String remindHoursBefore(int count) {
+    return '$count h before';
+  }
+
+  @override
+  String remindDaysBefore(int count) {
+    return '$count day(s) before';
+  }
+
+  @override
+  String get remindCustom => 'Custom time';
+
+  @override
+  String get reminderNeedsAnchor =>
+      'Set a deadline or start time first, then reminders can be relative to it.';
+
+  @override
+  String get actionEarlierToday => 'Earlier today';
+
+  @override
+  String get createTodoAndSchedule => 'New Task';
+
+  @override
+  String calendarHasContents(int events, int todos) {
+    return 'This calendar holds $events events and $todos tasks.';
+  }
+
+  @override
+  String get moveContentsTo => 'Move them to';
+
+  @override
+  String get deleteCalendarAndContents => 'Delete them with the calendar';
+
+  @override
+  String get importTo => 'Import into';
+
+  @override
+  String get nothingToExport => 'Nothing to export yet';
+
+  @override
+  String get exportAllCalendars => 'Export all calendars';
+
+  @override
+  String get mergeBackup => 'Merge backup';
+
+  @override
+  String get mergeBackupDesc =>
+      'Adds everything from the backup. Items already on this device are updated; nothing is removed.';
+
+  @override
+  String get accountLoadFailed => 'Couldn\'t load your account.';
+
+  @override
+  String get copyFeedback => 'Copy feedback';
+
+  @override
+  String get submitOnGitHub => 'Submit on GitHub';
+
+  @override
+  String get clearChatAction => 'Clear';
+
+  @override
+  String get clearChatConfirm =>
+      'Clear this conversation? It can\'t be restored.';
+
+  @override
+  String get couldNotOpenLink => 'Couldn\'t open that link.';
+
+  @override
+  String get invalidTimeRange => 'The end has to come after the start.';
+
+  @override
+  String get deleteThisOccurrence => 'This occurrence only';
+
+  @override
+  String get deleteWholeSeries => 'The whole series';
+
+  @override
+  String get deleteScopeTitle => 'Delete which?';
+
+  @override
+  String get editOccurrenceNotice =>
+      'You\'re editing one occurrence of a repeating event.';
+
+  @override
+  String repeatUntil(String date) {
+    return 'until $date';
+  }
+
+  @override
+  String repeatEveryNWeekdays(String days, int interval) {
+    return 'Every $interval weeks on $days';
+  }
+
+  @override
+  String repeatOnDays(String days) {
+    return 'Every week on $days';
+  }
+
+  @override
+  String repeatMonthlyOnDay(int day) {
+    return 'Every month on day $day';
+  }
+
+  @override
+  String get goneFromHere => 'This item is no longer here.';
+
+  @override
+  String get createTodoAndScheduleDesc =>
+      'Start a task and place it in this slot';
+
+  @override
+  String get tagNameRequired => 'Tag name is required.';
+
+  @override
+  String tagNameTooLong(int count) {
+    return 'Tag names can be at most $count characters.';
+  }
+
+  @override
+  String tagDeleteBody(String name) {
+    return 'Remove the tag \"$name\"? It will be removed from every task that uses it.';
+  }
+
+  @override
+  String get tagDuplicate => 'A tag with that name already exists.';
+
+  @override
+  String get calendarNameRequired => 'Calendar name is required.';
+
+  @override
+  String get signOutConfirm => 'Log out?';
+
+  @override
+  String get signOutBody =>
+      'Your data stays on this device. Syncing stops until you log in again.';
+
+  @override
+  String get signOut => 'Log out';
 }

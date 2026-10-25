@@ -11,6 +11,8 @@ import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/domain/providers/default_tab_provider.dart';
+import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
 class TrashPage extends ConsumerWidget {
   const TrashPage({super.key});
@@ -38,10 +40,10 @@ class TrashPage extends ConsumerWidget {
       ],
       child: deletedAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(l.error('$e'))),
+        error: (e, _) => Center(child: Text(l.error)),
         data: (todoRows) => deletedEventsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text(l.error('$e'))),
+          error: (e, _) => Center(child: Text(l.error)),
           data: (eventRows) {
             if (todoRows.isEmpty && eventRows.isEmpty) {
               return EmptyState(
@@ -49,7 +51,13 @@ class TrashPage extends ConsumerWidget {
                 title: l.trashEmpty,
                 hint: l.trashEmptyHint,
                 action: FilledButton(
-                  onPressed: () => context.go('/'),
+                  // "Back to todos" has to land on Todos — the Home root
+                  // defaults to whichever tab was last open.
+                  onPressed: () {
+                    ref.read(workspaceTabProvider.notifier).state =
+                        AppTab.todos;
+                    context.go('/?tab=2');
+                  },
                   child: Text(l.trashEmptyAction),
                 ),
               );
@@ -94,61 +102,27 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
     Todo todo,
   ) {
-    final theme = Theme.of(context);
-    return Dismissible(
-      key: ValueKey('todo-${todo.id}'),
-      background: Container(
-        color: theme.colorScheme.primary,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 16),
-        child: Icon(
-          CupertinoIcons.arrow_uturn_left,
-          color: theme.colorScheme.onPrimary,
-        ),
+    // No swipe-to-delete: on a desktop pointer a swipe is a mistimed drag, and
+    // the row already carries two explicit buttons.
+    return ListTile(
+      key: ValueKey('trash-todo-${todo.id}'),
+      leading: const Icon(CupertinoIcons.checkmark_rectangle, size: 20),
+      title: Text(
+        todo.summary,
+        style: const TextStyle(decoration: TextDecoration.lineThrough),
       ),
-      secondaryBackground: Container(
-        color: theme.colorScheme.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: Icon(CupertinoIcons.delete, color: theme.colorScheme.onError),
+      subtitle: Text(
+        todo.deletedAt != null
+            ? DateFormatters.formatDateTime(todo.deletedAt!)
+            : '',
+        style: TextStyle(fontSize: AppTypography.caption.fontSize),
       ),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          await ref.read(restoreTodoProvider)(todo.id);
-          if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(l.restoreTodo)));
-          }
-          return true;
-        } else {
-          final confirmed = await _confirmPermanentDelete(context, l);
-          if (confirmed) {
-            await ref.read(permanentDeleteTodoProvider)(todo.id);
-            return true;
-          }
-          return false;
-        }
-      },
-      child: ListTile(
-        leading: const Icon(CupertinoIcons.checkmark_rectangle, size: 20),
-        title: Text(
-          todo.summary,
-          style: const TextStyle(decoration: TextDecoration.lineThrough),
-        ),
-        subtitle: Text(
-          todo.deletedAt != null
-              ? DateFormatters.formatDateTime(todo.deletedAt!)
-              : '',
-          style: TextStyle(fontSize: AppTypography.caption.fontSize),
-        ),
-        trailing: _restoreDeleteActions(
-          context,
-          ref,
-          l,
-          onRestore: () => ref.read(restoreTodoProvider)(todo.id),
-          onDelete: () => ref.read(permanentDeleteTodoProvider)(todo.id),
-        ),
+      trailing: _restoreDeleteActions(
+        context,
+        ref,
+        l,
+        onRestore: () => ref.read(restoreTodoProvider)(todo.id),
+        onDelete: () => ref.read(permanentDeleteTodoProvider)(todo.id),
       ),
     );
   }
@@ -159,65 +133,26 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
     Event event,
   ) {
-    return Dismissible(
-      key: ValueKey('event-${event.id}'),
-      background: Container(
-        color: Theme.of(context).colorScheme.primary,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 16),
-        child: Icon(
-          CupertinoIcons.arrow_uturn_left,
-          color: Theme.of(context).colorScheme.onPrimary,
-        ),
+    return ListTile(
+      key: ValueKey('trash-event-${event.id}'),
+      leading: const Icon(CupertinoIcons.calendar_badge_plus, size: 20),
+      title: Text(
+        event.summary,
+        style: const TextStyle(decoration: TextDecoration.lineThrough),
       ),
-      secondaryBackground: Container(
-        color: Theme.of(context).colorScheme.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: Icon(
-          CupertinoIcons.delete,
-          color: Theme.of(context).colorScheme.onError,
-        ),
+      subtitle: Text(
+        event.deletedAt != null
+            ? '${DateFormatters.formatDateTime(event.startDt)} · '
+                  '${DateFormatters.formatDateTime(event.deletedAt!)}'
+            : '',
+        style: TextStyle(fontSize: AppTypography.caption.fontSize),
       ),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          await ref.read(restoreEventProvider)(event.id);
-          if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(l.restoreTodo)));
-          }
-          return true;
-        } else {
-          final confirmed = await _confirmPermanentDelete(context, l);
-          if (confirmed) {
-            await ref.read(hardDeleteEventWithChildrenProvider)(event.id);
-            return true;
-          }
-          return false;
-        }
-      },
-      child: ListTile(
-        leading: const Icon(CupertinoIcons.calendar_badge_plus, size: 20),
-        title: Text(
-          event.summary,
-          style: const TextStyle(decoration: TextDecoration.lineThrough),
-        ),
-        subtitle: Text(
-          event.deletedAt != null
-              ? '${DateFormatters.formatDateTime(event.startDt)} · '
-                    '${DateFormatters.formatDateTime(event.deletedAt!)}'
-              : '',
-          style: TextStyle(fontSize: AppTypography.caption.fontSize),
-        ),
-        trailing: _restoreDeleteActions(
-          context,
-          ref,
-          l,
-          onRestore: () => ref.read(restoreEventProvider)(event.id),
-          onDelete: () =>
-              ref.read(hardDeleteEventWithChildrenProvider)(event.id),
-        ),
+      trailing: _restoreDeleteActions(
+        context,
+        ref,
+        l,
+        onRestore: () => ref.read(restoreEventProvider)(event.id),
+        onDelete: () => ref.read(hardDeleteEventWithChildrenProvider)(event.id),
       ),
     );
   }

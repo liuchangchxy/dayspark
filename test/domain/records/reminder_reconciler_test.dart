@@ -223,10 +223,9 @@ void main() {
   }
 
   Future<int> reminderIdOf(int parentId) async {
-    final row =
-        await (db.select(db.reminders)
-              ..where((t) => t.parentId.equals(parentId)))
-            .getSingle();
+    final row = await (db.select(
+      db.reminders,
+    )..where((t) => t.parentId.equals(parentId))).getSingle();
     return row.id;
   }
 
@@ -275,12 +274,8 @@ void main() {
         triggerA,
         triggerA,
       ),
-      'previousReference == null 且 storedTrigger 为过去 → 仍是 storedTrigger（由 pastDue 档决定不动，不由本函数吞掉）': (
-        dueA,
-        null,
-        DateTime(2026, 5, 1),
-        DateTime(2026, 5, 1),
-      ),
+      'previousReference == null 且 storedTrigger 为过去 → 仍是 storedTrigger（由 pastDue 档决定不动，不由本函数吞掉）':
+          (dueA, null, DateTime(2026, 5, 1), DateTime(2026, 5, 1)),
       // 规则 3：位移
       'Δ = +1 天 12 小时': (
         DateTime(2026, 6, 11, 21),
@@ -566,10 +561,7 @@ void main() {
       for (var i = 0; i < 5; i++) {
         final id = await insertTodo(dueDate: dueA.add(Duration(days: i)));
         await insertReminder(triggerA.add(Duration(days: i)), parentId: id);
-        await insertReminder(
-          dueA.add(Duration(days: i - 1)),
-          parentId: id,
-        );
+        await insertReminder(dueA.add(Duration(days: i - 1)), parentId: id);
         todos.add(id);
       }
       final readsBefore = reads.count;
@@ -601,13 +593,10 @@ void main() {
 
       expect(schedules.length - before, 2);
       final moved = schedules.sublist(before);
-      expect(
-        moved.map((r) => r.triggerTime).toList(),
-        [
-          triggerA.add(const Duration(days: 3)),
-          dueA.subtract(const Duration(days: 1)).add(const Duration(days: 3)),
-        ],
-      );
+      expect(moved.map((r) => r.triggerTime).toList(), [
+        triggerA.add(const Duration(days: 3)),
+        dueA.subtract(const Duration(days: 1)).add(const Duration(days: 3)),
+      ]);
     });
 
     test('10 通知键恒为 parentType:parentId:reminderId，第三段是 reminder.id', () async {
@@ -674,11 +663,9 @@ void main() {
 
       await reconciler.reconcileAll();
 
-      expect(
-        schedules.map((r) => r.parentId).toList(),
-        [activeId],
-        reason: '只补排行内说未来的活跃父行',
-      );
+      expect(schedules.map((r) => r.parentId).toList(), [
+        activeId,
+      ], reason: '只补排行内说未来的活跃父行');
       expect(cancels.toSet(), {
         await reminderIdOf(completedId),
         await reminderIdOf(trashedId),
@@ -723,11 +710,9 @@ void main() {
         RecordApplied(RecordType.todo, todoId, previousReference: r1),
       ]);
 
-      expect(
-        schedules.map((r) => r.triggerTime).toList(),
-        [DateTime(2026, 6, 15, 8)],
-        reason: '位移锚必须跟着当前 reference：t0 + (r2 − r0) = 06-15 08:00',
-      );
+      expect(schedules.map((r) => r.triggerTime).toList(), [
+        DateTime(2026, 6, 15, 8),
+      ], reason: '位移锚必须跟着当前 reference：t0 + (r2 − r0) = 06-15 08:00');
       expect(cancels, isEmpty);
     });
 
@@ -750,11 +735,9 @@ void main() {
       ]);
 
       expect(cancels, isEmpty, reason: '不得撤掉原本正确的 06-12 08:00');
-      expect(
-        schedules.map((r) => r.triggerTime).toList(),
-        [DateTime(2026, 6, 3, 8)],
-        reason: 't0 + (r2 − r0)，且仍在未来',
-      );
+      expect(schedules.map((r) => r.triggerTime).toList(), [
+        DateTime(2026, 6, 3, 8),
+      ], reason: 't0 + (r2 − r0)，且仍在未来');
     });
 
     test('19 改期后 完成 → 取消完成：按当前 reference 排，不是陈旧行值', () async {
@@ -778,11 +761,9 @@ void main() {
         RecordApplied(RecordType.todo, todoId, previousReference: r1),
       ]);
 
-      expect(
-        schedules.map((r) => r.triggerTime).toList(),
-        [DateTime(2026, 6, 12, 8)],
-        reason: '取消完成时行内锚点必须还是当前 reference 的值',
-      );
+      expect(schedules.map((r) => r.triggerTime).toList(), [
+        DateTime(2026, 6, 12, 8),
+      ], reason: '取消完成时行内锚点必须还是当前 reference 的值');
     });
 
     test('20 跨重启（新实例、账本为空）后改期仍得到正确时刻', () async {
@@ -805,11 +786,9 @@ void main() {
         RecordApplied(RecordType.todo, todoId, previousReference: r1),
       ]);
 
-      expect(
-        schedules.map((r) => r.triggerTime).toList(),
-        [DateTime(2026, 6, 15, 8)],
-        reason: '锚点在行内（已回写），内存锚过不了重启这一关',
-      );
+      expect(schedules.map((r) => r.triggerTime).toList(), [
+        DateTime(2026, 6, 15, 8),
+      ], reason: '锚点在行内（已回写），内存锚过不了重启这一关');
       expect(cancels, isEmpty);
     });
 
@@ -854,11 +833,9 @@ void main() {
       await reconciler.handle([
         RecordApplied(RecordType.todo, todoId, previousReference: r1),
       ]);
-      expect(
-        schedules.map((r) => r.triggerTime).toList(),
-        [triggerA],
-        reason: '重试必须发生（行内锚点 = 06-10 08:00），而不是 0 次平台调用',
-      );
+      expect(schedules.map((r) => r.triggerTime).toList(), [
+        triggerA,
+      ], reason: '重试必须发生（行内锚点 = 06-10 08:00），而不是 0 次平台调用');
 
       // (iii) 位移证据重放（prev 仍是 r0）：锚点没被写坏，落在正确时刻
       resetLogs();
@@ -894,11 +871,9 @@ void main() {
           previousReference: dueA.subtract(const Duration(milliseconds: 500)),
         ),
       ]);
-      expect(
-        schedules.map((r) => r.triggerTime).toList(),
-        [DateTime(2026, 6, 12, 8)],
-        reason: '期望时刻归一到落库精度（整秒），与行内值同一瞬间',
-      );
+      expect(schedules.map((r) => r.triggerTime).toList(), [
+        DateTime(2026, 6, 12, 8),
+      ], reason: '期望时刻归一到落库精度（整秒），与行内值同一瞬间');
       resetLogs();
 
       // (i) 重复同一事件：0 次写、0 次平台调用
@@ -973,11 +948,9 @@ void main() {
       container.read(reminderReconcilerProvider);
       await waitUntil(() => schedules.isNotEmpty);
 
-      expect(
-        schedules.map((r) => r.triggerTime).toList(),
-        [trigger],
-        reason: '冷启动重算补排了行内说未来的提醒',
-      );
+      expect(schedules.map((r) => r.triggerTime).toList(), [
+        trigger,
+      ], reason: '冷启动重算补排了行内说未来的提醒');
       resetLogs();
 
       await setDueDate(todoId, due.add(const Duration(days: 1)));
@@ -986,11 +959,9 @@ void main() {
       ]);
       await waitUntil(() => schedules.isNotEmpty);
 
-      expect(
-        schedules.map((r) => r.triggerTime).toList(),
-        [trigger.add(const Duration(days: 1))],
-        reason: '改期事件经总线到达重排器：按新参考时间落到精确时刻',
-      );
+      expect(schedules.map((r) => r.triggerTime).toList(), [
+        trigger.add(const Duration(days: 1)),
+      ], reason: '改期事件经总线到达重排器：按新参考时间落到精确时刻');
     });
 
     test('18 切语言 → 已排期通知按新语言重排（文案烘焙进 OS，UI 检查看不见）', () async {
@@ -1021,7 +992,7 @@ void main() {
       await container.read(localeProvider.notifier).load();
       final wired = container.read(reminderReconcilerProvider);
       await waitUntil(() => schedules.isNotEmpty);
-      expect(todoTitles.last, 'Todo Reminder', reason: '初始排期用英文');
+      expect(todoTitles.last, 'Task Reminder', reason: '初始排期用英文');
 
       // 幂等：同状态再触发一次，_applied 短路，0 次平台调用。
       schedules.clear();
@@ -1032,15 +1003,13 @@ void main() {
       expect(schedules, isEmpty, reason: '时刻没变 → 短路，不重发');
 
       // 切到中文：已排期通知的 title/body 是旧语言的，必须整轮重排。
-      await container.read(localeProvider.notifier).setLocale(const Locale('zh'));
+      await container
+          .read(localeProvider.notifier)
+          .setLocale(const Locale('zh'));
       await waitUntil(() => schedules.isNotEmpty);
 
       expect(todoTitles.last, '待办提醒', reason: '切语言后重新下发，用的是新语言');
-      expect(
-        schedules.last.triggerTime,
-        trigger,
-        reason: '只换文案，时刻不动',
-      );
+      expect(schedules.last.triggerTime, trigger, reason: '只换文案，时刻不动');
     });
   });
 }

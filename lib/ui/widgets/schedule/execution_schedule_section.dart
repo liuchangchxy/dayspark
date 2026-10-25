@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
@@ -12,11 +13,32 @@ import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 
 /// A scheduled block the user has proposed but not saved yet.
+///
+/// [id] is set for a block that already exists, so a form can tell an add from
+/// a keep and cancel the ones that disappeared on save.
 class DraftExecution {
-  const DraftExecution({required this.start, required this.end});
+  const DraftExecution({
+    required this.start,
+    required this.end,
+    this.id,
+    this.occurrenceId,
+  });
 
   final DateTime start;
   final DateTime end;
+  final int? id;
+  final String? occurrenceId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DraftExecution &&
+      other.id == id &&
+      other.occurrenceId == occurrenceId &&
+      other.start == start &&
+      other.end == end;
+
+  @override
+  int get hashCode => Object.hash(id, occurrenceId, start, end);
 }
 
 /// "When will I do this?" — one row, one sheet.
@@ -25,7 +47,10 @@ class DraftExecution {
 /// offered while the todo is still being created, not only after saving and
 /// reopening it. The row keeps the relationship explicit by saying what it is
 /// relative to the deadline instead of restating a time range.
-class ExecutionScheduleSection extends StatelessWidget {
+///
+/// With [onDraftChanged] the section edits a form's draft list and writes
+/// nothing; without it, [todo]'s blocks are persisted as they are changed.
+class ExecutionScheduleSection extends ConsumerWidget {
   const ExecutionScheduleSection({
     super.key,
     this.todo,
@@ -38,10 +63,10 @@ class ExecutionScheduleSection extends StatelessWidget {
          'either an existing todo or a draft list is required',
        );
 
-  /// Existing todo: blocks are persisted immediately.
   final Todo? todo;
 
-  /// Creation: blocks are collected and written with the todo.
+  /// The blocks the form currently holds. Passing [onDraftChanged] makes the
+  /// section deferred: nothing reaches the database until the form saves.
   final List<DraftExecution> draft;
   final ValueChanged<List<DraftExecution>>? onDraftChanged;
 
@@ -50,113 +75,27 @@ class ExecutionScheduleSection extends StatelessWidget {
 
   final bool enabled;
 
-  @override
-  Widget build(BuildContext context) {
-    if (todo != null) {
-      return _PersistedExecutions(
-        todo: todo!,
-        draft: draft,
-        onDraftChanged: onDraftChanged,
-        deadline: deadline,
-        enabled: enabled,
-      );
-    }
-    return _DraftExecutions(
-      draft: draft,
-      onChanged: onDraftChanged!,
-      deadline: deadline,
-      enabled: enabled,
-    );
-  }
-}
-
-class _DraftExecutions extends StatelessWidget {
-  const _DraftExecutions({
-    required this.draft,
-    required this.onChanged,
-    this.deadline,
-    required this.enabled,
-  });
-
-  final List<DraftExecution> draft;
-  final ValueChanged<List<DraftExecution>> onChanged;
-  final DateTime? deadline;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionLabel(
-          l.executionSchedule,
-          action: enabled
-              ? _AddButton(
-                  label: l.addExecution,
-                  onTap: () => _add(context, l, null),
-                )
-              : null,
-        ),
-        for (final item in draft)
-          ScheduleRow(
-            label: l.execution,
-            value: formatExecutionRange(
-              context,
-              item.start,
-              item.end,
-              includeDate: false,
-            ),
-            onClear: enabled
-                ? () => onChanged(
-                    [...draft]
-                      ..removeWhere((other) => other.start == item.start),
-                  )
-                : null,
-          ),
-      ],
-    );
-  }
-
-  Future<void> _add(
-    BuildContext context,
-    AppLocalizations l,
-    String? occurrenceId,
-  ) async {
-    final now = DateTime.now();
-    final suggested = deadline != null && deadline!.isAfter(now)
-        ? deadline!
-        : now.add(const Duration(hours: 1));
-    final result = await showExecutionSheet(context, initial: suggested);
-    if (result == null || !context.mounted) return;
-    onChanged([...draft, result]);
-  }
-}
-
-class _PersistedExecutions extends ConsumerWidget {
-  const _PersistedExecutions({
-    required this.todo,
-    required this.draft,
-    required this.onDraftChanged,
-    this.deadline,
-    required this.enabled,
-  });
-
-  final Todo todo;
-  final List<DraftExecution> draft;
-  final ValueChanged<List<DraftExecution>>? onDraftChanged;
-  final DateTime? deadline;
-  final bool enabled;
-
-  bool get _canSchedule =>
-      todo.deletedAt == null &&
-      todo.status != 'COMPLETED' &&
-      todo.status != 'CANCELLED';
+  bool get _deferred => onDraftChanged != null;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final allocationsAsync = ref.watch(taskAllocationsForTodoProvider(todo.id));
+    final rows = _deferred || todo == null
+        ? draft
+        : ref
+              .watch(taskAllocationsForTodoProvider(todo!.id))
+              .valueOrNull
+              ?.where((item) => item.state == 'active')
+              .map(
+                (item) => DraftExecution(
+                  id: item.id,
+                  start: item.startAt,
+                  end: item.endAt,
+                  occurrenceId: item.occurrenceId,
+                ),
+              )
+              .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -169,54 +108,30 @@ class _PersistedExecutions extends ConsumerWidget {
                 )
               : null,
         ),
-        allocationsAsync.when(
-          data: (allocations) {
-            final active = allocations
-                .where((item) => item.state == 'active')
-                .toList();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final item in active)
-                  ScheduleRow(
-                    label: l.execution,
-                    // An orphaned block keeps its time but loses its series
-                    // meaning; that is a note on the row, not a second field.
-                    value: formatExecutionRange(
-                      context,
-                      item.startAt,
-                      item.endAt,
-                      includeDate: false,
-                    ),
-                    onClear: enabled && _canSchedule
-                        ? () => ref.read(cancelTaskAllocationProvider)(item.id)
-                        : null,
-                  ),
-                for (final item in draft)
-                  ScheduleRow(
-                    label: l.execution,
-                    value: formatExecutionRange(
-                      context,
-                      item.start,
-                      item.end,
-                      includeDate: false,
-                    ),
-                    onClear: enabled && onDraftChanged != null
-                        ? () => onDraftChanged!(
-                            [...draft]..removeWhere(
-                              (other) => other.start == item.start,
-                            ),
-                          )
-                        : null,
-                  ),
-              ],
-            );
-          },
-          loading: () => const SizedBox.shrink(),
-          error: (error, _) => Text(l.error('$error')),
-        ),
+        if (rows == null)
+          const SizedBox.shrink()
+        else
+          for (final item in rows)
+            ScheduleRow(
+              label: l.executionRow,
+              // A block on another day cannot be read from a bare clock time,
+              // so the date is part of the value, not a hint.
+              value: formatExecutionRange(context, item.start, item.end),
+              clearTooltip: l.cancelSchedule,
+              onClear: enabled && _canSchedule
+                  ? () => _clear(context, ref, l, item)
+                  : null,
+            ),
       ],
     );
+  }
+
+  bool get _canSchedule {
+    final row = todo;
+    if (row == null) return true;
+    return row.deletedAt == null &&
+        row.status != 'COMPLETED' &&
+        row.status != 'CANCELLED';
   }
 
   Future<void> _add(
@@ -224,9 +139,10 @@ class _PersistedExecutions extends ConsumerWidget {
     WidgetRef ref,
     AppLocalizations l,
   ) async {
+    final row = todo;
     String? occurrenceId;
-    if (todo.rrule != null && todo.rrule!.isNotEmpty) {
-      if (!_isConfirmableOccurrence(todo)) {
+    if (row != null && row.rrule != null && row.rrule!.isNotEmpty) {
+      if (!_isConfirmableOccurrence(row)) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(l.unsupportedRecurrence)));
@@ -235,19 +151,32 @@ class _PersistedExecutions extends ConsumerWidget {
       final selected = await TodoOccurrencePickerSheet.show(
         context,
         ref: ref,
-        todo: todo,
+        todo: row,
       );
       if (selected == null || !context.mounted) return;
       occurrenceId = selected.occurrenceId;
     }
-    final result = await showExecutionSheet(
-      context,
-      initial: deadline ?? DateTime.now().add(const Duration(hours: 1)),
-    );
+    final now = DateTime.now();
+    final suggested = deadline != null && deadline!.isAfter(now)
+        ? deadline!
+        : now.add(const Duration(hours: 1));
+    final result = await showExecutionSheet(context, initial: suggested);
     if (result == null || !context.mounted) return;
+
+    if (_deferred) {
+      onDraftChanged!([
+        ...draft,
+        DraftExecution(
+          start: result.start,
+          end: result.end,
+          occurrenceId: occurrenceId,
+        ),
+      ]);
+      return;
+    }
     try {
       await ref.read(createTaskAllocationProvider)(
-        todoId: todo.id,
+        todoId: row!.id,
         startAt: result.start,
         endAt: result.end,
         occurrenceId: occurrenceId,
@@ -256,9 +185,41 @@ class _PersistedExecutions extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l.error('$error'))));
+        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
       }
     }
+  }
+
+  /// Cancelling a scheduled block is reversible: the block is a plan, and
+  /// plans change. The snackbar says what was cancelled and offers it back.
+  Future<void> _clear(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+    DraftExecution item,
+  ) async {
+    if (_deferred) {
+      onDraftChanged!([...draft]..remove(item));
+      return;
+    }
+    final id = item.id;
+    if (id == null) return;
+    await ref.read(cancelTaskAllocationProvider)(id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.cancelledTaskAllocation),
+        action: SnackBarAction(
+          label: l.undo,
+          onPressed: () => ref.read(createTaskAllocationProvider)(
+            todoId: todo!.id,
+            startAt: item.start,
+            endAt: item.end,
+            occurrenceId: item.occurrenceId,
+          ),
+        ),
+      ),
+    );
   }
 
   static bool _isConfirmableOccurrence(Todo todo) {
@@ -283,7 +244,7 @@ class _AddButton extends StatelessWidget {
       icon: const Icon(CupertinoIcons.add, size: 13),
       label: Text(label),
       style: TextButton.styleFrom(
-        minimumSize: const Size(0, 28),
+        minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         textStyle: AppTypography.caption.copyWith(fontWeight: FontWeight.w600),
@@ -352,7 +313,14 @@ Future<DraftExecution?> showExecutionSheet(
                 ),
                 child: Wrap(
                   spacing: AppSpacing.sm,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    Text(
+                      l.lengthLabel,
+                      style: AppTypography.caption.copyWith(
+                        color: context.semantic.textSecondary,
+                      ),
+                    ),
                     for (final option in kExecutionLengths)
                       ChoiceChip(
                         label: Text(formatExecutionLength(ctx, option)),

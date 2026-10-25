@@ -628,3 +628,10 @@
 - 用户授权完整实施及交付后，应持续执行到请求的验收和 PR 完成；不能以仅核对仓库或尚未实施作为停工理由。
 - **Why**: D Final 实施首轮在未发现外部阻塞时提前返回，未完成用户授权目标。
 - **Date**: 2026-10-23
+
+### `testWidgets` 里跑真实磁盘 IO 会永久挂起（2026-10-25）
+- 现象：一个 widget 测试给表单塞了两个草稿附件、把第二次行写入改成抛错，然后点 Save——测试挂在 10 分钟超时上，表单的 catch 从未执行（没有 "save error" 日志），事务之后的第一次 `db.select` 也再没返回
+- 根因：`testWidgets` 的函数体跑在 fake-async zone 里。`AttachmentFileStore.write/delete` 走的是真实 `dart:io`，它的完成依赖真实事件循环，而 fake clock 不会去推它——于是 `await files.write(...)` 永远不完成，`db.transaction` 的身体永远不结束，看起来就像"保存卡住了"而不是"文件写入卡住了"
+- 对策：widget 测试要注入**内存**文件存储。`AttachmentFileStore` 的 `write`/`delete` 是可覆写的实例方法，子类化后用 Map 存字节即可（见 `test/ui/pages/form_save_atomicity_test.dart` 的 `_MemoryFileStore`）。顺带一个好处：把 `written`（永不清理）和 `live`（随 delete 清理）分成两个集合，测试就能区分"从没写进去过"和"写进去又清掉了"，不会变成空转断言
+- **Why**: 挂起没有任何错误信息，只有 10 分钟后的 TimeoutException，根因离现场隔了两层 await；不知道这条的人会先去怀疑事务或 Riverpod
+- **Date**: 2026-10-25

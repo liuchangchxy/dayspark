@@ -18,8 +18,9 @@ class TodosSection extends ConsumerWidget {
           secondary: const Icon(CupertinoIcons.number_circle),
           title: Text(l.sixThings),
           subtitle: Text(l.sixThingsDesc),
-          value: ref.watch(sixThingsModeProvider).valueOrNull ?? false,
-          onChanged: (v) => ref.read(setSixThingsModeProvider)(v),
+          value: ref.watch(sixThingsModeProvider),
+          onChanged: (v) =>
+              ref.read(sixThingsModeProvider.notifier).setEnabled(v),
         ),
         SwitchListTile(
           secondary: const Icon(CupertinoIcons.eye_slash),

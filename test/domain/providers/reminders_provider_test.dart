@@ -49,9 +49,11 @@ void main() {
   // 等到消费端真把这次变更交给 OS（条件等待），再多让几轮以捕捉"多余的一次"
   // ——通道① 与重排器并存时这里会数到 2。
   Future<void> waitForNotifCalls({int cancels = 0, int schedules = 0}) async {
-    for (var i = 0;
-        i < 200 && (cancelCalls < cancels || scheduleCalls < schedules);
-        i++) {
+    for (
+      var i = 0;
+      i < 200 && (cancelCalls < cancels || scheduleCalls < schedules);
+      i++
+    ) {
       await pumpEventQueue(times: 5);
     }
     await pumpEventQueue(times: 50);
@@ -83,8 +85,12 @@ void main() {
         );
     container.read(reminderReconcilerProvider);
     await waitUntil(() => scheduleCalls > 0);
-    await (testDb.delete(testDb.reminders)..where((t) => t.parentId.equals(decoyId))).go();
-    await (testDb.delete(testDb.todos)..where((t) => t.id.equals(decoyId))).go();
+    await (testDb.delete(
+      testDb.reminders,
+    )..where((t) => t.parentId.equals(decoyId))).go();
+    await (testDb.delete(
+      testDb.todos,
+    )..where((t) => t.id.equals(decoyId))).go();
     reset(notifMock);
     cancelCalls = 0;
     scheduleCalls = 0;
@@ -174,12 +180,7 @@ void main() {
           );
       final todoId = await testDb
           .into(testDb.todos)
-          .insert(
-            TodosCompanion.insert(
-              calendarId: calId,
-              summary: 'Task',
-            ),
-          );
+          .insert(TodosCompanion.insert(calendarId: calId, summary: 'Task'));
 
       await testDb
           .into(testDb.reminders)
@@ -246,9 +247,7 @@ void main() {
 
   group('loadNotificationStrings', () {
     test('returns zh strings for zh locale', () async {
-      final strings = await loadNotificationStrings(
-        locale: const Locale('zh'),
-      );
+      final strings = await loadNotificationStrings(locale: const Locale('zh'));
       expect(strings.eventReminderTitle, '日程提醒');
       expect(strings.todoReminderTitle, '待办提醒');
       expect(strings.eventReminderBody, '日程即将开始');
@@ -256,11 +255,9 @@ void main() {
     });
 
     test('returns en strings for en locale', () async {
-      final strings = await loadNotificationStrings(
-        locale: const Locale('en'),
-      );
+      final strings = await loadNotificationStrings(locale: const Locale('en'));
       expect(strings.eventReminderTitle, 'Event Reminder');
-      expect(strings.todoReminderTitle, 'Todo Reminder');
+      expect(strings.todoReminderTitle, 'Task Reminder');
       expect(strings.eventReminderBody, 'Event starting soon');
       expect(strings.todoReminderBody, 'Task due soon');
     });

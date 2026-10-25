@@ -4,6 +4,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/reminder_writer.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
+import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 
 final class EventWriter {
@@ -56,6 +57,32 @@ final class EventWriter {
     tx.applied(RecordType.event, id, previousReference: existing?.startDt);
   }
 
+  /// Excludes one occurrence of a recurring event, leaving the series alone.
+  ///
+  /// This is the RFC 5545 answer to "delete just this one": the row keeps its
+  /// RRULE and gains an EXDATE. The whole-series delete stays [softDelete].
+  static Future<void> excludeOccurrence(
+    AppDatabase db,
+    RecordScope tx,
+    int id,
+    DateTime occurrenceStart,
+  ) async {
+    final existing = await _row(db, id);
+    if (existing == null) throw StateError('Event $id does not exist.');
+    if (existing.rrule == null || existing.rrule!.isEmpty) {
+      throw StateError('Only recurring events have occurrences to exclude.');
+    }
+    final exdates = parseExdates(existing.exdates)..add(occurrenceStart);
+    await (db.update(db.events)..where((t) => t.id.equals(id))).write(
+      EventsCompanion(
+        exdates: Value(encodeExdates(exdates)),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    await SyncOutbox.enqueueUpsert(db, RecordType.event, id);
+    tx.applied(RecordType.event, id, previousReference: existing.startDt);
+  }
+
   static Future<void> hardDeleteWithChildren(
     AppDatabase db,
     RecordScope tx,
@@ -94,12 +121,18 @@ final class EventWriter {
   ) async {
     final uid = data.icsUid.present ? data.icsUid.value : null;
     if (uid != null && uid.isNotEmpty) {
-      final existing = await (db.select(db.events)..where((e) => e.icsUid.equals(uid))).getSingleOrNull();
+      final existing = await (db.select(
+        db.events,
+      )..where((e) => e.icsUid.equals(uid))).getSingleOrNull();
       if (existing != null) {
-        await (db.update(db.events)..where((e) => e.id.equals(existing.id))).write(data.copyWith(
-          id: Value(existing.id),
-          updatedAt: Value(DateTime.now()),
-        ));
+        await (db.update(
+          db.events,
+        )..where((e) => e.id.equals(existing.id))).write(
+          data.copyWith(
+            id: Value(existing.id),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
         await SyncOutbox.enqueueUpsert(db, RecordType.event, existing.id);
         tx.applied(RecordType.event, existing.id);
         return existing.id;
@@ -114,9 +147,11 @@ final class EventWriter {
   // 身份切换的全表元数据重写：只清同步标识，参考时间与父状态都没变，所以
   // 不逐 id 登记——一条粗粒度 bulkChanged 让消费端自行决定要不要重读。
   static Future<void> clearSyncState(AppDatabase db, RecordScope tx) async {
-    await db.update(db.events).write(
-      EventsCompanion(serverRev: const Value(0), syncId: const Value(null)),
-    );
+    await db
+        .update(db.events)
+        .write(
+          EventsCompanion(serverRev: const Value(0), syncId: const Value(null)),
+        );
     tx.bulkChanged(RecordType.event, reason: 'identity-reset');
   }
 
@@ -181,7 +216,8 @@ final class EventWriter {
   }
 
   static Future<Event?> _row(AppDatabase db, int id) {
-    return (db.select(db.events)..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (db.select(
+      db.events,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 }

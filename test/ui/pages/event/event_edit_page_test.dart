@@ -253,7 +253,10 @@ void main() {
 
       await _pump(tester, db, CalendaEventAdapter.fromDrift(row));
 
-      expect(find.text('This repeats. Edits apply to every occurrence.'), findsNothing);
+      expect(
+        find.text('This repeats. Edits apply to every occurrence.'),
+        findsNothing,
+      );
       await _unmount(tester);
     });
 
@@ -286,7 +289,7 @@ void main() {
       await _pump(tester, db, seeded.occurrence);
 
       // Switch Daily -> Weekly through the real rule editor.
-      await tester.tap(find.text('Every day').last);
+      await tester.tap(find.textContaining('Every day').last);
       await _settle(tester);
       await tester.tap(find.text('Every week').last);
       await _settle(tester);
@@ -305,33 +308,38 @@ void main() {
       await _unmount(tester);
     });
 
-    testWidgets('clearing the recurrence rule to Never persists rrule as null', (
-      tester,
-    ) async {
-      final seeded = await _seedSeries(db);
-      expect(seeded.occurrence.rrule, 'RRULE:FREQ=DAILY;COUNT=5');
+    testWidgets(
+      'clearing the recurrence rule to Never persists rrule as null',
+      (tester) async {
+        final seeded = await _seedSeries(db);
+        expect(seeded.occurrence.rrule, 'RRULE:FREQ=DAILY;COUNT=5');
 
-      await _pump(tester, db, seeded.occurrence);
+        await _pump(tester, db, seeded.occurrence);
 
-      // Switch Daily -> Never through the real rule editor.
-      await tester.tap(find.text('Every day').last);
-      await _settle(tester);
-      await tester.tap(find.text('Does not repeat').last);
-      await _settle(tester);
-      await tester.tap(find.text('Done'));
-      await _settle(tester);
-      await _save(tester);
+        // Switch Daily -> Never through the real rule editor.
+        await tester.tap(find.textContaining('Every day').last);
+        await _settle(tester);
+        await tester.tap(find.text('Does not repeat').last);
+        await _settle(tester);
+        await tester.tap(find.text('Done'));
+        await _settle(tester);
+        await _save(tester);
 
-      final after = await _row(db, seeded.id);
-      expect(after.rrule, isNull, reason: 'rrule must be persisted as null in DB');
-      expect(
-        after.startDt,
-        DateTime(2026, 10, 1, 9),
-        reason: 'clearing the rule must not move the time base',
-      );
-      expect(after.endDt, DateTime(2026, 10, 1, 9, 30));
-      await _unmount(tester);
-    });
+        final after = await _row(db, seeded.id);
+        expect(
+          after.rrule,
+          isNull,
+          reason: 'rrule must be persisted as null in DB',
+        );
+        expect(
+          after.startDt,
+          DateTime(2026, 10, 1, 9),
+          reason: 'clearing the rule must not move the time base',
+        );
+        expect(after.endDt, DateTime(2026, 10, 1, 9, 30));
+        await _unmount(tester);
+      },
+    );
 
     testWidgets('deleting says the whole series goes, and takes the row', (
       tester,
@@ -348,7 +356,7 @@ void main() {
         reason: 'the dialog must not read as "delete this one occurrence"',
       );
 
-      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.tap(find.widgetWithText(TextButton, 'Move to Trash'));
       await _settle(tester);
 
       final after = await _row(db, seeded.id);
@@ -484,7 +492,13 @@ void main() {
       await _pickDate(tester, 'End', '2');
       await _save(tester);
 
-      expect(find.text('End time must be after start time'), findsOneWidget);
+      // An inverted range is stated where the duration would be, and Save is
+      // disabled rather than accepting a value it has to reject afterwards.
+      expect(find.text('The end has to come after the start.'), findsOneWidget);
+      final save = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Save'),
+      );
+      expect(save.onPressed, isNull);
       final after = await _row(db, id);
       expect(after.startDt, DateTime(2026, 10, 5, 14));
       await _unmount(tester);
@@ -509,7 +523,11 @@ void main() {
       await _pickDateOnly(tester, 'End', '2');
       await _save(tester);
 
-      expect(find.text('End time must be after start time'), findsOneWidget);
+      expect(find.text('The end has to come after the start.'), findsOneWidget);
+      final save = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Save'),
+      );
+      expect(save.onPressed, isNull);
       final after = await _row(db, id);
       expect(after.startDt, DateTime(2026, 10, 5));
       await _unmount(tester);

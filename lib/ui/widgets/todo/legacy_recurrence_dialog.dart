@@ -35,7 +35,7 @@ String expansionError(AppLocalizations l, Object error) {
   if (message.contains('requested limit')) {
     return l.recurrenceOccurrenceLimitError;
   }
-  return l.error('$error');
+  return l.error;
 }
 
 /// The zone a pre-migration series actually belongs to.
@@ -292,7 +292,7 @@ Future<bool> confirmLegacyRecurrence(
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(l.error('$error'))));
+      ).showSnackBar(SnackBar(content: Text(l.error)));
     }
     return false;
   }

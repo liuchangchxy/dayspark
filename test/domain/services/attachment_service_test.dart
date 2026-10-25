@@ -6,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/services/attachment_files.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
@@ -172,5 +173,59 @@ void main() {
     await service.delete(id);
 
     expect(await service.rowOf(id), isNull);
+  });
+
+  test('a rolled-back stage leaves no row and no file', () async {
+    // A form commits its whole draft in one transaction. The attachment row
+    // and its local file are written inside it, so a rollback has to take the
+    // file too — SQLite can hand the same id to a later insert, which would
+    // then adopt the orphan as its own. The path is reported through the
+    // callback the moment the file exists, so a rollback *at any point after*
+    // is covered.
+    final staged = <String?>[];
+    await expectLater(
+      RecordScope.run(db, (tx) async {
+        final doomed = await service.insertRow(
+          tx,
+          parentType: 'todo',
+          parentId: todoId,
+          fileName: 'doomed.txt',
+          mimeType: 'text/plain',
+          data: const <int>[7],
+          onFileWritten: staged.add,
+        );
+        expect(File(doomed.filePath!).existsSync(), isTrue);
+        expect(
+          await service.rowOf(doomed.id),
+          isNotNull,
+          reason: 'the row is written in the same transaction as the file',
+        );
+        throw StateError('the draft failed after the attachment');
+      }),
+      throwsA(isA<StateError>()),
+    );
+
+    // What a form does on the way past its own rethrow.
+    await service.discardStagedFiles(staged);
+
+    expect(staged.single, isNotNull);
+    expect(File(staged.single!).existsSync(), isFalse);
+    expect(
+      (await db.select(db.attachments).get()).where(
+        (a) => a.fileName == 'doomed.txt',
+      ),
+      isEmpty,
+      reason: 'the transaction took the row with it',
+    );
+  });
+
+  test('discarding a staged file never throws', () async {
+    // It runs while an error is on its way out; replacing that error with a
+    // cleanup failure would hide what actually went wrong.
+    await service.discardStagedFiles(<String?>[
+      null,
+      '/no/such/path/at/all',
+      '${dir.path}/never-written.txt',
+    ]);
   });
 }

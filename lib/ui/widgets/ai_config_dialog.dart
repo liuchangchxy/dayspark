@@ -68,7 +68,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
 
   List<String> _detectedModels = [];
   bool _detecting = false;
-  String? _detectError;
+  bool _detectFailed = false;
 
   @override
   void initState() {
@@ -103,7 +103,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
 
     setState(() {
       _detecting = true;
-      _detectError = null;
+      _detectFailed = false;
     });
 
     try {
@@ -118,7 +118,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
       debugPrint('ai_config: detectModels error: $e');
       if (mounted) {
         setState(() {
-          _detectError = e.toString();
+          _detectFailed = true;
           _detecting = false;
         });
       }
@@ -221,11 +221,11 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
               ],
             ),
             const SizedBox(height: 4),
-            if (_detectError != null)
+            if (_detectFailed)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  _detectError!,
+                  l.modelDetectFailed,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.error,
                     fontSize: AppTypography.caption.fontSize,

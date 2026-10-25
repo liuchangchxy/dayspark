@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
@@ -16,6 +17,7 @@ import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
+import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 
 /// Read a todo without entering edit mode.
 ///
@@ -30,25 +32,42 @@ class TodoDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final desktop = MediaQuery.sizeOf(context).width >= 1000;
-    // Watch the row so completing it here updates the page in place instead of
-    // leaving a stale copy of a deleted or completed todo on screen.
+    final desktop = isWorkspaceLayout(context);
+    // Watch the row so completing it here updates the page in place, and so a
+    // row deleted elsewhere stops being rendered as if it still existed.
     final live = ref
         .watch(allTodosProvider)
         .valueOrNull
         ?.where((row) => row.id == todo.id)
         .firstOrNull;
+    if (live == null && ref.watch(allTodosProvider).hasValue) {
+      return WorkspacePage(
+        title: todo.summary,
+        maxContentWidth: desktop ? 720 : null,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Text(
+              l.goneFromHere,
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                color: context.semantic.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final current = live ?? todo;
+    final completed = current.status == 'COMPLETED';
 
     return WorkspacePage(
-      title: l.todoDetails,
+      title: current.summary,
       maxContentWidth: desktop ? 720 : null,
       actions: [
-        IconButton(
-          icon: const Icon(CupertinoIcons.trash, size: 18),
-          tooltip: l.moveToTrash,
-          visualDensity: VisualDensity.compact,
-          onPressed: () => _delete(context, ref, l, current),
+        TextButton(
+          onPressed: () => _complete(context, ref, current, completed),
+          child: Text(completed ? l.markIncomplete : l.markComplete),
         ),
         const SizedBox(width: AppSpacing.sm),
         PageSaveButton(
@@ -64,40 +83,25 @@ class TodoDetailPage extends ConsumerWidget {
           AppSpacing.xxl,
         ),
         children: [
+          // The title is the page header. Repeating it here would make the
+          // name look like a second, editable field; the body starts with what
+          // the object actually says.
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: Icon(
-                  current.status == 'COMPLETED'
-                      ? CupertinoIcons.checkmark_circle_fill
-                      : CupertinoIcons.circle,
-                  size: 22,
-                  color: current.status == 'COMPLETED'
-                      ? Theme.of(context).colorScheme.primary
-                      : context.semantic.textTertiary,
-                ),
-                visualDensity: VisualDensity.compact,
-                tooltip: current.status == 'COMPLETED'
-                    ? l.markIncomplete
-                    : l.markComplete,
-                onPressed: () => _toggle(context, ref, l, current),
+              Icon(
+                completed
+                    ? CupertinoIcons.checkmark_circle_fill
+                    : CupertinoIcons.circle,
+                size: 18,
+                color: completed
+                    ? Theme.of(context).colorScheme.primary
+                    : context.semantic.textTertiary,
               ),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: Text(
-                    current.summary,
-                    style: AppTypography.headline.copyWith(
-                      decoration: current.status == 'COMPLETED'
-                          ? TextDecoration.lineThrough
-                          : null,
-                      color: current.status == 'COMPLETED'
-                          ? context.semantic.textTertiary
-                          : null,
-                    ),
-                  ),
+              Text(
+                completed ? l.completed : l.openTask,
+                style: AppTypography.caption.copyWith(
+                  color: context.semantic.textSecondary,
                 ),
               ),
             ],
@@ -136,34 +140,68 @@ class TodoDetailPage extends ConsumerWidget {
           ],
           const SizedBox(height: AppSpacing.lg),
           _Tags(todoId: current.id),
-          if (current.priority != 5 && current.priority != 0) ...[
+          if (current.priority != 0) ...[
             const SizedBox(height: AppSpacing.lg),
             const RowDivider(),
             const SizedBox(height: AppSpacing.md),
             ScheduleRow(
               label: l.priority,
-              value: current.priority == 1 ? l.priorityHigh : l.priorityLow,
+              value: _priorityLabel(l, current.priority),
             ),
           ],
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
           const RowDivider(),
           const SizedBox(height: AppSpacing.md),
           AttachmentList(parentType: 'todo', parentId: current.id),
+          const SizedBox(height: AppSpacing.xl),
+          const RowDivider(),
+          const SizedBox(height: AppSpacing.sm),
+          // Destructive lives at the bottom, away from the primary action.
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => _delete(context, ref, l, current),
+              icon: Icon(
+                CupertinoIcons.trash,
+                size: 16,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                minimumSize: const Size(48, 48),
+              ),
+              label: Text(l.moveToTrash),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Future<void> _toggle(
+  static String _priorityLabel(AppLocalizations l, int priority) =>
+      switch (priority) {
+        1 => l.priorityHigh,
+        5 => l.priorityMedium,
+        9 => l.priorityLow,
+        _ => l.priorityNone,
+      };
+
+  Future<void> _complete(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l,
     Todo current,
+    bool completed,
   ) async {
-    await ref.read(toggleTodoProvider)(
-      id: current.id,
-      isCompleted: current.status != 'COMPLETED',
-    );
+    try {
+      await toggleTodoCompletion(
+        context,
+        ref,
+        todo: current,
+        completed: !completed,
+      );
+    } on Object catch (error) {
+      if (context.mounted) showCompletionError(context, error);
+    }
   }
 
   Future<void> _delete(
@@ -197,7 +235,9 @@ class TodoDetailPage extends ConsumerWidget {
     final restore = ref.read(restoreTodoProvider);
     await ref.read(deleteTodoProvider)(id);
     if (!context.mounted) return;
-    context.pop();
+    // Leave the detail page rather than staying on an object that no longer
+    // exists; the list underneath is the place the user came from.
+    _leaveToSource(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(l.deleted),
@@ -206,6 +246,17 @@ class TodoDetailPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// A deleted object cannot stay on screen. Pop the detail route so the user
+/// lands on the list they came from, falling back to Home for deep links.
+void _leaveToSource(BuildContext context) {
+  final router = GoRouter.maybeOf(context);
+  if (router != null && router.canPop()) {
+    context.pop();
+    return;
+  }
+  router?.go('/');
 }
 
 class _Executions extends ConsumerWidget {

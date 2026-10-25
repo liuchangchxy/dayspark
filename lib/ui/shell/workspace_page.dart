@@ -162,10 +162,10 @@ class PageSaveButton extends StatelessWidget {
         disabledBackgroundColor: theme.colorScheme.primary.withValues(
           alpha: 0.4,
         ),
-        minimumSize: const Size(0, 32),
+        minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        tapTargetSize: MaterialTapTargetSize.padded,
         textStyle: AppTypography.caption.copyWith(fontWeight: FontWeight.w600),
       ),
       child: saving
