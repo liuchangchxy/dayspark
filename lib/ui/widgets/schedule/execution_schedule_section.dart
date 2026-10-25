@@ -264,6 +264,7 @@ Future<DraftExecution?> showExecutionSheet(
   final l = AppLocalizations.of(context)!;
   return showModalBottomSheet<DraftExecution>(
     context: context,
+    sheetAnimationStyle: AnimationStyle.noAnimation,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setSheetState) => SafeArea(
         child: Padding(

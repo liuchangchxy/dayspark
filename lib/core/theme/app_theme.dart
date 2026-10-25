@@ -159,6 +159,9 @@ abstract final class AppTheme {
         foregroundColor: Colors.white,
         shape: const CircleBorder(),
       ),
+      expansionTileTheme: const ExpansionTileThemeData(
+        expansionAnimationStyle: AnimationStyle.noAnimation,
+      ),
       dialogTheme: DialogThemeData(
         backgroundColor: surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

@@ -260,6 +260,7 @@ class CalendarsPage extends ConsumerWidget {
     if (decision.move && targets.isNotEmpty && targetId == null) {
       targetId = await showModalBottomSheet<int>(
         context: context,
+        sheetAnimationStyle: AnimationStyle.noAnimation,
         builder: (ctx) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
