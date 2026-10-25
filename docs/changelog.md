@@ -50,6 +50,7 @@
 | 18 | **表单保存要么整份落地、要么什么都不落地** | 原来先存主对象、再逐项写 execution/tag/reminder/attachment/subtask，每项失败只记进 `failures` 然后照样 `context.pop()`：标题改了、附件没存上，页面也退了。现在整份 draft 在同一个 `RecordScope.run` 里提交，任何一项失败都会把标题一起回滚，表单留在原处；附件字节在事务外先解析（源文件丢了在写任何东西之前就失败），上传与残留清理放在提交之后（网络和文件系统不该抱着一个开着的事务） |
 | 19 | **备份带上"只删这一次"与重复待办** | 事件补 `exdates`（否则"仅删除这一次"的重复日程备份→恢复后会重新出现）；待办补 `rrule` 与整组 recurrence 列（`recurrenceAnchorSource`/`ValueType`/`AnchorValue`/`TimeZone`/`Rule`/`LegacyState`/`Evidence`/`Revision`）、`percentComplete`、`sortOrder` —— 少任何一列，一条每周重复的待办恢复后会静默变成一次性。旧备份缺这些键时按空值恢复，不会报错 |
 | 20 | **删日历时"移动内容"走同步** | `deleteCalendarProvider` 原来直接 `db.update` 改 `calendarId`，绕过 `EventWriter`/`TodoWriter`，因此没有 enqueue `SyncOutbox`：本机换了 Calendar，其他设备收不到这次 re-home。现在搬移与删除都在一个 `RecordScope.run` 里经 writer 完成，每条记录都进队；仍持有记录的日历拒绝删除，而不是留一堆悬空 `calendarId` |
+| 21 | **导入 ICS 不再复活被排除的重复实例** | `enough_icalendar` 的 `excludingRecurrenceDates` 返回的是 `DateTimeOrDuration` 包装对象，而导入路径按 `DateTime` 过滤——于是全部被丢掉，`_exdatesFromIcal()` 返回 null：一份带 `EXDATE` 的外部 ICS 导入后，被排除的实例全部回来了。导出与导入对同一个字段的类型判断互相矛盾。改为读 wrapper 的 `dateTime`，并补上「带 EXDATE 的事件 → 导出 ICS → 导入」往返测试（此前 `ical_converter_test` 完全没有 EXDATE 覆盖） |
 
 ### Constraints / 新增约束
 
