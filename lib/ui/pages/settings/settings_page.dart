@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -56,15 +55,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           // they are, and a header would just repeat it.
           for (final group in <(String?, Widget)>[
             (null, const AppearanceSection()),
-            (
-              null,
-              ListTile(
-                leading: const Icon(CupertinoIcons.calendar),
-                title: Text(l.manageCalendars),
-                trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
-                onTap: () => context.push('/calendars'),
-              ),
-            ),
             (null, const TodosSection()),
             (l.data, const ImportExportSection()),
             (l.account, const AccountSection()),

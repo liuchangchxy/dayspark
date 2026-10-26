@@ -153,9 +153,13 @@ class WorkspaceSidebar extends ConsumerWidget {
   /// a test, the mobile fallback), so it cannot assume a [GoRouterState] is
   /// above it. When there is no router at all, nothing is "current".
   static String currentPath(BuildContext context) {
-    final router = GoRouter.maybeOf(context);
-    if (router == null) return '/';
-    return router.routerDelegate.currentConfiguration.uri.path;
+    try {
+      return GoRouterState.of(context).uri.path;
+    } catch (_) {
+      final router = GoRouter.maybeOf(context);
+      if (router == null) return '/';
+      return router.routerDelegate.currentConfiguration.uri.path;
+    }
   }
 
   static bool _locationIs(BuildContext context, String path) =>
