@@ -120,7 +120,7 @@ Future<bool> confirmLegacyRecurrence(
           final LocalDate dateWindowStart;
           final DateTime instantWindowStart;
           if (_localValue(anchor, asDate) case final LocalDate date) {
-            dateWindowStart = date.compareTo(nowDate) > 0 ? date : nowDate;
+            dateWindowStart = date;
             instantWindowStart = now.toUtc();
           } else {
             final dateTime = _localValue(anchor, asDate) as LocalDateTime;
@@ -133,9 +133,7 @@ Future<bool> confirmLegacyRecurrence(
               dateTime.second,
             );
             dateWindowStart = nowDate;
-            instantWindowStart = candidate.isAfter(now.toUtc())
-                ? candidate.subtract(const Duration(days: 1))
-                : now.toUtc();
+            instantWindowStart = candidate.subtract(const Duration(days: 1));
           }
           final results = const RecurrenceEngine().expand(
             spec,
