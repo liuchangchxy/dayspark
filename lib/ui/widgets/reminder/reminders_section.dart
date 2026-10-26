@@ -184,7 +184,6 @@ class RemindersSection extends ConsumerWidget {
     final anchor = anchorTime;
     final picked = await showModalBottomSheet<DateTime>(
       context: context,
-      sheetAnimationStyle: AnimationStyle.noAnimation,
       builder: (ctx) =>
           _ReminderSheet(anchor: anchor, fallback: defaultTriggerTime),
     );

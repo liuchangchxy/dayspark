@@ -6,6 +6,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:go_router/go_router.dart';
 import 'settings_sections/about_section.dart';
 import 'settings_sections/account_section.dart';
 import 'settings_sections/ai_section.dart';
@@ -45,6 +47,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
 
+    final isDesktop = isWorkspaceLayout(context);
+
     return WorkspacePage(
       title: l.settings,
       maxContentWidth: 720,
@@ -52,6 +56,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
         children: [
           SettingsGroup(title: l.appearance, child: const AppearanceSection()),
+          if (!isDesktop)
+            SettingsGroup(
+              child: ListTile(
+                leading: const Icon(CupertinoIcons.calendar),
+                title: Text(l.manageCalendars),
+                trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+                onTap: () => context.push('/calendars'),
+              ),
+            ),
           SettingsGroup(title: l.todos, child: const TodosSection()),
           SettingsGroup(title: l.data, child: const ImportExportSection()),
           SettingsGroup(title: l.account, child: const AccountSection()),

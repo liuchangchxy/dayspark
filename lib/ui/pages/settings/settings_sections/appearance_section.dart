@@ -112,8 +112,8 @@ class AppearanceSection extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Wrap(
-                spacing: AppSpacing.md,
-                runSpacing: AppSpacing.sm,
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
                 children: AppAccent.values.map((accent) {
                   final color = accent.resolve(brightness);
                   final selected = currentAccent == accent;
@@ -124,30 +124,39 @@ class AppearanceSection extends ConsumerWidget {
                     button: true,
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
+                      child: InkWell(
                         onTap: () => ref.read(themeColorProvider.notifier).setAccent(accent),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                            border: selected
-                                ? Border.all(
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                    width: 2.5,
-                                  )
-                                : null,
+                        borderRadius: BorderRadius.circular(24),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minWidth: 48,
+                            minHeight: 48,
                           ),
-                          child: selected
-                              ? const Center(
-                                  child: Icon(
-                                    CupertinoIcons.checkmark,
-                                    size: 14,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : null,
+                          child: Center(
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: selected
+                                    ? Border.all(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        width: 2.5,
+                                      )
+                                    : null,
+                              ),
+                              child: selected
+                                  ? const Center(
+                                      child: Icon(
+                                        CupertinoIcons.checkmark,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ),
                         ),
                       ),
                     ),

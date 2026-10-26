@@ -39,7 +39,6 @@ class CalendarSlotSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      sheetAnimationStyle: AnimationStyle.noAnimation,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),

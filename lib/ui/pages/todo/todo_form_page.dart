@@ -969,7 +969,6 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
               : () async {
                   final picked = await showModalBottomSheet<int>(
                     context: context,
-                    sheetAnimationStyle: AnimationStyle.noAnimation,
                     builder: (ctx) => SafeArea(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,

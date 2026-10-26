@@ -110,7 +110,6 @@ class RepeatRow extends ConsumerWidget {
     }
     final result = await showModalBottomSheet<RepeatChoice>(
       context: context,
-      sheetAnimationStyle: AnimationStyle.noAnimation,
       builder: (ctx) => _RepeatSheet(
         rrule: rrule,
         anchorDate: anchor,

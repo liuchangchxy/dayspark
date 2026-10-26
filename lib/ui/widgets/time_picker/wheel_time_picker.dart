@@ -16,7 +16,6 @@ Future<TimeOfDay?> showWheelTimePicker(
   }
   return showModalBottomSheet<TimeOfDay>(
     context: context,
-    sheetAnimationStyle: AnimationStyle.noAnimation,
     builder: (ctx) => _WheelTimePickerSheet(initialTime: initialTime),
   );
 }

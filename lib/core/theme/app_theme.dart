@@ -66,8 +66,6 @@ abstract final class AppTheme {
       brightness: brightness,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: bg,
-      splashFactory: NoSplash.splashFactory,
-      highlightColor: Colors.transparent,
       textTheme: AppTypography.textTheme().apply(
         bodyColor: textPrimary,
         displayColor: textPrimary,
