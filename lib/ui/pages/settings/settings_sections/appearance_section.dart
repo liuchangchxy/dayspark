@@ -15,62 +15,181 @@ class AppearanceSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
+    final currentTheme = ref.watch(themeModeProvider);
+    final currentAccent = ref.watch(themeColorProvider);
+    final locale = ref.watch(localeProvider);
+    final defaultTab = ref.watch(defaultTabProvider);
+    final brightness = Theme.of(context).brightness;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListTile(
-          leading: const Icon(CupertinoIcons.paintbrush),
-          title: Text(l.appearance),
-          subtitle: Text(l.theme),
-          onTap: () => _showThemeDialog(context, ref),
+        // 1. Theme mode inline selector
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(CupertinoIcons.paintbrush, size: 18),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    l.theme,
+                    style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<ThemeMode>(
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      label: Text(l.themeSystem),
+                      icon: const Icon(CupertinoIcons.device_phone_portrait, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      label: Text(l.themeLight),
+                      icon: const Icon(CupertinoIcons.sun_max, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      label: Text(l.themeDark),
+                      icon: const Icon(CupertinoIcons.moon, size: 16),
+                    ),
+                  ],
+                  selected: {currentTheme},
+                  onSelectionChanged: (set) {
+                    if (set.isNotEmpty) {
+                      ref.read(themeModeProvider.notifier).setThemeMode(set.first);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
-        ListTile(
-          leading: const Icon(CupertinoIcons.color_filter),
-          title: Text(l.themeColor),
-          subtitle: _themeColorPreview(context, ref),
-          onTap: () => _showAccentDialog(context, ref),
+        const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
+
+        // 2. Theme accent color inline swatches
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(CupertinoIcons.color_filter, size: 18),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    l.themeColor,
+                    style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  Text(
+                    currentAccent.nameFor(Localizations.localeOf(context)),
+                    style: AppTypography.caption.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.sm,
+                children: AppAccent.values.map((accent) {
+                  final color = accent.resolve(brightness);
+                  final selected = currentAccent == accent;
+                  final label = accent.nameFor(Localizations.localeOf(context));
+                  return Semantics(
+                    label: label,
+                    selected: selected,
+                    button: true,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => ref.read(themeColorProvider.notifier).setAccent(accent),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: selected
+                                ? Border.all(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    width: 2.5,
+                                  )
+                                : null,
+                          ),
+                          child: selected
+                              ? const Center(
+                                  child: Icon(
+                                    CupertinoIcons.checkmark,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
         ),
+        const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
+
+        // 3. Language & Default Startup View
         ListTile(
           leading: const Icon(CupertinoIcons.globe),
           title: Text(l.language),
-          subtitle: Text(
-            ref.watch(localeProvider) == null
+          trailing: Text(
+            locale == null
                 ? l.languageSystem
-                : ref.watch(localeProvider)?.languageCode == 'zh'
+                : locale.languageCode == 'zh'
                 ? l.languageZh
                 : l.languageEn,
+            style: AppTypography.caption.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           onTap: () => _showLanguageDialog(context, ref),
         ),
         ListTile(
           leading: const Icon(CupertinoIcons.square_split_2x1),
           title: Text(l.defaultTab),
-          subtitle: Text(switch (ref.watch(defaultTabProvider)) {
-            AppTab.action => l.today,
-            AppTab.calendar => l.calendar,
-            AppTab.todos => l.todos,
-          }),
+          trailing: Text(
+            switch (defaultTab) {
+              AppTab.action => l.today,
+              AppTab.calendar => l.calendar,
+              AppTab.todos => l.todos,
+            },
+            style: AppTypography.caption.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           onTap: () => _showDefaultTabDialog(context, ref),
         ),
-      ],
-    );
-  }
-
-  Widget _themeColorPreview(BuildContext context, WidgetRef ref) {
-    final accent = ref.watch(themeColorProvider);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: accent.resolve(Theme.of(context).brightness),
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(accent.nameFor(Localizations.localeOf(context))),
       ],
     );
   }
@@ -108,93 +227,6 @@ class AppearanceSection extends ConsumerWidget {
       ),
     );
     if (picked != null) onSelected(picked);
-  }
-
-  void _showThemeDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    _showChoices<ThemeMode>(
-      context: context,
-      title: l.theme,
-      current: ref.read(themeModeProvider),
-      options: [
-        (ThemeMode.system, l.themeSystem),
-        (ThemeMode.light, l.themeLight),
-        (ThemeMode.dark, l.themeDark),
-      ],
-      onSelected: (mode) =>
-          ref.read(themeModeProvider.notifier).setThemeMode(mode),
-    );
-  }
-
-  void _showAccentDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final locale = Localizations.localeOf(context);
-    final current = ref.watch(themeColorProvider);
-    final brightness = Theme.of(context).brightness;
-    showDialog(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.themeColor),
-        content: Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.md,
-          children: AppAccent.values.map((accent) {
-            final color = accent.resolve(brightness);
-            final selected = current == accent;
-            final label = accent.nameFor(locale);
-            return Semantics(
-              label: label,
-              selected: selected,
-              button: true,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: InkWell(
-                  onTap: () {
-                    ref.read(themeColorProvider.notifier).setAccent(accent);
-                    Navigator.of(ctx).pop();
-                  },
-                  borderRadius: BorderRadius.circular(AppSpacing.sm),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                            border: selected
-                                ? Border.all(
-                                    color: Theme.of(ctx).colorScheme.onSurface,
-                                    width: 2,
-                                  )
-                                : null,
-                          ),
-                          child: selected
-                              ? const Icon(
-                                  CupertinoIcons.checkmark,
-                                  color: Colors.white,
-                                  size: 18,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(label, style: AppTypography.overline),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
   }
 
   void _showLanguageDialog(BuildContext context, WidgetRef ref) {

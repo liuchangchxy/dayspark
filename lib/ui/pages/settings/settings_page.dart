@@ -51,21 +51,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       child: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
         children: [
-          // No header over these two: their first row already says what
-          // they are, and a header would just repeat it.
-          for (final group in <(String?, Widget)>[
-            (null, const AppearanceSection()),
-            (null, const TodosSection()),
-            (l.data, const ImportExportSection()),
-            (l.account, const AccountSection()),
-            (l.advancedFeatures, const AiSection()),
-            // The notification rows are platform-gated; without them the
-            // section would render an empty card under a bare label.
-            if (hasNotificationSettings)
-              (l.notifications, const NotificationsSection()),
-          ])
-            SettingsGroup(title: group.$1, child: group.$2),
-          _AdvancedGroup(version: _cachedVersion ?? ''),
+          SettingsGroup(title: l.appearance, child: const AppearanceSection()),
+          SettingsGroup(title: l.todos, child: const TodosSection()),
+          SettingsGroup(title: l.data, child: const ImportExportSection()),
+          SettingsGroup(title: l.account, child: const AccountSection()),
+          SettingsGroup(title: l.advancedFeatures, child: const AiSection()),
+          if (hasNotificationSettings)
+            SettingsGroup(title: l.notifications, child: const NotificationsSection()),
+          SettingsGroup(
+            title: l.about,
+            child: AboutSection(version: _cachedVersion ?? ''),
+          ),
         ],
       ),
     );
@@ -79,24 +75,3 @@ bool get hasNotificationSettings =>
     (defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS);
-
-/// Collapsed tail of the settings page: the advanced/about material stays
-/// behind an expansion so the everyday groups are all that is on screen.
-class _AdvancedGroup extends StatelessWidget {
-  const _AdvancedGroup({required this.version});
-
-  final String version;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return SettingsGroup(
-      child: ExpansionTile(
-        leading: const Icon(CupertinoIcons.gear),
-        title: Text(l.advancedSettings),
-        initiallyExpanded: false,
-        children: [AboutSection(version: version)],
-      ),
-    );
-  }
-}
