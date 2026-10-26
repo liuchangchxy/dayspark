@@ -110,6 +110,12 @@ class WorkspaceSidebar extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _NavigationItem(
+                  label: l.manageCalendars,
+                  icon: CupertinoIcons.calendar,
+                  selected: _locationIs(context, '/calendars'),
+                  onTap: () => _goDestination(context, '/calendars'),
+                ),
+                _NavigationItem(
                   label: l.manageTags,
                   icon: CupertinoIcons.tag,
                   selected: _locationIs(context, '/tags'),
