@@ -241,7 +241,7 @@ class _HomePageState extends ConsumerState<HomePage>
         if (!mounted) return;
         final l = AppLocalizations.of(context)!;
         await showDialog<void>(
-          context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
           builder: (ctx) => AlertDialog(
             title: Text(l.whatsNew),
             content: SingleChildScrollView(child: Text('v$current')),

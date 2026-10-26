@@ -24,7 +24,7 @@ Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
   final isCustom = selectedPresetIndex < 0 && currentUrl.isNotEmpty;
 
   await showDialog(
-    context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
     builder: (ctx) => _AiConfigDialog(
       l: l,
       initialConfig: config,

@@ -71,7 +71,7 @@ class ImportExportSection extends ConsumerWidget {
   void _showBackupDialog(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     showDialog(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.fullBackup),
         content: Text('${l.fullBackupDesc}\n\n${l.mergeBackupDesc}'),
@@ -172,7 +172,7 @@ class ImportExportSection extends ConsumerWidget {
     if (!context.mounted) return;
 
     final targetId = await showDialog<int>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => SimpleDialog(
         title: Text(l.importTo),
         children: [

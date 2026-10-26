@@ -360,7 +360,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
   Future<void> _confirmDiscard() async {
     final l = AppLocalizations.of(context)!;
     final discard = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.discardChanges),
         content: Text(l.discardChangesBody),
@@ -385,7 +385,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
   Future<void> _delete() async {
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.moveToTrash),
         content: Text(

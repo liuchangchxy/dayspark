@@ -39,7 +39,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     if (calendars.length == 1) return calendars.first.id;
 
     return showDialog<int>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) {
         final l = AppLocalizations.of(ctx)!;
         return SimpleDialog(
@@ -80,7 +80,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
   Future<void> _confirmClear(AppLocalizations l) async {
     final confirmed = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.clearChat),
         content: Text(l.clearChatConfirm),
@@ -116,11 +116,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     setState(() => _sending = false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       }
     });
   }
@@ -368,7 +364,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       // Step 1: User selects an existing Todo to schedule
       final chosenTodo = await showDialog<Todo>(
-        context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.selectTodoToSchedule),
           content: SizedBox(
@@ -490,7 +486,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       // Step 5: Explicit confirmation before write
       final confirmed = await showDialog<bool>(
-        context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.scheduleTodo),
           content: Column(
@@ -588,7 +584,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         return;
       }
       showDialog(
-        context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.taskBreakdown),
           content: SingleChildScrollView(
@@ -806,7 +802,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     required List<(String, String)> rows,
   }) async {
     final confirmed = await showDialog<bool>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: Column(

@@ -32,7 +32,8 @@ class WorkspaceSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final tab = ref.watch(workspaceTabProvider);
+    final isHome = currentPath(context) == '/';
+    final tab = isHome ? ref.watch(workspaceTabProvider) : null;
     final view = ref.watch(todosViewProvider);
     final showAi =
         ref
@@ -101,7 +102,19 @@ class WorkspaceSidebar extends ConsumerWidget {
                   selected: tab == AppTab.todos && view is TodosAllView,
                   onTap: () => _goTodosView(context, ref, const TodosAllView()),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
+                const Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppColors.sidebarSelected,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _NavigationItem(
+                  label: l.manageCalendars,
+                  icon: CupertinoIcons.calendar,
+                  selected: _locationIs(context, '/calendars'),
+                  onTap: () => _goDestination(context, '/calendars'),
+                ),
                 _NavigationItem(
                   label: l.manageTags,
                   icon: CupertinoIcons.tag,
@@ -140,9 +153,13 @@ class WorkspaceSidebar extends ConsumerWidget {
   /// a test, the mobile fallback), so it cannot assume a [GoRouterState] is
   /// above it. When there is no router at all, nothing is "current".
   static String currentPath(BuildContext context) {
-    final router = GoRouter.maybeOf(context);
-    if (router == null) return '/';
-    return router.routerDelegate.currentConfiguration.uri.path;
+    try {
+      return GoRouterState.of(context).uri.path;
+    } catch (_) {
+      final router = GoRouter.maybeOf(context);
+      if (router == null) return '/';
+      return router.routerDelegate.currentConfiguration.uri.path;
+    }
   }
 
   static bool _locationIs(BuildContext context, String path) =>

@@ -65,7 +65,7 @@ class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
     }
 
     return showDialog<ProjectedTaskInstance>(
-      context: context,
+    animationStyle: AnimationStyle.noAnimation, context: context,
       builder: (ctx) => TodoOccurrencePickerSheet(
         todo: freshTodo,
         initialPage: initialPage,

@@ -40,10 +40,13 @@ class WorkspacePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final desktop = isWorkspaceLayout(context);
+    final canPop = GoRouter.maybeOf(context)?.canPop() ?? false;
+    final showBackButton = !desktop || canPop;
+
     if (!desktop) {
       return Scaffold(
         appBar: AppBar(
-          leading: BackButton(onPressed: () => _leave(context)),
+          leading: showBackButton ? BackButton(onPressed: () => _leave(context)) : null,
           title: titleWidget ?? Text(title),
           actions: actions,
         ),
@@ -64,13 +67,15 @@ class WorkspacePage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: Row(
           children: [
-            IconButton(
-              icon: const Icon(CupertinoIcons.back, size: 18),
-              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-              onPressed: () => _leave(context),
-              visualDensity: VisualDensity.compact,
-            ),
-            const SizedBox(width: AppSpacing.xs),
+            if (showBackButton) ...[
+              IconButton(
+                icon: const Icon(CupertinoIcons.back, size: 18),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => _leave(context),
+                visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
             Expanded(
               child:
                   titleWidget ??

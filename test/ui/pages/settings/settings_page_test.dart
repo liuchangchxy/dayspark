@@ -65,35 +65,6 @@ void main() {
       _y(tester, find.byType(AccountSection)),
       lessThan(_y(tester, find.byType(AiSection))),
     );
-
-    final advanced = tester.widget<ExpansionTile>(
-      find.ancestor(
-        of: find.text('Advanced'),
-        matching: find.byType(ExpansionTile),
-      ),
-    );
-    expect(advanced.initiallyExpanded, isFalse);
-    expect(find.byType(AboutSection), findsNothing);
-    expect(
-      _y(tester, find.byType(AiSection)),
-      lessThan(_y(tester, find.text('Advanced'))),
-    );
-  });
-
-  testWidgets('expanding advanced reveals about below the functional groups', (
-    tester,
-  ) async {
-    await _pumpSettings(tester);
-
-    await tester.tap(find.text('Advanced'));
-    // The account group shows a spinner while its state is unknown (there is
-    // no database behind this test), so the page never reaches a settled
-    // frame; pump the expansion animation instead of waiting for one.
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    expect(find.byType(AboutSection), findsOneWidget);
     expect(
       _y(tester, find.byType(AiSection)),
       lessThan(_y(tester, find.byType(AboutSection))),

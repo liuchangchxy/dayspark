@@ -365,11 +365,19 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   }
 
   void _navigateBack() {
-    unawaited(_calendarController.animateToPreviousPage());
+    _calendarController.jumpToDate(switch (_viewMode) {
+      CalendarViewMode.day => _anchorDate.subtract(const Duration(days: 1)),
+      CalendarViewMode.week => _anchorDate.subtract(const Duration(days: 7)),
+      CalendarViewMode.month => DateTime(_anchorDate.year, _anchorDate.month - 1, 1),
+    });
   }
 
   void _navigateForward() {
-    unawaited(_calendarController.animateToNextPage());
+    _calendarController.jumpToDate(switch (_viewMode) {
+      CalendarViewMode.day => _anchorDate.add(const Duration(days: 1)),
+      CalendarViewMode.week => _anchorDate.add(const Duration(days: 7)),
+      CalendarViewMode.month => DateTime(_anchorDate.year, _anchorDate.month + 1, 1),
+    });
   }
 
   // kalender's tap details carry wall-clock components marked isUtc (not a
