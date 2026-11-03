@@ -118,6 +118,9 @@ class ExecutionScheduleSection extends ConsumerWidget {
               // so the date is part of the value, not a hint.
               value: formatExecutionRange(context, item.start, item.end),
               clearTooltip: l.cancelSchedule,
+              onTap: enabled && _canSchedule && !_deferred && item.id != null
+                  ? () => _reschedule(context, ref, l, item)
+                  : null,
               onClear: enabled && _canSchedule
                   ? () => _clear(context, ref, l, item)
                   : null,
@@ -180,6 +183,39 @@ class ExecutionScheduleSection extends ConsumerWidget {
         startAt: result.start,
         endAt: result.end,
         occurrenceId: occurrenceId,
+      );
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
+      }
+    }
+  }
+
+  /// Moving an existing block is the same question as adding one, so it reuses
+  /// the same sheet instead of making the user cancel and re-create it.
+  Future<void> _reschedule(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+    DraftExecution item,
+  ) async {
+    final id = item.id;
+    if (id == null) return;
+    // The sheet formats with `formatMoment`, which does not localize; the row
+    // value comes from storage in UTC, so hand it the local wall time it
+    // already shows.
+    final result = await showExecutionSheet(
+      context,
+      initial: item.start.toLocal(),
+    );
+    if (result == null || !context.mounted) return;
+    try {
+      await ref.read(rescheduleTaskAllocationProvider)(
+        id: id,
+        startAt: result.start,
+        endAt: result.end,
       );
     } catch (error) {
       if (context.mounted) {

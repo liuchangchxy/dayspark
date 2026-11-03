@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 
 /// The live workspace tab, as opposed to [defaultTabProvider] which is the
@@ -37,3 +40,36 @@ final todosViewProvider = StateProvider<TodosView>((ref) {
   final now = DateTime.now();
   return TodosDayView(DateTime(now.year, now.month, now.day));
 });
+
+/// The object currently shown in the desktop detail pane.
+///
+/// Selection is a workspace concept, not a route: on a wide window a list tap
+/// chooses a row instead of pushing a page, so the list stays visible next to
+/// the detail. On narrow windows the same tap pushes a full page and this
+/// provider is never read.
+sealed class WorkspaceSelection {
+  const WorkspaceSelection();
+}
+
+class TodoSelection extends WorkspaceSelection {
+  const TodoSelection(this.todo);
+
+  final Todo todo;
+}
+
+class EventSelection extends WorkspaceSelection {
+  const EventSelection(this.event);
+
+  final CalendaEventAdapter event;
+}
+
+final workspaceSelectionProvider = StateProvider<WorkspaceSelection?>(
+  (ref) => null,
+);
+
+/// The width at which a right-hand detail pane can sit beside a list without
+/// squeezing either. Narrower desktops keep single-column navigation.
+const double kMasterDetailBreakpoint = 1180;
+
+bool isMasterDetailLayout(BuildContext context) =>
+    MediaQuery.sizeOf(context).width >= kMasterDetailBreakpoint;

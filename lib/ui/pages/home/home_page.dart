@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
@@ -36,6 +37,9 @@ import 'package:dayspark/ui/pages/home/action_section.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
+import 'package:dayspark/ui/widgets/todo/todo_quick_add.dart';
+import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
+import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
@@ -341,6 +345,64 @@ class _HomePageState extends ConsumerState<HomePage>
       _calendarTabWasActive = false;
     }
 
+    final mainColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildPageHeader(
+          context,
+          l,
+          desktop,
+          isActionTab,
+          isCalendarTab,
+          pageLabel,
+        ),
+        Expanded(
+          child: KeyedSubtree(
+            key: ValueKey('workspace-content-$_currentTab'),
+            child: isActionTab
+                ? _buildActionTab()
+                : isCalendarTab
+                ? Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: desktop ? 28 : 0,
+                    ),
+                    child: _buildCalendarTab(),
+                  )
+                : Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: desktop ? 28 : 0,
+                    ),
+                    child: _buildTodoTab(),
+                  ),
+          ),
+        ),
+      ],
+    );
+
+    // Wide desktop: the list keeps its width and the selected object opens
+    // beside it instead of replacing it. Narrow windows keep single-column
+    // navigation, which is what the route model already provides.
+    final selection = ref.watch(workspaceSelectionProvider);
+    final split = desktop && isMasterDetailLayout(context);
+    final body = split
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: mainColumn),
+              if (selection != null) ...[
+                Container(width: 1, color: context.semantic.separator),
+                SizedBox(
+                  width: 400,
+                  child: ColoredBox(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: _buildDetailPane(selection),
+                  ),
+                ),
+              ],
+            ],
+          )
+        : mainColumn;
+
     final content = Scaffold(
       backgroundColor: desktop ? Theme.of(context).colorScheme.surface : null,
       appBar: desktop
@@ -396,39 +458,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 const SizedBox(width: AppSpacing.xs),
               ],
             ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildPageHeader(
-            context,
-            l,
-            desktop,
-            isActionTab,
-            isCalendarTab,
-            pageLabel,
-          ),
-          Expanded(
-            child: KeyedSubtree(
-              key: ValueKey('workspace-content-$_currentTab'),
-              child: isActionTab
-                  ? _buildActionTab()
-                  : isCalendarTab
-                  ? Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: desktop ? 28 : 0,
-                      ),
-                      child: _buildCalendarTab(),
-                    )
-                  : Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: desktop ? 28 : 0,
-                      ),
-                      child: _buildTodoTab(),
-                    ),
-            ),
-          ),
-        ],
-      ),
+      body: body,
       bottomNavigationBar: desktop
           ? null
           : NavigationBar(
@@ -452,6 +482,50 @@ class _HomePageState extends ConsumerState<HomePage>
     );
     if (!desktop) return content;
     return WorkspaceScaffold(child: content);
+  }
+
+  Widget _buildDetailPane(WorkspaceSelection selection) {
+    return switch (selection) {
+      TodoSelection(:final todo) => TodoDetailPane(
+        key: ValueKey('pane-todo-${todo.id}'),
+        todo: todo,
+        embedded: true,
+        onClose: _clearSelection,
+        onDeleted: _clearSelection,
+      ),
+      EventSelection(:final event) => EventDetailPane(
+        key: ValueKey('pane-event-${event.drifId}'),
+        event: event,
+        embedded: true,
+        onClose: _clearSelection,
+        onDeleted: _clearSelection,
+      ),
+    };
+  }
+
+  void _clearSelection() {
+    ref.read(workspaceSelectionProvider.notifier).state = null;
+  }
+
+  /// A list tap means "show me this" on every platform; only the place it
+  /// shows differs. Wide windows put it in the pane, narrow ones use the
+  /// route that was already there.
+  void _openTodo(Todo todo) {
+    if (isMasterDetailLayout(context)) {
+      ref.read(workspaceSelectionProvider.notifier).state = TodoSelection(todo);
+      return;
+    }
+    context.push('/todo/detail', extra: todo);
+  }
+
+  void _openEvent(CalendaEventAdapter event) {
+    if (isMasterDetailLayout(context)) {
+      ref.read(workspaceSelectionProvider.notifier).state = EventSelection(
+        event,
+      );
+      return;
+    }
+    context.push('/event/detail', extra: event);
   }
 
   Widget _buildPageHeader(
@@ -523,8 +597,8 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget _buildActionTab() {
     return ActionSection(
       onNavigateToCalendar: () => _setTab(1),
-      onEventTap: (event) => context.push('/event/detail', extra: event),
-      onTodoTap: (todo) => context.push('/todo/detail', extra: todo),
+      onEventTap: _openEvent,
+      onTodoTap: _openTodo,
     );
   }
 
@@ -585,7 +659,7 @@ class _HomePageState extends ConsumerState<HomePage>
               final todo = deadlineTodos.firstWhere(
                 (todo) => todo.id == deadline.todoId,
               );
-              context.push('/todo/detail', extra: todo);
+              _openTodo(todo);
             },
             allocations: allocationItems
                 .map(TaskAllocationCalendarAdapter.fromItem)
@@ -603,8 +677,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 });
               });
             },
-            onEventTapped: (event) =>
-                context.push('/event/detail', extra: event),
+            onEventTapped: _openEvent,
             onTaskAllocationTapped: (allocation) async {
               final db = ref.read(databaseProvider);
               final todo =
@@ -612,7 +685,7 @@ class _HomePageState extends ConsumerState<HomePage>
                         ..where((row) => row.id.equals(allocation.todoId)))
                       .getSingleOrNull();
               if (mounted && todo != null) {
-                context.push('/todo/detail', extra: todo);
+                _openTodo(todo);
               }
             },
             onTimeSlotTapped: (range) {
@@ -828,6 +901,9 @@ class _HomePageState extends ConsumerState<HomePage>
           },
           loading: () => const SizedBox.shrink(),
           error: (_, __) => const SizedBox.shrink(),
+        ),
+        TodoQuickAdd(
+          dueDate: view is TodosDayView ? view.day : null,
         ),
         Expanded(child: _buildTodoList(view)),
       ],
@@ -1338,7 +1414,7 @@ class _HomePageState extends ConsumerState<HomePage>
           isCompleted: nextCompleted,
           occurrenceId: occurrenceId,
         ),
-        onTap: () => context.push('/todo/detail', extra: todo),
+        onTap: () => _openTodo(todo),
       ),
     );
   }
