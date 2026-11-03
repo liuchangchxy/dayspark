@@ -12,8 +12,8 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
-/// "Look at this" and "change this" must not be the same gesture: opening a
-/// todo shows it, and reaching the form takes a deliberate second step.
+/// "Look at this" and "change this" are the same gesture: the detail surface
+/// is editable in place, and no second page is needed to save a change.
 Widget _app(AppDatabase db, Todo todo) {
   final router = GoRouter(
     initialLocation: '/todo/detail',
@@ -22,10 +22,6 @@ Widget _app(AppDatabase db, Todo todo) {
       GoRoute(
         path: '/todo/detail',
         builder: (_, __) => TodoDetailPage(todo: todo),
-      ),
-      GoRoute(
-        path: '/todo/edit',
-        builder: (_, state) => TodoFormPage(todo: state.extra as Todo),
       ),
     ],
   );
@@ -86,7 +82,25 @@ void main() {
     await db.close();
   });
 
-  testWidgets('detail reads the todo without a single editable field', (
+  testWidgets('detail is editable where it is read', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, todo));
+    await _settle(tester);
+
+    expect(find.text('Write the report'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('todo-detail-title')),
+      findsOneWidget,
+      reason: 'the title is a field, not a label',
+    );
+    expect(find.widgetWithText(TextButton, 'Edit'), findsNothing);
+    await _unmount(tester);
+  });
+
+  testWidgets('editing the title writes through without a second page', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 1000);
@@ -95,29 +109,18 @@ void main() {
 
     await tester.pumpWidget(_app(db, todo));
     await _settle(tester);
-
-    expect(find.text('Write the report'), findsOneWidget);
-    expect(
-      find.byType(TextField),
-      findsNothing,
-      reason: 'a detail page that offers text fields is an edit page in disguise',
-    );
-    await _unmount(tester);
-  });
-
-  testWidgets('edit is a second, explicit step from detail', (tester) async {
-    tester.view.physicalSize = const Size(1400, 1000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(_app(db, todo));
-    await _settle(tester);
     expect(find.byType(TodoFormPage), findsNothing);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Edit'));
+    await tester.enterText(
+      find.byKey(const ValueKey('todo-detail-title')),
+      'Write the final report',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await _settle(tester);
 
-    expect(find.byType(TodoFormPage), findsOneWidget);
+    final rows = await db.select(db.todos).get();
+    expect(rows.single.summary, 'Write the final report');
+    expect(find.byType(TodoFormPage), findsNothing);
     await _unmount(tester);
   });
 }

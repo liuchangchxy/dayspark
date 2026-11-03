@@ -1,45 +1,121 @@
+import 'dart:async';
+
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
-import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
+import 'package:dayspark/ui/widgets/tag_chips.dart';
 
-/// Read an event without entering edit mode. Same split as [TodoDetailPage].
-///
-/// The adapter that arrives in `extra` is a snapshot: a calendar edit on
-/// another device, or a delete from the form, would otherwise leave this page
-/// describing an event that no longer matches. The row is therefore re-read
-/// from the database and the snapshot is only the fallback.
-class EventDetailPage extends ConsumerWidget {
+/// An event that is editable where it is read — the same contract as
+/// [TodoDetailPane], so the two object types never teach different gestures.
+class EventDetailPage extends StatelessWidget {
   const EventDetailPage({super.key, required this.event});
 
   final CalendaEventAdapter event;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final desktop = isWorkspaceLayout(context);
-    final live = ref.watch(liveEventProvider(event.drifId)).valueOrNull;
-    final gone =
-        live == null && ref.watch(liveEventProvider(event.drifId)).hasValue;
-    if (gone) {
-      return WorkspacePage(
-        title: event.title,
-        maxContentWidth: desktop ? 720 : null,
-        child: Center(
+    return WorkspacePage(
+      title: l.eventLabel,
+      maxContentWidth: desktop ? 720 : null,
+      child: EventDetailPane(event: event),
+    );
+  }
+}
+
+class EventDetailPane extends ConsumerStatefulWidget {
+  const EventDetailPane({
+    super.key,
+    required this.event,
+    this.embedded = false,
+    this.onClose,
+    this.onDeleted,
+  });
+
+  final CalendaEventAdapter event;
+  final bool embedded;
+  final VoidCallback? onClose;
+  final VoidCallback? onDeleted;
+
+  @override
+  ConsumerState<EventDetailPane> createState() => _EventDetailPaneState();
+}
+
+class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
+  final _title = TextEditingController();
+  final _description = TextEditingController();
+  final _location = TextEditingController();
+  final _titleFocus = FocusNode();
+  final _descriptionFocus = FocusNode();
+  final _locationFocus = FocusNode();
+  Timer? _titleTimer;
+  Timer? _descriptionTimer;
+  Timer? _locationTimer;
+  late String _savedTitle;
+  late String _savedDescription;
+  late String _savedLocation;
+  bool _deletedNotified = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _savedTitle = widget.event.title;
+    _savedDescription = widget.event.description ?? '';
+    _savedLocation = widget.event.location ?? '';
+    _title.text = _savedTitle;
+    _description.text = _savedDescription;
+    _location.text = _savedLocation;
+    _titleFocus.addListener(_flushTitle);
+    _descriptionFocus.addListener(_flushDescription);
+    _locationFocus.addListener(_flushLocation);
+  }
+
+  @override
+  void dispose() {
+    _flushTitle();
+    _flushDescription();
+    _flushLocation();
+    _titleTimer?.cancel();
+    _descriptionTimer?.cancel();
+    _locationTimer?.cancel();
+    _titleFocus.removeListener(_flushTitle);
+    _descriptionFocus.removeListener(_flushDescription);
+    _locationFocus.removeListener(_flushLocation);
+    _titleFocus.dispose();
+    _descriptionFocus.dispose();
+    _locationFocus.dispose();
+    _title.dispose();
+    _description.dispose();
+    _location.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final liveAsync = ref.watch(liveEventProvider(widget.event.drifId));
+    final live = liveAsync.valueOrNull;
+    if (live == null) {
+      if (liveAsync.hasValue) {
+        _notifyDeleted();
+        return Center(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),
             child: Text(
@@ -50,155 +126,396 @@ class EventDetailPage extends ConsumerWidget {
               ),
             ),
           ),
-        ),
-      );
+        );
+      }
+      return const Center(child: CircularProgressIndicator());
     }
+    _syncFromLive(live);
 
-    // Re-reading the row keeps the page honest after an edit, but the row is
-    // the *series*: it has no idea which occurrence the calendar handed over.
-    // Taking it wholesale would silently turn a tapped occurrence into the
-    // series and make "delete this occurrence only" unreachable, so the
-    // occurrence identity stays with the snapshot.
-    final row = live == null
-        ? event
-        : event.isRecurringOccurrence
-        ? CalendaEventAdapter(
-            drifId: live.drifId,
-            calendarId: live.calendarId,
-            title: live.title,
-            description: live.description,
-            location: live.location,
-            color: live.color,
-            isAllDay: live.isAllDay,
-            rrule: live.rrule,
-            start: event.start,
-            end: event.end,
-            occurrenceStart: event.occurrenceStart,
-            seriesStart: live.seriesStart,
-            seriesEnd: live.seriesEnd,
-          )
-        : live;
-    final start = row.isRecurringOccurrence ? row.start : row.seriesStart;
-    final end = row.isRecurringOccurrence ? row.end : row.seriesEnd;
+    final start = live.seriesStart;
+    final end = live.seriesEnd;
     final length = end.difference(start);
     final validRange = !length.isNegative && length > Duration.zero;
     final calendarName = ref
         .watch(calendarsProvider)
         .valueOrNull
-        ?.where((c) => c.id == row.calendarId)
+        ?.where((c) => c.id == live.calendarId)
         .firstOrNull
         ?.name;
 
-    return WorkspacePage(
-      title: row.title,
-      maxContentWidth: desktop ? 720 : null,
-      actions: [
-        PageSaveButton(
-          label: l.edit,
-          onPressed: () => context.push('/event/edit', extra: row),
+    return ListView(
+      key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.xxl,
+      ),
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                key: const ValueKey('event-detail-title'),
+                controller: _title,
+                focusNode: _titleFocus,
+                style: AppTypography.headline,
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: (value) {
+                  _titleTimer?.cancel();
+                  if (value.trim().isEmpty) return;
+                  _titleTimer = Timer(
+                    const Duration(milliseconds: 600),
+                    _flushTitle,
+                  );
+                },
+                onSubmitted: (_) => _flushTitle(),
+                decoration: InputDecoration(
+                  hintText: l.title,
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  hintStyle: AppTypography.headline.copyWith(
+                    color: context.semantic.textTertiary,
+                  ),
+                ),
+              ),
+            ),
+            if (widget.embedded)
+              IconButton(
+                icon: const Icon(CupertinoIcons.xmark, size: 16),
+                tooltip: l.close,
+                onPressed: widget.onClose,
+                visualDensity: VisualDensity.compact,
+              ),
+          ],
         ),
-      ],
-      child: ListView(
-        padding: EdgeInsets.fromLTRB(
-          desktop ? AppSpacing.xl : AppSpacing.lg,
-          AppSpacing.lg,
-          desktop ? AppSpacing.xl : AppSpacing.lg,
-          AppSpacing.xxl,
-        ),
-        children: [
-          Text(row.title, style: AppTypography.headline),
-          if (row.isRecurringOccurrence) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              l.editOccurrenceNotice,
-              style: AppTypography.caption.copyWith(
+        if (live.rrule != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Icon(
+                CupertinoIcons.repeat,
+                size: 13,
                 color: context.semantic.textSecondary,
               ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          const RowDivider(),
-          const SizedBox(height: AppSpacing.sm),
-          ScheduleRow(
-            label: l.startTime,
-            value: row.isAllDay
-                ? formatDeadline(context, start)
-                : formatMoment(context, start),
-          ),
-          ScheduleRow(
-            label: l.endTime,
-            value: row.isAllDay
-                ? formatDeadline(context, end)
-                : formatMoment(context, end),
-          ),
-          ScheduleRow(
-            label: l.duration,
-            value: !validRange
-                ? l.invalidTimeRange
-                : row.isAllDay
-                ? l.durationAllDay
-                : formatExecutionLength(context, length),
-          ),
-          ScheduleRow(
-            label: l.recurrenceRule,
-            value: describeRepeat(context, row.rrule),
-            placeholder: row.rrule == null,
-          ),
-          if (calendarName != null)
-            ScheduleRow(label: l.calendar, value: calendarName),
-          if (row.location != null && row.location!.trim().isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.lg),
-            const RowDivider(),
-            const SizedBox(height: AppSpacing.md),
-            ScheduleRow(label: l.location, value: row.location!),
-          ],
-          if (row.description != null &&
-              row.description!.trim().isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text(row.description!, style: AppTypography.body),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          _Tags(eventId: row.drifId),
-          const SizedBox(height: AppSpacing.lg),
-          const RowDivider(),
-          const SizedBox(height: AppSpacing.md),
-          AttachmentList(parentType: 'event', parentId: row.drifId),
-          const SizedBox(height: AppSpacing.xl),
-          const RowDivider(),
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => _delete(context, ref, l, row),
-              icon: Icon(
-                CupertinoIcons.trash,
-                size: 16,
-                color: Theme.of(context).colorScheme.error,
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  l.recurringSeriesNoticeShort,
+                  style: AppTypography.caption.copyWith(
+                    color: context.semantic.textSecondary,
+                  ),
+                ),
               ),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-                minimumSize: const Size(48, 48),
-              ),
-              label: Text(l.moveToTrash),
-            ),
+            ],
           ),
         ],
-      ),
+        const SizedBox(height: AppSpacing.lg),
+        const RowDivider(),
+        const SizedBox(height: AppSpacing.sm),
+        ScheduleRow(
+          label: l.allDay,
+          value: live.isAllDay ? l.durationAllDay : l.eventLabel,
+          trailing: Switch(
+            value: live.isAllDay,
+            onChanged: (value) => _toggleAllDay(live, value),
+          ),
+        ),
+        ScheduleRow(
+          label: l.startTime,
+          value: live.isAllDay
+              ? formatDeadline(context, start)
+              : formatMoment(context, start),
+          onTap: () => _pickBoundary(live, isStart: true),
+        ),
+        ScheduleRow(
+          label: l.endTime,
+          value: live.isAllDay
+              ? formatDeadline(context, end)
+              : formatMoment(context, end),
+          onTap: () => _pickBoundary(live, isStart: false),
+        ),
+        ScheduleRow(
+          label: l.duration,
+          value: validRange
+              ? (live.isAllDay
+                    ? l.durationAllDay
+                    : formatExecutionLength(context, length))
+              : l.invalidTimeRange,
+          placeholder: !validRange,
+        ),
+        RepeatRow(
+          rrule: live.rrule,
+          anchorDate: start,
+          onChanged: (value) =>
+              _saveSchedule(live, setRrule: true, rrule: value),
+        ),
+        if (calendarName != null)
+          ScheduleRow(label: l.calendar, value: calendarName),
+        const SizedBox(height: AppSpacing.lg),
+        const RowDivider(),
+        const SizedBox(height: AppSpacing.sm),
+        TextField(
+          controller: _location,
+          focusNode: _locationFocus,
+          decoration: InputDecoration(
+            hintText: l.location,
+            filled: false,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            hintStyle: AppTypography.body.copyWith(
+              color: context.semantic.textTertiary,
+            ),
+          ),
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (_) {
+            _locationTimer?.cancel();
+            _locationTimer = Timer(
+              const Duration(milliseconds: 600),
+              _flushLocation,
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          controller: _description,
+          focusNode: _descriptionFocus,
+          decoration: InputDecoration(
+            hintText: l.description,
+            filled: false,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            hintStyle: AppTypography.body.copyWith(
+              color: context.semantic.textTertiary,
+            ),
+          ),
+          maxLines: null,
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (_) {
+            _descriptionTimer?.cancel();
+            _descriptionTimer = Timer(
+              const Duration(milliseconds: 600),
+              _flushDescription,
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _tags(context, live),
+        const SizedBox(height: AppSpacing.lg),
+        const RowDivider(),
+        const SizedBox(height: AppSpacing.md),
+        AttachmentList(parentType: 'event', parentId: live.drifId),
+        const SizedBox(height: AppSpacing.xl),
+        const RowDivider(),
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => _delete(live),
+            icon: Icon(
+              CupertinoIcons.trash,
+              size: 16,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+              minimumSize: const Size(48, 48),
+            ),
+            label: Text(l.moveToTrash),
+          ),
+        ),
+      ],
     );
   }
 
-  Future<void> _delete(
-    BuildContext context,
-    WidgetRef ref,
-    AppLocalizations l,
-    CalendaEventAdapter row,
-  ) async {
+  Widget _tags(BuildContext context, CalendaEventAdapter live) {
+    final assigned =
+        ref.watch(eventTagsProvider(live.drifId)).valueOrNull ?? const [];
+    return TagChips(
+      parentType: 'event',
+      parentId: live.drifId,
+      assignedTags: assigned,
+    );
+  }
+
+  void _syncFromLive(CalendaEventAdapter live) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_titleFocus.hasFocus &&
+          _title.text == _savedTitle &&
+          _title.text != live.title) {
+        _title.text = live.title;
+        _savedTitle = live.title;
+      }
+      final description = live.description ?? '';
+      if (!_descriptionFocus.hasFocus &&
+          _description.text == _savedDescription &&
+          _description.text != description) {
+        _description.text = description;
+        _savedDescription = description;
+      }
+      final location = live.location ?? '';
+      if (!_locationFocus.hasFocus &&
+          _location.text == _savedLocation &&
+          _location.text != location) {
+        _location.text = location;
+        _savedLocation = location;
+      }
+    });
+  }
+
+  void _notifyDeleted() {
+    if (_deletedNotified) return;
+    _deletedNotified = true;
+    final callback = widget.onDeleted;
+    if (callback != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => callback());
+    }
+  }
+
+  void _flushTitle() {
+    if (!mounted) return;
+    _titleTimer?.cancel();
+    _titleTimer = null;
+    final text = _title.text.trim();
+    if (text.isEmpty) {
+      _title.text = _savedTitle;
+      return;
+    }
+    if (text == _savedTitle) return;
+    _savedTitle = text;
+    unawaited(_saveText(title: text));
+  }
+
+  void _flushDescription() {
+    if (!mounted) return;
+    _descriptionTimer?.cancel();
+    _descriptionTimer = null;
+    final text = _description.text.trim();
+    if (text == _savedDescription) return;
+    _savedDescription = text;
+    unawaited(_saveText(setDescription: true, description: text));
+  }
+
+  void _flushLocation() {
+    if (!mounted) return;
+    _locationTimer?.cancel();
+    _locationTimer = null;
+    final text = _location.text.trim();
+    if (text == _savedLocation) return;
+    _savedLocation = text;
+    unawaited(_saveText(setLocation: true, location: text));
+  }
+
+  Future<void> _saveText({
+    String? title,
+    bool setDescription = false,
+    String? description,
+    bool setLocation = false,
+    String? location,
+  }) async {
+    try {
+      await ref.read(updateEventProvider)(
+        widget.event.drifId,
+        EventsCompanion(
+          summary: title != null ? Value(title) : const Value.absent(),
+          description: setDescription
+              ? Value(description!.isEmpty ? null : description)
+              : const Value.absent(),
+          location: setLocation
+              ? Value(location!.isEmpty ? null : location)
+              : const Value.absent(),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    } on Object catch (error) {
+      debugPrint('event_detail: text update failed: $error');
+      _showError();
+    }
+  }
+
+  Future<void> _toggleAllDay(CalendaEventAdapter live, bool allDay) async {
+    if (allDay == live.isAllDay) return;
+    final start = allDay
+        ? DateTime(live.seriesStart.year, live.seriesStart.month, live.seriesStart.day)
+        : live.seriesStart;
+    final end = allDay
+        ? DateTime(live.seriesEnd.year, live.seriesEnd.month, live.seriesEnd.day)
+        : live.seriesEnd;
+    await _saveSchedule(live, start: start, end: end, allDay: allDay);
+  }
+
+  Future<void> _pickBoundary(
+    CalendaEventAdapter live, {
+    required bool isStart,
+  }) async {
+    final current = isStart ? live.seriesStart : live.seriesEnd;
+    final picked = live.isAllDay
+        ? await pickDeadline(context, initial: current)
+        : await pickDateTime(context, initial: current);
+    if (picked == null || !mounted) return;
+    if (isStart) {
+      final length = live.seriesEnd.difference(live.seriesStart);
+      final span = length.isNegative || length == Duration.zero
+          ? const Duration(hours: 1)
+          : length;
+      await _saveSchedule(live, start: picked, end: picked.add(span));
+    } else {
+      await _saveSchedule(live, end: picked);
+    }
+  }
+
+  Future<void> _saveSchedule(
+    CalendaEventAdapter live, {
+    DateTime? start,
+    DateTime? end,
+    bool? allDay,
+    bool setRrule = false,
+    String? rrule,
+  }) async {
+    final l = AppLocalizations.of(context)!;
+    final nextStart = start ?? live.seriesStart;
+    final nextEnd = end ?? live.seriesEnd;
+    if (nextEnd.isBefore(nextStart) || nextEnd == nextStart) {
+      _showMessage(l.invalidTimeRange);
+      return;
+    }
+    try {
+      await ref.read(updateEventProvider)(
+        live.drifId,
+        EventsCompanion(
+          startDt: Value(nextStart),
+          endDt: Value(nextEnd),
+          isAllDay: allDay != null ? Value(allDay) : const Value.absent(),
+          rrule: setRrule
+              ? Value(rrule == null || rrule.isEmpty ? null : rrule)
+              : const Value.absent(),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    } on Object catch (error) {
+      debugPrint('event_detail: schedule update failed: $error');
+      _showError();
+    }
+  }
+
+  Future<void> _delete(CalendaEventAdapter row) async {
+    final l = AppLocalizations.of(context)!;
     // A recurring series has two very different deletes; asking which one is
     // the same question the todo side asks before completing an occurrence.
     var occurrenceOnly = false;
-    if (row.rrule != null && row.isRecurringOccurrence) {
+    if (row.rrule != null && widget.event.isRecurringOccurrence) {
       final scope = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.deleteScopeTitle),
           content: Text(l.deleteEventConfirm(row.title)),
@@ -221,15 +538,15 @@ class EventDetailPage extends ConsumerWidget {
           ],
         ),
       );
-      if (scope == null || !context.mounted) return;
+      if (scope == null || !mounted) return;
       occurrenceOnly = !scope;
       if (occurrenceOnly) {
         await ref.read(excludeEventOccurrenceProvider)(
           id: row.drifId,
-          occurrenceStart: row.start,
+          occurrenceStart: widget.event.start,
         );
-        if (!context.mounted) return;
-        _leaveToSource(context);
+        if (!mounted) return;
+        _leaveAfterDelete();
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(l.deleted)));
@@ -237,7 +554,8 @@ class EventDetailPage extends ConsumerWidget {
       }
     } else if (row.rrule != null) {
       final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.moveToTrash),
           content: Text(l.deleteRecurringEventConfirm(row.title)),
@@ -256,10 +574,11 @@ class EventDetailPage extends ConsumerWidget {
           ],
         ),
       );
-      if (confirmed != true || !context.mounted) return;
+      if (confirmed != true || !mounted) return;
     } else {
       final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
+        animationStyle: AnimationStyle.noAnimation,
+        context: context,
         builder: (ctx) => AlertDialog(
           title: Text(l.moveToTrash),
           content: Text(l.deleteEventConfirm(row.title)),
@@ -278,20 +597,41 @@ class EventDetailPage extends ConsumerWidget {
           ],
         ),
       );
-      if (confirmed != true || !context.mounted) return;
+      if (confirmed != true || !mounted) return;
     }
 
     final id = row.drifId;
     final restore = ref.read(restoreEventProvider);
     await ref.read(deleteEventProvider)(id);
-    if (!context.mounted) return;
-    _leaveToSource(context);
+    if (!mounted) return;
+    _leaveAfterDelete();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(l.deleted),
         duration: const Duration(seconds: 5),
         action: SnackBarAction(label: l.undo, onPressed: () => restore(id)),
       ),
+    );
+  }
+
+  void _leaveAfterDelete() {
+    _deletedNotified = true;
+    if (widget.onDeleted != null) {
+      widget.onDeleted!();
+      return;
+    }
+    _leaveToSource(context);
+  }
+
+  void _showError() {
+    if (!mounted) return;
+    _showMessage(AppLocalizations.of(context)!.actionFailedRetry);
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }
@@ -305,38 +645,4 @@ void _leaveToSource(BuildContext context) {
     return;
   }
   router?.go('/');
-}
-
-class _Tags extends ConsumerWidget {
-  const _Tags({required this.eventId});
-
-  final int eventId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tags = ref.watch(eventTagsProvider(eventId)).valueOrNull ?? const [];
-    if (tags.isEmpty) return const SizedBox.shrink();
-    return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.xs,
-      children: [
-        for (final tag in tags)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: ColorUtils.parseHex(tag.color),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(tag.name, style: AppTypography.caption),
-            ],
-          ),
-      ],
-    );
-  }
 }

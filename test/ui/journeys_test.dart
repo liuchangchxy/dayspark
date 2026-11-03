@@ -77,7 +77,7 @@ void main() {
     await _settle(tester);
   }
 
-  testWidgets('journey: create a todo, open it, edit it, and see the edit', (
+  testWidgets('journey: create a todo, open it, edit it in place', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 1000);
@@ -107,15 +107,12 @@ void main() {
     await _settle(tester);
     expect(find.byType(TodoDetailPage), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Edit'));
-    await _settle(tester);
-    expect(find.byType(TodoFormPage), findsOneWidget);
-
-    await tester.enterText(
-      find.byType(TextField).first,
-      'Book the flights now',
-    );
-    await tester.tap(find.text('Save'));
+    // The title is edited where it is read: no second page, no Edit button.
+    final title = find.byKey(const ValueKey('todo-detail-title'));
+    expect(title, findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Edit'), findsNothing);
+    await tester.enterText(title, 'Book the flights now');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await _settle(tester);
 
     final rows = await db.select(db.todos).get();
@@ -180,9 +177,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('journey: an event opens read-only and edits through the form', (
-    tester,
-  ) async {
+  testWidgets('journey: an event opens on an editable detail', (tester) async {
     tester.view.physicalSize = const Size(1440, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -210,15 +205,16 @@ void main() {
     );
     await _settle(tester);
     expect(find.byType(EventDetailPage), findsOneWidget);
-    expect(
-      find.byType(TextField),
-      findsNothing,
-      reason: 'detail is read-only; the form is the second step',
-    );
+    expect(find.widgetWithText(TextButton, 'Edit'), findsNothing);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Edit'));
+    final title = find.byKey(const ValueKey('event-detail-title'));
+    expect(title, findsOneWidget);
+    await tester.enterText(title, 'Design review 2');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await _settle(tester);
-    expect(find.byType(EventFormPage), findsOneWidget);
+
+    final edited = (await db.select(db.events).get()).single;
+    expect(edited.summary, 'Design review 2');
     await _unmount(tester);
   });
 }

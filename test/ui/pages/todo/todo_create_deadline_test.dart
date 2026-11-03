@@ -222,7 +222,9 @@ void main() {
 
     // A deadline that has a time keeps asking for one: the date is what the
     // user is changing, and the hour they already chose must survive it.
-    await tester.tap(find.textContaining('Oct 30').last);
+    // Match the clock rather than the date label, which is relative ("Today",
+    // "Tomorrow") and therefore depends on when the suite runs.
+    await tester.tap(find.textContaining('18:00').last);
     await _settle(tester);
 
     final dialog = find.byType(DatePickerDialog);
