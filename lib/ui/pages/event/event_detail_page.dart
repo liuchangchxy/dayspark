@@ -450,7 +450,10 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     final end = allDay
         ? DateTime(live.seriesEnd.year, live.seriesEnd.month, live.seriesEnd.day)
         : live.seriesEnd;
-    await _saveSchedule(live, start: start, end: end, allDay: allDay);
+    final validEnd = allDay && !end.isAfter(start)
+        ? DateTime(start.year, start.month, start.day + 1)
+        : end;
+    await _saveSchedule(live, start: start, end: validEnd, allDay: allDay);
   }
 
   Future<void> _pickBoundary(

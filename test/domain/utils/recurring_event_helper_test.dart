@@ -77,6 +77,36 @@ void main() {
       }
     });
 
+    test('expands the bare rule the repeat picker saves', () async {
+      final calId = await testDb
+          .into(testDb.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Test'));
+      await testDb
+          .into(testDb.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calId,
+              summary: 'Weekly review',
+              startDt: DateTime(2026, 5, 1, 10),
+              endDt: DateTime(2026, 5, 1, 11),
+              // The one-tap "Every week" choice writes no content-line prefix.
+              rrule: const Value('FREQ=WEEKLY'),
+            ),
+          );
+
+      final events = await testDb.select(testDb.events).get();
+      final result = expandRecurringEvents(
+        events,
+        before: DateTime(2026, 5, 1),
+        after: DateTime(2026, 5, 31),
+      );
+
+      expect(result.length, 5);
+      expect(result[1].start, DateTime(2026, 5, 8, 10));
+      expect(result[1].end, DateTime(2026, 5, 8, 11));
+      expect(result.every((e) => e.drifId == result.first.drifId), isTrue);
+    });
+
     test('only returns instances within the given window', () async {
       final calId = await testDb
           .into(testDb.calendars)
