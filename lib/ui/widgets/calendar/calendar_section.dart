@@ -684,6 +684,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                     ? null
                     : l.emptySlotSemantics,
                 child: Listener(
+                  behavior: HitTestBehavior.translucent,
                   onPointerDown: (event) =>
                       _lastPointerDown = event.position,
                   child: calendarView,
