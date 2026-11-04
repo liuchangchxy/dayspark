@@ -66,7 +66,14 @@ List<CalendaEventAdapter> expandRecurringEvents(
 
     // Parse the RRULE and generate instances within the visible window only.
     try {
-      final rrule = RecurrenceRule.fromString(event.rrule!);
+      // The picker writes bare rules ('FREQ=WEEKLY'); the parser only accepts
+      // the content-line form ('RRULE:FREQ=WEEKLY'). Without this, a rule the
+      // app itself saved would fail to expand and the series would vanish
+      // outside its first occurrence.
+      final raw = event.rrule!.trim();
+      final rrule = RecurrenceRule.fromString(
+        raw.startsWith('RRULE:') ? raw : 'RRULE:$raw',
+      );
       final duration = event.endDt.difference(event.startDt);
       final instances = rrule.getInstances(
         start: event.startDt.copyWith(isUtc: true),

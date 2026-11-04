@@ -158,6 +158,20 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
 
   bool get _normaliseAllDay => _isAllDay && !_openedAsAllDay;
 
+  /// An all-day event has no clock time, so both boundaries become dates.
+  /// Collapsing a same-day timed range (09:00–10:00) to 00:00–00:00 would make
+  /// the form reject its own state, so the end moves to the next day instead.
+  void _setAllDay(bool value) {
+    setState(() {
+      _isAllDay = value;
+      if (!value) return;
+      final start = _dateOnly(_start);
+      final end = _dateOnly(_end);
+      _start = start;
+      _end = end.isAfter(start) ? end : start.add(const Duration(days: 1));
+    });
+  }
+
   DateTime get _startDt => _normaliseAllDay ? _dateOnly(_start) : _start;
 
   DateTime get _endDt => _normaliseAllDay ? _dateOnly(_end) : _end;
@@ -681,7 +695,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                 value: _isAllDay ? l.durationAllDay : l.eventLabel,
                 trailing: Switch(
                   value: _isAllDay,
-                  onChanged: (value) => setState(() => _isAllDay = value),
+                  onChanged: _setAllDay,
                 ),
               ),
               ScheduleRow(

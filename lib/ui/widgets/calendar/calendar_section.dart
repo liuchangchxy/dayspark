@@ -76,6 +76,11 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   CalendarViewMode? _configMode;
   ViewConfiguration? _viewConfiguration;
 
+  /// Last pointer-down, in global coordinates. kalender's own tap detail can
+  /// lose it (see [_timeForDayDetail]); this is the position the app actually
+  /// saw, independent of the widget that ends up recognizing the tap.
+  Offset? _lastPointerDown;
+
   @override
   void initState() {
     super.initState();
@@ -387,10 +392,49 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   DateTime _asLocalWallClock(DateTime d) =>
       d.isUtc ? DateTime(d.year, d.month, d.day, d.hour, d.minute) : d;
 
+  /// Rebuilds the tapped wall-clock from the pointer's actual position.
+  ///
+  /// kalender records the tap position in an ancestor [Listener] of its
+  /// gesture detector. With event creation disabled the detector has no child
+  /// and therefore hit-tests as translucent, which keeps that ancestor out of
+  /// the hit path: its offset stays at (0, 0) and every tap reports midnight.
+  /// The page's own listener sees the pointer down regardless, so derive the
+  /// time from the day column the detail points at.
+  DateTime _timeForDayDetail(DayDetail details) {
+    final date = _asLocalWallClock(details.date);
+    final pointer = _lastPointerDown;
+    final config = _viewConfiguration;
+    if (pointer == null || config is! MultiDayViewConfiguration) return date;
+    final timeOfDayRange = config.timeOfDayRange;
+    final totalMinutes = timeOfDayRange.duration.inMinutes;
+    final height = details.renderBox.size.height;
+    if (totalMinutes <= 0 || height <= 0) return date;
+    final local = details.renderBox.globalToLocal(pointer);
+    // kalender's own create gesture snaps to 10-minute intervals; a tap that
+    // lands a pixel off the 14:00 line should still prefill 14:00.
+    const snapMinutes = 10;
+    final offsetMinutes =
+        ((local.dy.clamp(0, height) / height * totalMinutes) / snapMinutes)
+            .round() *
+        snapMinutes;
+    final minuteOfDay =
+        (timeOfDayRange.start.hour * 60 +
+                timeOfDayRange.start.minute +
+                offsetMinutes)
+            .clamp(0, 24 * 60 - 1);
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      minuteOfDay ~/ 60,
+      minuteOfDay % 60,
+    );
+  }
+
   void _handleTapDetail(TapDetail details) {
     final DateTime raw;
     if (details is DayDetail) {
-      raw = details.date;
+      raw = _timeForDayDetail(details);
     } else if (details is MultiDayDetail) {
       raw = details.dateTimeRange.start;
     } else {
@@ -639,7 +683,11 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
                 label: _viewMode == CalendarViewMode.month
                     ? null
                     : l.emptySlotSemantics,
-                child: calendarView,
+                child: Listener(
+                  onPointerDown: (event) =>
+                      _lastPointerDown = event.position,
+                  child: calendarView,
+                ),
               ),
               // Empty grid reads as a dead spreadsheet; float one
               // non-interactive hint instead (taps pass through to slots).

@@ -1,6 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+
+/// A search answer is live, not a snapshot: results change whenever a todo or
+/// event is committed (a title edited in the detail page, a todo completed).
+/// Watching the existing live queries re-runs the search on those commits
+/// instead of leaving the previous rows on screen until the query is typed
+/// again. The range covers every event, matching the calendar's own key so
+/// both views share one stream.
+final _allEventsRangeKey =
+    '${DateTime(2000).millisecondsSinceEpoch}-'
+    '${DateTime(2100, 12, 31).millisecondsSinceEpoch}';
+
+void _watchSearchSources(Ref ref) {
+  ref.watch(allTodosProvider);
+  ref.watch(eventsInDateRangeProvider(_allEventsRangeKey));
+}
 
 class SearchResults {
   final List<Event> events;
@@ -58,6 +75,7 @@ final searchResultsProvider =
       if (ref.state.hasError && ref.state.error != null) {
         return SearchResults([], []);
       }
+      _watchSearchSources(ref);
       final db = ref.read(databaseProvider);
       final events = await db.eventsDao.searchEvents(
         query.trim(),
@@ -93,6 +111,7 @@ final pagedSearchResultsProvider =
       if (ref.state.hasError && ref.state.error != null) {
         return SearchResults([], []);
       }
+      _watchSearchSources(ref);
       final db = ref.read(databaseProvider);
       final eventLimit = state.eventPage * kSearchPageSize;
       final todoLimit = state.todoPage * kSearchPageSize;

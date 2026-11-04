@@ -48,6 +48,39 @@ Widget _app(AppDatabase db, CalendaEventAdapter event) => ProviderScope(
   ),
 );
 
+GoRouter _newEventRouter(DateTime start, DateTime end) => GoRouter(
+  initialLocation: '/new',
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (_, __) => const Scaffold(body: Center(child: Text('home'))),
+      routes: [
+        GoRoute(
+          path: 'new',
+          builder: (_, __) =>
+              EventFormPage(initialStart: start, initialEnd: end),
+        ),
+      ],
+    ),
+  ],
+);
+
+Widget _newEventApp(AppDatabase db, DateTime start, DateTime end) =>
+    ProviderScope(
+      overrides: [databaseProvider.overrideWithValue(db)],
+      child: MaterialApp.router(
+        routerConfig: _newEventRouter(start, end),
+        localizationsDelegates: const [
+          ...AppLocalizations.localizationsDelegates,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+      ),
+    );
+
 Future<void> _settle(WidgetTester tester) async {
   // Drift broadcast streams never complete, so pump a fixed number of frames
   // instead of pumpAndSettle.
@@ -68,6 +101,20 @@ Future<void> _pump(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(_app(db, e));
+  await _settle(tester);
+}
+
+Future<void> _pumpNewEvent(
+  WidgetTester tester,
+  AppDatabase db, {
+  required DateTime start,
+  required DateTime end,
+}) async {
+  tester.view.physicalSize = const Size(1000, 2400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.pumpWidget(_newEventApp(db, start, end));
   await _settle(tester);
 }
 
@@ -530,6 +577,71 @@ void main() {
       expect(save.onPressed, isNull);
       final after = await _row(db, id);
       expect(after.startDt, DateTime(2026, 10, 5));
+      await _unmount(tester);
+    });
+  });
+
+  group('all-day toggle', () {
+    testWidgets('turning all-day on normalises a timed range instead of '
+        'rejecting it', (tester) async {
+      await _seedCalendar(db);
+      await _pumpNewEvent(
+        tester,
+        db,
+        start: DateTime(2026, 10, 5, 9),
+        end: DateTime(2026, 10, 5, 10),
+      );
+
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+
+      expect(find.text('The end has to come after the start.'), findsNothing);
+      final save = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Save'),
+      );
+      expect(save.onPressed, isNotNull);
+
+      await tester.enterText(_field('Title'), 'Holiday');
+      await _save(tester);
+
+      final row = (await db.select(db.events).get()).single;
+      expect(row.isAllDay, isTrue);
+      expect(row.startDt, DateTime(2026, 10, 5));
+      expect(row.endDt, DateTime(2026, 10, 6));
+      await _unmount(tester);
+    });
+
+    testWidgets('turning all-day back off leaves a valid range whose time can '
+        'be set again', (tester) async {
+      await _seedCalendar(db);
+      await _pumpNewEvent(
+        tester,
+        db,
+        start: DateTime(2026, 10, 5, 9),
+        end: DateTime(2026, 10, 5, 10),
+      );
+
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+
+      expect(find.text('The end has to come after the start.'), findsNothing);
+      final save = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Save'),
+      );
+      expect(save.onPressed, isNotNull);
+
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DatePickerDialog),
+          matching: find.text('Cancel'),
+        ),
+      );
+      await tester.pump();
       await _unmount(tester);
     });
   });

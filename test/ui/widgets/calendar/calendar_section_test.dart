@@ -13,6 +13,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_hour_lines.dart';
 import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
 import 'package:dayspark/ui/widgets/calendar/task_allocation_tile.dart';
 import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
@@ -529,6 +530,32 @@ void main() {
       DateTime.fromMillisecondsSinceEpoch(start.millisecondsSinceEpoch),
       start,
     );
+  });
+
+  testWidgets('a week slot tap prefills the time that was tapped', (
+    tester,
+  ) async {
+    DateTimeRange? tapped;
+    await _pumpCalendar(
+      tester,
+      events: [],
+      onTimeSlotTapped: (range) => tapped = range,
+    );
+
+    // The hour grid fills the whole day page, so its top is 00:00 of the week
+    // regardless of the scroll offset. Tap the 14:00 line.
+    final grid = tester.getRect(find.byType(CalendarHourLines).first);
+    const heightPerMinute = 0.7;
+    await tester.tapAt(
+      Offset(grid.center.dx, grid.top + 14 * 60 * heightPerMinute),
+    );
+    await tester.pump();
+
+    expect(tapped, isNotNull);
+    expect(tapped!.start.hour, 14);
+    expect(tapped!.start.minute, 0);
+    expect(tapped!.end.difference(tapped!.start), const Duration(hours: 1));
+    expect(tapped!.start.isUtc, isFalse);
   });
 
   testWidgets('month view slot tap routes to event creation with a range', (
