@@ -42,6 +42,21 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.dispose();
   }
 
+  Future<void> _openDetail(String path, Object extra) async {
+    await context.push(path, extra: extra);
+    if (!mounted || _query.isEmpty) return;
+    ref.invalidate(searchResultsProvider(_query));
+    ref.invalidate(
+      pagedSearchResultsProvider(
+        SearchQueryState(
+          query: _query,
+          eventPage: _eventPage,
+          todoPage: _todoPage,
+        ),
+      ),
+    );
+  }
+
   void _submitSearch(String query) {
     _debounceTimer?.cancel();
     setState(() {
@@ -212,12 +227,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               leading: const Icon(CupertinoIcons.calendar_badge_plus),
               title: Text(event.summary),
               subtitle: Text(DateFormatters.formatDate(event.startDt)),
-              onTap: () {
-                context.push(
-                  '/event/detail',
-                  extra: CalendaEventAdapter.fromDrift(event),
-                );
-              },
+              onTap: () => _openDetail(
+                '/event/detail',
+                CalendaEventAdapter.fromDrift(event),
+              ),
             );
           }),
           if (results.hasMoreEvents)
@@ -248,9 +261,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               todoId: todo.id,
               todo: todo,
               dueDate: todo.dueDate,
-              onTap: () {
-                context.push('/todo/detail', extra: todo);
-              },
+              onTap: () => _openDetail('/todo/detail', todo),
             ),
           ),
           if (results.hasMoreTodos)
@@ -294,7 +305,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             todoId: todo.id,
             todo: todo,
             dueDate: todo.dueDate,
-            onTap: () => context.push('/todo/detail', extra: todo),
+            onTap: () => _openDetail('/todo/detail', todo),
           ),
       ],
     );
