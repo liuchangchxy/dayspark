@@ -1,3 +1,5 @@
+import 'dart:ui' show AppExitResponse;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/platform_target.dart';
 import 'core/utils/platform_scroll_behavior.dart';
 import 'domain/providers/home_widget_provider.dart';
+import 'domain/providers/database_provider.dart';
 import 'domain/providers/record_bus_provider.dart';
 import 'domain/providers/sync_client_provider.dart'
     show deviceRegistrationProvider, syncRuntimeProvider;
@@ -60,7 +63,23 @@ void main() async {
     return true;
   };
 
-  runApp(const ProviderScope(child: DaySparkApp()));
+  final container = ProviderContainer();
+  final database = container.read(databaseShutdownProvider);
+  late final AppLifecycleListener exitListener;
+  exitListener = AppLifecycleListener(
+    onExitRequested: () async {
+      // Stop every provider before closing: no new queries can start, and the
+      // awaited close lets the database isolate finish sqlite3_close_v2 (and
+      // its FFI callbacks) before the process exits.
+      container.dispose();
+      await database.close();
+      exitListener.dispose();
+      return AppExitResponse.exit;
+    },
+  );
+  runApp(
+    UncontrolledProviderScope(container: container, child: const DaySparkApp()),
+  );
 }
 
 class DaySparkApp extends ConsumerWidget {
