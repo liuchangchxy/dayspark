@@ -27,6 +27,20 @@ final class RecordRemoved extends RecordChange {
   final List<int> reminderIds;
 }
 
+final class RemoteReminderApplied extends RecordChange {
+  const RemoteReminderApplied(
+    this.type,
+    super.localId,
+    this.reminderId, {
+    required this.changed,
+  });
+
+  @override
+  final RecordType type;
+  final int reminderId;
+  final bool changed;
+}
+
 final class RecordsBulkChanged extends RecordChange {
   const RecordsBulkChanged(this.type, {required this.reason}) : super(0);
 

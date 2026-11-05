@@ -90,6 +90,8 @@ final class ReminderReconciler {
   Future<void> _handle(List<RecordChange> batch) async {
     final removed = <_ParentKey, List<int>>{};
     final applied = <_ParentKey, DateTime?>{};
+    final remoteReminders = <_ParentKey, Set<int>>{};
+    final changedReminders = <_ParentKey>{};
     for (final change in batch) {
       switch (change) {
         case RecordsBulkChanged():
@@ -102,6 +104,17 @@ final class ReminderReconciler {
         case RecordRemoved(:final type, :final localId, :final reminderIds):
           final key = _keyOf(type, localId);
           removed.putIfAbsent(key, () => <int>[]).addAll(reminderIds);
+        case RemoteReminderApplied(
+          :final type,
+          :final localId,
+          :final reminderId,
+          :final changed,
+        ):
+          final key = _keyOf(type, localId);
+          if (changed) {
+            remoteReminders.putIfAbsent(key, () => <int>{}).add(reminderId);
+            changedReminders.add(key);
+          }
         case RecordApplied(
           :final type,
           :final localId,
@@ -125,14 +138,19 @@ final class ReminderReconciler {
       _parentStates.remove(entry.key);
     }
 
+    for (final key in changedReminders) {
+      applied.putIfAbsent(key, () => _parentStates[key]?.reference);
+    }
+
     for (final entry in applied.entries) {
-      if (removed.containsKey(entry.key)) continue;
       await _safely(
         'reconcile ${entry.key.$1}:${entry.key.$2}',
         () => _reconcileParent(
           parentType: entry.key.$1,
           parentId: entry.key.$2,
           previousReference: entry.value,
+          remoteReminderIds: remoteReminders[entry.key] ?? const {},
+          force: changedReminders.contains(entry.key),
         ),
       );
     }
@@ -168,6 +186,7 @@ final class ReminderReconciler {
     required String parentType,
     required int parentId,
     required DateTime? previousReference,
+    Set<int> remoteReminderIds = const {},
     bool force = false,
   }) async {
     final key = (parentType, parentId);
@@ -198,7 +217,9 @@ final class ReminderReconciler {
       final owned = _materialized[reminder.id]?.isAtSameMomentAs(
         reminder.triggerTime,
       );
-      final basis = (owned ?? false)
+      final basis = remoteReminderIds.contains(reminder.id)
+          ? reference
+          : (owned ?? false)
           ? (anchorReference ?? previousReference)
           : previousReference;
       final computed = active

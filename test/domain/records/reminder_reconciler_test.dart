@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/record_bus_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
+import 'package:dayspark/domain/records/record_bus.dart';
 import 'package:dayspark/domain/records/record_change.dart';
 import 'package:dayspark/domain/records/reminder_reconciler.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
@@ -261,6 +262,54 @@ void main() {
       ),
     );
   }
+
+  test('adding a reminder schedules it when the parent is cached', () async {
+    final todoId = await seedTodoWithReminder();
+    await reconciler.reconcileAll();
+    resetLogs();
+    final container = ProviderContainer(
+      overrides: [databaseProvider.overrideWithValue(db)],
+    );
+    addTearDown(container.dispose);
+    final changes = <RecordChange>[];
+    final subscription = RecordBus.of(db).changes.listen(changes.addAll);
+    addTearDown(subscription.cancel);
+    final id = await container.read(createReminderProvider)(
+      parentType: 'todo',
+      parentId: todoId,
+      triggerTime: DateTime(2026, 6, 10, 8, 30),
+    );
+    await waitUntil(() => changes.isNotEmpty);
+    await reconciler.handle(changes);
+    expect(schedules.single.id, id);
+    expect(schedules.single.triggerTime, DateTime(2026, 6, 10, 8, 30));
+  });
+
+  test(
+    'editing a reminder cancels the old schedule and schedules the new time',
+    () async {
+      final todoId = await seedTodoWithReminder();
+      final id = await reminderIdOf(todoId);
+      await reconciler.reconcileAll();
+      resetLogs();
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      addTearDown(container.dispose);
+      final changes = <RecordChange>[];
+      final subscription = RecordBus.of(db).changes.listen(changes.addAll);
+      addTearDown(subscription.cancel);
+      await container.read(updateReminderProvider)(
+        id,
+        DateTime(2026, 6, 10, 8, 45),
+      );
+      await waitUntil(() => changes.isNotEmpty);
+      await reconciler.handle(changes);
+      expect(cancels, contains(id));
+      expect(schedules.single.id, id);
+      expect(schedules.single.triggerTime, DateTime(2026, 6, 10, 8, 45));
+    },
+  );
 
   group('nextTrigger（纯函数，人工手算字面量）', () {
     // reference / previousReference / storedTrigger → expected

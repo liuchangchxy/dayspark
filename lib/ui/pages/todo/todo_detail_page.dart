@@ -16,6 +16,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
@@ -317,6 +318,13 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         _tags(context, live),
         const SizedBox(height: AppSpacing.lg),
         const RowDivider(),
+        RemindersSection(
+          parentType: 'todo',
+          parentId: live.id,
+          anchorTime: live.dueDate,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        const RowDivider(),
         const SizedBox(height: AppSpacing.md),
         AttachmentList(parentType: 'todo', parentId: live.id),
         const SizedBox(height: AppSpacing.xl),
@@ -350,11 +358,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     }
   }
 
-  Widget _legacyNotice(
-    BuildContext context,
-    AppLocalizations l,
-    Todo live,
-  ) {
+  Widget _legacyNotice(BuildContext context, AppLocalizations l, Todo live) {
     return Row(
       children: [
         Expanded(
@@ -407,7 +411,8 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   }
 
   Widget _tags(BuildContext context, Todo live) {
-    final assigned = ref.watch(todoTagsProvider(live.id)).valueOrNull ?? const [];
+    final assigned =
+        ref.watch(todoTagsProvider(live.id)).valueOrNull ?? const [];
     return TagChips(
       parentType: 'todo',
       parentId: live.id,
@@ -454,7 +459,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     unawaited(_writeBasics(description: text));
   }
 
-  Future<void> _writeBasics({String? summary, String? description, int? priority}) async {
+  Future<void> _writeBasics({
+    String? summary,
+    String? description,
+    int? priority,
+  }) async {
     try {
       await ref.read(updateTodoProvider)(
         widget.todo.id,
@@ -484,7 +493,8 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final picked = await pickDeadline(
       context,
       initial: live.dueDate ?? DateTime(now.year, now.month, now.day, 9),
-      withTime: live.dueDate != null &&
+      withTime:
+          live.dueDate != null &&
           !(live.dueDate!.hour == 0 && live.dueDate!.minute == 0),
     );
     if (picked == null || !mounted) return;
@@ -633,9 +643,9 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

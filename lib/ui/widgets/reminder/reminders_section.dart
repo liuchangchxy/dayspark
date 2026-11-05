@@ -108,6 +108,14 @@ class RemindersSection extends ConsumerWidget {
                                 l,
                                 reminder.triggerTime,
                               ),
+                              onEdit: enabled
+                                  ? () => _edit(
+                                      context,
+                                      ref,
+                                      reminder.id,
+                                      reminder.triggerTime,
+                                    )
+                                  : null,
                               onRemove: enabled
                                   ? () => ref.read(deleteReminderProvider)(
                                       reminder.id,
@@ -180,6 +188,21 @@ class RemindersSection extends ConsumerWidget {
     return formatMoment(context, triggerTime);
   }
 
+  Future<void> _edit(
+    BuildContext context,
+    WidgetRef ref,
+    int id,
+    DateTime triggerTime,
+  ) async {
+    final picked = await showModalBottomSheet<DateTime>(
+      context: context,
+      builder: (ctx) =>
+          _ReminderSheet(anchor: anchorTime, fallback: triggerTime),
+    );
+    if (picked == null || !context.mounted || picked == triggerTime) return;
+    await ref.read(updateReminderProvider)(id, picked);
+  }
+
   Future<void> _add(BuildContext context, WidgetRef ref) async {
     final anchor = anchorTime;
     final picked = await showModalBottomSheet<DateTime>(
@@ -201,10 +224,11 @@ class RemindersSection extends ConsumerWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.label, this.onRemove});
+  const _Row({required this.label, this.onRemove, this.onEdit});
 
   final String label;
   final VoidCallback? onRemove;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -219,7 +243,23 @@ class _Row extends StatelessWidget {
             color: context.semantic.textSecondary,
           ),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Text(label, style: AppTypography.body)),
+          Expanded(
+            child: onEdit == null
+                ? Text(label, style: AppTypography.body)
+                : MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: InkWell(
+                      onTap: onEdit,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(label, style: AppTypography.body),
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
           if (onRemove != null)
             IconButton(
               icon: const Icon(CupertinoIcons.xmark, size: 16),

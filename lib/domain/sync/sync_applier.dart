@@ -325,6 +325,11 @@ class SyncApplier {
       await (db.delete(
         db.reminders,
       )..where((t) => t.id.equals(existing.id))).go();
+      tx.removed(
+        existing.parentType == 'event' ? RecordType.event : RecordType.todo,
+        existing.parentId,
+        reminderIds: [existing.id],
+      );
       return true;
     }
 
@@ -359,13 +364,34 @@ class SyncApplier {
       serverRev: Value(record.rev),
     );
 
+    final changed =
+        existing == null ||
+        existing.parentType != parentType ||
+        existing.parentId != parentId ||
+        !existing.triggerTime.isAtSameMomentAs(triggerTime) ||
+        existing.isTriggered != isTriggered;
+    final int reminderId;
     if (existing == null) {
-      await db.into(db.reminders).insert(companion);
+      reminderId = await db.into(db.reminders).insert(companion);
     } else {
+      reminderId = existing.id;
       await (db.update(
         db.reminders,
       )..where((t) => t.id.equals(existing.id))).write(companion);
+      if (changed) {
+        tx.removed(
+          existing.parentType == 'event' ? RecordType.event : RecordType.todo,
+          existing.parentId,
+          reminderIds: [existing.id],
+        );
+      }
     }
+    tx.remoteReminderApplied(
+      parentType == 'event' ? RecordType.event : RecordType.todo,
+      parentId,
+      reminderId,
+      changed: changed,
+    );
     return true;
   }
 

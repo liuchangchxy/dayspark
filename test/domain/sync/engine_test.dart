@@ -11,7 +11,9 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/records/record_bus.dart';
 import 'package:dayspark/domain/records/record_change.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/reminder_reconciler.dart';
+import 'package:dayspark/domain/sync/sync_applier.dart';
 import 'package:dayspark/domain/sync/sse_listener.dart';
 import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
@@ -724,9 +726,7 @@ void main() {
       api.serverCapabilities = const [SyncCapability.todoRecurrenceV1];
       final tagId = await db
           .into(db.tags)
-          .insert(
-            TagsCompanion.insert(name: 'work', syncId: Value('tag-1')),
-          );
+          .insert(TagsCompanion.insert(name: 'work', syncId: Value('tag-1')));
       await SyncOutbox.enqueueUpsert(db, RecordType.tag, tagId);
 
       await buildEngine().start();
@@ -741,7 +741,6 @@ void main() {
       expect(pending, hasLength(1));
     },
   );
-
 
   test(
     'newly enabled TaskAllocation capability rewinds the shared cursor once',
@@ -848,6 +847,124 @@ void main() {
   });
 
   group('远端写入必须驱动本机派生态（记录缝）', () {
+    test('远端提醒增改删驱动通知且不回灌 outbox', () async {
+      final seam = attachReconciler();
+      final todoId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'remote reminder',
+              dueDate: Value(DateTime(2026, 6, 10, 9)),
+              syncId: const Value('reminder-parent'),
+            ),
+          );
+      final applier = SyncApplier(db);
+      SyncRecord reminder(DateTime trigger, {bool deleted = false}) =>
+          SyncRecord(
+            id: 'remote-reminder',
+            type: RecordType.reminder,
+            payload: {
+              'parentType': 'todo',
+              'parentSyncId': 'reminder-parent',
+              'triggerTime': trigger.toUtc().toIso8601String(),
+            },
+            rev: 1,
+            deleted: deleted,
+            serverTs: DateTime.utc(2026, 6, 1),
+          );
+      Future<void> apply(SyncRecord record) async {
+        expect(
+          await RecordScope.run(db, (tx) => applier.apply(record, tx)),
+          isTrue,
+        );
+      }
+
+      await apply(reminder(DateTime(2026, 6, 10, 8)));
+      await waitUntil(() => seam.schedules.length == 1);
+      final id = (await reminderRow(todoId)).id;
+      expect(seam.schedules.single.triggerTime, DateTime(2026, 6, 10, 8));
+
+      await apply(reminder(DateTime(2026, 6, 10, 8, 30)));
+      await waitUntil(() => seam.schedules.length == 2);
+      expect(seam.cancels, [id]);
+      expect(seam.schedules.last.triggerTime, DateTime(2026, 6, 10, 8, 30));
+      expect(seam.schedules, hasLength(2));
+
+      await apply(reminder(DateTime(2026, 6, 10, 8, 30)));
+      await waitUntil(() => seam.batches.length == 3);
+      await seam.reconciler.handle(const []);
+      expect(seam.cancels, [id], reason: '重复 upsert 不得取消 snooze');
+      expect(seam.schedules, hasLength(2));
+
+      await apply(reminder(DateTime(2026, 6, 10, 8, 30), deleted: true));
+      await waitUntil(() => seam.cancels.length == 2);
+      expect(seam.cancels, [id, id]);
+      expect(await reminderRows(todoId), isEmpty);
+      expect(await db.select(db.syncOutbox).get(), isEmpty);
+    });
+
+    for (final reminderFirst in [false, true]) {
+      test('同批父改期与远端提醒：reminderFirst=$reminderFirst', () async {
+        final seam = attachReconciler();
+        final id = await insertTodoWithReminder(
+          syncId: 'batch-parent',
+          dueDate: DateTime(2026, 6, 10, 9),
+          triggerTime: DateTime(2026, 6, 10, 8),
+          extraTriggerTimes: [
+            DateTime(2026, 6, 10, 8, 15),
+            DateTime(2026, 6, 10, 8, 20),
+          ],
+        );
+        final originals = await reminderRows(id);
+        await (db.update(db.reminders)
+              ..where((t) => t.id.equals(originals[1].id)))
+            .write(const RemindersCompanion(syncId: Value('batch-existing')));
+        await (db.update(db.reminders)
+              ..where((t) => t.id.equals(originals[2].id)))
+            .write(const RemindersCompanion(syncId: Value('batch-unchanged')));
+        SyncRecord remoteReminder(String syncId, DateTime time) => SyncRecord(
+          id: syncId,
+          type: RecordType.reminder,
+          payload: {
+            'parentType': 'todo',
+            'parentSyncId': 'batch-parent',
+            'triggerTime': time.toUtc().toIso8601String(),
+          },
+          rev: 2,
+          deleted: false,
+          serverTs: DateTime.utc(2026, 6, 1),
+        );
+        final reminders = [
+          remoteReminder('batch-existing', DateTime(2026, 6, 10, 10, 15)),
+          remoteReminder('batch-new', DateTime(2026, 6, 10, 10, 30)),
+          remoteReminder('batch-unchanged', DateTime(2026, 6, 10, 8, 20)),
+        ];
+        final parent = remoteTodo(
+          id: 'batch-parent',
+          dueDate: DateTime(2026, 6, 10, 11),
+        );
+        final applier = SyncApplier(db);
+        await RecordScope.run(db, (tx) async {
+          for (final record
+              in reminderFirst
+                  ? [...reminders, parent]
+                  : [parent, ...reminders]) {
+            expect(await applier.apply(record, tx), isTrue);
+          }
+        });
+        await waitUntil(() => seam.schedules.length == 4);
+        final times = {
+          for (final row in await reminderRows(id)) row.id: row.triggerTime,
+        };
+        expect(times[originals.first.id], DateTime(2026, 6, 10, 10));
+        expect(times[originals[1].id], DateTime(2026, 6, 10, 10, 15));
+        expect(times[originals[2].id], DateTime(2026, 6, 10, 10, 20));
+        expect(times.values, contains(DateTime(2026, 6, 10, 10, 30)));
+        expect(await db.select(db.syncOutbox).get(), isEmpty);
+      });
+    }
+
     test('pull 改期 → 本机该记录的提醒按新时间重排（P2.5#1 的红）', () async {
       final seam = attachReconciler();
       final id = await insertEventWithReminder(

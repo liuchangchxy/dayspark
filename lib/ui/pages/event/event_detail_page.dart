@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -136,12 +137,10 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     final end = live.seriesEnd;
     final length = end.difference(start);
     final validRange = !length.isNegative && length > Duration.zero;
-    final calendarName = ref
-        .watch(calendarsProvider)
-        .valueOrNull
+    final calendars = ref.watch(calendarsProvider).valueOrNull;
+    final currentCalendar = calendars
         ?.where((c) => c.id == live.calendarId)
-        .firstOrNull
-        ?.name;
+        .firstOrNull;
 
     return ListView(
       key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
@@ -254,8 +253,18 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
           onChanged: (value) =>
               _saveSchedule(live, setRrule: true, rrule: value),
         ),
-        if (calendarName != null)
-          ScheduleRow(label: l.calendar, value: calendarName),
+        if (calendars != null)
+          ScheduleRow(
+            label: l.calendar,
+            value: calendars.isEmpty
+                ? l.noCalendar
+                : currentCalendar?.name ?? l.calendarUnavailable,
+            onTap:
+                calendars.isNotEmpty &&
+                    (calendars.length > 1 || currentCalendar == null)
+                ? () => _pickCalendar(live, calendars)
+                : null,
+          ),
         const SizedBox(height: AppSpacing.lg),
         const RowDivider(),
         const SizedBox(height: AppSpacing.sm),
@@ -442,13 +451,74 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     }
   }
 
+  Future<void> _pickCalendar(
+    CalendaEventAdapter live,
+    List<Calendar> calendars,
+  ) async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final calendar in calendars)
+                ListTile(
+                  leading: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: ColorUtils.parseHex(calendar.color),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  title: Text(calendar.name),
+                  trailing: calendar.id == live.calendarId
+                      ? const Icon(CupertinoIcons.checkmark, size: 16)
+                      : null,
+                  onTap: () => Navigator.of(ctx).pop(calendar.id),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted || picked == live.calendarId) return;
+    try {
+      final current = await ref.read(calendarsProvider.future);
+      if (!mounted) return;
+      if (!current.any((calendar) => calendar.id == picked)) {
+        _showMessage(AppLocalizations.of(context)!.calendarUnavailable);
+        return;
+      }
+      await ref.read(updateEventProvider)(
+        live.drifId,
+        EventsCompanion(
+          calendarId: Value(picked),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    } on Object catch (error) {
+      debugPrint('event_detail: calendar update failed: $error');
+      _showError();
+    }
+  }
+
   Future<void> _toggleAllDay(CalendaEventAdapter live, bool allDay) async {
     if (allDay == live.isAllDay) return;
     final start = allDay
-        ? DateTime(live.seriesStart.year, live.seriesStart.month, live.seriesStart.day)
+        ? DateTime(
+            live.seriesStart.year,
+            live.seriesStart.month,
+            live.seriesStart.day,
+          )
         : live.seriesStart;
     final end = allDay
-        ? DateTime(live.seriesEnd.year, live.seriesEnd.month, live.seriesEnd.day)
+        ? DateTime(
+            live.seriesEnd.year,
+            live.seriesEnd.month,
+            live.seriesEnd.day,
+          )
         : live.seriesEnd;
     final validEnd = allDay && !end.isAfter(start)
         ? DateTime(start.year, start.month, start.day + 1)
@@ -633,9 +703,9 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

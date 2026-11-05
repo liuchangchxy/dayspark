@@ -11,6 +11,13 @@
 
 ---
 
+## 未发布 / Unreleased
+
+**用户反馈原文 / User feedback:** 「Todo Detail Pane — Reminder 管理：显示已有 Reminder，支持添加、修改和删除，与现有 Todo 完整表单的能力保持一致，修改后正确保存并更新界面。Event Detail Pane — Calendar 切换：显示当前 Calendar，支持切换到其他 Calendar，修改后立即更新界面并持久化，与现有 Event 完整表单保持一致。」
+
+- [x] Todo 详情面板复用提醒选择与保存路径，支持查看、添加、修改和删除。
+- [x] Event 详情面板显示当前日历并支持切换，保存后随实时数据更新。
+
 ## v0.29.0+29 — One Product / 全局 UI/UX 骨架统一
 
 **用户反馈原文 / User feedback:** 「Home 的三页换了皮，别的地方还是旧软件」「先冻结正确的产品骨架，然后直接实施」「避免不必要的次级标签和说明文字，让布局本身说明功能」「不要改数据库 schema / sync protocol / 领域模型 / 重写 recurrence engine」「如果已经完成，不要主动制造下一阶段。」
