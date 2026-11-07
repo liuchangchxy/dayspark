@@ -560,9 +560,9 @@ private struct WidgetCheck: View {
 
     var body: some View {
         Image(systemName: checked ? "checkmark.circle.fill" : "circle")
-            .font(.system(size: 17))
+            .font(.system(size: 16))
             .foregroundStyle(checked ? palette.accent : palette.textSecondary)
-            .frame(width: 44, height: 44)
+            .frame(width: 32, height: 32)
     }
 }
 
@@ -618,7 +618,7 @@ struct TodayWidgetView: View {
                 emptyState
             }
         }
-        .padding(12)
+        .padding(small ? 10 : (large ? 12 : 10))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) { palette.background }
         .widgetURL(WidgetLinks.today)
@@ -626,9 +626,9 @@ struct TodayWidgetView: View {
 
     private func content(_ snapshot: WidgetSnapshot) -> some View {
         let pending = WidgetSnapshotStore.pendingCommandTargets()
-        let timeline = Array(snapshot.timeline.prefix(large ? 6 : (small ? 1 : 3)))
-        let actions = Array(snapshot.actions.prefix(large ? 8 : (small ? 1 : 3)))
-        return VStack(alignment: .leading, spacing: 4) {
+        let timeline = Array(snapshot.timeline.prefix(small ? 1 : (large ? 3 : 2)))
+        let actions = Array(snapshot.actions.prefix(small ? 1 : (large ? 5 : 3)))
+        return VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(WidgetDates.short(snapshot.todayIso))
                     .font(small ? .title3.weight(.semibold) : .title2.weight(.semibold))
@@ -645,14 +645,43 @@ struct TodayWidgetView: View {
                     palette: palette
                 )
                 .padding(.top, 4)
-            }
-
-            ForEach(timeline.indices, id: \.self) { index in
-                timelineRow(timeline[index], pending: pending)
-            }
-
-            ForEach(actions.indices, id: \.self) { index in
-                actionRow(actions[index], pending: pending)
+            } else if small {
+                ForEach(timeline.indices, id: \.self) { index in
+                    timelineRow(timeline[index], pending: pending)
+                }
+                ForEach(actions.indices, id: \.self) { index in
+                    actionRow(actions[index], pending: pending)
+                }
+            } else if large {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(timeline.indices, id: \.self) { index in
+                        timelineRow(timeline[index], pending: pending)
+                    }
+                }
+                if !timeline.isEmpty && !actions.isEmpty {
+                    Rectangle().fill(palette.border).frame(height: 1)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(actions.indices, id: \.self) { index in
+                        actionRow(actions[index], pending: pending)
+                    }
+                }
+            } else {
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(timeline.indices, id: \.self) { index in
+                            timelineRow(timeline[index], pending: pending)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Rectangle().fill(palette.border).frame(width: 1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(actions.indices, id: \.self) { index in
+                            actionRow(actions[index], pending: pending)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
 
             Spacer(minLength: 0)
@@ -686,7 +715,7 @@ struct TodayWidgetView: View {
         Text(text)
             .font(.caption.weight(.semibold))
             .foregroundStyle(palette.accent)
-            .frame(maxWidth: .infinity, minHeight: 32)
+            .frame(maxWidth: .infinity, minHeight: 28)
             .background(palette.accent.opacity(0.12))
             .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -734,7 +763,7 @@ struct TodayWidgetView: View {
                 rowBody(item)
             }
         }
-        .frame(minHeight: 34)
+        .frame(minHeight: small ? 40 : 32)
     }
 
     private func rowBody(_ item: WidgetTimelineItem) -> some View {
@@ -787,7 +816,7 @@ struct TodayWidgetView: View {
             }
             Spacer(minLength: 0)
         }
-        .frame(minHeight: 34)
+        .frame(minHeight: small ? 40 : 32)
     }
 
     private func actionBody(_ action: WidgetActionItem, checked: Bool) -> some View {
@@ -867,7 +896,7 @@ struct UpcomingWidgetView: View {
 
     private var content: some View {
         let todayIso = snapshot?.todayIso ?? WidgetDates.iso(Date())
-        let limit = large ? 14 : 6
+        let limit = large ? 10 : 4
         let rows = flatten(groups: groups, limit: limit)
         return VStack(alignment: .leading, spacing: 3) {
             HStack {
@@ -954,7 +983,7 @@ struct UpcomingWidgetView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(minHeight: 30)
+        .frame(minHeight: 28)
     }
 
     private func markerColor(_ item: WidgetUpcomingItem) -> Color {
@@ -1040,7 +1069,7 @@ struct CalendarWidgetView: View {
                 todaySummary
             }
         }
-        .padding(10)
+        .padding(large ? 10 : 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) { palette.background }
         .widgetURL(WidgetLinks.calendar)
@@ -1062,7 +1091,7 @@ struct CalendarWidgetView: View {
         let leading = model.firstWeekday - 1
         let total = leading + model.daysInMonth
         let cells = Int(ceil(Double(total) / 7.0)) * 7
-        return LazyVGrid(columns: columns, spacing: large ? 4 : 2) {
+        return LazyVGrid(columns: columns, spacing: large ? 3 : 0) {
             ForEach(0..<cells, id: \.self) { index in
                 let day = index - leading + 1
                 if day >= 1 && day <= model.daysInMonth {
@@ -1101,13 +1130,13 @@ struct CalendarWidgetView: View {
                     .fill(dotColor ?? .clear)
                     .frame(width: large ? 4 : 3, height: large ? 4 : 3)
             }
-            .frame(maxWidth: .infinity, minHeight: large ? 30 : 22)
+            .frame(maxWidth: .infinity, minHeight: large ? 25 : 18)
         }
     }
 
     private var todaySummary: some View {
-        let timeline = Array((snapshot?.timeline ?? []).prefix(4))
-        let actions = Array((snapshot?.actions ?? []).prefix(4))
+        let timeline = Array((snapshot?.timeline ?? []).prefix(2))
+        let actions = Array((snapshot?.actions ?? []).prefix(2))
         return VStack(alignment: .leading, spacing: 2) {
             Text((ui?.today).flatMap { $0.isEmpty ? nil : $0 } ?? WidgetCopy.today)
                 .font(.system(size: 10, weight: .bold))
