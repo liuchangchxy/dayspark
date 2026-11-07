@@ -84,8 +84,8 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       val snapshot = WidgetSnapshot.read(context)
       val ui = snapshot?.ui()
       val theme = snapshot?.theme()
-      val size = WidgetSupport.sizeOf(manager, appWidgetId)
-      val large = size == WidgetSize.LARGE
+      val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
+      val large = WidgetSupport.calendarIsLarge(height)
       val layout = if (large) {
         R.layout.widget_calendar_large
       } else {
@@ -130,7 +130,6 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       } else {
         emptyMap()
       }
-      val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
       val compact = !large && height > 0 && height < 230
       val dayMode = compact && state.calendarMode == "day"
 

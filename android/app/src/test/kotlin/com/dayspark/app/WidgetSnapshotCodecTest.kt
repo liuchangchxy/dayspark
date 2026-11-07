@@ -423,6 +423,32 @@ class WidgetSnapshotCodecTest {
   }
 
   @Test
+  fun `nominal cell sizes map to the intended layout tier`() {
+    assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(110, 110))
+    assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(180, 180))
+    assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(250, 110))
+    assertEquals(WidgetSize.MEDIUM, WidgetSupport.sizeFor(250, 180))
+    assertEquals(WidgetSize.MEDIUM, WidgetSupport.sizeFor(320, 180))
+    assertEquals(WidgetSize.LARGE, WidgetSupport.sizeFor(320, 320))
+    assertEquals(WidgetSize.LARGE, WidgetSupport.sizeFor(460, 460))
+    assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(0, 0))
+  }
+
+  @Test
+  fun `calendar is large only from six rows of height`() {
+    assertFalse(WidgetSupport.calendarIsLarge(320))
+    assertTrue(WidgetSupport.calendarIsLarge(360))
+    assertTrue(WidgetSupport.calendarIsLarge(460))
+  }
+
+  @Test
+  fun `short medium widgets still reserve one row instead of overflowing`() {
+    assertEquals(1, WidgetSupport.rowBudget(180, 96, 0, 44, 1, 6))
+    assertEquals(1, WidgetSupport.rowBudget(180, 120, 40, 48, 1, 6))
+    assertEquals(2, WidgetSupport.rowBudget(320, 150, 60, 48, 2, 14))
+  }
+
+  @Test
   fun `normalized selected date resets outside the current month`() {
     val today = WidgetStateStore.todayIso()
     assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState()))

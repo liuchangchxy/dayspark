@@ -143,8 +143,8 @@ class TodayWidgetProvider : AppWidgetProvider() {
       val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
       val budget = when (size) {
         WidgetSize.SMALL -> 1
-        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 96, 40, 48, 3, 6)
-        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 110, 50, 48, 4, 14)
+        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 120, 40, 48, 1, 6)
+        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 150, 60, 48, 2, 14)
       }
       var shown = 0
 

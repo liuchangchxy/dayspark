@@ -151,8 +151,14 @@ class TodoWidgetProvider : AppWidgetProvider() {
       val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
       val budget = when (size) {
         WidgetSize.SMALL -> 2
-        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 96, 0, 44, 3, 6)
-        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 120, 0, 44, 5, 12)
+        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 96, 0, 44, 1, 6)
+        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 120, 0, 44, 3, 12)
+      }.let {
+        if (size == WidgetSize.LARGE && mode == "today" && current.overdue.isNotEmpty()) {
+          (it - 1).coerceAtLeast(1)
+        } else {
+          it
+        }
       }
       var shown = 0
 

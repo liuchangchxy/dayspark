@@ -33,12 +33,16 @@ internal object WidgetSupport {
 
   fun sizeOf(manager: AppWidgetManager, appWidgetId: Int): WidgetSize {
     val (width, height) = dimensionsOf(manager, appWidgetId)
-    return when {
-      width >= 300 && height >= 360 -> WidgetSize.LARGE
-      width >= 180 && height >= 200 -> WidgetSize.MEDIUM
-      else -> WidgetSize.SMALL
-    }
+    return sizeFor(width, height)
   }
+
+  fun sizeFor(width: Int, height: Int): WidgetSize = when {
+    width >= 220 && height >= 220 -> WidgetSize.LARGE
+    width >= 220 && height >= 140 -> WidgetSize.MEDIUM
+    else -> WidgetSize.SMALL
+  }
+
+  fun calendarIsLarge(height: Int): Boolean = height >= 360
 
   fun render(
     context: Context,
