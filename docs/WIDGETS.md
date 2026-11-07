@@ -24,8 +24,8 @@
 | R10 | 快照升级到 v5；原生端仍然只读，单写入者与 `widget_command_<id>` 命令队列不变。 |
 | R11 | Action 复用现有 `TodayWidgetProvider` / `CalendarTodoWidget` 组件与 kind（保住在桌面的实例），Calendar 复用 `CalendarWidgetProvider` / `CalendarMonthWidget`；新增 Todo；删除其余两个。 |
 | R12 | Android 每次动态渲染前必须先 `removeAllViews()`；星期标题重复是最小复现，所有动态容器同罪。 |
-| R13 | macOS 当前没有可用的宿主数据通路（`home_widget` 未注册到 macOS Runner）。第一版必须补一个原生 shim；补不齐则 macOS Widget 不发布。 |
-| R14 | Android 时间型刷新最低 30 分钟（`updatePeriodMillis` 系统下限）。Now/Later 在渲染时按 epoch 判定，边界最多晚 30 分钟；iOS 用时间线条目按边界刷新。 |
+| R13 | macOS 已有可用的宿主数据通路：`macos/Runner/MainFlutterWindow.swift` 内实现了 `home_widget` MethodChannel shim，App Group entitlement 也已就位。保留并验收，不再作为开发前置任务。 |
+| R14 | Android 周期刷新以 `updatePeriodMillis=1800000` 为兜底，不承诺精确 30 分钟边界；数据变化、用户操作、日期/时区广播仍即时刷新。Now/Later 允许短暂滞后，不引入高频后台任务；iOS 用时间线条目按事件边界刷新。 |
 | R15 | #84 已经做对的 **真实 resize** 保留：用 `OPTION_APPWIDGET_MIN/MAX_WIDTH/HEIGHT` 选择布局与行预算，不假设固定格数。 |
 
 ---
@@ -772,13 +772,15 @@ Event 是复杂对象，Widget 不做内联创建。
 - 禁止每个 Widget 各自写快照；
 - 禁止原生写 SQLite 或写快照；
 - 禁止无变化时重复触发全量刷新（用 `RecordBus` 合并；当前 `homeWidgetAutoRefreshProvider` 的“最多一个 in-flight + 一次 trailing”保留）；
-- 禁止依赖“每 30 分钟一定准时”来做产品承诺；`updatePeriodMillis=1800000` 只是时间型数据的安全网。
+- 禁止依赖“每 30 分钟一定准时”来做产品承诺；`updatePeriodMillis=1800000` 只是兜底，不是刷新主路径。
 
 ### 12.4 时间判定
 
 - Snapshot 为 Event / Allocation 提供 `startEpochMs` / `endEpochMs`；
 - 原生渲染时按设备当前时间计算 Now / Later，而不是依赖快照生成时的分区；
-- Android 由于 30 分钟刷新下限，Now/Later 边界最多晚 30 分钟；
+- Android 的周期刷新只是兜底：系统不保证精确边界，也不承诺每 30 分钟执行一次；
+- 数据变化、Widget 操作、日期/时间/时区广播会立即触发刷新；
+- Now/Later 在两次刷新之间允许短暂滞后，不为此引入高频后台任务；
 - iOS/macOS 时间线在下一个事件边界与午夜各生成条目，边界准确；
 - 跨天：iOS `Timeline(entries: [now, nextMidnight], policy: .after(nextMidnight))`；Android 监听 `ACTION_DATE_CHANGED` / `ACTION_TIME_CHANGED` / `ACTION_TIMEZONE_CHANGED` 并重绘。
 
@@ -857,11 +859,11 @@ Event 是复杂对象，Widget 不做内联创建。
 | 限制 | 后果 | 本 Spec 的裁定 |
 |---|---|---|
 | `AppIntent` 无法获知触发它的具体 Widget 实例 | Calendar 的 `selectedDate` 不能像 Android 那样按实例保存 | iOS/macOS 的 Calendar 选中日/模式存 App Group，同一 kind 的所有实例共享；文档明确写“多个日历 Widget 会同步选中日”。这是可接受的降级，仍不打开 App |
-| `systemSmall` 中行级 `Link` 不生效，非 Button 区域只能由 `widgetURL` 统一承接 | Small 里不能逐行打开详情，也不能有第二个导航目标 | Small 中勾选框（Button）仍独立可用；除勾选框外的区域统一打开该 Widget 的主目的地；`+` 在 iOS/macOS Small 不提供，创建从主目的地进入。Medium/Large 才提供逐行详情与 `+` |
+| Apple 在较新系统中允许 `systemSmall` 使用 `Link`，但存在系统版本差异 | 逐行 Link 在最低支持版本上不保证一致 | v1 兼容策略：Small 主动只保留勾选 Button + 一个主 `widgetURL`，不依赖逐行 Link；Medium/Large 使用逐行 Link。这是兼容选择，不是平台永久限制 |
 | 不能在 Widget 内输入文本 | Quick Add 必须进 App | 用极简 Quick Add surface，不用完整表单 |
 | Widget 不能滚动 | 放不下的内容必须截断 | 用行预算 + “还有 N 项” |
 
-Apple 文档明确 `systemSmall` 可以包含 Button/Toggle，因此 Small 的勾选框成立；限制在行级 Link，不在 Button。
+Small 的勾选 Button 是 iOS 17 交互式 Widget 的标准能力。v1 不依赖 Small 的行级 Link，是为了覆盖最低 iOS 17 的系统差异，而不是断言 WidgetKit 做不到；因此 Small 中除勾选外的区域统一由一个主 `widgetURL` 承接，`+` 从 Medium 起提供。
 
 ### 14.3 Todos 模式
 
@@ -879,20 +881,24 @@ Apple 文档明确 `systemSmall` 可以包含 Button/Toggle，因此 Small 的�
 - `+ 日程` → `dayspark://open/new-event?date=<selectedDate>`；
 - 月份始终是当前自然月；不切月。
 
-### 14.5 macOS 的阻断项
+### 14.5 macOS 数据通路（已成立，转为验收项）
 
-当前 macOS Runner **没有注册 `home_widget` 插件**（`macos/Flutter/GeneratedPluginRegistrant.swift` 无 home_widget），`HomeWidget.setAppGroupId` / `saveWidgetData` / `updateWidget` 在 macOS 上不可用。因此：
+macOS 的数据通路已经存在，不是阻断项：
 
-- Flutter 宿主无法把 `widget_snapshot` 写进 App Group；
-- 无法主动 `WidgetCenter.reloadAllTimelines()`；
-- macOS Widget 目前只能读到一个没人写的快照，等于没有数据通路。
+- `macos/Runner/MainFlutterWindow.swift` 注册了名为 `home_widget` 的 `FlutterMethodChannel`；
+- 已实现 `setAppGroupId` / `saveWidgetData` / `getWidgetData` / `updateWidget`（内部调用 `WidgetCenter.shared.reloadAllTimelines()`）/ `registerBackgroundCallback` / `initiallyLaunchedFromHomeWidget`；
+- `macos/Runner/Release.entitlements`、`macos/Runner/DebugProfile.entitlements` 与 `macos/CalendarTodoWidget/CalendarTodoWidget.entitlements` 都包含 `group.com.dayspark.app`。
 
-落地方式已经拍板：
+`macos/Flutter/GeneratedPluginRegistrant.swift` 中没有 home_widget 是正常的——宿主走的是自建 shim，不是插件注册；不能据此推断“没有数据通路”。
 
-1. **第一版补一个 macOS 原生 shim**：Runner 注册 `MethodChannel`，实现 `setAppGroupId` / `saveWidgetData` / `updateWidget`（写 App Group + `WidgetCenter.reloadAllTimelines()`）。这是 macOS Widget 进入第一版的前置条件。
-2. 如果 shim 未能在本轮实现中落地，则 **macOS Widget 不发布**：Swift 视图可以保留，但不进 Gallery、不作为验收项，发版说明中明确写“macOS Widget 暂不可用”。
+实现阶段只做验收，不新写 shim：
 
-不允许出现“macOS 进了 Gallery 但没有数据通路”的状态。
+- [ ] Flutter `HomeWidget.saveWidgetData('widget_snapshot', ...)` 写入 App Group，extension 能读到；
+- [ ] `HomeWidget.updateWidget()` 触发 `reloadAllTimelines`，桌面立即重绘；
+- [ ] Runner 与 widget extension 的 App Group 保持一致；
+- [ ] shim 不得删除或重命名；若 home_widget 后续提供官方 macOS 实现，再单独评估替换，不在本版范围内。
+
+若上述任何一条验收失败，按普通 bug 修复，不再回到“macOS Widget 是否发布”的判定。
 
 ---
 
@@ -922,6 +928,7 @@ Apple 文档明确 `systemSmall` 可以包含 Button/Toggle，因此 Small 的�
 | 勾选乐观态 | 保留 |
 | 深链翻译 `widgetDeepLinkLocation` | 保留并扩展 |
 | fallback 渲染 | 保留并覆盖所有 provider |
+| macOS Runner 的 `home_widget` shim 与 App Group entitlement | 已有且必须保留，按 §14.5 验收 |
 
 ### 15.3 重做
 
@@ -994,7 +1001,7 @@ Dart 侧 `HomeWidgetService` 的 provider/kind 常量、`refreshNativeWidgets` �
 - [ ] Todos 模式通过 Edit Widget 配置，每实例独立。
 - [ ] Calendar 选中日不打开 App；多个实例共享选中日的限制在验收记录里写明。
 - [ ] Small 的勾选可点，其余区域打开主目的地。
-- [ ] macOS 在有 shim 的情况下能收到快照更新并主动刷新；没有 shim 则不发布 macOS Widget。
+- [ ] macOS 现有 shim 通过 §14.5 验收：App Group 写入/读取、`updateWidget` → `reloadAllTimelines`、Runner 与 extension entitlement 同组；不新增 shim。
 
 ### 17.4 回归
 
@@ -1022,9 +1029,9 @@ Dart 侧 `HomeWidgetService` 的 provider/kind 常量、`refreshNativeWidgets` �
 
 ---
 
-## 19. 落地前置条件（非产品待决）
+## 19. 落地事项（非产品待决）
 
-1. **macOS shim**：按 §14.5 补宿主 MethodChannel；未补则 macOS Widget 不发布。
+1. **macOS 数据通路**：现有 shim 已成立，按 §14.5 验收；不是开发前置任务。
 2. **iOS/macOS Calendar 共享选中日**：已拍板接受（§14.2），不作为开放问题。
 3. **Calendar Medium 布局**：已拍板按 §7.3 执行：Android 高度足够时“月格 + 2 行”，不足或 iOS systemMedium 时 Month/Day 双模式。
 
