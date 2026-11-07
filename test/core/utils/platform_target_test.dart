@@ -16,8 +16,12 @@ void main() {
       expect(isNativeMobile, Platform.isAndroid || Platform.isIOS);
     });
 
-    test('home_widget 仅支持非 Web Android 和 iOS', () {
-      for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    test('home_widget 支持非 Web Android、iOS 和 macOS', () {
+      for (final platform in [
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+        TargetPlatform.macOS,
+      ]) {
         expect(
           homeWidgetPlatformOn(isWeb: false, platform: platform),
           platform,
@@ -25,7 +29,6 @@ void main() {
       }
       for (final platform in [
         TargetPlatform.linux,
-        TargetPlatform.macOS,
         TargetPlatform.windows,
         TargetPlatform.fuchsia,
       ]) {

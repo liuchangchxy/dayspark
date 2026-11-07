@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 
-// v3 `widget_snapshot` reader + native command queue operations (Rulings A, C, E, O).
+// v5 `widget_snapshot` reader + native command queue operations.
 //
 // Every native widget renders from this snapshot blob; the snapshot is READ-ONLY
 // for native code (Single-Writer rule). Widget actions append typed commands
@@ -14,50 +14,109 @@ data class WidgetSnapshot(val json: JSONObject) {
 
   val version: Int get() = json.optInt("version", 0)
 
-  data class EventRow(val summary: String, val start: String, val isAllDay: Boolean)
-  data class TodoRow(val id: Int?, val summary: String, val dueDate: String)
-  data class UpcomingEventRow(
-    val summary: String,
-    val date: String,
-    val start: String,
-    val isAllDay: Boolean,
-  )
-
-  data class TimelineRow(
+  data class ActionTimelineRow(
     val kind: String,
     val summary: String,
     val start: String,
     val end: String,
+    val startEpochMs: Long,
+    val endEpochMs: Long,
     val isAllDay: Boolean,
+    val eventId: Int? = null,
+    val calendarId: Int? = null,
+    val color: String? = null,
     val allocationId: String? = null,
     val todoId: Int? = null,
     val todoSyncId: String? = null,
     val occurrenceId: String? = null,
   )
 
-  data class ActionRow(
+  data class ActionTaskRow(
     val kind: String,
     val target: String,
+    val summary: String,
     val todoId: Int,
     val todoSyncId: String?,
     val occurrenceId: String?,
-    val summary: String,
-    val deadline: String?,
     val displayTime: String?,
+    val priority: Int,
+    val dueEpochMs: Long?,
+    val dueDate: String?,
+    val startEpochMs: Long?,
   )
 
-  data class UpcomingItemRow(
+  data class ActionCounts(
+    val dueToday: Int,
+    val overdue: Int,
+    val completedToday: Int,
+  )
+
+  data class ActionBlock(
+    val timeline: List<ActionTimelineRow>,
+    val dueToday: List<ActionTaskRow>,
+    val overdue: List<ActionTaskRow>,
+    val counts: ActionCounts,
+  )
+
+  data class TodoItemRow(
+    val todoId: Int,
+    val todoSyncId: String?,
+    val summary: String,
+    val priority: Int,
+    val dueDate: String?,
+    val dueEpochMs: Long?,
+    val hasTime: Boolean,
+    val recurring: Boolean,
+    val tagColors: List<String>,
+  )
+
+  data class TodoModeBlock(
+    val items: List<TodoItemRow>,
+    val overdue: List<TodoItemRow>,
+    val completedCount: Int,
+    val total: Int,
+    val sixThingsCap: Int,
+  )
+
+  data class TodosBlock(
+    val today: TodoModeBlock,
+    val inbox: TodoModeBlock,
+    val all: TodoModeBlock,
+  )
+
+  data class MonthItemRow(
     val kind: String,
     val summary: String,
-    val date: String,
-    val time: String,
+    val start: String,
+    val end: String,
+    val startEpochMs: Long?,
+    val endEpochMs: Long?,
     val isAllDay: Boolean,
+    val hasTime: Boolean,
+    val color: String?,
+    val eventId: Int?,
+    val todoId: Int?,
+    val todoSyncId: String?,
+    val allocationId: String?,
+    val occurrenceId: String?,
   )
 
-  data class StatusRow(
-    val overdueCount: Int,
-    val missedCount: Int,
-    val unplannedCount: Int,
+  data class MonthDayRow(
+    val day: Int,
+    val hasEvent: Boolean,
+    val hasTodo: Boolean,
+    val hasAllocation: Boolean,
+    val colors: List<String>,
+    val itemCount: Int,
+    val items: List<MonthItemRow>,
+  )
+
+  data class MonthRow(
+    val year: Int,
+    val month: Int,
+    val firstWeekday: Int,
+    val today: Int,
+    val days: List<MonthDayRow>,
   )
 
   data class PendingTargets(
@@ -65,193 +124,136 @@ data class WidgetSnapshot(val json: JSONObject) {
     val instanceKeys: Set<String>,
   )
 
-  fun todayTimeline(): List<TimelineRow> {
-    val todayObj = json.optJSONObject("today")
-    if (todayObj != null && todayObj.has("timeline")) {
-      return todayObj.optJSONArray("timeline").toObjectList { o ->
-        TimelineRow(
-          kind = o.optString("kind", "eventOccurrence"),
-          summary = o.optString("summary", ""),
-          start = o.optString("start", ""),
-          end = o.optString("end", ""),
-          isAllDay = o.optBoolean("isAllDay", false),
-          allocationId = if (o.has("allocationId") && !o.isNull("allocationId")) o.optString("allocationId") else null,
-          todoId = if (o.has("todoId") && !o.isNull("todoId")) o.optInt("todoId") else null,
-          todoSyncId = if (o.has("todoSyncId") && !o.isNull("todoSyncId")) o.optString("todoSyncId") else null,
-          occurrenceId = if (o.has("occurrenceId") && !o.isNull("occurrenceId")) o.optString("occurrenceId") else null,
-        )
-      }
-    }
-    return todayEvents().map {
-      TimelineRow(
-        kind = "eventOccurrence",
-        summary = it.summary,
-        start = it.start,
-        end = "",
-        isAllDay = it.isAllDay,
-      )
-    }
-  }
+  fun todayIso(): String = json.optString("today", "")
 
-  fun todayActions(): List<ActionRow> {
-    val todayObj = json.optJSONObject("today")
-    if (todayObj != null && todayObj.has("actions")) {
-      return todayObj.optJSONArray("actions").toObjectList { o ->
-        val target = o.optString("target", if (o.optString("kind") == "taskInstance") "taskInstance" else "todo")
-        ActionRow(
-          kind = o.optString("kind", "todoDeadline"),
-          target = target,
-          todoId = o.optInt("todoId", -1),
-          todoSyncId = if (o.has("todoSyncId") && !o.isNull("todoSyncId")) o.optString("todoSyncId") else null,
-          occurrenceId = if (o.has("occurrenceId") && !o.isNull("occurrenceId")) o.optString("occurrenceId") else null,
-          summary = o.optString("summary", ""),
-          deadline = if (o.has("deadline") && !o.isNull("deadline")) o.optString("deadline") else null,
-          displayTime = if (o.has("displayTime") && !o.isNull("displayTime")) o.optString("displayTime") else null,
+  fun action(): ActionBlock {
+    val o = json.optJSONObject("action") ?: return ActionBlock(
+      emptyList(),
+      emptyList(),
+      emptyList(),
+      ActionCounts(0, 0, 0),
+    )
+    val counts = o.optJSONObject("counts")
+    return ActionBlock(
+      timeline = o.optJSONArray("timeline").toObjectList { row ->
+        ActionTimelineRow(
+          kind = row.optString("kind", "eventOccurrence"),
+          summary = row.optString("summary", ""),
+          start = row.optString("start", ""),
+          end = row.optString("end", ""),
+          startEpochMs = row.optLong("startEpochMs", 0L),
+          endEpochMs = row.optLong("endEpochMs", 0L),
+          isAllDay = row.optBoolean("isAllDay", false),
+          eventId = row.optionalInt("eventId"),
+          calendarId = row.optionalInt("calendarId"),
+          color = row.optionalString("color"),
+          allocationId = row.optionalString("allocationId"),
+          todoId = row.optionalInt("todoId"),
+          todoSyncId = row.optionalString("todoSyncId"),
+          occurrenceId = row.optionalString("occurrenceId"),
         )
-      }
-    }
-    return pendingTodos().map {
-      ActionRow(
-        kind = "todoDeadline",
-        target = "todo",
-        todoId = it.id ?: -1,
-        todoSyncId = null,
-        occurrenceId = null,
-        summary = it.summary,
-        deadline = it.dueDate,
-        displayTime = null,
-      )
-    }
-  }
-
-  fun todayStatus(): StatusRow {
-    val statusObj = json.optJSONObject("today")?.optJSONObject("status")
-    return StatusRow(
-      overdueCount = statusObj?.optInt("overdueCount", 0) ?: 0,
-      missedCount = statusObj?.optInt("missedCount", 0) ?: 0,
-      unplannedCount = statusObj?.optInt("unplannedCount", 0) ?: 0,
+      },
+      dueToday = o.optJSONArray("dueToday").toObjectList(::taskRow),
+      overdue = o.optJSONArray("overdue").toObjectList(::taskRow),
+      counts = ActionCounts(
+        dueToday = counts?.optInt("dueToday", 0) ?: 0,
+        overdue = counts?.optInt("overdue", 0) ?: 0,
+        completedToday = counts?.optInt("completedToday", 0) ?: 0,
+      ),
     )
   }
 
-  fun upcomingItems(): List<UpcomingItemRow> {
-    val upcomingObj = json.optJSONObject("upcoming")
-    if (upcomingObj != null && upcomingObj.has("items")) {
-      return upcomingObj.optJSONArray("items").toObjectList { o ->
-        UpcomingItemRow(
-          kind = o.optString("kind", ""),
-          summary = o.optString("summary", ""),
-          date = o.optString("date", ""),
-          time = o.optString("time", ""),
-          isAllDay = o.optBoolean("isAllDay", false),
-        )
+  fun todos(): TodosBlock {
+    val o = json.optJSONObject("todos")
+    return TodosBlock(
+      today = todoMode(o?.optJSONObject("today"), includeOverdue = true),
+      inbox = todoMode(o?.optJSONObject("inbox"), includeOverdue = false),
+      all = todoMode(o?.optJSONObject("all"), includeOverdue = false),
+    )
+  }
+
+  fun month(): MonthRow? {
+    val o = json.optJSONObject("month") ?: return null
+    val rawDays = o.optJSONArray("days") ?: return null
+    val days = mutableListOf<MonthDayRow>()
+    for (i in 0 until rawDays.length()) {
+      val day = rawDays.optJSONObject(i) ?: continue
+      val colors = mutableListOf<String>()
+      val rawColors = day.optJSONArray("colors")
+      if (rawColors != null) {
+        for (c in 0 until rawColors.length()) {
+          val hex = rawColors.optString(c, "")
+          if (hex.isNotEmpty()) colors.add(hex)
+        }
       }
-    }
-    val rows = mutableListOf<UpcomingItemRow>()
-    for (e in upcomingEvents()) {
-      rows.add(
-        UpcomingItemRow(
-          kind = "eventOccurrence",
-          summary = e.summary,
-          date = e.date,
-          time = e.start,
-          isAllDay = e.isAllDay,
+      days.add(
+        MonthDayRow(
+          day = day.optInt("day", 0),
+          hasEvent = day.optBoolean("hasEvent", false),
+          hasTodo = day.optBoolean("hasTodo", false),
+          hasAllocation = day.optBoolean("hasAllocation", false),
+          colors = colors,
+          itemCount = day.optInt("itemCount", 0),
+          items = day.optJSONArray("items").toObjectList { item ->
+            MonthItemRow(
+              kind = item.optString("kind", ""),
+              summary = item.optString("summary", ""),
+              start = item.optString("start", ""),
+              end = item.optString("end", ""),
+              startEpochMs = item.optionalLong("startEpochMs"),
+              endEpochMs = item.optionalLong("endEpochMs"),
+              isAllDay = item.optBoolean("isAllDay", false),
+              hasTime = item.optBoolean("hasTime", false),
+              color = item.optionalString("color"),
+              eventId = item.optionalInt("eventId"),
+              todoId = item.optionalInt("todoId"),
+              todoSyncId = item.optionalString("todoSyncId"),
+              allocationId = item.optionalString("allocationId"),
+              occurrenceId = item.optionalString("occurrenceId"),
+            )
+          },
         ),
       )
     }
-    for (t in upcomingTodos()) {
-      rows.add(
-        UpcomingItemRow(
-          kind = "todoDeadline",
-          summary = t.summary,
-          date = t.dueDate,
-          time = "",
-          isAllDay = false,
-        ),
-      )
-    }
-    return rows
-  }
-
-  fun todayEvents(): List<EventRow> = json.optJSONArray("todayEvents").toObjectList { o ->
-    EventRow(
-      summary = o.optString("summary", ""),
-      start = o.optString("start", ""),
-      isAllDay = o.optBoolean("isAllDay", false),
+    return MonthRow(
+      year = o.optInt("year", 0),
+      month = o.optInt("month", 0),
+      firstWeekday = o.optInt("firstWeekday", 1),
+      today = o.optInt("today", 0),
+      days = days,
     )
-  }
-
-  fun pendingTodos(): List<TodoRow> = json.optJSONArray("pendingTodos").toObjectList { o ->
-    TodoRow(
-      id = if (o.has("id")) o.optInt("id") else null,
-      summary = o.optString("summary", ""),
-      dueDate = o.optString("dueDate", ""),
-    )
-  }
-
-  fun todoCount(): Int = json.optInt("todoCount", 0)
-
-  fun upcomingEvents(): List<UpcomingEventRow> =
-    json.optJSONObject("upcoming")?.optJSONArray("events").toObjectList { o ->
-      UpcomingEventRow(
-        summary = o.optString("summary", ""),
-        date = o.optString("date", ""),
-        start = o.optString("start", ""),
-        isAllDay = o.optBoolean("isAllDay", false),
-      )
-    }
-
-  fun upcomingTodos(): List<TodoRow> =
-    json.optJSONObject("upcoming")?.optJSONArray("todos").toObjectList { o ->
-      TodoRow(
-        id = if (o.has("id")) o.optInt("id") else null,
-        summary = o.optString("summary", ""),
-        dueDate = o.optString("dueDate", ""),
-      )
-    }
-
-  // [[dayNumber, hasEvent]] pairs — presence of the pair marks the day.
-  fun monthDots(): Set<Int> {
-    val out = mutableSetOf<Int>()
-    val arr = json.optJSONArray("monthDots") ?: return out
-    for (i in 0 until arr.length()) {
-      val pair = arr.optJSONArray(i) ?: continue
-      if (pair.length() >= 2 && pair.optBoolean(1, false)) {
-        out.add(pair.optInt(0, -1))
-      }
-    }
-    return out
-  }
-
-  // Optimistic checkbox state: a todo renders checked while its id sits in
-  // the legacy pendingTaps queue (for v2 backwards-compatibility).
-  fun pendingTapTodoIds(): Set<Int> {
-    val out = mutableSetOf<Int>()
-    val arr = json.optJSONArray("pendingTaps") ?: return out
-    for (i in 0 until arr.length()) {
-      val o = arr.optJSONObject(i) ?: continue
-      out.add(o.optInt("todoId", -1))
-    }
-    return out
   }
 
   fun ui(): UiStrings? {
     val o = json.optJSONObject("ui") ?: return null
     return UiStrings(
       locale = o.optString("locale", ""),
-      title = o.optString("title", ""),
       today = o.optString("today", ""),
-      events = o.optString("events", ""),
-      todos = o.optString("todos", ""),
+      inbox = o.optString("inbox", ""),
+      all = o.optString("all", ""),
+      noTodos = o.optString("noTodos", ""),
+      allTodosDone = o.optString("allTodosDone", ""),
+      noPlans = o.optString("noPlans", ""),
+      allPlansDone = o.optString("allPlansDone", ""),
+      now = o.optString("now", ""),
+      later = o.optString("later", ""),
+      dueToday = o.optString("dueToday", ""),
+      overdue = o.optString("overdue", ""),
+      completedCount = o.optString("completedCount", "{n}"),
+      moreCount = o.optString("moreCount", "{n}"),
+      overdueCount = o.optString("overdueCount", "{n}"),
+      selectedDayEmpty = o.optString("selectedDayEmpty", ""),
+      backToMonth = o.optString("backToMonth", ""),
+      openToUpdate = o.optString("openToUpdate", ""),
+      stale = o.optString("stale", ""),
+      addTodo = o.optString("addTodo", ""),
+      addEvent = o.optString("addEvent", ""),
+      quickAddHint = o.optString("quickAddHint", ""),
+      quickAddToday = o.optString("quickAddToday", ""),
+      quickAddInbox = o.optString("quickAddInbox", ""),
+      save = o.optString("save", ""),
+      saveFailed = o.optString("saveFailed", ""),
       allDay = o.optString("allDay", ""),
-      todayEventsHeader = o.optString("todayEventsHeader", ""),
-      noEvents = o.optString("noEvents", ""),
-      allDone = o.optString("allDone", ""),
-      pendingCount = o.optString("pendingCount", ""),
-      quickAdd = o.optString("quickAdd", ""),
-      upcoming = o.optString("upcoming", ""),
-      overdue = o.optString("overdue", "Overdue"),
-      missed = o.optString("missed", "Missed"),
-      unplanned = o.optString("unplanned", "Inbox"),
     )
   }
 
@@ -272,21 +274,36 @@ data class WidgetSnapshot(val json: JSONObject) {
 
   data class UiStrings(
     val locale: String,
-    val title: String,
     val today: String,
-    val events: String,
-    val todos: String,
+    val inbox: String,
+    val all: String,
+    val noTodos: String,
+    val allTodosDone: String,
+    val noPlans: String,
+    val allPlansDone: String,
+    val now: String,
+    val later: String,
+    val dueToday: String,
+    val overdue: String,
+    val completedCount: String,
+    val moreCount: String,
+    val overdueCount: String,
+    val selectedDayEmpty: String,
+    val backToMonth: String,
+    val openToUpdate: String,
+    val stale: String,
+    val addTodo: String,
+    val addEvent: String,
+    val quickAddHint: String,
+    val quickAddToday: String,
+    val quickAddInbox: String,
+    val save: String,
+    val saveFailed: String,
     val allDay: String,
-    val todayEventsHeader: String,
-    val noEvents: String,
-    val allDone: String,
-    val pendingCount: String,
-    val quickAdd: String,
-    val upcoming: String,
-    val overdue: String = "Overdue",
-    val missed: String = "Missed",
-    val unplanned: String = "Inbox",
-  )
+  ) {
+    fun withCount(template: String, count: Int): String =
+      template.replace("{n}", count.toString())
+  }
 
   data class ThemeBlock(val dark: Boolean, val colors: Map<String, Int>)
 
@@ -309,6 +326,8 @@ data class WidgetSnapshot(val json: JSONObject) {
       "textSecondary",
       "accent",
       "border",
+      "error",
+      "warning",
     )
 
     fun prefs(context: Context): SharedPreferences =
@@ -320,14 +339,14 @@ data class WidgetSnapshot(val json: JSONObject) {
       if (raw.isNullOrEmpty()) return null
       return try {
         val json = JSONObject(raw)
-        if (json.optInt("version", 0) < 2) null else WidgetSnapshot(json)
+        if (json.optInt("version", 0) < 5) null else WidgetSnapshot(json)
       } catch (e: Exception) {
         null
       }
     }
 
     // Atomic single-writer command write: writes widget_command_<commandId> to prefs.
-    // Does NOT mutate widget_snapshot (Ruling E).
+    // Does NOT mutate widget_snapshot.
     fun writeCommand(
       context: Context,
       target: String,
@@ -404,47 +423,7 @@ data class WidgetSnapshot(val json: JSONObject) {
           } catch (_: Exception) {}
         }
       }
-      val snap = read(context)
-      if (snap != null) {
-        todoIds.addAll(snap.pendingTapTodoIds())
-      }
       return PendingTargets(todoIds = todoIds, instanceKeys = instanceKeys)
-    }
-
-    // Legacy v2 appendPendingTap retained for test backward compatibility.
-    fun appendPendingTap(raw: String?, todoId: Int, atIso: String): String? {
-      val json = try {
-        if (raw.isNullOrEmpty()) return null
-        JSONObject(raw)
-      } catch (e: Exception) {
-        return null
-      }
-      val taps = json.optJSONArray("pendingTaps") ?: JSONArray()
-      val kept = JSONArray()
-      for (i in 0 until taps.length()) {
-        val tap = taps.optJSONObject(i) ?: continue
-        if (tap.optInt("todoId", -1) != todoId) {
-          kept.put(tap)
-        }
-      }
-      kept.put(
-        JSONObject()
-          .put("todoId", todoId)
-          .put("action", "complete")
-          .put("at", atIso),
-      )
-      json.put("pendingTaps", kept)
-      return json.toString()
-    }
-
-    fun appendPendingTap(context: Context, todoId: Int, atIso: String): Boolean {
-      val editor = prefs(context).edit()
-      val updated = appendPendingTap(
-        prefs(context).getString(SNAPSHOT_KEY, null),
-        todoId,
-        atIso,
-      ) ?: return false
-      return editor.putString(SNAPSHOT_KEY, updated).commit()
     }
 
     fun parseHexColor(hex: String): Int? {
@@ -459,8 +438,68 @@ data class WidgetSnapshot(val json: JSONObject) {
         null
       }
     }
+
+    private fun taskRow(o: JSONObject): ActionTaskRow = ActionTaskRow(
+      kind = o.optString("kind", "todoDeadline"),
+      target = o.optString("target", if (o.optString("kind") == "taskInstance") "taskInstance" else "todo"),
+      summary = o.optString("summary", ""),
+      todoId = o.optInt("todoId", -1),
+      todoSyncId = o.optionalString("todoSyncId"),
+      occurrenceId = o.optionalString("occurrenceId"),
+      displayTime = o.optionalString("displayTime"),
+      priority = o.optInt("priority", 0),
+      dueEpochMs = o.optionalLong("dueEpochMs"),
+      dueDate = o.optionalString("dueDate"),
+      startEpochMs = o.optionalLong("startEpochMs"),
+    )
+
+    private fun todoMode(o: JSONObject?, includeOverdue: Boolean): TodoModeBlock {
+      if (o == null) return TodoModeBlock(emptyList(), emptyList(), 0, 0, 0)
+      return TodoModeBlock(
+        items = o.optJSONArray("items").toObjectList(::todoItem),
+        overdue = if (includeOverdue) {
+          o.optJSONArray("overdue").toObjectList(::todoItem)
+        } else {
+          emptyList()
+        },
+        completedCount = o.optInt("completedCount", 0),
+        total = o.optInt("total", 0),
+        sixThingsCap = o.optInt("sixThingsCap", 0),
+      )
+    }
+
+    private fun todoItem(o: JSONObject): TodoItemRow {
+      val colors = mutableListOf<String>()
+      val rawColors = o.optJSONArray("tagColors")
+      if (rawColors != null) {
+        for (i in 0 until rawColors.length()) {
+          val hex = rawColors.optString(i, "")
+          if (hex.isNotEmpty()) colors.add(hex)
+        }
+      }
+      return TodoItemRow(
+        todoId = o.optInt("todoId", -1),
+        todoSyncId = o.optionalString("todoSyncId"),
+        summary = o.optString("summary", ""),
+        priority = o.optInt("priority", 0),
+        dueDate = o.optionalString("dueDate"),
+        dueEpochMs = o.optionalLong("dueEpochMs"),
+        hasTime = o.optBoolean("hasTime", false),
+        recurring = o.optBoolean("recurring", false),
+        tagColors = colors,
+      )
+    }
   }
 }
+
+private fun JSONObject.optionalInt(key: String): Int? =
+  if (has(key) && !isNull(key)) optInt(key) else null
+
+private fun JSONObject.optionalLong(key: String): Long? =
+  if (has(key) && !isNull(key)) optLong(key) else null
+
+private fun JSONObject.optionalString(key: String): String? =
+  if (has(key) && !isNull(key)) optString(key) else null
 
 private inline fun <T> JSONArray?.toObjectList(transform: (JSONObject) -> T): List<T> {
   val arr = this ?: return emptyList()

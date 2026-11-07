@@ -25,11 +25,11 @@ import 'infrastructure/platform/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Must run before the first saveWidgetData: iOS widgets read
+  // Must run before the first saveWidgetData: iOS/macOS widgets read
   // UserDefaults(suiteName:) — without this the host app writes to the
   // wrong defaults and widgets stay empty. home_widget supports iOS here;
-  // a missing platform handler must never block app startup.
-  if (isIOS) {
+  // macOS goes through the Runner method-channel shim.
+  if (isIOS || isMacOS) {
     try {
       await HomeWidget.setAppGroupId('group.com.dayspark.app');
     } catch (e) {
