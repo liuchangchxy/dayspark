@@ -126,11 +126,32 @@ jobs:
         with:
           channel: "stable"
           cache: true
+      - name: Set up Android release signing (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          test -n "$ANDROID_KEYSTORE" && test -n "$ANDROID_KEYSTORE_PASSWORD" && test -n "$ANDROID_KEY_ALIAS"
+          printf '%s' "$ANDROID_KEYSTORE" | base64 -d > android/app/release-keystore.jks
+          cat > android/app/key.properties << EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=release-keystore.jks
+          EOF
       - run: flutter pub get
       - run: flutter build apk --release
+      - name: Verify APK signature (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose build/app/outputs/flutter-apk/app-release.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: android-apk
+          name: ${{ github.event_name == 'push' && 'android-apk' || 'android-apk-unsigned' }}
           path: build/app/outputs/flutter-apk/app-release.apk
 
   build-macos:
