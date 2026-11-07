@@ -13,6 +13,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
+import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 
 GoRouter _router({CalendaEventAdapter? event}) => GoRouter(
   initialLocation: event == null ? '/new' : '/edit',
@@ -113,6 +114,36 @@ Future<Event> _onlyEvent(AppDatabase db) async {
   return all.single;
 }
 
+Future<void> _pumpDetail(
+  WidgetTester tester,
+  AppDatabase db,
+  Event event, {
+  bool embedded = false,
+}) async {
+  tester.view.physicalSize = embedded
+      ? const Size(1400, 1000)
+      : const Size(400, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final adapter = CalendaEventAdapter.fromDrift(event);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [databaseProvider.overrideWithValue(db)],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('en'),
+        home: Scaffold(
+          body: embedded
+              ? EventDetailPane(event: adapter, embedded: true)
+              : EventDetailPage(event: adapter),
+        ),
+      ),
+    ),
+  );
+  await _settle(tester);
+}
+
 void main() {
   late AppDatabase db;
 
@@ -123,6 +154,116 @@ void main() {
 
   tearDown(() async {
     await db.close();
+  });
+
+  testWidgets('detail calendar picker scrolls on a small screen', (
+    tester,
+  ) async {
+    final personal = (await _calendars(db)).single.id;
+    var lastId = 0;
+    for (var i = 0; i < 18; i++) {
+      lastId = await _addCalendar(db, 'Calendar $i', i + 1);
+    }
+    final id = await db
+        .into(db.events)
+        .insert(
+          EventsCompanion.insert(
+            calendarId: personal,
+            summary: 'Meeting',
+            startDt: DateTime(2026, 10, 5, 9),
+            endDt: DateTime(2026, 10, 5, 10),
+          ),
+        );
+    await _pumpDetail(tester, db, await _event(db, id));
+    await tester.tap(_picker);
+    await _settle(tester);
+    await tester.drag(
+      find.byType(SingleChildScrollView).last,
+      const Offset(0, -1500),
+    );
+    await _settle(tester);
+    await tester.tap(find.text('Calendar 17'));
+    await _settle(tester);
+    expect((await _event(db, id)).calendarId, lastId);
+    await _unmount(tester);
+  });
+
+  for (final embedded in [false, true]) {
+    testWidgets(
+      'detail changes calendar on ${embedded ? 'desktop' : 'mobile'}',
+      (tester) async {
+        final personal = (await _calendars(db)).single.id;
+        final work = await _addCalendar(db, 'Work', 1);
+        final id = await db
+            .into(db.events)
+            .insert(
+              EventsCompanion.insert(
+                calendarId: personal,
+                summary: 'Series',
+                startDt: DateTime(2026, 10, 5, 9),
+                endDt: DateTime(2026, 10, 5, 10),
+                rrule: const Value('RRULE:FREQ=DAILY;COUNT=5'),
+              ),
+            );
+        await _pumpDetail(tester, db, await _event(db, id), embedded: embedded);
+        await _chooseCalendar(tester, 'Work');
+        final saved = await _event(db, id);
+        expect(saved.calendarId, work);
+        expect(saved.startDt, DateTime(2026, 10, 5, 9));
+        expect(saved.endDt, DateTime(2026, 10, 5, 10));
+        expect(saved.rrule, 'RRULE:FREQ=DAILY;COUNT=5');
+        expect(find.text('Work'), findsOneWidget);
+        await _unmount(tester);
+      },
+    );
+  }
+
+  testWidgets('detail cancel keeps the original calendar', (tester) async {
+    final personal = (await _calendars(db)).single.id;
+    await _addCalendar(db, 'Work', 1);
+    final id = await db
+        .into(db.events)
+        .insert(
+          EventsCompanion.insert(
+            calendarId: personal,
+            summary: 'Event',
+            startDt: DateTime(2026, 10, 5, 9),
+            endDt: DateTime(2026, 10, 5, 10),
+          ),
+        );
+    await _pumpDetail(tester, db, await _event(db, id));
+    await tester.tap(_picker);
+    await _settle(tester);
+    Navigator.of(tester.element(find.text('Work').last)).pop();
+    await _settle(tester);
+    expect((await _event(db, id)).calendarId, personal);
+    await _unmount(tester);
+  });
+
+  testWidgets('detail allows replacing an unavailable calendar', (
+    tester,
+  ) async {
+    final personal = (await _calendars(db)).single.id;
+    final doomed = await _addCalendar(db, 'Doomed', 1);
+    final id = await db
+        .into(db.events)
+        .insert(
+          EventsCompanion.insert(
+            calendarId: doomed,
+            summary: 'Orphan',
+            startDt: DateTime(2026, 10, 5, 9),
+            endDt: DateTime(2026, 10, 5, 10),
+          ),
+        );
+    await (db.delete(db.calendars)..where((t) => t.id.equals(doomed))).go();
+    await _pumpDetail(tester, db, await _event(db, id));
+    expect(
+      find.text('Calendar unavailable. Please choose another calendar.'),
+      findsOneWidget,
+    );
+    await _chooseCalendar(tester, 'Personal');
+    expect((await _event(db, id)).calendarId, personal);
+    await _unmount(tester);
   });
 
   testWidgets('with one calendar the picker stays out of the way', (
@@ -309,14 +450,16 @@ void main() {
     (tester) async {
       final personal = (await _calendars(db)).single.id;
       final doomed = await _addCalendar(db, 'Doomed', 1);
-      final id = await db.into(db.events).insert(
-        EventsCompanion.insert(
-          calendarId: doomed,
-          summary: 'Prewarmed orphan',
-          startDt: DateTime(2026, 10, 5, 9),
-          endDt: DateTime(2026, 10, 5, 10),
-        ),
-      );
+      final id = await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: doomed,
+              summary: 'Prewarmed orphan',
+              startDt: DateTime(2026, 10, 5, 9),
+              endDt: DateTime(2026, 10, 5, 10),
+            ),
+          );
       // Remove the doomed calendar so doomed id is dangling
       await (db.delete(db.calendars)..where((t) => t.id.equals(doomed))).go();
       final row = await _event(db, id);

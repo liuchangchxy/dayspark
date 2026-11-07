@@ -90,6 +90,8 @@ final class ReminderReconciler {
   Future<void> _handle(List<RecordChange> batch) async {
     final removed = <_ParentKey, List<int>>{};
     final applied = <_ParentKey, DateTime?>{};
+    final storedReminders = <_ParentKey, Set<int>>{};
+    final changedReminders = <_ParentKey>{};
     for (final change in batch) {
       switch (change) {
         case RecordsBulkChanged():
@@ -102,14 +104,31 @@ final class ReminderReconciler {
         case RecordRemoved(:final type, :final localId, :final reminderIds):
           final key = _keyOf(type, localId);
           removed.putIfAbsent(key, () => <int>[]).addAll(reminderIds);
+        case RemoteReminderApplied(
+          :final type,
+          :final localId,
+          :final reminderId,
+          :final changed,
+        ):
+          final key = _keyOf(type, localId);
+          if (changed) {
+            storedReminders.putIfAbsent(key, () => <int>{}).add(reminderId);
+            changedReminders.add(key);
+          }
         case RecordApplied(
           :final type,
           :final localId,
           :final previousReference,
+          :final reminderIds,
         ):
+          final key = _keyOf(type, localId);
           // 一个批 = 一个事务；同一父取批内最早那条写前参考时间——后一条的
           // previousReference 已是事务内的中间值，拿它算位移会少算一截。
-          applied.putIfAbsent(_keyOf(type, localId), () => previousReference);
+          applied.putIfAbsent(key, () => previousReference);
+          if (reminderIds.isNotEmpty) {
+            storedReminders.putIfAbsent(key, () => <int>{}).addAll(reminderIds);
+            changedReminders.add(key);
+          }
       }
     }
 
@@ -125,14 +144,19 @@ final class ReminderReconciler {
       _parentStates.remove(entry.key);
     }
 
+    for (final key in changedReminders) {
+      applied.putIfAbsent(key, () => _parentStates[key]?.reference);
+    }
+
     for (final entry in applied.entries) {
-      if (removed.containsKey(entry.key)) continue;
       await _safely(
         'reconcile ${entry.key.$1}:${entry.key.$2}',
         () => _reconcileParent(
           parentType: entry.key.$1,
           parentId: entry.key.$2,
           previousReference: entry.value,
+          storedReminderIds: storedReminders[entry.key] ?? const {},
+          force: changedReminders.contains(entry.key),
         ),
       );
     }
@@ -168,6 +192,7 @@ final class ReminderReconciler {
     required String parentType,
     required int parentId,
     required DateTime? previousReference,
+    Set<int> storedReminderIds = const {},
     bool force = false,
   }) async {
     final key = (parentType, parentId);
@@ -198,7 +223,9 @@ final class ReminderReconciler {
       final owned = _materialized[reminder.id]?.isAtSameMomentAs(
         reminder.triggerTime,
       );
-      final basis = (owned ?? false)
+      final basis = storedReminderIds.contains(reminder.id)
+          ? reference
+          : (owned ?? false)
           ? (anchorReference ?? previousReference)
           : previousReference;
       final computed = active

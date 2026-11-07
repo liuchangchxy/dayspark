@@ -80,47 +80,56 @@ final createReminderProvider =
       })
     >((ref) {
       final db = ref.read(databaseProvider);
-      return ({
-        required parentType,
-        required parentId,
-        required triggerTime,
-      }) => RecordScope.run(
-        db,
-        (tx) => ReminderWriter.add(
-          db,
-          tx,
-          parentType: parentType,
-          parentId: parentId,
-          triggerTime: triggerTime,
-        ),
-      );
+      return ({required parentType, required parentId, required triggerTime}) =>
+          RecordScope.run(
+            db,
+            (tx) => ReminderWriter.add(
+              db,
+              tx,
+              parentType: parentType,
+              parentId: parentId,
+              triggerTime: triggerTime,
+            ),
+          );
     });
 
 /// Schedules an existing reminder row with locale-resolved strings.
-final scheduleReminderProvider =
-    Provider<Future<void> Function(Reminder)>((ref) {
-      final notifService = ref.read(notificationServiceProvider);
-      return (Reminder reminder) async {
-        final strings = await loadNotificationStrings();
-        await notifService.scheduleFromReminder(
-          reminder,
-          eventReminderTitle: strings.eventReminderTitle,
-          todoReminderTitle: strings.todoReminderTitle,
-          eventReminderBody: strings.eventReminderBody,
-          todoReminderBody: strings.todoReminderBody,
-        );
-      };
-    });
+final scheduleReminderProvider = Provider<Future<void> Function(Reminder)>((
+  ref,
+) {
+  final notifService = ref.read(notificationServiceProvider);
+  return (Reminder reminder) async {
+    final strings = await loadNotificationStrings();
+    await notifService.scheduleFromReminder(
+      reminder,
+      eventReminderTitle: strings.eventReminderTitle,
+      todoReminderTitle: strings.todoReminderTitle,
+      eventReminderBody: strings.eventReminderBody,
+      todoReminderBody: strings.todoReminderBody,
+    );
+  };
+});
 
 /// Cancels notifications and deletes reminder rows for a parent.
-final clearRemindersProvider =
-    Provider<Future<void> Function(String, int)>((ref) {
-      final db = ref.read(databaseProvider);
-      return (String parentType, int parentId) => RecordScope.run(
-        db,
-        (tx) => ReminderWriter.clear(db, tx, parentType, parentId),
-      );
-    });
+final clearRemindersProvider = Provider<Future<void> Function(String, int)>((
+  ref,
+) {
+  final db = ref.read(databaseProvider);
+  return (String parentType, int parentId) => RecordScope.run(
+    db,
+    (tx) => ReminderWriter.clear(db, tx, parentType, parentId),
+  );
+});
+
+final updateReminderProvider = Provider<Future<void> Function(int, DateTime)>((
+  ref,
+) {
+  final db = ref.read(databaseProvider);
+  return (int id, DateTime triggerTime) => RecordScope.run(
+    db,
+    (tx) => ReminderWriter.updateTrigger(db, tx, id, triggerTime),
+  );
+});
 
 /// Delete a reminder and cancel its notification.
 final deleteReminderProvider = Provider<Future<void> Function(int)>((ref) {
@@ -172,4 +181,3 @@ final addDefaultTodoRemindersProvider =
         }
       };
     });
-

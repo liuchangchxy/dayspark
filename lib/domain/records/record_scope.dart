@@ -48,14 +48,35 @@ final class RecordScope {
     );
   }
 
-  void applied(RecordType type, int localId, {DateTime? previousReference}) {
+  void applied(
+    RecordType type,
+    int localId, {
+    DateTime? previousReference,
+    List<int> reminderIds = const [],
+  }) {
     _register(
-      RecordApplied(type, localId, previousReference: previousReference),
+      RecordApplied(
+        type,
+        localId,
+        previousReference: previousReference,
+        reminderIds: reminderIds,
+      ),
     );
   }
 
   void removed(RecordType type, int localId, {required List<int> reminderIds}) {
     _register(RecordRemoved(type, localId, reminderIds: reminderIds));
+  }
+
+  void remoteReminderApplied(
+    RecordType type,
+    int localId,
+    int reminderId, {
+    required bool changed,
+  }) {
+    _register(
+      RemoteReminderApplied(type, localId, reminderId, changed: changed),
+    );
   }
 
   // 粗粒度登记：整表元数据重写（身份切换 / baseline 回填）不逐个 id 登记，

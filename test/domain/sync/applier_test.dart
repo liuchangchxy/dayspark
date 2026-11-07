@@ -93,6 +93,35 @@ void main() {
     },
   );
 
+  test(
+    'remote reminder rollback publishes no changes or outbox entries',
+    () async {
+      final record = SyncRecord(
+        id: 'rolled-back-reminder',
+        type: RecordType.reminder,
+        payload: {
+          'parentType': 'todo',
+          'parentSyncId': 'missing',
+          'triggerTime': '2026-09-24T10:00:00.000Z',
+        },
+        rev: 1,
+        deleted: false,
+        serverTs: DateTime.utc(2026, 9, 23),
+      );
+      await expectLater(
+        RecordScope.run(db, (tx) async {
+          expect(await applier.apply(record, tx), isTrue);
+          throw StateError('rollback');
+        }),
+        throwsStateError,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(await db.select(db.reminders).get(), isEmpty);
+      expect(await db.select(db.syncOutbox).get(), isEmpty);
+      expect(batches, isEmpty);
+    },
+  );
+
   test('unknown record is inserted with its syncId', () async {
     await applyRecord(
       SyncRecord(

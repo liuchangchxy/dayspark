@@ -46,15 +46,39 @@ final class ReminderWriter {
       _recordType(parentType),
       parentId,
       previousReference: await _referenceOf(db, parentType, parentId),
+      reminderIds: [id],
     );
     return id;
+  }
+
+  static Future<void> updateTrigger(
+    AppDatabase db,
+    RecordScope tx,
+    int id,
+    DateTime triggerTime,
+  ) async {
+    final row = await (db.select(
+      db.reminders,
+    )..where((t) => t.id.equals(id))).getSingle();
+    await (db.update(db.reminders)..where((t) => t.id.equals(id))).write(
+      RemindersCompanion(triggerTime: Value(triggerTime)),
+    );
+    await SyncOutbox.enqueueUpsert(db, RecordType.reminder, id);
+    tx.removed(_recordType(row.parentType), row.parentId, reminderIds: [id]);
+    tx.applied(
+      _recordType(row.parentType),
+      row.parentId,
+      previousReference: await _referenceOf(db, row.parentType, row.parentId),
+    );
   }
 
   static Future<void> delete(AppDatabase db, RecordScope tx, int id) async {
     final row = await (db.select(
       db.reminders,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
-    final targets = await SyncOutbox.captureDeletes(db, RecordType.reminder, [id]);
+    final targets = await SyncOutbox.captureDeletes(db, RecordType.reminder, [
+      id,
+    ]);
     await (db.delete(db.reminders)..where((t) => t.id.equals(id))).go();
     await SyncOutbox.enqueueDeletes(db, targets);
     if (row == null) return;
@@ -72,10 +96,13 @@ final class ReminderWriter {
     int parentId,
   ) async {
     final ids = await idsOfParent(db, parentType, parentId);
-    final targets = await SyncOutbox.captureDeletes(db, RecordType.reminder, ids);
+    final targets = await SyncOutbox.captureDeletes(
+      db,
+      RecordType.reminder,
+      ids,
+    );
     await (db.delete(db.reminders)..where(
-          (t) =>
-              t.parentType.equals(parentType) & t.parentId.equals(parentId),
+          (t) => t.parentType.equals(parentType) & t.parentId.equals(parentId),
         ))
         .go();
     await SyncOutbox.enqueueDeletes(db, targets);
@@ -135,8 +162,7 @@ final class ReminderWriter {
     int parentId,
   ) {
     return (db.select(db.reminders)..where(
-          (t) =>
-              t.parentType.equals(parentType) & t.parentId.equals(parentId),
+          (t) => t.parentType.equals(parentType) & t.parentId.equals(parentId),
         ))
         .get();
   }

@@ -82,6 +82,37 @@ void main() {
     await db.close();
   });
 
+  testWidgets('reminders can be added, edited and removed in detail', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app(db, todo));
+    await _settle(tester);
+
+    await tester.ensureVisible(find.text('Add Reminder'));
+    await tester.tap(find.text('Add Reminder'));
+    await _settle(tester);
+    await tester.tap(find.text('15 min before'));
+    await _settle(tester);
+    var reminders = await db.select(db.reminders).get();
+    expect(reminders.single.triggerTime, DateTime(2026, 10, 24, 17, 45));
+
+    await tester.tap(find.text('15 min before'));
+    await _settle(tester);
+    await tester.tap(find.text('1 h before'));
+    await _settle(tester);
+    reminders = await db.select(db.reminders).get();
+    expect(reminders.single.triggerTime, DateTime(2026, 10, 24, 17));
+    expect(find.text('1 h before'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Remove reminder'));
+    await _settle(tester);
+    expect(await db.select(db.reminders).get(), isEmpty);
+    await _unmount(tester);
+  });
+
   testWidgets('detail is editable where it is read', (tester) async {
     tester.view.physicalSize = const Size(1400, 1000);
     tester.view.devicePixelRatio = 1.0;
