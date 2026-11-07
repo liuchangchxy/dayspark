@@ -9,7 +9,15 @@ data class WidgetUiState(
   val todoMode: String = "today",
   val selectedDate: String? = null,
   val calendarMode: String = "month",
-)
+) {
+  companion object {
+    fun nextTodoMode(mode: String): String = when (mode) {
+      "today" -> "inbox"
+      "inbox" -> "all"
+      else -> "today"
+    }
+  }
+}
 
 // Per-instance UI state lives beside the snapshot but never inside it:
 // snapshot refreshes must not reset a widget's selected list or date.
@@ -18,8 +26,14 @@ object WidgetStateStore {
 
   private fun key(appWidgetId: Int) = "$KEY_PREFIX$appWidgetId"
 
-  fun read(context: Context, appWidgetId: Int): WidgetUiState {
-    val raw = WidgetSnapshot.prefs(context).getString(key(appWidgetId), null)
+  fun read(context: Context, appWidgetId: Int): WidgetUiState =
+    decode(WidgetSnapshot.prefs(context).getString(key(appWidgetId), null))
+
+  fun write(context: Context, appWidgetId: Int, state: WidgetUiState) {
+    WidgetSnapshot.prefs(context).edit().putString(key(appWidgetId), encode(state)).apply()
+  }
+
+  fun decode(raw: String?): WidgetUiState {
     if (raw.isNullOrEmpty()) return WidgetUiState()
     return try {
       val json = org.json.JSONObject(raw)
@@ -36,13 +50,13 @@ object WidgetStateStore {
     }
   }
 
-  fun write(context: Context, appWidgetId: Int, state: WidgetUiState) {
+  fun encode(state: WidgetUiState): String {
     val json = org.json.JSONObject().apply {
       put("todoMode", state.todoMode)
       if (!state.selectedDate.isNullOrEmpty()) put("selectedDate", state.selectedDate)
       put("calendarMode", state.calendarMode)
     }
-    WidgetSnapshot.prefs(context).edit().putString(key(appWidgetId), json.toString()).apply()
+    return json.toString()
   }
 
   fun clear(context: Context, appWidgetId: Int) {

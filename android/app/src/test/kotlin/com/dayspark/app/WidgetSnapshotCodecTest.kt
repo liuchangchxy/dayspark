@@ -388,6 +388,41 @@ class WidgetSnapshotCodecTest {
   }
 
   @Test
+  fun `per-widget state round-trips and defaults safely`() {
+    val state = WidgetUiState(
+      todoMode = "inbox",
+      selectedDate = "2026-11-18",
+      calendarMode = "day",
+    )
+    val decoded = WidgetStateStore.decode(WidgetStateStore.encode(state))
+    assertEquals("inbox", decoded.todoMode)
+    assertEquals("2026-11-18", decoded.selectedDate)
+    assertEquals("day", decoded.calendarMode)
+
+    assertEquals(WidgetUiState(), WidgetStateStore.decode(null))
+    assertEquals(WidgetUiState(), WidgetStateStore.decode(""))
+    assertEquals(WidgetUiState(), WidgetStateStore.decode("not json"))
+    assertEquals("today", WidgetStateStore.decode("""{"todoMode":"bogus"}""").todoMode)
+    assertEquals("month", WidgetStateStore.decode("""{"calendarMode":"bogus"}""").calendarMode)
+  }
+
+  @Test
+  fun `small mode label cycles today inbox all`() {
+    assertEquals("inbox", WidgetUiState.nextTodoMode("today"))
+    assertEquals("all", WidgetUiState.nextTodoMode("inbox"))
+    assertEquals("today", WidgetUiState.nextTodoMode("all"))
+    assertEquals("today", WidgetUiState.nextTodoMode("bogus"))
+  }
+
+  @Test
+  fun `row budget grows with height and respects bounds`() {
+    assertEquals(3, WidgetSupport.rowBudget(80, 40, 48, 48, 3, 6))
+    assertEquals(6, WidgetSupport.rowBudget(600, 40, 48, 48, 3, 6))
+    assertEquals(4, WidgetSupport.rowBudget(300, 40, 48, 48, 3, 6))
+    assertEquals(4, WidgetSupport.rowBudget(0, 40, 48, 48, 4, 12))
+  }
+
+  @Test
   fun `normalized selected date resets outside the current month`() {
     val today = WidgetStateStore.todayIso()
     assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState()))

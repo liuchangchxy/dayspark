@@ -52,11 +52,7 @@ class WidgetActionReceiver : BroadcastReceiver() {
     if (appWidgetId <= 0) return
     val current = WidgetStateStore.read(context, appWidgetId)
     val nextMode = if (intent.action == ACTION_CYCLE_TODO_MODE) {
-      when (current.todoMode) {
-        "today" -> "inbox"
-        "inbox" -> "all"
-        else -> "today"
-      }
+      WidgetUiState.nextTodoMode(current.todoMode)
     } else {
       when (val mode = intent.getStringExtra(EXTRA_TODO_MODE)) {
         "inbox", "all" -> mode
