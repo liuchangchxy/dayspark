@@ -82,6 +82,91 @@ void main() {
     expect(widgetDeepLinkLocation(null), isNull);
   });
 
+  test('open deep links resolve to real app routes', () {
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/today')),
+      todayLocation,
+    );
+    expect(widgetDeepLinkLocation(Uri.parse('dayspark://open/home')), '/');
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/calendar')),
+      calendarLocation,
+    );
+    expect(
+      widgetDeepLinkLocation(
+        Uri.parse('dayspark://open/calendar?date=2026-11-07'),
+      ),
+      '$calendarLocation&date=2026-11-07',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/calendar?date=bad')),
+      calendarLocation,
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/todo?id=42')),
+      '/todo/detail?id=42',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/todo?id=0')),
+      '/?tab=2',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/event?id=7')),
+      '/event/detail?id=7',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/event?id=x')),
+      '/?tab=1',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/new-todo')),
+      quickAddLocation,
+    );
+    expect(
+      widgetDeepLinkLocation(
+        Uri.parse('dayspark://open/new-event?date=2026-11-07'),
+      ),
+      '/event/new?date=2026-11-07',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/new-event')),
+      '/event/new',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/unknown')),
+      isNull,
+    );
+  });
+
+  test('Android cold-start path-only routes resolve too', () {
+    expect(widgetDeepLinkLocation(Uri.parse('/today')), todayLocation);
+    expect(widgetDeepLinkLocation(Uri.parse('/home')), '/');
+    expect(
+      widgetDeepLinkLocation(Uri.parse('/calendar?date=2026-11-07')),
+      '$calendarLocation&date=2026-11-07',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('/todo?id=42')),
+      '/todo/detail?id=42',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('/event?id=7')),
+      '/event/detail?id=7',
+    );
+    expect(widgetDeepLinkLocation(Uri.parse('/new-todo')), quickAddLocation);
+    expect(widgetDeepLinkLocation(Uri.parse('/quick-add')), quickAddLocation);
+    expect(
+      widgetDeepLinkLocation(Uri.parse('/new-event?date=2026-11-07')),
+      '/event/new?date=2026-11-07',
+    );
+    expect(widgetDeepLinkLocation(Uri.parse('/')), isNull);
+    expect(widgetDeepLinkLocation(Uri.parse('/settings')), isNull);
+    expect(
+      widgetDeepLinkLocation(Uri.parse('https://example.com/todo?id=1')),
+      isNull,
+    );
+  });
+
   testWidgets('quick-add location resolves to TodoFormPage with source', (
     tester,
   ) async {

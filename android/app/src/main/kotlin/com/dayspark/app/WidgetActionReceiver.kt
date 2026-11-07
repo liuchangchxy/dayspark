@@ -44,9 +44,10 @@ class WidgetActionReceiver : BroadcastReceiver() {
   private fun refreshAllWidgets(context: Context) {
     val manager = AppWidgetManager.getInstance(context)
     val providers = listOf(
-      CalendarTodoWidgetProvider::class.java,
+      TodayWidgetProvider::class.java,
       UpcomingWidgetProvider::class.java,
-      MonthDotsWidgetProvider::class.java,
+      CalendarWidgetProvider::class.java,
+      QuickActionsWidgetProvider::class.java,
     )
     for (provider in providers) {
       val ids = manager.getAppWidgetIds(ComponentName(context, provider))

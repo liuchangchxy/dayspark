@@ -141,6 +141,7 @@ void main() {
       'updateWidget',
       'updateWidget',
       'updateWidget',
+      'updateWidget',
     ]);
   });
 
@@ -162,10 +163,9 @@ void main() {
 
       await container.read(updateHomeWidgetProvider)();
 
-      final todo =
-          await (testDb.select(testDb.todos)
-                ..where((t) => t.id.equals(todoId)))
-              .getSingle();
+      final todo = await (testDb.select(
+        testDb.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
       expect(todo.status, 'COMPLETED');
 
       final outbox = await testDb.select(testDb.syncOutbox).get();
@@ -174,37 +174,39 @@ void main() {
       expect(outbox.single.op, 'upsert');
 
       expect(HomeWidgetService.decodePendingTaps(storedSnapshot()), isEmpty);
-      final written =
-          jsonDecode(storedSnapshot()) as Map<String, dynamic>;
-      expect(written['version'], 3);
+      final written = jsonDecode(storedSnapshot()) as Map<String, dynamic>;
+      expect(written['version'], 4);
     },
   );
 
-  test('flush without a consumer preserves native-appended pendingTaps', () async {
-    final todoId = await insertTodo();
-    store[HomeWidgetService.snapshotKey] = jsonEncode({
-      'version': 2,
-      'pendingTaps': [
-        {
-          'todoId': todoId,
-          'action': 'complete',
-          'at': '2026-09-24T01:02:03.000Z',
-        },
-      ],
-    });
+  test(
+    'flush without a consumer preserves native-appended pendingTaps',
+    () async {
+      final todoId = await insertTodo();
+      store[HomeWidgetService.snapshotKey] = jsonEncode({
+        'version': 2,
+        'pendingTaps': [
+          {
+            'todoId': todoId,
+            'action': 'complete',
+            'at': '2026-09-24T01:02:03.000Z',
+          },
+        ],
+      });
 
-    await HomeWidgetService.updateWidget(testDb);
+      await HomeWidgetService.updateWidget(testDb);
 
-    final taps = HomeWidgetService.decodePendingTaps(storedSnapshot());
-    expect(taps, hasLength(1));
-    expect(taps.single.todoId, todoId);
+      final taps = HomeWidgetService.decodePendingTaps(storedSnapshot());
+      expect(taps, hasLength(1));
+      expect(taps.single.todoId, todoId);
 
-    final todo =
-        await (testDb.select(testDb.todos)..where((t) => t.id.equals(todoId)))
-            .getSingle();
-    expect(todo.status, 'NEEDS-ACTION');
-    expect(await testDb.select(testDb.syncOutbox).get(), isEmpty);
-  });
+      final todo = await (testDb.select(
+        testDb.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
+      expect(todo.status, 'NEEDS-ACTION');
+      expect(await testDb.select(testDb.syncOutbox).get(), isEmpty);
+    },
+  );
 
   test('write → native append → consume → clear full cycle', () async {
     final todoId = await insertTodo();
@@ -228,9 +230,9 @@ void main() {
 
     // …and clears the channel for the next native append.
     expect(HomeWidgetService.decodePendingTaps(storedSnapshot()), isEmpty);
-    final todo =
-        await (testDb.select(testDb.todos)..where((t) => t.id.equals(todoId)))
-            .getSingle();
+    final todo = await (testDb.select(
+      testDb.todos,
+    )..where((t) => t.id.equals(todoId))).getSingle();
     expect(todo.status, 'COMPLETED');
     expect(await testDb.select(testDb.syncOutbox).get(), hasLength(1));
   });
@@ -272,11 +274,7 @@ void main() {
       final beforeBatchOfThree = flushes;
       bus.publish([
         RecordApplied(RecordType.todo, 1, previousReference: null),
-        RecordApplied(
-          RecordType.todo,
-          2,
-          previousReference: DateTime(2026),
-        ),
+        RecordApplied(RecordType.todo, 2, previousReference: DateTime(2026)),
         RecordApplied(RecordType.event, 3, previousReference: null),
       ]);
       await waitUntil(() => flushes > beforeBatchOfThree);
@@ -284,15 +282,9 @@ void main() {
 
       // 3. Batch size is irrelevant: one change still flushes exactly once.
       final beforeBatchOfOne = flushes;
-      bus.publish([
-        RecordApplied(RecordType.todo, 1, previousReference: null),
-      ]);
+      bus.publish([RecordApplied(RecordType.todo, 1, previousReference: null)]);
       await waitUntil(() => flushes > beforeBatchOfOne);
-      expect(
-        flushes - beforeBatchOfOne,
-        1,
-        reason: '批次内容不影响刷新次数',
-      );
+      expect(flushes - beforeBatchOfOne, 1, reason: '批次内容不影响刷新次数');
     },
   );
 }

@@ -105,8 +105,8 @@ void main() {
         );
   }
 
-  group('HomeWidgetService v3 snapshot contract', () {
-    test('v3 snapshot schema keys and types match the contract', () async {
+  group('HomeWidgetService v4 snapshot contract', () {
+    test('v4 snapshot schema keys and types match the contract', () async {
       final now = DateTime(2026, 10, 7, 10, 0);
 
       // 1. Insert Event for today
@@ -190,6 +190,7 @@ void main() {
         'generatedAt',
         'today',
         'upcoming',
+        'month',
         'monthDots',
         'todayEvents',
         'pendingTodos',
@@ -199,11 +200,11 @@ void main() {
         'theme',
       });
 
-      expect(decoded['version'], 3);
+      expect(decoded['version'], 4);
       expect(decoded['generatedAt'], isA<String>());
 
       final today = decoded['today'] as Map<String, dynamic>;
-      expect(today.keys.toSet(), {'timeline', 'actions', 'status'});
+      expect(today.keys.toSet(), {'date', 'timeline', 'actions', 'status'});
 
       final timelineRows = today['timeline'] as List;
       expect(timelineRows.length, 2);
@@ -238,6 +239,60 @@ void main() {
       expect(decoded['pendingTodos'], isA<List>());
       expect(decoded['todoCount'], isA<int>());
       expect(decoded['pendingTaps'], isEmpty);
+    });
+
+    test('v4 day groups and month grid carry ids and marks', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
+
+      final todayEvent = await insertEvent(
+        summary: 'Today Event',
+        startDt: DateTime(2026, 10, 7, 9, 0),
+        endDt: DateTime(2026, 10, 7, 10, 0),
+      );
+      final tomorrowEvent = await insertEvent(
+        summary: 'Tomorrow Event',
+        startDt: DateTime(2026, 10, 8, 9, 0),
+        endDt: DateTime(2026, 10, 8, 10, 0),
+      );
+      final dueTodo = await insertTodo(
+        summary: 'Due Oct 9',
+        dueDate: DateTime(2026, 10, 9),
+      );
+
+      final days = await HomeWidgetService.upcomingDayGroups(db, now: now);
+      expect(days.map((day) => day['date']), [
+        '2026-10-07',
+        '2026-10-08',
+        '2026-10-09',
+      ]);
+
+      final tomorrowItems = days[1]['items'] as List<dynamic>;
+      final tomorrow = tomorrowItems.single as Map<String, dynamic>;
+      expect(tomorrow['eventId'], tomorrowEvent);
+      expect(tomorrow['date'], '2026-10-08');
+      expect(tomorrow['time'], '09:00 - 10:00');
+
+      final dueItems = days[2]['items'] as List<dynamic>;
+      expect((dueItems.single as Map)['todoId'], dueTodo);
+
+      final month = await HomeWidgetService.monthCalendar(db, now: now);
+      expect(month['year'], 2026);
+      expect(month['month'], 10);
+      expect(month['today'], 7);
+      expect(month['firstWeekday'], inInclusiveRange(1, 7));
+      final monthDays = month['days'] as List<dynamic>;
+      final day8 = monthDays.firstWhere((day) => day['day'] == 8) as Map;
+      final day9 = monthDays.firstWhere((day) => day['day'] == 9) as Map;
+      expect(day8['hasEvent'], isTrue);
+      expect(day9['hasTodo'], isTrue);
+
+      final projection = await ActionProjectionQuery.fetch(db, date: now);
+      final timeline = HomeWidgetService.todayTimeline(projection);
+      final todayRow = timeline.firstWhere(
+        (item) => item['summary'] == 'Today Event',
+      );
+      expect(todayRow['eventId'], todayEvent);
+      expect(todayRow['calendarId'], calId);
     });
 
     test('upcomingItems covers 7-civil-day hybrid projection', () async {
@@ -297,7 +352,7 @@ void main() {
       );
       // Must not drift to previous or next day due to 24h duration arithmetic
       expect(syncItem['date'], '10/26');
-      expect(syncItem['time'], '10:00');
+      expect(syncItem['time'], '10:00 - 11:00');
 
       final dots = await HomeWidgetService.monthDots(db, now: fallDate);
       expect(dots, isA<List>());

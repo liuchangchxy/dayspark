@@ -52,8 +52,14 @@ import 'package:dayspark/core/theme/app_typography.dart';
 /// platform gains a navigation concept the other lacks.
 class HomePage extends ConsumerStatefulWidget {
   final int initialTab;
+  final DateTime? initialDate;
   final DateTime Function()? clock;
-  const HomePage({super.key, this.initialTab = -1, this.clock});
+  const HomePage({
+    super.key,
+    this.initialTab = -1,
+    this.initialDate,
+    this.clock,
+  });
 
   @override
   ConsumerState<HomePage> createState() => _HomePageState();
@@ -87,10 +93,45 @@ class _HomePageState extends ConsumerState<HomePage>
   void initState() {
     super.initState();
     _initCurrentTab();
+    final initialDate = widget.initialDate;
+    if (initialDate != null) {
+      Future.microtask(() {
+        if (!mounted) return;
+        ref.read(viewedDateProvider.notifier).state = DateTime(
+          initialDate.year,
+          initialDate.month,
+          initialDate.day,
+        );
+      });
+    }
     WidgetsBinding.instance.addObserver(this);
     _listenForDefaultTabChanges();
     _listenForWidgetRefreshTriggers();
     Future.microtask(_runStartupSideEffects);
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab >= 0 && widget.initialTab != oldWidget.initialTab) {
+      Future.microtask(() {
+        if (mounted) {
+          ref.read(workspaceTabProvider.notifier).state =
+              AppTab.values[widget.initialTab.clamp(0, 2)];
+        }
+      });
+    }
+    final initialDate = widget.initialDate;
+    if (initialDate != null && initialDate != oldWidget.initialDate) {
+      Future.microtask(() {
+        if (!mounted) return;
+        ref.read(viewedDateProvider.notifier).state = DateTime(
+          initialDate.year,
+          initialDate.month,
+          initialDate.day,
+        );
+      });
+    }
   }
 
   int _tabIndexFor(AppTab tab) {
@@ -245,7 +286,8 @@ class _HomePageState extends ConsumerState<HomePage>
         if (!mounted) return;
         final l = AppLocalizations.of(context)!;
         await showDialog<void>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
+          animationStyle: AnimationStyle.noAnimation,
+          context: context,
           builder: (ctx) => AlertDialog(
             title: Text(l.whatsNew),
             content: SingleChildScrollView(child: Text('v$current')),
@@ -363,15 +405,11 @@ class _HomePageState extends ConsumerState<HomePage>
                 ? _buildActionTab()
                 : isCalendarTab
                 ? Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: desktop ? 28 : 0,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: desktop ? 28 : 0),
                     child: _buildCalendarTab(),
                   )
                 : Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: desktop ? 28 : 0,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: desktop ? 28 : 0),
                     child: _buildTodoTab(),
                   ),
           ),
@@ -902,9 +940,7 @@ class _HomePageState extends ConsumerState<HomePage>
           loading: () => const SizedBox.shrink(),
           error: (_, __) => const SizedBox.shrink(),
         ),
-        TodoQuickAdd(
-          dueDate: view is TodosDayView ? view.day : null,
-        ),
+        TodoQuickAdd(dueDate: view is TodosDayView ? view.day : null),
         Expanded(child: _buildTodoList(view)),
       ],
     );

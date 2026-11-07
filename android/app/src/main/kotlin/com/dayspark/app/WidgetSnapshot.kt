@@ -29,6 +29,9 @@ data class WidgetSnapshot(val json: JSONObject) {
     val start: String,
     val end: String,
     val isAllDay: Boolean,
+    val eventId: Int? = null,
+    val calendarId: Int? = null,
+    val color: String? = null,
     val allocationId: String? = null,
     val todoId: Int? = null,
     val todoSyncId: String? = null,
@@ -52,6 +55,33 @@ data class WidgetSnapshot(val json: JSONObject) {
     val date: String,
     val time: String,
     val isAllDay: Boolean,
+    val eventId: Int? = null,
+    val todoId: Int? = null,
+    val allocationId: String? = null,
+    val occurrenceId: String? = null,
+    val todoSyncId: String? = null,
+    val color: String? = null,
+  )
+
+  data class UpcomingDayRow(
+    val date: String,
+    val items: List<UpcomingItemRow>,
+  )
+
+  data class MonthDayRow(
+    val day: Int,
+    val hasEvent: Boolean,
+    val hasTodo: Boolean,
+    val hasAllocation: Boolean,
+    val colors: List<String>,
+  )
+
+  data class MonthRow(
+    val year: Int,
+    val month: Int,
+    val firstWeekday: Int,
+    val today: Int,
+    val days: List<MonthDayRow>,
   )
 
   data class StatusRow(
@@ -75,6 +105,13 @@ data class WidgetSnapshot(val json: JSONObject) {
           start = o.optString("start", ""),
           end = o.optString("end", ""),
           isAllDay = o.optBoolean("isAllDay", false),
+          eventId = when {
+            o.has("eventId") && !o.isNull("eventId") -> o.optInt("eventId")
+            o.has("id") && !o.isNull("id") -> o.optInt("id")
+            else -> null
+          },
+          calendarId = if (o.has("calendarId") && !o.isNull("calendarId")) o.optInt("calendarId") else null,
+          color = if (o.has("color") && !o.isNull("color")) o.optString("color") else null,
           allocationId = if (o.has("allocationId") && !o.isNull("allocationId")) o.optString("allocationId") else null,
           todoId = if (o.has("todoId") && !o.isNull("todoId")) o.optInt("todoId") else null,
           todoSyncId = if (o.has("todoSyncId") && !o.isNull("todoSyncId")) o.optString("todoSyncId") else null,
@@ -143,6 +180,12 @@ data class WidgetSnapshot(val json: JSONObject) {
           date = o.optString("date", ""),
           time = o.optString("time", ""),
           isAllDay = o.optBoolean("isAllDay", false),
+          eventId = if (o.has("eventId") && !o.isNull("eventId")) o.optInt("eventId") else null,
+          todoId = if (o.has("todoId") && !o.isNull("todoId")) o.optInt("todoId") else null,
+          allocationId = if (o.has("allocationId") && !o.isNull("allocationId")) o.optString("allocationId") else null,
+          occurrenceId = if (o.has("occurrenceId") && !o.isNull("occurrenceId")) o.optString("occurrenceId") else null,
+          todoSyncId = if (o.has("todoSyncId") && !o.isNull("todoSyncId")) o.optString("todoSyncId") else null,
+          color = if (o.has("color") && !o.isNull("color")) o.optString("color") else null,
         )
       }
     }
@@ -170,6 +213,68 @@ data class WidgetSnapshot(val json: JSONObject) {
       )
     }
     return rows
+  }
+
+  fun upcomingDays(): List<UpcomingDayRow> {
+    val upcomingObj = json.optJSONObject("upcoming") ?: return emptyList()
+    val rawDays = upcomingObj.optJSONArray("days") ?: return emptyList()
+    val out = mutableListOf<UpcomingDayRow>()
+    for (i in 0 until rawDays.length()) {
+      val day = rawDays.optJSONObject(i) ?: continue
+      val date = day.optString("date", "")
+      val items = day.optJSONArray("items").toObjectList { o ->
+        UpcomingItemRow(
+          kind = o.optString("kind", ""),
+          summary = o.optString("summary", ""),
+          date = date,
+          time = o.optString("time", ""),
+          isAllDay = o.optBoolean("isAllDay", false),
+          eventId = if (o.has("eventId") && !o.isNull("eventId")) o.optInt("eventId") else null,
+          todoId = if (o.has("todoId") && !o.isNull("todoId")) o.optInt("todoId") else null,
+          allocationId = if (o.has("allocationId") && !o.isNull("allocationId")) o.optString("allocationId") else null,
+          occurrenceId = if (o.has("occurrenceId") && !o.isNull("occurrenceId")) o.optString("occurrenceId") else null,
+          todoSyncId = if (o.has("todoSyncId") && !o.isNull("todoSyncId")) o.optString("todoSyncId") else null,
+          color = if (o.has("color") && !o.isNull("color")) o.optString("color") else null,
+        )
+      }
+      if (date.isNotEmpty()) out.add(UpcomingDayRow(date = date, items = items))
+    }
+    return out
+  }
+
+  fun todayDate(): String = json.optJSONObject("today")?.optString("date", "") ?: ""
+
+  fun month(): MonthRow? {
+    val o = json.optJSONObject("month") ?: return null
+    val rawDays = o.optJSONArray("days") ?: return null
+    val days = mutableListOf<MonthDayRow>()
+    for (i in 0 until rawDays.length()) {
+      val day = rawDays.optJSONObject(i) ?: continue
+      val colors = mutableListOf<String>()
+      val rawColors = day.optJSONArray("colors")
+      if (rawColors != null) {
+        for (c in 0 until rawColors.length()) {
+          val hex = rawColors.optString(c, "")
+          if (hex.isNotEmpty()) colors.add(hex)
+        }
+      }
+      days.add(
+        MonthDayRow(
+          day = day.optInt("day", 0),
+          hasEvent = day.optBoolean("hasEvent", false),
+          hasTodo = day.optBoolean("hasTodo", false),
+          hasAllocation = day.optBoolean("hasAllocation", false),
+          colors = colors,
+        ),
+      )
+    }
+    return MonthRow(
+      year = o.optInt("year", 0),
+      month = o.optInt("month", 0),
+      firstWeekday = o.optInt("firstWeekday", 1),
+      today = o.optInt("today", 0),
+      days = days,
+    )
   }
 
   fun todayEvents(): List<EventRow> = json.optJSONArray("todayEvents").toObjectList { o ->
@@ -249,6 +354,13 @@ data class WidgetSnapshot(val json: JSONObject) {
       pendingCount = o.optString("pendingCount", ""),
       quickAdd = o.optString("quickAdd", ""),
       upcoming = o.optString("upcoming", ""),
+      openApp = o.optString("openApp", ""),
+      noPlans = o.optString("noPlans", ""),
+      noUpcoming = o.optString("noUpcoming", ""),
+      quickActions = o.optString("quickActions", ""),
+      tomorrow = o.optString("tomorrow", ""),
+      newTodo = o.optString("newTodo", ""),
+      newEvent = o.optString("newEvent", ""),
       overdue = o.optString("overdue", "Overdue"),
       missed = o.optString("missed", "Missed"),
       unplanned = o.optString("unplanned", "Inbox"),
@@ -283,6 +395,13 @@ data class WidgetSnapshot(val json: JSONObject) {
     val pendingCount: String,
     val quickAdd: String,
     val upcoming: String,
+    val openApp: String,
+    val noPlans: String,
+    val noUpcoming: String,
+    val quickActions: String,
+    val tomorrow: String,
+    val newTodo: String,
+    val newEvent: String,
     val overdue: String = "Overdue",
     val missed: String = "Missed",
     val unplanned: String = "Inbox",

@@ -32,6 +32,7 @@
 		AABB00010000000000000001 /* CalendarTodoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00030000000000000001 /* CalendarTodoWidget.swift */; };
 		AABB00020000000000000001 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AABB00070000000000000001 /* WidgetKit.framework */; };
 		AABB000C0000000000000001 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AABB00080000000000000001 /* SwiftUI.framework */; };
+		AABBE0010000000000000001 /* CalendarTodoWidget.appex in Embed Widget Extensions */ = {isa = PBXBuildFile; fileRef = AABB00050000000000000001 /* CalendarTodoWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 /* End PBXBuildFile section */
 
@@ -76,6 +77,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				AABBE0010000000000000001 /* CalendarTodoWidget.appex in Embed Widget Extensions */,
 			);
 			name = "Embed Widget Extensions";
 			runOnlyForDeploymentPostprocessing = 0;

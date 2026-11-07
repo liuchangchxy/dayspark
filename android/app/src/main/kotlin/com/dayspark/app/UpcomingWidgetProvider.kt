@@ -3,140 +3,190 @@ package com.dayspark.app
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
-// Upcoming variant: compact 7-day bucket straight from the snapshot's
-// `upcoming.items` block (or legacy v2 fallback). Read-only — checkboxes and
-// quick-add live on the primary widget only.
 class UpcomingWidgetProvider : AppWidgetProvider() {
-
   override fun onUpdate(
     context: Context,
     appWidgetManager: AppWidgetManager,
     appWidgetIds: IntArray,
   ) {
-    for (appWidgetId in appWidgetIds) {
-      updateAppWidget(context, appWidgetManager, appWidgetId)
-    }
+    for (id in appWidgetIds) update(context, appWidgetManager, id)
+  }
+
+  override fun onAppWidgetOptionsChanged(
+    context: Context,
+    appWidgetManager: AppWidgetManager,
+    appWidgetId: Int,
+    newOptions: Bundle,
+  ) {
+    update(context, appWidgetManager, appWidgetId)
   }
 
   companion object {
-    private const val MAX_ROWS = 6
-
-    private fun updateAppWidget(
+    private fun update(
       context: Context,
-      appWidgetManager: AppWidgetManager,
+      manager: AppWidgetManager,
       appWidgetId: Int,
     ) {
-      val views = RemoteViews(context.packageName, R.layout.upcoming_widget)
-      val snapshot = WidgetSnapshot.read(context)
-
-      views.setTextViewText(
-        R.id.upcoming_date,
-        SimpleDateFormat("MMM d", Locale.getDefault()).format(Date()),
-      )
-
-      if (snapshot == null) {
-        views.setViewVisibility(R.id.upcoming_empty, View.VISIBLE)
-        views.setTextViewText(R.id.upcoming_empty, "")
-        for (rowId in ROW_IDS) {
-          views.setViewVisibility(rowId, View.GONE)
-        }
-        appWidgetManager.updateAppWidget(appWidgetId, views)
-        return
+      WidgetSupport.render(context, manager, appWidgetId) {
+        build(context, manager, appWidgetId)
       }
-
-      val ui = snapshot.ui()
-      val theme = snapshot.theme()
-      theme?.let {
-        val background = it.colors["background"]
-        if (background != null) {
-          views.setInt(R.id.upcoming_root, "setBackgroundColor", background)
-        }
-        applyTextColor(views, R.id.upcoming_header, it, "accent")
-        applyTextColor(views, R.id.upcoming_date, it, "textSecondary")
-        applyTextColor(views, R.id.upcoming_empty, it, "textSecondary")
-      }
-
-      views.setTextViewText(R.id.upcoming_header, ui?.upcoming ?: "")
-      views.setViewVisibility(R.id.upcoming_header, if (ui != null) View.VISIBLE else View.GONE)
-
-      val items = snapshot.upcomingItems()
-      val rows = mutableListOf<Pair<String, String>>()
-      for (item in items) {
-        if (rows.size >= MAX_ROWS) break
-        val time = if (item.isAllDay) {
-          item.date
-        } else if (item.time.isNotEmpty()) {
-          "${item.date} ${item.time}"
-        } else {
-          item.date
-        }
-        rows.add(Pair(item.summary, time))
-      }
-
-      for ((i, rowId) in ROW_IDS.withIndex()) {
-        val textId = TEXT_IDS[i]
-        val secondaryId = SECONDARY_IDS[i]
-        if (i < rows.size) {
-          views.setTextViewText(textId, rows[i].first)
-          views.setTextViewText(secondaryId, rows[i].second)
-          views.setViewVisibility(rowId, View.VISIBLE)
-          theme?.let {
-            applyTextColor(views, textId, it, "textPrimary")
-            applyTextColor(views, secondaryId, it, "textSecondary")
-          }
-        } else {
-          views.setViewVisibility(rowId, View.GONE)
-        }
-      }
-
-      val empty = rows.isEmpty()
-      views.setViewVisibility(R.id.upcoming_empty, if (empty) View.VISIBLE else View.GONE)
-      if (empty && ui != null) {
-        views.setTextViewText(R.id.upcoming_empty, ui.noEvents)
-      }
-
-      appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 
-    private val ROW_IDS = listOf(
-      R.id.upcoming_row_0,
-      R.id.upcoming_row_1,
-      R.id.upcoming_row_2,
-      R.id.upcoming_row_3,
-      R.id.upcoming_row_4,
-      R.id.upcoming_row_5,
-    )
-    private val TEXT_IDS = listOf(
-      R.id.upcoming_text_0,
-      R.id.upcoming_text_1,
-      R.id.upcoming_text_2,
-      R.id.upcoming_text_3,
-      R.id.upcoming_text_4,
-      R.id.upcoming_text_5,
-    )
-    private val SECONDARY_IDS = listOf(
-      R.id.upcoming_secondary_0,
-      R.id.upcoming_secondary_1,
-      R.id.upcoming_secondary_2,
-      R.id.upcoming_secondary_3,
-      R.id.upcoming_secondary_4,
-      R.id.upcoming_secondary_5,
-    )
+    private fun build(
+      context: Context,
+      manager: AppWidgetManager,
+      appWidgetId: Int,
+    ): RemoteViews {
+      val snapshot = WidgetSnapshot.read(context)
+        ?: return WidgetSupport.fallback(context, appWidgetId)
+      val ui = snapshot.ui()
+      val theme = snapshot.theme()
+      val size = WidgetSupport.sizeOf(manager, appWidgetId)
+      val layout = if (size == WidgetSize.LARGE) {
+        R.layout.widget_upcoming_large
+      } else {
+        R.layout.widget_upcoming_medium
+      }
+      val views = RemoteViews(context.packageName, layout)
+      WidgetSupport.applyRoot(views, R.id.upcoming_root, theme)
 
-    private fun applyTextColor(
-      views: RemoteViews,
-      viewId: Int,
-      theme: WidgetSnapshot.ThemeBlock,
-      key: String,
-    ) {
-      val color = theme.colors[key] ?: return
-      views.setTextColor(viewId, color)
+      val accent = context.getColor(R.color.widget_accent)
+      val secondary = context.getColor(R.color.widget_text_secondary)
+      val primary = context.getColor(R.color.widget_text_primary)
+
+      views.setTextViewText(
+        R.id.upcoming_title,
+        ui?.upcoming?.ifEmpty { context.getString(R.string.widget_upcoming_name) }
+          ?: context.getString(R.string.widget_upcoming_name),
+      )
+      views.setTextViewText(
+        R.id.upcoming_date,
+        WidgetSupport.formatDate(
+          snapshot.todayDate().ifEmpty { WidgetSupport.todayIso(context) },
+        ),
+      )
+      WidgetSupport.textColor(views, R.id.upcoming_title, theme, "accent", accent)
+      WidgetSupport.textColor(views, R.id.upcoming_date, theme, "textSecondary", secondary)
+
+      val days = snapshot.upcomingDays()
+      val groups = if (days.isNotEmpty()) {
+        days
+      } else {
+        snapshot.upcomingItems()
+          .groupBy { it.date }
+          .map { (date, items) -> WidgetSnapshot.UpcomingDayRow(date, items) }
+      }
+
+      val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
+      val maxRows = if (size == WidgetSize.LARGE) {
+        ((height - 60) / 48).coerceIn(4, 14)
+      } else {
+        ((height - 50) / 48).coerceIn(2, 6)
+      }
+      var rowCount = 0
+      val todayIso = snapshot.todayDate().ifEmpty { WidgetSupport.todayIso(context) }
+      val tomorrowIso = WidgetSupport.isoDate(
+        java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, 1) }.time,
+      )
+
+      if (groups.isEmpty()) {
+        WidgetSupport.setVisible(views, R.id.upcoming_empty, true)
+        views.setTextViewText(
+          R.id.upcoming_empty,
+          ui?.noUpcoming?.ifEmpty { context.getString(R.string.widget_no_upcoming) }
+            ?: context.getString(R.string.widget_no_upcoming),
+        )
+        WidgetSupport.textColor(views, R.id.upcoming_empty, theme, "textSecondary", secondary)
+      } else {
+        for (day in groups) {
+          if (rowCount >= maxRows) break
+          val header = RemoteViews(context.packageName, R.layout.widget_upcoming_group)
+          header.setTextViewText(R.id.upcoming_group, dayLabel(day.date, todayIso, tomorrowIso, ui))
+          WidgetSupport.textColor(header, R.id.upcoming_group, theme, "textSecondary", secondary)
+          views.addView(R.id.upcoming_groups, header)
+          rowCount++
+
+          for (item in day.items) {
+            if (rowCount >= maxRows) break
+            views.addView(
+              R.id.upcoming_groups,
+              itemRow(context, item, theme, primary, secondary, accent),
+            )
+            rowCount++
+          }
+        }
+      }
+
+      views.setOnClickPendingIntent(
+        R.id.upcoming_root,
+        WidgetSupport.openUri(
+          context,
+          WidgetSupport.calendarUri(todayIso),
+          appWidgetId + 501,
+        ),
+      )
+      views.setOnClickPendingIntent(
+        R.id.upcoming_title,
+        WidgetSupport.openUri(
+          context,
+          WidgetSupport.calendarUri(todayIso),
+          appWidgetId + 502,
+        ),
+      )
+      return views
+    }
+
+    private fun dayLabel(
+      dateIso: String,
+      todayIso: String,
+      tomorrowIso: String,
+      ui: WidgetSnapshot.UiStrings?,
+    ): String {
+      if (dateIso == todayIso) return ui?.today?.ifEmpty { null } ?: "Today"
+      if (dateIso == tomorrowIso) return ui?.tomorrow?.ifEmpty { null } ?: "Tomorrow"
+      return if (dateIso.length == 10 && dateIso.contains('-')) {
+        WidgetSupport.formatDate(dateIso)
+      } else {
+        dateIso
+      }
+    }
+
+    private fun itemRow(
+      context: Context,
+      item: WidgetSnapshot.UpcomingItemRow,
+      theme: WidgetSnapshot.ThemeBlock?,
+      primary: Int,
+      secondary: Int,
+      accent: Int,
+    ): RemoteViews {
+      val row = RemoteViews(context.packageName, R.layout.widget_upcoming_row)
+      row.setTextViewText(R.id.upcoming_time, item.time)
+      row.setTextViewText(R.id.upcoming_title, item.summary)
+      WidgetSupport.textColor(row, R.id.upcoming_time, theme, "textSecondary", secondary)
+      WidgetSupport.textColor(row, R.id.upcoming_title, theme, "textPrimary", primary)
+      val markerColor = if (item.kind == "todoDeadline") {
+        secondary
+      } else {
+        WidgetSupport.parseColor(item.color, accent)
+      }
+      WidgetSupport.tint(row, R.id.upcoming_marker, markerColor)
+
+      val uri = when {
+        item.eventId != null && item.eventId > 0 -> WidgetSupport.eventUri(item.eventId)
+        item.todoId != null && item.todoId > 0 -> WidgetSupport.todoUri(item.todoId)
+        else -> null
+      }
+      if (uri != null) {
+        row.setOnClickPendingIntent(
+          R.id.upcoming_row,
+          WidgetSupport.openUri(context, uri, uri.toString().hashCode()),
+        )
+      }
+      return row
     }
   }
 }

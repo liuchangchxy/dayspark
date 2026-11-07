@@ -635,3 +635,25 @@
 - 对策：widget 测试要注入**内存**文件存储。`AttachmentFileStore` 的 `write`/`delete` 是可覆写的实例方法，子类化后用 Map 存字节即可（见 `test/ui/pages/form_save_atomicity_test.dart` 的 `_MemoryFileStore`）。顺带一个好处：把 `written`（永不清理）和 `live`（随 delete 清理）分成两个集合，测试就能区分"从没写进去过"和"写进去又清掉了"，不会变成空转断言
 - **Why**: 挂起没有任何错误信息，只有 10 分钟后的 TimeoutException，根因离现场隔了两层 await；不知道这条的人会先去怀疑事务或 Riverpod
 - **Date**: 2026-10-25
+
+## Widgets / 小组件
+
+### RemoteViews 只接受标注 `@RemoteView` 的类（2026-11-07）
+- 现象：Realme UI 添加旧小组件后显示“载入窗口小组件时出现问题”，桌面只留一块错误占位
+- 根因：旧布局 `calendar_todo_widget.xml` 用裸 `<View>` 画分隔线。`RemoteViews` 的 inflater 会按
+  `clazz.isAnnotationPresent(RemoteViews.RemoteView.class)` 过滤，裸 `View` 不在白名单，inflate 直接抛异常；
+  `CheckBox` 也只有 API 31+ 可用
+- 对策：布局只用 `LinearLayout` / `FrameLayout` / `ImageView` / `TextView`；分隔线用高度 1dp 的
+  `FrameLayout`，勾选用 `ImageView` + selector；每个 provider 的 `render` 捕获异常并回退到
+  “打开 DaySpark” 卡片，避免 launcher 错误占位
+- **Why**: 这类错误在 Flutter 侧完全不可见，`flutter analyze` / 单测都不会报，只有 launcher inflate 时才炸
+- **Date**: 2026-11-07
+
+### Widget deep link 的冷启动路径只剩 path+query（2026-11-07）
+- 现象：`dayspark://open/todo?id=1` 冷启动会落到首页或错误页
+- 根因：Flutter Android embedding 的 `getInitialRoute()` 对 `ACTION_VIEW` 只返回 `path + query`，
+  scheme/host 被丢掉；iOS 自定义 scheme 也不会自动进 go_router
+- 对策：`widgetDeepLinkLocation` 同时接受完整 scheme URI 与 path-only 形式（仅单段 widget 路径，
+  避免劫持 `/todo/new`、`/event/detail` 等真实路由）；iOS `SceneDelegate` 把 URL 转进
+  `flutter/navigation` 的 `pushRouteInformation`；Android quick-add 改用带路径的 `dayspark://open/new-todo`
+- **Date**: 2026-11-07

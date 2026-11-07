@@ -44,6 +44,14 @@
                     android:scheme="dayspark"
                     android:host="quick-add"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="dayspark"
+                    android:host="open"/>
+            </intent-filter>
         </activity>
         <!-- flutter_local_notifications 21: required receivers for scheduled
              notifications, boot rescheduling, and notification actions -->
@@ -66,18 +74,20 @@
 
         <!-- Home screen widget receivers -->
         <receiver
-            android:name=".CalendarTodoWidgetProvider"
-            android:exported="true">
+            android:name=".TodayWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_today_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/calendar_todo_widget_info" />
+                android:resource="@xml/today_widget_info" />
         </receiver>
         <receiver
             android:name=".UpcomingWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_upcoming_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -86,18 +96,30 @@
                 android:resource="@xml/upcoming_widget_info" />
         </receiver>
         <receiver
-            android:name=".MonthDotsWidgetProvider"
-            android:exported="true">
+            android:name=".CalendarWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_calendar_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/month_dots_widget_info" />
+                android:resource="@xml/calendar_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".QuickActionsWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_quick_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_actions_widget_info" />
         </receiver>
 
-        <!-- Checkbox taps: appends pendingTaps to the snapshot (single-writer
-             rule — never touches the DB) then refreshes all three widgets. -->
+        <!-- Checkbox taps: append a typed command (never writes the DB) and
+             refresh every widget. -->
         <receiver
             android:name=".WidgetActionReceiver"
             android:exported="false" />

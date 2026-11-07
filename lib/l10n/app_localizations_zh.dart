@@ -48,8 +48,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get confirmLegacyRecurrenceTitle => '确认重复待办';
 
   @override
-  String get confirmLegacyRecurrenceBody =>
-      '这条重复待办是在旧版本导入的，没有记录从哪天开始重复。选一次那个日期，其余由应用推算。';
+  String get confirmLegacyRecurrenceBody => '这条重复待办是在旧版本导入的，没有记录从哪天开始重复。选一次那个日期，其余由应用推算。';
 
   @override
   String get legacyAnchorEvidence => '已保存的日期和时间';
@@ -70,8 +69,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recurrenceAnchor => '重复系列锚点';
 
   @override
-  String get recurrenceEditAllocationWarning =>
-      '修改重复规则、锚点或时区不会移动已有时间安排；部分安排可能不再属于当前系列。';
+  String get recurrenceEditAllocationWarning => '修改重复规则、锚点或时区不会移动已有时间安排；部分安排可能不再属于当前系列。';
 
   @override
   String get recurrenceTimezoneHorizonError => '当前时区数据暂不支持计算该日期范围。';
@@ -355,6 +353,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get widgetAllDone => '全部完成';
 
   @override
+  String get widgetOpenApp => '打开 DaySpark 以显示你的安排';
+
+  @override
+  String get widgetNoPlans => '今天没有安排';
+
+  @override
+  String get widgetNoUpcoming => '未来几天没有安排';
+
+  @override
+  String get widgetQuickActions => '快速操作';
+
+  @override
   String widgetPendingCount(int count) {
     return '$count 项待办';
   }
@@ -456,8 +466,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get recurringSeriesNotice =>
-      '这是重复日程。保存会修改整个系列；下面的时间是系列起始，不是你点开的那一次。暂不支持只修改单次实例。';
+  String get recurringSeriesNotice => '这是重复日程。保存会修改整个系列；下面的时间是系列起始，不是你点开的那一次。暂不支持只修改单次实例。';
 
   @override
   String get allDayDragDisabled => '全天日程无法通过拖拽移动';

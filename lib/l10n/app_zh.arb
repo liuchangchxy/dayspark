@@ -114,6 +114,10 @@
   "todayEventsHeader": "今日日程",
   "widgetNoEvents": "今天没有日程",
   "widgetAllDone": "全部完成",
+  "widgetOpenApp": "打开 DaySpark 以显示你的安排",
+  "widgetNoPlans": "今天没有安排",
+  "widgetNoUpcoming": "未来几天没有安排",
+  "widgetQuickActions": "快速操作",
   "widgetPendingCount": "{count} 项待办",
   "@widgetPendingCount": {
     "description": "Home screen widget label for the number of pending todos",

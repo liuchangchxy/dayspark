@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_background">#121212</color>
+    <color name="widget_surface">#1E1E1E</color>
+    <color name="widget_text_primary">#F5F5F5</color>
+    <color name="widget_text_secondary">#A0A0A0</color>
+    <color name="widget_accent">#90CAF9</color>
+    <color name="widget_border">#333333</color>
+    <color name="widget_button_bg">#24FFFFFF</color>
+</resources>

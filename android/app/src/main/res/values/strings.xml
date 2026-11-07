@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">View today\'s events and pending to-dos at a glance.</string>
+    <string name="widget_today_name">Today</string>
+    <string name="widget_today_description">View and complete today\'s schedule and tasks.</string>
+    <string name="widget_upcoming_name">Upcoming</string>
+    <string name="widget_upcoming_description">See the next few days\' schedule and tasks.</string>
+    <string name="widget_calendar_name">Calendar</string>
+    <string name="widget_calendar_description">See this month\'s schedule at a glance.</string>
+    <string name="widget_quick_name">Quick actions</string>
+    <string name="widget_quick_description">Create a task or event, or open Today and Calendar.</string>
+    <string name="widget_open_app">Open DaySpark to show your schedule</string>
+    <string name="widget_no_plans">No plans for today</string>
+    <string name="widget_no_upcoming">Nothing scheduled for the next few days</string>
+    <string name="widget_add_todo">+ Task</string>
+    <string name="widget_add_event">+ Event</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_calendar">Calendar</string>
+    <string name="widget_quick_actions">Quick actions</string>
+    <string name="widget_open">Open DaySpark</string>
 </resources>

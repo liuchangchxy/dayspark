@@ -27,35 +27,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newerOccurrences => 'Newer';
 
   @override
-  String get legacyRecurrenceRequiresConfirmation =>
-      'Confirm this recurrence before scheduling an occurrence.';
+  String get legacyRecurrenceRequiresConfirmation => 'Confirm this recurrence before scheduling an occurrence.';
 
   @override
-  String get unsupportedRecurrence =>
-      'This recurrence rule cannot be expanded for scheduling.';
+  String get unsupportedRecurrence => 'This recurrence rule cannot be expanded for scheduling.';
 
   @override
-  String get unsupportedLegacyRecurrence =>
-      'This imported recurrence rule uses unsupported or invalid syntax and cannot be scheduled.';
+  String get unsupportedLegacyRecurrence => 'This imported recurrence rule uses unsupported or invalid syntax and cannot be scheduled.';
 
   @override
-  String get noOccurrencesAvailable =>
-      'No occurrences are available in the next 90 days.';
+  String get noOccurrencesAvailable => 'No occurrences are available in the next 90 days.';
 
   @override
-  String get occurrenceWindowHint =>
-      'Showing matches only within the next 90 days. The series may continue outside this window.';
+  String get occurrenceWindowHint => 'Showing matches only within the next 90 days. The series may continue outside this window.';
 
   @override
-  String get orphanTaskAllocation =>
-      'Its recurring occurrence no longer exists. The scheduled time is retained.';
+  String get orphanTaskAllocation => 'Its recurring occurrence no longer exists. The scheduled time is retained.';
 
   @override
   String get confirmLegacyRecurrenceTitle => 'Confirm repeating task';
 
   @override
-  String get confirmLegacyRecurrenceBody =>
-      'This repeating task was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.';
+  String get confirmLegacyRecurrenceBody => 'This repeating task was imported before the app recorded which day it repeats from. Pick that day once; the app will work the rest out.';
 
   @override
   String get legacyAnchorEvidence => 'Stored date and time';
@@ -70,30 +63,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recurrenceRule => 'Repeat rule';
 
   @override
-  String get recurrenceZoneBelongsToSeries =>
-      'This time zone belongs to the whole series.';
+  String get recurrenceZoneBelongsToSeries => 'This time zone belongs to the whole series.';
 
   @override
   String get recurrenceAnchor => 'Series anchor';
 
   @override
-  String get recurrenceEditAllocationWarning =>
-      'Changing the repeat rule, anchor, or time zone will not move existing scheduled time blocks. Some may no longer match this series.';
+  String get recurrenceEditAllocationWarning => 'Changing the repeat rule, anchor, or time zone will not move existing scheduled time blocks. Some may no longer match this series.';
 
   @override
-  String get recurrenceTimezoneHorizonError =>
-      'The current time-zone data cannot calculate this date range yet.';
+  String get recurrenceTimezoneHorizonError => 'The current time-zone data cannot calculate this date range yet.';
 
   @override
-  String get recurrenceOccurrenceLimitError =>
-      'There are more matching occurrences than this selector can show. Narrow the date range.';
+  String get recurrenceOccurrenceLimitError => 'There are more matching occurrences than this selector can show. Narrow the date range.';
 
   @override
   String get appName => 'DaySpark';
 
   @override
-  String get calendarUnavailable =>
-      'Calendar unavailable. Please choose another calendar.';
+  String get calendarUnavailable => 'Calendar unavailable. Please choose another calendar.';
 
   @override
   String get loadMore => 'Load More';
@@ -125,15 +113,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventNotFound => 'Event Not Found';
 
   @override
-  String get missingEventParam =>
-      'This link did not carry an event. Open it from the calendar instead.';
+  String get missingEventParam => 'This link did not carry an event. Open it from the calendar instead.';
 
   @override
   String get todoNotFound => 'Task Not Found';
 
   @override
-  String get missingTodoParam =>
-      'This link did not carry a task. Open it from a list instead.';
+  String get missingTodoParam => 'This link did not carry a task. Open it from a list instead.';
 
   @override
   String get editCalendar => 'Edit Calendar';
@@ -367,6 +353,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widgetAllDone => 'All done!';
 
   @override
+  String get widgetOpenApp => 'Open DaySpark to show your schedule';
+
+  @override
+  String get widgetNoPlans => 'No plans for today';
+
+  @override
+  String get widgetNoUpcoming => 'Nothing scheduled for the next few days';
+
+  @override
+  String get widgetQuickActions => 'Quick actions';
+
+  @override
   String widgetPendingCount(int count) {
     return '$count pending';
   }
@@ -438,8 +436,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get importExportDesc =>
-      'Export calendar events and tasks to .ics, or import from a .ics file.';
+  String get importExportDesc => 'Export calendar events and tasks to .ics, or import from a .ics file.';
 
   @override
   String get error => 'Something went wrong. Please try again.';
@@ -469,8 +466,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get recurringSeriesNotice =>
-      'This event repeats. Saving changes the whole series, and the times below are the series start rather than the occurrence you tapped. Editing a single occurrence is not supported yet.';
+  String get recurringSeriesNotice => 'This event repeats. Saving changes the whole series, and the times below are the series start rather than the occurrence you tapped. Editing a single occurrence is not supported yet.';
 
   @override
   String get allDayDragDisabled => 'All-day events cannot be moved by drag';
@@ -485,8 +481,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get suggestedTimeSlots => 'Suggested Time Slots';
 
   @override
-  String get timeSlotConflict =>
-      'The selected time slot is now occupied or no longer available. Please select another slot.';
+  String get timeSlotConflict => 'The selected time slot is now occupied or no longer available. Please select another slot.';
 
   @override
   String get schedulingFailed => 'Couldn\'t schedule that';
@@ -586,8 +581,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moveToTrash => 'Move to Trash';
 
   @override
-  String get confirmPermanentDelete =>
-      'Permanently delete? This cannot be undone.';
+  String get confirmPermanentDelete => 'Permanently delete? This cannot be undone.';
 
   @override
   String get confirmEmptyTrash => 'Permanently delete all items in trash?';
@@ -642,8 +636,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noModelsFound => 'No models found';
 
   @override
-  String get modelDetectFailed =>
-      'Couldn’t reach that provider. Check the URL and API key.';
+  String get modelDetectFailed => 'Couldn’t reach that provider. Check the URL and API key.';
 
   @override
   String get selectModel => 'Select Model';
@@ -762,8 +755,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachmentLocalOnly => 'Not uploaded';
 
   @override
-  String get attachmentUnavailable =>
-      'This attachment is not available on this device yet';
+  String get attachmentUnavailable => 'This attachment is not available on this device yet';
 
   @override
   String attachmentReady(String name) {
@@ -783,8 +775,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get security => 'Security';
 
   @override
-  String get recurringDragDisabled =>
-      'Recurring events cannot be moved by drag';
+  String get recurringDragDisabled => 'Recurring events cannot be moved by drag';
 
   @override
   String get eventMoved => 'Event moved';
@@ -793,12 +784,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationPermission => 'Notification permission';
 
   @override
-  String get notificationPermissionDesc =>
-      'Allow DaySpark to send reminder notifications';
+  String get notificationPermissionDesc => 'Allow DaySpark to send reminder notifications';
 
   @override
-  String get notificationPermissionAsked =>
-      'Requested — change it in System Settings if nothing appears';
+  String get notificationPermissionAsked => 'Requested — change it in System Settings if nothing appears';
 
   @override
   String get systemAlarm => 'System Alarm';
@@ -947,8 +936,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invalidCredentials => 'Invalid email or password';
 
   @override
-  String get authFailed =>
-      'Sign-in failed. Check the server address and try again.';
+  String get authFailed => 'Sign-in failed. Check the server address and try again.';
 
   @override
   String get syncNow => 'Sync now';
@@ -1015,12 +1003,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get advancedSettings => 'Advanced';
 
   @override
-  String get emptySlotSemantics =>
-      'Empty time slot, activate to create an event';
+  String get emptySlotSemantics => 'Empty time slot, activate to create an event';
 
   @override
-  String get emptyCalendarHint =>
-      'Tap an empty slot to create your first event';
+  String get emptyCalendarHint => 'Tap an empty slot to create your first event';
 
   @override
   String get holidayRestBadge => 'Off';
@@ -1110,8 +1096,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchSuggestions => 'From your inbox';
 
   @override
-  String get trashEmptyHint =>
-      'Deleted events and tasks wait here until you remove them.';
+  String get trashEmptyHint => 'Deleted events and tasks wait here until you remove them.';
 
   @override
   String get trashEmptyAction => 'Back to Tasks';
@@ -1120,8 +1105,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aichatNoKeyTitle => 'Connect an AI provider';
 
   @override
-  String get aichatNoKeyHint =>
-      'DaySpark uses your own API key. Add one in Settings → AI assistant, then come back.';
+  String get aichatNoKeyHint => 'DaySpark uses your own API key. Add one in Settings → AI assistant, then come back.';
 
   @override
   String get aichatSetupKey => 'Open AI settings';
@@ -1203,8 +1187,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayTimeline => 'Today\'s Schedule';
 
   @override
-  String get emptyActionHint =>
-      'No events, scheduled tasks, or deadlines for today.';
+  String get emptyActionHint => 'No events, scheduled tasks, or deadlines for today.';
 
   @override
   String scheduledTodoSuccess(String summary) {
@@ -1330,22 +1313,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionNothingNow => 'Nothing needs you right now';
 
   @override
-  String get actionNothingNowHint =>
-      'Upcoming events and deadlines will show up here on the day.';
+  String get actionNothingNowHint => 'Upcoming events and deadlines will show up here on the day.';
 
   @override
   String get recurringNeedsRepair => 'Some repeating tasks need a one-time fix';
 
   @override
-  String get recurringNeedsRepairHint =>
-      'These were imported without a time zone. Open one to confirm when it repeats.';
+  String get recurringNeedsRepairHint => 'These were imported without a time zone. Open one to confirm when it repeats.';
 
   @override
   String get recurringBroken => 'A repeating task cannot be calculated';
 
   @override
-  String get recurringBrokenHint =>
-      'Its repeat rule is no longer valid. Open it to set a new one.';
+  String get recurringBrokenHint => 'Its repeat rule is no longer valid. Open it to set a new one.';
 
   @override
   String untilTime(String time) {
@@ -1446,8 +1426,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repeatNeedsDate => 'Give it a date first, then it can repeat.';
 
   @override
-  String get recurringSeriesNoticeShort =>
-      'This repeats. Edits apply to every occurrence.';
+  String get recurringSeriesNoticeShort => 'This repeats. Edits apply to every occurrence.';
 
   @override
   String get actionFailedRetry => 'That didn\'t work. Please try again.';
@@ -1456,8 +1435,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discardChanges => 'Discard changes?';
 
   @override
-  String get discardChangesBody =>
-      'Your edits to this item haven\'t been saved.';
+  String get discardChangesBody => 'Your edits to this item haven\'t been saved.';
 
   @override
   String get keepEditing => 'Keep editing';
@@ -1520,8 +1498,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get remindCustom => 'Custom time';
 
   @override
-  String get reminderNeedsAnchor =>
-      'Set a deadline or start time first, then reminders can be relative to it.';
+  String get reminderNeedsAnchor => 'Set a deadline or start time first, then reminders can be relative to it.';
 
   @override
   String get actionEarlierToday => 'Earlier today';
@@ -1553,8 +1530,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mergeBackup => 'Merge backup';
 
   @override
-  String get mergeBackupDesc =>
-      'Adds everything from the backup. Items already on this device are updated; nothing is removed.';
+  String get mergeBackupDesc => 'Adds everything from the backup. Items already on this device are updated; nothing is removed.';
 
   @override
   String get accountLoadFailed => 'Couldn\'t load your account.';
@@ -1569,8 +1545,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearChatAction => 'Clear';
 
   @override
-  String get clearChatConfirm =>
-      'Clear this conversation? It can\'t be restored.';
+  String get clearChatConfirm => 'Clear this conversation? It can\'t be restored.';
 
   @override
   String get couldNotOpenLink => 'Couldn\'t open that link.';
@@ -1588,8 +1563,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteScopeTitle => 'Delete which?';
 
   @override
-  String get editOccurrenceNotice =>
-      'You\'re editing one occurrence of a repeating event.';
+  String get editOccurrenceNotice => 'You\'re editing one occurrence of a repeating event.';
 
   @override
   String repeatUntil(String date) {
@@ -1615,8 +1589,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goneFromHere => 'This item is no longer here.';
 
   @override
-  String get createTodoAndScheduleDesc =>
-      'Start a task and place it in this slot';
+  String get createTodoAndScheduleDesc => 'Start a task and place it in this slot';
 
   @override
   String get tagNameRequired => 'Tag name is required.';
@@ -1641,8 +1614,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signOutConfirm => 'Log out?';
 
   @override
-  String get signOutBody =>
-      'Your data stays on this device. Syncing stops until you log in again.';
+  String get signOutBody => 'Your data stays on this device. Syncing stops until you log in again.';
 
   @override
   String get signOut => 'Log out';

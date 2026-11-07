@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_name">今日行动</string>
+    <string name="widget_today_description">查看并完成今天的日程与待办</string>
+    <string name="widget_upcoming_name">近期安排</string>
+    <string name="widget_upcoming_description">查看未来几天的日程与任务</string>
+    <string name="widget_calendar_name">月历</string>
+    <string name="widget_calendar_description">查看本月日程分布</string>
+    <string name="widget_quick_name">快速操作</string>
+    <string name="widget_quick_description">快速创建待办和日程</string>
+    <string name="widget_open_app">打开 DaySpark 以显示你的安排</string>
+    <string name="widget_no_plans">今天没有安排</string>
+    <string name="widget_no_upcoming">未来几天没有安排</string>
+    <string name="widget_add_todo">+ 待办</string>
+    <string name="widget_add_event">+ 日程</string>
+    <string name="widget_today">今天</string>
+    <string name="widget_calendar">日历</string>
+    <string name="widget_quick_actions">快速操作</string>
+    <string name="widget_open">打开 DaySpark</string>
+</resources>
