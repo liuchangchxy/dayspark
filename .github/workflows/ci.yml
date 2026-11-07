@@ -59,6 +59,13 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build ios --simulator --debug
+      - name: Package iOS Simulator app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app dayspark-ios-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: dayspark-ios-simulator.zip
 
   server-test:
     runs-on: ubuntu-latest
@@ -126,6 +133,21 @@ jobs:
         with:
           channel: "stable"
           cache: true
+      - run: flutter pub get
+      - name: Build installable QA APK (pull request)
+        if: github.event_name == 'pull_request'
+        run: flutter build apk --debug
+      - name: Verify QA APK signature
+        if: github.event_name == 'pull_request'
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose build/app/outputs/flutter-apk/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: android-apk-qa
+          path: build/app/outputs/flutter-apk/app-debug.apk
       - name: Set up Android release signing (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -141,17 +163,19 @@ jobs:
           keyAlias=$ANDROID_KEY_ALIAS
           storeFile=release-keystore.jks
           EOF
-      - run: flutter pub get
-      - run: flutter build apk --release
-      - name: Verify APK signature (main only)
+      - name: Build signed release APK (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: flutter build apk --release
+      - name: Verify release APK signature (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
           test -n "$APKSIGNER"
           "$APKSIGNER" verify --verbose build/app/outputs/flutter-apk/app-release.apk
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
-          name: ${{ github.event_name == 'push' && 'android-apk' || 'android-apk-unsigned' }}
+          name: android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
   build-macos:
@@ -165,7 +189,10 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build macos --release
-      - run: cd build/macos/Build/Products/Release && zip -r $GITHUB_WORKSPACE/dayspark-macos.zip DaySpark.app
+      - name: Verify macOS bundle signature
+        run: codesign --verify --deep --strict --verbose=2 build/macos/Build/Products/Release/DaySpark.app
+      - name: Package macOS QA app
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/DaySpark.app dayspark-macos.zip
       - uses: actions/upload-artifact@v4
         with:
           name: macos-app
@@ -182,10 +209,13 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build windows --release
+      - name: Package Windows portable build
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dayspark-windows-portable.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: build/windows/x64/runner/Release/
+          name: windows-portable
+          path: dayspark-windows-portable.zip
 
   build-linux:
     needs: test
@@ -202,7 +232,9 @@ jobs:
       - run: flutter pub get
       - run: flutter build linux --release
       - run: tool/check_glibc_version.sh build/linux/x64/release/bundle/
+      - name: Package Linux bundle preserving executable bits
+        run: tar -C build/linux/x64/release -czf dayspark-linux.tar.gz bundle
       - uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: build/linux/x64/release/bundle/
+          path: dayspark-linux.tar.gz
