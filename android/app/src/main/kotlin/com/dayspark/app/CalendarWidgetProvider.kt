@@ -2,21 +2,28 @@ package com.dayspark.app
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import java.text.DateFormatSymbols
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
+// Calendar / 月历: current month plus the selected day's items. Tapping a day
+// only moves `selectedDate` inside the widget; it never opens the App.
 class CalendarWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(
     context: Context,
     appWidgetManager: AppWidgetManager,
     appWidgetIds: IntArray,
   ) {
-    for (id in appWidgetIds) update(context, appWidgetManager, id)
+    for (id in appWidgetIds) updateWidget(context, appWidgetManager, id)
   }
 
   override fun onAppWidgetOptionsChanged(
@@ -25,10 +32,30 @@ class CalendarWidgetProvider : AppWidgetProvider() {
     appWidgetId: Int,
     newOptions: Bundle,
   ) {
-    update(context, appWidgetManager, appWidgetId)
+    updateWidget(context, appWidgetManager, appWidgetId)
+  }
+
+  override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+    for (id in appWidgetIds) WidgetStateStore.clear(context, id)
+  }
+
+  override fun onReceive(context: Context, intent: Intent) {
+    super.onReceive(context, intent)
+    if (intent.action in CLOCK_ACTIONS) {
+      val manager = AppWidgetManager.getInstance(context)
+      for (id in manager.getAppWidgetIds(ComponentName(context, CalendarWidgetProvider::class.java))) {
+        updateWidget(context, manager, id)
+      }
+    }
   }
 
   companion object {
+    private val CLOCK_ACTIONS = setOf(
+      Intent.ACTION_DATE_CHANGED,
+      Intent.ACTION_TIME_CHANGED,
+      Intent.ACTION_TIMEZONE_CHANGED,
+    )
+
     private val WEEKDAY_IDS = listOf(
       R.id.weekday_0,
       R.id.weekday_1,
@@ -39,7 +66,7 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       R.id.weekday_6,
     )
 
-    private fun update(
+    fun updateWidget(
       context: Context,
       manager: AppWidgetManager,
       appWidgetId: Int,
@@ -55,6 +82,7 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       appWidgetId: Int,
     ): RemoteViews {
       val snapshot = WidgetSnapshot.read(context)
+      val ui = snapshot?.ui()
       val theme = snapshot?.theme()
       val size = WidgetSupport.sizeOf(manager, appWidgetId)
       val large = size == WidgetSize.LARGE
@@ -69,28 +97,81 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       val primary = context.getColor(R.color.widget_text_primary)
       val secondary = context.getColor(R.color.widget_text_secondary)
       val accent = context.getColor(R.color.widget_accent)
+      val error = theme?.colors?.get("error") ?: context.getColor(R.color.widget_error)
 
       val now = Calendar.getInstance()
-      val month = snapshot?.month()
-      val year = month?.year?.takeIf { it > 0 } ?: now.get(Calendar.YEAR)
-      val monthNumber = month?.month?.takeIf { it in 1..12 }
-        ?: (now.get(Calendar.MONTH) + 1)
+      val todayIso = WidgetStateStore.todayIso()
+      val state = WidgetStateStore.read(context, appWidgetId)
+      val selectedIso = WidgetStateStore.normalizedSelectedDate(state)
+      val selectedDate = parseIso(selectedIso) ?: Date()
+
+      val snapshotMonth = snapshot?.month()
+      val snapshotIsCurrent = snapshotMonth != null &&
+        snapshotMonth.year == now.get(Calendar.YEAR) &&
+        snapshotMonth.month == (now.get(Calendar.MONTH) + 1)
+      val snapshotStale = snapshot?.todayIso() != todayIso
+      val staleSuffix = if (snapshotIsCurrent && snapshotStale) {
+        " · ${ui?.stale ?: context.getString(R.string.widget_stale)}"
+      } else {
+        ""
+      }
+      val year = if (snapshotIsCurrent) snapshotMonth!!.year else now.get(Calendar.YEAR)
+      val monthNumber = if (snapshotIsCurrent) snapshotMonth!!.month else now.get(Calendar.MONTH) + 1
       val daysInMonth = Calendar.getInstance().apply {
         set(year, monthNumber - 1, 1)
       }.getActualMaximum(Calendar.DAY_OF_MONTH)
-      val firstWeekday = month?.firstWeekday?.takeIf { it in 1..7 }
-        ?: mondayFirstWeekday(year, monthNumber)
-      val isCurrentMonth = year == now.get(Calendar.YEAR) &&
-        monthNumber == (now.get(Calendar.MONTH) + 1)
-      val todayDay = if (isCurrentMonth) now.get(Calendar.DAY_OF_MONTH) else -1
-      val marks = month?.days?.associateBy { it.day } ?: emptyMap()
+      val firstWeekday = if (snapshotIsCurrent) {
+        snapshotMonth!!.firstWeekday.takeIf { it in 1..7 } ?: mondayFirstWeekday(year, monthNumber)
+      } else {
+        mondayFirstWeekday(year, monthNumber)
+      }
+      val marks = if (snapshotIsCurrent) {
+        snapshotMonth!!.days.associateBy { it.day }
+      } else {
+        emptyMap()
+      }
+      val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
+      val compact = !large && height > 0 && height < 230
+      val dayMode = compact && state.calendarMode == "day"
 
-      views.setTextViewText(
-        R.id.calendar_title,
-        WidgetSupport.monthTitle(year, monthNumber),
-      )
+      views.setTextViewText(R.id.calendar_title, WidgetSupport.monthTitle(year, monthNumber))
       WidgetSupport.textColor(views, R.id.calendar_title, theme, "accent", accent)
 
+      val calendarUri = WidgetSupport.calendarUri(selectedIso)
+      views.setOnClickPendingIntent(
+        R.id.calendar_root,
+        WidgetSupport.openUri(context, calendarUri, appWidgetId + 800),
+      )
+      views.setOnClickPendingIntent(
+        R.id.calendar_title,
+        WidgetSupport.openUri(context, calendarUri, appWidgetId + 801),
+      )
+      views.setOnClickPendingIntent(
+        R.id.calendar_add,
+        WidgetSupport.openUri(
+          context,
+          WidgetSupport.newEventUri(selectedIso),
+          appWidgetId + 802,
+        ),
+      )
+      WidgetSupport.textColor(views, R.id.calendar_add, theme, "accent", accent)
+
+      views.setTextViewText(R.id.calendar_today, ui?.today ?: context.getString(R.string.widget_today))
+      WidgetSupport.textColor(views, R.id.calendar_today, theme, "accent", accent)
+      views.setViewVisibility(
+        R.id.calendar_today,
+        if (selectedIso != todayIso) View.VISIBLE else View.GONE,
+      )
+      views.setOnClickPendingIntent(
+        R.id.calendar_today,
+        WidgetSupport.stateIntent(
+          context,
+          appWidgetId,
+          WidgetActionReceiver.ACTION_CALENDAR_TODAY,
+        ),
+      )
+
+      views.removeAllViews(R.id.calendar_weekdays)
       views.addView(R.id.calendar_weekdays, weekdayHeader(context, theme, secondary))
       views.removeAllViews(R.id.calendar_grid)
 
@@ -109,15 +190,26 @@ class CalendarWidgetProvider : AppWidgetProvider() {
           val cell = RemoteViews(context.packageName, cellLayout)
           if (day in 1..daysInMonth) {
             val mark = marks[day]
-            val isToday = day == todayDay
+            val dateIso = isoDate(year, monthNumber, day)
+            val isToday = dateIso == todayIso
+            val isSelected = dateIso == selectedIso
             cell.setTextViewText(R.id.calendar_day, day.toString())
-            WidgetSupport.textColor(
-              cell,
+            cell.setTextColor(
               R.id.calendar_day,
-              theme,
-              if (isToday) "accent" else "textPrimary",
-              if (isToday) accent else primary,
+              when {
+                isSelected || isToday -> accent
+                else -> primary
+              },
             )
+            if (isSelected) {
+              cell.setInt(
+                R.id.calendar_cell,
+                "setBackgroundColor",
+                Color.argb(38, Color.red(accent), Color.green(accent), Color.blue(accent)),
+              )
+            } else {
+              cell.setInt(R.id.calendar_cell, "setBackgroundColor", Color.TRANSPARENT)
+            }
 
             val dotColor = when {
               mark?.hasEvent == true || mark?.hasAllocation == true ->
@@ -132,23 +224,26 @@ class CalendarWidgetProvider : AppWidgetProvider() {
               cell.setViewVisibility(R.id.calendar_dot, View.INVISIBLE)
             }
 
-            val dateIso = WidgetSupport.isoDate(
-              Calendar.getInstance().apply {
-                set(year, monthNumber - 1, day, 0, 0, 0)
-                set(Calendar.MILLISECOND, 0)
-              }.time,
-            )
             cell.setOnClickPendingIntent(
               R.id.calendar_cell,
-              WidgetSupport.openUri(
+              WidgetSupport.stateIntent(
                 context,
-                WidgetSupport.calendarUri(dateIso),
-                dateIso.hashCode(),
-              ),
+                appWidgetId,
+                WidgetActionReceiver.ACTION_SET_CALENDAR_DATE,
+                WidgetActionReceiver.EXTRA_CALENDAR_DATE,
+                dateIso,
+              ).let { intent ->
+                if (compact && !dayMode) {
+                  stateIntentEnterDay(context, appWidgetId, dateIso)
+                } else {
+                  intent
+                }
+              },
             )
           } else {
             cell.setTextViewText(R.id.calendar_day, "")
             cell.setViewVisibility(R.id.calendar_dot, View.INVISIBLE)
+            cell.setInt(R.id.calendar_cell, "setBackgroundColor", Color.TRANSPARENT)
           }
           rowView.addView(R.id.calendar_row, cell)
         }
@@ -156,29 +251,55 @@ class CalendarWidgetProvider : AppWidgetProvider() {
         row++
       }
 
-      views.setOnClickPendingIntent(
-        R.id.calendar_add,
-        WidgetSupport.openUri(
-          context,
-          WidgetSupport.newEventUri(
-            WidgetSupport.isoDate(
-              Calendar.getInstance().apply {
-                set(year, monthNumber - 1, todayDay.takeIf { it > 0 } ?: 1, 0, 0, 0)
-                set(Calendar.MILLISECOND, 0)
-              }.time,
-            ),
-          ),
-          appWidgetId + 601,
-        ),
+      val dayBarVisible = dayMode
+      views.setViewVisibility(
+        R.id.calendar_month_page,
+        if (dayMode) View.GONE else View.VISIBLE,
       )
-      WidgetSupport.textColor(views, R.id.calendar_add, theme, "accent", accent)
-
       if (large) {
-        renderTodaySummary(context, views, snapshot, theme, primary, secondary, accent)
+        views.setViewVisibility(R.id.calendar_day_bar, View.GONE)
+      } else {
+        views.setViewVisibility(
+          R.id.calendar_day_bar,
+          if (dayBarVisible) View.VISIBLE else View.GONE,
+        )
+        if (dayBarVisible) {
+          val back = WidgetSupport.stateIntent(
+            context,
+            appWidgetId,
+            WidgetActionReceiver.ACTION_SET_CALENDAR_MODE,
+            WidgetActionReceiver.EXTRA_CALENDAR_MODE,
+            "month",
+          )
+          views.setTextViewText(
+            R.id.calendar_back_month,
+            "‹ ${ui?.backToMonth ?: context.getString(R.string.widget_back_to_month)}",
+          )
+          WidgetSupport.textColor(views, R.id.calendar_back_month, theme, "accent", accent)
+          views.setOnClickPendingIntent(R.id.calendar_back_month, back)
+          views.setTextViewText(
+            R.id.calendar_day_title,
+            WidgetSupport.formatDayTitle(selectedIso) + staleSuffix,
+          )
+          WidgetSupport.textColor(views, R.id.calendar_day_title, theme, "textPrimary", primary)
+        }
+      }
+
+      val showSummaryTitle = !dayMode
+      views.setViewVisibility(
+        R.id.calendar_summary_title,
+        if (showSummaryTitle) View.VISIBLE else View.GONE,
+      )
+      views.removeAllViews(R.id.calendar_summary)
+
+      val selectedDay = Calendar.getInstance().apply { time = selectedDate }.get(Calendar.DAY_OF_MONTH)
+      val dayMark = marks[selectedDay]
+      val maxRows = if (large) 6 else 2
+      val showEmpty = dayMark == null || dayMark.items.isEmpty()
+      if (!dayMode) {
         views.setTextViewText(
           R.id.calendar_summary_title,
-          snapshot?.ui()?.today?.ifEmpty { null }
-            ?: context.getString(R.string.widget_today),
+          WidgetSupport.formatDayTitle(selectedIso) + staleSuffix,
         )
         WidgetSupport.textColor(
           views,
@@ -189,125 +310,99 @@ class CalendarWidgetProvider : AppWidgetProvider() {
         )
       }
 
-      views.setOnClickPendingIntent(
-        R.id.calendar_title,
-        WidgetSupport.openUri(
-          context,
-          WidgetSupport.calendarUri(WidgetSupport.todayIso(context)),
-          appWidgetId + 602,
-        ),
-      )
+      val openCalendar = WidgetSupport.openUri(context, calendarUri, appWidgetId + 803)
+      if (showEmpty) {
+        views.setViewVisibility(R.id.calendar_empty, View.VISIBLE)
+        views.setTextViewText(
+          R.id.calendar_empty,
+          when {
+            !snapshotIsCurrent -> ui?.openToUpdate ?: context.getString(R.string.widget_open_to_update)
+            else -> ui?.selectedDayEmpty ?: context.getString(R.string.widget_selected_day_empty)
+          },
+        )
+        WidgetSupport.textColor(views, R.id.calendar_empty, theme, "textSecondary", secondary)
+        views.setOnClickPendingIntent(R.id.calendar_empty, openCalendar)
+      } else {
+        views.setViewVisibility(R.id.calendar_empty, View.GONE)
+        val items = dayMark!!.items
+        val emitted = minOf(items.size, maxRows)
+        for (index in 0 until emitted) {
+          views.addView(
+            R.id.calendar_summary,
+            summaryRow(context, items[index], theme, primary, secondary, error, accent, ui, appWidgetId),
+          )
+        }
+        val hidden = dayMark.itemCount - emitted
+        if (hidden > 0) {
+          val more = RemoteViews(context.packageName, R.layout.widget_calendar_summary_row)
+          more.setViewVisibility(R.id.calendar_summary_marker, View.GONE)
+          more.setTextViewText(R.id.calendar_summary_time, "")
+          more.setTextViewText(
+            R.id.calendar_summary_title,
+            ui?.withCount(ui.moreCount, hidden) ?: context.getString(R.string.widget_more_count, hidden),
+          )
+          WidgetSupport.textColor(more, R.id.calendar_summary_title, theme, "accent", accent)
+          more.setOnClickPendingIntent(R.id.calendar_summary_row, openCalendar)
+          views.addView(R.id.calendar_summary, more)
+        }
+      }
+
       return views
     }
 
-    private fun renderTodaySummary(
+    private fun summaryRow(
       context: Context,
-      views: RemoteViews,
-      snapshot: WidgetSnapshot?,
+      item: WidgetSnapshot.MonthItemRow,
       theme: WidgetSnapshot.ThemeBlock?,
       primary: Int,
       secondary: Int,
+      error: Int,
       accent: Int,
-    ) {
-      views.removeAllViews(R.id.calendar_summary)
-      val ui = snapshot?.ui()
-      val timeline = snapshot?.todayTimeline() ?: emptyList()
-      val actions = snapshot?.todayActions() ?: emptyList()
-      val rows = mutableListOf<RemoteViews>()
-
-      for (item in timeline.take(4)) {
-        val row = RemoteViews(context.packageName, R.layout.widget_calendar_summary_row)
-        row.setTextViewText(
-          R.id.calendar_summary_time,
-          WidgetSupport.formatTimeRange(
-            item.start,
-            item.end,
-            item.isAllDay,
-            ui?.allDay ?: "",
-          ),
-        )
-        row.setTextViewText(R.id.calendar_summary_title, item.summary)
-        WidgetSupport.textColor(
-          row,
-          R.id.calendar_summary_time,
-          theme,
-          "textSecondary",
-          secondary,
-        )
-        WidgetSupport.textColor(
-          row,
-          R.id.calendar_summary_title,
-          theme,
-          "textPrimary",
-          primary,
-        )
-        val uri = when {
-          item.kind == "taskAllocation" && (item.todoId ?: -1) > 0 ->
-            WidgetSupport.todoUri(item.todoId!!)
-          (item.eventId ?: -1) > 0 -> WidgetSupport.eventUri(item.eventId!!)
-          else -> null
-        }
-        if (uri != null) {
-          row.setOnClickPendingIntent(
-            R.id.calendar_summary_row,
-            WidgetSupport.openUri(context, uri, uri.toString().hashCode()),
-          )
-        }
-        rows.add(row)
+      ui: WidgetSnapshot.UiStrings?,
+      appWidgetId: Int,
+    ): RemoteViews {
+      val row = RemoteViews(context.packageName, R.layout.widget_calendar_summary_row)
+      val isDeadline = item.kind == "todoDeadline"
+      val time = when {
+        item.isAllDay -> ui?.allDay ?: context.getString(R.string.widget_all_day)
+        isDeadline && !item.hasTime -> "□"
+        else -> item.start
       }
+      row.setTextViewText(R.id.calendar_summary_time, time)
+      row.setTextViewText(R.id.calendar_summary_title, item.summary)
+      WidgetSupport.textColor(row, R.id.calendar_summary_time, theme, "textSecondary", secondary)
+      WidgetSupport.textColor(
+        row,
+        R.id.calendar_summary_title,
+        theme,
+        if (isDeadline && isOverdue(item)) "error" else "textPrimary",
+        if (isDeadline && isOverdue(item)) error else primary,
+      )
+      row.setViewVisibility(R.id.calendar_summary_marker, View.VISIBLE)
+      WidgetSupport.tint(
+        row,
+        R.id.calendar_summary_marker,
+        if (isDeadline) secondary else WidgetSupport.parseColor(item.color, accent),
+      )
 
-      for (action in actions.take(4)) {
-        val row = RemoteViews(context.packageName, R.layout.widget_calendar_summary_row)
-        row.setTextViewText(
-          R.id.calendar_summary_time,
-          action.deadline?.ifEmpty { null } ?: action.displayTime ?: "",
-        )
-        row.setTextViewText(R.id.calendar_summary_title, action.summary)
-        WidgetSupport.textColor(
-          row,
-          R.id.calendar_summary_time,
-          theme,
-          "textSecondary",
-          secondary,
-        )
-        WidgetSupport.textColor(
-          row,
-          R.id.calendar_summary_title,
-          theme,
-          "textPrimary",
-          primary,
-        )
-        if (action.todoId > 0) {
-          row.setOnClickPendingIntent(
-            R.id.calendar_summary_row,
-            WidgetSupport.openUri(
-              context,
-              WidgetSupport.todoUri(action.todoId),
-              action.todoId + 701,
-            ),
-          )
-        }
-        rows.add(row)
+      val uri = when {
+        item.kind == "eventOccurrence" && (item.eventId ?: -1) > 0 ->
+          WidgetSupport.eventUri(item.eventId!!)
+        (item.todoId ?: -1) > 0 -> WidgetSupport.todoUri(item.todoId!!)
+        else -> null
       }
-
-      if (rows.isEmpty()) {
-        val row = RemoteViews(context.packageName, R.layout.widget_calendar_summary_row)
-        row.setTextViewText(R.id.calendar_summary_time, "")
-        row.setTextViewText(
-          R.id.calendar_summary_title,
-          ui?.noPlans?.ifEmpty { null } ?: context.getString(R.string.widget_no_plans),
+      if (uri != null) {
+        row.setOnClickPendingIntent(
+          R.id.calendar_summary_row,
+          WidgetSupport.openUri(context, uri, (uri.toString().hashCode() + appWidgetId) and 0x7FFFFFFF),
         )
-        WidgetSupport.textColor(
-          row,
-          R.id.calendar_summary_title,
-          theme,
-          "textSecondary",
-          secondary,
-        )
-        rows.add(row)
       }
+      return row
+    }
 
-      for (row in rows) views.addView(R.id.calendar_summary, row)
+    private fun isOverdue(item: WidgetSnapshot.MonthItemRow): Boolean {
+      val due = item.startEpochMs ?: return false
+      return due < System.currentTimeMillis() && item.hasTime
     }
 
     private fun weekdayHeader(
@@ -325,6 +420,33 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       }
       return header
     }
+
+    private fun stateIntentEnterDay(
+      context: Context,
+      appWidgetId: Int,
+      dateIso: String,
+    ): android.app.PendingIntent {
+      val intent = Intent(context, WidgetActionReceiver::class.java).apply {
+        action = WidgetActionReceiver.ACTION_SET_CALENDAR_DATE
+        data = android.net.Uri.parse("dayspark://widget-state/$appWidgetId/day/$dateIso")
+        putExtra(WidgetActionReceiver.EXTRA_APP_WIDGET_ID, appWidgetId)
+        putExtra(WidgetActionReceiver.EXTRA_CALENDAR_DATE, dateIso)
+        putExtra(WidgetActionReceiver.EXTRA_ENTER_DAY, true)
+      }
+      return android.app.PendingIntent.getBroadcast(
+        context,
+        (appWidgetId * 149 + dateIso.hashCode()) and 0x7FFFFFFF,
+        intent,
+        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+      )
+    }
+
+    private fun parseIso(iso: String): Date? = runCatching {
+      SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }.parse(iso)
+    }.getOrNull()
+
+    private fun isoDate(year: Int, month: Int, day: Int): String =
+      String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
 
     private fun mondayFirstWeekday(year: Int, month: Int): Int {
       val dow = Calendar.getInstance().apply {

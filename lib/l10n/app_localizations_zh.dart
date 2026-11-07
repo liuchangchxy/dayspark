@@ -370,6 +370,75 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get widgetTodos => '待办';
+
+  @override
+  String get widgetAll => '全部';
+
+  @override
+  String get widgetNoTodos => '没有待办';
+
+  @override
+  String get widgetAllTodosDone => '今天的待办都完成了';
+
+  @override
+  String get widgetAllPlansDone => '今天的安排都完成了';
+
+  @override
+  String get widgetLater => '接下来';
+
+  @override
+  String get widgetDueToday => '今天要做';
+
+  @override
+  String widgetCompletedCount(int count) {
+    return '已完成 $count';
+  }
+
+  @override
+  String widgetMoreCount(int count) {
+    return '还有 $count 项';
+  }
+
+  @override
+  String widgetOverdueCount(int count) {
+    return '$count 项逾期';
+  }
+
+  @override
+  String get widgetSelectedDayEmpty => '这一天没有安排';
+
+  @override
+  String get widgetCompletedCountTemplate => '已完成 %n';
+
+  @override
+  String get widgetMoreCountTemplate => '还有 %n 项';
+
+  @override
+  String get widgetOverdueCountTemplate => '%n 项逾期';
+
+  @override
+  String get widgetBackToMonth => '月';
+
+  @override
+  String get widgetOpenToUpdate => '打开 DaySpark 以更新';
+
+  @override
+  String get widgetStale => '数据待更新';
+
+  @override
+  String get widgetAddTodo => '+ 待办';
+
+  @override
+  String get widgetAddEvent => '+ 日程';
+
+  @override
+  String get widgetQuickAddHint => '添加待办';
+
+  @override
+  String get widgetSaveFailed => '保存失败，请重试';
+
+  @override
   String get eventCreated => '日程已创建';
 
   @override

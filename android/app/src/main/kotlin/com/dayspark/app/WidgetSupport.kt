@@ -90,13 +90,47 @@ internal object WidgetSupport {
 
   fun eventUri(eventId: Int): Uri = Uri.parse("dayspark://open/event?id=$eventId")
 
+  fun actionUri(): Uri = Uri.parse("dayspark://open/action")
+
+  fun todosUri(view: String): Uri = Uri.parse("dayspark://open/todos?view=$view")
+
   fun calendarUri(dateIso: String): Uri =
     Uri.parse("dayspark://open/calendar?date=$dateIso")
 
-  val quickAddUri: Uri = Uri.parse("dayspark://open/new-todo")
+  fun quickAddUri(dateIso: String?): Uri =
+    if (dateIso.isNullOrEmpty()) {
+      Uri.parse("dayspark://quick-add")
+    } else {
+      Uri.parse("dayspark://quick-add?date=$dateIso")
+    }
 
   fun newEventUri(dateIso: String): Uri =
     Uri.parse("dayspark://open/new-event?date=$dateIso")
+
+  fun stateIntent(
+    context: Context,
+    appWidgetId: Int,
+    action: String,
+    extraKey: String? = null,
+    extraValue: String? = null,
+  ): PendingIntent {
+    val intent = Intent(context, WidgetActionReceiver::class.java).apply {
+      this.action = action
+      data = Uri.parse("dayspark://widget-state/$appWidgetId/$action/${extraValue ?: ""}")
+      putExtra(WidgetActionReceiver.EXTRA_APP_WIDGET_ID, appWidgetId)
+      if (extraKey != null && extraValue != null) putExtra(extraKey, extraValue)
+    }
+    val requestCode = (appWidgetId * 131 + action.hashCode() + (extraValue?.hashCode() ?: 0)) and 0x7FFFFFFF
+    return PendingIntent.getBroadcast(
+      context,
+      requestCode,
+      intent,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+  }
+
+  fun template(template: String, count: Int): String =
+    template.replace("{n}", count.toString())
 
   fun togglePendingIntent(
     context: Context,
@@ -175,6 +209,28 @@ internal object WidgetSupport {
       SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(iso)
     }.getOrNull() ?: return iso
     return SimpleDateFormat("MMM d", Locale.getDefault()).format(parsed)
+  }
+
+  fun formatDayTitle(iso: String): String {
+    val parsed = runCatching {
+      SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(iso)
+    }.getOrNull() ?: return iso
+    return SimpleDateFormat("MMM d EEE", Locale.getDefault()).format(parsed)
+  }
+
+  fun isLocalToday(iso: String): Boolean = iso == isoDate(Date())
+
+  fun rowBudget(
+    height: Int,
+    headerDp: Int,
+    footerDp: Int,
+    rowDp: Int,
+    min: Int,
+    max: Int,
+  ): Int {
+    if (height <= 0) return min
+    val available = height - headerDp - footerDp
+    return (available / rowDp).coerceIn(min, max)
   }
 
   fun formatWeekday(iso: String): String {

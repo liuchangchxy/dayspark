@@ -370,6 +370,75 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get widgetTodos => 'Tasks';
+
+  @override
+  String get widgetAll => 'All';
+
+  @override
+  String get widgetNoTodos => 'No tasks';
+
+  @override
+  String get widgetAllTodosDone => 'Today\'s tasks are done';
+
+  @override
+  String get widgetAllPlansDone => 'Today\'s plans are done';
+
+  @override
+  String get widgetLater => 'Later';
+
+  @override
+  String get widgetDueToday => 'To do today';
+
+  @override
+  String widgetCompletedCount(int count) {
+    return '$count completed';
+  }
+
+  @override
+  String widgetMoreCount(int count) {
+    return '$count more';
+  }
+
+  @override
+  String widgetOverdueCount(int count) {
+    return '$count overdue';
+  }
+
+  @override
+  String get widgetSelectedDayEmpty => 'Nothing on this day';
+
+  @override
+  String get widgetCompletedCountTemplate => '%n completed';
+
+  @override
+  String get widgetMoreCountTemplate => '%n more';
+
+  @override
+  String get widgetOverdueCountTemplate => '%n overdue';
+
+  @override
+  String get widgetBackToMonth => 'Month';
+
+  @override
+  String get widgetOpenToUpdate => 'Open DaySpark to update';
+
+  @override
+  String get widgetStale => 'Data needs updating';
+
+  @override
+  String get widgetAddTodo => '+ Task';
+
+  @override
+  String get widgetAddEvent => '+ Event';
+
+  @override
+  String get widgetQuickAddHint => 'Add a task';
+
+  @override
+  String get widgetSaveFailed => 'Save failed. Please try again.';
+
+  @override
   String get eventCreated => 'Event created';
 
   @override

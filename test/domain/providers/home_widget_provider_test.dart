@@ -40,6 +40,7 @@ void main() {
   });
 
   const channel = MethodChannel('home_widget');
+  const commandChannel = MethodChannel('com.dayspark.app/widget_commands');
   late Map<String, Object?> store;
   late AppDatabase testDb;
   late ProviderContainer container;
@@ -49,6 +50,7 @@ void main() {
   // fan-out of platform-channel calls inside a single refresh.
   late int flushes;
   late List<MethodCall> methodCalls;
+  late Map<String, String> pendingCommands;
 
   setUp(() async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -56,6 +58,7 @@ void main() {
     store = <String, Object?>{};
     flushes = 0;
     methodCalls = <MethodCall>[];
+    pendingCommands = <String, String>{};
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           methodCalls.add(call);
@@ -69,6 +72,25 @@ void main() {
               return true;
             case 'updateWidget':
             case 'setAppGroupId':
+              return true;
+            default:
+              return null;
+          }
+        });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(commandChannel, (call) async {
+          switch (call.method) {
+            case 'getPendingCommands':
+              return pendingCommands.entries
+                  .map(
+                    (entry) => <String, String>{
+                      'commandId': entry.key,
+                      'raw': entry.value,
+                    },
+                  )
+                  .toList();
+            case 'ackCommand':
+              pendingCommands.remove((call.arguments as Map)['commandId']);
               return true;
             default:
               return null;
@@ -103,6 +125,8 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(commandChannel, null);
     container.dispose();
     await testDb.close();
   });
@@ -141,8 +165,11 @@ void main() {
       'updateWidget',
       'updateWidget',
       'updateWidget',
-      'updateWidget',
     ]);
+    expect(
+      methodCalls.map((call) => (call.arguments as Map)['ios']).toList(),
+      HomeWidgetService.appleWidgetKinds,
+    );
   });
 
   test(
@@ -175,66 +202,73 @@ void main() {
 
       expect(HomeWidgetService.decodePendingTaps(storedSnapshot()), isEmpty);
       final written = jsonDecode(storedSnapshot()) as Map<String, dynamic>;
-      expect(written['version'], 4);
+      expect(written['version'], 5);
+      expect(written.containsKey('action'), isTrue);
+      expect(written.containsKey('todos'), isTrue);
     },
   );
 
-  test(
-    'flush without a consumer preserves native-appended pendingTaps',
-    () async {
-      final todoId = await insertTodo();
-      store[HomeWidgetService.snapshotKey] = jsonEncode({
-        'version': 2,
-        'pendingTaps': [
-          {
-            'todoId': todoId,
-            'action': 'complete',
-            'at': '2026-09-24T01:02:03.000Z',
-          },
-        ],
-      });
+  test('a legacy v4 blob is replaced by a v5 snapshot', () async {
+    final todoId = await insertTodo();
+    store[HomeWidgetService.snapshotKey] = jsonEncode({
+      'version': 4,
+      'pendingTaps': [
+        {
+          'todoId': todoId,
+          'action': 'complete',
+          'at': '2026-09-24T01:02:03.000Z',
+        },
+      ],
+    });
 
-      await HomeWidgetService.updateWidget(testDb);
+    await HomeWidgetService.updateWidget(testDb);
 
-      final taps = HomeWidgetService.decodePendingTaps(storedSnapshot());
-      expect(taps, hasLength(1));
-      expect(taps.single.todoId, todoId);
+    final written = jsonDecode(storedSnapshot()) as Map<String, dynamic>;
+    expect(written['version'], 5);
+    expect(written.containsKey('pendingTaps'), isFalse);
+    expect(written['today'], isA<String>());
 
-      final todo = await (testDb.select(
-        testDb.todos,
-      )..where((t) => t.id.equals(todoId))).getSingle();
-      expect(todo.status, 'NEEDS-ACTION');
-      expect(await testDb.select(testDb.syncOutbox).get(), isEmpty);
-    },
-  );
+    final todo = await (testDb.select(
+      testDb.todos,
+    )..where((t) => t.id.equals(todoId))).getSingle();
+    expect(todo.status, 'NEEDS-ACTION');
+    expect(await testDb.select(testDb.syncOutbox).get(), isEmpty);
+  });
 
-  test('write → native append → consume → clear full cycle', () async {
+  test('write → native command → consume → ack full cycle', () async {
     final todoId = await insertTodo();
 
-    // 1. App flush writes an empty channel.
+    // 1. App flush writes v5 and leaves the command queue empty.
     await container.read(updateHomeWidgetProvider)();
-    expect(HomeWidgetService.decodePendingTaps(storedSnapshot()), isEmpty);
-
-    // 2. Native appends a tap onto the stored snapshot (last-wins queue).
+    expect(pendingCommands, isEmpty);
     final stored = jsonDecode(storedSnapshot()) as Map<String, dynamic>;
-    (stored['pendingTaps'] as List).add({
-      'todoId': todoId,
+    expect(stored['version'], 5);
+
+    // 2. Native writes an independent command, not a snapshot mutation.
+    pendingCommands['cmd_1'] = jsonEncode({
+      'version': 1,
+      'commandId': 'cmd_1',
       'action': 'complete',
+      'target': 'todo',
+      'todoId': todoId,
       'at': '2026-09-24T05:00:00.000Z',
     });
-    store[HomeWidgetService.snapshotKey] = jsonEncode(stored);
-    expect(HomeWidgetService.decodePendingTaps(storedSnapshot()), hasLength(1));
+    final beforeCommand = storedSnapshot();
 
-    // 3. Next app flush consumes the tap through the complete path…
+    // 3. Next app flush consumes it through the complete path and acks it.
     await container.read(updateHomeWidgetProvider)();
 
-    // …and clears the channel for the next native append.
-    expect(HomeWidgetService.decodePendingTaps(storedSnapshot()), isEmpty);
+    expect(pendingCommands, isEmpty);
     final todo = await (testDb.select(
       testDb.todos,
     )..where((t) => t.id.equals(todoId))).getSingle();
     expect(todo.status, 'COMPLETED');
     expect(await testDb.select(testDb.syncOutbox).get(), hasLength(1));
+
+    // The command contract never rewrites through the snapshot channel.
+    final afterCommand = jsonDecode(storedSnapshot()) as Map<String, dynamic>;
+    expect(afterCommand['version'], 5);
+    expect(beforeCommand, isNot(equals(storedSnapshot())));
   });
 
   test(

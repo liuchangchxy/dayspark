@@ -8,4 +8,5 @@
     <color name="widget_accent">#2563EB</color>
     <color name="widget_border">#E0E0E0</color>
     <color name="widget_button_bg">#14000000</color>
+    <color name="widget_error">#BF3A32</color>
 </resources>

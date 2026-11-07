@@ -79,21 +79,27 @@
             android:label="@string/widget_today_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/today_widget_info" />
         </receiver>
         <receiver
-            android:name=".UpcomingWidgetProvider"
+            android:name=".TodoWidgetProvider"
             android:exported="true"
-            android:label="@string/widget_upcoming_name">
+            android:label="@string/widget_todos_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/upcoming_widget_info" />
+                android:resource="@xml/todo_widget_info" />
         </receiver>
         <receiver
             android:name=".CalendarWidgetProvider"
@@ -101,21 +107,13 @@
             android:label="@string/widget_calendar_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/calendar_widget_info" />
-        </receiver>
-        <receiver
-            android:name=".QuickActionsWidgetProvider"
-            android:exported="true"
-            android:label="@string/widget_quick_name">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/quick_actions_widget_info" />
         </receiver>
 
         <!-- Checkbox taps: append a typed command (never writes the DB) and

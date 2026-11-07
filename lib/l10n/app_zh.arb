@@ -127,6 +127,48 @@
       }
     }
   },
+  "widgetTodos": "待办",
+  "widgetAll": "全部",
+  "widgetNoTodos": "没有待办",
+  "widgetAllTodosDone": "今天的待办都完成了",
+  "widgetAllPlansDone": "今天的安排都完成了",
+  "widgetLater": "接下来",
+  "widgetDueToday": "今天要做",
+  "widgetCompletedCount": "已完成 {count}",
+  "@widgetCompletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetMoreCount": "还有 {count} 项",
+  "@widgetMoreCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetOverdueCount": "{count} 项逾期",
+  "@widgetOverdueCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetSelectedDayEmpty": "这一天没有安排",
+  "widgetCompletedCountTemplate": "已完成 %n",
+  "widgetMoreCountTemplate": "还有 %n 项",
+  "widgetOverdueCountTemplate": "%n 项逾期",
+  "widgetBackToMonth": "月",
+  "widgetOpenToUpdate": "打开 DaySpark 以更新",
+  "widgetStale": "数据待更新",
+  "widgetAddTodo": "+ 待办",
+  "widgetAddEvent": "+ 日程",
+  "widgetQuickAddHint": "添加待办",
+  "widgetSaveFailed": "保存失败，请重试",
   "eventCreated": "日程已创建",
   "todoCreated": "待办已创建",
   "importExport": "导入/导出",

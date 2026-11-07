@@ -15,6 +15,7 @@ import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
+import 'package:dayspark/ui/pages/todo/quick_add_page.dart';
 import 'package:dayspark/ui/pages/calendar/calendars_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
@@ -220,10 +221,28 @@ abstract final class AppRouter {
         pageBuilder: (context, state) {
           final tabParam = state.uri.queryParameters['tab'];
           final dateParam = state.uri.queryParameters['date'];
+          final viewParam = state.uri.queryParameters['view'];
           return _pageTransition(
             HomePage(
               initialTab: tabParam != null ? (int.tryParse(tabParam) ?? 0) : -1,
               initialDate: DateTime.tryParse(dateParam ?? ''),
+              initialTodoView: viewParam,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/quick-add',
+        name: 'quickAdd',
+        pageBuilder: (context, state) {
+          final date = DateTime.tryParse(
+            state.uri.queryParameters['date'] ?? '',
+          );
+          return _pageTransition(
+            QuickAddPage(
+              dueDate: date == null
+                  ? null
+                  : DateTime(date.year, date.month, date.day),
             ),
           );
         },
@@ -247,22 +266,19 @@ abstract final class AppRouter {
                 state.uri.queryParameters['date'] ?? '',
               );
               final now = DateTime.now();
+              final isToday =
+                  date != null &&
+                  date.year == now.year &&
+                  date.month == now.month &&
+                  date.day == now.day;
               final dateStart = date == null
                   ? null
                   : DateTime(
                       date.year,
                       date.month,
                       date.day,
-                      date.year == now.year &&
-                              date.month == now.month &&
-                              date.day == now.day
-                          ? now.hour
-                          : 9,
-                      date.year == now.year &&
-                              date.month == now.month &&
-                              date.day == now.day
-                          ? now.minute
-                          : 0,
+                      isToday ? (now.hour + 1).clamp(0, 23) : 9,
+                      0,
                     );
               return _pageTransition(
                 EventFormPage(

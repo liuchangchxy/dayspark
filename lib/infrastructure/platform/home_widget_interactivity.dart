@@ -6,8 +6,9 @@ import 'package:dayspark/core/router/app_router.dart';
 // locations, because go_router matches paths, not schemes.
 const String widgetDeepLinkScheme = 'dayspark';
 
-const String quickAddLocation = '/todo/new?source=widget';
+const String quickAddLocation = '/quick-add';
 const String todayLocation = '/?tab=0';
+const String todosLocation = '/?tab=2';
 const String calendarLocation = '/?tab=1';
 
 String? widgetDeepLinkLocation(Uri? uri) {
@@ -18,19 +19,27 @@ String? widgetDeepLinkLocation(Uri? uri) {
   if (uri.scheme.isEmpty) return _widgetPathLocation(uri);
   if (uri.scheme != widgetDeepLinkScheme) return null;
   if (uri.host == 'quick-add' || uri.path == '/quick-add') {
-    return quickAddLocation;
+    return _quickAddLocation(uri);
   }
   if (uri.host != 'open') return null;
   return _widgetPathLocation(uri);
+}
+
+String? _quickAddLocation(Uri uri) {
+  final date = _validDate(uri.queryParameters['date']);
+  return date == null ? quickAddLocation : '$quickAddLocation?date=$date';
 }
 
 String? _widgetPathLocation(Uri uri) {
   final segments = uri.pathSegments;
   final query = uri.queryParameters;
   if (segments.length == 1 && segments.first == 'quick-add') {
-    return quickAddLocation;
+    return _quickAddLocation(uri);
   }
   if (segments.length == 1 && segments.first == 'today') {
+    return todayLocation;
+  }
+  if (segments.length == 1 && segments.first == 'action') {
     return todayLocation;
   }
   if (segments.length == 1 && segments.first == 'home') {
@@ -40,8 +49,12 @@ String? _widgetPathLocation(Uri uri) {
     final date = _validDate(query['date']);
     return date == null ? calendarLocation : '$calendarLocation&date=$date';
   }
+  if (segments.length == 1 && segments.first == 'todos') {
+    final view = _todoView(query['view']);
+    return '$todosLocation&view=$view';
+  }
   if (segments.length == 1 && segments.first == 'new-todo') {
-    return quickAddLocation;
+    return _quickAddLocation(uri);
   }
   if (segments.length == 1 && segments.first == 'new-event') {
     final date = _validDate(query['date']);
@@ -49,14 +62,17 @@ String? _widgetPathLocation(Uri uri) {
   }
   if (segments.length == 1 && segments.first == 'todo') {
     final id = _positiveInt(query['id']);
-    return id == null ? '/?tab=2' : '/todo/detail?id=$id';
+    return id == null ? todosLocation : '/todo/detail?id=$id';
   }
   if (segments.length == 1 && segments.first == 'event') {
     final id = _positiveInt(query['id']);
-    return id == null ? '/?tab=1' : '/event/detail?id=$id';
+    return id == null ? calendarLocation : '/event/detail?id=$id';
   }
   return null;
 }
+
+String _todoView(String? raw) =>
+    raw == 'inbox' || raw == 'all' ? raw! : 'today';
 
 String? _validDate(String? raw) {
   if (raw == null) return null;

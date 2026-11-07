@@ -809,6 +809,132 @@ abstract class AppLocalizations {
   /// **'{count} pending'**
   String widgetPendingCount(int count);
 
+  /// No description provided for @widgetTodos.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get widgetTodos;
+
+  /// No description provided for @widgetAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get widgetAll;
+
+  /// No description provided for @widgetNoTodos.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks'**
+  String get widgetNoTodos;
+
+  /// No description provided for @widgetAllTodosDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s tasks are done'**
+  String get widgetAllTodosDone;
+
+  /// No description provided for @widgetAllPlansDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s plans are done'**
+  String get widgetAllPlansDone;
+
+  /// No description provided for @widgetLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get widgetLater;
+
+  /// No description provided for @widgetDueToday.
+  ///
+  /// In en, this message translates to:
+  /// **'To do today'**
+  String get widgetDueToday;
+
+  /// No description provided for @widgetCompletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} completed'**
+  String widgetCompletedCount(int count);
+
+  /// No description provided for @widgetMoreCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more'**
+  String widgetMoreCount(int count);
+
+  /// No description provided for @widgetOverdueCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overdue'**
+  String widgetOverdueCount(int count);
+
+  /// No description provided for @widgetSelectedDayEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this day'**
+  String get widgetSelectedDayEmpty;
+
+  /// No description provided for @widgetCompletedCountTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'%n completed'**
+  String get widgetCompletedCountTemplate;
+
+  /// No description provided for @widgetMoreCountTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'%n more'**
+  String get widgetMoreCountTemplate;
+
+  /// No description provided for @widgetOverdueCountTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'%n overdue'**
+  String get widgetOverdueCountTemplate;
+
+  /// No description provided for @widgetBackToMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get widgetBackToMonth;
+
+  /// No description provided for @widgetOpenToUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Open DaySpark to update'**
+  String get widgetOpenToUpdate;
+
+  /// No description provided for @widgetStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Data needs updating'**
+  String get widgetStale;
+
+  /// No description provided for @widgetAddTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Task'**
+  String get widgetAddTodo;
+
+  /// No description provided for @widgetAddEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Event'**
+  String get widgetAddEvent;
+
+  /// No description provided for @widgetQuickAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a task'**
+  String get widgetQuickAddHint;
+
+  /// No description provided for @widgetSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed. Please try again.'**
+  String get widgetSaveFailed;
+
   /// No description provided for @eventCreated.
   ///
   /// In en, this message translates to:

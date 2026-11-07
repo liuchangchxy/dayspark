@@ -2,270 +2,398 @@ package com.dayspark.app
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-// JVM-level codec tests: verifies v3 parsing, typed command queue operations,
-// and v2 backward-compatibility contracts.
+// JVM-level codec tests for the v5 snapshot contract. Native widgets only ever
+// read this blob; commands live in independent SharedPreferences keys.
 class WidgetSnapshotCodecTest {
 
-  private fun snapshotV2Json(
-    pendingTaps: String = "[]",
-    todoId: Int? = 7,
-  ): String {
-    val todo = if (todoId != null) {
-      """{"id":$todoId,"summary":"Write tests","dueDate":"9/30"}"""
-    } else {
-      """{"summary":"Write tests","dueDate":"9/30"}"""
-    }
+  private fun snapshotV5Json(): String {
     return """
       {
-        "version": 2,
-        "generatedAt": "2026-09-24T04:00:00Z",
-        "todayEvents": [{"summary":"Standup","start":"10:00","isAllDay":false}],
-        "pendingTodos": [$todo],
-        "todoCount": 1,
-        "upcoming": {"events":[],"todos":[]},
-        "pendingTaps": $pendingTaps,
-        "monthDots": [[3, true], [15, true]],
-        "ui": {"locale":"en","title":"DaySpark","today":"Today","events":"Events",
-               "todos":"Todos","allDay":"All day","todayEventsHeader":"Today's Events",
-               "noEvents":"No events","allDone":"All done","pendingCount":"1 pending",
-               "quickAdd":"Quick add","upcoming":"Upcoming"},
-        "theme": {"dark":true,"colors":{"background":"#121212","surface":"#1E1E1E",
-                  "textPrimary":"#FFFFFF","textSecondary":"#9E9E9E",
-                  "accent":"#90CAF9","border":"#333333"}}
-      }
-    """.trimIndent()
-  }
-
-  private fun snapshotV3Json(): String {
-    return """
-      {
-        "version": 3,
-        "generatedAt": "2026-10-07T00:00:00Z",
-        "today": {
+        "version": 5,
+        "generatedAt": "2026-10-07T02:00:00.000Z",
+        "today": "2026-10-07",
+        "action": {
           "timeline": [
             {
               "kind": "eventOccurrence",
-              "id": "event_101",
+              "eventId": 101,
+              "calendarId": 1,
               "summary": "Team Sync",
               "start": "10:00",
               "end": "11:00",
-              "isAllDay": false
+              "startEpochMs": 1791357600000,
+              "endEpochMs": 1791361200000,
+              "isAllDay": false,
+              "color": "#2457D6"
             },
             {
               "kind": "taskAllocation",
-              "allocationId": "alloc_201",
+              "allocationId": "201",
               "todoId": 10,
               "todoSyncId": "todo_sync_10",
               "occurrenceId": null,
               "summary": "Deep Work",
               "start": "14:00",
               "end": "15:00",
+              "startEpochMs": 1791372000000,
+              "endEpochMs": 1791375600000,
               "isAllDay": false
             }
           ],
-          "actions": [
+          "dueToday": [
             {
               "kind": "todoDeadline",
+              "target": "todo",
               "todoId": 11,
               "todoSyncId": "todo_sync_11",
+              "occurrenceId": null,
               "summary": "Submit Taxes",
-              "deadline": "10/7",
-              "target": "todo"
+              "priority": 2,
+              "dueDate": "2026-10-07",
+              "dueEpochMs": 1791358800000,
+              "displayTime": ""
             },
             {
               "kind": "taskInstance",
+              "target": "taskInstance",
               "todoId": 12,
               "todoSyncId": "todo_sync_12",
-              "occurrenceId": "2026-10-07T09:00:00.000Z",
+              "occurrenceId": "occ_2026_10_07",
               "summary": "Standup Notes",
-              "displayTime": "09:00",
-              "target": "taskInstance"
+              "priority": 0,
+              "displayTime": "09:00"
             }
           ],
-          "status": {
-            "overdueCount": 1,
-            "missedCount": 0,
-            "unplannedCount": 3
+          "overdue": [
+            {
+              "kind": "todoDeadline",
+              "target": "todo",
+              "todoId": 13,
+              "todoSyncId": null,
+              "occurrenceId": null,
+              "summary": "Late Report",
+              "priority": 1,
+              "dueDate": "2026-10-05",
+              "dueEpochMs": 1791187200000,
+              "displayTime": ""
+            }
+          ],
+          "counts": {"dueToday": 2, "overdue": 1, "completedToday": 3}
+        },
+        "todos": {
+          "today": {
+            "sixThingsCap": 6,
+            "items": [
+              {
+                "todoId": 21,
+                "todoSyncId": "todo_sync_21",
+                "summary": "Write spec",
+                "priority": 3,
+                "dueDate": "2026-10-07",
+                "dueEpochMs": 1791358800000,
+                "hasTime": false,
+                "recurring": false,
+                "tagColors": ["#2457D6", "#BF3A32"]
+              },
+              {
+                "todoId": 22,
+                "todoSyncId": null,
+                "summary": "Daily review",
+                "priority": 0,
+                "hasTime": false,
+                "recurring": true,
+                "tagColors": []
+              }
+            ],
+            "overdue": [
+              {
+                "todoId": 23,
+                "todoSyncId": null,
+                "summary": "Overdue item",
+                "priority": 0,
+                "dueDate": "2026-10-01",
+                "hasTime": false,
+                "recurring": false,
+                "tagColors": []
+              }
+            ],
+            "completedCount": 2,
+            "total": 2
+          },
+          "inbox": {
+            "items": [
+              {
+                "todoId": 24,
+                "todoSyncId": null,
+                "summary": "Inbox item",
+                "priority": 0,
+                "hasTime": false,
+                "recurring": false,
+                "tagColors": []
+              }
+            ],
+            "total": 1
+          },
+          "all": {
+            "items": [
+              {
+                "todoId": 21,
+                "todoSyncId": "todo_sync_21",
+                "summary": "Write spec",
+                "priority": 3,
+                "dueDate": "2026-10-07",
+                "hasTime": false,
+                "recurring": false,
+                "tagColors": []
+              }
+            ],
+            "total": 4
           }
         },
-        "upcoming": {
-          "items": [
+        "month": {
+          "year": 2026,
+          "month": 10,
+          "firstWeekday": 4,
+          "today": 7,
+          "days": [
             {
-              "kind": "eventOccurrence",
-              "summary": "Board Meeting",
-              "date": "10/8",
-              "time": "09:00",
-              "isAllDay": false
-            },
-            {
-              "kind": "taskAllocation",
-              "summary": "Write Report",
-              "date": "10/9",
-              "time": "14:00 - 15:30",
-              "isAllDay": false
+              "day": 7,
+              "hasEvent": true,
+              "hasTodo": true,
+              "hasAllocation": false,
+              "colors": ["#2457D6"],
+              "itemCount": 2,
+              "items": [
+                {
+                  "kind": "eventOccurrence",
+                  "eventId": 101,
+                  "summary": "Team Sync",
+                  "start": "10:00",
+                  "end": "11:00",
+                  "startEpochMs": 1791357600000,
+                  "endEpochMs": 1791361200000,
+                  "isAllDay": false,
+                  "hasTime": true,
+                  "color": "#2457D6"
+                },
+                {
+                  "kind": "todoDeadline",
+                  "todoId": 11,
+                  "summary": "Submit Taxes",
+                  "start": "",
+                  "hasTime": false,
+                  "startEpochMs": 1791358800000
+                }
+              ]
             }
           ]
         },
-        "monthDots": [[7, true], [8, true]],
-        "ui": {"locale":"en","title":"DaySpark","today":"Today","events":"Events",
-               "todos":"Todos","allDay":"All day","todayEventsHeader":"Today's Events",
-               "noEvents":"No events","allDone":"All done","pendingCount":"2 pending",
-               "quickAdd":"Quick add","upcoming":"Upcoming",
-               "overdue":"Overdue","missed":"Missed","unplanned":"Inbox"},
-        "theme": {"dark":true,"colors":{"background":"#121212","surface":"#1E1E1E",
-                  "textPrimary":"#FFFFFF","textSecondary":"#9E9E9E",
-                  "accent":"#90CAF9","border":"#333333"}}
+        "ui": {
+          "locale": "en",
+          "today": "Today",
+          "inbox": "Inbox",
+          "all": "All",
+          "noTodos": "No tasks",
+          "allTodosDone": "All tasks done today",
+          "noPlans": "No plans for today",
+          "allPlansDone": "All plans done",
+          "now": "Now",
+          "later": "Later",
+          "dueToday": "Due today",
+          "overdue": "Overdue",
+          "completedCount": "{n} completed",
+          "moreCount": "{n} more",
+          "overdueCount": "{n} overdue",
+          "selectedDayEmpty": "Nothing on this day",
+          "backToMonth": "Month",
+          "openToUpdate": "Open DaySpark to update",
+          "stale": "Data needs updating",
+          "addTodo": "+ Task",
+          "addEvent": "+ Event",
+          "quickAddHint": "Add a task",
+          "quickAddToday": "Today",
+          "quickAddInbox": "Inbox",
+          "save": "Save",
+          "saveFailed": "Save failed",
+          "allDay": "All day"
+        },
+        "theme": {
+          "dark": true,
+          "colors": {
+            "background": "#121212",
+            "surface": "#1E1E1E",
+            "textPrimary": "#FFFFFF",
+            "textSecondary": "#9E9E9E",
+            "accent": "#0A84FF",
+            "border": "#333333",
+            "error": "#FF453A",
+            "warning": "#FF9F0A"
+          }
+        }
+      }
+    """.trimIndent()
+  }
+
+  private fun snapshotV4Json(): String {
+    return """
+      {
+        "version": 4,
+        "generatedAt": "2026-10-07T02:00:00.000Z",
+        "today": {"date": "2026-10-07", "timeline": [], "actions": [], "status": {}},
+        "upcoming": {"items": []},
+        "monthDots": [],
+        "ui": {"locale": "en", "title": "DaySpark"},
+        "theme": {"dark": false, "colors": {}}
       }
     """.trimIndent()
   }
 
   @Test
-  fun `parses v3 snapshot timeline, actions and upcoming items`() {
-    val snapshot = WidgetSnapshot.parse(snapshotV3Json())
+  fun `parses v5 action block`() {
+    val snapshot = WidgetSnapshot.parse(snapshotV5Json())
     assertNotNull(snapshot)
-    assertEquals(3, snapshot!!.version)
+    assertEquals(5, snapshot!!.version)
+    assertEquals("2026-10-07", snapshot.todayIso())
 
-    val timeline = snapshot.todayTimeline()
-    assertEquals(2, timeline.size)
-    assertEquals("eventOccurrence", timeline[0].kind)
-    assertEquals("Team Sync", timeline[0].summary)
-    assertEquals("10:00", timeline[0].start)
-    assertEquals("taskAllocation", timeline[1].kind)
-    assertEquals("Deep Work", timeline[1].summary)
-    assertEquals("alloc_201", timeline[1].allocationId)
-    assertEquals(10, timeline[1].todoId)
-    assertEquals("todo_sync_10", timeline[1].todoSyncId)
-    assertNull(timeline[1].occurrenceId)
+    val action = snapshot.action()
+    assertEquals(2, action.timeline.size)
+    assertEquals("eventOccurrence", action.timeline[0].kind)
+    assertEquals("Team Sync", action.timeline[0].summary)
+    assertEquals(101, action.timeline[0].eventId)
+    assertEquals("#2457D6", action.timeline[0].color)
+    assertEquals(1791357600000L, action.timeline[0].startEpochMs)
 
-    val actions = snapshot.todayActions()
-    assertEquals(2, actions.size)
-    assertEquals("todoDeadline", actions[0].kind)
-    assertEquals("todo", actions[0].target)
-    assertEquals(11, actions[0].todoId)
-    assertEquals("Submit Taxes", actions[0].summary)
+    assertEquals("taskAllocation", action.timeline[1].kind)
+    assertEquals("201", action.timeline[1].allocationId)
+    assertEquals(10, action.timeline[1].todoId)
+    assertNull(action.timeline[1].occurrenceId)
 
-    assertEquals("taskInstance", actions[1].kind)
-    assertEquals("taskInstance", actions[1].target)
-    assertEquals(12, actions[1].todoId)
-    assertEquals("2026-10-07T09:00:00.000Z", actions[1].occurrenceId)
-    assertEquals("09:00", actions[1].displayTime)
+    assertEquals(2, action.dueToday.size)
+    assertEquals("todoDeadline", action.dueToday[0].kind)
+    assertEquals("todo", action.dueToday[0].target)
+    assertEquals(2, action.dueToday[0].priority)
+    assertEquals("taskInstance", action.dueToday[1].target)
+    assertEquals("occ_2026_10_07", action.dueToday[1].occurrenceId)
 
-    val upcoming = snapshot.upcomingItems()
-    assertEquals(2, upcoming.size)
-    assertEquals("Board Meeting", upcoming[0].summary)
-    assertEquals("Write Report", upcoming[1].summary)
+    assertEquals(1, action.overdue.size)
+    assertEquals(13, action.overdue[0].todoId)
 
-    assertEquals(setOf(7, 8), snapshot.monthDots())
-
-    val ui = snapshot.ui()
-    assertNotNull(ui)
-    assertEquals("Overdue", ui!!.overdue)
-    assertEquals("Missed", ui.missed)
-    assertEquals("Inbox", ui.unplanned)
+    assertEquals(2, action.counts.dueToday)
+    assertEquals(1, action.counts.overdue)
+    assertEquals(3, action.counts.completedToday)
   }
 
   @Test
-  fun `parses v3 snapshot todayStatus correctly`() {
-    val snapshot = WidgetSnapshot.parse(snapshotV3Json())
-    assertNotNull(snapshot)
-    val status = snapshot!!.todayStatus()
-    assertEquals(1, status.overdueCount)
-    assertEquals(0, status.missedCount)
-    assertEquals(3, status.unplannedCount)
+  fun `parses v5 todos block including recurring and tags`() {
+    val todos = WidgetSnapshot.parse(snapshotV5Json())!!.todos()
+
+    assertEquals(2, todos.today.items.size)
+    assertEquals(1, todos.today.overdue.size)
+    assertEquals(2, todos.today.completedCount)
+    assertEquals(2, todos.today.total)
+    assertEquals(6, todos.today.sixThingsCap)
+
+    val first = todos.today.items[0]
+    assertEquals(21, first.todoId)
+    assertEquals(3, first.priority)
+    assertEquals(listOf("#2457D6", "#BF3A32"), first.tagColors)
+    assertFalse(first.recurring)
+
+    val recurring = todos.today.items[1]
+    assertTrue(recurring.recurring)
+    assertNull(recurring.dueDate)
+
+    assertEquals(1, todos.inbox.items.size)
+    assertEquals(24, todos.inbox.items[0].todoId)
+    assertEquals(4, todos.all.total)
+    assertTrue(todos.inbox.overdue.isEmpty())
+    assertTrue(todos.all.overdue.isEmpty())
   }
 
   @Test
-  fun `parses v2 snapshot fields`() {
-    val snapshot = WidgetSnapshot.parse(snapshotV2Json())
-    assertNotNull(snapshot)
-    assertEquals(1, snapshot!!.pendingTodos().size)
-    assertEquals(7, snapshot.pendingTodos()[0].id)
-    assertEquals(1, snapshot.todayEvents().size)
-    assertEquals(setOf(3, 15), snapshot.monthDots())
-    assertEquals(emptySet<Int>(), snapshot.pendingTapTodoIds())
-    val theme = snapshot.theme()
-    assertNotNull(theme)
-    assertTrue(theme!!.dark)
-    assertEquals(0xFFFFFFFF.toInt(), theme.colors["textPrimary"])
+  fun `parses v5 month days and items`() {
+    val month = WidgetSnapshot.parse(snapshotV5Json())!!.month()
+    assertNotNull(month)
+    assertEquals(2026, month!!.year)
+    assertEquals(10, month.month)
+    assertEquals(4, month.firstWeekday)
+    assertEquals(7, month.today)
+    assertEquals(1, month.days.size)
 
-    // v3 accessors fall back cleanly for v2 snapshot
-    val timeline = snapshot.todayTimeline()
-    assertEquals(1, timeline.size)
-    assertEquals("Standup", timeline[0].summary)
+    val day = month.days[0]
+    assertEquals(7, day.day)
+    assertTrue(day.hasEvent)
+    assertTrue(day.hasTodo)
+    assertFalse(day.hasAllocation)
+    assertEquals(listOf("#2457D6"), day.colors)
+    assertEquals(2, day.itemCount)
+    assertEquals(2, day.items.size)
 
-    val actions = snapshot.todayActions()
-    assertEquals(1, actions.size)
-    assertEquals("Write tests", actions[0].summary)
-    assertEquals(7, actions[0].todoId)
+    val event = day.items[0]
+    assertEquals("eventOccurrence", event.kind)
+    assertEquals(101, event.eventId)
+    assertEquals("10:00", event.start)
+
+    val deadline = day.items[1]
+    assertEquals("todoDeadline", deadline.kind)
+    assertEquals(11, deadline.todoId)
+    assertFalse(deadline.hasTime)
+    assertEquals("", deadline.start)
   }
 
   @Test
-  fun `rejects missing or pre-v2 snapshots`() {
+  fun `rejects pre-v5 snapshots`() {
     assertNull(WidgetSnapshot.parse(null))
     assertNull(WidgetSnapshot.parse(""))
     assertNull(WidgetSnapshot.parse("not json"))
     assertNull(WidgetSnapshot.parse("""{"version":1}"""))
+    assertNull(WidgetSnapshot.parse(snapshotV4Json()))
   }
 
   @Test
-  fun `append adds a pendingTap without touching other fields`() {
-    val updated = WidgetSnapshot.appendPendingTap(
-      snapshotV2Json(),
-      todoId = 7,
-      atIso = "2026-09-24T08:00:00Z",
-    )
-    assertNotNull(updated)
-    val json = JSONObject(updated!!)
-    assertEquals(2, json.getInt("version"))
-    assertEquals("Standup", json.getJSONArray("todayEvents").getJSONObject(0).getString("summary"))
-    assertEquals(1, json.getInt("todoCount"))
-    val taps = json.getJSONArray("pendingTaps")
-    assertEquals(1, taps.length())
-    val tap = taps.getJSONObject(0)
-    assertEquals(7, tap.getInt("todoId"))
-    assertEquals("complete", tap.getString("action"))
-    assertEquals("2026-09-24T08:00:00Z", tap.getString("at"))
+  fun `ui templates substitute counts and theme carries error plus warning`() {
+    val snapshot = WidgetSnapshot.parse(snapshotV5Json())!!
+    val ui = snapshot.ui()
+    assertNotNull(ui)
+    assertEquals("2 completed", ui!!.withCount(ui.completedCount, 2))
+    assertEquals("3 more", ui.withCount(ui.moreCount, 3))
+    assertEquals("1 overdue", ui.withCount(ui.overdueCount, 1))
+
+    val theme = snapshot.theme()
+    assertNotNull(theme)
+    assertTrue(theme!!.dark)
+    assertEquals(0xFFFF453A.toInt(), theme.colors["error"])
+    assertEquals(0xFFFF9F0A.toInt(), theme.colors["warning"])
+    assertEquals(0xFF0A84FF.toInt(), theme.colors["accent"])
   }
 
   @Test
-  fun `re-tap on same todo is last-wins, distinct todos accumulate`() {
-    var updated = WidgetSnapshot.appendPendingTap(
-      snapshotV2Json(),
-      todoId = 7,
-      atIso = "2026-09-24T08:00:00Z",
-    )!!
-    updated = WidgetSnapshot.appendPendingTap(updated, 9, "2026-09-24T08:01:00Z")!!
-    // Re-tap 7: the older 7 entry is replaced, 9 stays.
-    updated = WidgetSnapshot.appendPendingTap(updated, 7, "2026-09-24T08:02:00Z")!!
-
-    val taps = JSONObject(updated).getJSONArray("pendingTaps")
-    assertEquals(2, taps.length())
-    val first = taps.getJSONObject(0)
-    val second = taps.getJSONObject(1)
-    // Order: surviving 9 first (7's old slot dropped), fresh 7 appended.
-    assertEquals(9, first.getInt("todoId"))
-    assertEquals(7, second.getInt("todoId"))
-    assertEquals("2026-09-24T08:02:00Z", second.getString("at"))
-  }
-
-  @Test
-  fun `append refuses corrupt or missing blobs`() {
-    assertNull(WidgetSnapshot.appendPendingTap(null, 1, "now"))
-    assertNull(WidgetSnapshot.appendPendingTap("", 1, "now"))
-    assertNull(WidgetSnapshot.appendPendingTap("not json", 1, "now"))
-  }
-
-  @Test
-  fun `legacy snapshot without ids parses but yields null todo ids`() {
-    val snapshot = WidgetSnapshot.parse(snapshotV2Json(todoId = null))
+  fun `missing blocks degrade to empty rather than crashing`() {
+    val snapshot = WidgetSnapshot.parse("""{"version":5,"today":"2026-10-07"}""")
     assertNotNull(snapshot)
-    assertNull(snapshot!!.pendingTodos()[0].id)
-    assertTrue(snapshot.pendingTapTodoIds().isEmpty())
+    assertEquals("2026-10-07", snapshot!!.todayIso())
+    assertTrue(snapshot.action().timeline.isEmpty())
+    assertTrue(snapshot.action().dueToday.isEmpty())
+    assertEquals(0, snapshot.action().counts.dueToday)
+    assertTrue(snapshot.todos().today.items.isEmpty())
+    assertNull(snapshot.month())
+    assertNull(snapshot.ui())
+    assertNull(snapshot.theme())
+  }
+
+  @Test
+  fun `normalized selected date resets outside the current month`() {
+    val today = WidgetStateStore.todayIso()
+    assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState()))
+    assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState(selectedDate = "bad")))
+    assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState(selectedDate = "2001-01-01")))
+    assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState(selectedDate = today)))
   }
 
   @Test

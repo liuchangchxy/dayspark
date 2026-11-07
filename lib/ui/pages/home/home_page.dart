@@ -53,11 +53,13 @@ import 'package:dayspark/core/theme/app_typography.dart';
 class HomePage extends ConsumerStatefulWidget {
   final int initialTab;
   final DateTime? initialDate;
+  final String? initialTodoView;
   final DateTime Function()? clock;
   const HomePage({
     super.key,
     this.initialTab = -1,
     this.initialDate,
+    this.initialTodoView,
     this.clock,
   });
 
@@ -93,6 +95,7 @@ class _HomePageState extends ConsumerState<HomePage>
   void initState() {
     super.initState();
     _initCurrentTab();
+    _applyInitialTodoView();
     final initialDate = widget.initialDate;
     if (initialDate != null) {
       Future.microtask(() {
@@ -113,6 +116,9 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void didUpdateWidget(covariant HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.initialTodoView != oldWidget.initialTodoView) {
+      _applyInitialTodoView();
+    }
     if (widget.initialTab >= 0 && widget.initialTab != oldWidget.initialTab) {
       Future.microtask(() {
         if (mounted) {
@@ -160,6 +166,21 @@ class _HomePageState extends ConsumerState<HomePage>
       if (mounted) {
         ref.read(workspaceTabProvider.notifier).state = AppTab.values[index];
       }
+    });
+  }
+
+  void _applyInitialTodoView() {
+    final raw = widget.initialTodoView;
+    if (raw == null || raw.isEmpty) return;
+    final view = switch (raw) {
+      'inbox' => const TodosInboxView(),
+      'all' => const TodosAllView(),
+      'today' => TodosDayView(DateTime.now()),
+      _ => null,
+    };
+    if (view == null) return;
+    Future.microtask(() {
+      if (mounted) ref.read(todosViewProvider.notifier).state = view;
     });
   }
 

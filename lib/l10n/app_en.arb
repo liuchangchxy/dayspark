@@ -134,6 +134,48 @@
       }
     }
   },
+  "widgetTodos": "Tasks",
+  "widgetAll": "All",
+  "widgetNoTodos": "No tasks",
+  "widgetAllTodosDone": "Today's tasks are done",
+  "widgetAllPlansDone": "Today's plans are done",
+  "widgetLater": "Later",
+  "widgetDueToday": "To do today",
+  "widgetCompletedCount": "{count} completed",
+  "@widgetCompletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetMoreCount": "{count} more",
+  "@widgetMoreCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetOverdueCount": "{count} overdue",
+  "@widgetOverdueCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetSelectedDayEmpty": "Nothing on this day",
+  "widgetCompletedCountTemplate": "%n completed",
+  "widgetMoreCountTemplate": "%n more",
+  "widgetOverdueCountTemplate": "%n overdue",
+  "widgetBackToMonth": "Month",
+  "widgetOpenToUpdate": "Open DaySpark to update",
+  "widgetStale": "Data needs updating",
+  "widgetAddTodo": "+ Task",
+  "widgetAddEvent": "+ Event",
+  "widgetQuickAddHint": "Add a task",
+  "widgetSaveFailed": "Save failed. Please try again.",
   "eventCreated": "Event created",
   "todoCreated": "Task created",
   "importExport": "Import / Export",

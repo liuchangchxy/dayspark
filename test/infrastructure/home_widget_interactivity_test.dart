@@ -12,7 +12,7 @@ import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_interactivity.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
+import 'package:dayspark/ui/pages/todo/quick_add_page.dart';
 
 import '../helpers/test_database.dart';
 
@@ -71,7 +71,17 @@ void main() {
       widgetDeepLinkLocation(Uri.parse('dayspark://quick-add')),
       quickAddLocation,
     );
-    expect(quickAddLocation, '/todo/new?source=widget');
+    expect(quickAddLocation, '/quick-add');
+    expect(
+      widgetDeepLinkLocation(
+        Uri.parse('dayspark://quick-add?date=2026-11-07'),
+      ),
+      '/quick-add?date=2026-11-07',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://quick-add?date=bad')),
+      '/quick-add',
+    );
     expect(
       widgetDeepLinkLocation(Uri.parse('dayspark:///quick-add')),
       quickAddLocation,
@@ -86,6 +96,10 @@ void main() {
     expect(
       widgetDeepLinkLocation(Uri.parse('dayspark://open/today')),
       todayLocation,
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/action')),
+      '/?tab=0',
     );
     expect(widgetDeepLinkLocation(Uri.parse('dayspark://open/home')), '/');
     expect(
@@ -109,6 +123,22 @@ void main() {
     expect(
       widgetDeepLinkLocation(Uri.parse('dayspark://open/todo?id=0')),
       '/?tab=2',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/todos?view=inbox')),
+      '/?tab=2&view=inbox',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/todos?view=all')),
+      '/?tab=2&view=all',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/todos?view=today')),
+      '/?tab=2&view=today',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('dayspark://open/todos?view=bad')),
+      '/?tab=2&view=today',
     );
     expect(
       widgetDeepLinkLocation(Uri.parse('dayspark://open/event?id=7')),
@@ -140,6 +170,7 @@ void main() {
 
   test('Android cold-start path-only routes resolve too', () {
     expect(widgetDeepLinkLocation(Uri.parse('/today')), todayLocation);
+    expect(widgetDeepLinkLocation(Uri.parse('/action')), '/?tab=0');
     expect(widgetDeepLinkLocation(Uri.parse('/home')), '/');
     expect(
       widgetDeepLinkLocation(Uri.parse('/calendar?date=2026-11-07')),
@@ -156,6 +187,14 @@ void main() {
     expect(widgetDeepLinkLocation(Uri.parse('/new-todo')), quickAddLocation);
     expect(widgetDeepLinkLocation(Uri.parse('/quick-add')), quickAddLocation);
     expect(
+      widgetDeepLinkLocation(Uri.parse('/quick-add?date=2026-11-07')),
+      '/quick-add?date=2026-11-07',
+    );
+    expect(
+      widgetDeepLinkLocation(Uri.parse('/todos?view=inbox')),
+      '/?tab=2&view=inbox',
+    );
+    expect(
       widgetDeepLinkLocation(Uri.parse('/new-event?date=2026-11-07')),
       '/event/new?date=2026-11-07',
     );
@@ -167,7 +206,7 @@ void main() {
     );
   });
 
-  testWidgets('quick-add location resolves to TodoFormPage with source', (
+  testWidgets('quick-add location resolves to the minimal capture page', (
     tester,
   ) async {
     AppRouter.router.go('/');
@@ -177,8 +216,13 @@ void main() {
     AppRouter.router.go(quickAddLocation);
     await settle(tester);
 
-    final page = tester.widget<TodoFormPage>(find.byType(TodoFormPage));
-    expect(page.source, 'widget');
+    final page = tester.widget<QuickAddPage>(find.byType(QuickAddPage));
+    expect(page.dueDate, isNull);
+
+    AppRouter.router.go('$quickAddLocation?date=2026-11-07');
+    await settle(tester);
+    final dated = tester.widget<QuickAddPage>(find.byType(QuickAddPage));
+    expect(dated.dueDate, DateTime(2026, 11, 7));
 
     await teardownTree(tester);
   });
@@ -193,8 +237,7 @@ void main() {
     await widgetInteractivityCallback(Uri.parse('dayspark://quick-add'));
     await settle(tester);
 
-    final page = tester.widget<TodoFormPage>(find.byType(TodoFormPage));
-    expect(page.source, 'widget');
+    expect(find.byType(QuickAddPage), findsOneWidget);
 
     expect(await testDb.select(testDb.todos).get(), isEmpty);
     expect(await testDb.select(testDb.syncOutbox).get(), isEmpty);
@@ -210,7 +253,7 @@ void main() {
     await widgetInteractivityCallback(Uri.parse('dayspark://boom'));
     await settle(tester);
 
-    expect(find.byType(TodoFormPage), findsNothing);
+    expect(find.byType(QuickAddPage), findsNothing);
     expect(await testDb.select(testDb.todos).get(), isEmpty);
     expect(await testDb.select(testDb.syncOutbox).get(), isEmpty);
 

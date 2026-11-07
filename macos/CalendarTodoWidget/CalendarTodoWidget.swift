@@ -2,15 +2,17 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-// MARK: - Snapshot v4 contract
-// Mirrors lib/infrastructure/platform/home_widget_service.dart. Every field
-// the host may omit is optional so a v3 blob still decodes.
+// MARK: - Snapshot v5 contract
+// Mirrors lib/infrastructure/platform/home_widget_service.dart. Missing fields
+// decode as nil so a partially-written blob can never crash the extension.
 
 struct WidgetTimelineItem: Decodable {
     let kind: String
     let summary: String
-    let start: String
+    let start: String?
     let end: String?
+    let startEpochMs: Int?
+    let endEpochMs: Int?
     let isAllDay: Bool?
     let eventId: Int?
     let calendarId: Int?
@@ -21,91 +23,74 @@ struct WidgetTimelineItem: Decodable {
     let occurrenceId: String?
 }
 
-struct WidgetActionItem: Decodable {
+struct WidgetTaskItem: Decodable {
     let kind: String?
     let target: String?
     let todoId: Int
     let todoSyncId: String?
     let occurrenceId: String?
     let summary: String
-    let deadline: String?
     let displayTime: String?
+    let priority: Int?
+    let dueEpochMs: Int?
+    let dueDate: String?
+    let startEpochMs: Int?
 }
 
-struct WidgetStatus: Decodable {
-    let overdueCount: Int?
-    let missedCount: Int?
-    let unplannedCount: Int?
+struct WidgetActionCounts: Decodable {
+    let dueToday: Int?
+    let overdue: Int?
+    let completedToday: Int?
 }
 
-struct WidgetToday: Decodable {
-    let date: String?
+struct WidgetActionBlock: Decodable {
     let timeline: [WidgetTimelineItem]?
-    let actions: [WidgetActionItem]?
-    let status: WidgetStatus?
+    let dueToday: [WidgetTaskItem]?
+    let overdue: [WidgetTaskItem]?
+    let counts: WidgetActionCounts?
 }
 
-struct WidgetUpcomingItem: Decodable {
-    let kind: String?
+struct WidgetTodoItem: Decodable {
+    let todoId: Int
+    let todoSyncId: String?
     let summary: String
-    let date: String?
-    let time: String?
+    let priority: Int?
+    let dueDate: String?
+    let dueEpochMs: Int?
+    let hasTime: Bool?
+    let recurring: Bool?
+    let tagColors: [String]?
+}
+
+struct WidgetTodoMode: Decodable {
+    let items: [WidgetTodoItem]?
+    let overdue: [WidgetTodoItem]?
+    let completedCount: Int?
+    let total: Int?
+    let sixThingsCap: Int?
+}
+
+struct WidgetTodosBlock: Decodable {
+    let today: WidgetTodoMode?
+    let inbox: WidgetTodoMode?
+    let all: WidgetTodoMode?
+}
+
+struct WidgetMonthItem: Decodable {
+    let kind: String
+    let summary: String
+    let start: String?
+    let end: String?
+    let startEpochMs: Int?
+    let endEpochMs: Int?
     let isAllDay: Bool?
+    let hasTime: Bool?
+    let color: String?
     let eventId: Int?
     let todoId: Int?
+    let todoSyncId: String?
     let allocationId: String?
     let occurrenceId: String?
-    let todoSyncId: String?
-    let color: String?
-}
-
-struct WidgetUpcomingDay: Decodable {
-    let date: String
-    let items: [WidgetUpcomingItem]
-}
-
-struct WidgetEvent: Decodable {
-    let summary: String
-    let start: String
-    let isAllDay: Bool
-}
-
-struct WidgetTodo: Decodable {
-    let id: Int?
-    let summary: String
-    let dueDate: String
-}
-
-struct WidgetUpcomingEvent: Decodable {
-    let summary: String
-    let date: String
-    let start: String
-    let isAllDay: Bool
-}
-
-struct WidgetUpcoming: Decodable {
-    let days: [WidgetUpcomingDay]?
-    let items: [WidgetUpcomingItem]?
-    let events: [WidgetUpcomingEvent]?
-    let todos: [WidgetTodo]?
-}
-
-struct WidgetPendingTap: Decodable {
-    let todoId: Int
-    let action: String
-    let at: String
-}
-
-// [[dayNumber, hasEvent]] — heterogeneous pair, decoded positionally.
-struct WidgetMonthDot: Decodable {
-    let day: Int
-    let hasEvent: Bool
-
-    init(from decoder: Decoder) throws {
-        var container = try decoder.unkeyedContainer()
-        day = try container.decode(Int.self)
-        hasEvent = try container.decode(Bool.self)
-    }
 }
 
 struct WidgetMonthDay: Decodable {
@@ -114,6 +99,8 @@ struct WidgetMonthDay: Decodable {
     let hasTodo: Bool?
     let hasAllocation: Bool?
     let colors: [String]?
+    let itemCount: Int?
+    let items: [WidgetMonthItem]?
 }
 
 struct WidgetMonth: Decodable {
@@ -126,27 +113,36 @@ struct WidgetMonth: Decodable {
 
 struct WidgetUi: Decodable {
     let locale: String?
-    let title: String?
     let today: String?
-    let tomorrow: String?
-    let events: String?
-    let todos: String?
-    let allDay: String?
-    let todayEventsHeader: String?
-    let noEvents: String?
-    let allDone: String?
-    let pendingCount: String?
-    let quickAdd: String?
-    let upcoming: String?
-    let openApp: String?
+    let inbox: String?
+    let all: String?
+    let noTodos: String?
+    let allTodosDone: String?
     let noPlans: String?
-    let noUpcoming: String?
-    let quickActions: String?
-    let newTodo: String?
-    let newEvent: String?
+    let allPlansDone: String?
+    let now: String?
+    let later: String?
+    let dueToday: String?
     let overdue: String?
-    let missed: String?
-    let unplanned: String?
+    let completedCount: String?
+    let moreCount: String?
+    let overdueCount: String?
+    let selectedDayEmpty: String?
+    let backToMonth: String?
+    let openToUpdate: String?
+    let stale: String?
+    let addTodo: String?
+    let addEvent: String?
+    let quickAddHint: String?
+    let quickAddToday: String?
+    let quickAddInbox: String?
+    let save: String?
+    let saveFailed: String?
+    let allDay: String?
+
+    func withCount(_ template: String?, _ count: Int) -> String {
+        (template ?? "{n}").replacingOccurrences(of: "{n}", with: "\(count)")
+    }
 }
 
 struct WidgetThemeColors: Decodable {
@@ -156,6 +152,8 @@ struct WidgetThemeColors: Decodable {
     let textSecondary: String?
     let accent: String?
     let border: String?
+    let error: String?
+    let warning: String?
 }
 
 struct WidgetTheme: Decodable {
@@ -166,55 +164,23 @@ struct WidgetTheme: Decodable {
 struct WidgetSnapshot: Decodable {
     let version: Int
     let generatedAt: String?
-    let today: WidgetToday?
-    let todayEvents: [WidgetEvent]?
-    let pendingTodos: [WidgetTodo]?
-    let todoCount: Int?
-    let upcoming: WidgetUpcoming?
-    let pendingTaps: [WidgetPendingTap]?
-    let monthDots: [WidgetMonthDot]?
+    let today: String?
+    let action: WidgetActionBlock?
+    let todos: WidgetTodosBlock?
     let month: WidgetMonth?
     let ui: WidgetUi?
     let theme: WidgetTheme?
 
     var todayIso: String {
-        if let date = today?.date, !date.isEmpty { return date }
+        if let today, !today.isEmpty { return today }
         return WidgetDates.iso(Date())
     }
 
-    var timeline: [WidgetTimelineItem] {
-        if let rows = today?.timeline, !rows.isEmpty { return rows }
-        return (todayEvents ?? []).map { event in
-            WidgetTimelineItem(
-                kind: "eventOccurrence",
-                summary: event.summary,
-                start: event.start,
-                end: nil,
-                isAllDay: event.isAllDay,
-                eventId: nil,
-                calendarId: nil,
-                color: nil,
-                allocationId: nil,
-                todoId: nil,
-                todoSyncId: nil,
-                occurrenceId: nil
-            )
-        }
-    }
-
-    var actions: [WidgetActionItem] {
-        if let rows = today?.actions, !rows.isEmpty { return rows }
-        return (pendingTodos ?? []).map { todo in
-            WidgetActionItem(
-                kind: "todoDeadline",
-                target: "todo",
-                todoId: todo.id ?? -1,
-                todoSyncId: nil,
-                occurrenceId: nil,
-                summary: todo.summary,
-                deadline: todo.dueDate,
-                displayTime: nil
-            )
+    func todoMode(_ filter: TodoFilter) -> WidgetTodoMode? {
+        switch filter {
+        case .today: return todos?.today
+        case .inbox: return todos?.inbox
+        case .all: return todos?.all
         }
     }
 }
@@ -227,11 +193,13 @@ enum WidgetSnapshotStore {
 
     static func load() -> WidgetSnapshot? {
         guard let raw = UserDefaults(suiteName: appGroupId)?.string(forKey: snapshotKey),
-              let data = raw.data(using: .utf8)
+              let data = raw.data(using: .utf8),
+              let snapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: data),
+              snapshot.version >= 5
         else {
             return nil
         }
-        return try? JSONDecoder().decode(WidgetSnapshot.self, from: data)
+        return snapshot
     }
 
     struct PendingCommandTargets {
@@ -254,9 +222,7 @@ enum WidgetSnapshotStore {
                let todoId = obj["todoId"] as? Int {
                 if target == "taskInstance" {
                     let occ = (obj["occurrenceId"] as? String) ?? ""
-                    if !occ.isEmpty {
-                        instanceKeys.insert("\(todoId):\(occ)")
-                    }
+                    if !occ.isEmpty { instanceKeys.insert("\(todoId):\(occ)") }
                 } else if target == "todo" {
                     todoIds.insert(todoId)
                 }
@@ -296,25 +262,53 @@ enum WidgetSnapshotStore {
     }
 }
 
+enum WidgetCalendarState {
+    static let dateKey = "widget_calendar_selected_date"
+    static let modeKey = "widget_calendar_mode"
+
+    static var defaults: UserDefaults? { UserDefaults(suiteName: WidgetSnapshotStore.appGroupId) }
+
+    static func selectedIso() -> String {
+        let today = WidgetDates.iso(Date())
+        guard let raw = defaults?.string(forKey: dateKey), WidgetDates.parse(raw) != nil else {
+            return today
+        }
+        let calendar = Calendar.current
+        guard let selected = WidgetDates.parse(raw),
+              let now = WidgetDates.parse(today) else { return today }
+        let sameMonth = calendar.component(.year, from: selected) == calendar.component(.year, from: now)
+            && calendar.component(.month, from: selected) == calendar.component(.month, from: now)
+        return sameMonth ? raw : today
+    }
+
+    static func mode() -> String {
+        defaults?.string(forKey: modeKey) == "day" ? "day" : "month"
+    }
+
+    static func set(dateIso: String, enterDay: Bool) {
+        defaults?.set(dateIso, forKey: dateKey)
+        if enterDay { defaults?.set("day", forKey: modeKey) }
+    }
+
+    static func backToMonth() {
+        defaults?.set("month", forKey: modeKey)
+    }
+
+    static func today() {
+        defaults?.set(WidgetDates.iso(Date()), forKey: dateKey)
+    }
+}
+
 @available(iOS 17.0, macOS 14.0, *)
 struct CompleteActionIntent: AppIntent {
     static var title: LocalizedStringResource = "Complete action"
     static var description = IntentDescription("Queues a widget completion command")
 
-    @Parameter(title: "Target")
-    var target: String
-
-    @Parameter(title: "Todo ID")
-    var todoId: Int
-
-    @Parameter(title: "Todo Sync ID")
-    var todoSyncId: String
-
-    @Parameter(title: "Occurrence ID")
-    var occurrenceId: String
-
-    @Parameter(title: "Source Allocation ID")
-    var sourceAllocationId: String
+    @Parameter(title: "Target") var target: String
+    @Parameter(title: "Todo ID") var todoId: Int
+    @Parameter(title: "Todo Sync ID") var todoSyncId: String
+    @Parameter(title: "Occurrence ID") var occurrenceId: String
+    @Parameter(title: "Source Allocation ID") var sourceAllocationId: String
 
     init() {
         target = "todo"
@@ -351,6 +345,79 @@ struct CompleteActionIntent: AppIntent {
     }
 }
 
+@available(iOS 17.0, macOS 14.0, *)
+struct SelectCalendarDateIntent: AppIntent {
+    static var title: LocalizedStringResource = "Select date"
+
+    @Parameter(title: "Date") var dateIso: String
+    @Parameter(title: "Enter day") var enterDay: Bool
+
+    init() {
+        dateIso = WidgetDates.iso(Date())
+        enterDay = false
+    }
+
+    init(dateIso: String, enterDay: Bool) {
+        self.dateIso = dateIso
+        self.enterDay = enterDay
+    }
+
+    func perform() async throws -> some IntentResult {
+        WidgetCalendarState.set(dateIso: dateIso, enterDay: enterDay)
+        WidgetCenter.shared.reloadTimelines(ofKind: "CalendarMonthWidget")
+        return .result()
+    }
+}
+
+@available(iOS 17.0, macOS 14.0, *)
+struct CalendarTodayIntent: AppIntent {
+    static var title: LocalizedStringResource = "Today"
+
+    func perform() async throws -> some IntentResult {
+        WidgetCalendarState.today()
+        WidgetCenter.shared.reloadTimelines(ofKind: "CalendarMonthWidget")
+        return .result()
+    }
+}
+
+@available(iOS 17.0, macOS 14.0, *)
+struct CalendarBackToMonthIntent: AppIntent {
+    static var title: LocalizedStringResource = "Back to month"
+
+    func perform() async throws -> some IntentResult {
+        WidgetCalendarState.backToMonth()
+        WidgetCenter.shared.reloadTimelines(ofKind: "CalendarMonthWidget")
+        return .result()
+    }
+}
+
+// MARK: - Todo filter configuration
+
+enum TodoFilter: String, AppEnum {
+    case today
+    case inbox
+    case all
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Task list"
+    static var caseDisplayRepresentations: [TodoFilter: DisplayRepresentation] = [
+        .today: "Today",
+        .inbox: "Inbox",
+        .all: "All",
+    ]
+}
+
+@available(iOS 17.0, macOS 14.0, *)
+struct TodosConfigurationIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Tasks"
+    static var description = IntentDescription("Choose which task list this widget shows")
+
+    @Parameter(title: "List") var filter: TodoFilter
+
+    init() {
+        filter = .today
+    }
+}
+
 // MARK: - Dates + links + copy
 
 enum WidgetDates {
@@ -370,12 +437,6 @@ enum WidgetDates {
         return formatter.date(from: iso)
     }
 
-    static func tomorrowIso() -> String {
-        let calendar = Calendar.current
-        let date = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-        return iso(date)
-    }
-
     static func short(_ iso: String) -> String {
         guard let date = parse(iso) else { return iso }
         let formatter = DateFormatter()
@@ -384,13 +445,20 @@ enum WidgetDates {
         return formatter.string(from: date)
     }
 
+    static func dayTitle(_ iso: String) -> String {
+        guard let date = parse(iso) else { return iso }
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.setLocalizedDateFormatFromTemplate("MMMdEEE")
+        return formatter.string(from: date)
+    }
+
     static func monthTitle(year: Int, month: Int) -> String {
         var components = DateComponents()
         components.year = year
         components.month = month
         components.day = 1
-        let calendar = Calendar.current
-        guard let date = calendar.date(from: components) else { return "\(year)-\(month)" }
+        guard let date = Calendar.current.date(from: components) else { return "\(year)-\(month)" }
         let formatter = DateFormatter()
         formatter.locale = .current
         formatter.setLocalizedDateFormatFromTemplate("MMMMyyyy")
@@ -403,12 +471,26 @@ enum WidgetDates {
         let order = [1, 2, 3, 4, 5, 6, 0]
         return order.map { symbols[$0] }
     }
+
+    static func nextBoundary(_ snapshot: WidgetSnapshot?) -> Date? {
+        let nowMs = Int(Date().timeIntervalSince1970 * 1000)
+        var candidates: [Int] = []
+        for item in snapshot?.action?.timeline ?? [] {
+            if let start = item.startEpochMs, start > nowMs { candidates.append(start) }
+            if let end = item.endEpochMs, end > nowMs { candidates.append(end) }
+        }
+        guard let next = candidates.min() else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(next) / 1000.0)
+    }
 }
 
 enum WidgetLinks {
-    static let today = URL(string: "dayspark://open/today")!
+    static let action = URL(string: "dayspark://open/action")!
     static let calendar = URL(string: "dayspark://open/calendar")!
-    static let quickAdd = URL(string: "dayspark://quick-add")!
+
+    static func todos(_ filter: TodoFilter) -> URL {
+        URL(string: "dayspark://open/todos?view=\(filter.rawValue)")!
+    }
 
     static func todo(_ id: Int) -> URL {
         URL(string: "dayspark://open/todo?id=\(id)")!
@@ -426,6 +508,13 @@ enum WidgetLinks {
         URL(string: "dayspark://open/new-event?date=\(dateIso)")!
     }
 
+    static func quickAdd(_ dateIso: String?) -> URL {
+        guard let dateIso, !dateIso.isEmpty else {
+            return URL(string: "dayspark://quick-add")!
+        }
+        return URL(string: "dayspark://quick-add?date=\(dateIso)")!
+    }
+
     static func detail(eventId: Int?, todoId: Int?) -> URL? {
         if let eventId, eventId > 0 { return event(eventId) }
         if let todoId, todoId > 0 { return todo(todoId) }
@@ -440,10 +529,9 @@ enum WidgetCopy {
 
     static func galleryName(_ kind: String) -> String {
         switch kind {
-        case "CalendarTodoWidget": return chinese ? "今日行动" : "Today"
-        case "CalendarUpcomingWidget": return chinese ? "近期安排" : "Upcoming"
+        case "CalendarTodoWidget": return chinese ? "今日行动" : "Action"
         case "CalendarMonthWidget": return chinese ? "月历" : "Calendar"
-        case "CalendarQuickActionsWidget": return chinese ? "快速操作" : "Quick actions"
+        case "CalendarTodosWidget": return chinese ? "待办" : "Tasks"
         default: return "DaySpark"
         }
     }
@@ -451,13 +539,11 @@ enum WidgetCopy {
     static func galleryDescription(_ kind: String) -> String {
         switch kind {
         case "CalendarTodoWidget":
-            return chinese ? "查看并完成今天的日程与待办" : "View and complete today's schedule and tasks."
-        case "CalendarUpcomingWidget":
-            return chinese ? "查看未来几天的日程与任务" : "See the next few days' schedule and tasks."
+            return chinese ? "查看并完成今天正在发生的事" : "See and complete what is happening today."
         case "CalendarMonthWidget":
-            return chinese ? "查看本月日程分布" : "See this month's schedule at a glance."
-        case "CalendarQuickActionsWidget":
-            return chinese ? "快速创建待办和日程" : "Create a task or event, or open Today and Calendar."
+            return chinese ? "查看本月任意一天的安排" : "See any day in this month at a glance."
+        case "CalendarTodosWidget":
+            return chinese ? "你的任务清单，直接在桌面完成" : "Your task list, ready to check off."
         default:
             return ""
         }
@@ -465,11 +551,16 @@ enum WidgetCopy {
 
     static let openApp = chinese ? "打开 DaySpark 以显示你的安排" : "Open DaySpark to show your schedule"
     static let noPlans = chinese ? "今天没有安排" : "No plans for today"
-    static let noUpcoming = chinese ? "未来几天没有安排" : "Nothing scheduled for the next few days"
+    static let noTodos = chinese ? "没有待办" : "No tasks"
+    static let openToUpdate = chinese ? "打开 DaySpark 以更新" : "Open DaySpark to update"
+    static let selectedDayEmpty = chinese ? "这一天没有安排" : "Nothing on this day"
     static let newTodo = chinese ? "+ 待办" : "+ Task"
     static let newEvent = chinese ? "+ 日程" : "+ Event"
     static let today = chinese ? "今天" : "Today"
-    static let calendar = chinese ? "日历" : "Calendar"
+    static let inbox = chinese ? "收件箱" : "Inbox"
+    static let all = chinese ? "全部" : "All"
+    static let backToMonth = chinese ? "月" : "Month"
+    static let allDay = chinese ? "全天" : "All day"
 }
 
 // MARK: - Theme
@@ -481,15 +572,21 @@ struct WidgetPalette {
     let textSecondary: Color
     let accent: Color
     let border: Color
+    let error: Color
+    let warning: Color
 
     init(_ snapshot: WidgetSnapshot?) {
         let colors = snapshot?.theme?.colors
         #if os(iOS)
         let fallbackBackground = Color(.systemBackground)
         let fallbackSurface = Color(.secondarySystemBackground)
+        let fallbackError = Color.red
+        let fallbackWarning = Color.orange
         #else
         let fallbackBackground = Color(nsColor: .windowBackgroundColor)
         let fallbackSurface = Color(nsColor: .controlBackgroundColor)
+        let fallbackError = Color.red
+        let fallbackWarning = Color.orange
         #endif
         background = Color(hex: colors?.background) ?? fallbackBackground
         surface = Color(hex: colors?.surface) ?? fallbackSurface
@@ -497,6 +594,8 @@ struct WidgetPalette {
         textSecondary = Color(hex: colors?.textSecondary) ?? Color.secondary
         accent = Color(hex: colors?.accent) ?? Color.blue
         border = Color(hex: colors?.border) ?? Color.gray.opacity(0.35)
+        error = Color(hex: colors?.error) ?? fallbackError
+        warning = Color(hex: colors?.warning) ?? fallbackWarning
     }
 }
 
@@ -526,29 +625,61 @@ extension Color {
     }
 }
 
-// MARK: - Timeline provider
+// MARK: - Timeline providers
 
-struct CalendarTodoEntry: TimelineEntry {
+struct WidgetEntry: TimelineEntry {
     let date: Date
     let snapshot: WidgetSnapshot?
 }
 
+struct TodosEntry: TimelineEntry {
+    let date: Date
+    let snapshot: WidgetSnapshot?
+    let filter: TodoFilter
+}
+
 struct SnapshotTimelineProvider: TimelineProvider {
-    func placeholder(in context: Context) -> CalendarTodoEntry {
-        CalendarTodoEntry(date: Date(), snapshot: nil)
+    func placeholder(in context: Context) -> WidgetEntry {
+        WidgetEntry(date: Date(), snapshot: nil)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (CalendarTodoEntry) -> Void) {
-        completion(CalendarTodoEntry(date: Date(), snapshot: WidgetSnapshotStore.load()))
+    func getSnapshot(in context: Context, completion: @escaping (WidgetEntry) -> Void) {
+        completion(WidgetEntry(date: Date(), snapshot: WidgetSnapshotStore.load()))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<CalendarTodoEntry>) -> Void) {
-        let entry = CalendarTodoEntry(date: Date(), snapshot: WidgetSnapshotStore.load())
+    func getTimeline(in context: Context, completion: @escaping (Timeline<WidgetEntry>) -> Void) {
+        let now = Date()
+        let snapshot = WidgetSnapshotStore.load()
+        var entries = [WidgetEntry(date: now, snapshot: snapshot)]
         let calendar = Calendar.current
         let nextMidnight = calendar.startOfDay(
-            for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+            for: calendar.date(byAdding: .day, value: 1, to: now) ?? now
         )
-        completion(Timeline(entries: [entry], policy: .after(nextMidnight)))
+        if let boundary = WidgetDates.nextBoundary(snapshot), boundary > now, boundary < nextMidnight {
+            entries.append(WidgetEntry(date: boundary, snapshot: snapshot))
+        }
+        entries.append(WidgetEntry(date: nextMidnight, snapshot: snapshot))
+        completion(Timeline(entries: entries, policy: .after(nextMidnight)))
+    }
+}
+
+struct TodosTimelineProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> TodosEntry {
+        TodosEntry(date: Date(), snapshot: nil, filter: .today)
+    }
+
+    func snapshot(for configuration: TodosConfigurationIntent, in context: Context) async -> TodosEntry {
+        TodosEntry(date: Date(), snapshot: WidgetSnapshotStore.load(), filter: configuration.filter)
+    }
+
+    func timeline(for configuration: TodosConfigurationIntent, in context: Context) async -> Timeline<TodosEntry> {
+        let now = Date()
+        let calendar = Calendar.current
+        let nextMidnight = calendar.startOfDay(
+            for: calendar.date(byAdding: .day, value: 1, to: now) ?? now
+        )
+        let entry = TodosEntry(date: now, snapshot: WidgetSnapshotStore.load(), filter: configuration.filter)
+        return Timeline(entries: [entry], policy: .after(nextMidnight))
     }
 }
 
@@ -566,26 +697,6 @@ private struct WidgetCheck: View {
     }
 }
 
-private struct TimeText: View {
-    let start: String
-    let end: String?
-    let isAllDay: Bool
-    let allDay: String
-    let palette: WidgetPalette
-
-    var body: some View {
-        let text: String = {
-            if isAllDay { return allDay }
-            if let end, !end.isEmpty { return "\(start) - \(end)" }
-            return start
-        }()
-        Text(text)
-            .font(.caption2)
-            .foregroundStyle(palette.textSecondary)
-            .lineLimit(1)
-    }
-}
-
 private struct EmptyMessage: View {
     let text: String
     let palette: WidgetPalette
@@ -598,17 +709,65 @@ private struct EmptyMessage: View {
     }
 }
 
-// MARK: - Today
+private struct SectionLabel: View {
+    let text: String
+    let palette: WidgetPalette
+    var color: Color?
 
-struct TodayWidgetView: View {
+    var body: some View {
+        Text(text)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(color ?? palette.textSecondary)
+            .lineLimit(1)
+    }
+}
+
+private enum WidgetCommandState {
+    static func isPending(
+        _ targets: WidgetSnapshotStore.PendingCommandTargets,
+        target: String,
+        todoId: Int,
+        occurrenceId: String?
+    ) -> Bool {
+        if target == "taskInstance" {
+            return targets.instanceKeys.contains("\(todoId):\(occurrenceId ?? "")")
+        }
+        return targets.todoIds.contains(todoId)
+    }
+}
+
+private func actionTime(_ item: WidgetTimelineItem, allDay: String) -> String {
+    if item.isAllDay == true { return allDay }
+    let start = item.start ?? ""
+    if let end = item.end, !end.isEmpty { return "\(start) - \(end)" }
+    return start
+}
+
+private func priorityColor(_ priority: Int?, palette: WidgetPalette) -> Color? {
+    guard let priority else { return nil }
+    if priority == 1 { return palette.error }
+    if priority >= 2 && priority <= 4 { return palette.warning }
+    return nil
+}
+
+// MARK: - Action
+
+struct ActionWidgetView: View {
     @Environment(\.widgetFamily) private var family
-    let entry: CalendarTodoEntry
+    let entry: WidgetEntry
 
     private var snapshot: WidgetSnapshot? { entry.snapshot }
     private var ui: WidgetUi? { snapshot?.ui }
     private var palette: WidgetPalette { WidgetPalette(snapshot) }
     private var small: Bool { family == .systemSmall }
     private var large: Bool { family == .systemLarge }
+
+    private enum Line {
+        case section(String)
+        case timeline(WidgetTimelineItem)
+        case task(WidgetTaskItem)
+        case overdueSummary(Int)
+    }
 
     var body: some View {
         Group {
@@ -618,106 +777,170 @@ struct TodayWidgetView: View {
                 emptyState
             }
         }
-        .padding(8)
+        .padding(small ? 8 : 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) { palette.background }
-        .widgetURL(WidgetLinks.today)
+        .widgetURL(WidgetLinks.action)
+    }
+
+    private var stale: Bool {
+        guard let snapshot else { return true }
+        return snapshot.todayIso != WidgetDates.iso(Date())
     }
 
     private func content(_ snapshot: WidgetSnapshot) -> some View {
         let pending = WidgetSnapshotStore.pendingCommandTargets()
-        let timeline = Array(snapshot.timeline.prefix(small ? 1 : (large ? 3 : 2)))
-        let actions = Array(snapshot.actions.prefix(small ? 1 : (large ? 5 : 3)))
-        return VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(WidgetDates.short(snapshot.todayIso))
-                    .font(small ? .title3.weight(.semibold) : .title2.weight(.semibold))
-                    .foregroundStyle(palette.textPrimary)
-                Spacer(minLength: 4)
-                Text(entry.date, format: .dateTime.weekday(.abbreviated))
-                    .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
-            }
+        let block = snapshot.action
+        let counts = block?.counts
+        let nowMs = Int(Date().timeIntervalSince1970 * 1000)
+        let timeline = block?.timeline ?? []
+        let current = timeline
+            .filter { ($0.startEpochMs ?? 0) <= nowMs && nowMs < ($0.endEpochMs ?? 0) }
+            .sorted { ($0.startEpochMs ?? 0) < ($1.startEpochMs ?? 0) }
+        let later = timeline
+            .filter { ($0.startEpochMs ?? 0) > nowMs }
+            .sorted { ($0.startEpochMs ?? 0) < ($1.startEpochMs ?? 0) }
+        let due = block?.dueToday ?? []
+        let overdue = block?.overdue ?? []
+        let completed = counts?.completedToday ?? 0
+        let overdueCount = counts?.overdue ?? overdue.count
 
-            if timeline.isEmpty && actions.isEmpty {
+        return VStack(alignment: .leading, spacing: 2) {
+            header(snapshot: snapshot, overdueCount: stale ? 0 : overdueCount)
+
+            if stale {
                 EmptyMessage(
-                    text: (ui?.noPlans).flatMap { $0.isEmpty ? nil : $0 } ?? WidgetCopy.noPlans,
+                    text: ui?.openToUpdate ?? WidgetCopy.openToUpdate,
                     palette: palette
                 )
-                .padding(.top, 4)
+                Spacer(minLength: 0)
             } else if small {
-                ForEach(timeline.indices, id: \.self) { index in
-                    timelineRow(timeline[index], pending: pending)
+                if let line = smallLine(current: current, later: later, due: due) {
+                    row(line, pending: pending)
+                } else {
+                    EmptyMessage(
+                        text: completed > 0
+                            ? (ui?.allPlansDone ?? WidgetCopy.noPlans)
+                            : (ui?.noPlans ?? WidgetCopy.noPlans),
+                        palette: palette
+                    )
                 }
-                ForEach(actions.indices, id: \.self) { index in
-                    actionRow(actions[index], pending: pending)
-                }
-            } else if large {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(timeline.indices, id: \.self) { index in
-                        timelineRow(timeline[index], pending: pending)
-                    }
-                }
-                if !timeline.isEmpty && !actions.isEmpty {
-                    Rectangle().fill(palette.border).frame(height: 1)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(actions.indices, id: \.self) { index in
-                        actionRow(actions[index], pending: pending)
-                    }
-                }
+                Spacer(minLength: 0)
             } else {
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(timeline.indices, id: \.self) { index in
-                            timelineRow(timeline[index], pending: pending)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Rectangle().fill(palette.border).frame(width: 1)
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(actions.indices, id: \.self) { index in
-                            actionRow(actions[index], pending: pending)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                let lines = sectionLines(current: current, later: later, due: due, overdue: overdue, overdueCount: overdueCount, large: large)
+                ForEach(lines.indices, id: \.self) { index in
+                    row(lines[index], pending: pending)
                 }
-            }
-
-            Spacer(minLength: 0)
-
-            if !small {
-                HStack(spacing: 6) {
-                    if large {
-                        Link(destination: WidgetLinks.newEvent(snapshot.todayIso)) {
-                            footerLabel(ui?.newEvent ?? WidgetCopy.newEvent)
-                        }
-                    }
-                    Link(destination: WidgetLinks.quickAdd) {
-                        footerLabel(ui?.newTodo ?? WidgetCopy.newTodo)
-                    }
+                Spacer(minLength: 0)
+                if lines.isEmpty {
+                    EmptyMessage(
+                        text: completed > 0
+                            ? (ui?.allPlansDone ?? WidgetCopy.noPlans)
+                            : (ui?.noPlans ?? WidgetCopy.noPlans),
+                        palette: palette
+                    )
                 }
+                footer(snapshot: snapshot, completed: completed)
             }
         }
     }
 
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Spacer(minLength: 0)
-            Text((ui?.openApp).flatMap { $0.isEmpty ? nil : $0 } ?? WidgetCopy.openApp)
-                .font(.caption)
+    private func header(snapshot: WidgetSnapshot, overdueCount: Int) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(WidgetDates.short(snapshot.todayIso))
+                .font(small ? .title3.weight(.semibold) : .title2.weight(.semibold))
+                .foregroundStyle(palette.textPrimary)
+            Text(WidgetDates.dayTitle(snapshot.todayIso))
+                .font(.caption2)
                 .foregroundStyle(palette.textSecondary)
-            Spacer(minLength: 0)
+                .lineLimit(1)
+            Spacer(minLength: 2)
+            if small && overdueCount > 0 {
+                Text(ui?.withCount(ui?.overdueCount, overdueCount) ?? "\(overdueCount)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(palette.error)
+                    .lineLimit(1)
+            }
+            if !small {
+                Link(destination: WidgetLinks.quickAdd(snapshot.todayIso)) {
+                    Text(ui?.addTodo ?? WidgetCopy.newTodo)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.accent)
+                }
+                if large || family == .systemMedium {
+                    Link(destination: WidgetLinks.newEvent(snapshot.todayIso)) {
+                        Text(ui?.addEvent ?? WidgetCopy.newEvent)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(palette.accent)
+                    }
+                }
+            }
         }
     }
 
-    private func footerLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(palette.accent)
-            .frame(maxWidth: .infinity, minHeight: 24)
-            .background(palette.accent.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+    private func smallLine(
+        current: [WidgetTimelineItem],
+        later: [WidgetTimelineItem],
+        due: [WidgetTaskItem]
+    ) -> Line? {
+        if let first = current.first { return .timeline(first) }
+        if let first = later.first { return .timeline(first) }
+        if let first = due.first { return .task(first) }
+        return nil
+    }
+
+    private func sectionLines(
+        current: [WidgetTimelineItem],
+        later: [WidgetTimelineItem],
+        due: [WidgetTaskItem],
+        overdue: [WidgetTaskItem],
+        overdueCount: Int,
+        large: Bool
+    ) -> [Line] {
+        let budget = large ? 12 : 5
+        var lines: [Line] = []
+        func append(_ title: String?, _ items: [Line]) {
+            guard !items.isEmpty, lines.count < budget else { return }
+            if let title, !title.isEmpty { lines.append(.section(title)) }
+            for item in items {
+                if lines.count >= budget { break }
+                lines.append(item)
+            }
+        }
+        append(ui?.now, current.map { .timeline($0) })
+        append(ui?.later, later.map { .timeline($0) })
+        append(ui?.dueToday, due.map { .task($0) })
+        append(ui?.overdue, overdue.map { .task($0) })
+        if overdueCount > 0, !lines.contains(where: { if case .task = $0 { return true }; return false }), lines.count < budget {
+            lines.append(.overdueSummary(overdueCount))
+        }
+        return lines
+    }
+
+    @ViewBuilder
+    private func row(_ line: Line, pending: WidgetSnapshotStore.PendingCommandTargets) -> some View {
+        switch line {
+        case let .section(title):
+            SectionLabel(text: title, palette: palette)
+                .padding(.top, 3)
+        case let .timeline(item):
+            timelineRow(item, pending: pending)
+        case let .task(item):
+            taskRow(item, pending: pending)
+        case let .overdueSummary(count):
+            if small {
+                Text(ui?.withCount(ui?.overdueCount, count) ?? "\(count)")
+                    .font(.caption2)
+                    .foregroundStyle(palette.error)
+            } else {
+                Link(destination: WidgetLinks.action) {
+                    Text(ui?.withCount(ui?.overdueCount, count) ?? "\(count)")
+                        .font(.caption2)
+                        .foregroundStyle(palette.error)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -749,246 +972,350 @@ struct TodayWidgetView: View {
             } else {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color(hex: item.color) ?? palette.accent)
-                    .frame(width: 4, height: 20)
-                    .padding(.leading, 2)
+                    .frame(width: 3, height: 20)
             }
 
-            if let url = WidgetLinks.detail(eventId: item.eventId, todoId: item.todoId) {
-                if small {
-                    rowBody(item)
-                } else {
-                    Link(destination: url) { rowBody(item) }
-                }
+            let body = VStack(alignment: .leading, spacing: 1) {
+                Text(item.summary)
+                    .font(.caption)
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(1)
+                Text(actionTime(item, allDay: ui?.allDay ?? WidgetCopy.allDay))
+                    .font(.caption2)
+                    .foregroundStyle(palette.textSecondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if small {
+                body
+            } else if let url = WidgetLinks.detail(eventId: item.eventId, todoId: item.todoId) {
+                Link(destination: url) { body }
             } else {
-                rowBody(item)
+                body
             }
         }
-        .frame(minHeight: small ? 40 : 32)
-    }
-
-    private func rowBody(_ item: WidgetTimelineItem) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(item.summary)
-                .font(.caption)
-                .foregroundStyle(palette.textPrimary)
-                .lineLimit(1)
-            TimeText(
-                start: item.start,
-                end: item.end,
-                isAllDay: item.isAllDay ?? false,
-                allDay: ui?.allDay ?? "",
-                palette: palette
-            )
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: small ? 38 : 30)
     }
 
     @ViewBuilder
-    private func actionRow(
-        _ action: WidgetActionItem,
+    private func taskRow(
+        _ item: WidgetTaskItem,
         pending: WidgetSnapshotStore.PendingCommandTargets
     ) -> some View {
-        let target = action.target ?? "todo"
+        let target = item.target ?? (item.kind == "taskInstance" ? "taskInstance" : "todo")
         let checked = WidgetCommandState.isPending(
             pending,
             target: target,
-            todoId: action.todoId,
-            occurrenceId: action.occurrenceId
+            todoId: item.todoId,
+            occurrenceId: item.occurrenceId
         )
         HStack(spacing: 6) {
-            if action.todoId > 0 {
+            if item.todoId > 0 {
                 Button(intent: CompleteActionIntent(
                     target: target,
-                    todoId: action.todoId,
-                    todoSyncId: action.todoSyncId ?? "",
-                    occurrenceId: action.occurrenceId ?? ""
+                    todoId: item.todoId,
+                    todoSyncId: item.todoSyncId ?? "",
+                    occurrenceId: item.occurrenceId ?? ""
                 )) {
                     WidgetCheck(checked: checked, palette: palette)
                 }
                 .buttonStyle(.plain)
             }
-            if action.todoId > 0 && !small {
-                Link(destination: WidgetLinks.todo(action.todoId)) {
-                    actionBody(action, checked: checked)
+            let body = VStack(alignment: .leading, spacing: 1) {
+                Text(item.summary)
+                    .font(.caption)
+                    .strikethrough(checked)
+                    .foregroundStyle(checked ? palette.textSecondary : palette.textPrimary)
+                    .lineLimit(1)
+                let meta = (item.displayTime?.isEmpty == false ? item.displayTime : nil)
+                    ?? (item.dueDate.map { WidgetDates.short($0) })
+                if let meta, !meta.isEmpty {
+                    Text(meta)
+                        .font(.caption2)
+                        .foregroundStyle(palette.textSecondary)
+                        .lineLimit(1)
                 }
-            } else {
-                actionBody(action, checked: checked)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if small {
+                body
+            } else if item.todoId > 0 {
+                Link(destination: WidgetLinks.todo(item.todoId)) { body }
+            } else {
+                body
+            }
+        }
+        .frame(minHeight: small ? 38 : 30)
+    }
+
+    @ViewBuilder
+    private func footer(snapshot: WidgetSnapshot, completed: Int) -> some View {
+        if completed > 0 {
+            Link(destination: WidgetLinks.action) {
+                HStack {
+                    Text(ui?.withCount(ui?.completedCount, completed) ?? "\(completed)")
+                        .font(.caption2)
+                        .foregroundStyle(palette.textSecondary)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9))
+                        .foregroundStyle(palette.textSecondary)
+                }
+                .frame(minHeight: 20)
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Spacer(minLength: 0)
+            Text(ui?.openToUpdate ?? WidgetCopy.openToUpdate)
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
             Spacer(minLength: 0)
         }
-        .frame(minHeight: small ? 40 : 32)
-    }
-
-    private func actionBody(_ action: WidgetActionItem, checked: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(action.summary)
-                .font(.caption)
-                .strikethrough(checked)
-                .foregroundStyle(checked ? palette.textSecondary : palette.textPrimary)
-                .lineLimit(1)
-            let meta = (action.deadline?.isEmpty == false ? action.deadline : nil)
-                ?? (action.displayTime?.isEmpty == false ? action.displayTime : nil)
-            if let meta {
-                Text(meta)
-                    .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-enum WidgetCommandState {
-    static func isPending(
-        _ targets: WidgetSnapshotStore.PendingCommandTargets,
-        target: String,
-        todoId: Int,
-        occurrenceId: String?
-    ) -> Bool {
-        if target == "taskInstance" {
-            return targets.instanceKeys.contains("\(todoId):\(occurrenceId ?? "")")
-        }
-        return targets.todoIds.contains(todoId)
-    }
-}
+// MARK: - Todos
 
-// MARK: - Upcoming
-
-struct UpcomingWidgetView: View {
+struct TodosWidgetView: View {
     @Environment(\.widgetFamily) private var family
-    let entry: CalendarTodoEntry
+    let entry: TodosEntry
 
     private var snapshot: WidgetSnapshot? { entry.snapshot }
     private var ui: WidgetUi? { snapshot?.ui }
     private var palette: WidgetPalette { WidgetPalette(snapshot) }
+    private var small: Bool { family == .systemSmall }
     private var large: Bool { family == .systemLarge }
 
-    private var groups: [(String, [WidgetUpcomingItem])] {
-        guard let snapshot else { return [] }
-        if let days = snapshot.upcoming?.days, !days.isEmpty {
-            return days.map { ($0.date, $0.items) }
-        }
-        let items = snapshot.upcoming?.items ?? []
-        let grouped = Dictionary(grouping: items) { $0.date ?? "" }
-        return grouped.keys.sorted().map { ($0, grouped[$0] ?? []) }
+    private var mode: WidgetTodoMode? { snapshot?.todoMode(entry.filter) }
+
+    private enum Line {
+        case section(String)
+        case item(WidgetTodoItem, overdue: Bool)
+        case more(Int)
     }
 
     var body: some View {
         Group {
-            if snapshot != nil {
-                content
+            if let snapshot {
+                content(snapshot)
             } else {
                 VStack(alignment: .leading) {
-                    Spacer()
-                    Text((ui?.openApp).flatMap { $0.isEmpty ? nil : $0 } ?? WidgetCopy.openApp)
+                    Spacer(minLength: 0)
+                    Text(ui?.openToUpdate ?? WidgetCopy.openToUpdate)
                         .font(.caption)
                         .foregroundStyle(palette.textSecondary)
-                    Spacer()
+                    Spacer(minLength: 0)
                 }
             }
         }
-        .padding(12)
+        .padding(small ? 8 : 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) { palette.background }
-        .widgetURL(WidgetLinks.calendar)
+        .widgetURL(WidgetLinks.todos(entry.filter))
     }
 
-    private var content: some View {
-        let todayIso = snapshot?.todayIso ?? WidgetDates.iso(Date())
-        let limit = large ? 10 : 4
-        let rows = flatten(groups: groups, limit: limit)
+    private func content(_ snapshot: WidgetSnapshot) -> some View {
+        let pending = WidgetSnapshotStore.pendingCommandTargets()
+        let modeBlock = mode
+        let items = modeBlock?.items ?? []
+        let overdue = modeBlock?.overdue ?? []
+        let total = (modeBlock?.total ?? 0) + (entry.filter == .today ? overdue.count : 0)
+        let completed = modeBlock?.completedCount ?? 0
+        let snapshotStale = snapshot.todayIso != WidgetDates.iso(Date())
+        let todayStale = snapshotStale && entry.filter == .today
+
         return VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Link(destination: WidgetLinks.calendar) {
-                    Text(ui?.upcoming ?? WidgetCopy.today)
+            header(count: total)
+            if todayStale {
+                EmptyMessage(
+                    text: ui?.openToUpdate ?? WidgetCopy.openToUpdate,
+                    palette: palette
+                )
+                Spacer(minLength: 0)
+            } else {
+                if snapshotStale {
+                    Text(ui?.stale ?? WidgetCopy.openToUpdate)
+                        .font(.system(size: 10))
+                        .foregroundStyle(palette.error)
+                        .lineLimit(1)
+                }
+                let lines = buildLines(items: items, overdue: overdue, large: large)
+                ForEach(lines.indices, id: \.self) { index in
+                    lineRow(lines[index], pending: pending)
+                }
+                Spacer(minLength: 0)
+                if lines.isEmpty {
+                    EmptyMessage(
+                        text: entry.filter == .today && completed > 0
+                            ? (ui?.allTodosDone ?? WidgetCopy.noTodos)
+                            : (ui?.noTodos ?? WidgetCopy.noTodos),
+                        palette: palette
+                    )
+                }
+            }
+        }
+    }
+
+    private func header(count: Int) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(modeTitle)
+                .font(small ? .headline : .title3.weight(.semibold))
+                .foregroundStyle(palette.textPrimary)
+                .lineLimit(1)
+            Text("\(count)")
+                .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
+            Spacer(minLength: 2)
+            if !small {
+                Link(destination: WidgetLinks.quickAdd(entry.filter == .today ? WidgetDates.iso(Date()) : nil)) {
+                    Text(ui?.addTodo ?? WidgetCopy.newTodo)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(palette.accent)
                 }
-                Spacer()
-                Text(WidgetDates.short(todayIso))
+            }
+        }
+    }
+
+    private var modeTitle: String {
+        switch entry.filter {
+        case .today: return ui?.today ?? WidgetCopy.today
+        case .inbox: return ui?.inbox ?? WidgetCopy.inbox
+        case .all: return ui?.all ?? WidgetCopy.all
+        }
+    }
+
+    private func buildLines(
+        items: [WidgetTodoItem],
+        overdue: [WidgetTodoItem],
+        large: Bool
+    ) -> [Line] {
+        let budget = large ? 8 : (small ? 2 : 4)
+        var lines: [Line] = []
+        if entry.filter == .today && !overdue.isEmpty {
+            if large { lines.append(.section(ui?.overdue ?? "")) }
+            for item in overdue {
+                if lines.count >= budget { break }
+                lines.append(.item(item, overdue: true))
+            }
+            if large && lines.count < budget && !items.isEmpty {
+                lines.append(.section(ui?.today ?? ""))
+            }
+        }
+        var emitted = 0
+        for item in items {
+            if lines.count >= budget { break }
+            lines.append(.item(item, overdue: false))
+            emitted += 1
+        }
+        let total = mode?.total ?? items.count
+        let more = total - emitted
+        if more > 0 && lines.count < budget {
+            lines.append(.more(more))
+        }
+        return lines
+    }
+
+    @ViewBuilder
+    private func lineRow(_ line: Line, pending: WidgetSnapshotStore.PendingCommandTargets) -> some View {
+        switch line {
+        case let .section(title):
+            SectionLabel(text: title, palette: palette)
+                .padding(.top, 3)
+        case let .item(item, overdue):
+            itemRow(item, overdue: overdue, pending: pending)
+        case let .more(count):
+            if small {
+                Text(ui?.withCount(ui?.moreCount, count) ?? "\(count)")
                     .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
-            }
-            if rows.isEmpty {
-                EmptyMessage(
-                    text: (ui?.noUpcoming).flatMap { $0.isEmpty ? nil : $0 } ?? WidgetCopy.noUpcoming,
-                    palette: palette
-                )
-            }
-            ForEach(rows.indices, id: \.self) { index in
-                switch rows[index] {
-                case let .header(label):
-                    Text(label)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(palette.textSecondary)
-                        .padding(.top, 3)
-                case let .item(item):
-                    rowView(item)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    private enum Row {
-        case header(String)
-        case item(WidgetUpcomingItem)
-    }
-
-    private func flatten(groups: [(String, [WidgetUpcomingItem])], limit: Int) -> [Row] {
-        let todayIso = snapshot?.todayIso ?? WidgetDates.iso(Date())
-        let tomorrowIso = WidgetDates.tomorrowIso()
-        var rows: [Row] = []
-        for group in groups {
-            if rows.count >= limit { break }
-            rows.append(.header(dayLabel(group.0, todayIso: todayIso, tomorrowIso: tomorrowIso)))
-            for item in group.1 {
-                if rows.count >= limit { break }
-                rows.append(.item(item))
-            }
-        }
-        return rows
-    }
-
-    private func dayLabel(_ iso: String, todayIso: String, tomorrowIso: String) -> String {
-        if iso == todayIso { return (ui?.today).flatMap { $0.isEmpty ? nil : $0 } ?? WidgetCopy.today }
-        if iso == tomorrowIso { return (ui?.tomorrow).flatMap { $0.isEmpty ? nil : $0 } ?? "Tomorrow" }
-        return WidgetDates.short(iso)
-    }
-
-    private func rowView(_ item: WidgetUpcomingItem) -> some View {
-        HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(markerColor(item))
-                .frame(width: 4, height: 16)
-            Text(item.time ?? "")
-                .font(.caption2)
-                .foregroundStyle(palette.textSecondary)
-                .frame(width: 54, alignment: .leading)
-                .lineLimit(1)
-            if let url = WidgetLinks.detail(eventId: item.eventId, todoId: item.todoId) {
-                Link(destination: url) {
-                    Text(item.summary)
-                        .font(.caption)
-                        .foregroundStyle(palette.textPrimary)
-                        .lineLimit(1)
+                    .foregroundStyle(palette.accent)
+            } else {
+                Link(destination: WidgetLinks.todos(entry.filter)) {
+                    Text(ui?.withCount(ui?.moreCount, count) ?? "\(count)")
+                        .font(.caption2)
+                        .foregroundStyle(palette.accent)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            } else {
-                Text(item.summary)
-                    .font(.caption)
-                    .foregroundStyle(palette.textPrimary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(minHeight: 28)
     }
 
-    private func markerColor(_ item: WidgetUpcomingItem) -> Color {
-        if item.kind == "todoDeadline" { return palette.textSecondary }
-        return Color(hex: item.color) ?? palette.accent
+    @ViewBuilder
+    private func itemRow(
+        _ item: WidgetTodoItem,
+        overdue: Bool,
+        pending: WidgetSnapshotStore.PendingCommandTargets
+    ) -> some View {
+        let checked = WidgetCommandState.isPending(
+            pending,
+            target: "todo",
+            todoId: item.todoId,
+            occurrenceId: nil
+        )
+        HStack(spacing: 6) {
+            if let color = priorityColor(item.priority, palette: palette), large {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(color)
+                    .frame(width: 2, height: 22)
+            }
+            if item.recurring == true {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.textSecondary)
+                    .frame(width: 32, height: 32)
+            } else {
+                Button(intent: CompleteActionIntent(
+                    target: "todo",
+                    todoId: item.todoId,
+                    todoSyncId: item.todoSyncId ?? ""
+                )) {
+                    WidgetCheck(checked: checked, palette: palette)
+                }
+                .buttonStyle(.plain)
+            }
+
+            let body = VStack(alignment: .leading, spacing: 1) {
+                Text(item.summary)
+                    .font(.caption)
+                    .strikethrough(checked)
+                    .foregroundStyle(checked ? palette.textSecondary : palette.textPrimary)
+                    .lineLimit(large ? 2 : 1)
+                if let meta = metaText(item, overdue: overdue, large: large), !meta.isEmpty {
+                    Text(meta)
+                        .font(.caption2)
+                        .foregroundStyle(overdue ? palette.error : palette.textSecondary)
+                        .lineLimit(1)
+                }
+                if large, let colors = item.tagColors, !colors.isEmpty {
+                    HStack(spacing: 3) {
+                        ForEach(Array(colors.prefix(3).enumerated()), id: \.offset) { _, hex in
+                            Circle()
+                                .fill(Color(hex: hex) ?? palette.textSecondary)
+                                .frame(width: 5, height: 5)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if small {
+                body
+            } else {
+                Link(destination: WidgetLinks.todo(item.todoId)) { body }
+            }
+        }
+        .frame(minHeight: small ? 38 : 38)
+    }
+
+    private func metaText(_ item: WidgetTodoItem, overdue: Bool, large: Bool) -> String? {
+        guard entry.filter != .inbox else { return nil }
+        guard large || entry.filter == .all || overdue else { return nil }
+        guard let dueDate = item.dueDate else { return nil }
+        return WidgetDates.short(dueDate)
     }
 }
 
@@ -996,7 +1323,7 @@ struct UpcomingWidgetView: View {
 
 struct CalendarWidgetView: View {
     @Environment(\.widgetFamily) private var family
-    let entry: CalendarTodoEntry
+    let entry: WidgetEntry
 
     private var snapshot: WidgetSnapshot? { entry.snapshot }
     private var ui: WidgetUi? { snapshot?.ui }
@@ -1010,30 +1337,26 @@ struct CalendarWidgetView: View {
         let todayDay: Int
         let daysInMonth: Int
         let marks: [Int: WidgetMonthDay]
+        let isCurrent: Bool
     }
 
     private var month: MonthModel {
         let calendar = Calendar.current
         let now = Date()
         let snapshotMonth = snapshot?.month
-        let year = (snapshotMonth?.year ?? 0) > 0
-            ? snapshotMonth!.year!
-            : calendar.component(.year, from: now)
-        let month = (snapshotMonth?.month ?? 0) > 0
-            ? snapshotMonth!.month!
-            : calendar.component(.month, from: now)
+        let snapshotIsCurrent = (snapshotMonth?.year ?? 0) == calendar.component(.year, from: now)
+            && (snapshotMonth?.month ?? 0) == calendar.component(.month, from: now)
+        let year = snapshotIsCurrent ? (snapshotMonth?.year ?? 0) : calendar.component(.year, from: now)
+        let month = snapshotIsCurrent ? (snapshotMonth?.month ?? 0) : calendar.component(.month, from: now)
         var first = DateComponents()
         first.year = year
         first.month = month
         first.day = 1
         let firstDate = calendar.date(from: first) ?? now
         let weekday = calendar.component(.weekday, from: firstDate)
-        let firstWeekday = (snapshotMonth?.firstWeekday).flatMap { $0 >= 1 && $0 <= 7 ? $0 : nil }
-            ?? (((weekday + 5) % 7) + 1)
+        let firstWeekday = ((weekday + 5) % 7) + 1
         let range = calendar.range(of: .day, in: .month, for: firstDate)
         let daysInMonth = range?.count ?? 30
-        let isCurrent = year == calendar.component(.year, from: now)
-            && month == calendar.component(.month, from: now)
         let marks = Dictionary(
             uniqueKeysWithValues: (snapshotMonth?.days ?? []).map { ($0.day, $0) }
         )
@@ -1041,38 +1364,73 @@ struct CalendarWidgetView: View {
             year: year,
             month: month,
             firstWeekday: firstWeekday,
-            todayDay: isCurrent ? calendar.component(.day, from: now) : -1,
+            todayDay: snapshotIsCurrent ? calendar.component(.day, from: now) : -1,
             daysInMonth: daysInMonth,
-            marks: marks
+            marks: marks,
+            isCurrent: snapshotIsCurrent
         )
+    }
+
+    private var selectedIso: String { WidgetCalendarState.selectedIso() }
+
+    private var dayMode: Bool {
+        !large && WidgetCalendarState.mode() == "day"
     }
 
     var body: some View {
         let model = month
         VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(WidgetDates.monthTitle(year: model.year, month: model.month))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(palette.accent)
-                Spacer()
-                Link(destination: WidgetLinks.newEvent(WidgetDates.iso(Date()))) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(palette.accent)
-                        .frame(width: 32, height: 32)
-                }
+            header(model: model)
+            if !dayMode {
+                weekdayHeader
+                grid(model)
             }
-            weekdayHeader
-            grid(model)
             if large {
                 Divider().overlay(palette.border)
-                todaySummary
+                selectedDayList(model: model)
+            } else if dayMode {
+                dayHeader
+                selectedDayList(model: model)
             }
         }
-        .padding(large ? 10 : 6)
+        .padding(large ? 10 : 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) { palette.background }
-        .widgetURL(WidgetLinks.calendar)
+        .widgetURL(WidgetLinks.calendar(selectedIso))
+    }
+
+    private func header(model: MonthModel) -> some View {
+        HStack(spacing: 4) {
+            let staleSuffix: String = {
+                guard model.isCurrent,
+                      let snapshot,
+                      snapshot.todayIso != WidgetDates.iso(Date())
+                else { return "" }
+                return " · \(ui?.stale ?? WidgetCopy.openToUpdate)"
+            }()
+            Link(destination: WidgetLinks.calendar(selectedIso)) {
+                Text(WidgetDates.monthTitle(year: model.year, month: model.month) + staleSuffix)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.accent)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 2)
+            if selectedIso != WidgetDates.iso(Date()) {
+                Button(intent: CalendarTodayIntent()) {
+                    Text(ui?.today ?? WidgetCopy.today)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(palette.accent)
+                        .frame(minWidth: 32, minHeight: 28)
+                }
+                .buttonStyle(.plain)
+            }
+            Link(destination: WidgetLinks.newEvent(selectedIso)) {
+                Image(systemName: "plus")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(palette.accent)
+                    .frame(width: 32, height: 28)
+            }
+        }
     }
 
     private var weekdayHeader: some View {
@@ -1106,14 +1464,8 @@ struct CalendarWidgetView: View {
     private func dayCell(_ day: Int, model: MonthModel) -> some View {
         let mark = model.marks[day]
         let isToday = day == model.todayDay
-        var iso = WidgetDates.iso(Date())
-        var components = DateComponents()
-        components.year = model.year
-        components.month = model.month
-        components.day = day
-        if let date = Calendar.current.date(from: components) {
-            iso = WidgetDates.iso(date)
-        }
+        let iso = isoFor(day: day, model: model)
+        let isSelected = iso == selectedIso
         let dotColor: Color? = {
             if mark?.hasEvent == true || mark?.hasAllocation == true {
                 return Color(hex: mark?.colors?.first) ?? palette.accent
@@ -1121,117 +1473,113 @@ struct CalendarWidgetView: View {
             if mark?.hasTodo == true { return palette.textSecondary }
             return nil
         }()
-        return Link(destination: WidgetLinks.calendar(iso)) {
+        return Button(intent: SelectCalendarDateIntent(dateIso: iso, enterDay: !large)) {
             VStack(spacing: 1) {
                 Text("\(day)")
-                    .font(.system(size: large ? 12 : 10, weight: isToday ? .bold : .regular))
-                    .foregroundStyle(isToday ? palette.accent : palette.textPrimary)
+                    .font(.system(size: large ? 12 : 10, weight: isSelected || isToday ? .bold : .regular))
+                    .foregroundStyle(isSelected || isToday ? palette.accent : palette.textPrimary)
                 Circle()
                     .fill(dotColor ?? .clear)
                     .frame(width: large ? 4 : 3, height: large ? 4 : 3)
             }
-            .frame(maxWidth: .infinity, minHeight: large ? 25 : 18)
+            .frame(maxWidth: .infinity, minHeight: large ? 25 : 20)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isSelected ? palette.accent.opacity(0.16) : .clear)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func isoFor(day: Int, model: MonthModel) -> String {
+        var components = DateComponents()
+        components.year = model.year
+        components.month = model.month
+        components.day = day
+        guard let date = Calendar.current.date(from: components) else {
+            return WidgetDates.iso(Date())
+        }
+        return WidgetDates.iso(date)
+    }
+
+    private var dayHeader: some View {
+        HStack(spacing: 8) {
+            Button(intent: CalendarBackToMonthIntent()) {
+                Text("‹ \(ui?.backToMonth ?? WidgetCopy.backToMonth)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(palette.accent)
+                    .frame(minHeight: 28)
+            }
+            .buttonStyle(.plain)
+            Text(WidgetDates.dayTitle(selectedIso))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.textPrimary)
+                .lineLimit(1)
         }
     }
 
-    private var todaySummary: some View {
-        let timeline = Array((snapshot?.timeline ?? []).prefix(2))
-        let actions = Array((snapshot?.actions ?? []).prefix(2))
+    private func selectedDayList(model: MonthModel) -> some View {
+        let day = Calendar.current.component(.day, from: WidgetDates.parse(selectedIso) ?? Date())
+        let mark = model.marks[day]
+        let items = mark?.items ?? []
+        let limit = large ? 6 : 4
         return VStack(alignment: .leading, spacing: 2) {
-            Text((ui?.today).flatMap { $0.isEmpty ? nil : $0 } ?? WidgetCopy.today)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(palette.textSecondary)
-            if timeline.isEmpty && actions.isEmpty {
+            if !large && !dayMode {
+                Text(WidgetDates.dayTitle(selectedIso))
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(palette.textSecondary)
+            }
+            if items.isEmpty {
                 EmptyMessage(
-                    text: (ui?.noPlans).flatMap { $0.isEmpty ? nil : $0 } ?? WidgetCopy.noPlans,
+                    text: model.isCurrent
+                        ? (ui?.selectedDayEmpty ?? WidgetCopy.selectedDayEmpty)
+                        : (ui?.openToUpdate ?? WidgetCopy.openToUpdate),
                     palette: palette
                 )
             }
-            ForEach(timeline.indices, id: \.self) { index in
-                let item = timeline[index]
-                summaryRow(
-                    time: timeLabel(start: item.start, end: item.end, isAllDay: item.isAllDay ?? false),
-                    title: item.summary,
-                    url: WidgetLinks.detail(eventId: item.eventId, todoId: item.todoId)
-                )
+            ForEach(Array(items.prefix(limit).enumerated()), id: \.offset) { _, item in
+                summaryRow(item)
             }
-            ForEach(actions.indices, id: \.self) { index in
-                let action = actions[index]
-                summaryRow(
-                    time: (action.deadline?.isEmpty == false ? action.deadline : nil)
-                        ?? (action.displayTime ?? ""),
-                    title: action.summary,
-                    url: action.todoId > 0 ? WidgetLinks.todo(action.todoId) : nil
-                )
+            if let itemCount = mark?.itemCount, itemCount > limit {
+                Link(destination: WidgetLinks.calendar(selectedIso)) {
+                    Text(ui?.withCount(ui?.moreCount, itemCount - limit) ?? "\(itemCount - limit)")
+                        .font(.caption2)
+                        .foregroundStyle(palette.accent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }
 
-    private func timeLabel(start: String, end: String?, isAllDay: Bool) -> String {
-        if isAllDay { return ui?.allDay ?? "" }
-        if let end, !end.isEmpty { return "\(start)-\(end)" }
-        return start
-    }
-
     @ViewBuilder
-    private func summaryRow(time: String, title: String, url: URL?) -> some View {
+    private func summaryRow(_ item: WidgetMonthItem) -> some View {
+        let isDeadline = item.kind == "todoDeadline"
+        let time: String = {
+            if item.isAllDay == true { return ui?.allDay ?? WidgetCopy.allDay }
+            if isDeadline && item.hasTime != true { return "□" }
+            return item.start ?? ""
+        }()
         let body = HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 1)
+                .fill(isDeadline ? palette.textSecondary : (Color(hex: item.color) ?? palette.accent))
+                .frame(width: 3, height: 18)
             Text(time)
-                .font(.system(size: 9))
+                .font(.system(size: 10))
                 .foregroundStyle(palette.textSecondary)
                 .frame(width: 48, alignment: .leading)
                 .lineLimit(1)
-            Text(title)
+            Text(item.summary)
                 .font(.caption2)
                 .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
-        .frame(minHeight: 22)
-        if let url {
+        .frame(minHeight: 24)
+
+        if let url = WidgetLinks.detail(eventId: item.eventId, todoId: item.todoId) {
             Link(destination: url) { body }
         } else {
             body
-        }
-    }
-}
-
-// MARK: - Quick actions
-
-struct QuickActionsWidgetView: View {
-    @Environment(\.widgetFamily) private var family
-    let entry: CalendarTodoEntry
-
-    private var palette: WidgetPalette { WidgetPalette(entry.snapshot) }
-    private var small: Bool { family == .systemSmall }
-
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                action(WidgetLinks.quickAdd, title: WidgetCopy.newTodo)
-                action(WidgetLinks.newEvent(WidgetDates.iso(Date())), title: WidgetCopy.newEvent)
-            }
-            if !small {
-                HStack(spacing: 8) {
-                    action(WidgetLinks.today, title: WidgetCopy.today)
-                    action(WidgetLinks.calendar, title: WidgetCopy.calendar)
-                }
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .containerBackground(for: .widget) { palette.background }
-    }
-
-    private func action(_ url: URL, title: String) -> some View {
-        Link(destination: url) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(palette.accent)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(palette.accent.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .frame(minHeight: 44)
         }
     }
 }
@@ -1243,24 +1591,11 @@ struct CalendarTodoWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: SnapshotTimelineProvider()) { entry in
-            TodayWidgetView(entry: entry)
+            ActionWidgetView(entry: entry)
         }
         .configurationDisplayName(WidgetCopy.galleryName(kind))
         .description(WidgetCopy.galleryDescription(kind))
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
-    }
-}
-
-struct CalendarUpcomingWidget: Widget {
-    let kind = "CalendarUpcomingWidget"
-
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: SnapshotTimelineProvider()) { entry in
-            UpcomingWidgetView(entry: entry)
-        }
-        .configurationDisplayName(WidgetCopy.galleryName(kind))
-        .description(WidgetCopy.galleryDescription(kind))
-        .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
 
@@ -1277,16 +1612,29 @@ struct CalendarMonthWidget: Widget {
     }
 }
 
-struct CalendarQuickActionsWidget: Widget {
-    let kind = "CalendarQuickActionsWidget"
+struct CalendarTodosWidget: Widget {
+    let kind = "CalendarTodosWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: SnapshotTimelineProvider()) { entry in
-            QuickActionsWidgetView(entry: entry)
+        if #available(iOS 17.0, macOS 14.0, *) {
+            return AppIntentConfiguration(
+                kind: kind,
+                intent: TodosConfigurationIntent.self,
+                provider: TodosTimelineProvider()
+            ) { entry in
+                TodosWidgetView(entry: entry)
+            }
+            .configurationDisplayName(WidgetCopy.galleryName(kind))
+            .description(WidgetCopy.galleryDescription(kind))
+            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        } else {
+            return StaticConfiguration(kind: kind, provider: SnapshotTimelineProvider()) { entry in
+                TodosWidgetView(entry: TodosEntry(date: entry.date, snapshot: entry.snapshot, filter: .today))
+            }
+            .configurationDisplayName(WidgetCopy.galleryName(kind))
+            .description(WidgetCopy.galleryDescription(kind))
+            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         }
-        .configurationDisplayName(WidgetCopy.galleryName(kind))
-        .description(WidgetCopy.galleryDescription(kind))
-        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
@@ -1294,8 +1642,7 @@ struct CalendarQuickActionsWidget: Widget {
 struct CalendarTodoWidgetBundle: WidgetBundle {
     var body: some Widget {
         CalendarTodoWidget()
-        CalendarUpcomingWidget()
         CalendarMonthWidget()
-        CalendarQuickActionsWidget()
+        CalendarTodosWidget()
     }
 }

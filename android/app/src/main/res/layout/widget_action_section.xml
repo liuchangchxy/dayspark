@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/upcoming_group"
+    android:id="@+id/action_section"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:paddingTop="6dp"
-    android:paddingBottom="2dp"
+    android:layout_height="22dp"
+    android:gravity="bottom"
+    android:paddingTop="4dp"
+    android:singleLine="true"
     android:textColor="@color/widget_text_secondary"
-    android:textSize="11sp"
+    android:textSize="10sp"
     android:textStyle="bold" />

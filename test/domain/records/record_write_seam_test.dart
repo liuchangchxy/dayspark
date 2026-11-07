@@ -675,10 +675,12 @@ void main() {
       final snapshot =
           jsonDecode(store[HomeWidgetService.snapshotKey] as String)
               as Map<String, dynamic>;
+      final action = snapshot['action'] as Map<String, dynamic>;
+      expect(action['timeline'], isA<List>());
       expect(
-        jsonEncode(snapshot['todayEvents']),
+        jsonEncode(action['timeline']),
         contains('Imported today'),
-        reason: 'ICS 导入必须立刻把新事件推进快照（裸 insert 不给 tableUpdates 了）',
+        reason: 'ICS 导入必须立刻把新事件推进 v5 快照（裸 insert 不给 tableUpdates 了）',
       );
     });
   });
