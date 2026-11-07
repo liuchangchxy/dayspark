@@ -618,7 +618,7 @@ struct TodayWidgetView: View {
                 emptyState
             }
         }
-        .padding(small ? 10 : (large ? 12 : 10))
+        .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) { palette.background }
         .widgetURL(WidgetLinks.today)
@@ -628,7 +628,7 @@ struct TodayWidgetView: View {
         let pending = WidgetSnapshotStore.pendingCommandTargets()
         let timeline = Array(snapshot.timeline.prefix(small ? 1 : (large ? 3 : 2)))
         let actions = Array(snapshot.actions.prefix(small ? 1 : (large ? 5 : 3)))
-        return VStack(alignment: .leading, spacing: 3) {
+        return VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(WidgetDates.short(snapshot.todayIso))
                     .font(small ? .title3.weight(.semibold) : .title2.weight(.semibold))
@@ -715,7 +715,7 @@ struct TodayWidgetView: View {
         Text(text)
             .font(.caption.weight(.semibold))
             .foregroundStyle(palette.accent)
-            .frame(maxWidth: .infinity, minHeight: 28)
+            .frame(maxWidth: .infinity, minHeight: 24)
             .background(palette.accent.opacity(0.12))
             .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -898,7 +898,7 @@ struct UpcomingWidgetView: View {
         let todayIso = snapshot?.todayIso ?? WidgetDates.iso(Date())
         let limit = large ? 10 : 4
         let rows = flatten(groups: groups, limit: limit)
-        return VStack(alignment: .leading, spacing: 3) {
+        return VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Link(destination: WidgetLinks.calendar) {
                     Text(ui?.upcoming ?? WidgetCopy.today)
