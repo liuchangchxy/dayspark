@@ -119,17 +119,49 @@
   "upcoming": "Upcoming",
   "quickAdd": "Quick add",
   "todayEventsHeader": "Today's Events",
-  "widgetNoEvents": "No events today",
-  "widgetAllDone": "All done!",
-  "widgetPendingCount": "{count} pending",
-  "@widgetPendingCount": {
-    "description": "Home screen widget label for the number of pending todos",
+  "widgetNoPlans": "No plans for today",
+  "widgetTodos": "Tasks",
+  "widgetAll": "All",
+  "widgetNoTodos": "No tasks",
+  "widgetAllTodosDone": "Today's tasks are done",
+  "widgetAllPlansDone": "Today's plans are done",
+  "widgetLater": "Later",
+  "widgetDueToday": "To do today",
+  "widgetCompletedCount": "{count} completed",
+  "@widgetCompletedCount": {
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
+  "widgetMoreCount": "{count} more",
+  "@widgetMoreCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetOverdueCount": "{count} overdue",
+  "@widgetOverdueCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "widgetSelectedDayEmpty": "Nothing on this day",
+  "widgetCompletedCountTemplate": "%n completed",
+  "widgetMoreCountTemplate": "%n more",
+  "widgetOverdueCountTemplate": "%n overdue",
+  "widgetBackToMonth": "Month",
+  "widgetOpenToUpdate": "Open DaySpark to update",
+  "widgetStale": "Data needs updating",
+  "widgetAddTodo": "+ Task",
+  "widgetAddEvent": "+ Event",
+  "widgetQuickAddHint": "Add a task",
+  "widgetSaveFailed": "Save failed. Please try again.",
   "eventCreated": "Event created",
   "todoCreated": "Task created",
   "importExport": "Import / Export",

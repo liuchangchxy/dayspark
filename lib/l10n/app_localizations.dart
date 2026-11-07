@@ -62,8 +62,7 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -71,8 +70,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -84,18 +82,17 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('zh'),
+    Locale('zh')
   ];
 
   /// No description provided for @preview.
@@ -770,23 +767,137 @@ abstract class AppLocalizations {
   /// **'Today\'s Events'**
   String get todayEventsHeader;
 
-  /// No description provided for @widgetNoEvents.
+  /// No description provided for @widgetNoPlans.
   ///
   /// In en, this message translates to:
-  /// **'No events today'**
-  String get widgetNoEvents;
+  /// **'No plans for today'**
+  String get widgetNoPlans;
 
-  /// No description provided for @widgetAllDone.
+  /// No description provided for @widgetTodos.
   ///
   /// In en, this message translates to:
-  /// **'All done!'**
-  String get widgetAllDone;
+  /// **'Tasks'**
+  String get widgetTodos;
 
-  /// Home screen widget label for the number of pending todos
+  /// No description provided for @widgetAll.
   ///
   /// In en, this message translates to:
-  /// **'{count} pending'**
-  String widgetPendingCount(int count);
+  /// **'All'**
+  String get widgetAll;
+
+  /// No description provided for @widgetNoTodos.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks'**
+  String get widgetNoTodos;
+
+  /// No description provided for @widgetAllTodosDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s tasks are done'**
+  String get widgetAllTodosDone;
+
+  /// No description provided for @widgetAllPlansDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s plans are done'**
+  String get widgetAllPlansDone;
+
+  /// No description provided for @widgetLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get widgetLater;
+
+  /// No description provided for @widgetDueToday.
+  ///
+  /// In en, this message translates to:
+  /// **'To do today'**
+  String get widgetDueToday;
+
+  /// No description provided for @widgetCompletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} completed'**
+  String widgetCompletedCount(int count);
+
+  /// No description provided for @widgetMoreCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more'**
+  String widgetMoreCount(int count);
+
+  /// No description provided for @widgetOverdueCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overdue'**
+  String widgetOverdueCount(int count);
+
+  /// No description provided for @widgetSelectedDayEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this day'**
+  String get widgetSelectedDayEmpty;
+
+  /// No description provided for @widgetCompletedCountTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'%n completed'**
+  String get widgetCompletedCountTemplate;
+
+  /// No description provided for @widgetMoreCountTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'%n more'**
+  String get widgetMoreCountTemplate;
+
+  /// No description provided for @widgetOverdueCountTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'%n overdue'**
+  String get widgetOverdueCountTemplate;
+
+  /// No description provided for @widgetBackToMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get widgetBackToMonth;
+
+  /// No description provided for @widgetOpenToUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Open DaySpark to update'**
+  String get widgetOpenToUpdate;
+
+  /// No description provided for @widgetStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Data needs updating'**
+  String get widgetStale;
+
+  /// No description provided for @widgetAddTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Task'**
+  String get widgetAddTodo;
+
+  /// No description provided for @widgetAddEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Event'**
+  String get widgetAddEvent;
+
+  /// No description provided for @widgetQuickAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a task'**
+  String get widgetQuickAddHint;
+
+  /// No description provided for @widgetSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed. Please try again.'**
+  String get widgetSaveFailed;
 
   /// No description provided for @eventCreated.
   ///
@@ -3093,8 +3204,7 @@ abstract class AppLocalizations {
   String get signOut;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -3103,26 +3213,25 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en':
-      return AppLocalizationsEn();
-    case 'zh':
-      return AppLocalizationsZh();
+    case 'en': return AppLocalizationsEn();
+    case 'zh': return AppLocalizationsZh();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
+    'that was used.'
   );
 }

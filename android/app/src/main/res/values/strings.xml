@@ -1,4 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">View today\'s events and pending to-dos at a glance.</string>
+    <string name="widget_today_name">Action</string>
+    <string name="widget_today_description">See and complete what is happening today.</string>
+    <string name="widget_todos_name">Tasks</string>
+    <string name="widget_todos_description">Your task list, ready to check off.</string>
+    <string name="widget_calendar_name">Calendar</string>
+    <string name="widget_calendar_description">See any day in this month at a glance.</string>
+    <string name="widget_open_app">Open DaySpark</string>
+    <string name="widget_no_plans">No plans for today</string>
+    <string name="widget_all_plans_done">Today\'s plans are done</string>
+    <string name="widget_no_todos">No tasks</string>
+    <string name="widget_all_todos_done">Today\'s tasks are done</string>
+    <string name="widget_add_todo">+ Task</string>
+    <string name="widget_add_event">+ Event</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_inbox">Inbox</string>
+    <string name="widget_all">All</string>
+    <string name="widget_overdue">Overdue</string>
+    <string name="widget_open">Open DaySpark</string>
+    <string name="widget_more_count">%1$d more</string>
+    <string name="widget_completed_count">%1$d completed</string>
+    <string name="widget_open_to_update">Open DaySpark to update</string>
+    <string name="widget_stale">Data needs updating</string>
+    <string name="widget_back_to_month">Month</string>
+    <string name="widget_selected_day_empty">Nothing on this day</string>
+    <string name="widget_all_day">All day</string>
 </resources>

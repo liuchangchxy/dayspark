@@ -48,8 +48,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get confirmLegacyRecurrenceTitle => '确认重复待办';
 
   @override
-  String get confirmLegacyRecurrenceBody =>
-      '这条重复待办是在旧版本导入的，没有记录从哪天开始重复。选一次那个日期，其余由应用推算。';
+  String get confirmLegacyRecurrenceBody => '这条重复待办是在旧版本导入的，没有记录从哪天开始重复。选一次那个日期，其余由应用推算。';
 
   @override
   String get legacyAnchorEvidence => '已保存的日期和时间';
@@ -70,8 +69,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recurrenceAnchor => '重复系列锚点';
 
   @override
-  String get recurrenceEditAllocationWarning =>
-      '修改重复规则、锚点或时区不会移动已有时间安排；部分安排可能不再属于当前系列。';
+  String get recurrenceEditAllocationWarning => '修改重复规则、锚点或时区不会移动已有时间安排；部分安排可能不再属于当前系列。';
 
   @override
   String get recurrenceTimezoneHorizonError => '当前时区数据暂不支持计算该日期范围。';
@@ -349,15 +347,76 @@ class AppLocalizationsZh extends AppLocalizations {
   String get todayEventsHeader => '今日日程';
 
   @override
-  String get widgetNoEvents => '今天没有日程';
+  String get widgetNoPlans => '今天没有安排';
 
   @override
-  String get widgetAllDone => '全部完成';
+  String get widgetTodos => '待办';
 
   @override
-  String widgetPendingCount(int count) {
-    return '$count 项待办';
+  String get widgetAll => '全部';
+
+  @override
+  String get widgetNoTodos => '没有待办';
+
+  @override
+  String get widgetAllTodosDone => '今天的待办都完成了';
+
+  @override
+  String get widgetAllPlansDone => '今天的安排都完成了';
+
+  @override
+  String get widgetLater => '接下来';
+
+  @override
+  String get widgetDueToday => '今天要做';
+
+  @override
+  String widgetCompletedCount(int count) {
+    return '已完成 $count';
   }
+
+  @override
+  String widgetMoreCount(int count) {
+    return '还有 $count 项';
+  }
+
+  @override
+  String widgetOverdueCount(int count) {
+    return '$count 项逾期';
+  }
+
+  @override
+  String get widgetSelectedDayEmpty => '这一天没有安排';
+
+  @override
+  String get widgetCompletedCountTemplate => '已完成 %n';
+
+  @override
+  String get widgetMoreCountTemplate => '还有 %n 项';
+
+  @override
+  String get widgetOverdueCountTemplate => '%n 项逾期';
+
+  @override
+  String get widgetBackToMonth => '月';
+
+  @override
+  String get widgetOpenToUpdate => '打开 DaySpark 以更新';
+
+  @override
+  String get widgetStale => '数据待更新';
+
+  @override
+  String get widgetAddTodo => '+ 待办';
+
+  @override
+  String get widgetAddEvent => '+ 日程';
+
+  @override
+  String get widgetQuickAddHint => '添加待办';
+
+  @override
+  String get widgetSaveFailed => '保存失败，请重试';
 
   @override
   String get eventCreated => '日程已创建';
@@ -456,8 +515,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get recurringSeriesNotice =>
-      '这是重复日程。保存会修改整个系列；下面的时间是系列起始，不是你点开的那一次。暂不支持只修改单次实例。';
+  String get recurringSeriesNotice => '这是重复日程。保存会修改整个系列；下面的时间是系列起始，不是你点开的那一次。暂不支持只修改单次实例。';
 
   @override
   String get allDayDragDisabled => '全天日程无法通过拖拽移动';

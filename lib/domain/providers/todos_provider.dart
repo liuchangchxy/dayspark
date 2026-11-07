@@ -38,6 +38,17 @@ final allTodosProvider = StreamProvider<List<Todo>>((ref) {
   return db.todosDao.watchAllNotDeleted();
 });
 
+/// One todo row for deep links: detail opened from a widget carries only the
+/// local id, so the page must resolve and keep tracking the live row.
+final liveTodoProvider = StreamProvider.autoDispose.family<Todo?, int>((
+  ref,
+  id,
+) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(
+    db.todos,
+  )..where((row) => row.id.equals(id))).watchSingleOrNull();
+});
 
 final createTodoProvider =
     Provider<

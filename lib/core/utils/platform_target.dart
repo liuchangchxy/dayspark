@@ -21,7 +21,9 @@ TargetPlatform? homeWidgetPlatformOn({
   required TargetPlatform platform,
 }) {
   if (isWeb) return null;
-  if (platform == TargetPlatform.android || platform == TargetPlatform.iOS) {
+  if (platform == TargetPlatform.android ||
+      platform == TargetPlatform.iOS ||
+      platform == TargetPlatform.macOS) {
     return platform;
   }
   return null;

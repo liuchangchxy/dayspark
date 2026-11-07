@@ -81,35 +81,43 @@ void main() {
 
     // 2. Initial snapshot generation
     final initialProjection = await ActionProjectionQuery.fetch(db, date: now);
-    final initialTimeline = HomeWidgetService.todayTimeline(initialProjection);
-    final initialActions = HomeWidgetService.todayActions(initialProjection);
-    final initialStatus = HomeWidgetService.todayStatus(initialProjection);
-    final initialUpcoming = await HomeWidgetService.upcomingItems(db, now: now);
-    final initialMonthDots = await HomeWidgetService.monthDots(db, now: now);
+    final initialAction = HomeWidgetService.buildActionBlock(initialProjection);
+    final initialTodos = await HomeWidgetService.buildTodosBlock(
+      db,
+      now: now,
+      sixThingsEnabled: false,
+      completedCount: 0,
+    );
+    final initialMonth = await HomeWidgetService.monthCalendar(db, now: now);
     final initialUi = await HomeWidgetService.loadWidgetUiStrings(
       locale: const Locale('en'),
-      todoCount: initialActions.length + initialStatus['unplannedCount']!,
     );
-    final initialTheme = HomeWidgetService.buildThemeBlock(dark: true);
-
     final snapshot1 = HomeWidgetService.buildSnapshot(
-      todayTimeline: initialTimeline,
-      todayActions: initialActions,
-      todayStatus: initialStatus,
-      upcomingItems: initialUpcoming,
-      monthDots: initialMonthDots,
-      ui: initialUi,
-      theme: initialTheme,
       generatedAt: now,
+      action: initialAction,
+      todos: initialTodos,
+      month: initialMonth,
+      ui: initialUi,
+      theme: HomeWidgetService.buildThemeBlock(dark: true),
     );
 
     // Verify initial snapshot contents
-    final snap1Actions = (snapshot1['today'] as Map<String, dynamic>)['actions'] as List;
-    expect(snap1Actions.any((a) => a['summary'] == 'File Expense Report'), isTrue);
-    expect(snap1Actions.any((a) => a['summary'] == 'Morning Meditation'), isTrue);
+    final actionRows = [
+      ...(initialAction['dueToday'] as List),
+      ...(initialAction['overdue'] as List),
+    ];
+    expect(actionRows.any((a) => a['summary'] == 'File Expense Report'), isTrue);
+    expect(actionRows.any((a) => a['summary'] == 'Morning Meditation'), isTrue);
+    expect(snapshot1['version'], 5);
+    expect(snapshot1['today'], '2026-10-07');
+    expect(snapshot1['todos'], isA<Map<String, Object?>>());
 
     // Extract occurrenceId of the habit from actions
-    final habitAction = snap1Actions.firstWhere((a) => a['summary'] == 'Morning Meditation') as Map<String, dynamic>;
+    final habitAction =
+        actionRows.firstWhere(
+              (a) => a['summary'] == 'Morning Meditation',
+            )
+            as Map<String, dynamic>;
     final occurrenceId = habitAction['occurrenceId'] as String;
     expect(occurrenceId, isNotEmpty);
 
@@ -181,11 +189,15 @@ void main() {
 
     // 6. Verify recomputed snapshot reflects completed items
     final refreshedProjection = await ActionProjectionQuery.fetch(db, date: now);
-    final refreshedActions = HomeWidgetService.todayActions(refreshedProjection);
+    final refreshedAction = HomeWidgetService.buildActionBlock(refreshedProjection);
+    final refreshedRows = [
+      ...(refreshedAction['dueToday'] as List),
+      ...(refreshedAction['overdue'] as List),
+    ];
 
-    // Completed items are removed from actionable today actions
-    expect(refreshedActions.any((a) => a['summary'] == 'File Expense Report'), isFalse);
-    expect(refreshedActions.any((a) => a['summary'] == 'Morning Meditation'), isFalse);
+    // Completed items are removed from the actionable projection
+    expect(refreshedRows.any((a) => a['summary'] == 'File Expense Report'), isFalse);
+    expect(refreshedRows.any((a) => a['summary'] == 'Morning Meditation'), isFalse);
 
     // 7. Test semantic idempotency replay: re-delivering already completed commands is safe no-op
     transport.pushCommand(cmdExpense);
@@ -234,7 +246,8 @@ void main() {
     // 3. Verify snapshot timeline contains taskAllocation row
     final queryDate = DateTime(futureStart.year, futureStart.month, futureStart.day);
     final initialProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
-    final initialTimeline = HomeWidgetService.todayTimeline(initialProjection);
+    final initialAction = HomeWidgetService.buildActionBlock(initialProjection);
+    final initialTimeline = initialAction['timeline'] as List;
     final allocRow = initialTimeline.firstWhere(
       (item) => item['kind'] == 'taskAllocation' && item['summary'] == 'Write Architectural Review',
     );
@@ -294,7 +307,8 @@ void main() {
 
     // 9. Refreshed snapshot timeline no longer has active allocation
     final refreshedProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
-    final refreshedTimeline = HomeWidgetService.todayTimeline(refreshedProjection);
+    final refreshedAction = HomeWidgetService.buildActionBlock(refreshedProjection);
+    final refreshedTimeline = refreshedAction['timeline'] as List;
     expect(refreshedTimeline.any((item) => item['allocationId'] == '$allocId'), isFalse);
   });
 
@@ -349,7 +363,8 @@ void main() {
 
     // 4. Initial timeline verifies occurrenceId and allocationId are retained
     final initialProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
-    final initialTimeline = HomeWidgetService.todayTimeline(initialProjection);
+    final initialAction = HomeWidgetService.buildActionBlock(initialProjection);
+    final initialTimeline = initialAction['timeline'] as List;
     final allocRow = initialTimeline.firstWhere((item) => item['allocationId'] == '$allocId');
     expect(allocRow['kind'], 'taskAllocation');
     expect(allocRow['occurrenceId'], targetOccurrenceId);
@@ -414,7 +429,8 @@ void main() {
 
     // - Refreshed timeline no longer has the completed allocation
     final refreshedProjection = await ActionProjectionQuery.fetch(db, date: queryDate);
-    final refreshedTimeline = HomeWidgetService.todayTimeline(refreshedProjection);
+    final refreshedAction = HomeWidgetService.buildActionBlock(refreshedProjection);
+    final refreshedTimeline = refreshedAction['timeline'] as List;
     expect(refreshedTimeline.any((item) => item['allocationId'] == '$allocId'), isFalse);
   });
 }
