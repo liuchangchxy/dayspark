@@ -45,6 +45,8 @@ void _ensureDefaultCalendar(AppDatabase db) {
               ),
             );
       }
-    } catch (e) { debugPrint('database_provider: seed error: $e'); }
+    } catch (e) {
+      debugPrint('database_provider: seed error: $e');
+    }
   })();
 }

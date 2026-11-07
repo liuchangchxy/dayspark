@@ -165,13 +165,21 @@ void main() {
       expect(find.text('Fix Bug'), findsOneWidget);
       expect(find.text('Deadline: 2026-10-02'), findsOneWidget);
 
+      // Events and allocations that already ended stay folded into the
+      // secondary section instead of pushing the rest of the day down.
+      expect(find.text('Earlier today'), findsOneWidget);
+      await tester.tap(find.text('Earlier today'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
       // The day's schedule. End time is stated once, not as a range that
       // repeats the time in the left column.
       expect(find.text('Client Call'), findsOneWidget);
       expect(find.text('until 11:00'), findsOneWidget);
 
       expect(find.text('Write Spec'), findsOneWidget);
-      expect(find.text('Scheduled time'), findsOneWidget);
+      expect(find.text('Planned time'), findsOneWidget);
 
       // To do today merges due-today todos with today's recurring instances.
       expect(find.text('To do today'), findsOneWidget);
@@ -184,6 +192,54 @@ void main() {
       await _unmount(tester);
     },
   );
+
+  testWidgets('planned Todo with a deadline keeps one row and both facts', (
+    tester,
+  ) async {
+    final todoId = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Write Paper',
+            dueDate: Value(DateTime(2026, 10, 6, 18)),
+          ),
+        );
+    final container = ProviderContainer(
+      overrides: [databaseProvider.overrideWithValue(db)],
+    );
+    await container.read(createTaskAllocationProvider)(
+      todoId: todoId,
+      startAt: DateTime(2026, 10, 6, 14),
+      endAt: DateTime(2026, 10, 6, 15),
+    );
+    container.dispose();
+
+    await tester.pumpWidget(
+      _wrapWithApp(
+        child: const ActionSection(),
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => fixedDate),
+        ],
+      ),
+    );
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    await tester.tap(find.text('Earlier today'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    // One obligation, one row: the plan is primary and the deadline is
+    // metadata on it, not a second full row.
+    expect(find.text('Write Paper'), findsOneWidget);
+    expect(find.text('Planned time · Deadline: 18:00'), findsOneWidget);
+    expect(find.text('To do today'), findsNothing);
+    await _unmount(tester);
+  });
 
   testWidgets('every Action row opens the object detail, on desktop too', (
     tester,
@@ -297,6 +353,12 @@ void main() {
       );
 
       for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      // The allocation already ended, so it lives in the folded section.
+      await tester.tap(find.text('Earlier today'));
+      for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
 

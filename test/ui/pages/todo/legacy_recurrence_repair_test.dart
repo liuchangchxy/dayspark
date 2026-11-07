@@ -132,7 +132,7 @@ void main() {
     expect(find.text('Confirm repeating task'), findsOneWidget);
     expect(find.textContaining('vtimezoneConflict'), findsNothing);
     expect(find.textContaining('VTIMEZONE data'), findsNothing);
-    expect(find.text('Repeats from'), findsOneWidget);
+    expect(find.text('Repeat starts'), findsOneWidget);
     await tester.tap(find.text('Preview'));
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));

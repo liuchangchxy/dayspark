@@ -19,6 +19,7 @@ import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 
 class ImportExportSection extends ConsumerWidget {
   const ImportExportSection({super.key, this.showHeader = false});
@@ -44,54 +45,34 @@ class ImportExportSection extends ConsumerWidget {
             ),
             child: Text(l.data, style: AppTypography.title),
           ),
-        // Import and export ask different questions (which calendar do the
-        // events land in vs. which files do I get), so they are two rows
-        // rather than two buttons in one dialog.
+        SectionLabel(l.dataExchange),
         ListTile(
           leading: const Icon(CupertinoIcons.arrow_down_doc),
-          title: Text(l.importTo),
+          title: Text(l.importIcs),
           subtitle: Text(l.calendarData),
           onTap: () => _importIcs(context, ref),
         ),
         ListTile(
           leading: const Icon(CupertinoIcons.arrow_up_doc),
-          title: Text(l.exportAllCalendars),
+          title: Text(l.exportIcs),
+          subtitle: Text(l.exportAllCalendars),
           onTap: () => _exportIcs(context, ref),
         ),
+        const Divider(height: 1),
+        SectionLabel(l.daysparkBackup),
         ListTile(
           leading: const Icon(CupertinoIcons.archivebox),
           title: Text(l.fullBackup),
           subtitle: Text(l.fullBackupDesc),
-          onTap: () => _showBackupDialog(context, ref),
+          onTap: () => _exportBackup(context, ref),
+        ),
+        ListTile(
+          leading: const Icon(CupertinoIcons.arrow_down_to_line),
+          title: Text(l.mergeBackup),
+          subtitle: Text(l.mergeBackupDesc),
+          onTap: () => _mergeBackup(context, ref),
         ),
       ],
-    );
-  }
-
-  void _showBackupDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    showDialog(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.fullBackup),
-        content: Text('${l.fullBackupDesc}\n\n${l.mergeBackupDesc}'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _mergeBackup(context, ref);
-            },
-            child: Text(l.mergeBackup),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _exportBackup(context, ref);
-            },
-            child: Text(l.export),
-          ),
-        ],
-      ),
     );
   }
 

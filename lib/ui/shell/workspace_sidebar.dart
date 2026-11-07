@@ -10,16 +10,6 @@ import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
-/// "Today" is a place, not a mode: selecting any other day inside Todo leaves
-/// the day view active, so the label only lights up when the day really is
-/// today.
-bool _viewIsToday(TodosView view) {
-  if (view is! TodosDayView) return false;
-  final now = DateTime.now();
-  final day = view.day;
-  return day.year == now.year && day.month == now.month && day.day == now.day;
-}
-
 /// Desktop workspace rail. Lives outside the router so every destination —
 /// Home, Settings, Search, a pushed detail — keeps the same chrome; the
 /// selected destination is derived from the current location, not from the
@@ -60,7 +50,7 @@ class WorkspaceSidebar extends ConsumerWidget {
                 SearchEntry(onTap: () => _goDestination(context, '/search')),
                 const SizedBox(height: AppSpacing.lg),
                 _NavigationItem(
-                  label: l.action,
+                  label: l.today,
                   icon: CupertinoIcons.bolt,
                   selected: tab == AppTab.action,
                   onTap: () => _goTab(context, ref, AppTab.action),
@@ -77,20 +67,10 @@ class WorkspaceSidebar extends ConsumerWidget {
                   selected: tab == AppTab.todos,
                   onTap: () => _goTab(context, ref, AppTab.todos),
                 ),
-                // Today and Inbox are places inside Todo, so they read as
-                // children of it rather than as three more destinations.
-                _SubNavigationItem(
-                  label: l.today,
-                  selected: tab == AppTab.todos && _viewIsToday(view),
-                  onTap: () {
-                    final now = DateTime.now();
-                    _goTodosView(
-                      context,
-                      ref,
-                      TodosDayView(DateTime(now.year, now.month, now.day)),
-                    );
-                  },
-                ),
+                // Unplanned and All are views inside Todo, so they read as
+                // children of it rather than as more primary destinations.
+                // Date browsing (including today's date) stays inside Todo
+                // but is not a second navigation destination called "Today".
                 _SubNavigationItem(
                   label: l.inbox,
                   selected: tab == AppTab.todos && view is TodosInboxView,

@@ -85,6 +85,16 @@ void main() {
 
     final field = find.byKey(const ValueKey('todo-quick-add'));
     expect(field, findsOneWidget);
+    // The day view supplies a deadline, so it is stated before anything is
+    // written instead of being attached silently.
+    expect(find.byType(InputChip), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(InputChip),
+        matching: find.textContaining('Deadline:'),
+      ),
+      findsOneWidget,
+    );
 
     for (var i = 0; i < 5; i++) {
       await tester.enterText(field, 'Quick $i');
@@ -112,6 +122,48 @@ void main() {
     expect(editable.controller.text, isEmpty);
     expect(editable.focusNode.hasFocus, isTrue);
 
+    await _unmount(tester);
+  });
+
+  testWidgets('quick create shows and edits the inherited deadline', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    await tester.tap(find.byKey(const ValueKey('workspace-create')));
+    await _settle(tester);
+
+    final title = find.byKey(const ValueKey('todo-quick-create-title'));
+    expect(title, findsOneWidget);
+    final chip = find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.byType(InputChip),
+    );
+    expect(chip, findsOneWidget);
+    expect(
+      find.descendant(of: chip, matching: find.textContaining('Deadline:')),
+      findsOneWidget,
+    );
+
+    await tester.tap(chip);
+    await _settle(tester);
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await _settle(tester);
+
+    await tester.enterText(title, 'Visible deadline');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await _settle(tester);
+
+    final row = (await db.select(db.todos).get()).single;
+    expect(row.summary, 'Visible deadline');
+    final now = DateTime.now();
+    expect(row.dueDate, DateTime(now.year, now.month, now.day));
     await _unmount(tester);
   });
 }

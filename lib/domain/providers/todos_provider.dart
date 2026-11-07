@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/sync/sync_outbox.dart';
@@ -27,6 +28,44 @@ final inboxTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);
   return db.todosDao.watchInbox();
 });
+
+final pendingTodosProvider = StreamProvider<List<Todo>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.todosDao.watchPending();
+});
+
+/// Unplanned means "no effective planned execution", not "no due date".
+/// Membership is derived from active TaskAllocations using the same validity
+/// rules the Calendar applies, so a canceled or invalidated block releases the
+/// Todo back into this view instead of hiding it forever.
+final unplannedTodosProvider =
+    Provider.autoDispose<AsyncValue<List<Todo>>>((ref) {
+      final pendingAsync = ref.watch(pendingTodosProvider);
+      final allocationsAsync = ref.watch(allActiveTaskAllocationsProvider);
+      if (pendingAsync.isLoading || allocationsAsync.isLoading) {
+        return const AsyncValue.loading();
+      }
+      final error = pendingAsync.error ?? allocationsAsync.error;
+      if (error != null) {
+        return AsyncValue.error(
+          error,
+          pendingAsync.stackTrace ??
+              allocationsAsync.stackTrace ??
+              StackTrace.current,
+        );
+      }
+      final planned = {
+        for (final item
+            in allocationsAsync.valueOrNull ??
+                const <TaskAllocationCalendarItem>[])
+          item.todo.id,
+      };
+      final rows = [
+        for (final todo in pendingAsync.valueOrNull ?? const <Todo>[])
+          if (!planned.contains(todo.id)) todo,
+      ];
+      return AsyncValue.data(rows);
+    });
 
 final deletedTodosProvider = StreamProvider<List<Todo>>((ref) {
   final db = ref.watch(databaseProvider);

@@ -2,15 +2,15 @@
 
 > 2026-10-06 update: recurring per-instance completion is implemented on `fix/recurring-task-instance-completion`; PR #2 tracks delivery and current Hosted CI evidence. The Todo UI remains a series row with an occurrence selector.
 
-> Last updated / 最后更新: v0.29.0+29 | 2026-10-23 | One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox become Todo views), Action answers only "what now/today", Todo asks only deadline and execution time (execution schedulable at creation), create and edit collapse into one form page per object with a read-only detail surface, and the desktop rail persists across the whole app through `ShellRoute`. Previous: v0.28.0+28 | 2026-10-21 | Sync closure: reminders, tags and attachment metadata now sync (schema v15); attachment blobs are uploaded by the client and fetched on demand, with deletion clearing local file + row + server blob; backup is one zip carrying `db.json` plus attachment bodies; the client's recurrence-legacy branches are removed. Previous: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Earlier: v0.27.0+28 | 2026-10-01 | Sync devices + localization guards: every account can see its connected devices, the AI answers in the app language, switching language re-issues already-scheduled reminders, and four guards cover the localization surface. Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: Apple Calendar-style warm/clear language — iOS system palette, 6-step type scale, iOS radii, layered elevation, five locked accent presets (`DESIGN.md` rewritten)
+> Last updated / 最后更新: v0.30.0+30 | 2026-11-07 | Core UX: primary navigation is 今天 / 日历 / 待办; 今天 folds one obligation into one row and links to 未安排; 待办 keeps its day navigation and quick capture; creation is explicit per context; the calendar picker always opens and can create a calendar in place; Settings is regrouped as 通用 / 日历 / 数据 / 同步 / AI / 通知与提醒 / 关于. Previous: v0.29.0+29 | 2026-10-23 | One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox become Todo views), Action answers only "what now/today", Todo asks only deadline and execution time (execution schedulable at creation), create and edit collapse into one form page per object with a read-only detail surface, and the desktop rail persists across the whole app through `ShellRoute`. Previous: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Earlier: v0.27.0+28 | 2026-10-01 | Sync devices + localization guards: every account can see its connected devices, the AI answers in the app language, switching language re-issues already-scheduled reminders, and four guards cover the localization surface. Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: Apple Calendar-style warm/clear language — iOS system palette, 6-step type scale, iOS radii, layered elevation, five locked accent presets (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.29.0+29** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.30.0+30** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
-- 最新变化：**全局 UI/UX 骨架统一（v0.29.0）** — 顶层只剩 Action / Calendar / Todo，Today 与 Inbox 变成 Todo 内部视图；Action 只回答"现在/今天该做什么"；Todo 只问截止时间与执行时间（执行时间新建时即可安排）；新建与编辑合并为同一表单页，点开对象先进只读详情；桌面侧栏经 `ShellRoute` 全站常驻，所有页面统一 `WorkspacePage`；旧重复待办的一次性修复只问"从哪天开始重复"
-- 上一版：**同步补齐与整机备份（v0.28.0）** — 提醒/标签/附件元数据进入同步（schema v15）、附件本体上传与按需下载、备份升级为 zip
+- 最新变化：**Core UX 重构（v0.30.0）** — 主界面统一为今天 / 日历 / 待办；今天把同一待办的计划与截止合并为一行并保留未安排入口；待办保留日期浏览与快速添加；新建动作按上下文显式区分待办与日程；日历选择器始终打开且可就地新建日历；设置重组为通用 / 日历 / 数据 / 同步 / AI / 通知与提醒 / 关于
+- 上一版：**全局 UI/UX 骨架统一（v0.29.0）** — 提醒/标签/附件元数据进入同步（schema v15）、附件本体上传与按需下载、备份升级为 zip
 - 更早：**视觉重设计（v0.26.0）** — Apple 日历式温和清晰：iOS 系统色板、6 级字阶、iOS 圆角与分层阴影、锁死的 5 套预设主题色（`DESIGN.md` 重写）
 - 更早：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）；Web 缺口见 Pending **#9（ICS 导出不可用）/#10（通知静默未初始化）**
@@ -729,4 +729,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.29.0+29 |
+| Version / 版本 | v0.30.0+30 |

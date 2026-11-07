@@ -7,7 +7,6 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
-import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -20,6 +19,7 @@ import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
@@ -541,45 +541,18 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
         // A dangling calendar (deleted on another device) must be resolved by
         // the user. Falling back to `calendars.first` would silently move the
         // event to a calendar nobody chose.
-        final needsChoice = current == null;
         return ScheduleRow(
-          label: l.calendar,
+          label: l.calendarField,
           value: current?.name ?? l.calendarUnavailable,
           trailing: const Icon(CupertinoIcons.chevron_down, size: 12),
-          onTap: calendars.length == 1 && !needsChoice
-              ? null
-              : () async {
-                  final picked = await showModalBottomSheet<int>(
-                    context: context,
-                    builder: (ctx) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (final calendar in calendars)
-                            ListTile(
-                              leading: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: ColorUtils.parseHex(calendar.color),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              title: Text(calendar.name),
-                              trailing: calendar.id == selected
-                                  ? const Icon(
-                                      CupertinoIcons.checkmark,
-                                      size: 16,
-                                    )
-                                  : null,
-                              onTap: () => Navigator.of(ctx).pop(calendar.id),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                  if (picked != null) setState(() => _calendarId = picked);
-                },
+          onTap: () async {
+            final picked = await pickCalendar(
+              context,
+              ref,
+              selectedId: selected,
+            );
+            if (picked != null) setState(() => _calendarId = picked);
+          },
         );
       },
     );

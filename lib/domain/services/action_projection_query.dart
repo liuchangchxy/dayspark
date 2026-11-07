@@ -353,16 +353,17 @@ class ActionProjectionQuery {
           ]))
         .get();
 
-    final unplannedRows = await (db.select(db.todos)
-          ..where(
-            (t) =>
-                t.deletedAt.isNull() &
-                t.status.isNotIn(const ['COMPLETED', 'CANCELLED']) &
-                t.rrule.isNull() &
-                t.recurrenceRule.isNull() &
-                t.dueDate.isNull(),
-          ))
-        .get();
+    final plannedItems = await fetchAllActiveTaskAllocations(db);
+    final plannedIds = {for (final item in plannedItems) item.todo.id};
+    final unplannedRows = (await (db.select(db.todos)
+              ..where(
+                (t) =>
+                    t.deletedAt.isNull() &
+                    t.parentId.isNull() &
+                    t.status.isNotIn(const ['COMPLETED', 'CANCELLED']),
+              ))
+            .get())
+        .where((todo) => !plannedIds.contains(todo.id));
 
     final completedTodayTodos = await (db.select(db.todos)
           ..where(

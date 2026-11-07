@@ -3,8 +3,8 @@
 **TL;DR / 快速了解**
 - 2026-10-06：重复 Todo 架构回正：实例完成状态按 `(series syncId, occurrenceId)` 稀疏存储；完成/撤销只影响选定 occurrence；新 schema v14 不推断旧 `COMPLETED` series 的实例；同步、Busy Time 与 MCP 同步接入。PR #2 已建立；本轮 hard-delete 生命周期、MCP occurrence 查询与 missed-obligation 语义修正由 PR 更新承载。
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.29.0+29** — 全局 UI/UX 骨架统一：顶层只剩 Action / Calendar / Todo（Today/Inbox 成为 Todo 内部视图），Action 只回答"现在/今天该做什么"，Todo 只问截止时间与执行时间且执行时间新建时即可安排，新建与编辑合并为同一个表单页、点开对象先看详情再决定编辑，桌面侧栏通过 `ShellRoute` 全站常驻、所有页面统一 `WorkspacePage`；旧重复待办的一次性修复不再暴露 RRULE / 导入证据 / 手打时区，只剩"从哪天开始重复"一个问题 / One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox are Todo views), Action answers only "what now/today", Todo asks only deadline and execution time (schedule at creation), create and edit are one form while tapping an item opens a read-only detail, the desktop rail persists across the whole app through `ShellRoute`, and the one-time legacy repair asks only which day the series repeats from
-- 上一版本 / Previous: **v0.28.0+28** — 同步补齐最后一块：提醒/标签/附件元数据跨设备同步（schema v15），附件本体真正上传与按需下载，删附件时本地文件 + 行 + 服务端 blob 一起清，整机备份升级成 zip（`db.json` + 附件本体），客户端残留的重复规则 legacy 分支删除 / Sync closes the last gaps: reminders, tags and attachment metadata cross devices (schema v15), attachment blobs are really uploaded and fetched on demand, deleting one clears local file + row + server blob, backup is one zip (`db.json` plus attachment bodies), and the client's leftover recurrence-legacy branches are gone
+- 最新版本 / Latest: **v0.30.0+30** — 全局 UI/UX 骨架统一：顶层只剩 Action / Calendar / Todo（Today/Inbox 成为 Todo 内部视图），Action 只回答"现在/今天该做什么"，Todo 只问截止时间与执行时间且执行时间新建时即可安排，新建与编辑合并为同一个表单页、点开对象先看详情再决定编辑，桌面侧栏通过 `ShellRoute` 全站常驻、所有页面统一 `WorkspacePage`；旧重复待办的一次性修复不再暴露 RRULE / 导入证据 / 手打时区，只剩"从哪天开始重复"一个问题 / One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox are Todo views), Action answers only "what now/today", Todo asks only deadline and execution time (schedule at creation), create and edit are one form while tapping an item opens a read-only detail, the desktop rail persists across the whole app through `ShellRoute`, and the one-time legacy repair asks only which day the series repeats from
+- 上一版本 / Previous: **v0.29.0+29** — 同步补齐最后一块：提醒/标签/附件元数据跨设备同步（schema v15），附件本体真正上传与按需下载，删附件时本地文件 + 行 + 服务端 blob 一起清，整机备份升级成 zip（`db.json` + 附件本体），客户端残留的重复规则 legacy 分支删除 / Sync closes the last gaps: reminders, tags and attachment metadata cross devices (schema v15), attachment blobs are really uploaded and fetched on demand, deleting one clears local file + row + server blob, backup is one zip (`db.json` plus attachment bodies), and the client's leftover recurrence-legacy branches are gone
 - 更早 / Earlier: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
 - 最新流程改进 / Pipeline: **门禁总账 + 变异实证（一条没红过的门禁视为不存在）+ 出口清单 + 流程文档五件** — 2026-10-01
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
@@ -17,6 +17,30 @@
 
 - [x] Todo 详情面板复用提醒选择与保存路径，支持查看、添加、修改和删除。
 - [x] Event 详情面板显示当前日历并支持切换，保存后随实时数据更新。
+
+## v0.30.0+30 — Core UX / 核心体验重构
+
+**用户反馈原文 / User feedback:** 按 `docs/CORE_UX_SPEC.md` 一次性实现冻结的 Core UX；主界面统一为今天 / 日历 / 待办，今天按约束合并行并保留未安排入口，待办保留日期浏览与快速添加，新建动作按上下文显式区分待办与日程，日历选择器始终打开且可就地新建日历，设置按 通用 / 日历 / 数据 / 同步 / AI / 通知与提醒 / 关于 重组。
+
+### Features / 新功能
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|------|
+| 1 | **今天 / 日历 / 待办成为唯一主界面** | 内部 `AppTab.action` 保留，用户可见的「行动」全部改为「今天」；待办不再出现重复的「今天」导航目的地 |
+| 2 | **未安排改为派生事实** | 未安排 = 没有有效计划执行的待办，不再以 `dueDate == null` 判定；取消或失效的计划会自动把待办放回未安排 |
+| 3 | **今天一事项一行** | 同一待办既有计划执行又有截止时，计划行保留为主行、截止作为次要信息，不再显示两条完整行；逾期仍独立强调 |
+| 4 | **新建按上下文显式区分** | 待办页 `+ 待办`、日历页 `+ 日程`、今天页中性的 `新建` 选择待办或日程；从上下文继承的截止时间在保存前可见、可编辑，不静默写入 |
+| 5 | **待办时间模型与表单顺序统一** | 截止 = `dueDate`，重复开始 = `startDate` 只出现在重复设置中，计划执行 = `TaskAllocation`；表单与详情按 任务 / 时间 / 提醒 / 整理 / 内容 排列，详情支持子任务 |
+| 6 | **日历选择器始终可用** | 字段统一为「所属日历」；即使只有一个日历也会打开选择器，并始终提供「+ 新建日历」，创建后回到选择器并选中新日历；设置入口统一为「日历管理」 |
+| 7 | **设置 IA 重组** | 通用 / 日历 / 数据 / 同步 / AI 助手 / 通知与提醒 / 关于；同步说明自托管多设备用途；数据分为日历数据交换与 DaySpark 备份；「隐藏已完成」移动到待办的显示菜单 |
+| 8 | **六件事退出主界面** | 今天、待办工具栏与设置不再出现六件事；持久化偏好仅作为内部数据保留 |
+
+### Fixes / 修复
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|------|
+| 1 | **粗暴文本替换回归** | 桌面端今天页的新建按钮此前误传 `isActionTab: false`，会直接打开待办快速创建；现按当前页签正确显示待办 / 日程选择 |
+| 2 | **默认日历本地化** | 未改动的默认日历在中文启动时显示「个人」，用户改过名称或颜色的日历不会被覆盖 |
 
 ## v0.29.0+29 — One Product / 全局 UI/UX 骨架统一
 

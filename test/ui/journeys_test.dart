@@ -17,7 +17,6 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
-import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
 /// Journeys through the real router and a real database.
@@ -88,10 +87,18 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('workspace-create')));
     await _settle(tester);
-    expect(find.byType(TodoFormPage), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, 'Book the flights');
-    await tester.tap(find.text('Save'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SimpleDialog),
+        matching: find.text('Tasks'),
+      ),
+    );
+    await _settle(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('todo-quick-create-title')),
+      'Book the flights',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await _settle(tester);
 
     final created = (await db.select(db.todos).get()).single;
@@ -146,6 +153,12 @@ void main() {
     AppRouter.router.push('/todo/detail', extra: todo);
     await _settle(tester);
 
+    await tester.scrollUntilVisible(
+      find.text('Move to Trash'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await _settle(tester);
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
     // The confirm button carries the same words as the row that opened it.

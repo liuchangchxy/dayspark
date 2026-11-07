@@ -91,6 +91,58 @@ List<TaskAllocationCalendarItem> _mapTaskAllocationRows(
       .toList();
 }
 
+/// Every active allocation that still counts as planned execution, without a
+/// date window. The Today projection uses this to decide whether a Todo is
+/// "unplanned"; a past block still means the user did plan the work.
+Future<List<TaskAllocationCalendarItem>> fetchAllActiveTaskAllocations(
+  AppDatabase db,
+) async {
+  final query =
+      db.select(db.taskAllocations).join([
+        innerJoin(
+          db.todos,
+          db.todos.id.equalsExp(db.taskAllocations.todoId),
+        ),
+        leftOuterJoin(
+          db.taskInstanceStates,
+          db.taskInstanceStates.todoSyncId.equalsExp(db.todos.syncId) &
+              db.taskInstanceStates.occurrenceId.equalsExp(
+                db.taskAllocations.occurrenceId,
+              ),
+        ),
+      ])..where(
+        db.taskAllocations.state.equals('active') &
+            db.todos.deletedAt.isNull() &
+            db.todos.status.isNotIn(const ['CANCELLED']),
+      );
+  return _mapTaskAllocationRows(db, await query.get());
+}
+
+final allActiveTaskAllocationsProvider = StreamProvider.autoDispose<
+  List<TaskAllocationCalendarItem>
+>((ref) {
+  final db = ref.watch(databaseProvider);
+  final query =
+      db.select(db.taskAllocations).join([
+        innerJoin(
+          db.todos,
+          db.todos.id.equalsExp(db.taskAllocations.todoId),
+        ),
+        leftOuterJoin(
+          db.taskInstanceStates,
+          db.taskInstanceStates.todoSyncId.equalsExp(db.todos.syncId) &
+              db.taskInstanceStates.occurrenceId.equalsExp(
+                db.taskAllocations.occurrenceId,
+              ),
+        ),
+      ])..where(
+        db.taskAllocations.state.equals('active') &
+            db.todos.deletedAt.isNull() &
+            db.todos.status.isNotIn(const ['CANCELLED']),
+      );
+  return query.watch().map((rows) => _mapTaskAllocationRows(db, rows));
+});
+
 final taskAllocationsInDateRangeProvider = StreamProvider.autoDispose
     .family<List<TaskAllocationCalendarItem>, String>((ref, rangeKey) {
       final db = ref.watch(databaseProvider);

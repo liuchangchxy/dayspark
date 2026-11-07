@@ -11,7 +11,6 @@ import 'package:dayspark/ui/pages/settings/settings_sections/account_section.dar
 import 'package:dayspark/ui/pages/settings/settings_sections/ai_section.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/appearance_section.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/import_export_section.dart';
-import 'package:dayspark/ui/pages/settings/settings_sections/todos_section.dart';
 
 Future<void> _pumpSettings(WidgetTester tester) async {
   tester.view.physicalSize = const Size(800, 4000);
@@ -45,16 +44,17 @@ void main() {
     );
   });
 
-  testWidgets('orders sections appearance → todos → data → account → ai, '
-      'advanced group collapsed at the end', (tester) async {
+  testWidgets('orders sections general → calendar → data → sync → ai → about', (
+    tester,
+  ) async {
     await _pumpSettings(tester);
 
     expect(
       _y(tester, find.byType(AppearanceSection)),
-      lessThan(_y(tester, find.byType(TodosSection))),
+      lessThan(_y(tester, find.text('Manage Calendars'))),
     );
     expect(
-      _y(tester, find.byType(TodosSection)),
+      _y(tester, find.text('Manage Calendars')),
       lessThan(_y(tester, find.byType(ImportExportSection))),
     );
     expect(
@@ -69,15 +69,13 @@ void main() {
       _y(tester, find.byType(AiSection)),
       lessThan(_y(tester, find.byType(AboutSection))),
     );
+    expect(find.text('Six Things'), findsNothing);
   });
 
-  testWidgets('list-behavior toggles render inside the todos section', (
-    tester,
-  ) async {
+  testWidgets('calendar management has its own group', (tester) async {
     await _pumpSettings(tester);
 
-    expect(find.byType(TodosSection), findsOneWidget);
-    expect(find.text('Six Things'), findsOneWidget);
-    expect(find.text('Hide completed'), findsOneWidget);
+    expect(find.text('Manage Calendars'), findsOneWidget);
+    expect(find.text('Hide completed'), findsNothing);
   });
 }

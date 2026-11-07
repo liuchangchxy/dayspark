@@ -10,21 +10,9 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/color_swatch_grid.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
-
-const _calendarColors = [
-  '#2563EB',
-  '#16A34A',
-  '#DC2626',
-  '#D97706',
-  '#7C3AED',
-  '#DB2777',
-  '#4B5563',
-  '#0D9488',
-  '#EA580C',
-  '#4F46E5',
-];
 
 class CalendarsPage extends ConsumerWidget {
   const CalendarsPage({super.key});
@@ -113,7 +101,7 @@ class CalendarsPage extends ConsumerWidget {
   ) async {
     final l = AppLocalizations.of(context)!;
     final nameController = TextEditingController(text: calendar?.name ?? '');
-    var selectedColor = calendar?.color ?? _calendarColors.first;
+    var selectedColor = calendar?.color ?? kCalendarColors.first;
     String? error;
     var saving = false;
 
@@ -137,7 +125,7 @@ class CalendarsPage extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               ColorSwatchGrid(
-                colors: _calendarColors,
+                colors: kCalendarColors,
                 selected: selectedColor,
                 onSelected: (hex) => setState(() => selectedColor = hex),
               ),

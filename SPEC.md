@@ -75,11 +75,19 @@ flowchart LR
   - 规则 13：服务端 busy-time 是 Event occurrence 与有效 TaskAllocation 的统一只读投影，不是持久化实体。单次查询按半开区间 `[startAt, endAt)` 裁剪到请求窗口；空闲查询只消费裁剪、排序并合并后的区间。相邻和重叠 busy 区间合并，Event 与 Allocation 使用同一规则。Todo `dueDate` 及没有 Allocation 的 Todo 不占用时间。Event 沿用现有语义：查询排除 tombstone 与 `deletedAt` 软删行，按窗口展开 recurrence；Event 契约没有取消状态，故当前不额外过滤未定义的 status值。All-day Event 使用既有有效结束时刻规则（正长度沿用 `endDt`，否则占用 24 小时）。
   - 规则 14：TaskAllocation 的 busy 有效性同时检查 Allocation 自身未 tombstone 且 `state == active`，并检查父 Todo 已解析、未 tombstone、未软删除且未取消。普通 Todo 依其 `completedAt` 校验；重复 Todo 必须解析 Allocation 的 `occurrenceId` 与对应实例状态，仅该实例的完成边界可使其安排不占用，其他 occurrence 不受影响。无法解析实例状态时 fail closed，且不得从旧 series 完成字段推断具体实例。
   - 规则 15：重复 Todo 的父 Todo 定义 TaskSeries，RecurrenceSpec 与稳定 `occurrenceId` 定义虚拟 TaskInstance。完成与撤销完成属于 `(todoSyncId, occurrenceId)`，调用必须提供有效 `occurrenceId`；缺少时拒绝。完成实例不将父 Todo 标为 `COMPLETED`，也不改变其他实例。该实例完成边界后开始的 active Allocation 失效；已结束或正在执行的 Allocation 保持原状态。撤销只清除同一实例状态，不自动恢复已失效 Allocation。Series 取消/归档与实例完成分离。仅持久化发生状态变化的实例；其他实例由 RecurrenceSpec 有界、惰性生成。真实 UI 保持 series row 并打开 occurrence selector。missed occurrence 保持 pending/actionable，跨日不得自动完成或跳过；selector 默认显示最近 30 天与未来 90 天，并支持按 30 天分页访问更早 obligation，不物化无限实例。通用原生小组件只有 series ID 时不得替用户选 occurrence，也不得把重复系列当成普通单次任务完成。Rule 修改后不再匹配的已完成实例仍按旧 key 保留为历史 orphan。既有 `rrule != null && status == COMPLETED` 无法定位到具体 occurrence，必须保留为 legacy series completion，不伪造实例状态；用户显式重开 series 后才允许新的实例级操作。
-  - 规则 16：Today / Action 是纯派生投影（derived projection），不得建立新的持久化实体或 DailyPlan。Home 默认首选视图为 Action，并保留 Action、Calendar、Todos 三个一等 projection。已持久化保存 Calendar/Todos 默认偏好的老用户继续尊重其偏好；未设置偏好者默认进入 Action。
-    - Action 投影内容包括：① 今日 EventOccurrence；② 今日有效普通 Todo 的 TaskAllocation（计划执行时间）；③ 今日 deadline 的普通 Todo；④ 逾期未完成普通 Todo（保持原真实截止日期）；⑤ 收件箱/未安排（Inbox/Unplanned）紧凑入口及数量。
-    - 时间安排（Allocation）与截止事实（dueDate）在视觉与文案上严格区分；同一 Todo 若今日既有 Allocation 又有 deadline，允许分别在计划区与截止区展示，严禁为了去重抹杀事实。已完成项默认折叠或隐藏。
-    - 从 Action 中直接完成普通 Todo 或 Allocation 必须复用现有 Todo domain writer/provider，不建立第二套完成路径。
-  - 规则 17：待办列表行的待办项必须保留直接可点击的完成 Checkbox。六件事（Six Things）仅作为呈现与专注上限（presentation/focus cap），不创建 DailyPlan 实体；序数编号（ordinal）和拖拽排序不得替换或阻碍完成 Checkbox 的直接交互。
+  - 规则 16：今天 / Today（内部仍称 Action）是纯派生投影（derived projection），不得建立新的持久化实体或 DailyPlan。首页三个一等目的地为 **今天 / 日历 / 待办**（内部枚举继续使用 `AppTab.action` 等旧名）。已持久化保存的默认启动偏好继续尊重；未设置偏好者默认进入今天。
+    - 今天投影内容包括：① 今日 EventOccurrence；② 今日有效普通 Todo 的 TaskAllocation（计划执行时间）；③ 今日 deadline 的普通 Todo；④ 逾期未完成普通 Todo（保持原真实截止日期）；⑤ 未安排（Unplanned）紧凑入口及数量。
+    - 未安排定义为“当前没有有效计划执行（TaskAllocation）的待办”，不以 `dueDate == null` 为判据；有 dueDate 但没有有效 Allocation 的待办同样属于未安排。有效性复用规则 5/6/14/15 的既有定义，不新增数据库字段或持久化状态。
+    - 时间安排（Allocation）与截止事实（dueDate）在视觉与文案上严格区分。同一 Todo 若今日既有 Allocation 又有 deadline，默认以“计划执行”为主行并把截止作为次要元数据展示，不得默认生成两条完整任务行；截止事实仍必须可见。仅当截止本身需要独立风险强调（如已逾期）时，才允许另占截止/逾期区。已完成项默认折叠或隐藏。
+    - 从今天中直接完成普通 Todo 或 Allocation 必须复用现有 Todo domain writer/provider，不建立第二套完成路径。
+  - 规则 17：待办列表行的待办项必须保留直接可点击的完成 Checkbox。六件事（Six Things）从一级产品 UI 退休：Today、Todo 工具栏和 Settings 不再暴露该概念；如需兼容旧持久化偏好，只保留内部状态，不围绕它建立新的产品逻辑。序数编号（ordinal）和拖拽排序不得替换或阻碍完成 Checkbox 的直接交互。
+  - 规则 19（Core UX，2026-11-07）：用户可见信息架构固定为“今天 / 日历 / 待办”，移动端底部导航与桌面侧栏不再提供第二个“今天”导航目的地；待办内部仍保留日期浏览、日期条与选中日期 Quick Add。
+    - 创建语义必须显式：待办页 `+ 待办` 直接创建待办；日历页 `+ 日程` 直接创建日程；今天页使用中性 `新建` 并在待办/日程之间选择；日历时间槽保留“新建日程 / 安排待办”两个明确动作。任何上下文都不得静默写入选民看不到的 `dueDate`；若继承截止日期，保存前必须展示可编辑的“截止”chip。
+    - Todo 时间模型固定为 **截止**（`dueDate`）、**重复开始**（`startDate`，只在重复设置内出现）、**计划执行**（`TaskAllocation`）。普通 Todo 不提供独立“开始日期”字段；用户界面不出现 `TaskAllocation` 字样。
+    - Todo 完整表单、详情页与桌面详情面板使用同一术语与信息顺序：任务（标题/完成状态）→ 时间（截止/重复/计划执行）→ 提醒 → 整理（所属日历/优先级/标签）→ 内容（备注/子任务/附件）。详情必须能编辑子任务。
+    - 日历是 Event 与 Todo 共用的分组/颜色空间，字段统一称“所属日历”；Calendar picker 即使只有一个日历也可打开，且始终提供“+ 新建日历”，新建后返回 picker 并选中新日历。Settings 中该目的地称“日历管理”。
+    - Settings 按用户任务组织：通用 / 日历 / 同步 / 数据 / AI 助手 / 通知与提醒 / 关于。“账号”改为“同步”并解释为 DaySpark 自托管多设备同步；ICS 归“日历数据交换”，完整备份归“DaySpark 备份”，恢复语义保持“合并备份”；AI 助手不再嵌套在“高级功能”下。隐藏已完成属于待办页显示偏好，不放在全局 Settings。
+    - 新中文安装的默认日历名为“个人”；不得静默重命名用户自行创建或修改过的日历。
   - 规则 18（Phase 2 重复任务 Action Loop 闭环）：
     - Action 投影必须包含：今日 actionable recurring TaskInstances（DATE: LocalDate == civil date; DATE-TIME: resolved instant 在本地日窗口内）、最近 30 天 pending missed TaskInstances（按同一值类型规则早于今日边界）、Earlier missed 历史入口、今日 occurrence-bound TaskAllocations、今日完成的 TaskInstances（折叠展示在今日已完成区，携带 exact occurrenceId 供 reopen）、以及 unknownLegacy / unsupported 重复系列的紧凑确认卡片。
     - 每一个 TaskInstance 投影与交互操作必须携带稳定显式的 `(todoId, todoSyncId, occurrenceId)`，绝不根据 today、slot date、Todo id 或 dueDate 隐式推测 occurrence。
@@ -397,8 +405,8 @@ TaskAllocation payload 只包含 `todoSyncId`、可空 `occurrenceId`、`startAt
 ### D Final 表现层契约（2026-10-23）
 
 - 视觉基线为 PR #71 `docs/design/ui-ux-prototypes/d-final/` 四张冻结截图；不改变上述领域及 occurrence 契约。
-- Action 以现在、接下来、今日截止及待处理分组行表达；详情仅选中后出现，完成操作继续调用既有 Provider。
+- 今天（内部 Action）以现在、接下来、今日截止、已逾期及未安排入口表达；同一 Todo 的计划执行与截止合并为一个主行并保留截止元数据；详情仅选中后出现，完成操作继续调用既有 Provider。
 - Calendar 的 Event 使用浅色实心块，TaskAllocation 使用表面底和虚线边框，Deadline 使用独立非占时泳道；保留 kalender 时间、拖拽与可见窗口展开逻辑。
 - Todo 主行展示标题、核心日期和必要状态，完成控件独立且直接可用，重复系列继续显式选择 occurrence。
-- 桌面固定深色侧栏与统一内容起点；移动端独立节奏和 Action / Calendar / Todo 底部导航，触控目标至少 48dp。浅深主题均需可用，辅助文字至少 11sp。
+- 桌面固定深色侧栏与统一内容起点；移动端独立节奏和 今天 / 日历 / 待办 底部导航，触控目标至少 48dp。浅深主题均需可用，辅助文字至少 11sp。
 - 不新增领域实体、调度模型、依赖框架或视觉 CI 门禁；不修改数据库、同步、提醒、附件、标签、备份、MCP 及已关闭功能问题。

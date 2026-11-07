@@ -128,6 +128,13 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              l.syncExplanation,
+              style: AppTypography.caption.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _serverUrlController,
               keyboardType: TextInputType.url,
@@ -216,12 +223,19 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   List<Widget> _buildLoggedIn(AppLocalizations l, AccountAuthState state) {
     final status = ref.watch(syncStatusProvider);
     final engine = ref.watch(syncEngineProvider);
+    final server = ref.watch(syncSettingsProvider).valueOrNull?.baseUrl;
     return [
       ListTile(
         leading: const Icon(CupertinoIcons.person_crop_circle),
         title: Text(state.email!),
         subtitle: Text(_statusText(l, status)),
       ),
+      if (server != null)
+        ListTile(
+          leading: const Icon(CupertinoIcons.globe),
+          title: Text(l.serverUrl),
+          subtitle: Text(server),
+        ),
       ListTile(
         leading: const Icon(CupertinoIcons.device_phone_portrait),
         title: Text(l.connectedDevices),

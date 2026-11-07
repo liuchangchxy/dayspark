@@ -15,14 +15,10 @@ class DateStrip extends StatelessWidget {
     super.key,
     required this.view,
     required this.onViewSelected,
-    this.sixThingsMode = false,
-    this.onSixThingsToggle,
   });
 
   final TodosView view;
   final ValueChanged<TodosView> onViewSelected;
-  final bool sixThingsMode;
-  final VoidCallback? onSixThingsToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -90,14 +86,6 @@ class DateStrip extends StatelessWidget {
                   selected: view is TodosInboxView,
                   accentColor: theme.colorScheme.tertiary,
                   onTap: () => onViewSelected(const TodosInboxView()),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                _filterChip(
-                  context: context,
-                  label: l.sixThings,
-                  selected: sixThingsMode,
-                  accentColor: theme.colorScheme.secondary,
-                  onTap: () => onSixThingsToggle?.call(),
                 ),
               ],
             ),
@@ -254,15 +242,11 @@ class TodoDesktopToolbar extends StatelessWidget {
     super.key,
     required this.view,
     required this.onViewSelected,
-    this.sixThingsMode = false,
-    this.onSixThingsToggle,
     this.trailing = const [],
   });
 
   final TodosView view;
   final ValueChanged<TodosView> onViewSelected;
-  final bool sixThingsMode;
-  final VoidCallback? onSixThingsToggle;
   final List<Widget> trailing;
 
   @override
@@ -319,14 +303,6 @@ class TodoDesktopToolbar extends StatelessWidget {
                     selected: view is TodosInboxView,
                     accentColor: theme.colorScheme.tertiary,
                     onTap: () => onViewSelected(const TodosInboxView()),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  _filterChip(
-                    context: context,
-                    label: l.sixThings,
-                    selected: sixThingsMode,
-                    accentColor: theme.colorScheme.secondary,
-                    onTap: () => onSixThingsToggle?.call(),
                   ),
                 ],
               ),

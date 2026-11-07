@@ -9,6 +9,7 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
@@ -16,6 +17,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
@@ -246,11 +248,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         ),
         const SizedBox(height: AppSpacing.sm),
         const RowDivider(),
+        SectionLabel(l.sectionTime),
         if (legacy) ...[
           const SizedBox(height: AppSpacing.md),
           _legacyNotice(context, l, live),
         ] else ...[
-          const SizedBox(height: AppSpacing.sm),
           ScheduleRow(
             label: l.deadline,
             value: live.dueDate == null
@@ -264,11 +266,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                 ? null
                 : () => _saveSchedule(setDue: true),
           ),
-          if (live.rrule != null && live.startDate != null)
-            ScheduleRow(
-              label: l.startDate,
-              value: formatDeadline(context, live.startDate!),
-            ),
           RepeatRow(
             rrule: live.rrule,
             anchorDate: live.startDate ?? live.dueDate,
@@ -282,14 +279,34 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ),
             needsDate: live.startDate == null && live.dueDate == null,
           ),
-          const SizedBox(height: AppSpacing.lg),
-          const RowDivider(),
           ExecutionScheduleSection(todo: live, deadline: live.dueDate),
         ],
         const SizedBox(height: AppSpacing.lg),
         const RowDivider(),
-        _priority(context, l, live),
+        SectionLabel(l.sectionReminder),
+        RemindersSection(
+          parentType: 'todo',
+          parentId: live.id,
+          anchorTime: live.dueDate,
+        ),
         const SizedBox(height: AppSpacing.lg),
+        const RowDivider(),
+        SectionLabel(l.sectionOrganize),
+        _calendar(context, l, live),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          l.calendarExplanation,
+          style: AppTypography.caption.copyWith(
+            color: context.semantic.textTertiary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _priority(context, l, live),
+        const SizedBox(height: AppSpacing.sm),
+        _tags(context, live),
+        const SizedBox(height: AppSpacing.lg),
+        const RowDivider(),
+        SectionLabel(l.sectionContent),
         TextField(
           controller: _description,
           focusNode: _descriptionFocus,
@@ -314,18 +331,9 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             );
           },
         ),
+        const SizedBox(height: AppSpacing.sm),
+        _subtasks(context, l, live),
         const SizedBox(height: AppSpacing.lg),
-        _tags(context, live),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        RemindersSection(
-          parentType: 'todo',
-          parentId: live.id,
-          anchorTime: live.dueDate,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        const SizedBox(height: AppSpacing.md),
         AttachmentList(parentType: 'todo', parentId: live.id),
         const SizedBox(height: AppSpacing.xl),
         const RowDivider(),
@@ -374,6 +382,150 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
           child: Text(l.edit),
         ),
       ],
+    );
+  }
+
+  Widget _calendar(BuildContext context, AppLocalizations l, Todo live) {
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    if (calendars.isEmpty) return const SizedBox.shrink();
+    final current = calendars.where((c) => c.id == live.calendarId).firstOrNull;
+    return ScheduleRow(
+      label: l.calendarField,
+      value: current?.name ?? l.calendarUnavailable,
+      trailing: const Icon(CupertinoIcons.chevron_down, size: 12),
+      onTap: () async {
+        final picked = await pickCalendar(
+          context,
+          ref,
+          selectedId: live.calendarId,
+        );
+        if (picked != null) {
+          await _writeBasics(calendarId: picked);
+        }
+      },
+    );
+  }
+
+  Widget _subtasks(BuildContext context, AppLocalizations l, Todo live) {
+    final subtasks = ref.watch(subtasksProvider(live.id)).valueOrNull ?? const [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionLabel(
+          l.subtasks,
+          action: TextButton.icon(
+            onPressed: () => _addSubtask(context, l, live),
+            icon: const Icon(CupertinoIcons.add, size: 13),
+            label: Text(l.addSubtask),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 48),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: AppTypography.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        if (subtasks.isEmpty)
+          Text(
+            l.noSubtasks,
+            style: AppTypography.caption.copyWith(
+              color: context.semantic.textTertiary,
+            ),
+          )
+        else
+          for (final sub in subtasks)
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Row(
+                children: [
+                  IconButton(
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                    icon: Icon(
+                      sub.status == 'COMPLETED'
+                          ? CupertinoIcons.checkmark_circle_fill
+                          : CupertinoIcons.circle,
+                      size: 18,
+                      color: sub.status == 'COMPLETED'
+                          ? Theme.of(context).colorScheme.primary
+                          : context.semantic.textTertiary,
+                    ),
+                    onPressed: () => ref.read(toggleTodoProvider)(
+                      id: sub.id,
+                      isCompleted: sub.status != 'COMPLETED',
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      sub.summary,
+                      style: AppTypography.body.copyWith(
+                        decoration: sub.status == 'COMPLETED'
+                            ? TextDecoration.lineThrough
+                            : null,
+                        color: sub.status == 'COMPLETED'
+                            ? context.semantic.textTertiary
+                            : null,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                    icon: const Icon(CupertinoIcons.xmark, size: 14),
+                    tooltip: l.removeSubtask,
+                    onPressed: () => ref.read(deleteTodoProvider)(sub.id),
+                  ),
+                ],
+              ),
+            ),
+      ],
+    );
+  }
+
+  Future<void> _addSubtask(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live,
+  ) async {
+    final controller = TextEditingController();
+    final text = await showDialog<String>(
+      animationStyle: AnimationStyle.noAnimation,
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.addSubtask),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: l.subtaskHint),
+          onSubmitted: (value) => Navigator.of(ctx).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: Text(l.add),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    final title = text?.trim();
+    if (title == null || title.isEmpty) return;
+    await ref.read(createTodoProvider)(
+      calendarId: live.calendarId,
+      summary: title,
+      priority: 0,
+      status: 'NEEDS-ACTION',
+      parentId: live.id,
     );
   }
 
@@ -463,6 +615,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     String? summary,
     String? description,
     int? priority,
+    int? calendarId,
   }) async {
     try {
       await ref.read(updateTodoProvider)(
@@ -473,6 +626,9 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
               ? Value(description.isEmpty ? null : description)
               : const Value.absent(),
           priority: priority != null ? Value(priority) : const Value.absent(),
+          calendarId: calendarId != null
+              ? Value(calendarId)
+              : const Value.absent(),
           updatedAt: Value(DateTime.now()),
         ),
       );

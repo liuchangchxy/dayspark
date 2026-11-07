@@ -8,7 +8,6 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
-import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -24,6 +23,7 @@ import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
@@ -31,6 +31,7 @@ import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
+import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -149,6 +150,7 @@ class TodoFormPage extends ConsumerStatefulWidget {
     this.todo,
     this.parentId,
     this.source,
+    this.initialDueDate,
     this.initialExecutionStart,
     this.initialExecutionEnd,
   });
@@ -156,6 +158,10 @@ class TodoFormPage extends ConsumerStatefulWidget {
   final Todo? todo;
   final int? parentId;
   final String? source;
+
+  /// Visible prefill from a context that explicitly carries a date. It is
+  /// shown as an editable deadline row, never written silently.
+  final DateTime? initialDueDate;
 
   /// Set when the form was opened from a calendar slot: the new todo arrives
   /// already scheduled there, in one save instead of create-then-schedule.
@@ -174,6 +180,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   DateTime? _deadline;
   DateTime? _startDate;
   String? _rrule;
+  bool _completed = false;
   bool _saving = false;
   bool _aiLoading = false;
   Set<int> _tagIds = {};
@@ -209,14 +216,15 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       _deadline = todo.dueDate;
       _startDate = todo.startDate;
       _rrule = todo.rrule;
+      _completed = todo.status == 'COMPLETED';
       _seedAssociations(todo.id);
     } else {
       final start = widget.initialExecutionStart;
       final end = widget.initialExecutionEnd;
       if (start != null && end != null) {
         _executions = [DraftExecution(start: start, end: end)];
-        _deadline = DateTime(start.year, start.month, start.day);
       }
+      _deadline = widget.initialDueDate;
       Future.microtask(() async {
         final calendars = await ref.read(calendarsProvider.future);
         if (calendars.isNotEmpty && mounted) {
@@ -752,13 +760,35 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             ),
           ),
         ),
+        if (_isEditing) ...[
+          const SizedBox(height: AppSpacing.xs),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: _completed,
+                  onChanged: (value) => _toggleCompletion(value ?? false),
+                ),
+                Expanded(
+                  child: Text(
+                    _completed ? l.completed : l.openTask,
+                    style: AppTypography.caption.copyWith(
+                      color: context.semantic.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         const RowDivider(),
+        SectionLabel(l.sectionTime),
         if (_unknownLegacy) ...[
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
           _buildLegacyNotice(context, l),
         ] else ...[
-          const SizedBox(height: AppSpacing.sm),
           ScheduleRow(
             label: l.deadlineRow,
             value: _deadline == null
@@ -800,8 +830,6 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             startDate: _startDate,
             needsDate: _anchorDate == null,
           ),
-          const SizedBox(height: AppSpacing.lg),
-          const RowDivider(),
           ExecutionScheduleSection(
             todo: widget.todo,
             draft: _executions,
@@ -811,10 +839,35 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         ],
         const SizedBox(height: AppSpacing.lg),
         const RowDivider(),
-        _buildPriority(l),
+        SectionLabel(l.sectionReminder),
+        RemindersSection(
+          parentType: 'todo',
+          parentId: widget.todo?.id,
+          anchorTime: _deadline,
+          draft: _reminders,
+          onDraftChanged: (value) => setState(() => _reminders = value),
+        ),
         const SizedBox(height: AppSpacing.lg),
+        const RowDivider(),
+        SectionLabel(l.sectionOrganize),
         _buildCalendarRow(l),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          l.calendarExplanation,
+          style: AppTypography.caption.copyWith(
+            color: context.semantic.textTertiary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _buildPriority(l),
+        const SizedBox(height: AppSpacing.sm),
+        TagChips(
+          selectedIds: _tagIds,
+          onSelectedIdsChanged: (value) => setState(() => _tagIds = value),
+        ),
         const SizedBox(height: AppSpacing.lg),
+        const RowDivider(),
+        SectionLabel(l.sectionContent),
         TextField(
           controller: _descriptionController,
           decoration: InputDecoration(
@@ -832,19 +885,8 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
           maxLines: 4,
           textCapitalization: TextCapitalization.sentences,
         ),
-        const SizedBox(height: AppSpacing.lg),
-        TagChips(
-          selectedIds: _tagIds,
-          onSelectedIdsChanged: (value) => setState(() => _tagIds = value),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        RemindersSection(
-          parentType: 'todo',
-          parentId: widget.todo?.id,
-          anchorTime: _deadline,
-          draft: _reminders,
-          onDraftChanged: (value) => setState(() => _reminders = value),
-        ),
+        const SizedBox(height: AppSpacing.sm),
+        _buildSubtasks(l),
         const SizedBox(height: AppSpacing.lg),
         AttachmentList(
           parentType: 'todo',
@@ -852,10 +894,24 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
           draft: _attachments,
           onDraftChanged: (value) => setState(() => _attachments = value),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        _buildSubtasks(l),
       ],
     );
+  }
+
+  Future<void> _toggleCompletion(bool completed) async {
+    final todo = widget.todo;
+    if (todo == null) return;
+    try {
+      await toggleTodoCompletion(
+        context,
+        ref,
+        todo: todo,
+        completed: completed,
+      );
+      if (mounted) setState(() => _completed = completed);
+    } on Object catch (error) {
+      if (mounted) showCompletionError(context, error);
+    }
   }
 
   Widget _buildLegacyNotice(BuildContext context, AppLocalizations l) {
@@ -961,43 +1017,17 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             calendars.where((c) => c.id == selected).firstOrNull ??
             calendars.first;
         return ScheduleRow(
-          label: l.calendar,
+          label: l.calendarField,
           value: current.name,
           trailing: const Icon(CupertinoIcons.chevron_down, size: 12),
-          onTap: calendars.length == 1
-              ? null
-              : () async {
-                  final picked = await showModalBottomSheet<int>(
-                    context: context,
-                    builder: (ctx) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (final calendar in calendars)
-                            ListTile(
-                              leading: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: ColorUtils.parseHex(calendar.color),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              title: Text(calendar.name),
-                              trailing: calendar.id == selected
-                                  ? const Icon(
-                                      CupertinoIcons.checkmark,
-                                      size: 16,
-                                    )
-                                  : null,
-                              onTap: () => Navigator.of(ctx).pop(calendar.id),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                  if (picked != null) setState(() => _calendarId = picked);
-                },
+          onTap: () async {
+            final picked = await pickCalendar(
+              context,
+              ref,
+              selectedId: selected,
+            );
+            if (picked != null) setState(() => _calendarId = picked);
+          },
         );
       },
     );

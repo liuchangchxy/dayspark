@@ -67,7 +67,7 @@ void main() {
 
     expect(find.byType(AppBar), findsOneWidget);
     expect(find.byKey(const ValueKey('workspace-create')), findsOneWidget);
-    expect(find.text('Action'), findsWidgets);
+    expect(find.text('Today'), findsWidgets);
     expect(find.text('Calendar'), findsOneWidget);
     // D Final keeps the Action filter pills on mobile only, so this desktop
     // surface exposes "Todos" solely through the bottom navigation label.
@@ -77,15 +77,25 @@ void main() {
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
 
-  testWidgets('create entry opens todo create on action tab', (tester) async {
+  testWidgets('create entry on Today asks which object to create', (
+    tester,
+  ) async {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
     await tester.tap(find.byKey(const ValueKey('workspace-create')));
     await _settle(tester);
 
-    expect(find.text('New Task'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+    expect(find.text('New'), findsWidgets);
+    expect(find.widgetWithText(ListTile, 'Tasks'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'New Event'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ListTile, 'Tasks'));
+    await _settle(tester);
+    expect(
+      find.byKey(const ValueKey('todo-quick-create-title')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('create entry opens event create on calendar tab', (
@@ -138,7 +148,7 @@ void main() {
     await gesture.up();
     await _settle(tester);
 
-    expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('General'), findsOneWidget);
   });
 
   testWidgets('theme dialog opens', (tester) async {
@@ -148,11 +158,11 @@ void main() {
     await _openSettings(tester);
 
     await tester.scrollUntilVisible(
-      find.text('Appearance'),
+      find.text('General'),
       100,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Appearance'));
+    await tester.tap(find.text('General'));
     await _settle(tester);
 
     expect(find.text('Light'), findsOneWidget);

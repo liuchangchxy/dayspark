@@ -17,11 +17,10 @@ class AiSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final flagsAsync = ref.watch(featureFlagsProvider);
-    return ExpansionTile(
-      leading: const Icon(CupertinoIcons.lab_flask),
-      title: Text(l.aiAssistant),
-      initiallyExpanded:
-          flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) == true,
+    final enabled =
+        flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? true;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         SwitchListTile(
           secondary: const Icon(CupertinoIcons.sparkles),
@@ -31,17 +30,18 @@ class AiSection extends ConsumerWidget {
               _tutorialLink(context, 'ai-setup'),
             ],
           ),
-          value:
-              flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ??
-              true,
+          subtitle: Text(
+            enabled ? l.aiConfigured : l.aiNotConfiguredShort,
+          ),
+          value: enabled,
           onChanged: (v) =>
               ref.read(setFeatureFlagProvider)(FeatureFlag.aiAssistant, v),
         ),
-        if (flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? true)
+        if (enabled)
           ListTile(
             leading: const SizedBox(width: 24),
             title: Text(l.aiConfig),
-            subtitle: _buildAiSubtitle(ref),
+            subtitle: _buildAiSubtitle(context, ref),
             trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
             onTap: () => showAiConfigDialog(context, ref),
           ),
@@ -64,12 +64,17 @@ class AiSection extends ConsumerWidget {
     );
   }
 
-  Widget _buildAiSubtitle(WidgetRef ref) {
-    final aiConfigured = ref.watch(isAiConfiguredProvider);
-    return aiConfigured.when(
-      data: (configured) => Text(configured ? '✓' : ''),
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const Text(''),
+  Widget _buildAiSubtitle(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final configured = ref.watch(isAiConfiguredProvider).valueOrNull ?? false;
+    if (!configured) return Text(l.aiNotConfiguredShort);
+    final config = ref.watch(aiConfigProvider).value;
+    if (config == null) return Text(l.aiNotConfiguredShort);
+    final preset = kAiPresets
+        .where((item) => item.baseUrl == config.baseUrl)
+        .firstOrNull;
+    return Text(
+      preset == null ? config.model : '${preset.name} · ${config.model}',
     );
   }
 }
