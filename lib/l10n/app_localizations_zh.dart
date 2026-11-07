@@ -347,27 +347,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get todayEventsHeader => '今日日程';
 
   @override
-  String get widgetNoEvents => '今天没有日程';
-
-  @override
-  String get widgetAllDone => '全部完成';
-
-  @override
-  String get widgetOpenApp => '打开 DaySpark 以显示你的安排';
-
-  @override
   String get widgetNoPlans => '今天没有安排';
-
-  @override
-  String get widgetNoUpcoming => '未来几天没有安排';
-
-  @override
-  String get widgetQuickActions => '快速操作';
-
-  @override
-  String widgetPendingCount(int count) {
-    return '$count 项待办';
-  }
 
   @override
   String get widgetTodos => '待办';

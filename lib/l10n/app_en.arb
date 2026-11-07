@@ -119,21 +119,7 @@
   "upcoming": "Upcoming",
   "quickAdd": "Quick add",
   "todayEventsHeader": "Today's Events",
-  "widgetNoEvents": "No events today",
-  "widgetAllDone": "All done!",
-  "widgetOpenApp": "Open DaySpark to show your schedule",
   "widgetNoPlans": "No plans for today",
-  "widgetNoUpcoming": "Nothing scheduled for the next few days",
-  "widgetQuickActions": "Quick actions",
-  "widgetPendingCount": "{count} pending",
-  "@widgetPendingCount": {
-    "description": "Home screen widget label for the number of pending todos",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "widgetTodos": "Tasks",
   "widgetAll": "All",
   "widgetNoTodos": "No tasks",

@@ -767,47 +767,11 @@ abstract class AppLocalizations {
   /// **'Today\'s Events'**
   String get todayEventsHeader;
 
-  /// No description provided for @widgetNoEvents.
-  ///
-  /// In en, this message translates to:
-  /// **'No events today'**
-  String get widgetNoEvents;
-
-  /// No description provided for @widgetAllDone.
-  ///
-  /// In en, this message translates to:
-  /// **'All done!'**
-  String get widgetAllDone;
-
-  /// No description provided for @widgetOpenApp.
-  ///
-  /// In en, this message translates to:
-  /// **'Open DaySpark to show your schedule'**
-  String get widgetOpenApp;
-
   /// No description provided for @widgetNoPlans.
   ///
   /// In en, this message translates to:
   /// **'No plans for today'**
   String get widgetNoPlans;
-
-  /// No description provided for @widgetNoUpcoming.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing scheduled for the next few days'**
-  String get widgetNoUpcoming;
-
-  /// No description provided for @widgetQuickActions.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick actions'**
-  String get widgetQuickActions;
-
-  /// Home screen widget label for the number of pending todos
-  ///
-  /// In en, this message translates to:
-  /// **'{count} pending'**
-  String widgetPendingCount(int count);
 
   /// No description provided for @widgetTodos.
   ///

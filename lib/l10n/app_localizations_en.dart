@@ -347,27 +347,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayEventsHeader => 'Today\'s Events';
 
   @override
-  String get widgetNoEvents => 'No events today';
-
-  @override
-  String get widgetAllDone => 'All done!';
-
-  @override
-  String get widgetOpenApp => 'Open DaySpark to show your schedule';
-
-  @override
   String get widgetNoPlans => 'No plans for today';
-
-  @override
-  String get widgetNoUpcoming => 'Nothing scheduled for the next few days';
-
-  @override
-  String get widgetQuickActions => 'Quick actions';
-
-  @override
-  String widgetPendingCount(int count) {
-    return '$count pending';
-  }
 
   @override
   String get widgetTodos => 'Tasks';
