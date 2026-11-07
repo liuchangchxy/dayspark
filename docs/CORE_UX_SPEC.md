@@ -1,7 +1,7 @@
 # DaySpark Core UX Spec
 
-> Status: FROZEN UX SPEC  
-> Baseline: `65ca360ab81c04189eb117df0ef3d8238068db88`  
+> Status: FROZEN UX SPEC
+> Baseline: `65ca360ab81c04189eb117df0ef3d8238068db88`
 > Scope: Mobile + Desktop core product UX / IA only. No domain, sync engine, MCP, Widget, schema, or backend rewrite.
 
 ## 0. Product judgment
@@ -172,7 +172,7 @@ Domain: `TaskAllocation`.
 
 Meaning: a real time block reserved to do this Todo.
 
-User-facing noun: **计划执行**.  
+User-facing noun: **计划执行**.
 User-facing action: **安排时间** / **安排到日历**.
 
 It may occur multiple times. It appears on Calendar and Today, occupies busy time, and remains independent from deadline.
@@ -228,7 +228,7 @@ Subtasks must not exist only in the full form while disappearing from normal det
 
 A DaySpark **日历** is a shared grouping/color context for Event and Todo. It is not the same as “scheduled time”.
 
-Todo field label: **所属日历**.  
+Todo field label: **所属日历**.
 Event field label: **所属日历**.
 
 When helpful, explain once:
