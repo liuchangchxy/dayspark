@@ -38,6 +38,88 @@ jobs:
           name: web-build
           path: dayspark-web.zip
 
+  build-ios:
+    needs: version-gate
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+      - name: Require iOS signing credentials
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_APP_PROVISIONING_PROFILE: ${{ secrets.IOS_APP_PROVISIONING_PROFILE }}
+          IOS_WIDGET_PROVISIONING_PROFILE: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE }}
+        run: |
+          test -n "$IOS_DISTRIBUTION_CERTIFICATE"
+          test -n "$IOS_CERTIFICATE_PASSWORD"
+          test -n "$IOS_APP_PROVISIONING_PROFILE"
+          test -n "$IOS_WIDGET_PROVISIONING_PROFILE"
+      - name: Install iOS signing certificate and provisioning profiles
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_APP_PROVISIONING_PROFILE: ${{ secrets.IOS_APP_PROVISIONING_PROFILE }}
+          IOS_WIDGET_PROVISIONING_PROFILE: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/ios-build.keychain-db"
+          CERT="$RUNNER_TEMP/ios-distribution.p12"
+          APP_PROFILE="$RUNNER_TEMP/app.mobileprovision"
+          WIDGET_PROFILE="$RUNNER_TEMP/widget.mobileprovision"
+
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE" | base64 --decode > "$CERT"
+          printf '%s' "$IOS_APP_PROVISIONING_PROFILE" | base64 --decode > "$APP_PROFILE"
+          printf '%s' "$IOS_WIDGET_PROVISIONING_PROFILE" | base64 --decode > "$WIDGET_PROFILE"
+
+          security create-keychain -p "" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          security import "$CERT" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          security cms -D -i "$APP_PROFILE" > "$RUNNER_TEMP/app-profile.plist"
+          security cms -D -i "$WIDGET_PROFILE" > "$RUNNER_TEMP/widget-profile.plist"
+          APP_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/app-profile.plist")
+          WIDGET_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/widget-profile.plist")
+          APP_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/app-profile.plist")
+          WIDGET_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/widget-profile.plist")
+          cp "$APP_PROFILE" "$HOME/Library/MobileDevice/Provisioning Profiles/$APP_UUID.mobileprovision"
+          cp "$WIDGET_PROFILE" "$HOME/Library/MobileDevice/Provisioning Profiles/$WIDGET_UUID.mobileprovision"
+
+          cat > "$RUNNER_TEMP/ExportOptions.plist" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>ad-hoc</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>7GA69JD95M</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.dayspark.app</key>
+              <string>$APP_NAME</string>
+              <key>com.dayspark.app.CalendarTodoWidget</key>
+              <string>$WIDGET_NAME</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF
+      - run: flutter pub get
+      - name: Build signed iOS IPA
+        run: flutter build ipa --release --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
+
   build-android:
     needs: version-gate
     runs-on: ubuntu-latest
@@ -72,13 +154,58 @@ jobs:
         with:
           channel: "stable"
           cache: true
+      - name: Require macOS signing and notarization credentials
+        env:
+          MACOS_DEVELOPER_ID_CERTIFICATE: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          test -n "$MACOS_DEVELOPER_ID_CERTIFICATE"
+          test -n "$MACOS_CERTIFICATE_PASSWORD"
+          test -n "$MACOS_SIGNING_IDENTITY"
+          test -n "$APPLE_NOTARY_KEY"
+          test -n "$APPLE_NOTARY_KEY_ID"
+          test -n "$APPLE_NOTARY_ISSUER_ID"
+      - name: Install Developer ID certificate
+        env:
+          MACOS_DEVELOPER_ID_CERTIFICATE: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/macos-build.keychain-db"
+          CERT="$RUNNER_TEMP/developer-id.p12"
+          printf '%s' "$MACOS_DEVELOPER_ID_CERTIFICATE" | base64 --decode > "$CERT"
+          security create-keychain -p "" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          security import "$CERT" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
       - run: flutter pub get
       - run: flutter build macos --release
-      - name: Create DMG
+      - name: Sign and verify macOS app
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          APP="build/macos/Build/Products/Release/DaySpark.app"
+          codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+      - name: Create, notarize and staple DMG
+        env:
+          APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
         run: |
           APP="build/macos/Build/Products/Release/DaySpark.app"
           DMG="$GITHUB_WORKSPACE/dayspark-macos.dmg"
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$APPLE_NOTARY_KEY" | base64 --decode > "$KEY"
           hdiutil create -volname "DaySpark" -srcfolder "$APP" -ov -format UDZO "$DMG"
+          xcrun notarytool submit "$DMG" --key "$KEY" --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER_ID" --wait
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
       - uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
@@ -93,6 +220,14 @@ jobs:
         with:
           channel: "stable"
           cache: true
+      - name: Require Windows signing credentials
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE)) { throw "WINDOWS_CERTIFICATE is not configured" }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { throw "WINDOWS_CERTIFICATE_PASSWORD is not configured" }
       - run: flutter pub get
       - run: flutter build windows --release
       - name: Install Inno Setup
@@ -105,6 +240,24 @@ jobs:
       - name: Build installer
         run: |
           iscc windows/app_installer.iss /DMyAppVersion=$env:APP_VERSION
+      - name: Sign and verify installer
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Filter signtool.exe -Recurse |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) { throw "signtool.exe not found" }
+          Get-ChildItem build/installer/DaySpark-*-Setup.exe | ForEach-Object {
+            & $signtool sign /fd SHA256 /td SHA256 /tr http://timestamp.digicert.com /f $certPath /p $env:WINDOWS_CERTIFICATE_PASSWORD $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signtool sign failed" }
+            & $signtool verify /pa /v $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signtool verify failed" }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
@@ -125,13 +278,15 @@ jobs:
       - run: flutter pub get
       - run: flutter build linux --release
       - run: tool/check_glibc_version.sh build/linux/x64/release/bundle/
+      - name: Package Linux bundle preserving executable bits
+        run: tar -C build/linux/x64/release -czf dayspark-linux.tar.gz bundle
       - uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: build/linux/x64/release/bundle/
+          path: dayspark-linux.tar.gz
 
   release:
-    needs: [build-web, build-android, build-macos, build-windows, build-linux]
+    needs: [build-web, build-android, build-ios, build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -144,10 +299,11 @@ jobs:
         run: |
           mkdir -p release-assets
           cp artifacts/android-apk/app-release.apk release-assets/dayspark-android.apk
+          cp artifacts/ios-ipa/*.ipa release-assets/dayspark-ios.ipa
           cp artifacts/macos-dmg/dayspark-macos.dmg release-assets/
           cp artifacts/web-build/dayspark-web.zip release-assets/
           cp artifacts/windows-installer/*.exe release-assets/
-          cd artifacts/linux-build && zip -r $GITHUB_WORKSPACE/release-assets/dayspark-linux.zip . && cd $GITHUB_WORKSPACE
+          cp artifacts/linux-build/dayspark-linux.tar.gz release-assets/
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
