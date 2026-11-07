@@ -1,6 +1,6 @@
 # DaySpark Core UX Spec
 
-> Status: REVIEW CANDIDATE  
+> Status: FROZEN UX SPEC  
 > Baseline: `65ca360ab81c04189eb117df0ef3d8238068db88`  
 > Scope: Mobile + Desktop core product UX / IA only. No domain, sync engine, MCP, Widget, schema, or backend rewrite.
 
@@ -16,7 +16,7 @@ The product already has strong primitives: Todo, Event, TaskAllocation, recurren
 
 The current user-facing term **“行动 / Action” is retired**. Internal names such as `AppTab.action` and `actionProjectionProvider` may remain. The projection remains; only the product model changes.
 
-The current Todo child destination **“今天” is also removed as a named destination**. Two different “Today” concepts must not compete.
+Todo 仍保留按日期浏览截止任务的能力，包括查看“今天”这一天；但它只是 **待办内部的日期筛选/视图**，不再作为第二个一级或侧栏导航目的地。两个不同层级的 “Today” 不能竞争同一个用户心智。
 
 ---
 
@@ -48,10 +48,14 @@ Sidebar primary destinations are also:
 
 Under **待办**, secondary views are:
 
-- **未安排** — pending top-level Todos with no deadline.
+- **未安排** — pending Todo items that currently have **no effective planned execution (TaskAllocation)**. `dueDate` is not the criterion.
 - **全部待办** — all pending Todo inventory.
 
+Todo keeps its date browser / date strip, including the ability to view today's due items, other dates, and create into the selected due-date context. This is a filter/view inside Todo, not a second primary destination.
+
 Do not add a second sidebar destination named “今天”.
+
+The current `watchInbox()` implementation (`dueDate == null`) does not match the product meaning of **未安排**. Implementing this UX is allowed to change the view/query semantics so that planned Todos are excluded, without changing the data model.
 
 Calendar/tag management can remain secondary management destinations. Settings remains at the bottom.
 
@@ -76,7 +80,15 @@ Event, planned execution, and deadline must remain visually distinct:
 - 计划: planned Todo execution.
 - 截止: deadline marker.
 
-A Todo may appear once as a planned execution and once as a deadline. That is correct because they represent different facts.
+When the same Todo has both a planned execution and a deadline on the same day, **do not default to two full rows**.
+
+Preferred presentation:
+
+- planned execution is the primary row, because “今天” is an execution surface;
+- deadline is attached as secondary metadata, for example **15:00–16:00 写论文 · 截止 18:00**;
+- if the deadline itself needs separate risk emphasis — for example an overdue or otherwise independently actionable deadline — it may also appear in the deadline/overdue section.
+
+The projection may contain multiple facts; the UI should merge them when they describe the same user obligation.
 
 The current “六件事” mode does not define a meaningful planning model; it only truncates the list after six items. It should not remain a primary Today concept.
 
@@ -84,25 +96,24 @@ The current “六件事” mode does not define a meaningful planning model; it
 
 ## 3. Creation model
 
-### 3.1 One global create semantic
+### 3.1 Creation meaning must be explicit
 
-The visible global `+` always means **新建**. It must not secretly mean “Todo on this tab, Event on another tab”.
+The rule is not “every `+` must open the same type chooser”.
 
-Opening it shows the same compact creation surface on every platform:
+The rule is:
 
-- Type: **待办 / 日程**
-- Title, autofocus
-- Context chips/fields that are visible before save
-- **更多** opens the full editor with the draft preserved
+> **The user must know what will be created before tapping the action.**
 
-Context may choose the initial type:
+Context-specific direct creation is valid when the action is labelled clearly:
 
-- 今天: default Todo
-- 待办: default Todo
-- 日历: default Event
-- Calendar time slot: Event by default, with “安排待办” also available
+- **待办** page: **+ 待办** → directly opens Todo quick create.
+- **日历** page: **+ 日程** → directly opens Event create in the viewed date/time context.
+- **今天** page: the page genuinely contains both types, so use a neutral **新建** action that lets the user choose **待办 / 日程**, or expose two explicit actions if the layout supports it.
+- Calendar time slot: keep the explicit jobs **新建日程** and **安排待办**.
 
-The user can always switch type before save.
+Do not use the same naked `+` icon while silently changing its meaning between pages.
+
+Quick creation may still use a shared component internally, but product semantics are contextual and explicit rather than forcibly identical.
 
 ### 3.2 No silent deadline fabrication
 
@@ -114,11 +125,17 @@ If a context inherits a deadline, it must be visible as an editable chip such as
 
 ### 3.3 Platform presentation
 
-Mobile: global `+` opens a bottom sheet / compact full-width surface.
+Mobile:
+- **+ 待办** may open a Todo bottom sheet / compact full-width surface.
+- **+ 日程** may open Event creation directly.
+- **今天 → 新建** uses the two-type chooser because the context is genuinely ambiguous.
 
-Desktop: `+ 新建` opens a compact anchored popover or panel. Keep Todo inline entry for fast batch capture.
+Desktop:
+- keep labelled contextual create actions;
+- use a compact anchored popover/panel where useful;
+- keep Todo inline entry for fast batch capture.
 
-Keyboard entry is worth keeping on desktop. The product target is one quick-create semantic, not pixel-identical controls.
+Keyboard entry is worth keeping on desktop. The product target is explicit, predictable creation semantics, not pixel-identical controls.
 
 Widget Quick Add remains the smallest subset of this model. If Widget sets today as deadline, its landing copy must say **今天截止** rather than the ambiguous **今天**.
 
@@ -244,7 +261,7 @@ Clicking an empty time slot keeps the two real jobs: **新建日程** and **安�
 | Current/internal | Final Chinese |
 |---|---|
 | Action | **今天** |
-| Inbox | **未安排** |
+| Inbox / current `watchInbox()` | **未安排** — requires query semantics based on effective planned execution, not `dueDate == null` |
 | Six Things | **retire from primary product UI** |
 | Calendar | **日历** |
 | Personal | **个人** |
@@ -379,33 +396,15 @@ Touch targets remain at least 48dp on mobile. Desktop may be denser without shri
 | ICS | **日历数据交换** |
 | full backup | **DaySpark 备份** |
 | AI | simple **AI 助手** enable/configuration |
-| MCP / CLI | later **集成 / 开发者** route; not primary product IA |
+| MCP / CLI | 后续独立产品化；不在 Core UX Spec 中冻结接入路线 |
 
 The main product advantage to surface is the distinction between **deadline** and **planned execution**. That is already implemented in the domain and should become visible in Today, Todo, and Calendar.
 
 ---
 
-## 10. MCP / ChatGPT route
+## 10. MCP / ChatGPT
 
-Current DaySpark backend is already unusually close to a real integration product:
-
-- remote HTTP MCP
-- OAuth
-- read/write tools
-- TaskAllocation workflow tools
-- public-HTTPS deployment model
-
-The repository's current ChatGPT setup text is no longer the final target product UX.
-
-Separate later route:
-
-1. Add a DaySpark **集成** onboarding page that shows MCP endpoint, OAuth readiness, server reachability, and read/write scope explanation.
-2. Validate DaySpark against the then-current ChatGPT custom MCP/plugin flow.
-3. Package and submit DaySpark as a public ChatGPT plugin/app so ordinary users do not have to understand MCP URLs.
-4. Keep self-hosted OAuth sign-in as the account connection.
-5. Treat manual custom MCP connection as a developer/admin path, not the consumer path.
-
-No MCP server rewrite is part of Core UX implementation.
+MCP / ChatGPT integration is **out of scope for this Core UX freeze**. DaySpark already has relevant backend capability; its user-facing connection/productization route will be designed and validated as a separate product task against the platform state at that time.
 
 ---
 
@@ -413,9 +412,10 @@ No MCP server rewrite is part of Core UX implementation.
 
 ### P0 — product comprehension / core task completion
 - User-facing Action → **今天**.
-- Remove competing Todo “今天” destination.
+- Remove the competing Todo “今天” **navigation destination**, while preserving Todo date browsing.
 - Define **今天 / 日历 / 待办** responsibilities.
-- Unified global create semantic.
+- Make creation actions explicit and predictable by context.
+- Redefine **未安排** by effective planned-execution state rather than `dueDate == null`.
 - Deadline / Repeat Start / Planned Execution semantics.
 - Todo form/detail hierarchy.
 - Calendar concept + picker with **+ 新建日历**.
@@ -466,22 +466,28 @@ Do not force pixel identity.
 
 Do **not** implement all P0 items in one PR.
 
-First implementation PR is only **Core Shell + Create Model**:
+First implementation PR is only **Core Shell + Create Semantics**:
 
 1. Rename user-facing Action to **今天** while keeping internal domain/provider names.
 2. Mobile bottom nav and desktop primary sidebar become **今天 / 日历 / 待办**.
-3. Remove the duplicate Todo child destination “今天”.
-4. Rename Todo views **收件箱/待办箱 → 未安排**, **全部 → 全部待办**.
-5. Make the existing global `+` open one unified compact create surface with **待办 / 日程** type selection and visible inherited context.
-6. Preserve existing domain writes and routes; no schema/provider/sync changes.
-7. Do not touch Todo form hierarchy, Settings IA, MCP, Widget layout, or notification behavior in this first PR.
+3. Remove the duplicate Todo “今天” **navigation entry**, but keep `TodosDayView`, date browsing, date strip, and selected-date Quick Add behavior.
+4. Rename **收件箱/待办箱 → 未安排**, **全部 → 全部待办**.
+5. Change **未安排** query semantics: a Todo is unplanned when it has no effective planned execution; `dueDate` alone does not determine membership. This may change query/provider behavior but does not require a data-model change.
+6. Make create actions explicit:
+   - Todo: **+ 待办** → direct Todo quick create.
+   - Calendar: **+ 日程** → direct Event create.
+   - Today: neutral **新建** → choose **待办 / 日程**.
+7. Preserve visible inherited context and never silently invent a Todo deadline.
+8. Preserve existing domain writers/routes and do not change schema/sync.
+9. Do not touch Todo form hierarchy, Settings IA, MCP, Widget layout, or notification behavior in this first PR.
 
 Acceptance:
 - A new user can explain the three primary destinations from their names and first screen.
-- The `+` has the same meaning everywhere.
+- Todo still supports browsing due items by date without becoming a second primary “Today”.
+- **未安排** excludes Todos that already have effective planned execution, even if they have no deadline.
+- Before tapping a create action, the user knows whether it creates a Todo, Event, or opens the Today chooser.
 - Creating a Todo never silently invents a deadline.
-- Calendar context can default to Event without hiding the Todo option.
-- Mobile and Desktop express the same creation semantics.
+- Mobile and Desktop express the same product semantics.
 
 After this PR is accepted, the next bounded implementation slice is Todo time/form + Calendar picker, then Settings IA.
 
@@ -497,7 +503,7 @@ After this PR is accepted, the next bounded implementation slice is Todo time/fo
 - No Widget redesign.
 - No notification-engine redesign.
 - No navigation reordering.
-- No new business capability.
+- No new persisted business entity or data model. View/query semantics may change where required to match the frozen product meaning.
 - No large Design System.
 - No broad legacy cleanup.
 - No assumption that desktop is already correct.
@@ -514,10 +520,10 @@ Before code implementation, update the canonical requirements in `SPEC.md` where
 Review questions are now answered:
 
 - First-open structure: **今天 / 日历 / 待办**.
-- Fast Todo/Event creation: unified quick-create surface.
+- Fast Todo/Event creation: explicit contextual create actions; Today uses a chooser because it is genuinely two-type.
 - Todo time semantics: **截止 / 重复开始 / 计划执行**.
 - Multiple calendars: grouping/color concept + always-accessible picker/create.
 - Sync/backup/AI: explicit user-job Settings groups.
 - Mobile/Desktop: same product model, platform-specific shell.
 - Backend value: exposed mainly through Today projection and planned execution.
-- Implementation handoff: split into bounded PRs; first PR is Shell + Create only.
+- Implementation handoff: split into bounded PRs; first PR is Shell + Create Semantics only.
