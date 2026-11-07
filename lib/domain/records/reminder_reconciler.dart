@@ -90,7 +90,7 @@ final class ReminderReconciler {
   Future<void> _handle(List<RecordChange> batch) async {
     final removed = <_ParentKey, List<int>>{};
     final applied = <_ParentKey, DateTime?>{};
-    final remoteReminders = <_ParentKey, Set<int>>{};
+    final storedReminders = <_ParentKey, Set<int>>{};
     final changedReminders = <_ParentKey>{};
     for (final change in batch) {
       switch (change) {
@@ -112,17 +112,23 @@ final class ReminderReconciler {
         ):
           final key = _keyOf(type, localId);
           if (changed) {
-            remoteReminders.putIfAbsent(key, () => <int>{}).add(reminderId);
+            storedReminders.putIfAbsent(key, () => <int>{}).add(reminderId);
             changedReminders.add(key);
           }
         case RecordApplied(
           :final type,
           :final localId,
           :final previousReference,
+          :final reminderIds,
         ):
+          final key = _keyOf(type, localId);
           // 一个批 = 一个事务；同一父取批内最早那条写前参考时间——后一条的
           // previousReference 已是事务内的中间值，拿它算位移会少算一截。
-          applied.putIfAbsent(_keyOf(type, localId), () => previousReference);
+          applied.putIfAbsent(key, () => previousReference);
+          if (reminderIds.isNotEmpty) {
+            storedReminders.putIfAbsent(key, () => <int>{}).addAll(reminderIds);
+            changedReminders.add(key);
+          }
       }
     }
 
@@ -149,7 +155,7 @@ final class ReminderReconciler {
           parentType: entry.key.$1,
           parentId: entry.key.$2,
           previousReference: entry.value,
-          remoteReminderIds: remoteReminders[entry.key] ?? const {},
+          storedReminderIds: storedReminders[entry.key] ?? const {},
           force: changedReminders.contains(entry.key),
         ),
       );
@@ -186,7 +192,7 @@ final class ReminderReconciler {
     required String parentType,
     required int parentId,
     required DateTime? previousReference,
-    Set<int> remoteReminderIds = const {},
+    Set<int> storedReminderIds = const {},
     bool force = false,
   }) async {
     final key = (parentType, parentId);
@@ -217,7 +223,7 @@ final class ReminderReconciler {
       final owned = _materialized[reminder.id]?.isAtSameMomentAs(
         reminder.triggerTime,
       );
-      final basis = remoteReminderIds.contains(reminder.id)
+      final basis = storedReminderIds.contains(reminder.id)
           ? reference
           : (owned ?? false)
           ? (anchorReference ?? previousReference)

@@ -22,7 +22,9 @@ final class ReminderWriter {
     );
   }
 
-  // A new reminder uses its stored time and must bypass the parent's cached state.
+  // 提醒行不改变父行的参考时间，只改变"这个父有几条提醒、分别排在哪"：
+  // 登记 applied 时 previousReference 取父行当前参考时间（Δ=0 → 消费端按
+  // 行内 triggerTime 排这条新提醒）。
   static Future<int> add(
     AppDatabase db,
     RecordScope tx, {
@@ -40,7 +42,12 @@ final class ReminderWriter {
           ),
         );
     await SyncOutbox.enqueueUpsert(db, RecordType.reminder, id);
-    tx.applied(_recordType(parentType), parentId);
+    tx.applied(
+      _recordType(parentType),
+      parentId,
+      previousReference: await _referenceOf(db, parentType, parentId),
+      reminderIds: [id],
+    );
     return id;
   }
 

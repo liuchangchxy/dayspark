@@ -48,9 +48,19 @@ final class RecordScope {
     );
   }
 
-  void applied(RecordType type, int localId, {DateTime? previousReference}) {
+  void applied(
+    RecordType type,
+    int localId, {
+    DateTime? previousReference,
+    List<int> reminderIds = const [],
+  }) {
     _register(
-      RecordApplied(type, localId, previousReference: previousReference),
+      RecordApplied(
+        type,
+        localId,
+        previousReference: previousReference,
+        reminderIds: reminderIds,
+      ),
     );
   }
 
