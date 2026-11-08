@@ -72,6 +72,16 @@ class DateStrip extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                if (selectedDate == null) ...[
+                  _filterChip(
+                    context: context,
+                    label: l.today,
+                    selected: false,
+                    accentColor: theme.colorScheme.primary,
+                    onTap: () => onViewSelected(TodosDayView(today)),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
                 _filterChip(
                   context: context,
                   label: l.allTasks,
@@ -289,6 +299,16 @@ class TodoDesktopToolbar extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
+                  if (selectedDate == null) ...[
+                    _filterChip(
+                      context: context,
+                      label: l.today,
+                      selected: false,
+                      accentColor: theme.colorScheme.primary,
+                      onTap: () => onViewSelected(TodosDayView(today)),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
                   _filterChip(
                     context: context,
                     label: l.allTasks,
