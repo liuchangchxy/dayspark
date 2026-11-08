@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -79,7 +80,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final landing = widget.dueDate == null ? l.inbox : l.today;
+    final landing = widget.dueDate == null ? l.inbox : l.deadlineToday;
     return Scaffold(
       appBar: AppBar(
         title: Text(landing),
@@ -99,6 +100,21 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.dueDate != null) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: InputChip(
+                  avatar: const Icon(CupertinoIcons.calendar, size: 13),
+                  label: Text(
+                    l.deadlinePrefix(
+                      DateFormatters.formatDate(widget.dueDate!),
+                    ),
+                  ),
+                  onPressed: null,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
             TextField(
               controller: _controller,
               focusNode: _focus,

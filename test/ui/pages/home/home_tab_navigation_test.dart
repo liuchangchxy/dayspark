@@ -11,7 +11,6 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
-import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_sidebar.dart';
 
 Widget _app(AppDatabase db, {List<Override> overrides = const []}) {
@@ -50,7 +49,7 @@ void main() {
   });
 
   testWidgets(
-    'bottom navigation bar displays 3 projections and defaults to Action',
+    'bottom navigation bar displays 3 projections and defaults to Today',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
 
@@ -61,11 +60,11 @@ void main() {
 
       final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
       expect(navBar.destinations.length, 3);
-      // Index 0 is Action
+      // Index 0 is Today
       expect(navBar.selectedIndex, 0);
 
       // Verify labels
-      expect(find.text('Action'), findsWidgets);
+      expect(find.text('Today'), findsWidgets);
       expect(find.text('Calendar'), findsWidgets);
       expect(find.text('Tasks'), findsWidgets);
 
@@ -149,7 +148,7 @@ void main() {
     final origin = tester.getTopLeft(
       find.byKey(const ValueKey('workspace-content-0')),
     );
-    for (final entry in [(1, 'Calendar'), (2, 'Tasks'), (0, 'Action')]) {
+    for (final entry in [(1, 'Calendar'), (2, 'Tasks'), (0, 'Today')]) {
       await tester.tap(
         find.descendant(
           of: find.byType(WorkspaceSidebar),
@@ -213,14 +212,14 @@ void main() {
       return tester.getTopLeft(texts.first).dx;
     }
 
-    // Action rows and the Todo section header are both plain list content:
+    // Today rows and the Todo section header are both plain list content:
     // neither should carry an extra inset relative to the other.
-    final actionLeft = await firstTextLeft('Action', 0);
+    final todayLeft = await firstTextLeft('Today', 0);
     final todoLeft = await firstTextLeft('Tasks', 2);
     expect(
-      (actionLeft - todoLeft).abs(),
+      (todayLeft - todoLeft).abs(),
       lessThanOrEqualTo(1),
-      reason: 'Action=$actionLeft Todos=$todoLeft',
+      reason: 'Today=$todayLeft Todos=$todoLeft',
     );
     await _unmount(tester);
   });
@@ -252,7 +251,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(TodoDesktopToolbar),
-        matching: find.text('Inbox'),
+        matching: find.text('Unplanned'),
       ),
       findsOneWidget,
     );
@@ -292,38 +291,39 @@ void main() {
     return material.color;
   }
 
-  Future<void> pumpDesktopSidebar(WidgetTester tester, TodosView view) async {
+  testWidgets('sidebar highlights the primary Today destination', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(_app(db));
+    for (var i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(sidebarRowColor(tester, 'Today'), AppColors.sidebarSelected);
+    await _unmount(tester);
+  });
+
+  testWidgets('sidebar shows Today once and not under Todos', (tester) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
-    await tester.pumpWidget(
-      _app(db, overrides: [todosViewProvider.overrideWith((ref) => view)]),
-    );
+    await tester.pumpWidget(_app(db));
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-  }
-
-  testWidgets('sidebar highlights Today when the day view is today', (
-    tester,
-  ) async {
-    final now = DateTime.now();
-    await pumpDesktopSidebar(
-      tester,
-      TodosDayView(DateTime(now.year, now.month, now.day)),
+    expect(
+      find.descendant(
+        of: find.byType(WorkspaceSidebar),
+        matching: find.text('Today'),
+      ),
+      findsOneWidget,
     );
-    expect(sidebarRowColor(tester, 'Today'), AppColors.sidebarSelected);
-    await _unmount(tester);
-  });
-
-  testWidgets('sidebar leaves Today unhighlighted on another day', (
-    tester,
-  ) async {
-    final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    await pumpDesktopSidebar(tester, TodosDayView(tomorrow));
     expect(sidebarRowColor(tester, 'Today'), isNot(AppColors.sidebarSelected));
     await _unmount(tester);
   });

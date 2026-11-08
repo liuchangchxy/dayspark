@@ -6,7 +6,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
-import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:go_router/go_router.dart';
 import 'settings_sections/about_section.dart';
 import 'settings_sections/account_section.dart';
@@ -14,7 +13,6 @@ import 'settings_sections/ai_section.dart';
 import 'settings_sections/appearance_section.dart';
 import 'settings_sections/import_export_section.dart';
 import 'settings_sections/notifications_section.dart';
-import 'settings_sections/todos_section.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/ui/widgets/settings_group.dart';
 
@@ -47,8 +45,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
 
-    final isDesktop = isWorkspaceLayout(context);
-
     return WorkspacePage(
       title: l.settings,
       maxContentWidth: 720,
@@ -56,21 +52,23 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
         children: [
           SettingsGroup(title: l.appearance, child: const AppearanceSection()),
-          if (!isDesktop)
-            SettingsGroup(
-              child: ListTile(
-                leading: const Icon(CupertinoIcons.calendar),
-                title: Text(l.manageCalendars),
-                trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
-                onTap: () => context.push('/calendars'),
-              ),
+          SettingsGroup(
+            title: l.calendar,
+            child: ListTile(
+              leading: const Icon(CupertinoIcons.calendar),
+              title: Text(l.manageCalendars),
+              trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+              onTap: () => context.push('/calendars'),
             ),
-          SettingsGroup(title: l.todos, child: const TodosSection()),
+          ),
           SettingsGroup(title: l.data, child: const ImportExportSection()),
           SettingsGroup(title: l.account, child: const AccountSection()),
-          SettingsGroup(title: l.advancedFeatures, child: const AiSection()),
+          SettingsGroup(title: l.aiAssistant, child: const AiSection()),
           if (hasNotificationSettings)
-            SettingsGroup(title: l.notifications, child: const NotificationsSection()),
+            SettingsGroup(
+              title: l.notifications,
+              child: const NotificationsSection(),
+            ),
           SettingsGroup(
             title: l.about,
             child: AboutSection(version: _cachedVersion ?? ''),

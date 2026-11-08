@@ -104,7 +104,7 @@ abstract class AppLocalizations {
   /// No description provided for @legacyRepeatFrom.
   ///
   /// In en, this message translates to:
-  /// **'Repeats from'**
+  /// **'Repeat starts'**
   String get legacyRepeatFrom;
 
   /// No description provided for @legacyRecurrencePreview.
@@ -452,7 +452,7 @@ abstract class AppLocalizations {
   /// No description provided for @startDate.
   ///
   /// In en, this message translates to:
-  /// **'Starts at'**
+  /// **'Repeat starts'**
   String get startDate;
 
   /// No description provided for @startAfterDeadline.
@@ -614,13 +614,13 @@ abstract class AppLocalizations {
   /// No description provided for @notifications.
   ///
   /// In en, this message translates to:
-  /// **'Notifications'**
+  /// **'Notifications & reminders'**
   String get notifications;
 
   /// No description provided for @appearance.
   ///
   /// In en, this message translates to:
-  /// **'Appearance'**
+  /// **'General'**
   String get appearance;
 
   /// No description provided for @theme.
@@ -926,13 +926,13 @@ abstract class AppLocalizations {
   /// No description provided for @fullBackup.
   ///
   /// In en, this message translates to:
-  /// **'Full backup'**
+  /// **'DaySpark full backup'**
   String get fullBackup;
 
   /// No description provided for @fullBackupDesc.
   ///
   /// In en, this message translates to:
-  /// **'Archive with all data and attachment files'**
+  /// **'Includes all data and attachment files'**
   String get fullBackupDesc;
 
   /// No description provided for @restore.
@@ -974,7 +974,7 @@ abstract class AppLocalizations {
   /// No description provided for @calendarData.
   ///
   /// In en, this message translates to:
-  /// **'Import or export .ics files'**
+  /// **'Import or export calendar .ics files'**
   String get calendarData;
 
   /// No description provided for @add.
@@ -1250,7 +1250,7 @@ abstract class AppLocalizations {
   /// No description provided for @inbox.
   ///
   /// In en, this message translates to:
-  /// **'Inbox'**
+  /// **'Unplanned'**
   String get inbox;
 
   /// No description provided for @trash.
@@ -1892,13 +1892,13 @@ abstract class AppLocalizations {
   /// No description provided for @account.
   ///
   /// In en, this message translates to:
-  /// **'Account'**
+  /// **'Sync'**
   String get account;
 
   /// No description provided for @serverUrl.
   ///
   /// In en, this message translates to:
-  /// **'Server URL'**
+  /// **'Sync server'**
   String get serverUrl;
 
   /// No description provided for @serverUrlInvalid.
@@ -2408,7 +2408,7 @@ abstract class AppLocalizations {
   /// No description provided for @action.
   ///
   /// In en, this message translates to:
-  /// **'Action'**
+  /// **'Today'**
   String get action;
 
   /// No description provided for @scheduledSection.
@@ -2426,7 +2426,7 @@ abstract class AppLocalizations {
   /// No description provided for @unplannedInbox.
   ///
   /// In en, this message translates to:
-  /// **'Inbox'**
+  /// **'Unplanned'**
   String get unplannedInbox;
 
   /// No description provided for @unplannedCount.
@@ -2606,7 +2606,7 @@ abstract class AppLocalizations {
   /// No description provided for @executionSchedule.
   ///
   /// In en, this message translates to:
-  /// **'Scheduled time'**
+  /// **'Planned time'**
   String get executionSchedule;
 
   /// No description provided for @addExecution.
@@ -2942,13 +2942,13 @@ abstract class AppLocalizations {
   /// No description provided for @scheduledTimeLower.
   ///
   /// In en, this message translates to:
-  /// **'Scheduled time'**
+  /// **'Planned time'**
   String get scheduledTimeLower;
 
   /// No description provided for @executionRow.
   ///
   /// In en, this message translates to:
-  /// **'Scheduled time'**
+  /// **'Planned time'**
   String get executionRow;
 
   /// No description provided for @deadlineRow.
@@ -3202,6 +3202,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Log out'**
   String get signOut;
+
+  /// No description provided for @newTodoAction.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Task'**
+  String get newTodoAction;
+
+  /// No description provided for @newEventAction.
+  ///
+  /// In en, this message translates to:
+  /// **'+ Event'**
+  String get newEventAction;
+
+  /// No description provided for @syncExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync calendars and tasks across your devices through your self-hosted DaySpark Sync Server.'**
+  String get syncExplanation;
+
+  /// No description provided for @calendarField.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get calendarField;
+
+  /// No description provided for @calendarExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendars group and color events and tasks. To place a task on the timeline, use Planned time.'**
+  String get calendarExplanation;
+
+  /// No description provided for @sectionTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get sectionTask;
+
+  /// No description provided for @sectionTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get sectionTime;
+
+  /// No description provided for @sectionReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get sectionReminder;
+
+  /// No description provided for @sectionOrganize.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize'**
+  String get sectionOrganize;
+
+  /// No description provided for @sectionContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get sectionContent;
+
+  /// No description provided for @dataExchange.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar data exchange'**
+  String get dataExchange;
+
+  /// No description provided for @daysparkBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark backup'**
+  String get daysparkBackup;
+
+  /// No description provided for @importIcs.
+  ///
+  /// In en, this message translates to:
+  /// **'Import .ics'**
+  String get importIcs;
+
+  /// No description provided for @exportIcs.
+  ///
+  /// In en, this message translates to:
+  /// **'Export .ics'**
+  String get exportIcs;
+
+  /// No description provided for @displayOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get displayOptions;
+
+  /// No description provided for @aiConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured'**
+  String get aiConfigured;
+
+  /// No description provided for @aiNotConfiguredShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get aiNotConfiguredShort;
+
+  /// No description provided for @defaultCalendarName.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get defaultCalendarName;
+
+  /// No description provided for @quickAddTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Add task'**
+  String get quickAddTodo;
+
+  /// No description provided for @quickCreateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Task title'**
+  String get quickCreateHint;
+
+  /// No description provided for @moreOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreOptions;
+
+  /// No description provided for @createCalendarFromPicker.
+  ///
+  /// In en, this message translates to:
+  /// **'+ New calendar'**
+  String get createCalendarFromPicker;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

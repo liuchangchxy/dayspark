@@ -113,6 +113,41 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('detail follows time → reminder → organize → content order', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 2200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app(db, todo));
+    await _settle(tester);
+
+    double y(String label) => tester.getTopLeft(find.text(label).first).dy;
+    expect(y('Time'), lessThan(y('Reminders')));
+    expect(y('Reminders'), lessThan(y('Organize')));
+    expect(y('Organize'), lessThan(y('Content')));
+
+    await tester.ensureVisible(find.text('Add subtask'));
+    await tester.tap(find.text('Add subtask'));
+    await _settle(tester);
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      'First step',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await _settle(tester);
+
+    expect(find.text('First step'), findsOneWidget);
+    final subtasks = await (db.select(
+      db.todos,
+    )..where((row) => row.parentId.equals(todo.id))).get();
+    expect(subtasks.single.summary, 'First step');
+    await _unmount(tester);
+  });
+
   testWidgets('detail is editable where it is read', (tester) async {
     tester.view.physicalSize = const Size(1400, 1000);
     tester.view.devicePixelRatio = 1.0;

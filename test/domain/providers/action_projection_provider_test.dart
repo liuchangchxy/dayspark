@@ -193,8 +193,7 @@ void main() {
     expect(data.dueTodayTodos.firstWhere((t) => t.id == todoId).dueDate, deadline);
   });
 
-  test('unplannedCount counts only undated pending ordinary todos', () async {
-    // 2 undated ordinary todos
+  test('unplannedCount is pending todos with no effective allocation', () async {
     await db.into(db.todos).insert(
           TodosCompanion.insert(
             calendarId: calendarId,
@@ -208,16 +207,15 @@ void main() {
           ),
         );
 
-    // 1 dated todo
+    // A deadline is not a plan: this is still waiting for execution time.
     await db.into(db.todos).insert(
           TodosCompanion.insert(
             calendarId: calendarId,
-            summary: 'Dated',
-            dueDate: Value(DateTime(2026, 10, 6)),
+            summary: 'Dated but unplanned',
+            dueDate: Value(fixedToday),
           ),
         );
 
-    // 1 completed undated todo
     await db.into(db.todos).insert(
           TodosCompanion.insert(
             calendarId: calendarId,
@@ -226,8 +224,28 @@ void main() {
           ),
         );
 
-    final data = await getActionData();
-    expect(data.unplannedCount, 2);
+    // A pending todo with a planned execution is not unplanned even though it
+    // has no deadline.
+    final plannedId = await db.into(db.todos).insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Planned idea',
+          ),
+        );
+    final allocationId = await container.read(createTaskAllocationProvider)(
+      todoId: plannedId,
+      startAt: DateTime(2026, 10, 6, 9),
+      endAt: DateTime(2026, 10, 6, 10),
+    );
+
+    var data = await getActionData();
+    expect(data.unplannedCount, 3);
+
+    // Cancelling the plan releases the row back to unplanned instead of
+    // hiding it forever behind a dead allocation.
+    await container.read(cancelTaskAllocationProvider)(allocationId);
+    data = await getActionData();
+    expect(data.unplannedCount, 4);
   });
 
   test('toggling todo completion moves it reactively to completedToday', () async {

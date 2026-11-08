@@ -4,6 +4,7 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/services/action_projection_query.dart';
 
@@ -98,13 +99,6 @@ final actionOverdueTodosProvider = StreamProvider.autoDispose
       return db.todosDao.watchOrdinaryOverdue(start);
     });
 
-final actionUnplannedTodosProvider = StreamProvider.autoDispose<List<Todo>>((
-  ref,
-) {
-  final db = ref.watch(databaseProvider);
-  return db.todosDao.watchOrdinaryUnplanned();
-});
-
 final actionCompletedTodayTodosProvider = StreamProvider.autoDispose
     .family<List<Todo>, DateTime>((ref, date) {
       final db = ref.watch(databaseProvider);
@@ -155,7 +149,7 @@ final actionProjectionProvider =
       );
       final dueTodayAsync = ref.watch(actionDueTodayTodosProvider(startOfDay));
       final overdueAsync = ref.watch(actionOverdueTodosProvider(startOfDay));
-      final unplannedAsync = ref.watch(actionUnplannedTodosProvider);
+      final unplannedAsync = ref.watch(unplannedTodosProvider);
       final completedAsync = ref.watch(
         actionCompletedTodayTodosProvider(startOfDay),
       );

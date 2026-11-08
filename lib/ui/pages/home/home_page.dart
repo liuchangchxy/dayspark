@@ -38,6 +38,7 @@ import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/ui/widgets/todo/todo_quick_add.dart';
+import 'package:dayspark/ui/widgets/todo/todo_quick_create_sheet.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -70,9 +71,6 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage>
     with WidgetsBindingObserver {
   bool _userChangedTab = false;
-  // Expanding the six-things fold row is ephemeral: it collapses again when
-  // the user leaves the date or turns the mode off.
-  bool _sixThingsExpanded = false;
   final Set<int> _selectedTagIds = {};
   bool _calendarTabWasActive = false;
   // Page header title, pushed up from CalendarSection so it sits in the AppBar.
@@ -210,6 +208,7 @@ class _HomePageState extends ConsumerState<HomePage>
   // snapshot (ongoing refresh is write-driven via homeWidgetAutoRefreshProvider).
   Future<void> _runStartupSideEffects() async {
     try {
+      await _localizeDefaultCalendarName();
       final notifService = NotificationService();
       notifService
           .onNotificationAction = (actionId, parentId, parentType, reminderId) {
@@ -223,6 +222,28 @@ class _HomePageState extends ConsumerState<HomePage>
     } catch (e) {
       debugPrint('initState microtask error: $e');
     }
+  }
+
+  /// The seed row is written before localization is available, so the
+  /// untouched default is renamed here. A calendar the user named or recolored
+  /// is left alone.
+  Future<void> _localizeDefaultCalendarName() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    final l = AppLocalizations.of(context);
+    if (l == null) return;
+    final calendars = await ref.read(calendarsProvider.future);
+    if (!mounted ||
+        calendars.length != 1 ||
+        calendars.single.name != 'Personal' ||
+        calendars.single.color != '#2563EB' ||
+        calendars.single.name == l.defaultCalendarName) {
+      return;
+    }
+    await ref.read(updateCalendarProvider)(
+      id: calendars.single.id,
+      name: l.defaultCalendarName,
+    );
   }
 
   void _syncActionDateIfDayChanged() {
@@ -389,7 +410,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final isActionTab = _currentTab == 0;
     final isCalendarTab = _currentTab == 1;
     final pageLabel = isActionTab
-        ? l.action
+        ? l.today
         : isCalendarTab
         ? l.calendar
         : l.todos;
@@ -513,7 +534,11 @@ class _HomePageState extends ConsumerState<HomePage>
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                _buildCreateEntry(context, isCalendarTab: isCalendarTab),
+                _buildCreateEntry(
+                  context,
+                  isCalendarTab: isCalendarTab,
+                  isActionTab: isActionTab,
+                ),
                 const SizedBox(width: AppSpacing.xs),
               ],
             ),
@@ -526,7 +551,7 @@ class _HomePageState extends ConsumerState<HomePage>
               destinations: [
                 NavigationDestination(
                   icon: const Icon(CupertinoIcons.bolt),
-                  label: l.action,
+                  label: l.today,
                 ),
                 NavigationDestination(
                   icon: const Icon(CupertinoIcons.calendar),
@@ -637,7 +662,11 @@ class _HomePageState extends ConsumerState<HomePage>
           ),
           if (desktop) ...[
             const SizedBox(width: AppSpacing.md),
-            _buildCreateEntry(context, isCalendarTab: isCalendarTab),
+            _buildCreateEntry(
+              context,
+              isCalendarTab: isCalendarTab,
+              isActionTab: isActionTab,
+            ),
           ],
         ],
       ),
@@ -656,6 +685,10 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget _buildActionTab() {
     return ActionSection(
       onNavigateToCalendar: () => _setTab(1),
+      onNavigateToUnplanned: () {
+        ref.read(todosViewProvider.notifier).state = const TodosInboxView();
+        _setTab(2);
+      },
       onEventTap: _openEvent,
       onTodoTap: _openTodo,
     );
@@ -829,35 +862,30 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget _buildCreateEntry(
     BuildContext context, {
     required bool isCalendarTab,
+    required bool isActionTab,
   }) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final label = isCalendarTab ? l.newEvent : l.newTodo;
-    void onPressed() {
-      if (isCalendarTab) {
-        // Creating from the calendar means "on the day I am looking at", not
-        // "at midnight": a new event should start at a plausible hour.
-        final viewed = ref.read(viewedDateProvider);
-        final now = DateTime.now();
-        final isToday =
-            viewed.year == now.year &&
-            viewed.month == now.month &&
-            viewed.day == now.day;
-        final start = isToday
-            ? DateTime(now.year, now.month, now.day, now.hour + 1)
-            : DateTime(viewed.year, viewed.month, viewed.day, 9);
-        context.push(
-          '/event/new?start=${start.millisecondsSinceEpoch}'
-          '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
-        );
-      } else {
-        context.push('/todo/new');
-      }
-    }
-
+    final label = isActionTab
+        ? l.newItem
+        : isCalendarTab
+        ? l.newEventAction
+        : l.newTodoAction;
     return TextButton.icon(
       key: const ValueKey('workspace-create'),
-      onPressed: onPressed,
+      onPressed: () {
+        if (isActionTab) {
+          _showCreateChooser(context);
+        } else if (isCalendarTab) {
+          _openNewEvent(context);
+        } else {
+          final view = ref.read(todosViewProvider);
+          showTodoQuickCreateSheet(
+            context,
+            dueDate: view is TodosDayView ? view.day : null,
+          );
+        }
+      },
       style: TextButton.styleFrom(
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: theme.colorScheme.onPrimary,
@@ -869,6 +897,84 @@ class _HomePageState extends ConsumerState<HomePage>
       ),
       icon: const Icon(CupertinoIcons.add, size: 15),
       label: Text(label),
+    );
+  }
+
+  /// Creating from the calendar means "on the day I am looking at", not "at
+  /// midnight": a new event should start at a plausible hour.
+  void _openNewEvent(BuildContext context) {
+    final viewed = ref.read(viewedDateProvider);
+    final now = DateTime.now();
+    final isToday =
+        viewed.year == now.year &&
+        viewed.month == now.month &&
+        viewed.day == now.day;
+    final start = isToday
+        ? DateTime(now.year, now.month, now.day, (now.hour + 1).clamp(0, 23))
+        : DateTime(viewed.year, viewed.month, viewed.day, 9);
+    context.push(
+      '/event/new?start=${start.millisecondsSinceEpoch}'
+      '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
+    );
+  }
+
+  /// Today genuinely contains both kinds of object, so its action is neutral
+  /// and asks once which one to create.
+  Future<void> _showCreateChooser(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final desktop = isWorkspaceLayout(context);
+    final now = DateTime.now();
+    final options = <Widget>[
+      ListTile(
+        leading: const Icon(CupertinoIcons.checkmark_rectangle),
+        title: Text(l.todos),
+        onTap: () {
+          Navigator.of(context).pop();
+          showTodoQuickCreateSheet(context);
+        },
+      ),
+      ListTile(
+        leading: const Icon(CupertinoIcons.calendar_badge_plus),
+        title: Text(l.newEvent),
+        onTap: () {
+          Navigator.of(context).pop();
+          final start = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            (now.hour + 1).clamp(0, 23),
+          );
+          context.push(
+            '/event/new?start=${start.millisecondsSinceEpoch}'
+            '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
+          );
+        },
+      ),
+    ];
+    if (desktop) {
+      return showDialog<void>(
+        animationStyle: AnimationStyle.noAnimation,
+        context: context,
+        builder: (ctx) => SimpleDialog(
+          title: Text(l.newItem),
+          children: options,
+        ),
+      );
+    }
+    return showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Text(l.newItem, style: AppTypography.title),
+            ),
+            ...options,
+          ],
+        ),
+      ),
     );
   }
 
@@ -899,26 +1005,21 @@ class _HomePageState extends ConsumerState<HomePage>
     final desktop = isWorkspaceLayout(context);
     final view = ref.watch(todosViewProvider);
     final tagsAsync = ref.watch(tagsProvider);
-    final six = ref.watch(sixThingsModeProvider);
 
     return Column(
       children: [
         if (desktop)
           TodoDesktopToolbar(
             view: view,
-            sixThingsMode: six,
             onViewSelected: (next) =>
                 ref.read(todosViewProvider.notifier).state = next,
-            onSixThingsToggle: _toggleSixThings,
-            trailing: const [],
+            trailing: [_displayMenu(context)],
           )
         else
           DateStrip(
             view: view,
-            sixThingsMode: six,
             onViewSelected: (next) =>
                 ref.read(todosViewProvider.notifier).state = next,
-            onSixThingsToggle: _toggleSixThings,
           ),
         tagsAsync.when(
           data: (tags) {
@@ -952,6 +1053,7 @@ class _HomePageState extends ConsumerState<HomePage>
                                 .toList(),
                           ),
                   ),
+                  _displayMenu(context),
                   _manageTagsButton(context, l),
                   _trashButton(context, l),
                 ],
@@ -967,11 +1069,22 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  void _toggleSixThings() {
-    setState(() => _sixThingsExpanded = false);
-    ref
-        .read(sixThingsModeProvider.notifier)
-        .setEnabled(!ref.read(sixThingsModeProvider));
+  /// Display preferences belong to the Todo page, not to global Settings.
+  Widget _displayMenu(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
+    return PopupMenuButton<bool>(
+      tooltip: l.displayOptions,
+      icon: const Icon(CupertinoIcons.ellipsis_circle, size: 18),
+      onSelected: (value) => ref.read(setHideCompletedProvider)(value),
+      itemBuilder: (ctx) => [
+        CheckedPopupMenuItem(
+          value: !hideCompleted,
+          checked: hideCompleted,
+          child: Text(l.hideCompleted),
+        ),
+      ],
+    );
   }
 
   Widget _manageTagsButton(BuildContext context, AppLocalizations l) {
@@ -1003,7 +1116,6 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget _buildTodoList(TodosView view) {
     final l = AppLocalizations.of(context)!;
     final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
-    final sixThingsOn = ref.watch(sixThingsModeProvider);
     final todoTagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
     final hasTagFilter = _selectedTagIds.isNotEmpty;
     bool matchesTags(Todo t) {
@@ -1062,7 +1174,7 @@ class _HomePageState extends ConsumerState<HomePage>
     }
 
     if (view is TodosInboxView) {
-      final inboxAsync = ref.watch(inboxTodosProvider);
+      final inboxAsync = ref.watch(unplannedTodosProvider);
       final completedAsync = ref.watch(completedTodosProvider);
       return inboxAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -1147,16 +1259,6 @@ class _HomePageState extends ConsumerState<HomePage>
           return _emptyState(l);
         }
 
-        // Six-things convergence (Ivy Lee): on today only, the ordered list
-        // collapses to 6 slots plus a "More" fold; the full list reappears
-        // after expanding. The visible items are always a prefix of the
-        // drag-ordered list, so reorder indices map 1:1 onto the full list.
-        final capActive = sixThingsOn && date == today && !_sixThingsExpanded;
-        final visibleTodos = capActive && dateTodos.length > 6
-            ? dateTodos.sublist(0, 6)
-            : dateTodos;
-        final hiddenCount = dateTodos.length - visibleTodos.length;
-
         return CustomScrollView(
           slivers: [
             if (overdue.isNotEmpty) ...[
@@ -1172,7 +1274,7 @@ class _HomePageState extends ConsumerState<HomePage>
                   overdue
                       .asMap()
                       .entries
-                      .map((e) => _todoTile(e.value, index: e.key))
+                      .map((e) => _todoTile(e.value))
                       .toList(),
                 ),
               ),
@@ -1186,11 +1288,11 @@ class _HomePageState extends ConsumerState<HomePage>
                 ),
               ),
               SliverReorderableList(
-                itemCount: visibleTodos.length,
+                itemCount: dateTodos.length,
                 onReorderItem: (oldIndex, newIndex) =>
                     _onReorderItem(dateTodos, oldIndex, newIndex),
                 itemBuilder: (context, index) {
-                  final t = visibleTodos[index];
+                  final t = dateTodos[index];
                   return _reorderableTodoTile(
                     t,
                     Key('date-${t.id}'),
@@ -1198,26 +1300,6 @@ class _HomePageState extends ConsumerState<HomePage>
                   );
                 },
               ),
-              if (hiddenCount > 0)
-                SliverToBoxAdapter(
-                  child: _foldRow(
-                    l.moreItems(hiddenCount),
-                    CupertinoIcons.chevron_down,
-                    () {
-                      setState(() => _sixThingsExpanded = true);
-                    },
-                  ),
-                ),
-              if (_sixThingsExpanded && sixThingsOn && date == today)
-                SliverToBoxAdapter(
-                  child: _foldRow(
-                    l.collapseList,
-                    CupertinoIcons.chevron_up,
-                    () {
-                      setState(() => _sixThingsExpanded = false);
-                    },
-                  ),
-                ),
             ],
             if (dateCompleted.isNotEmpty) ...[
               const SliverToBoxAdapter(
@@ -1251,20 +1333,7 @@ class _HomePageState extends ConsumerState<HomePage>
     ref.read(reorderTodosProvider)(list.map((t) => t.id).toList());
   }
 
-  /// Numbers that describe a position in an order only mean something when
-  /// the order is the feature — that is Six Things on today.
-  bool get _showsSequenceNumber {
-    if (!ref.read(sixThingsModeProvider)) return false;
-    final view = ref.read(todosViewProvider);
-    if (view is! TodosDayView) return false;
-    final now = DateTime.now();
-    return view.day.year == now.year &&
-        view.day.month == now.month &&
-        view.day.day == now.day;
-  }
-
   Widget _reorderableTodoTile(Todo todo, Key key, {required int index}) {
-    final sixThingsNumber = _showsSequenceNumber ? index : null;
     final desktopDrag =
         defaultTargetPlatform == TargetPlatform.linux ||
         defaultTargetPlatform == TargetPlatform.macOS ||
@@ -1275,7 +1344,6 @@ class _HomePageState extends ConsumerState<HomePage>
       type: MaterialType.transparency,
       child: _todoTile(
         todo,
-        index: sixThingsNumber,
         dragHandle: desktopDrag
             ? ReorderableDragStartListener(
                 index: index,
@@ -1391,33 +1459,6 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  Widget _foldRow(String label, IconData icon, VoidCallback onTap) {
-    final theme = Theme.of(context);
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 48,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: AppTypography.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _sectionHeader(String title, int count, Color? accentColor) {
     return Padding(
       // Keeps the Todo section headers on the shared 28dp desktop content
@@ -1452,7 +1493,6 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget _todoTile(
     Todo todo, {
     bool isCompleted = false,
-    int? index,
     Widget? dragHandle,
   }) {
     return MouseRegion(

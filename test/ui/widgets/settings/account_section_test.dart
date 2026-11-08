@@ -131,8 +131,8 @@ void main() {
     (tester) async {
       await _pumpSection(tester);
 
-      expect(find.text('Account'), findsOneWidget);
-      expect(find.text('Server URL'), findsOneWidget);
+      expect(find.text('Sync'), findsOneWidget);
+      expect(find.text('Sync server'), findsOneWidget);
       expect(find.text('Email'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Login'), findsOneWidget);

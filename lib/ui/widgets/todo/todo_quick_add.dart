@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -76,6 +77,28 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.dueDate != null)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontal,
+              AppSpacing.xs,
+              horizontal,
+              0,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: InputChip(
+                visualDensity: VisualDensity.compact,
+                avatar: const Icon(CupertinoIcons.calendar, size: 13),
+                label: Text(
+                  l.deadlinePrefix(
+                    DateFormatters.formatDate(widget.dueDate!),
+                  ),
+                ),
+                onPressed: null,
+              ),
+            ),
+          ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: horizontal),
           child: SizedBox(
@@ -102,7 +125,7 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
                     onEditingComplete: () => _submit(_controller.text),
                     style: AppTypography.body,
                     decoration: InputDecoration(
-                      hintText: l.quickAdd,
+                      hintText: l.quickAddTodo,
                       filled: false,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,

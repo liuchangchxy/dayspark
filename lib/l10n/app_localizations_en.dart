@@ -12,7 +12,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preview => 'Preview';
 
   @override
-  String get legacyRepeatFrom => 'Repeats from';
+  String get legacyRepeatFrom => 'Repeat starts';
 
   @override
   String get legacyRecurrencePreview => 'Next occurrences (preview)';
@@ -188,7 +188,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get location => 'Location';
 
   @override
-  String get startDate => 'Starts at';
+  String get startDate => 'Repeat starts';
 
   @override
   String get startAfterDeadline => 'Starts at has to come before the deadline.';
@@ -269,10 +269,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiGoToSettings => 'Go to Settings > AI to configure your API key';
 
   @override
-  String get notifications => 'Notifications';
+  String get notifications => 'Notifications & reminders';
 
   @override
-  String get appearance => 'Appearance';
+  String get appearance => 'General';
 
   @override
   String get theme => 'Theme';
@@ -431,10 +431,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get export => 'Export';
 
   @override
-  String get fullBackup => 'Full backup';
+  String get fullBackup => 'DaySpark full backup';
 
   @override
-  String get fullBackupDesc => 'Archive with all data and attachment files';
+  String get fullBackupDesc => 'Includes all data and attachment files';
 
   @override
   String get restore => 'Restore';
@@ -455,7 +455,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachments => 'Attachments';
 
   @override
-  String get calendarData => 'Import or export .ics files';
+  String get calendarData => 'Import or export calendar .ics files';
 
   @override
   String get add => 'Add';
@@ -609,7 +609,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get defaultTab => 'Startup view';
 
   @override
-  String get inbox => 'Inbox';
+  String get inbox => 'Unplanned';
 
   @override
   String get trash => 'Trash';
@@ -946,10 +946,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nextPeriod => 'Next';
 
   @override
-  String get account => 'Account';
+  String get account => 'Sync';
 
   @override
-  String get serverUrl => 'Server URL';
+  String get serverUrl => 'Sync server';
 
   @override
   String get serverUrlInvalid => 'Please enter a valid http(s) URL';
@@ -1216,7 +1216,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noSchedulableTodos => 'No pending tasks available to schedule';
 
   @override
-  String get action => 'Action';
+  String get action => 'Today';
 
   @override
   String get scheduledSection => 'Scheduled';
@@ -1225,7 +1225,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dueTodaySection => 'To do today';
 
   @override
-  String get unplannedInbox => 'Inbox';
+  String get unplannedInbox => 'Unplanned';
 
   @override
   String unplannedCount(int count) {
@@ -1329,7 +1329,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deadlineTime => 'Deadline time';
 
   @override
-  String get executionSchedule => 'Scheduled time';
+  String get executionSchedule => 'Planned time';
 
   @override
   String get addExecution => 'Add execution time';
@@ -1517,10 +1517,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchFailed => 'Search failed. Please try again.';
 
   @override
-  String get scheduledTimeLower => 'Scheduled time';
+  String get scheduledTimeLower => 'Planned time';
 
   @override
-  String get executionRow => 'Scheduled time';
+  String get executionRow => 'Planned time';
 
   @override
   String get deadlineRow => 'Deadline';
@@ -1667,4 +1667,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get signOut => 'Log out';
+
+  @override
+  String get newTodoAction => '+ Task';
+
+  @override
+  String get newEventAction => '+ Event';
+
+  @override
+  String get syncExplanation => 'Sync calendars and tasks across your devices through your self-hosted DaySpark Sync Server.';
+
+  @override
+  String get calendarField => 'Calendar';
+
+  @override
+  String get calendarExplanation => 'Calendars group and color events and tasks. To place a task on the timeline, use Planned time.';
+
+  @override
+  String get sectionTask => 'Task';
+
+  @override
+  String get sectionTime => 'Time';
+
+  @override
+  String get sectionReminder => 'Reminders';
+
+  @override
+  String get sectionOrganize => 'Organize';
+
+  @override
+  String get sectionContent => 'Content';
+
+  @override
+  String get dataExchange => 'Calendar data exchange';
+
+  @override
+  String get daysparkBackup => 'DaySpark backup';
+
+  @override
+  String get importIcs => 'Import .ics';
+
+  @override
+  String get exportIcs => 'Export .ics';
+
+  @override
+  String get displayOptions => 'Display';
+
+  @override
+  String get aiConfigured => 'Configured';
+
+  @override
+  String get aiNotConfiguredShort => 'Not configured';
+
+  @override
+  String get defaultCalendarName => 'Personal';
+
+  @override
+  String get quickAddTodo => 'Add task';
+
+  @override
+  String get quickCreateHint => 'Task title';
+
+  @override
+  String get moreOptions => 'More';
+
+  @override
+  String get createCalendarFromPicker => '+ New calendar';
 }

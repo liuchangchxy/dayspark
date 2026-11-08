@@ -12,7 +12,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preview => '预览';
 
   @override
-  String get legacyRepeatFrom => '从哪天开始重复';
+  String get legacyRepeatFrom => '重复开始';
 
   @override
   String get legacyRecurrencePreview => '后续日期预览';
@@ -93,7 +93,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get targetCalendar => '目标日历';
 
   @override
-  String get manageCalendars => '管理日历';
+  String get manageCalendars => '日历管理';
 
   @override
   String get newCalendar => '新建日历';
@@ -188,7 +188,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get location => '地点';
 
   @override
-  String get startDate => '开始日期';
+  String get startDate => '重复开始';
 
   @override
   String get startAfterDeadline => '开始日期不能晚于截止时间。';
@@ -269,10 +269,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiGoToSettings => '前往「设置 > AI」配置你的 API 密钥';
 
   @override
-  String get notifications => '通知';
+  String get notifications => '通知与提醒';
 
   @override
-  String get appearance => '外观';
+  String get appearance => '通用';
 
   @override
   String get theme => '主题';
@@ -431,10 +431,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get export => '导出';
 
   @override
-  String get fullBackup => '完整备份';
+  String get fullBackup => 'DaySpark 完整备份';
 
   @override
-  String get fullBackupDesc => '包含全部数据和附件文件的归档';
+  String get fullBackupDesc => '包含全部数据和附件文件';
 
   @override
   String get restore => '恢复';
@@ -455,7 +455,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get attachments => '附件';
 
   @override
-  String get calendarData => '导入或导出台历 .ics 文件';
+  String get calendarData => '导入或导出日历 .ics 文件';
 
   @override
   String get add => '添加';
@@ -575,7 +575,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get custom => '自定义';
 
   @override
-  String get allTasks => '全部';
+  String get allTasks => '全部待办';
 
   @override
   String get noDueDate => '无截止日期';
@@ -609,7 +609,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get defaultTab => '启动时打开';
 
   @override
-  String get inbox => '收件箱';
+  String get inbox => '未安排';
 
   @override
   String get trash => '回收站';
@@ -946,10 +946,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nextPeriod => '下一页';
 
   @override
-  String get account => '账号';
+  String get account => '同步';
 
   @override
-  String get serverUrl => '服务器地址';
+  String get serverUrl => '同步服务器';
 
   @override
   String get serverUrlInvalid => '请输入有效的 http(s) 地址';
@@ -1216,7 +1216,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noSchedulableTodos => '暂无可安排的待办';
 
   @override
-  String get action => '行动';
+  String get action => '今天';
 
   @override
   String get scheduledSection => '计划执行';
@@ -1225,11 +1225,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dueTodaySection => '今天要完成';
 
   @override
-  String get unplannedInbox => '收件箱';
+  String get unplannedInbox => '未安排';
 
   @override
   String unplannedCount(int count) {
-    return '$count 条未安排';
+    return '未安排 $count 项';
   }
 
   @override
@@ -1317,13 +1317,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get eventDetails => '日程';
 
   @override
-  String get deadline => '截止时间';
+  String get deadline => '截止';
 
   @override
   String get deadlineTime => '截止时间';
 
   @override
-  String get executionSchedule => '执行时间';
+  String get executionSchedule => '计划执行';
 
   @override
   String get addExecution => '添加执行时间';
@@ -1511,13 +1511,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchFailed => '搜索失败，请重试。';
 
   @override
-  String get scheduledTimeLower => '执行时间';
+  String get scheduledTimeLower => '计划执行';
 
   @override
-  String get executionRow => '执行时间';
+  String get executionRow => '计划执行';
 
   @override
-  String get deadlineRow => '截止时间';
+  String get deadlineRow => '截止';
 
   @override
   String get remindOnTime => '准时';
@@ -1661,4 +1661,70 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get signOut => '退出登录';
+
+  @override
+  String get newTodoAction => '+ 待办';
+
+  @override
+  String get newEventAction => '+ 日程';
+
+  @override
+  String get syncExplanation => '使用你自托管的 DaySpark Sync Server，在多台设备之间同步日历与待办。';
+
+  @override
+  String get calendarField => '所属日历';
+
+  @override
+  String get calendarExplanation => '日历用于分组和颜色；把待办排进时间轴，请使用「计划执行」。';
+
+  @override
+  String get sectionTask => '任务';
+
+  @override
+  String get sectionTime => '时间';
+
+  @override
+  String get sectionReminder => '提醒';
+
+  @override
+  String get sectionOrganize => '整理';
+
+  @override
+  String get sectionContent => '内容';
+
+  @override
+  String get dataExchange => '日历数据交换';
+
+  @override
+  String get daysparkBackup => 'DaySpark 备份';
+
+  @override
+  String get importIcs => '导入 .ics';
+
+  @override
+  String get exportIcs => '导出 .ics';
+
+  @override
+  String get displayOptions => '显示';
+
+  @override
+  String get aiConfigured => '已配置';
+
+  @override
+  String get aiNotConfiguredShort => '未配置';
+
+  @override
+  String get defaultCalendarName => '个人';
+
+  @override
+  String get quickAddTodo => '添加待办';
+
+  @override
+  String get quickCreateHint => '输入待办标题';
+
+  @override
+  String get moreOptions => '更多';
+
+  @override
+  String get createCalendarFromPicker => '+ 新建日历';
 }

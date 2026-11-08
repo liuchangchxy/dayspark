@@ -11,7 +11,6 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
-import 'package:dayspark/ui/pages/settings/settings_sections/todos_section.dart';
 
 GoRouter _router() => GoRouter(
   initialLocation: '/',
@@ -114,7 +113,7 @@ void main() {
     await db.close();
   });
 
-  testWidgets('collapses today list to six slots with a More fold row', (
+  testWidgets('shows the full day list and ignores the retired fold pref', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({
@@ -129,83 +128,17 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    expect(find.text('Task 0'), findsOneWidget);
-    expect(find.text('Task 5'), findsOneWidget);
-    expect(find.text('Task 6'), findsNothing);
-    expect(find.text('Task 7'), findsNothing);
-    expect(find.text('More (2)'), findsOneWidget);
+    for (var i = 0; i < 8; i++) {
+      expect(find.text('Task $i'), findsOneWidget);
+    }
+    expect(find.textContaining('More ('), findsNothing);
+    expect(find.text('Six Things'), findsNothing);
     await _unmount(tester);
   });
 
-  testWidgets('More fold row expands to the full list and collapses back', (
+  testWidgets('drag reorder moves a row and keeps every row visible', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({
-      'default_tab': 'calendar',
-      'six_things_mode': true,
-    });
-    await _seedTodayTodos(db, pendingCount: 8);
-    tester.view.physicalSize = const Size(900, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(_app(db));
-    await _settle(tester);
-    expect(find.text('Task 7'), findsNothing);
-
-    await tester.tap(find.text('More (2)'));
-    await _settle(tester);
-    expect(find.text('Task 6'), findsOneWidget);
-    expect(find.text('Task 7'), findsOneWidget);
-    expect(find.text('Collapse'), findsOneWidget);
-
-    await tester.tap(find.text('Collapse'));
-    await _settle(tester);
-    expect(find.text('Task 7'), findsNothing);
-    expect(find.text('More (2)'), findsOneWidget);
-    await _unmount(tester);
-  });
-
-  testWidgets('six-things toggle defaults off and persists when switched on', (
-    tester,
-  ) async {
-    await _seedTodayTodos(db, pendingCount: 8);
-    tester.view.physicalSize = const Size(900, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(_app(db));
-    await _settle(tester);
-
-    // Default OFF: full list, no fold row.
-    expect(find.text('Task 7'), findsOneWidget);
-    expect(find.text('More (2)'), findsNothing);
-
-    await tester.tap(find.text('Six Things'));
-    await _settle(tester);
-    expect(find.text('Task 6'), findsNothing);
-    expect(find.text('More (2)'), findsOneWidget);
-
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool('six_things_mode'), isTrue);
-
-    // A fresh tree (fresh providers) restores the persisted value.
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await tester.pumpWidget(_app(db));
-    await _settle(tester);
-    expect(find.text('Task 6'), findsNothing);
-    expect(find.text('More (2)'), findsOneWidget);
-    await _unmount(tester);
-  });
-
-  testWidgets('drag reorder inside six slots preserves the full list order', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({
-      'default_tab': 'calendar',
-      'six_things_mode': true,
-    });
     await _seedTodayTodos(db, pendingCount: 8);
     tester.view.physicalSize = const Size(900, 1400);
     tester.view.devicePixelRatio = 1.0;
@@ -216,9 +149,7 @@ void main() {
     expect(find.text('Task 0'), findsOneWidget);
 
     // Long-press drag (ReorderableDelayedDragStartListener on touch
-    // platforms) moves Task 0 one slot down within the visible six.
-    // The distance comes from the rendered rows, so it survives a type-scale
-    // change instead of hardcoding a pixel offset.
+    // platforms) moves Task 0 one slot down.
     final dragDistance =
         (tester.getCenter(find.text('Task 1')).dy -
             tester.getCenter(find.text('Task 0')).dy) *
@@ -242,16 +173,37 @@ void main() {
             .get();
     expect(rows.first.summary, 'Task 1');
     expect(rows[1].summary, 'Task 0');
-    // Hidden tail keeps its relative order after the in-prefix move.
     expect(rows[2].summary, 'Task 2');
     expect(rows.last.summary, 'Task 7');
-    // Collapsed view still shows exactly six slots.
-    expect(find.text('More (2)'), findsOneWidget);
-    expect(find.text('Task 7'), findsNothing);
+    expect(find.text('Task 7'), findsOneWidget);
     await _unmount(tester);
   });
 
-  testWidgets('hide-completed setting hides the completed section', (
+  testWidgets('display menu hides completed rows and persists the choice', (
+    tester,
+  ) async {
+    await _seedTodayTodos(db, pendingCount: 2, withCompleted: true);
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+    expect(find.text('Done task'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Display'));
+    await _settle(tester);
+    await tester.tap(find.text('Hide completed'));
+    await _settle(tester);
+
+    expect(find.text('Done task'), findsNothing);
+    expect(find.text('Completed'), findsNothing);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('hide_completed'), isTrue);
+    await _unmount(tester);
+  });
+
+  testWidgets('persisted hide-completed state applies on launch', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({
@@ -270,98 +222,5 @@ void main() {
     expect(find.text('Done task'), findsNothing);
     expect(find.text('Completed'), findsNothing);
     await _unmount(tester);
-  });
-
-  testWidgets('completed section shows when hide-completed is off', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({
-      'default_tab': 'calendar',
-      'hide_completed': false,
-    });
-    await _seedTodayTodos(db, pendingCount: 2, withCompleted: true);
-    tester.view.physicalSize = const Size(900, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(_app(db));
-    await _settle(tester);
-
-    expect(find.text('Completed'), findsOneWidget);
-    expect(find.text('Done task'), findsOneWidget);
-    await _unmount(tester);
-  });
-
-  testWidgets('todos settings switch persists hide_completed', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          localizationsDelegates: const [
-            ...AppLocalizations.localizationsDelegates,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: const Locale('en'),
-          home: const Scaffold(body: TodosSection()),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byType(Switch), findsNWidgets(2));
-    final hideCompletedSwitch = find.descendant(
-      of: find.ancestor(
-        of: find.text('Hide completed'),
-        matching: find.byType(SwitchListTile),
-      ),
-      matching: find.byType(Switch),
-    );
-    expect(
-      tester.widget<Switch>(hideCompletedSwitch).value,
-      isFalse,
-    );
-
-    await tester.tap(hideCompletedSwitch);
-    await tester.pumpAndSettle();
-    expect(tester.widget<Switch>(hideCompletedSwitch).value, isTrue);
-
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool('hide_completed'), isTrue);
-  });
-
-  testWidgets('todos settings switch restores persisted state', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({'hide_completed': true});
-
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          localizationsDelegates: const [
-            ...AppLocalizations.localizationsDelegates,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: const Locale('en'),
-          home: const Scaffold(body: TodosSection()),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final hideCompletedSwitch = find.descendant(
-      of: find.ancestor(
-        of: find.text('Hide completed'),
-        matching: find.byType(SwitchListTile),
-      ),
-      matching: find.byType(Switch),
-    );
-    expect(tester.widget<Switch>(hideCompletedSwitch).value, isTrue);
   });
 }

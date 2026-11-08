@@ -581,7 +581,7 @@ void main() {
       );
       expect(en.locale, 'en');
       expect(en.today, 'Today');
-      expect(en.inbox, 'Inbox');
+      expect(en.inbox, 'Unplanned');
       expect(en.all, 'All');
       expect(en.completedCount, '{n} completed');
       expect(en.moreCount, '{n} more');
@@ -592,7 +592,7 @@ void main() {
       );
       expect(zh.locale, 'zh');
       expect(zh.today, '今天');
-      expect(zh.inbox, '收件箱');
+      expect(zh.inbox, '未安排');
       expect(zh.all, '全部');
       expect(zh.completedCount, '已完成 {n}');
       expect(zh.moreCount, '还有 {n} 项');

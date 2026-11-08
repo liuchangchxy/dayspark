@@ -44,7 +44,6 @@ class NotificationsSection extends ConsumerWidget {
         // The alarm plugin only ships Android and iOS implementations, so on
         // Windows the switch would flip a preference nothing reads.
         if (showsAlarm) ...[
-          const Divider(),
           SwitchListTile(
             secondary: const Icon(CupertinoIcons.alarm),
             title: Text(l.systemAlarm),
@@ -55,10 +54,8 @@ class NotificationsSection extends ConsumerWidget {
               ref.read(systemAlarmProvider.notifier).state = v;
             },
           ),
-          const Divider(),
         ],
         if (showsMacPermission) ...[
-          const Divider(),
           ListTile(
             leading: const Icon(CupertinoIcons.bell),
             title: Text(l.notificationPermission),
@@ -71,11 +68,9 @@ class NotificationsSection extends ConsumerWidget {
               );
             },
           ),
-          const Divider(),
         ],
         if (showsExactAlarm &&
             ref.watch(canScheduleExactProvider).valueOrNull == false) ...[
-          const Divider(),
           ListTile(
             leading: const Icon(CupertinoIcons.timer),
             title: Text(l.exactAlarmTitle),
@@ -85,7 +80,6 @@ class NotificationsSection extends ConsumerWidget {
               ref.invalidate(canScheduleExactProvider);
             },
           ),
-          const Divider(),
         ],
       ],
     );

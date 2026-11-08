@@ -348,6 +348,7 @@ abstract final class AppRouter {
                   : null;
               final start = state.uri.queryParameters['start'];
               final end = state.uri.queryParameters['end'];
+              final due = state.uri.queryParameters['due'];
               DateTime? parse(String? value) => value == null
                   ? null
                   : DateTime.tryParse(value) ??
@@ -358,6 +359,7 @@ abstract final class AppRouter {
                 TodoFormPage(
                   parentId: parentId,
                   source: state.uri.queryParameters['source'],
+                  initialDueDate: parse(due),
                   initialExecutionStart: parse(start),
                   initialExecutionEnd: parse(end),
                 ),

@@ -26,11 +26,13 @@ class ActionSection extends ConsumerWidget {
   const ActionSection({
     super.key,
     this.onNavigateToCalendar,
+    this.onNavigateToUnplanned,
     this.onEventTap,
     this.onTodoTap,
   });
 
   final VoidCallback? onNavigateToCalendar;
+  final VoidCallback? onNavigateToUnplanned;
   final void Function(CalendaEventAdapter event)? onEventTap;
   final void Function(Todo todo)? onTodoTap;
 
@@ -85,6 +87,11 @@ class ActionSection extends ConsumerWidget {
   ) {
     final now = DateTime.now();
     final rows = <Widget>[];
+    final dueTodayById = {for (final todo in data.dueTodayTodos) todo.id: todo};
+    DateTime? deadlineFor(_Entry entry) {
+      final todo = entry.allocation?.todo;
+      return todo == null ? null : dueTodayById[todo.id]?.dueDate;
+    }
 
     final current = <_Entry>[
       ...data.events.map(_Entry.event).where((e) => e.isCurrent(now)),
@@ -108,21 +115,47 @@ class ActionSection extends ConsumerWidget {
     if (current.isNotEmpty) {
       rows
         ..add(_SectionHeader(title: l.actionNow, accent: AppColors.brandWarm))
-        ..addAll(current.map((e) => _entryRow(context, ref, l, e, warm: true)));
+        ..addAll(
+          current.map(
+            (e) => _entryRow(
+              context,
+              ref,
+              l,
+              e,
+              warm: true,
+              deadline: deadlineFor(e),
+            ),
+          ),
+        );
     }
     if (later.isNotEmpty) {
       rows
         ..add(_SectionHeader(title: l.laterToday))
-        ..addAll(later.map((e) => _entryRow(context, ref, l, e)));
+        ..addAll(
+          later.map(
+            (e) => _entryRow(
+              context,
+              ref,
+              l,
+              e,
+              deadline: deadlineFor(e),
+            ),
+          ),
+        );
     }
 
-    // "Today to finish" merges the two shapes of the same obligation: today's
-    // recurring occurrences and ordinary todos due today.
+    // One obligation, one row: a Todo that already has a planned execution
+    // today keeps that block as its primary row and carries the deadline as
+    // secondary metadata. Overdue deadlines stay separate because they need
+    // independent risk emphasis.
+    final plannedTodayIds = {for (final item in data.allocations) item.todo.id};
     final dueAndDue = <Widget>[
       ...data.todayTaskInstances.map(
         (instance) => _instanceRow(context, ref, l, instance),
       ),
-      ...data.dueTodayTodos.map((todo) => _todoRow(context, ref, l, todo)),
+      ...data.dueTodayTodos
+          .where((todo) => !plannedTodayIds.contains(todo.id))
+          .map((todo) => _todoRow(context, ref, l, todo)),
     ];
     if (dueAndDue.isNotEmpty) {
       rows
@@ -147,8 +180,19 @@ class ActionSection extends ConsumerWidget {
         ..addAll(overdue);
     }
 
+    if (data.unplannedCount > 0) {
+      rows.add(
+        _UnplannedEntry(
+          count: data.unplannedCount,
+          onTap: onNavigateToUnplanned,
+        ),
+      );
+    }
+
     final completed = <Widget>[
-      ...earlier.map((e) => _entryRow(context, ref, l, e)),
+      ...earlier.map(
+        (e) => _entryRow(context, ref, l, e, deadline: deadlineFor(e)),
+      ),
       ...data.completedTodayTodos.map(
         (todo) => _todoRow(context, ref, l, todo),
       ),
@@ -157,9 +201,20 @@ class ActionSection extends ConsumerWidget {
       ),
     ];
     if (completed.isNotEmpty) {
-      rows
-        ..add(_SectionHeader(title: l.actionEarlierToday))
-        ..addAll(completed);
+      rows.add(
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          title: Text(
+            l.actionEarlierToday,
+            style: AppTypography.overline.copyWith(
+              color: context.semantic.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          children: completed,
+        ),
+      );
     }
     return rows;
   }
@@ -170,6 +225,7 @@ class ActionSection extends ConsumerWidget {
     AppLocalizations l,
     _Entry entry, {
     bool warm = false,
+    DateTime? deadline,
   }) {
     if (entry.isEvent) {
       final event = entry.event!;
@@ -186,10 +242,14 @@ class ActionSection extends ConsumerWidget {
     }
     final item = entry.allocation!;
     final todo = item.todo;
+    final meta = [
+      l.scheduledTimeLower,
+      if (deadline != null) _deadlineMeta(l, deadline),
+    ].join(' · ');
     return _ActionRow(
       key: ValueKey('action-allocation-${item.allocation.id}'),
       time: DateFormatters.formatTime(item.allocation.startAt.toLocal()),
-      meta: l.scheduledTimeLower,
+      meta: meta,
       title: todo.summary,
       warm: warm,
       completed: todo.status == 'COMPLETED',
@@ -278,6 +338,13 @@ class ActionSection extends ConsumerWidget {
     } on Object catch (error) {
       if (context.mounted) showCompletionError(context, error);
     }
+  }
+
+  String _deadlineMeta(AppLocalizations l, DateTime due) {
+    final clock = _deadlineClock(due);
+    return l.deadlinePrefix(
+      clock ?? DateFormatters.formatDate(due),
+    );
   }
 
   /// A date-only deadline has no clock. Printing 00:00 invents a time the
@@ -438,6 +505,56 @@ class _ActionRow extends StatelessWidget {
                       ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A compact way into the tasks that have no plan yet. It is an entry, not a
+/// second task list: today must not become the inventory.
+class _UnplannedEntry extends StatelessWidget {
+  const _UnplannedEntry({required this.count, this.onTap});
+
+  final int count;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              children: [
+                Icon(
+                  CupertinoIcons.tray,
+                  size: 16,
+                  color: context.semantic.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    l.unplannedCount(count),
+                    style: AppTypography.body.copyWith(
+                      color: context.semantic.textSecondary,
+                    ),
+                  ),
+                ),
+                Icon(
+                  CupertinoIcons.chevron_forward,
+                  size: 14,
+                  color: context.semantic.textTertiary,
+                ),
+              ],
+            ),
           ),
         ),
       ),

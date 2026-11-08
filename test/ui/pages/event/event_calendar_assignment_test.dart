@@ -266,25 +266,60 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('with one calendar the picker stays out of the way', (
+  testWidgets('with one calendar the picker still opens', (tester) async {
+    final seeded = await _calendars(db);
+    expect(seeded.length, 1);
+
+    await _pump(tester, db);
+    expect(_picker, findsOneWidget);
+    await tester.tap(_picker);
+    await _settle(tester);
+
+    // The only calendar is shown and creating another one is offered.
+    expect(find.text('Personal'), findsWidgets);
+    expect(find.text('+ New calendar'), findsOneWidget);
+
+    await tester.tap(find.text('Personal').last);
+    await _settle(tester);
+    await tester.enterText(_field('Title'), 'Solo event');
+    await _save(tester);
+
+    final created = await _onlyEvent(db);
+    expect(created.calendarId, seeded.single.id);
+    await _unmount(tester);
+  });
+
+  testWidgets('creating a calendar inside the picker selects it', (
     tester,
   ) async {
     final seeded = await _calendars(db);
     expect(seeded.length, 1);
 
     await _pump(tester, db);
-    // The row still says which calendar receives the event; it just has
-    // nothing to choose from, so tapping it opens no sheet.
-    expect(_picker, findsOneWidget);
+    await tester.enterText(_field('Title'), 'Created with a calendar');
     await tester.tap(_picker);
     await _settle(tester);
-    expect(find.byType(ListTile), findsNothing);
+    await tester.tap(find.text('+ New calendar'));
+    await _settle(tester);
 
-    await tester.enterText(_field('Title'), 'Solo event');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Calendar Name'),
+      'Work',
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'Create'));
+    await _settle(tester);
+
+    // The picker returns with the new calendar ready to choose.
+    expect(find.text('Work'), findsOneWidget);
+    await tester.tap(find.text('Work'));
+    await _settle(tester);
     await _save(tester);
 
     final created = await _onlyEvent(db);
-    expect(created.calendarId, seeded.single.id);
+    expect(created.calendarId, isNot(seeded.single.id));
+    final calendars = await _calendars(db);
+    final work = calendars.firstWhere((calendar) => calendar.name == 'Work');
+    expect(created.calendarId, work.id);
     await _unmount(tester);
   });
 

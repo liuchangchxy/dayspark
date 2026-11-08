@@ -107,7 +107,17 @@ void main() {
     return CalendaEventAdapter.fromDrift(row);
   }
 
+  Future<void> scrollToDelete(WidgetTester tester) async {
+    await tester.scrollUntilVisible(
+      find.text('Move to Trash'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await _settle(tester);
+  }
+
   Future<void> openAndConfirmDelete(WidgetTester tester) async {
+    await scrollToDelete(tester);
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
     // The dialog title and the destructive button share a label; the button is
@@ -134,6 +144,7 @@ void main() {
     await tester.pumpWidget(_app(db, todo: todo));
     await _settle(tester);
 
+    await scrollToDelete(tester);
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
     expect(find.text('Are you sure you want to delete?'), findsOneWidget);
@@ -204,6 +215,7 @@ void main() {
     await tester.pumpWidget(_app(db, todo: todo));
     await _settle(tester);
 
+    await scrollToDelete(tester);
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
     await tester.tap(find.text('Cancel'));
