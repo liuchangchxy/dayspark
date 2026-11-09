@@ -13,6 +13,11 @@
 
 ## 未发布 / Unreleased
 
+**用户反馈原文 / User feedback:** 「在现有 Widget / Journey 与最终人工 / Agent GUI 验收之间，补回一个轻量、现役、可运行的真实 App 自动交互层，并把现有测试明确分成 fast / ui / full 三档。」
+
+- [x] 重写 `integration_test/app_test.dart`，覆盖待办快速添加、日期浏览和宽屏详情切换。
+- [x] 通过 `tool/test_fast.sh`、`tool/test_ui.sh`、`tool/test_full.sh` 提供分层入口；macOS CI 执行原生交互，职责见 `docs/UI_TESTING.md`。
+
 **用户反馈原文 / User feedback:** 「Todo Detail Pane — Reminder 管理：显示已有 Reminder，支持添加、修改和删除，与现有 Todo 完整表单的能力保持一致，修改后正确保存并更新界面。Event Detail Pane — Calendar 切换：显示当前 Calendar，支持切换到其他 Calendar，修改后立即更新界面并持久化，与现有 Event 完整表单保持一致。」
 
 - [x] Todo 详情面板复用提醒选择与保存路径，支持查看、添加、修改和删除。

@@ -1,320 +1,237 @@
+import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:dayspark/main.dart' as app;
+import 'package:dayspark/core/router/app_router.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/home_widget_provider.dart';
+import 'package:dayspark/main.dart' show DaySparkApp;
+import 'package:dayspark/ui/shell/workspace_sidebar.dart';
+import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 
+/// Real-app flows: the shipped [DaySparkApp], router, providers and database
+/// run inside the native integration harness. Each test answers one question
+/// and asserts the result the user can observe, not just that a widget exists.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  group('App Launch', () {
-    testWidgets('app launches and shows home page', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
+  late AppDatabase db;
 
-      // Should show app bar title
-      expect(find.text('Calendar Todo'), findsOneWidget);
-
-      // Should show bottom navigation with Calendar and Todos tabs
-      expect(find.text('Calendar'), findsOneWidget);
-      expect(find.text('Todos'), findsOneWidget);
-
-      // Should show FAB
-      expect(find.byType(FloatingActionButton), findsOneWidget);
-    });
-
-    testWidgets('shows empty calendar state', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      // Calendar tab is default — should have calendar view
-      expect(find.byType(FloatingActionButton), findsOneWidget);
-    });
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({'app_locale': 'en'});
+    db = AppDatabase.forTesting(NativeDatabase.memory());
   });
 
-  group('Navigation', () {
-    testWidgets('navigate to settings page', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      // Tap settings icon
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Settings'), findsOneWidget);
-      expect(find.text('Manage Tags'), findsOneWidget);
-      expect(find.text('About'), findsOneWidget);
-    });
-
-    testWidgets('navigate to tags page from settings', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Manage Tags'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Manage Tags'), findsOneWidget);
-      expect(find.byIcon(Icons.add), findsOneWidget);
-    });
-
-    testWidgets('switch between calendar and todos tabs', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      // Default is calendar tab
-      expect(find.text('Calendar'), findsOneWidget);
-
-      // Tap Todos tab
-      await tester.tap(find.text('Todos'));
-      await tester.pumpAndSettle();
-
-      // Should show empty todos message
-      expect(find.text('No pending todos'), findsOneWidget);
-    });
-
-    testWidgets('back button works from settings', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Settings'), findsOneWidget);
-
-      await tester.tap(find.byIcon(Icons.arrow_back));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Calendar Todo'), findsOneWidget);
-    });
+  tearDown(() async {
+    await db.close();
   });
 
-  group('Todo CRUD', () {
-    testWidgets('FAB navigates to create todo when on Todos tab', (
-      tester,
-    ) async {
-      app.main();
-      await tester.pumpAndSettle();
+  Future<int> seedCalendar() =>
+      db.into(db.calendars).insert(CalendarsCompanion.insert(name: 'Personal'));
 
-      // Switch to todos tab
-      await tester.tap(find.text('Todos'));
-      await tester.pumpAndSettle();
+  Future<int> seedTodo(int calendarId, String summary, {DateTime? dueDate}) =>
+      db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: summary,
+              dueDate: Value(dueDate),
+            ),
+          );
 
-      // Tap FAB
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+  Future<void> settle(WidgetTester tester) async {
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+  }
 
-      // Should be on todo create page
-      expect(find.text('New Todo'), findsOneWidget);
-      expect(find.text('Title'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
-    });
+  Future<void> launch(
+    WidgetTester tester, {
+    Size size = const Size(800, 600),
+  }) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    AppRouter.router.go('/');
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          homeWidgetAutoRefreshProvider.overrideWith((ref) {}),
+          updateHomeWidgetProvider.overrideWith((ref) => () async {}),
+        ],
+        child: const DaySparkApp(),
+      ),
+    );
+    await settle(tester);
+  }
 
-    testWidgets('create a todo and see it in list', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
+  Future<void> openTasks(WidgetTester tester) async {
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Tasks'),
+      ),
+    );
+    await settle(tester);
+  }
 
-      // Switch to todos tab
-      await tester.tap(find.text('Todos'));
-      await tester.pumpAndSettle();
+  Future<void> unmount(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 
-      // Tap FAB
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+  testWidgets('flow: quick add writes a todo into the real list', (
+    tester,
+  ) async {
+    await seedCalendar();
+    expect(await db.select(db.todos).get(), isEmpty);
 
-      // Fill in title
-      await tester.enterText(find.byType(TextField).first, 'Buy groceries');
-      await tester.pumpAndSettle();
+    await launch(tester);
+    await openTasks(tester);
 
-      // Save
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('todo-quick-add'));
+    expect(field, findsOneWidget);
+    expect(find.text('Book the flights'), findsNothing);
 
-      // Should be back on todos list
-      expect(find.text('Buy groceries'), findsOneWidget);
-    });
+    await tester.enterText(field, 'Book the flights');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
 
-    testWidgets('tap todo to edit it', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
+    final rows = await db.select(db.todos).get();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    expect(rows, hasLength(1));
+    expect(rows.single.summary, 'Book the flights');
+    expect(
+      rows.single.dueDate,
+      today,
+      reason: 'the day view is the landing date for a quick add',
+    );
+    expect(find.text('Book the flights'), findsOneWidget);
 
-      // Switch to todos tab
-      await tester.tap(find.text('Todos'));
-      await tester.pumpAndSettle();
-
-      // Create a todo first
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField).first, 'Test edit todo');
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-
-      // Tap the todo to edit
-      await tester.tap(find.text('Test edit todo'));
-      await tester.pumpAndSettle();
-
-      // Should be on edit page
-      expect(find.text('Edit Todo'), findsOneWidget);
-      expect(find.text('Test edit todo'), findsOneWidget);
-    });
-
-    testWidgets('complete a todo via checkbox', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      // Switch to todos tab
-      await tester.tap(find.text('Todos'));
-      await tester.pumpAndSettle();
-
-      // Create a todo
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField).first, 'Complete me');
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
-
-      // Find the checkbox and tap it
-      final checkbox = find.byType(Checkbox);
-      if (checkbox.evaluate().isNotEmpty) {
-        await tester.tap(checkbox.first);
-        await tester.pumpAndSettle();
-
-        // Todo should disappear from pending list
-        expect(find.text('Complete me'), findsNothing);
-      }
-    });
+    await unmount(tester);
   });
 
-  group('Event CRUD', () {
-    testWidgets('FAB navigates to create event on Calendar tab', (
-      tester,
-    ) async {
-      app.main();
-      await tester.pumpAndSettle();
+  testWidgets('flow: date browsing switches the list to another day', (
+    tester,
+  ) async {
+    final calendarId = await seedCalendar();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final otherDay = DateTime(
+      now.year,
+      now.month,
+      now.day + (today.weekday == 7 ? -1 : 1),
+    );
+    await seedTodo(calendarId, 'Today task', dueDate: today);
+    await seedTodo(calendarId, 'Other day task', dueDate: otherDay);
 
-      // Tap FAB (calendar tab is default)
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+    await launch(tester);
+    await openTasks(tester);
 
-      // Should be on event create page
-      expect(find.text('New Event'), findsOneWidget);
-      expect(find.text('Title'), findsOneWidget);
-    });
+    final weekStrip = find.byKey(const ValueKey('date-strip-week'));
+    expect(weekStrip, findsOneWidget);
+    expect(find.text('Today task'), findsOneWidget);
+    expect(find.text('Other day task'), findsNothing);
 
-    testWidgets('create event requires title', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('All Tasks').first);
+    await settle(tester);
+    expect(weekStrip, findsNothing, reason: 'All is not attached to a day');
+    expect(find.text('Today task'), findsOneWidget);
+    expect(find.text('Other day task'), findsOneWidget);
 
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(of: find.byType(DateStrip), matching: find.text('Today')),
+    );
+    await settle(tester);
+    expect(weekStrip, findsOneWidget, reason: 'Today restores the day view');
+    expect(find.text('Today task'), findsOneWidget);
+    expect(find.text('Other day task'), findsNothing);
 
-      // Tap save without entering title
-      await tester.tap(find.text('Save'));
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(of: weekStrip, matching: find.text('${otherDay.day}')),
+    );
+    await settle(tester);
 
-      // Should still be on create page (validation failed)
-      expect(find.text('New Event'), findsOneWidget);
-    });
+    expect(
+      find.text('Other day task'),
+      findsOneWidget,
+      reason: 'the list follows the selected day',
+    );
+    expect(find.text('Today task'), findsNothing);
+    expect(
+      find.widgetWithText(TextButton, 'Today'),
+      findsOneWidget,
+      reason: 'a selected day other than today offers a way back',
+    );
+
+    await unmount(tester);
   });
 
-  group('Settings', () {
-    testWidgets('shows appearance section', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
+  testWidgets('flow: wide desktop keeps the list beside the detail', (
+    tester,
+  ) async {
+    final calendarId = await seedCalendar();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final firstId = await seedTodo(calendarId, 'First task', dueDate: today);
+    final secondId = await seedTodo(calendarId, 'Second task', dueDate: today);
 
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
+    await launch(tester, size: const Size(1440, 1000));
 
-      expect(find.text('Appearance'), findsOneWidget);
-      expect(find.text('Notifications'), findsOneWidget);
-    });
+    await tester.tap(
+      find.descendant(
+        of: find.byType(WorkspaceSidebar),
+        matching: find.text('Tasks'),
+      ),
+    );
+    await settle(tester);
 
-    testWidgets('shows about section', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
+    expect(
+      MediaQuery.sizeOf(tester.element(find.byType(WorkspaceSidebar))).width,
+      1440,
+    );
+    final firstRow = find.byKey(Key('date-$firstId'));
+    final secondRow = find.byKey(Key('date-$secondId'));
+    expect(firstRow, findsOneWidget);
+    expect(secondRow, findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
+    await tester.tap(firstRow);
+    await settle(tester);
 
-      expect(find.text('About'), findsOneWidget);
-      expect(find.text('DaySpark v0.14.0'), findsOneWidget);
-    });
+    final firstPane = find.byKey(ValueKey('pane-todo-$firstId'));
+    expect(firstPane, findsOneWidget);
+    expect(
+      tester.getTopLeft(firstPane).dx,
+      greaterThan(tester.getTopLeft(firstRow).dx),
+    );
+    expect(
+      find.descendant(of: firstPane, matching: find.text('First task')),
+      findsOneWidget,
+    );
+    expect(firstRow, findsOneWidget, reason: 'the list stays beside detail');
+    expect(secondRow, findsOneWidget);
 
-    testWidgets('tag management page shows empty state', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
+    await tester.tap(secondRow);
+    await settle(tester);
 
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('pane-todo-$firstId')), findsNothing);
+    final secondPane = find.byKey(ValueKey('pane-todo-$secondId'));
+    expect(secondPane, findsOneWidget);
+    expect(
+      find.descendant(of: secondPane, matching: find.text('Second task')),
+      findsOneWidget,
+    );
+    expect(firstRow, findsOneWidget, reason: 'the list is still the same list');
+    expect(secondRow, findsOneWidget);
 
-      await tester.tap(find.text('Manage Tags'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('No tags yet'), findsOneWidget);
-    });
-
-    testWidgets('create a new tag', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Manage Tags'));
-      await tester.pumpAndSettle();
-
-      // Tap add button
-      await tester.tap(find.byIcon(Icons.add));
-      await tester.pumpAndSettle();
-
-      expect(find.text('New Tag'), findsOneWidget);
-
-      // Enter tag name
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Tag name'),
-        'Work',
-      );
-      await tester.pumpAndSettle();
-
-      // Tap create
-      await tester.tap(find.text('Create'));
-      await tester.pumpAndSettle();
-
-      // Should show the new tag
-      expect(find.text('Work'), findsOneWidget);
-    });
-
-    testWidgets('delete a tag', (tester) async {
-      app.main();
-      await tester.pumpAndSettle();
-
-      // First create a tag
-      await tester.tap(find.byIcon(Icons.settings_outlined));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Manage Tags'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byIcon(Icons.add));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Tag name'),
-        'DeleteMe',
-      );
-      await tester.tap(find.text('Create'));
-      await tester.pumpAndSettle();
-
-      // Now delete it
-      await tester.tap(find.byIcon(Icons.delete_outline));
-      await tester.pumpAndSettle();
-
-      // Should show empty state
-      expect(find.text('No tags yet'), findsOneWidget);
-    });
+    await unmount(tester);
   });
 }

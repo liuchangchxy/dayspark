@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  unit-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +49,7 @@ jobs:
       - run: flutter test
 
   build-ios-simulator:
-    needs: test
+    needs: unit-test
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
           dart test
 
   build-web:
-    needs: test
+    needs: unit-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -125,7 +125,7 @@ jobs:
           path: build/web/
 
   build-android:
-    needs: test
+    needs: unit-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -179,7 +179,7 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
 
   build-macos:
-    needs: test
+    needs: unit-test
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -188,6 +188,8 @@ jobs:
           channel: "stable"
           cache: true
       - run: flutter pub get
+      - name: Run native UI integration flows
+        run: tool/test_ui.sh
       - run: flutter build macos --release
       - name: Verify macOS bundle signature
         run: codesign --verify --deep --strict --verbose=2 build/macos/Build/Products/Release/DaySpark.app
@@ -198,8 +200,19 @@ jobs:
           name: macos-app
           path: dayspark-macos.zip
 
+  test:
+    if: always()
+    needs: [unit-test, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require unit and macOS checks
+        env:
+          UNIT_RESULT: ${{ needs.unit-test.result }}
+          MACOS_RESULT: ${{ needs.build-macos.result }}
+        run: test "$UNIT_RESULT" = success && test "$MACOS_RESULT" = success
+
   build-windows:
-    needs: test
+    needs: unit-test
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -218,7 +231,7 @@ jobs:
           path: dayspark-windows-portable.zip
 
   build-linux:
-    needs: test
+    needs: unit-test
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
