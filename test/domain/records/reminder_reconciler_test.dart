@@ -10,6 +10,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/alarm_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/record_bus_provider.dart';
@@ -1011,6 +1012,44 @@ void main() {
       expect(schedules.map((r) => r.triggerTime).toList(), [
         trigger.add(const Duration(days: 1)),
       ], reason: '改期事件经总线到达重排器：按新参考时间落到精确时刻');
+    });
+
+    test('24 系统闹钟 OFF→ON：onAlarmEnabled 强制重排现有提醒（无需改 Todo）', () async {
+      final todoId = await seedTodoWithReminder();
+      await reconciler.handle([
+        RecordApplied(RecordType.todo, todoId, previousReference: dueA),
+      ]);
+      expect(schedules, hasLength(1));
+      resetLogs();
+
+      // Native alarms were cleared while OFF, but _applied still records them
+      // as handed to the OS — a normal sweep would short-circuit.
+      await reconciler.reconcileAll();
+      expectNoPlatformCalls();
+
+      await reconciler.onAlarmEnabled();
+
+      expect(schedules.map((r) => r.parentId).toList(), [todoId]);
+      expect(schedules.single.triggerTime, triggerA);
+      expect(cancels, isEmpty, reason: '恢复排期不应撤掉任何活跃提醒');
+    });
+
+    test('25 ON 钩子：alarmToggleProvider 复用 reconciler 恢复现有提醒', () async {
+      final todoId = await seedTodoWithReminder();
+      await reconciler.handle([
+        RecordApplied(RecordType.todo, todoId, previousReference: dueA),
+      ]);
+      expect(schedules, hasLength(1));
+      resetLogs();
+
+      final container = ProviderContainer(
+        overrides: [reminderReconcilerProvider.overrideWithValue(reconciler)],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(alarmToggleProvider)(true);
+
+      expect(schedules.map((r) => r.parentId).toList(), [todoId]);
     });
 
     test('18 切语言 → 已排期通知按新语言重排（文案烘焙进 OS，UI 检查看不见）', () async {
