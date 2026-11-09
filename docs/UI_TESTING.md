@@ -4,7 +4,7 @@ Run `flutter pub get` once after checkout or dependency changes, then run from t
 
 | Entry | Purpose |
 | --- | --- |
-| `tool/test_fast.sh` | Domain tests, Widget journeys and master-detail behavior; no native app. |
+| `tool/test_fast.sh` | All Dart and Flutter tests under `test/` — unit, provider, database, Widget, Widget integration, journeys and responsive smoke; no native app. New Widget tests join automatically. |
 | `tool/test_ui.sh` | Three native macOS `integration_test` flows using `DaySparkApp`, the production router and an isolated in-memory SQLite database. |
 | `tool/test_full.sh` | Local guards, Dart packages, Flutter analyze and full tests, native UI flows, and a macOS release build and signature check. |
 
