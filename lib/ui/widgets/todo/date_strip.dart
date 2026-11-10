@@ -107,6 +107,7 @@ class DateStrip extends StatelessWidget {
     bool expand = false,
   }) {
     return DsSegmented<String>(
+      key: const ValueKey('todos-view-switch'),
       height: 30,
       expand: expand,
       selected: view is TodosInboxView

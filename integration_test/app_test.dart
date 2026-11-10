@@ -12,6 +12,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/main.dart' show DaySparkApp;
 import 'package:dayspark/ui/shell/workspace_sidebar.dart';
+import 'package:dayspark/ui/widgets/schedule/day_strip.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 
 /// Real-app flows: the shipped [DaySparkApp], router, providers and database
@@ -73,12 +74,25 @@ void main() {
   }
 
   Future<void> openTasks(WidgetTester tester) async {
+    final railEntry = find.byKey(const ValueKey('nav-todos'));
+    if (railEntry.evaluate().isNotEmpty) {
+      await tester.tap(railEntry);
+      await settle(tester);
+      return;
+    }
     await tester.tap(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byKey(const ValueKey('mobile-tab-bar')),
         matching: find.text('Tasks'),
       ),
     );
+    await settle(tester);
+  }
+
+  Future<void> showView(WidgetTester tester, String label) async {
+    final switcher = find.byKey(const ValueKey('todos-view-switch'));
+    expect(switcher, findsOneWidget);
+    await tester.tap(find.descendant(of: switcher, matching: find.text(label)));
     await settle(tester);
   }
 
@@ -95,6 +109,7 @@ void main() {
 
     await launch(tester);
     await openTasks(tester);
+    await showView(tester, 'By date');
 
     final field = find.byKey(const ValueKey('todo-quick-add'));
     expect(field, findsOneWidget);
@@ -135,14 +150,14 @@ void main() {
 
     await launch(tester);
     await openTasks(tester);
+    await showView(tester, 'By date');
 
     final weekStrip = find.byKey(const ValueKey('date-strip-week'));
     expect(weekStrip, findsOneWidget);
     expect(find.text('Today task'), findsOneWidget);
     expect(find.text('Other day task'), findsNothing);
 
-    await tester.tap(find.text('All Tasks').first);
-    await settle(tester);
+    await showView(tester, 'All Tasks');
     expect(weekStrip, findsNothing, reason: 'All is not attached to a day');
     expect(find.text('Today task'), findsOneWidget);
     expect(find.text('Other day task'), findsOneWidget);
@@ -166,11 +181,15 @@ void main() {
       reason: 'the list follows the selected day',
     );
     expect(find.text('Today task'), findsNothing);
+
+    await tester.tap(find.byKey(ValueKey(DayStrip.dayKey(today))));
+    await settle(tester);
     expect(
-      find.widgetWithText(TextButton, 'Today'),
+      find.text('Today task'),
       findsOneWidget,
-      reason: 'a selected day other than today offers a way back',
+      reason: 'the strip still offers today after browsing away',
     );
+    expect(find.text('Other day task'), findsNothing);
 
     await unmount(tester);
   });
@@ -186,13 +205,9 @@ void main() {
 
     await launch(tester, size: const Size(1440, 1000));
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(WorkspaceSidebar),
-        matching: find.text('Tasks'),
-      ),
-    );
+    await tester.tap(find.byKey(const ValueKey('nav-todos')));
     await settle(tester);
+    await showView(tester, 'By date');
 
     expect(
       MediaQuery.sizeOf(tester.element(find.byType(WorkspaceSidebar))).width,
