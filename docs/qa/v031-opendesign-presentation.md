@@ -17,7 +17,7 @@
 | Windows release 构建 | `flutter build windows --release` | 成功 | 0 | 0 | — |
 | Windows 启动冒烟 | 启动 `calendar_todo_app.exe`，8 秒后进程仍在运行 | 通过 | 0 | 0 | 仅验证启动到可运行状态，未做 GUI 目视验收（由用户完成） |
 | 浏览器视觉 QA | agent-browser 截图对比 prototype | 见下表 | 0 | 0 | — |
-| 真机 / 客户端 E2E | `tool/test_ui.sh`（macOS 原生交互） | — | — | — | 本机为 Windows，无 macOS 运行环境；未运行 |
+| 原生交互 flow（`integration_test/app_test.dart`） | `flutter test --no-pub integration_test/app_test.dart -d windows` | 3 | 0 | 0 | 本机实跑 Windows 桌面原生壳；macOS 由 CI `build-macos` job 跑同一条命令 |
 
 ## 浏览器视觉 QA 覆盖（Flutter Web release 产物）
 
@@ -32,7 +32,7 @@
 
 ## 结论
 
-- 最高实际验证层级：浏览器真实渲染（Flutter Web release）+ Windows release 构建与启动冒烟 + 全套自动化测试
-- 是否存在未披露的失败或跳过：无失败；macOS 原生交互测试未运行（本机无 macOS），已在上表披露
+- 最高实际验证层级：浏览器真实渲染（Flutter Web release）+ Windows release 构建与启动冒烟 + Windows 原生交互 flow（3/3）+ 全套自动化测试
+- 是否存在未披露的失败或跳过：无失败；macOS 原生交互未在本机运行（本机无 macOS），由 CI `build-macos` 执行同一 integration_test
 - 可声明的范围：表现层重写在 Web/桌面宽窄断点下结构正确；业务层（Domain / Drift / Sync / AI / ICS / 备份）语义未改动且全套测试通过
 - **不能**声明的范围：Windows 桌面 App 的目视验收（未使用可见桌面 Computer Use，仅验证进程启动）；Android 真机小组件目视验收（仅完成布局/色板代码与构建）
