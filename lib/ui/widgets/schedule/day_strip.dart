@@ -159,9 +159,8 @@ class _DayCell extends StatelessWidget {
 }
 
 String _weekdayLabel(String locale, DateTime date) {
-  final full = DateFormat.E(locale).format(date);
-  if (locale.startsWith('zh') && full.isNotEmpty) {
-    return full.endsWith('周') ? full : full.substring(full.length - 1);
+  if (locale.startsWith('zh')) {
+    return DateFormat('EEEEE', locale).format(date);
   }
-  return full;
+  return DateFormat.E(locale).format(date);
 }

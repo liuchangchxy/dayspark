@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
@@ -251,14 +252,31 @@ class WorkspaceSidebar extends ConsumerWidget {
   }
 }
 
-class _Brand extends StatelessWidget {
+class _Brand extends StatefulWidget {
   const _Brand({required this.compact});
   final bool compact;
+
+  @override
+  State<_Brand> createState() => _BrandState();
+}
+
+class _BrandState extends State<_Brand> {
+  String? _version;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (!mounted) return;
+      setState(() => _version = info.version);
+    }).catchError((Object _) {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
     final l = AppLocalizations.of(context)!;
+    final compact = widget.compact;
     final mark = Container(
       width: 24,
       height: 24,
@@ -302,7 +320,7 @@ class _Brand extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'v0.30',
+                  _version == null ? '' : 'v$_version',
                   style: AppTypography.overline.copyWith(
                     fontSize: 10.5,
                     letterSpacing: 0,
