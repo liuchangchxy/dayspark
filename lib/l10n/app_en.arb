@@ -94,7 +94,7 @@
   "aiNotConfigured": "AI is not configured",
   "aiGoToSettings": "Go to Settings > AI to configure your API key",
   "notifications": "Notifications & reminders",
-  "appearance": "General",
+  "appearance": "Appearance",
   "theme": "Theme",
   "themeSystem": "System Default",
   "themeLight": "Light",
@@ -871,5 +871,23 @@
         "type": "int"
       }
     }
-  }
+  },
+  "generalSettings": "General",
+  "weekStartsOn": "Week starts on",
+  "weekStartsMonday": "Monday",
+  "weekStartsSunday": "Sunday",
+  "timeFormat": "Time format",
+  "timeFormat24": "24-hour",
+  "timeFormat12": "12-hour",
+  "startupTab": "Open on startup",
+  "startupTabAction": "Today",
+  "startupTabCalendar": "Calendar",
+  "startupTabTodos": "Tasks",
+  "startupTabChangedNotice": "Will open on next launch",
+  "todayNoSchedule": "Nothing scheduled for today",
+  "todayNoScheduleSub": "Schedule a task or create an event to get started",
+  "quickScheduleAction": "Schedule task",
+  "allTodosView": "All",
+  "unplannedView": "Unplanned",
+  "viewToday": "Today"
 }

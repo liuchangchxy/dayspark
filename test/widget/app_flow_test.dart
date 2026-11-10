@@ -138,32 +138,15 @@ void main() {
     await _openSettings(tester);
 
     expect(find.text('Settings'), findsOneWidget);
-
-    // Scroll down to find Appearance
-    final gesture = await tester.startGesture(Offset.zero);
-    for (var i = 0; i < 15; i++) {
-      await gesture.moveBy(const Offset(0, -50));
-      await tester.pump();
-    }
-    await gesture.up();
-    await _settle(tester);
-
-    expect(find.text('General'), findsOneWidget);
+    expect(find.text('General'), findsWidgets);
+    expect(find.text('Appearance'), findsWidgets);
   });
 
-  testWidgets('theme dialog opens', (tester) async {
+  testWidgets('theme selector renders', (tester) async {
     await tester.pumpWidget(_createTestApp());
     await _settle(tester);
 
     await _openSettings(tester);
-
-    await tester.scrollUntilVisible(
-      find.text('General'),
-      100,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('General'));
-    await _settle(tester);
 
     expect(find.text('Light'), findsOneWidget);
     expect(find.text('Dark'), findsOneWidget);

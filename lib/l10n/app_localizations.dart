@@ -620,7 +620,7 @@ abstract class AppLocalizations {
   /// No description provided for @appearance.
   ///
   /// In en, this message translates to:
-  /// **'General'**
+  /// **'Appearance'**
   String get appearance;
 
   /// No description provided for @theme.
@@ -3334,6 +3334,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'+ New calendar'**
   String get createCalendarFromPicker;
+
+  /// No description provided for @generalSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get generalSettings;
+
+  /// No description provided for @weekStartsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Week starts on'**
+  String get weekStartsOn;
+
+  /// No description provided for @weekStartsMonday.
+  ///
+  /// In en, this message translates to:
+  /// **'Monday'**
+  String get weekStartsMonday;
+
+  /// No description provided for @weekStartsSunday.
+  ///
+  /// In en, this message translates to:
+  /// **'Sunday'**
+  String get weekStartsSunday;
+
+  /// No description provided for @timeFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Time format'**
+  String get timeFormat;
+
+  /// No description provided for @timeFormat24.
+  ///
+  /// In en, this message translates to:
+  /// **'24-hour'**
+  String get timeFormat24;
+
+  /// No description provided for @timeFormat12.
+  ///
+  /// In en, this message translates to:
+  /// **'12-hour'**
+  String get timeFormat12;
+
+  /// No description provided for @startupTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Open on startup'**
+  String get startupTab;
+
+  /// No description provided for @startupTabAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get startupTabAction;
+
+  /// No description provided for @startupTabCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get startupTabCalendar;
+
+  /// No description provided for @startupTabTodos.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get startupTabTodos;
+
+  /// No description provided for @startupTabChangedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Will open on next launch'**
+  String get startupTabChangedNotice;
+
+  /// No description provided for @todayNoSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled for today'**
+  String get todayNoSchedule;
+
+  /// No description provided for @todayNoScheduleSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule a task or create an event to get started'**
+  String get todayNoScheduleSub;
+
+  /// No description provided for @quickScheduleAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule task'**
+  String get quickScheduleAction;
+
+  /// No description provided for @allTodosView.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allTodosView;
+
+  /// No description provided for @unplannedView.
+  ///
+  /// In en, this message translates to:
+  /// **'Unplanned'**
+  String get unplannedView;
+
+  /// No description provided for @viewToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get viewToday;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -360,28 +360,44 @@ class ActionSection extends ConsumerWidget {
   Widget _emptyState(BuildContext context, AppLocalizations l) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(AppSpacing.xxxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ExcludeSemantics(
-              child: Icon(
-                CupertinoIcons.bolt,
-                size: 40,
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.4),
+            Text(
+              l.todayNoSchedule,
+              style: AppTypography.title.copyWith(
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(l.actionNothingNow, style: AppTypography.title),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              l.actionNothingNowHint,
-              textAlign: TextAlign.center,
-              style: AppTypography.caption.copyWith(
-                color: context.semantic.textSecondary,
+            const SizedBox(height: AppSpacing.sm),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 300),
+              child: Text(
+                l.todayNoScheduleSub,
+                textAlign: TextAlign.center,
+                style: AppTypography.caption.copyWith(
+                  color: context.semantic.textSecondary,
+                ),
               ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.sm,
+              alignment: WrapAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onNavigateToUnplanned,
+                  icon: const Icon(CupertinoIcons.tray, size: 16),
+                  label: Text(l.quickScheduleAction),
+                ),
+                FilledButton.icon(
+                  onPressed: onNavigateToCalendar,
+                  icon: const Icon(CupertinoIcons.calendar, size: 16),
+                  label: Text(l.newEventAction),
+                ),
+              ],
             ),
           ],
         ),

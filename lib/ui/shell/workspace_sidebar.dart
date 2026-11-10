@@ -10,14 +10,15 @@ import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
-/// Desktop workspace rail. Lives outside the router so every destination —
-/// Home, Settings, Search, a pushed detail — keeps the same chrome; the
-/// selected destination is derived from the current location, not from the
-/// page that happens to be on screen.
+/// Desktop workspace rail matching DESIGN.md 6 and VISUAL_POLISH.md:
+/// Width 236px (or 64px compact icon rail under 980px),
+/// 32px line-height, neutral selection (`surface-2` / `sidebarSelected`),
+/// refined ink mark.
 class WorkspaceSidebar extends ConsumerWidget {
   const WorkspaceSidebar({super.key});
 
-  static const double width = 232;
+  static const double width = 236;
+  static const double compactWidth = 64;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,62 +27,63 @@ class WorkspaceSidebar extends ConsumerWidget {
     final tab = isHome ? ref.watch(workspaceTabProvider) : null;
     final view = ref.watch(todosViewProvider);
     final showAi =
-        ref
-            .watch(featureFlagsProvider)
-            .valueOrNull
-            ?.isEnabled(FeatureFlag.aiAssistant) ??
-        true;
+        ref.watch(featureFlagsProvider).valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? true;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompact = screenWidth < 980;
 
     return Material(
       color: AppColors.sidebar,
       child: SizedBox(
-        width: width,
+        width: isCompact ? compactWidth : width,
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? AppSpacing.xs : AppSpacing.sm,
               vertical: AppSpacing.md,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _WorkspaceHeader(),
+                _WorkspaceHeader(compact: isCompact),
                 const SizedBox(height: AppSpacing.md),
-                SearchEntry(onTap: () => _goDestination(context, '/search')),
+                SearchEntry(
+                  compact: isCompact,
+                  onTap: () => _goDestination(context, '/search'),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 _NavigationItem(
+                  compact: isCompact,
                   label: l.today,
                   icon: CupertinoIcons.bolt,
                   selected: tab == AppTab.action,
                   onTap: () => _goTab(context, ref, AppTab.action),
                 ),
                 _NavigationItem(
+                  compact: isCompact,
                   label: l.calendar,
                   icon: CupertinoIcons.calendar,
                   selected: tab == AppTab.calendar,
                   onTap: () => _goTab(context, ref, AppTab.calendar),
                 ),
                 _NavigationItem(
+                  compact: isCompact,
                   label: l.todos,
                   icon: CupertinoIcons.checkmark_rectangle,
                   selected: tab == AppTab.todos,
                   onTap: () => _goTab(context, ref, AppTab.todos),
                 ),
-                // Unplanned and All are views inside Todo, so they read as
-                // children of it rather than as more primary destinations.
-                // Date browsing (including today's date) stays inside Todo
-                // but is not a second navigation destination called "Today".
-                _SubNavigationItem(
-                  label: l.inbox,
-                  selected: tab == AppTab.todos && view is TodosInboxView,
-                  onTap: () =>
-                      _goTodosView(context, ref, const TodosInboxView()),
-                ),
-                _SubNavigationItem(
-                  label: l.allTasks,
-                  selected: tab == AppTab.todos && view is TodosAllView,
-                  onTap: () => _goTodosView(context, ref, const TodosAllView()),
-                ),
+                if (!isCompact) ...[
+                  _SubNavigationItem(
+                    label: l.unplannedView,
+                    selected: tab == AppTab.todos && view is TodosInboxView,
+                    onTap: () => _goTodosView(context, ref, const TodosInboxView()),
+                  ),
+                  _SubNavigationItem(
+                    label: l.allTodosView,
+                    selected: tab == AppTab.todos && view is TodosAllView,
+                    onTap: () => _goTodosView(context, ref, const TodosAllView()),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 const Divider(
                   height: 1,
@@ -89,26 +91,32 @@ class WorkspaceSidebar extends ConsumerWidget {
                   color: AppColors.sidebarSelected,
                 ),
                 const SizedBox(height: AppSpacing.md),
-                _NavigationItem(
-                  label: l.manageCalendars,
-                  icon: CupertinoIcons.calendar,
-                  selected: _locationIs(context, '/calendars'),
-                  onTap: () => _goDestination(context, '/calendars'),
-                ),
-                _NavigationItem(
-                  label: l.manageTags,
-                  icon: CupertinoIcons.tag,
-                  selected: _locationIs(context, '/tags'),
-                  onTap: () => _goDestination(context, '/tags'),
-                ),
-                _NavigationItem(
-                  label: l.trash,
-                  icon: CupertinoIcons.trash,
-                  selected: _locationIs(context, '/trash'),
-                  onTap: () => _goDestination(context, '/trash'),
-                ),
+                if (!isCompact) ...[
+                  _NavigationItem(
+                    compact: false,
+                    label: l.manageCalendars,
+                    icon: CupertinoIcons.calendar,
+                    selected: _locationIs(context, '/calendars'),
+                    onTap: () => _goDestination(context, '/calendars'),
+                  ),
+                  _NavigationItem(
+                    compact: false,
+                    label: l.manageTags,
+                    icon: CupertinoIcons.tag,
+                    selected: _locationIs(context, '/tags'),
+                    onTap: () => _goDestination(context, '/tags'),
+                  ),
+                  _NavigationItem(
+                    compact: false,
+                    label: l.trash,
+                    icon: CupertinoIcons.trash,
+                    selected: _locationIs(context, '/trash'),
+                    onTap: () => _goDestination(context, '/trash'),
+                  ),
+                ],
                 if (showAi)
                   _NavigationItem(
+                    compact: isCompact,
                     label: l.aiAssistant,
                     icon: CupertinoIcons.sparkles,
                     selected: _locationIs(context, '/ai-chat'),
@@ -116,6 +124,7 @@ class WorkspaceSidebar extends ConsumerWidget {
                   ),
                 const Spacer(),
                 _NavigationItem(
+                  compact: isCompact,
                   label: l.settings,
                   icon: CupertinoIcons.settings,
                   selected: _locationIs(context, '/settings'),
@@ -129,9 +138,6 @@ class WorkspaceSidebar extends ConsumerWidget {
     );
   }
 
-  /// The rail renders inside several route shapes (the shell, a bare page in
-  /// a test, the mobile fallback), so it cannot assume a [GoRouterState] is
-  /// above it. When there is no router at all, nothing is "current".
   static String currentPath(BuildContext context) {
     try {
       return GoRouterState.of(context).uri.path;
@@ -145,23 +151,16 @@ class WorkspaceSidebar extends ConsumerWidget {
   static bool _locationIs(BuildContext context, String path) =>
       currentPath(context).startsWith(path);
 
-  /// Without a router (a bare page in a test or an embedding host) the
-  /// provider write above is the whole interaction.
   static void _goHome(BuildContext context, AppTab tab) {
     final router = GoRouter.maybeOf(context);
     if (router == null) return;
     final target = '/?tab=${AppTab.values.indexOf(tab)}';
-    // Re-selecting the destination you are on is not a navigation: pushing a
-    // second copy of the same page is how the rail grew a back stack.
     if (router.routerDelegate.currentConfiguration.uri.toString() == target) {
       return;
     }
     router.go(target);
   }
 
-  /// Secondary destinations are siblings, not children of whatever is open.
-  /// `go` keeps exactly one beneath the rail; `push` would stack a new page
-  /// on every click and leave a back button pointing at the previous one.
   static void _goDestination(BuildContext context, String path) {
     final router = GoRouter.maybeOf(context);
     if (router == null) return;
@@ -171,9 +170,6 @@ class WorkspaceSidebar extends ConsumerWidget {
 
   static void _goTab(BuildContext context, WidgetRef ref, AppTab tab) {
     ref.read(workspaceTabProvider.notifier).state = tab;
-    // Home is a route, not a widget the rail can mutate in place: the tab has
-    // to travel with the navigation or a fresh Home would reset to the stored
-    // default and the click would appear to do nothing.
     _goHome(context, tab);
   }
 
@@ -189,31 +185,44 @@ class WorkspaceSidebar extends ConsumerWidget {
 }
 
 class _WorkspaceHeader extends StatelessWidget {
-  const _WorkspaceHeader();
+  const _WorkspaceHeader({required this.compact});
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    if (compact) {
+      return Center(
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: AppColors.sidebarSelected,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Icon(
+            CupertinoIcons.sparkles,
+            size: 16,
+            color: AppColors.sidebarInk,
+          ),
+        ),
+      );
+    }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.sm,
-        AppSpacing.xs,
-        AppSpacing.sm,
-        0,
-      ),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.xs, AppSpacing.sm, 0),
       child: Row(
         children: [
           Container(
             width: 26,
             height: 26,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
+              color: AppColors.sidebarSelected,
               borderRadius: BorderRadius.circular(6),
             ),
             child: const Icon(
-              CupertinoIcons.calendar_badge_plus,
-              size: 16,
-              color: Colors.white,
+              CupertinoIcons.sparkles,
+              size: 15,
+              color: AppColors.sidebarInk,
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -234,15 +243,23 @@ class _WorkspaceHeader extends StatelessWidget {
   }
 }
 
-/// Search is a workspace-wide destination, so it belongs to the chrome rather
-/// than to whichever page is open.
 class SearchEntry extends StatelessWidget {
-  const SearchEntry({super.key, required this.onTap});
+  const SearchEntry({super.key, required this.onTap, this.compact = false});
 
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return Center(
+        child: IconButton(
+          icon: const Icon(CupertinoIcons.search, size: 18, color: AppColors.sidebarMuted),
+          onPressed: onTap,
+          tooltip: AppLocalizations.of(context)!.search,
+        ),
+      );
+    }
     return Semantics(
       button: true,
       child: MouseRegion(
@@ -290,15 +307,35 @@ class _NavigationItem extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.compact = false,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Material(
+          color: selected ? AppColors.sidebarSelected : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          child: IconButton(
+            icon: Icon(
+              icon,
+              size: 18,
+              color: selected ? AppColors.sidebarInk : AppColors.sidebarMuted,
+            ),
+            onPressed: onTap,
+            tooltip: label,
+          ),
+        ),
+      );
+    }
     return _SidebarRow(
       selected: selected,
       onTap: onTap,
@@ -327,8 +364,6 @@ class _NavigationItem extends StatelessWidget {
   }
 }
 
-/// Today / Inbox under Todo. Indented and uniconed so the nesting is legible
-/// from the layout alone, without a disclosure caret to open.
 class _SubNavigationItem extends StatelessWidget {
   const _SubNavigationItem({
     required this.label,

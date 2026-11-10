@@ -272,7 +272,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get notifications => '通知与提醒';
 
   @override
-  String get appearance => '通用';
+  String get appearance => '外观';
 
   @override
   String get theme => '主题';
@@ -1727,4 +1727,58 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get createCalendarFromPicker => '+ 新建日历';
+
+  @override
+  String get generalSettings => '通用';
+
+  @override
+  String get weekStartsOn => '周起始日';
+
+  @override
+  String get weekStartsMonday => '周一';
+
+  @override
+  String get weekStartsSunday => '周日';
+
+  @override
+  String get timeFormat => '时间格式';
+
+  @override
+  String get timeFormat24 => '24 小时制';
+
+  @override
+  String get timeFormat12 => '12 小时制';
+
+  @override
+  String get startupTab => '启动时打开';
+
+  @override
+  String get startupTabAction => '今天';
+
+  @override
+  String get startupTabCalendar => '日历';
+
+  @override
+  String get startupTabTodos => '待办';
+
+  @override
+  String get startupTabChangedNotice => '已设为下次启动时打开';
+
+  @override
+  String get todayNoSchedule => '今天没有固定安排';
+
+  @override
+  String get todayNoScheduleSub => '你可以安排一项待办，或新建一条日程';
+
+  @override
+  String get quickScheduleAction => '安排待办';
+
+  @override
+  String get allTodosView => '全部';
+
+  @override
+  String get unplannedView => '未安排';
+
+  @override
+  String get viewToday => '今天';
 }

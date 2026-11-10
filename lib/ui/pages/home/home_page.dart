@@ -637,27 +637,31 @@ class _HomePageState extends ConsumerState<HomePage>
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: desktop
-                  ? CrossAxisAlignment.start
-                  : CrossAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.display,
-                ),
-                if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
+            child: SizedBox(
+              height: desktop ? 53 : null,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: desktop
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.center,
+                children: [
                   Text(
-                    subtitle,
-                    style: AppTypography.overline.copyWith(
-                      color: context.semantic.textSecondary,
-                    ),
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.display,
                   ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      subtitle,
+                      style: AppTypography.overline.copyWith(
+                        color: context.semantic.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           if (desktop) ...[

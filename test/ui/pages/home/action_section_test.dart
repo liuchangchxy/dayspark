@@ -80,7 +80,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    expect(find.text('Nothing needs you right now'), findsOneWidget);
+    expect(find.text('Nothing scheduled for today'), findsOneWidget);
     // Action is a read surface: it offers no inbox shortcut and no counters
     // for things that belong to other destinations.
     expect(find.text('Inbox'), findsNothing);

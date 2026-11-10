@@ -272,7 +272,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifications => 'Notifications & reminders';
 
   @override
-  String get appearance => 'General';
+  String get appearance => 'Appearance';
 
   @override
   String get theme => 'Theme';
@@ -1733,4 +1733,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createCalendarFromPicker => '+ New calendar';
+
+  @override
+  String get generalSettings => 'General';
+
+  @override
+  String get weekStartsOn => 'Week starts on';
+
+  @override
+  String get weekStartsMonday => 'Monday';
+
+  @override
+  String get weekStartsSunday => 'Sunday';
+
+  @override
+  String get timeFormat => 'Time format';
+
+  @override
+  String get timeFormat24 => '24-hour';
+
+  @override
+  String get timeFormat12 => '12-hour';
+
+  @override
+  String get startupTab => 'Open on startup';
+
+  @override
+  String get startupTabAction => 'Today';
+
+  @override
+  String get startupTabCalendar => 'Calendar';
+
+  @override
+  String get startupTabTodos => 'Tasks';
+
+  @override
+  String get startupTabChangedNotice => 'Will open on next launch';
+
+  @override
+  String get todayNoSchedule => 'Nothing scheduled for today';
+
+  @override
+  String get todayNoScheduleSub => 'Schedule a task or create an event to get started';
+
+  @override
+  String get quickScheduleAction => 'Schedule task';
+
+  @override
+  String get allTodosView => 'All';
+
+  @override
+  String get unplannedView => 'Unplanned';
+
+  @override
+  String get viewToday => 'Today';
 }

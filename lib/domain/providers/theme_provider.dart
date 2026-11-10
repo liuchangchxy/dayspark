@@ -5,17 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 const themeModePrefKey = 'theme_mode';
 const _keyThemeColor = 'theme_color';
 
-/// The locked accent presets (DESIGN 主题色条款).
-///
-/// Each preset carries a matched light/dark pair from the iOS system palette.
-/// Users pick a preset, never a raw color — a free picker lets one bad hue
-/// drag the whole surface family off the token table.
+/// The locked accent presets (DESIGN.md 2.4 / 2.5 and VISUAL_POLISH.md).
+/// 6 presets matching the 6 natural calendar / brand hues.
 enum AppAccent {
-  blue('blue', '蓝', 'Blue', Color(0xFF2457D6), Color(0xFF0A84FF)),
-  green('green', '绿', 'Green', Color(0xFF34C759), Color(0xFF30D158)),
-  orange('orange', '橙', 'Orange', Color(0xFFFF9500), Color(0xFFFF9F0A)),
-  purple('purple', '紫', 'Purple', Color(0xFFAF52DE), Color(0xFFBF5AF2)),
-  pink('pink', '粉', 'Pink', Color(0xFFFF2D55), Color(0xFFFF375F));
+  blue('blue', '钴蓝', 'Blue', Color(0xFF2D4F7C), Color(0xFF8FB0D9)),
+  green('green', '橄榄', 'Green', Color(0xFF4F7368), Color(0xFF7FB397)),
+  orange('orange', '暖褐', 'Orange', Color(0xFF9A6248), Color(0xFFD08A6B)),
+  purple('purple', '工作紫', 'Purple', Color(0xFF6F5D7E), Color(0xFFB5A4C4)),
+  rose('rose', '玫红', 'Rose', Color(0xFF8F5A68), Color(0xFFD6786E)),
+  study('study', '竹青', 'Teal', Color(0xFF3D6B54), Color(0xFF68B28C));
 
   const AppAccent(this.id, this.zhName, this.enName, this.light, this.dark);
 
@@ -85,15 +83,7 @@ class ThemeColorNotifier extends StateNotifier<AppAccent> {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_keyThemeColor);
     if (saved != null) {
-      if (mounted) state = AppAccent.fromId(saved);
-      return;
-    }
-    final legacy = prefs.getInt(_keyThemeColor);
-    if (legacy != null) {
-      final migrated = AppAccent.fromLegacyColor(legacy);
-      if (mounted) state = migrated;
-      await prefs.setString(_keyThemeColor, migrated.id);
-      await prefs.remove(_keyThemeColor);
+      state = AppAccent.fromId(saved);
     }
   }
 

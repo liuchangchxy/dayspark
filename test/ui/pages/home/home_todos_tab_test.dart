@@ -153,7 +153,7 @@ void main() {
     final dragDistance =
         (tester.getCenter(find.text('Task 1')).dy -
             tester.getCenter(find.text('Task 0')).dy) *
-        1.5;
+        1.1;
     final gesture = await tester.startGesture(
       tester.getCenter(find.text('Task 0')),
     );

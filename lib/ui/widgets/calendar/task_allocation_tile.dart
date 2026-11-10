@@ -5,6 +5,8 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 
+/// TaskAllocation tile matching DESIGN.md (6) and VISUAL_POLISH.md:
+/// Surface / surface-2 background, 1px dashed outline, hollow square icon.
 class TaskAllocationTile extends StatelessWidget {
   const TaskAllocationTile({super.key, required this.allocation, this.onTap});
 
@@ -14,22 +16,17 @@ class TaskAllocationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final borderColor = theme.colorScheme.outlineVariant;
+
     final tile = CustomPaint(
-      foregroundPainter: AllocationOutline(
-        theme.colorScheme.primary.withValues(alpha: 0.55),
-      ),
+      foregroundPainter: _DashedBorderPainter(borderColor),
       child: Container(
         constraints: const BoxConstraints(minHeight: 20),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(AppSpacing.rSm),
         ),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.sm,
-          AppSpacing.xs,
-          AppSpacing.sm,
-          AppSpacing.xs,
-        ),
+        padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
         child: LayoutBuilder(
           builder: (context, constraints) => ClipRect(
             child: OverflowBox(
@@ -47,7 +44,7 @@ class TaskAllocationTile extends StatelessWidget {
                         Icon(
                           CupertinoIcons.square,
                           size: 11,
-                          color: theme.colorScheme.primary,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -56,6 +53,7 @@ class TaskAllocationTile extends StatelessWidget {
                             style: AppTypography.caption.copyWith(
                               fontWeight: FontWeight.w600,
                               color: theme.colorScheme.onSurface,
+                              fontSize: 12,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -70,9 +68,11 @@ class TaskAllocationTile extends StatelessWidget {
                         includeDate: false,
                       ),
                       style: AppTypography.caption.copyWith(
-                        color: theme.colorScheme.onSurface,
+                        fontSize: 10.5,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -82,6 +82,7 @@ class TaskAllocationTile extends StatelessWidget {
         ),
       ),
     );
+
     if (onTap == null) return tile;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -93,30 +94,35 @@ class TaskAllocationTile extends StatelessWidget {
   }
 }
 
-class AllocationOutline extends CustomPainter {
-  const AllocationOutline(this.color);
+class _DashedBorderPainter extends CustomPainter {
   final Color color;
+  _DashedBorderPainter(this.color);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(6)),
-      );
     final paint = Paint()
       ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(AppSpacing.rSm),
+    );
+    final path = Path()..addRRect(rrect);
+
     for (final metric in path.computeMetrics()) {
-      for (double offset = 0; offset < metric.length; offset += 7) {
-        canvas.drawPath(
-          metric.extractPath(offset, (offset + 4).clamp(0, metric.length)),
-          paint,
-        );
+      var distance = 0.0;
+      while (distance < metric.length) {
+        if (distance + 4.0 <= metric.length) {
+          canvas.drawPath(metric.extractPath(distance, distance + 4.0), paint);
+        }
+        distance += 7.0;
       }
     }
   }
 
   @override
-  bool shouldRepaint(AllocationOutline oldDelegate) =>
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) =>
       oldDelegate.color != color;
 }

@@ -3,7 +3,8 @@ import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 
-/// App-wide theme configuration. Read DESIGN.md for design rationale.
+/// App-wide theme configuration matching DESIGN.md and VISUAL_POLISH.md.
+/// Apple × Linear aesthetic: paper & ink, restrained cobalt, hairline dividers.
 @immutable
 abstract final class AppTheme {
   static ThemeData light({Color? accent}) =>
@@ -18,6 +19,9 @@ abstract final class AppTheme {
     final surfaceSecondary = isLight
         ? AppColors.lightSurfaceSecondary
         : AppColors.darkSurfaceSecondary;
+    final surfaceTertiary = isLight
+        ? AppColors.lightSurfaceTertiary
+        : AppColors.darkSurfaceTertiary;
     final textPrimary = isLight
         ? AppColors.lightTextPrimary
         : AppColors.darkTextPrimary;
@@ -30,25 +34,30 @@ abstract final class AppTheme {
     final separator = isLight
         ? AppColors.lightSeparator
         : AppColors.darkSeparator;
+    final separatorSoft = isLight
+        ? AppColors.lightSeparatorSoft
+        : AppColors.darkSeparatorSoft;
     final error = isLight ? AppColors.lightError : AppColors.darkError;
     final success = isLight ? AppColors.lightSuccess : AppColors.darkSuccess;
     final warning = isLight ? AppColors.lightWarning : AppColors.darkWarning;
+    final warm = isLight ? AppColors.lightWarm : AppColors.darkWarm;
 
-    // DESIGN 主题色条款: the preset only swaps the accent pair; every
-    // semantic token is filled back from the palette. Never fromSeed.
     final accent =
         accentOverride ??
         (isLight ? AppColors.lightAccent : AppColors.darkAccent);
     final accentHover = isLight
         ? AppColors.lightAccentHover
         : AppColors.darkAccentHover;
+    final accentSoft = isLight
+        ? AppColors.lightAccentSoft
+        : AppColors.darkAccentSoft;
 
     final colorScheme = ColorScheme(
       brightness: brightness,
       primary: accent,
-      onPrimary: Colors.white,
+      onPrimary: isLight ? Colors.white : AppColors.darkBackground,
       secondary: accent,
-      onSecondary: Colors.white,
+      onSecondary: isLight ? Colors.white : AppColors.darkBackground,
       error: error,
       onError: Colors.white,
       surface: surface,
@@ -56,9 +65,7 @@ abstract final class AppTheme {
       surfaceContainerHighest: surfaceSecondary,
       surfaceContainerHigh: surfaceSecondary,
       outline: separator,
-      outlineVariant: isLight
-          ? AppColors.lightSeparatorSoft
-          : AppColors.darkSeparatorSoft,
+      outlineVariant: separatorSoft,
     );
 
     return ThemeData(
@@ -75,18 +82,22 @@ abstract final class AppTheme {
           textSecondary: textSecondary,
           textTertiary: textTertiary,
           separator: separator,
-          separatorSoft: isLight
-              ? AppColors.lightSeparatorSoft
-              : AppColors.darkSeparatorSoft,
+          separatorSoft: separatorSoft,
           surfaceSecondary: surfaceSecondary,
+          surfaceTertiary: surfaceTertiary,
           accentHover: accentHover,
+          accentSoft: accentSoft,
           success: success,
           warning: warning,
+          warm: warm,
         ),
       ],
       cardTheme: CardThemeData(
         color: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.rLg),
+          side: BorderSide(color: separatorSoft, width: 1),
+        ),
         elevation: 0,
         margin: EdgeInsets.zero,
       ),
@@ -95,58 +106,73 @@ abstract final class AppTheme {
         foregroundColor: textPrimary,
         elevation: 0,
         scrolledUnderElevation: 0,
+        centerTitle: false,
+        titleTextStyle: AppTypography.title.copyWith(color: textPrimary),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 64,
-        backgroundColor: surface,
-        indicatorColor: accent.withValues(alpha: 0.10),
-        labelTextStyle: WidgetStatePropertyAll(AppTypography.overline),
+        height: 54,
+        backgroundColor: isLight ? AppColors.lightNavBg : AppColors.darkNavBg,
+        indicatorColor: Colors.transparent,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final isSelected = states.contains(WidgetState.selected);
+          return AppTypography.overline.copyWith(
+            color: isSelected ? accent : textTertiary,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final isSelected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            size: 22,
+            color: isSelected ? accent : textTertiary,
+          );
+        }),
         elevation: 0,
       ),
       checkboxTheme: CheckboxThemeData(
         shape: const CircleBorder(),
-        side: BorderSide(color: textSecondary, width: 1),
+        side: BorderSide(color: textTertiary, width: 1.5),
         materialTapTargetSize: MaterialTapTargetSize.padded,
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(44, 44),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.rMd),
+          ),
+        ),
       ),
-      dividerTheme: DividerThemeData(color: separator, thickness: 1, space: 1),
+      dividerTheme: DividerThemeData(color: separatorSoft, thickness: 1, space: 1),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accent,
-          foregroundColor: Colors.white,
+          foregroundColor: isLight ? Colors.white : AppColors.darkBackground,
+          elevation: 0,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppSpacing.rMd),
           ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.md,
           ),
+          textStyle: AppTypography.title.copyWith(fontSize: 15),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        // Deliberately one step off the card surface: a field filled the same
-        // colour as the card it sits in disappears.
-        fillColor: surfaceSecondary,
+        fillColor: surface,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(AppSpacing.rMd),
+          borderSide: BorderSide(color: separator, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(AppSpacing.rMd),
+          borderSide: BorderSide(color: separator, width: 1),
         ),
-        // Filled fields carry the shape; focus only rings them. A full-width
-        // 2px accent outline on top of a filled ground reads as neon in dark
-        // mode (autofocused fields land there on page open).
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: accent.withValues(alpha: isLight ? 0.85 : 0.45),
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(AppSpacing.rMd),
+          borderSide: BorderSide(color: accent, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
@@ -156,44 +182,69 @@ abstract final class AppTheme {
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: accent,
-        foregroundColor: Colors.white,
+        foregroundColor: isLight ? Colors.white : AppColors.darkBackground,
         shape: const CircleBorder(),
+        elevation: 2,
       ),
       expansionTileTheme: const ExpansionTileThemeData(
         expansionAnimationStyle: AnimationStyle.noAnimation,
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.rCard),
+          side: BorderSide(color: separatorSoft, width: 1),
+        ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: surface,
+        elevation: 8,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.rSheet)),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: isLight ? Colors.white : AppColors.darkBackground,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppSpacing.rMd),
           ),
+          textStyle: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: accent),
+        style: TextButton.styleFrom(
+          foregroundColor: accent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.rSm),
+          ),
+        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          side: BorderSide(color: separator, width: 1),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppSpacing.rMd),
           ),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
+          elevation: const WidgetStatePropertyAll(0),
+          side: const WidgetStatePropertyAll(BorderSide.none),
           shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.rMd)),
           ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return surface;
+            return Colors.transparent;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return textPrimary;
+            return textSecondary;
+          }),
         ),
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
@@ -234,9 +285,12 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.separator,
     required this.separatorSoft,
     required this.surfaceSecondary,
+    required this.surfaceTertiary,
     required this.accentHover,
+    required this.accentSoft,
     required this.success,
     required this.warning,
+    required this.warm,
   });
 
   final Color textSecondary;
@@ -244,9 +298,12 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color separator;
   final Color separatorSoft;
   final Color surfaceSecondary;
+  final Color surfaceTertiary;
   final Color accentHover;
+  final Color accentSoft;
   final Color success;
   final Color warning;
+  final Color warm;
 
   @override
   AppSemanticColors copyWith({
@@ -255,9 +312,12 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? separator,
     Color? separatorSoft,
     Color? surfaceSecondary,
+    Color? surfaceTertiary,
     Color? accentHover,
+    Color? accentSoft,
     Color? success,
     Color? warning,
+    Color? warm,
   }) {
     return AppSemanticColors(
       textSecondary: textSecondary ?? this.textSecondary,
@@ -265,9 +325,12 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       separator: separator ?? this.separator,
       separatorSoft: separatorSoft ?? this.separatorSoft,
       surfaceSecondary: surfaceSecondary ?? this.surfaceSecondary,
+      surfaceTertiary: surfaceTertiary ?? this.surfaceTertiary,
       accentHover: accentHover ?? this.accentHover,
+      accentSoft: accentSoft ?? this.accentSoft,
       success: success ?? this.success,
       warning: warning ?? this.warning,
+      warm: warm ?? this.warm,
     );
   }
 
@@ -279,22 +342,18 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       textTertiary: Color.lerp(textTertiary, other.textTertiary, t)!,
       separator: Color.lerp(separator, other.separator, t)!,
       separatorSoft: Color.lerp(separatorSoft, other.separatorSoft, t)!,
-      surfaceSecondary: Color.lerp(
-        surfaceSecondary,
-        other.surfaceSecondary,
-        t,
-      )!,
+      surfaceSecondary: Color.lerp(surfaceSecondary, other.surfaceSecondary, t)!,
+      surfaceTertiary: Color.lerp(surfaceTertiary, other.surfaceTertiary, t)!,
       accentHover: Color.lerp(accentHover, other.accentHover, t)!,
+      accentSoft: Color.lerp(accentSoft, other.accentSoft, t)!,
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
+      warm: Color.lerp(warm, other.warm, t)!,
     );
   }
 }
 
 extension AppThemeContext on BuildContext {
-  /// Semantic tokens when the app theme is installed, otherwise a fallback
-  /// derived from the ambient [ColorScheme] so widgets still render under a
-  /// bare MaterialApp (widget tests, embedded previews).
   AppSemanticColors get semantic {
     final installed = Theme.of(this).extension<AppSemanticColors>();
     if (installed != null) return installed;
@@ -305,9 +364,12 @@ extension AppThemeContext on BuildContext {
       separator: scheme.outlineVariant,
       separatorSoft: scheme.outlineVariant,
       surfaceSecondary: scheme.surfaceContainerHighest,
+      surfaceTertiary: scheme.surfaceContainerHighest,
       accentHover: scheme.primary,
+      accentSoft: scheme.primary.withValues(alpha: 0.12),
       success: scheme.primary,
       warning: scheme.error,
+      warm: scheme.error,
     );
   }
 }
