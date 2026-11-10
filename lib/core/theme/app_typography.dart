@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-/// Typography design tokens. Matches DESIGN.md.
-///
-/// The display-to-body ratio (26 / 15) is what carries the page hierarchy;
-/// keep it at 1.7x or more when changing these sizes.
+/// Typography design tokens. Matches v030-v2 OpenDesign & VISUAL_POLISH.md.
+/// Segoe UI Variable / Segoe UI / SF Pro Text / PingFang SC font stack.
+/// Weights are strictly 400 (regular), 500 (medium), 600 (semibold).
+/// Display-to-body ratio: 26 / 15.
 @immutable
 abstract final class AppTypography {
   static const TextStyle display = TextStyle(
     fontSize: 26,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w600,
     height: 1.12,
     letterSpacing: -0.5,
   );
@@ -46,9 +46,16 @@ abstract final class AppTypography {
     letterSpacing: 0.2,
   );
 
+  static const TextStyle tiny = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    height: 1.2,
+    letterSpacing: 0.04,
+  );
+
   /// Build a TextTheme from our tokens for use in ThemeData.
   static TextTheme textTheme() {
-    return TextTheme(
+    return const TextTheme(
       displaySmall: display,
       headlineSmall: headline,
       titleLarge: title,

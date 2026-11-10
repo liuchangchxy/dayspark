@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/core/theme/app_spacing.dart';
 
 /// Calendar event tile: a tinted block with a saturated stripe on the left.
 ///
@@ -29,18 +27,11 @@ class EventTile extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: stripe.withValues(alpha: isDark ? 0.24 : 0.13),
-          borderRadius: BorderRadius.circular(8),
-          border: Border(left: BorderSide(color: stripe, width: 3)),
+          color: stripe.withValues(alpha: isDark ? 0.17 : 0.11),
+          borderRadius: BorderRadius.circular(4),
+          border: Border(left: BorderSide(color: stripe, width: 2)),
         ),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.sm,
-          AppSpacing.xs,
-          AppSpacing.sm,
-          AppSpacing.xs,
-        ),
-        // kalender gives tiles tight, sometimes very short constraints
-        // (e.g. 1h slots, all-day bar); scale content instead of overflowing.
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         child: LayoutBuilder(
           builder: (context, constraints) => ClipRect(
             child: OverflowBox(
@@ -53,31 +44,20 @@ class EventTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          CupertinoIcons.circle_fill,
-                          size: 6,
-                          color: stripe,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            event.title,
-                            style: AppTypography.caption.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      event.title,
+                      style: AppTypography.caption.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (!event.isAllDay)
                       Text(
                         DateFormatters.formatTime(event.start),
-                        style: AppTypography.caption.copyWith(
+                        style: AppTypography.tiny.copyWith(
                           color: context.semantic.textSecondary,
                         ),
                         maxLines: 1,

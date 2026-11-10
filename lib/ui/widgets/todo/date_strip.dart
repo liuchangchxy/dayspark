@@ -167,55 +167,54 @@ class TodoWeekStrip extends StatelessWidget {
               return Expanded(
                 child: Material(
                   color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
                   child: InkWell(
                     onTap: () => onSelected(date),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(15),
                     child: Center(
                       child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.md,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : isToday
-                              ? theme.colorScheme.primary.withValues(
-                                  alpha: 0.3,
-                                )
-                              : null,
-                          borderRadius: BorderRadius.circular(8),
-                          border: isToday && !isSelected
-                              ? Border.all(
-                                  color: theme.colorScheme.primary,
-                                )
-                              : null,
-                        ),
+                        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               weekdayLabel,
                               style: TextStyle(
-                                fontSize: AppTypography.overline.fontSize,
+                                fontSize: 11,
                                 color: isSelected
-                                    ? theme.colorScheme.onPrimary
+                                    ? theme.colorScheme.primary
                                     : context.semantic.textSecondary,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                               ),
                             ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              '${date.day}',
-                              style: TextStyle(
-                                fontSize: AppTypography.body.fontSize,
-                                fontWeight: isToday
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
+                            const SizedBox(height: 4),
+                            Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
                                 color: isSelected
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurface,
+                                    ? theme.colorScheme.primary
+                                    : Colors.transparent,
+                                border: isToday && !isSelected
+                                    ? Border.all(
+                                        color: theme.colorScheme.primary,
+                                        width: 1.5,
+                                      )
+                                    : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '${date.day}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: isSelected || isToday
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.colorScheme.onSurface,
+                                ),
                               ),
                             ),
                           ],

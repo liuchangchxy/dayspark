@@ -5,17 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 const themeModePrefKey = 'theme_mode';
 const _keyThemeColor = 'theme_color';
 
-/// The locked accent presets (DESIGN 主题色条款).
+/// The locked accent presets (DESIGN & VISUAL_POLISH.md 3.3).
 ///
-/// Each preset carries a matched light/dark pair from the iOS system palette.
-/// Users pick a preset, never a raw color — a free picker lets one bad hue
-/// drag the whole surface family off the token table.
+/// Cobalt (#2D4F7C), Sage/Green (#4F7368), Warm/Orange (#9A6248), Purple/Work (#6F5D7E), Rose (#8F5A68), Olive (#6B7048)
 enum AppAccent {
-  blue('blue', '蓝', 'Blue', Color(0xFF2457D6), Color(0xFF0A84FF)),
-  green('green', '绿', 'Green', Color(0xFF34C759), Color(0xFF30D158)),
-  orange('orange', '橙', 'Orange', Color(0xFFFF9500), Color(0xFFFF9F0A)),
-  purple('purple', '紫', 'Purple', Color(0xFFAF52DE), Color(0xFFBF5AF2)),
-  pink('pink', '粉', 'Pink', Color(0xFFFF2D55), Color(0xFFFF375F));
+  blue('blue', '深钴蓝', 'Cobalt', Color(0xFF2D4F7C), Color(0xFF8FB0D9)),
+  green('green', '灰绿', 'Sage', Color(0xFF4F7368), Color(0xFF6F998C)),
+  orange('orange', '暖褐', 'Terracotta', Color(0xFF9A6248), Color(0xFFB87C5E)),
+  purple('purple', '暮紫', 'Plum', Color(0xFF6F5D7E), Color(0xFF8E7A9F)),
+  rose('rose', '玫红', 'Rose', Color(0xFF8F5A68), Color(0xFFAF7485)),
+  olive('olive', '橄榄', 'Olive', Color(0xFF6B7048), Color(0xFF8A9060));
 
   const AppAccent(this.id, this.zhName, this.enName, this.light, this.dark);
 

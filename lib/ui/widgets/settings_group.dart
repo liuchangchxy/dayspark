@@ -3,11 +3,8 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 
-/// iOS-style grouped list: a quiet label over a rounded surface card.
-///
-/// Settings read as flat text without it — a hairline divider on the page
-/// ground is invisible in dark mode, so groups need a surface of their own
-/// (DESIGN 分层).
+/// Clean grouped card matching v030-v2 OpenDesign & tokens.css:
+/// 10px / 12px rounded surface container, no drop shadow, hairlines between items.
 class SettingsGroup extends StatelessWidget {
   const SettingsGroup({
     super.key,
@@ -16,7 +13,6 @@ class SettingsGroup extends StatelessWidget {
     this.trailing,
   });
 
-  /// Omitted when the card's own first row already names the group.
   final String? title;
   final Widget child;
   final Widget? trailing;
@@ -29,10 +25,10 @@ class SettingsGroup extends StatelessWidget {
         if (title != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
               AppSpacing.lg,
-              AppSpacing.xl,
-              AppSpacing.sm,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.xs,
             ),
             child: Row(
               children: [
@@ -40,8 +36,8 @@ class SettingsGroup extends StatelessWidget {
                   child: Text(
                     title!,
                     style: AppTypography.overline.copyWith(
-                      color: context.semantic.textSecondary,
-                      letterSpacing: 0.6,
+                      color: context.semanticColors.textTertiary,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -50,10 +46,21 @@ class SettingsGroup extends StatelessWidget {
             ),
           )
         else
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          child: Card(clipBehavior: Clip.antiAlias, child: child),
+          child: Material(
+            color: Theme.of(context).colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(
+                color: context.semanticColors.separatorSoft,
+                width: 1,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: child,
+          ),
         ),
       ],
     );

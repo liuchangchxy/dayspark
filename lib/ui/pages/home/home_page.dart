@@ -490,15 +490,28 @@ class _HomePageState extends ConsumerState<HomePage>
           : AppBar(
               titleSpacing: AppSpacing.lg,
               centerTitle: false,
-              title: Text(
-                l.appName,
-                style: AppTypography.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              title: isActionTab
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l.today,
+                          style: AppTypography.title.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          _actionDateNote(ref.watch(actionDateProvider)),
+                          style: AppTypography.tiny.copyWith(color: context.semantic.textSecondary),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      isCalendarTab ? (_calendarTitle ?? l.calendar) : l.todos,
+                      style: AppTypography.title.copyWith(fontWeight: FontWeight.w600),
+                    ),
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(1),
-                child: Container(height: 1, color: context.semantic.separator),
+                child: Container(height: 1, color: context.semantic.separatorSoft),
               ),
               actions: [
                 Semantics(
@@ -620,6 +633,9 @@ class _HomePageState extends ConsumerState<HomePage>
     bool isCalendarTab,
     String pageLabel,
   ) {
+    if (!desktop) {
+      return const SizedBox.shrink();
+    }
     final horizontal = desktop ? 28.0 : AppSpacing.lg;
     final (title, subtitle) = isCalendarTab
         ? (_calendarTitle ?? pageLabel, _calendarSubtitle ?? '')

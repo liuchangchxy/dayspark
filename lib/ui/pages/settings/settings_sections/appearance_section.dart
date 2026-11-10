@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
-import 'package:dayspark/domain/providers/default_tab_provider.dart';
-import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 
@@ -17,15 +16,13 @@ class AppearanceSection extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final currentTheme = ref.watch(themeModeProvider);
     final currentAccent = ref.watch(themeColorProvider);
-    final locale = ref.watch(localeProvider);
-    final defaultTab = ref.watch(defaultTabProvider);
     final brightness = Theme.of(context).brightness;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Theme mode inline selector
+        // 1. Theme mode 3-column equal selector
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
@@ -47,41 +44,41 @@ class AppearanceSection extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<ThemeMode>(
-                  showSelectedIcon: false,
-                  segments: [
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      label: Text(l.themeSystem),
-                      icon: const Icon(CupertinoIcons.device_phone_portrait, size: 16),
+              Container(
+                decoration: BoxDecoration(
+                  color: context.semanticColors.surfaceSecondary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(2),
+                child: Row(
+                  children: [
+                    _ThemeModeTab(
+                      label: l.themeSystem,
+                      icon: CupertinoIcons.device_phone_portrait,
+                      selected: currentTheme == ThemeMode.system,
+                      onTap: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.system),
                     ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      label: Text(l.themeLight),
-                      icon: const Icon(CupertinoIcons.sun_max, size: 16),
+                    _ThemeModeTab(
+                      label: l.themeLight,
+                      icon: CupertinoIcons.sun_max,
+                      selected: currentTheme == ThemeMode.light,
+                      onTap: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.light),
                     ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      label: Text(l.themeDark),
-                      icon: const Icon(CupertinoIcons.moon, size: 16),
+                    _ThemeModeTab(
+                      label: l.themeDark,
+                      icon: CupertinoIcons.moon,
+                      selected: currentTheme == ThemeMode.dark,
+                      onTap: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.dark),
                     ),
                   ],
-                  selected: {currentTheme},
-                  onSelectionChanged: (set) {
-                    if (set.isNotEmpty) {
-                      ref.read(themeModeProvider.notifier).setThemeMode(set.first);
-                    }
-                  },
                 ),
               ),
             ],
           ),
         ),
-        const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
+        Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg, color: context.semanticColors.separatorSoft),
 
-        // 2. Theme accent color inline swatches
+        // 2. Theme accent color inline 6 swatches
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
@@ -111,169 +108,128 @@ class AppearanceSection extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: AppAccent.values.map((accent) {
-                  final color = accent.resolve(brightness);
-                  final selected = currentAccent == accent;
-                  final label = accent.nameFor(Localizations.localeOf(context));
-                  return Semantics(
-                    label: label,
-                    selected: selected,
-                    button: true,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: InkWell(
-                        onTap: () => ref.read(themeColorProvider.notifier).setAccent(accent),
-                        borderRadius: BorderRadius.circular(24),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: selected
-                                    ? Border.all(
-                                        color: Theme.of(context).colorScheme.onSurface,
-                                        width: 2.5,
-                                      )
-                                    : null,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: AppAccent.values.map((accent) {
+                      final color = accent.resolve(brightness);
+                      final selected = currentAccent == accent;
+                      final label = accent.nameFor(Localizations.localeOf(context));
+                      return Semantics(
+                        label: label,
+                        selected: selected,
+                        button: true,
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: InkWell(
+                            onTap: () => ref.read(themeColorProvider.notifier).setAccent(accent),
+                            borderRadius: BorderRadius.circular(24),
+                            child: SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: Center(
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                    border: selected
+                                        ? Border.all(
+                                            color: Theme.of(context).colorScheme.onSurface,
+                                            width: 2.5,
+                                          )
+                                        : null,
+                                  ),
+                                  child: selected
+                                      ? const Center(
+                                          child: Icon(
+                                            CupertinoIcons.checkmark,
+                                            size: 14,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : null,
+                                ),
                               ),
-                              child: selected
-                                  ? const Center(
-                                      child: Icon(
-                                        CupertinoIcons.checkmark,
-                                        size: 16,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : null,
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    }).toList(),
                   );
-                }).toList(),
+                },
               ),
             ],
           ),
         ),
-        const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
-
-        // 3. Language & Default Startup View
-        ListTile(
-          leading: const Icon(CupertinoIcons.globe),
-          title: Text(l.language),
-          trailing: Text(
-            locale == null
-                ? l.languageSystem
-                : locale.languageCode == 'zh'
-                ? l.languageZh
-                : l.languageEn,
-            style: AppTypography.caption.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          onTap: () => _showLanguageDialog(context, ref),
-        ),
-        ListTile(
-          leading: const Icon(CupertinoIcons.square_split_2x1),
-          title: Text(l.defaultTab),
-          trailing: Text(
-            switch (defaultTab) {
-              AppTab.action => l.today,
-              AppTab.calendar => l.calendar,
-              AppTab.todos => l.todos,
-            },
-            style: AppTypography.caption.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          onTap: () => _showDefaultTabDialog(context, ref),
-        ),
       ],
     );
   }
+}
 
-  /// One selector for every setting on this page. A checkmark that is always
-  /// in the same place is what makes "which one is selected" readable across
-  /// four different dialogs.
-  Future<void> _showChoices<T>({
-    required BuildContext context,
-    required String title,
-    required T current,
-    required List<(T value, String label)> options,
-    required ValueChanged<T> onSelected,
-  }) async {
-    final picked = await showDialog<T>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(title),
-        children: [
-          for (final option in options)
-            SimpleDialogOption(
-              padding: EdgeInsets.zero,
-              onPressed: () => Navigator.of(ctx).pop(option.$1),
-              child: ListTile(
-                title: Text(option.$2),
-                trailing: option.$1 == current
-                    ? const Icon(CupertinoIcons.checkmark, size: 18)
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
+class _ThemeModeTab extends StatelessWidget {
+  const _ThemeModeTab({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 34,
+          decoration: BoxDecoration(
+            color: selected ? theme.colorScheme.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: selected ? theme.colorScheme.onSurface : context.semanticColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: selected ? theme.colorScheme.onSurface : context.semanticColors.textSecondary,
+                  ),
                 ),
               ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
-    );
-    if (picked != null) onSelected(picked);
-  }
-
-  void _showLanguageDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final current = ref.read(localeProvider);
-    final currentTag = current == null
-        ? 'system'
-        : current.languageCode == 'zh'
-        ? 'zh'
-        : 'en';
-    _showChoices<String>(
-      context: context,
-      title: l.language,
-      current: currentTag,
-      options: [
-        ('system', l.languageSystem),
-        ('zh', l.languageZh),
-        ('en', l.languageEn),
-      ],
-      onSelected: (tag) => ref
-          .read(localeProvider.notifier)
-          .setLocale(tag == 'system' ? null : Locale(tag)),
-    );
-  }
-
-  void _showDefaultTabDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    _showChoices<AppTab>(
-      context: context,
-      title: l.defaultTab,
-      current: ref.read(defaultTabProvider),
-      options: [
-        (AppTab.action, l.today),
-        (AppTab.calendar, l.calendar),
-        (AppTab.todos, l.todos),
-      ],
-      onSelected: (tab) =>
-          ref.read(defaultTabProvider.notifier).setDefaultTab(tab),
     );
   }
 }

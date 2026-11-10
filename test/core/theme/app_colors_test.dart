@@ -26,17 +26,17 @@ void main() {
       expect(AppColors.darkBorder, isA<Color>());
     });
 
-    test('accent values match frozen D Final cobalt', () {
-      expect(AppColors.lightAccent, const Color(0xFF2457D6));
-      expect(AppColors.darkAccent, const Color(0xFF0A84FF));
+    test('accent values match v030 tokens cobalt', () {
+      expect(AppColors.lightAccent, const Color(0xFF2D4F7C));
+      expect(AppColors.darkAccent, const Color(0xFF8FB0D9));
     });
 
-    test('light background matches D Final #F5F6F8', () {
-      expect(AppColors.lightBackground, const Color(0xFFF5F6F8));
+    test('light background matches warm paper #F3F3EF', () {
+      expect(AppColors.lightBackground, const Color(0xFFF3F3EF));
     });
 
-    test('dark background is #0A0A0C', () {
-      expect(AppColors.darkBackground, const Color(0xFF0A0A0C));
+    test('dark background is #121310', () {
+      expect(AppColors.darkBackground, const Color(0xFF121310));
     });
   });
 
@@ -58,11 +58,11 @@ void main() {
 
     test('fromLegacyColor maps stored colors onto the nearest preset', () {
       expect(
-        AppAccent.fromLegacyColor(const Color(0xFF007AFF).toARGB32()),
+        AppAccent.fromLegacyColor(const Color(0xFF2D4F7C).toARGB32()),
         AppAccent.blue,
       );
       expect(
-        AppAccent.fromLegacyColor(const Color(0xFF34C759).toARGB32()),
+        AppAccent.fromLegacyColor(const Color(0xFF4F7368).toARGB32()),
         AppAccent.green,
       );
       // An unrecognized legacy color falls back to the default.

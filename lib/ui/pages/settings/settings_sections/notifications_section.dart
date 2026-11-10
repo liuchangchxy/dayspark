@@ -22,6 +22,12 @@ class NotificationsSection extends ConsumerWidget {
     return NotificationService().canScheduleExactAlarms();
   });
 
+  static bool get hasNotificationSettings =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
   static Future<void> loadSystemAlarmSetting(WidgetRef ref) async {
     ref.read(systemAlarmProvider.notifier).state =
         await AlarmService.isEnabled();
