@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 class AppearanceSection extends ConsumerWidget {
   const AppearanceSection({super.key});
@@ -15,6 +17,7 @@ class AppearanceSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
     final currentTheme = ref.watch(themeModeProvider);
     final currentAccent = ref.watch(themeColorProvider);
     final locale = ref.watch(localeProvider);
@@ -25,187 +28,91 @@ class AppearanceSection extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Theme mode inline selector
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.sm,
+            AppSpacing.s4,
+            AppSpacing.s3,
+            AppSpacing.s4,
+            AppSpacing.s2,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(CupertinoIcons.paintbrush, size: 18),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    l.theme,
-                    style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<ThemeMode>(
-                  showSelectedIcon: false,
-                  segments: [
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      label: Text(l.themeSystem),
-                      icon: const Icon(CupertinoIcons.device_phone_portrait, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      label: Text(l.themeLight),
-                      icon: const Icon(CupertinoIcons.sun_max, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      label: Text(l.themeDark),
-                      icon: const Icon(CupertinoIcons.moon, size: 16),
-                    ),
-                  ],
-                  selected: {currentTheme},
-                  onSelectionChanged: (set) {
-                    if (set.isNotEmpty) {
-                      ref.read(themeModeProvider.notifier).setThemeMode(set.first);
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
-
-        // 2. Theme accent color inline swatches
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(CupertinoIcons.color_filter, size: 18),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    l.themeColor,
-                    style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const Spacer(),
-                  Text(
-                    currentAccent.nameFor(Localizations.localeOf(context)),
-                    style: AppTypography.caption.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: AppAccent.values.map((accent) {
-                  final color = accent.resolve(brightness);
-                  final selected = currentAccent == accent;
-                  final label = accent.nameFor(Localizations.localeOf(context));
-                  return Semantics(
-                    label: label,
-                    selected: selected,
-                    button: true,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: InkWell(
-                        onTap: () => ref.read(themeColorProvider.notifier).setAccent(accent),
-                        borderRadius: BorderRadius.circular(24),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
-                          ),
-                          child: Center(
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: selected
-                                    ? Border.all(
-                                        color: Theme.of(context).colorScheme.onSurface,
-                                        width: 2.5,
-                                      )
-                                    : null,
-                              ),
-                              child: selected
-                                  ? const Center(
-                                      child: Icon(
-                                        CupertinoIcons.checkmark,
-                                        size: 16,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
-
-        // 3. Language & Default Startup View
-        ListTile(
-          leading: const Icon(CupertinoIcons.globe),
-          title: Text(l.language),
-          trailing: Text(
-            locale == null
-                ? l.languageSystem
-                : locale.languageCode == 'zh'
-                ? l.languageZh
-                : l.languageEn,
-            style: AppTypography.caption.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+          child: Text(
+            l.theme,
+            style: AppTypography.small.copyWith(
+              color: ds.ink2,
+              fontWeight: FontWeight.w600,
             ),
           ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+          child: DsSegmented<ThemeMode>(
+            expand: true,
+            selected: currentTheme,
+            options: [
+              DsSegmentOption(ThemeMode.system, l.themeSystem),
+              DsSegmentOption(ThemeMode.light, l.themeLight),
+              DsSegmentOption(ThemeMode.dark, l.themeDark),
+            ],
+            onSelected: (mode) =>
+                ref.read(themeModeProvider.notifier).setThemeMode(mode),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s3),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+          child: Text(
+            l.themeColor,
+            style: AppTypography.small.copyWith(
+              color: ds.ink2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 46,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s4,
+              vertical: 6,
+            ),
+            children: [
+              for (final accent in AppAccent.values)
+                _Swatch(
+                  color: accent.resolve(brightness),
+                  label: accent.nameFor(Localizations.localeOf(context)),
+                  selected: currentAccent == accent,
+                  onTap: () => ref
+                      .read(themeColorProvider.notifier)
+                      .setAccent(accent),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s1),
+        DsHairline(color: ds.lineSoft),
+        DsSettingRow(
+          label: l.language,
+          value: locale == null
+              ? l.languageSystem
+              : locale.languageCode == 'zh'
+              ? l.languageZh
+              : l.languageEn,
           onTap: () => _showLanguageDialog(context, ref),
         ),
-        ListTile(
-          leading: const Icon(CupertinoIcons.square_split_2x1),
-          title: Text(l.defaultTab),
-          trailing: Text(
-            switch (defaultTab) {
-              AppTab.action => l.today,
-              AppTab.calendar => l.calendar,
-              AppTab.todos => l.todos,
-            },
-            style: AppTypography.caption.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+        DsSettingRow(
+          label: l.defaultTab,
+          value: switch (defaultTab) {
+            AppTab.action => l.today,
+            AppTab.calendar => l.calendar,
+            AppTab.todos => l.todos,
+          },
           onTap: () => _showDefaultTabDialog(context, ref),
         ),
       ],
     );
   }
 
-  /// One selector for every setting on this page. A checkmark that is always
-  /// in the same place is what makes "which one is selected" readable across
-  /// four different dialogs.
   Future<void> _showChoices<T>({
     required BuildContext context,
     required String title,
@@ -214,7 +121,8 @@ class AppearanceSection extends ConsumerWidget {
     required ValueChanged<T> onSelected,
   }) async {
     final picked = await showDialog<T>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
+      animationStyle: AnimationStyle.noAnimation,
+      context: context,
       builder: (ctx) => SimpleDialog(
         title: Text(title),
         children: [
@@ -228,7 +136,7 @@ class AppearanceSection extends ConsumerWidget {
                     ? const Icon(CupertinoIcons.checkmark, size: 18)
                     : null,
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
+                  horizontal: AppSpacing.s4,
                 ),
               ),
             ),
@@ -274,6 +182,63 @@ class AppearanceSection extends ConsumerWidget {
       ],
       onSelected: (tab) =>
           ref.read(defaultTabProvider.notifier).setDefaultTab(tab),
+    );
+  }
+}
+
+class _Swatch extends StatelessWidget {
+  const _Swatch({
+    required this.color,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Color color;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: label,
+      selected: selected,
+      button: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: SizedBox(
+            width: 44,
+            height: 34,
+            child: Center(
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: selected
+                      ? Border.all(
+                          color: context.ds.ink,
+                          width: 1.5,
+                        )
+                      : null,
+                ),
+                child: selected
+                    ? const Icon(
+                        CupertinoIcons.checkmark,
+                        size: 12,
+                        color: Colors.white,
+                      )
+                    : null,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

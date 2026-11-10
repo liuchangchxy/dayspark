@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DaySpark · 全产品设计 v030-v2</title>
+  <link rel="stylesheet" href="assets/tokens.css" />
+  <style>
+    body { background: var(--bg); }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px 80px; }
+    header { display: flex; align-items: center; gap: 12px; padding: 22px 0 18px; }
+    .mark { width: 32px; height: 32px; border-radius: 7px; display: grid; place-items: center; background: var(--ink); color: var(--surface); font-weight: 600; font-size: 13px; }
+    header h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: 0; }
+    header .sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+    header .grow { flex: 1; }
+    .tag { font-size: 10.5px; color: var(--ink-3); border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 3px 8px; }
+
+    .hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 30px; padding: 18px 0 30px; border-bottom: 1px solid var(--line); }
+    .hero h2 { margin: 0 0 12px; font-size: 30px; font-weight: 600; line-height: 1.35; letter-spacing: 0; }
+    .hero p { margin: 0 0 10px; font-size: 14px; line-height: 1.75; color: var(--ink-2); max-width: 560px; }
+    .hero .meta { font-size: 12px; color: var(--ink-3); line-height: 1.8; }
+    .hero .meta code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+    .hero .stamp { align-self: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px 18px; }
+    .hero .stamp b { display: block; font-size: 13px; margin-bottom: 6px; }
+    .hero .stamp ul { margin: 0; padding-left: 16px; font-size: 12px; line-height: 1.8; color: var(--ink-2); }
+
+    h3.sec { font-size: 14px; font-weight: 600; margin: 34px 0 4px; }
+    p.sec { margin: 0 0 14px; font-size: 12.5px; color: var(--ink-3); }
+
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .card { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-lg); text-decoration: none; color: inherit; }
+    .card:hover { border-color: var(--ink-3); }
+    .card .k { font-size: 10px; letter-spacing: .06em; color: var(--ink-3); font-weight: 600; }
+    .card b { font-size: 15px; font-weight: 600; }
+    .card p { margin: 0; font-size: 12px; line-height: 1.65; color: var(--ink-2); }
+    .card .go { margin-top: 4px; font-size: 12px; color: var(--primary); font-weight: 600; }
+
+    .docs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .doc { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-md); text-decoration: none; color: inherit; }
+    .doc:hover { background: var(--surface-2); }
+    .doc .n { font-size: 13px; font-weight: 600; }
+    .doc .d { font-size: 11px; color: var(--ink-3); }
+    .doc .no { margin-left: auto; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+    .matrix { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-md); overflow: hidden; }
+    .matrix th, .matrix td { text-align: left; padding: 9px 12px; font-size: 12px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+    .matrix th { font-size: 10.5px; color: var(--ink-3); font-weight: 600; letter-spacing: .04em; background: var(--surface-2); }
+    .matrix tr:last-child td { border-bottom: 0; }
+    .st { font-size: 10.5px; font-weight: 600; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+    .st.done { color: var(--success); background: var(--success-soft); }
+    .st.partial { color: var(--warn); background: var(--warn-soft); }
+    .st.no { color: var(--ink-3); background: var(--surface-2); }
+
+    .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .shot { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+    .shot img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top center; }
+    .shot .cap { padding: 7px 10px; font-size: 10.5px; color: var(--ink-3); }
+
+    .note { margin-top: 22px; padding: 14px 16px; border: 1px solid var(--line-soft); border-radius: var(--r-md); background: var(--surface); font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+    .note b { color: var(--ink); }
+
+    footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-3); display: flex; gap: 14px; flex-wrap: wrap; }
+
+    @media (max-width: 860px) {
+      .hero { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr 1fr; }
+      .shots { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="mark">D</span>
+      <div><h1>DaySpark 全产品设计</h1><div class="sub">v030-v2 · 手机 / 桌面 / 小组件</div></div>
+      <span class="grow"></span>
+      <span class="tag">设计基线 origin/main @ 5f48ad5</span>
+    </header>
+
+    <section class="hero">
+      <div>
+        <h2>安静、清楚、能真正工作的日程与待办</h2>
+        <p>这次重做覆盖整个产品，而不只是手机待办：今天、日历的月/周/天、待办与未安排、完整创建与详情、搜索、设置全部分组、日历与标签管理、回收站、同步、AI、备份与 ICS，以及桌面双栏和四种 Android 小组件。</p>
+        <p>产品语义沿用冻结规范：<b>截止</b>是 deadline，<b>计划执行</b>是真正排进时间轴；<b>未安排</b>是没有计划执行的待办；待办与日程是两个对象。</p>
+        <div class="meta">仓库 <code>liuchangchxy/dayspark</code><br />验证路径 Flutter web release build + 源码 + 已安装 0.30.0 设备（仅人机参考）</div>
+      </div>
+      <div class="stamp">
+        <b>这次交付包含</b>
+        <ul>
+          <li>可操作手机原型（10 个页面视图 + 完整创建 / 编辑 / 筛选 / 数据等弹层）</li>
+          <li>桌面原型（侧栏、双栏、命令面板、周/日/月）</li>
+          <li>4 类小组件 × 3 尺寸的规则与预览（含新增的日历小尺寸与快捷操作）</li>
+          <li>逐区域 KEEP / REDESIGN 审计</li>
+          <li>产品 UX、设计系统、工程交接与自测报告</li>
+        </ul>
+      </div>
+    </section>
+
+    <h3 class="sec">原型入口</h3>
+    <p class="sec">原型共用同一份状态；在手机里完成的待办会同步反映到桌面与小组件（同一浏览器会话）。</p>
+    <div class="cards">
+      <a class="card" href="prototype/mobile.html">
+        <span class="k">ANDROID · 412 × 915</span><b>手机原型</b>
+        <p>今天 / 日历 / 待办 / 搜索 / 设置 / 日历与标签 / 回收站 / AI / 同步。含快速创建、完整表单、详情与编辑。</p>
+        <span class="go">打开原型 →</span>
+      </a>
+      <a class="card" href="prototype/desktop.html">
+        <span class="k">DESKTOP · 1440 × 900</span><b>桌面原型</b>
+        <p>侧栏 + 主区 + 详情；⌘K 命令面板、右键菜单、快捷添加、周/日/月视图与窄窗口折叠。</p>
+        <span class="go">打开原型 →</span>
+      </a>
+      <a class="card" href="prototype/widgets.html">
+        <span class="k">ANDROID WIDGETS</span><b>小组件规范</b>
+        <p>待办 / 日历 / 时间轴 / 快捷操作，每种小、中、大三种结构。日历小尺寸与快捷操作是新增项，已在规范中标注实现前提。</p>
+        <span class="go">打开预览 →</span>
+      </a>
+    </div>
+
+    <h3 class="sec">覆盖与状态</h3>
+    <p class="sec">状态只描述设计交付，不冒充工程完成度。</p>
+    <table class="matrix">
+      <thead><tr><th>区域</th><th>结论</th><th>本次处理</th><th>验证</th></tr></thead>
+      <tbody>
+        <tr><td>今天</td><td><span class="st done">REDESIGN</span></td><td>现在 / 接下来 / 今天截止 / 已逾期 / 已完成；区分截止与计划执行</td><td><span class="st done">原型已自测</span></td></tr>
+        <tr><td>日历（月 / 周 / 天）</td><td><span class="st done">REDESIGN</span></td><td>单一工具条、截止带、时间轴、重叠事件并排、当前时间线</td><td><span class="st done">原型已自测</span></td></tr>
+        <tr><td>待办 / 未安排</td><td><span class="st done">REDESIGN</span></td><td>移动端无分段歧义；桌面主从双栏；快速添加与右键菜单</td><td><span class="st done">原型已自测</span></td></tr>
+        <tr><td>创建 / 详情 / 编辑</td><td><span class="st done">REDESIGN</span></td><td>快速创建 + 完整表单；截止、计划执行、提醒、标签、子任务</td><td><span class="st done">原型已自测</span></td></tr>
+        <tr><td>搜索</td><td><span class="st done">REDESIGN</span></td><td>手机全屏搜索；桌面 ⌘K 命令面板</td><td><span class="st done">原型已自测</span></td></tr>
+        <tr><td>设置全部分组</td><td><span class="st done">REDESIGN</span></td><td>通用 / 日历与标签 / 通知 / 数据 / 同步 / AI / 关于；修复主题色竖排</td><td><span class="st done">原型已自测</span></td></tr>
+        <tr><td>回收站 / 日历管理 / 标签</td><td><span class="st done">REDESIGN</span></td><td>可恢复删除项；日历与标签独立管理</td><td><span class="st partial">恢复流程已测</span></td></tr>
+        <tr><td>同步 / AI</td><td><span class="st done">REDESIGN</span></td><td>服务器与账号状态、登录/同步/退出；AI 启用、服务商、模型、密钥与失败态</td><td><span class="st done">原型已自测</span></td></tr>
+        <tr><td>桌面宽 / 窄窗口</td><td><span class="st done">REDESIGN</span></td><td>窄窗图标栏 + 详情覆盖层</td><td><span class="st done">900px 已测</span></td></tr>
+        <tr><td>小组件</td><td><span class="st done">NEW</span></td><td>四类 × 三尺寸；日历 2×2 与快捷操作需新增 provider/布局</td><td><span class="st done">预览已自测</span></td></tr>
+        <tr><td>Android 精确 HEAD 构建</td><td><span class="st no">NOT VERIFIED</span></td><td>本机 NDK 许可缺失，按要求不修复环境</td><td><span class="st no">仅 web + 源码</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sec">文档</h3>
+    <div class="docs">
+      <a class="doc" href="AUDIT.md"><span><span class="n">AUDIT.md</span><br /><span class="d">逐区域审计、KEEP / REDESIGN 与证据</span></span><span class="no">01</span></a>
+      <a class="doc" href="PRODUCT_UX.md"><span><span class="n">PRODUCT_UX.md</span><br /><span class="d">信息架构、页面模型、状态与文案</span></span><span class="no">02</span></a>
+      <a class="doc" href="DESIGN.md"><span><span class="n">DESIGN.md</span><br /><span class="d">视觉语言、排版、颜色、组件与运动</span></span><span class="no">03</span></a>
+      <a class="doc" href="IMPLEMENTATION_HANDOFF.md"><span><span class="n">IMPLEMENTATION_HANDOFF.md</span><br /><span class="d">Flutter 映射、优先级、风险与验收</span></span><span class="no">04</span></a>
+      <a class="doc" href="QA.md"><span><span class="n">QA.md</span><br /><span class="d">自测步骤、结果与未验证项</span></span><span class="no">05</span></a>
+      <a class="doc" href="VISUAL_POLISH.md"><span><span class="n">VISUAL_POLISH.md</span><br /><span class="d">视觉方向、去 slop 清单、排版与三端打磨</span></span><span class="no">06</span></a>
+      <a class="doc" href="_evidence/"><span><span class="n">_evidence/</span><br /><span class="d">当前源码截图、原型截图与旧构建反例</span></span><span class="no">07</span></a>
+    </div>
+
+    <h3 class="sec">关键证据</h3>
+    <div class="shots">
+      <div class="shot"><img src="_evidence/web-desktop-current.png" alt="当前源码的桌面布局" /><div class="cap">当前源码 · 桌面（web build）</div></div>
+      <div class="shot"><img src="_evidence/proto-desktop-today.png" alt="桌面原型" /><div class="cap">本次设计 · 桌面今天</div></div>
+      <div class="shot"><img src="_evidence/proto-mobile-today.png" alt="手机原型" /><div class="cap">本次设计 · 手机今天</div></div>
+    </div>
+
+    <div class="note"><b>关于旧构建：</b><code>_evidence/desktop-app.png</code> 来自 10 月 5 日的旧 Windows 构建，只作为“桌面出现底部手机导航”的反例保留，不参与本次任何设计判断。所有设计判断基于 <b>origin/main @ 5f48ad563cb1d242106a15aa19b73ab52ee13390</b> 的源码与当前 web 渲染。</div>
+
+    <footer>
+      <span>DaySpark full product design · v030-v2</span>
+      <span>不修改 lib/、数据库、Provider 或测试</span>
+      <span>Android exact-head native build: NOT VERIFIED</span>
+    </footer>
+  </div>
+</body>
+</html>

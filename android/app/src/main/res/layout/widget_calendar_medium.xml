@@ -3,7 +3,7 @@
     android:id="@+id/calendar_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/widget_background"
+    android:background="@drawable/widget_root_bg"
     android:orientation="vertical"
     android:padding="8dp">
 

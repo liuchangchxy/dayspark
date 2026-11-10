@@ -11,11 +11,12 @@ const _keyThemeColor = 'theme_color';
 /// Users pick a preset, never a raw color — a free picker lets one bad hue
 /// drag the whole surface family off the token table.
 enum AppAccent {
-  blue('blue', '蓝', 'Blue', Color(0xFF2457D6), Color(0xFF0A84FF)),
-  green('green', '绿', 'Green', Color(0xFF34C759), Color(0xFF30D158)),
-  orange('orange', '橙', 'Orange', Color(0xFFFF9500), Color(0xFFFF9F0A)),
-  purple('purple', '紫', 'Purple', Color(0xFFAF52DE), Color(0xFFBF5AF2)),
-  pink('pink', '粉', 'Pink', Color(0xFFFF2D55), Color(0xFFFF375F));
+  blue('blue', '蓝', 'Blue', Color(0xFF2D4F7C), Color(0xFF8FB0D9)),
+  teal('teal', '青', 'Teal', Color(0xFF3F6B68), Color(0xFF8FB8B2)),
+  green('green', '绿', 'Green', Color(0xFF4C6B55), Color(0xFFA3C4A8)),
+  orange('orange', '橙', 'Orange', Color(0xFF8A5237), Color(0xFFD9A184)),
+  purple('purple', '紫', 'Purple', Color(0xFF63556F), Color(0xFFB7A5C6)),
+  pink('pink', '玫红', 'Rose', Color(0xFF85525F), Color(0xFFC99AA5));
 
   const AppAccent(this.id, this.zhName, this.enName, this.light, this.dark);
 
@@ -37,6 +38,16 @@ enum AppAccent {
   /// Maps a color stored by the old free-picker onto the nearest preset.
   static AppAccent fromLegacyColor(int? argb) {
     if (argb == null) return AppAccent.blue;
+    const legacy = {
+      0xFF007AFF: AppAccent.blue,
+      0xFF5AC8FA: AppAccent.teal,
+      0xFF34C759: AppAccent.green,
+      0xFFFF9500: AppAccent.orange,
+      0xFFAF52DE: AppAccent.purple,
+      0xFFFF2D55: AppAccent.pink,
+    };
+    final mapped = legacy[argb];
+    if (mapped != null) return mapped;
     final color = Color(argb);
     for (final accent in values) {
       if (accent.light == color || accent.dark == color) return accent;

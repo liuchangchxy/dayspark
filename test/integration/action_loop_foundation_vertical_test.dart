@@ -9,6 +9,7 @@ import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 
@@ -62,6 +63,9 @@ void main() {
   testWidgets(
     'Phase 1 vertical acceptance: Todo intent -> Calendar empty slot -> Schedule Todo -> TaskAllocation -> visible in Calendar and Action -> complete via existing writer with strict dueDate invariant and no Event creation',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       // -------------------------------------------------------------
       // Derive test allocation and Action projection day dynamically:
       // Allocation start is strictly in the future (+2h from current execution time)
@@ -283,13 +287,13 @@ void main() {
       expect(
         find.text('Next up').evaluate().isNotEmpty ||
             find.text('Now').evaluate().isNotEmpty ||
-            find.text('Earlier today').evaluate().isNotEmpty,
+            find.text('Completed').evaluate().isNotEmpty,
         isTrue,
         reason: 'The section must be named for what it shows',
       );
 
       // Complete the Todo from Action surface checkbox
-      final checkboxFinder = find.byType(Checkbox);
+      final checkboxFinder = find.byType(DsCheck);
       expect(checkboxFinder, findsWidgets);
       await tester.tap(checkboxFinder.first);
       await tester.pumpAndSettle();

@@ -96,6 +96,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get manageCalendars => 'Manage Calendars';
 
   @override
+  String get myCalendars => 'My Calendars';
+
+  @override
+  String get allTags => 'All Tags';
+
+  @override
+  String categoryCount(int count) {
+    return '$count total';
+  }
+
+  @override
   String get newCalendar => 'New Calendar';
 
   @override
@@ -204,6 +215,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get allDay => 'All day';
+
+  @override
+  String get plannedShort => 'Planned';
+
+  @override
+  String dayItemCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String deadlineLane(int count) {
+    return 'Due (no time block) · $count';
+  }
+
+  @override
+  String get noPlansDay => 'Nothing planned';
 
   @override
   String get priority => 'Priority';
@@ -701,6 +734,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleted => 'Deleted';
+
+  @override
+  String deletedOn(String date) {
+    return 'Deleted on $date';
+  }
 
   @override
   String snoozedFor(String duration) {
@@ -1222,7 +1260,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scheduledSection => 'Scheduled';
 
   @override
-  String get dueTodaySection => 'To do today';
+  String get dueTodaySection => 'Due today';
 
   @override
   String get unplannedInbox => 'Unplanned';
@@ -1732,5 +1770,93 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moreOptions => 'More';
 
   @override
+  String get lessOptions => 'Less';
+
+  @override
+  String get addTime => 'Add time';
+
+  @override
+  String get remindNone => 'No reminder';
+
+  @override
+  String get notes => 'Notes';
+
+  @override
+  String get notesHint => 'Add notes';
+
+  @override
+  String get openFullForm => 'Open full form';
+
+  @override
+  String get moreSection => 'More';
+
+  @override
+  String get inProgress => 'In progress';
+
+  @override
+  String get executingPlan => 'Executing';
+
+  @override
   String get createCalendarFromPicker => '+ New calendar';
+
+  @override
+  String get byDate => 'By date';
+
+  @override
+  String get showCompleted => 'Show completed';
+
+  @override
+  String get filterAndDisplay => 'Filter & display';
+
+  @override
+  String get clearFilters => 'Clear';
+
+  @override
+  String get allLabel => 'All';
+
+  @override
+  String get unplannedViewEmptyTitle => 'No unplanned tasks';
+
+  @override
+  String get unplannedViewEmptyHint => 'Every task has a planned time. Switch to All Tasks to see everything.';
+
+  @override
+  String get todosEmptyTitle => 'No tasks here';
+
+  @override
+  String get todosEmptyHint => 'Write down what you need to do, no need to decide when yet.';
+
+  @override
+  String get noPlannedExecution => 'Not scheduled';
+
+  @override
+  String get unplannedRailHint => 'Tasks without a planned time. Schedule one to give it a place in the day.';
+
+  @override
+  String get unplannedRailEmpty => 'Everything is scheduled.';
+
+  @override
+  String get allScheduled => 'everything scheduled';
+
+  @override
+  String get selectTodoPaneTitle => 'Select a task';
+
+  @override
+  String get selectTodoPaneHint => 'Choose a task on the left, or add one above.';
+
+  @override
+  String filterCountLabel(int count) {
+    return '$count filters';
+  }
+
+  @override
+  String todoAllContext(int count) {
+    return '$count unfinished';
+  }
+
+  @override
+  String get calendarTags => 'Calendar & tags';
+
+  @override
+  String get other => 'Other';
 }

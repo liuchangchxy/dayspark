@@ -603,14 +603,14 @@ void main() {
       final light = HomeWidgetService.buildThemeBlock(dark: false);
       expect(light['dark'], false);
       final lightColors = light['colors'] as Map;
-      expect(lightColors['accent'], '#2457D6');
+      expect(lightColors['accent'], '#2D4F7C');
       expect(lightColors['error'], isA<String>());
       expect(lightColors['warning'], isA<String>());
 
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
       final darkColors = dark['colors'] as Map;
-      expect(darkColors['accent'], '#0A84FF');
+      expect(darkColors['accent'], '#8FB0D9');
       expect(darkColors['error'], isA<String>());
       expect(darkColors['warning'], isA<String>());
     });

@@ -16,33 +16,30 @@ class SettingsGroup extends StatelessWidget {
     this.trailing,
   });
 
-  /// Omitted when the card's own first row already names the group.
   final String? title;
   final Widget child;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
+    final ds = context.ds;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (title != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
-              AppSpacing.lg,
-              AppSpacing.xl,
-              AppSpacing.sm,
+              AppSpacing.s1,
+              AppSpacing.s4,
+              AppSpacing.s1,
+              AppSpacing.s2,
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     title!,
-                    style: AppTypography.overline.copyWith(
-                      color: context.semantic.textSecondary,
-                      letterSpacing: 0.6,
-                    ),
+                    style: AppTypography.overline.copyWith(color: ds.ink3),
                   ),
                 ),
                 if (trailing != null) trailing!,
@@ -50,10 +47,15 @@ class SettingsGroup extends StatelessWidget {
             ),
           )
         else
-          const SizedBox(height: AppSpacing.md),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          child: Card(clipBehavior: Clip.antiAlias, child: child),
+          const SizedBox(height: AppSpacing.s3),
+        Container(
+          decoration: BoxDecoration(
+            color: ds.surface,
+            borderRadius: AppRadii.control,
+            border: Border.all(color: ds.line),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: child,
         ),
       ],
     );

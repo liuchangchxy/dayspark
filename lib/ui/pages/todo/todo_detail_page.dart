@@ -8,12 +8,14 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -21,8 +23,8 @@ import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_actions.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
-import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
@@ -160,112 +162,135 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
 
     final completed = live.status == 'COMPLETED';
     final legacy = _isUnknownLegacy(live);
-    final horizontal = widget.embedded ? AppSpacing.lg : AppSpacing.lg;
+    final horizontal = AppSpacing.s5;
 
     return ListView(
       key: PageStorageKey<String>('todo-detail-$_todoId'),
       padding: EdgeInsets.fromLTRB(
         horizontal,
-        AppSpacing.lg,
+        AppSpacing.s4,
         horizontal,
-        AppSpacing.xxl,
+        AppSpacing.s8,
       ),
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        if (widget.embedded)
+          Align(
+            alignment: Alignment.centerRight,
+            child: DsIconButton(
+              icon: CupertinoIcons.xmark,
+              size: 16,
+              compact: true,
+              tooltip: l.close,
+              onPressed: widget.onClose,
+            ),
+          ),
+        Wrap(
+          spacing: AppSpacing.s2,
+          runSpacing: AppSpacing.s2,
           children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('todo-detail-title'),
-                controller: _summary,
-                focusNode: _summaryFocus,
-                style: AppTypography.headline,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (value) {
-                  _summaryTimer?.cancel();
-                  if (value.trim().isEmpty) return;
-                  _summaryTimer = Timer(
-                    const Duration(milliseconds: 600),
-                    _flushSummary,
-                  );
-                },
-                onSubmitted: (_) => _flushSummary(),
-                decoration: InputDecoration(
-                  hintText: l.title,
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintStyle: AppTypography.headline.copyWith(
-                    color: context.semantic.textTertiary,
+            if (_calendarName(live) != null)
+              DsChip(
+                label: _calendarName(live)!,
+                solid: true,
+                leading: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: _calendarColor(live),
+                    shape: BoxShape.circle,
                   ),
                 ),
+                onTap: () => _pickCalendar(live),
               ),
-            ),
-            if (widget.embedded)
-              IconButton(
-                icon: const Icon(CupertinoIcons.xmark, size: 16),
-                tooltip: l.close,
-                onPressed: widget.onClose,
-                visualDensity: VisualDensity.compact,
+            if (live.priority != 0)
+              DsChip(
+                label: switch (live.priority) {
+                  1 => l.priorityHigh,
+                  5 => l.priorityMedium,
+                  _ => l.priorityLow,
+                },
+                warm: live.priority != 1,
+                danger: live.priority == 1,
               ),
+            ..._tagChips(live),
           ],
         ),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.s2),
+        TextField(
+          key: const ValueKey('todo-detail-title'),
+          controller: _summary,
+          focusNode: _summaryFocus,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+            letterSpacing: -0.2,
+            color: context.ds.ink,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (value) {
+            _summaryTimer?.cancel();
+            if (value.trim().isEmpty) return;
+            _summaryTimer = Timer(
+              const Duration(milliseconds: 600),
+              _flushSummary,
+            );
+          },
+          onSubmitted: (_) => _flushSummary(),
+          decoration: InputDecoration(
+            hintText: l.title,
+            filled: false,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            hintStyle: TextStyle(fontSize: 22, color: context.ds.ink3),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s1),
         Row(
           children: [
-            Icon(
-              completed
-                  ? CupertinoIcons.checkmark_circle_fill
-                  : CupertinoIcons.circle,
-              size: 16,
-              color: completed
-                  ? Theme.of(context).colorScheme.primary
-                  : context.semantic.textTertiary,
+            DsCheck(
+              checked: completed,
+              size: 20,
+              label: completed ? l.markIncomplete : l.markComplete,
+              onChanged: (_) => _toggleCompletion(live, completed),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                completed ? l.completed : l.openTask,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.caption.copyWith(
-                  color: context.semantic.textSecondary,
-                ),
+            const SizedBox(width: AppSpacing.s2),
+            Text(
+              completed ? l.completed : l.openTask,
+              style: AppTypography.caption.copyWith(
+                color: completed ? context.ds.ink3 : context.ds.ink2,
               ),
-            ),
-            TextButton(
-              onPressed: () => _toggleCompletion(live, completed),
-              style: TextButton.styleFrom(
-                minimumSize: const Size(48, 40),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(completed ? l.markIncomplete : l.markComplete),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
-        const RowDivider(),
-        SectionLabel(l.sectionTime),
+        const SizedBox(height: AppSpacing.s4),
+        DsSectionLabel(
+          l.sectionTime,
+          padding: const EdgeInsets.only(bottom: AppSpacing.s1),
+        ),
+        DsSettingRow(
+          label: l.deadline,
+          value: live.dueDate == null
+              ? l.noDeadline
+              : formatDeadline(context, live.dueDate!),
+          trailing: live.dueDate == null
+              ? null
+              : DsIconButton(
+                  icon: CupertinoIcons.xmark,
+                  size: 13,
+                  compact: true,
+                  tooltip: l.clearDeadline,
+                  onPressed: () => _saveSchedule(setDue: true),
+                ),
+          onTap: () => _pickDue(live),
+        ),
         if (legacy) ...[
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.s2),
           _legacyNotice(context, l, live),
         ] else ...[
-          ScheduleRow(
-            label: l.deadline,
-            value: live.dueDate == null
-                ? l.noDeadline
-                : formatDeadline(context, live.dueDate!),
-            placeholder: live.dueDate == null,
-            emptyValue: l.noDeadline,
-            clearTooltip: l.clearDeadline,
-            onTap: () => _pickDue(live),
-            onClear: live.dueDate == null
-                ? null
-                : () => _saveSchedule(setDue: true),
-          ),
+          ExecutionScheduleSection(todo: live, deadline: live.dueDate),
           RepeatRow(
             rrule: live.rrule,
             anchorDate: live.startDate ?? live.dueDate,
@@ -279,37 +304,35 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ),
             needsDate: live.startDate == null && live.dueDate == null,
           ),
-          ExecutionScheduleSection(todo: live, deadline: live.dueDate),
         ],
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionReminder),
+        const SizedBox(height: AppSpacing.s3),
+        DsHairline(color: context.ds.lineSoft),
+        const SizedBox(height: AppSpacing.s2),
         RemindersSection(
           parentType: 'todo',
           parentId: live.id,
           anchorTime: live.dueDate,
         ),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionOrganize),
-        _calendar(context, l, live),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          l.calendarExplanation,
-          style: AppTypography.caption.copyWith(
-            color: context.semantic.textTertiary,
-          ),
+        const SizedBox(height: AppSpacing.s3),
+        DsHairline(color: context.ds.lineSoft),
+        DsSectionLabel(
+          l.sectionOrganize,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        _calendar(context, l, live),
         _priority(context, l, live),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.s2),
         _tags(context, live),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionContent),
+        const SizedBox(height: AppSpacing.s3),
+        DsHairline(color: context.ds.lineSoft),
+        DsSectionLabel(
+          l.sectionContent,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
+        ),
         TextField(
           controller: _description,
           focusNode: _descriptionFocus,
+          style: AppTypography.body.copyWith(color: context.ds.ink),
           decoration: InputDecoration(
             hintText: l.description,
             filled: false,
@@ -317,9 +340,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
             contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.body.copyWith(
-              color: context.semantic.textTertiary,
-            ),
+            hintStyle: AppTypography.body.copyWith(color: context.ds.ink3),
           ),
           maxLines: null,
           textCapitalization: TextCapitalization.sentences,
@@ -331,31 +352,92 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             );
           },
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.s2),
         _subtasks(context, l, live),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.s4),
         AttachmentList(parentType: 'todo', parentId: live.id),
-        const SizedBox(height: AppSpacing.xl),
-        const RowDivider(),
-        const SizedBox(height: AppSpacing.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => _delete(live),
-            icon: Icon(
-              CupertinoIcons.trash,
-              size: 16,
-              color: Theme.of(context).colorScheme.error,
+        const SizedBox(height: AppSpacing.s6),
+        DsHairline(color: context.ds.lineSoft),
+        const SizedBox(height: AppSpacing.s3),
+        Wrap(
+          spacing: AppSpacing.s2,
+          runSpacing: AppSpacing.s2,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            DsButton(
+              label: completed ? l.markIncomplete : l.markComplete,
+              tone: DsButtonTone.secondary,
+              small: true,
+              onPressed: () => _toggleCompletion(live, completed),
             ),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-              minimumSize: const Size(48, 48),
+            DsButton(
+              label: l.schedule,
+              tone: DsButtonTone.secondary,
+              small: true,
+              onPressed: () => scheduleTodoBlock(context, ref, live),
             ),
-            label: Text(l.moveToTrash),
-          ),
+            DsButton(
+              label: l.edit,
+              tone: DsButtonTone.ghost,
+              small: true,
+              onPressed: () => context.push('/todo/edit', extra: live),
+            ),
+            DsButton(
+              label: l.moveToTrash,
+              tone: DsButtonTone.danger,
+              small: true,
+              onPressed: () => _delete(live),
+            ),
+          ],
         ),
       ],
     );
+  }
+
+  String? _calendarName(Todo live) {
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    return calendars
+        .where((calendar) => calendar.id == live.calendarId)
+        .firstOrNull
+        ?.name;
+  }
+
+  Color _calendarColor(Todo live) {
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    final calendar = calendars
+        .where((row) => row.id == live.calendarId)
+        .firstOrNull;
+    return calendar == null
+        ? context.ds.ink3
+        : ColorUtils.parseHex(calendar.color);
+  }
+
+  List<Widget> _tagChips(Todo live) {
+    final tags = ref.watch(todoTagsProvider(live.id)).valueOrNull ?? const [];
+    return [
+      for (final tag in tags)
+        DsChip(
+          label: tag.name,
+          solid: true,
+          leading: Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: ColorUtils.parseHex(tag.color),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+    ];
+  }
+
+  Future<void> _pickCalendar(Todo live) async {
+    final picked = await pickCalendar(
+      context,
+      ref,
+      selectedId: live.calendarId,
+    );
+    if (picked != null) await _writeBasics(calendarId: picked);
   }
 
   bool _isUnknownLegacy(Todo row) {
@@ -389,95 +471,90 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
     if (calendars.isEmpty) return const SizedBox.shrink();
     final current = calendars.where((c) => c.id == live.calendarId).firstOrNull;
-    return ScheduleRow(
+    return DsSettingRow(
       label: l.calendarField,
       value: current?.name ?? l.calendarUnavailable,
-      trailing: const Icon(CupertinoIcons.chevron_down, size: 12),
-      onTap: () async {
-        final picked = await pickCalendar(
-          context,
-          ref,
-          selectedId: live.calendarId,
-        );
-        if (picked != null) {
-          await _writeBasics(calendarId: picked);
-        }
-      },
+      leading: current == null
+          ? null
+          : Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: ColorUtils.parseHex(current.color),
+                shape: BoxShape.circle,
+              ),
+            ),
+      onTap: () => _pickCalendar(live),
     );
   }
 
   Widget _subtasks(BuildContext context, AppLocalizations l, Todo live) {
     final subtasks = ref.watch(subtasksProvider(live.id)).valueOrNull ?? const [];
+    final ds = context.ds;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionLabel(
-          l.subtasks,
-          action: TextButton.icon(
-            onPressed: () => _addSubtask(context, l, live),
-            icon: const Icon(CupertinoIcons.add, size: 13),
-            label: Text(l.addSubtask),
-            style: TextButton.styleFrom(
-              minimumSize: const Size(0, 48),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              textStyle: AppTypography.caption.copyWith(
-                fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            Text(
+              l.subtasks,
+              style: AppTypography.small.copyWith(
+                color: ds.ink2,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ),
+            const Spacer(),
+            DsButton(
+              label: l.addSubtask,
+              tone: DsButtonTone.ghost,
+              small: true,
+              icon: CupertinoIcons.add,
+              onPressed: () => _addSubtask(context, l, live),
+            ),
+          ],
         ),
         if (subtasks.isEmpty)
-          Text(
-            l.noSubtasks,
-            style: AppTypography.caption.copyWith(
-              color: context.semantic.textTertiary,
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              l.noSubtasks,
+              style: AppTypography.small.copyWith(color: ds.ink3),
             ),
           )
         else
           for (final sub in subtasks)
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 48),
+            SizedBox(
+              height: 40,
               child: Row(
                 children: [
-                  IconButton(
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
-                    icon: Icon(
-                      sub.status == 'COMPLETED'
-                          ? CupertinoIcons.checkmark_circle_fill
-                          : CupertinoIcons.circle,
-                      size: 18,
-                      color: sub.status == 'COMPLETED'
-                          ? Theme.of(context).colorScheme.primary
-                          : context.semantic.textTertiary,
-                    ),
-                    onPressed: () => ref.read(toggleTodoProvider)(
+                  DsCheck(
+                    checked: sub.status == 'COMPLETED',
+                    size: 17,
+                    compact: true,
+                    onChanged: (_) => ref.read(toggleTodoProvider)(
                       id: sub.id,
                       isCompleted: sub.status != 'COMPLETED',
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.s2),
                   Expanded(
                     child: Text(
                       sub.summary,
                       style: AppTypography.body.copyWith(
+                        fontSize: 14,
                         decoration: sub.status == 'COMPLETED'
                             ? TextDecoration.lineThrough
                             : null,
                         color: sub.status == 'COMPLETED'
-                            ? context.semantic.textTertiary
-                            : null,
+                            ? ds.ink3
+                            : ds.ink,
                       ),
                     ),
                   ),
-                  IconButton(
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
-                    icon: const Icon(CupertinoIcons.xmark, size: 14),
+                  DsIconButton(
+                    icon: CupertinoIcons.xmark,
+                    size: 14,
+                    compact: true,
                     tooltip: l.removeSubtask,
                     onPressed: () => ref.read(deleteTodoProvider)(sub.id),
                   ),
@@ -536,29 +613,37 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       5: l.priorityMedium,
       1: l.priorityHigh,
     };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l.priority,
-          style: AppTypography.caption.copyWith(
-            color: context.semantic.textSecondary,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+      child: Row(
+        children: [
+          Text(
+            l.priority,
+            style: AppTypography.small.copyWith(
+              color: context.ds.ink2,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Wrap(
-          spacing: AppSpacing.sm,
-          children: const [0, 9, 5, 1]
-              .map(
-                (value) => ChoiceChip(
-                  label: Text(labels[value]!),
-                  selected: live.priority == value,
-                  onSelected: (_) => _savePriority(value),
-                ),
-              )
-              .toList(),
-        ),
-      ],
+          const SizedBox(width: AppSpacing.s3),
+          Expanded(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: AppSpacing.s1,
+              runSpacing: AppSpacing.s1,
+              children: const [0, 9, 5, 1]
+                  .map(
+                    (value) => DsChip(
+                      label: labels[value]!,
+                      selected: live.priority == value,
+                      compact: true,
+                      onTap: () => _savePriority(value),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

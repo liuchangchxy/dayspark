@@ -58,6 +58,9 @@ void main() {
   testWidgets(
     'Action projection advances from day N to day N+1 across midnight and on resume without restart',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       // Day N: 2026-10-06 at 23:59:50 (10s before midnight)
       var currentTime = DateTime(2026, 10, 6, 23, 59, 50);
 
@@ -93,8 +96,8 @@ void main() {
       // - Task Due Day N+1 does not appear in Action timeline/due/overdue
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsNothing);
-      expect(find.text('To do today'), findsOneWidget);
-      expect(find.textContaining('Overdue'), findsNothing);
+      expect(find.text('Due today'), findsOneWidget);
+      expect(find.text('Overdue'), findsNothing);
 
       // 1. Rollover to Day N+1 via midnight timer
       // Advance clock to Day N+1: 2026-10-07 00:00:05 (15 seconds elapsed)
@@ -112,7 +115,7 @@ void main() {
       // The section header states the section, not a count: the counter was
       // one of the pieces of chrome removed from Action.
       expect(find.text('Overdue'), findsOneWidget);
-      expect(find.text('To do today'), findsOneWidget);
+      expect(find.text('Due today'), findsOneWidget);
 
       // 2. Rollover to Day N+2 via app resume
       // Advance clock to Day N+2: 2026-10-08 10:00:00
@@ -129,7 +132,7 @@ void main() {
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsOneWidget);
       expect(find.text('Overdue'), findsOneWidget);
-      expect(find.text('To do today'), findsNothing);
+      expect(find.text('Due today'), findsNothing);
 
       await _unmount(tester);
     },

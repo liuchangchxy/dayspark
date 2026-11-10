@@ -1,8 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 class AboutSection extends StatelessWidget {
   const AboutSection({super.key, required this.version});
@@ -12,10 +12,9 @@ class AboutSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return ListTile(
-      leading: const Icon(CupertinoIcons.info),
-      title: Text(l.about),
-      subtitle: Text(version),
+    return DsSettingRow(
+      label: l.about,
+      value: version,
       onTap: () => context.push('/about'),
     );
   }

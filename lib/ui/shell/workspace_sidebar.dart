@@ -2,136 +2,212 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
-import 'package:dayspark/domain/providers/feature_flags_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
-/// Desktop workspace rail. Lives outside the router so every destination —
-/// Home, Settings, Search, a pushed detail — keeps the same chrome; the
-/// selected destination is derived from the current location, not from the
-/// page that happens to be on screen.
+/// Desktop rail: navigation, calendars and tags on paper — not a dark
+/// application frame. 236px wide, folding to a 64px icon rail under 980.
 class WorkspaceSidebar extends ConsumerWidget {
   const WorkspaceSidebar({super.key});
 
-  static const double width = 232;
+  static const double width = 236;
+  static const double compactWidth = 64;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final isHome = currentPath(context) == '/';
+    final ds = context.ds;
+    final compact = MediaQuery.sizeOf(context).width < 980;
+    final path = currentPath(context);
+    final isHome = path == '/';
     final tab = isHome ? ref.watch(workspaceTabProvider) : null;
     final view = ref.watch(todosViewProvider);
-    final showAi =
-        ref
-            .watch(featureFlagsProvider)
-            .valueOrNull
-            ?.isEnabled(FeatureFlag.aiAssistant) ??
-        true;
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    final tags = ref.watch(tagsProvider).valueOrNull ?? const [];
+    final projection = ref.watch(actionProjectionProvider).valueOrNull;
+    final allTodos = ref.watch(allTodosProvider).valueOrNull ?? const [];
+    final trashed = ref.watch(deletedTodosProvider).valueOrNull ?? const [];
+    final unplanned = ref.watch(unplannedTodosProvider).valueOrNull ?? const [];
+    final calendarFilter = ref.watch(todoCalendarFilterProvider);
+    final todayCount = projection == null
+        ? 0
+        : projection.dueTodayTodos.length + projection.overdueTodos.length;
+    final activeCount = allTodos
+        .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
+        .length;
 
-    return Material(
-      color: AppColors.sidebar,
-      child: SizedBox(
-        width: width,
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.md,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _WorkspaceHeader(),
-                const SizedBox(height: AppSpacing.md),
-                SearchEntry(onTap: () => _goDestination(context, '/search')),
-                const SizedBox(height: AppSpacing.lg),
-                _NavigationItem(
-                  label: l.today,
-                  icon: CupertinoIcons.bolt,
-                  selected: tab == AppTab.action,
-                  onTap: () => _goTab(context, ref, AppTab.action),
-                ),
-                _NavigationItem(
-                  label: l.calendar,
-                  icon: CupertinoIcons.calendar,
-                  selected: tab == AppTab.calendar,
-                  onTap: () => _goTab(context, ref, AppTab.calendar),
-                ),
-                _NavigationItem(
-                  label: l.todos,
-                  icon: CupertinoIcons.checkmark_rectangle,
-                  selected: tab == AppTab.todos,
-                  onTap: () => _goTab(context, ref, AppTab.todos),
-                ),
-                // Unplanned and All are views inside Todo, so they read as
-                // children of it rather than as more primary destinations.
-                // Date browsing (including today's date) stays inside Todo
-                // but is not a second navigation destination called "Today".
-                _SubNavigationItem(
+    return Container(
+      width: compact ? compactWidth : width,
+      decoration: BoxDecoration(
+        color: ds.navBg,
+        border: Border(right: BorderSide(color: ds.line)),
+      ),
+      child: SafeArea(
+        right: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            compact ? AppSpacing.s1 + 2 : 10,
+            AppSpacing.s3,
+            compact ? AppSpacing.s1 + 2 : 10,
+            AppSpacing.s2,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _Brand(compact: compact),
+              const SizedBox(height: AppSpacing.s3),
+              _SearchButton(
+                compact: compact,
+                onTap: () => _go(context, '/search'),
+              ),
+              const SizedBox(height: AppSpacing.s3),
+              _NavItem(
+                key: const ValueKey('nav-today'),
+                compact: compact,
+                label: l.today,
+                icon: CupertinoIcons.time,
+                count: todayCount == 0 ? null : todayCount,
+                selected: tab == AppTab.action && isHome,
+                onTap: () => _goTab(context, ref, AppTab.action),
+              ),
+              _NavItem(
+                key: const ValueKey('nav-calendar'),
+                compact: compact,
+                label: l.calendar,
+                icon: CupertinoIcons.calendar,
+                selected: tab == AppTab.calendar && isHome,
+                onTap: () => _goTab(context, ref, AppTab.calendar),
+              ),
+              _NavItem(
+                key: const ValueKey('nav-todos'),
+                compact: compact,
+                label: l.todos,
+                icon: CupertinoIcons.checkmark_square,
+                count: activeCount,
+                selected: tab == AppTab.todos && isHome,
+                onTap: () => _goTodosView(context, ref, const TodosAllView()),
+              ),
+              if (!compact) ...[
+                _SubNavItem(
                   label: l.inbox,
-                  selected: tab == AppTab.todos && view is TodosInboxView,
+                  count: unplanned.length,
+                  selected: tab == AppTab.todos &&
+                      isHome &&
+                      view is TodosInboxView,
                   onTap: () =>
                       _goTodosView(context, ref, const TodosInboxView()),
                 ),
-                _SubNavigationItem(
+                _SubNavItem(
                   label: l.allTasks,
-                  selected: tab == AppTab.todos && view is TodosAllView,
-                  onTap: () => _goTodosView(context, ref, const TodosAllView()),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.sidebarSelected,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _NavigationItem(
-                  label: l.manageCalendars,
-                  icon: CupertinoIcons.calendar,
-                  selected: _locationIs(context, '/calendars'),
-                  onTap: () => _goDestination(context, '/calendars'),
-                ),
-                _NavigationItem(
-                  label: l.manageTags,
-                  icon: CupertinoIcons.tag,
-                  selected: _locationIs(context, '/tags'),
-                  onTap: () => _goDestination(context, '/tags'),
-                ),
-                _NavigationItem(
-                  label: l.trash,
-                  icon: CupertinoIcons.trash,
-                  selected: _locationIs(context, '/trash'),
-                  onTap: () => _goDestination(context, '/trash'),
-                ),
-                if (showAi)
-                  _NavigationItem(
-                    label: l.aiAssistant,
-                    icon: CupertinoIcons.sparkles,
-                    selected: _locationIs(context, '/ai-chat'),
-                    onTap: () => _goDestination(context, '/ai-chat'),
-                  ),
-                const Spacer(),
-                _NavigationItem(
-                  label: l.settings,
-                  icon: CupertinoIcons.settings,
-                  selected: _locationIs(context, '/settings'),
-                  onTap: () => _goDestination(context, '/settings'),
+                  selected: tab == AppTab.todos &&
+                      isHome &&
+                      view is TodosAllView &&
+                      calendarFilter == null,
+                  onTap: () {
+                    ref.read(todoCalendarFilterProvider.notifier).state = null;
+                    _goTodosView(context, ref, const TodosAllView());
+                  },
                 ),
               ],
-            ),
+              if (compact)
+                const Spacer()
+              else
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(top: AppSpacing.s1),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _NavLabel(l.calendar),
+                        for (final calendar in calendars)
+                          _CategoryRow(
+                            label: calendar.name,
+                            color: ColorUtils.parseHex(calendar.color),
+                            count: allTodos
+                                .where(
+                                  (t) =>
+                                      t.calendarId == calendar.id &&
+                                      t.status != 'COMPLETED' &&
+                                      t.status != 'CANCELLED',
+                                )
+                                .length,
+                            selected: calendarFilter == calendar.id,
+                            onTap: () {
+                              ref
+                                  .read(todoCalendarFilterProvider.notifier)
+                                  .state = calendar.id;
+                              _goTodosView(
+                                context,
+                                ref,
+                                const TodosAllView(),
+                              );
+                            },
+                          ),
+                        if (tags.isNotEmpty) _NavLabel(l.tags),
+                        for (final tag in tags)
+                          _CategoryRow(
+                            label: tag.name,
+                            color: ColorUtils.parseHex(tag.color),
+                            onTap: () {
+                              ref.read(todoTagFilterProvider.notifier).state = {
+                                tag.id,
+                              };
+                              _goTodosView(
+                                context,
+                                ref,
+                                const TodosAllView(),
+                              );
+                            },
+                          ),
+                        _NavLabel(l.moreSection),
+                        _CategoryRow(
+                          label: l.manageCalendars,
+                          icon: CupertinoIcons.calendar_badge_plus,
+                          selected: path.startsWith('/calendars'),
+                          onTap: () => _go(context, '/calendars'),
+                        ),
+                        _CategoryRow(
+                          label: l.trash,
+                          icon: CupertinoIcons.trash,
+                          count: trashed.length,
+                          selected: path.startsWith('/trash'),
+                          onTap: () => _go(context, '/trash'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Container(
+                margin: const EdgeInsets.only(top: AppSpacing.s1),
+                padding: const EdgeInsets.only(top: AppSpacing.s1),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: ds.lineSoft)),
+                ),
+                child: _NavItem(
+                  compact: compact,
+                  label: l.settings,
+                  icon: CupertinoIcons.gear,
+                  selected: path.startsWith('/settings'),
+                  onTap: () => _go(context, '/settings'),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// The rail renders inside several route shapes (the shell, a bare page in
-  /// a test, the mobile fallback), so it cannot assume a [GoRouterState] is
-  /// above it. When there is no router at all, nothing is "current".
   static String currentPath(BuildContext context) {
     try {
       return GoRouterState.of(context).uri.path;
@@ -142,38 +218,25 @@ class WorkspaceSidebar extends ConsumerWidget {
     }
   }
 
-  static bool _locationIs(BuildContext context, String path) =>
-      currentPath(context).startsWith(path);
-
-  /// Without a router (a bare page in a test or an embedding host) the
-  /// provider write above is the whole interaction.
-  static void _goHome(BuildContext context, AppTab tab) {
-    final router = GoRouter.maybeOf(context);
-    if (router == null) return;
-    final target = '/?tab=${AppTab.values.indexOf(tab)}';
-    // Re-selecting the destination you are on is not a navigation: pushing a
-    // second copy of the same page is how the rail grew a back stack.
-    if (router.routerDelegate.currentConfiguration.uri.toString() == target) {
-      return;
-    }
-    router.go(target);
-  }
-
-  /// Secondary destinations are siblings, not children of whatever is open.
-  /// `go` keeps exactly one beneath the rail; `push` would stack a new page
-  /// on every click and leave a back button pointing at the previous one.
-  static void _goDestination(BuildContext context, String path) {
+  static void _go(BuildContext context, String path) {
     final router = GoRouter.maybeOf(context);
     if (router == null) return;
     if (router.routerDelegate.currentConfiguration.uri.path == path) return;
     router.go(path);
   }
 
+  static void _goHome(BuildContext context, AppTab tab) {
+    final router = GoRouter.maybeOf(context);
+    if (router == null) return;
+    final target = '/?tab=${AppTab.values.indexOf(tab)}';
+    if (router.routerDelegate.currentConfiguration.uri.toString() == target) {
+      return;
+    }
+    router.go(target);
+  }
+
   static void _goTab(BuildContext context, WidgetRef ref, AppTab tab) {
     ref.read(workspaceTabProvider.notifier).state = tab;
-    // Home is a route, not a widget the rail can mutate in place: the tab has
-    // to travel with the navigation or a fresh Home would reset to the stored
-    // default and the click would appear to do nothing.
     _goHome(context, tab);
   }
 
@@ -188,44 +251,66 @@ class WorkspaceSidebar extends ConsumerWidget {
   }
 }
 
-class _WorkspaceHeader extends StatelessWidget {
-  const _WorkspaceHeader();
+class _Brand extends StatelessWidget {
+  const _Brand({required this.compact});
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final ds = context.ds;
     final l = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.sm,
-        AppSpacing.xs,
-        AppSpacing.sm,
-        0,
+    final mark = Container(
+      width: 24,
+      height: 24,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ds.ink,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
+      child: Text(
+        'D',
+        style: TextStyle(
+          color: ds.surface,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          height: 1,
+        ),
+      ),
+    );
+    if (compact) {
+      return Center(child: mark);
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.s2, AppSpacing.s1, AppSpacing.s2, 0),
       child: Row(
         children: [
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(
-              CupertinoIcons.calendar_badge_plus,
-              size: 16,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
+          mark,
+          const SizedBox(width: AppSpacing.s2),
           Expanded(
-            child: Text(
-              l.appName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(
-                color: AppColors.sidebarInk,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.appName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: ds.ink,
+                    height: 1.2,
+                  ),
+                ),
+                Text(
+                  'v0.30',
+                  style: AppTypography.overline.copyWith(
+                    fontSize: 10.5,
+                    letterSpacing: 0,
+                    color: ds.ink3,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -234,47 +319,195 @@ class _WorkspaceHeader extends StatelessWidget {
   }
 }
 
-/// Search is a workspace-wide destination, so it belongs to the chrome rather
-/// than to whichever page is open.
-class SearchEntry extends StatelessWidget {
-  const SearchEntry({super.key, required this.onTap});
-
+class _SearchButton extends StatelessWidget {
+  const _SearchButton({required this.compact, required this.onTap});
+  final bool compact;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
+    final ds = context.ds;
+    final body = Container(
+      height: 32,
+      padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 9),
+      decoration: BoxDecoration(
+        color: ds.surface2,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+      ),
+      child: Row(
+        mainAxisAlignment:
+            compact ? MainAxisAlignment.center : MainAxisAlignment.start,
+        children: [
+          Icon(CupertinoIcons.search, size: 15, color: ds.ink3),
+          if (!compact) ...[
+            const SizedBox(width: AppSpacing.s2),
+            Expanded(
+              child: Text(
+                AppLocalizations.of(context)!.search,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.small.copyWith(
+                  fontSize: 12.5,
+                  color: ds.ink3,
+                ),
+              ),
+            ),
+            const DsKeyCap('Ctrl K'),
+          ],
+        ],
+      ),
+    );
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          child: body,
+        ),
+      ),
+    );
+  }
+}
+
+class _NavLabel extends StatelessWidget {
+  const _NavLabel(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(9, AppSpacing.s3 + 4, 9, 5),
+    child: Text(
+      label,
+      style: AppTypography.overline.copyWith(
+        fontSize: 11,
+        letterSpacing: 0.55,
+        color: context.ds.ink3,
+      ),
+    ),
+  );
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.count,
+    this.compact = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final int? count;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return _SidebarButton(
+      selected: selected,
+      selectedColor: ds.surface2,
+      onTap: onTap,
+      tooltip: compact ? label : null,
+      child: SizedBox(
+        height: 32,
+        child: Row(
+          mainAxisAlignment:
+              compact ? MainAxisAlignment.center : MainAxisAlignment.start,
+          children: [
+            Icon(icon, size: 17, color: selected ? ds.ink : ds.ink2),
+            if (!compact) ...[
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected ? ds.ink : ds.ink2,
+                  ),
+                ),
+              ),
+              if (count != null && count! > 0)
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: ds.ink3,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SubNavItem extends StatelessWidget {
+  const _SubNavItem({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.count,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final int? count;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Padding(
+      padding: const EdgeInsets.only(top: 1),
+      child: Material(
+        color: selected ? ds.surface2 : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          hoverColor: ds.surface2,
+          child: SizedBox(
             height: 32,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppColors.sidebarSelected.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(6),
-            ),
             child: Row(
               children: [
-                const Icon(
-                  CupertinoIcons.search,
-                  size: 14,
-                  color: AppColors.sidebarMuted,
-                ),
-                const SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: 31),
                 Expanded(
                   child: Text(
-                    AppLocalizations.of(context)!.search,
+                    label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.sidebarMuted,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected ? ds.ink : ds.ink2,
                     ),
                   ),
                 ),
+                if (count != null && count! > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 9),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: ds.ink3,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -284,76 +517,66 @@ class SearchEntry extends StatelessWidget {
   }
 }
 
-class _NavigationItem extends StatelessWidget {
-  const _NavigationItem({
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({
     required this.label,
-    required this.icon,
-    required this.selected,
+    this.color,
+    this.icon,
+    this.count,
+    this.selected = false,
     required this.onTap,
   });
 
   final String label;
-  final IconData icon;
+  final Color? color;
+  final IconData? icon;
+  final int? count;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return _SidebarRow(
-      selected: selected,
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 17,
-            color: selected ? AppColors.sidebarInk : AppColors.sidebarMuted,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(
-                color: selected ? AppColors.sidebarInk : AppColors.sidebarMuted,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              ),
+    final ds = context.ds;
+    return Material(
+      color: selected ? ds.surface2 : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadii.sm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        hoverColor: ds.surface2,
+        child: SizedBox(
+          height: 30,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            child: Row(
+              children: [
+                if (color != null)
+                  DsDot(color: color!, size: 6)
+                else
+                  Icon(icon, size: 15, color: ds.ink2),
+                const SizedBox(width: AppSpacing.s2),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: selected ? ds.ink : ds.ink2,
+                    ),
+                  ),
+                ),
+                if (count != null && count! > 0)
+                  Text(
+                    '$count',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: ds.ink3,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+              ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Today / Inbox under Todo. Indented and uniconed so the nesting is legible
-/// from the layout alone, without a disclosure caret to open.
-class _SubNavigationItem extends StatelessWidget {
-  const _SubNavigationItem({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SidebarRow(
-      selected: selected,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 29),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.caption.copyWith(
-            color: selected ? AppColors.sidebarInk : AppColors.sidebarMuted,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
       ),
@@ -361,42 +584,56 @@ class _SubNavigationItem extends StatelessWidget {
   }
 }
 
-class _SidebarRow extends StatelessWidget {
-  const _SidebarRow({
+class _SidebarButton extends StatelessWidget {
+  const _SidebarButton({
     required this.child,
     required this.selected,
     required this.onTap,
+    this.selectedColor,
+    this.tooltip,
   });
 
   final Widget child;
   final bool selected;
   final VoidCallback onTap;
+  final Color? selectedColor;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final ds = context.ds;
+    final row = Padding(
       padding: const EdgeInsets.only(bottom: 1),
       child: Material(
-        color: selected ? AppColors.sidebarSelected : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        color: selected ? (selectedColor ?? ds.surface2) : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(6),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 32),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: 7,
-                ),
-                child: child,
-              ),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+            hoverColor: ds.surface2,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 9),
+              child: child,
             ),
           ),
         ),
       ),
     );
+    if (tooltip == null) return row;
+    return Tooltip(message: tooltip!, child: row);
   }
+}
+
+/// Kept for the old call sites that only needed the search affordance.
+class SearchEntry extends StatelessWidget {
+  const SearchEntry({super.key, required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => _SearchButton(
+    compact: false,
+    onTap: onTap,
+  );
 }

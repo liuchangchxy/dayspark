@@ -5,9 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -21,14 +20,15 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
-import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
@@ -659,23 +659,31 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   Future<void> _confirmDiscard() async {
     final l = AppLocalizations.of(context)!;
     final discard = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.discardChanges),
-        content: Text(l.discardChangesBody),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.discardChanges,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.keepEditing,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.keepEditing),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.discard,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.discard),
           ),
         ],
+        child: Text(
+          l.discardChangesBody,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.55,
+            color: context.ds.ink2,
+          ),
+        ),
       ),
     );
     if (discard == true && mounted) Navigator.of(context).pop();
@@ -707,23 +715,34 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
           maxContentWidth: desktop ? 720 : null,
           actions: [
             if (_isEditing)
-              IconButton(
-                icon: const Icon(CupertinoIcons.trash, size: 18),
-                onPressed: _saving ? null : _delete,
+              DsIconButton(
+                icon: CupertinoIcons.trash,
+                size: 18,
+                compact: true,
                 tooltip: l.moveToTrash,
+                onPressed: _saving ? null : _delete,
               ),
-            IconButton(
-              icon: _aiLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(CupertinoIcons.sparkles, size: 18),
-              onPressed: _aiLoading ? null : _aiParse,
-              tooltip: l.aiParse,
-            ),
-            const SizedBox(width: AppSpacing.sm),
+            if (_aiLoading)
+              const SizedBox(
+                width: 36,
+                height: 36,
+                child: Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else
+              DsIconButton(
+                icon: CupertinoIcons.sparkles,
+                size: 18,
+                compact: true,
+                tooltip: l.aiParse,
+                onPressed: _aiParse,
+              ),
+            const SizedBox(width: AppSpacing.s1),
             PageSaveButton(label: l.save, saving: _saving, onPressed: _save),
           ],
           child: _form(context, l, desktop),
@@ -733,80 +752,104 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   }
 
   Widget _form(BuildContext context, AppLocalizations l, bool desktop) {
-    final padding = EdgeInsets.fromLTRB(
-      desktop ? AppSpacing.xl : AppSpacing.lg,
-      AppSpacing.lg,
-      desktop ? AppSpacing.xl : AppSpacing.lg,
-      AppSpacing.xxl,
-    );
+    final ds = context.ds;
     return ListView(
-      padding: padding,
+      padding: EdgeInsets.only(
+        top: desktop ? AppSpacing.s2 : 0,
+        bottom: 96,
+      ),
       children: [
-        TextField(
-          controller: _summaryController,
-          autofocus: !_isEditing,
-          textCapitalization: TextCapitalization.sentences,
-          style: AppTypography.headline,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: l.title,
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.headline.copyWith(
-              color: context.semantic.textTertiary,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s4,
+            AppSpacing.s3,
+            AppSpacing.s4,
+            AppSpacing.s1,
+          ),
+          child: TextField(
+            controller: _summaryController,
+            autofocus: !_isEditing,
+            textCapitalization: TextCapitalization.sentences,
+            style: TextStyle(
+              fontSize: 22,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+              color: ds.ink,
+            ),
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: l.title,
+              filled: false,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              hintStyle: TextStyle(
+                fontSize: 22,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+                color: ds.ink3.withValues(alpha: 0.7),
+              ),
             ),
           ),
         ),
-        if (_isEditing) ...[
-          const SizedBox(height: AppSpacing.xs),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
+        if (_isEditing)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s4,
+              0,
+              AppSpacing.s4,
+              AppSpacing.s2,
+            ),
             child: Row(
               children: [
-                Checkbox(
-                  value: _completed,
-                  onChanged: (value) => _toggleCompletion(value ?? false),
+                DsCheck(
+                  checked: _completed,
+                  onChanged: (value) => _toggleCompletion(value),
                 ),
-                Expanded(
-                  child: Text(
-                    _completed ? l.completed : l.openTask,
-                    style: AppTypography.caption.copyWith(
-                      color: context.semantic.textSecondary,
-                    ),
-                  ),
+                const SizedBox(width: AppSpacing.s2),
+                Text(
+                  _completed ? l.completed : l.openTask,
+                  style: TextStyle(fontSize: 13, color: ds.ink2),
                 ),
               ],
             ),
           ),
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionTime),
-        if (_unknownLegacy) ...[
-          const SizedBox(height: AppSpacing.sm),
-          _buildLegacyNotice(context, l),
-        ] else ...[
-          ScheduleRow(
+        const DsHairline(),
+        DsSectionLabel(l.sectionTime),
+        if (_unknownLegacy)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+            child: _buildLegacyNotice(context, l),
+          )
+        else ...[
+          DsSettingRow(
             label: l.deadlineRow,
             value: _deadline == null
                 ? l.noDeadline
                 : formatDeadline(context, _deadline!),
-            placeholder: _deadline == null,
-            emptyValue: l.noDeadline,
-            clearTooltip: l.clearDeadline,
             onTap: () => _pickDeadline(context),
-            onClear: _deadline == null
-                ? null
-                : () => setState(() => _deadline = null),
-            trailing: _deadline == null
-                ? null
-                : PopupMenuButton<bool>(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_deadline != null)
+                  DsIconButton(
+                    icon: CupertinoIcons.clear,
+                    size: 14,
+                    compact: true,
+                    tooltip: l.clearDeadline,
+                    onPressed: () => setState(() => _deadline = null),
+                  ),
+                if (_deadline != null)
+                  PopupMenuButton<bool>(
                     popUpAnimationStyle: AnimationStyle.noAnimation,
                     tooltip: l.deadlineTime,
-                    icon: const Icon(CupertinoIcons.clock, size: 16),
+                    icon: Icon(
+                      CupertinoIcons.clock,
+                      size: 16,
+                      color: ds.ink3,
+                    ),
                     padding: EdgeInsets.zero,
                     onSelected: (addTime) =>
                         _pickDeadline(context, withTime: addTime),
@@ -815,13 +858,13 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
                       PopupMenuItem(value: true, child: Text(l.deadlineTime)),
                     ],
                   ),
+              ],
+            ),
           ),
           RepeatRow(
             rrule: _rrule,
             anchorDate: _anchorDate,
             anchorLabel: null,
-            // A repeat needs a date to count from, and its anchor is a detail
-            // of the rule, not a third time field the user has to answer.
             onChanged: (value) => setState(() => _rrule = value),
             onStartDateChanged: (value) => setState(() {
               _startDate = value;
@@ -837,62 +880,92 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             deadline: _deadline,
           ),
         ],
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionReminder),
-        RemindersSection(
-          parentType: 'todo',
-          parentId: widget.todo?.id,
-          anchorTime: _deadline,
-          draft: _reminders,
-          onDraftChanged: (value) => setState(() => _reminders = value),
+        DsSectionLabel(l.sectionReminder),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+          child: RemindersSection(
+            parentType: 'todo',
+            parentId: widget.todo?.id,
+            anchorTime: _deadline,
+            draft: _reminders,
+            onDraftChanged: (value) => setState(() => _reminders = value),
+          ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionOrganize),
+        DsSectionLabel(l.sectionOrganize),
         _buildCalendarRow(l),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          l.calendarExplanation,
-          style: AppTypography.caption.copyWith(
-            color: context.semantic.textTertiary,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s4,
+            AppSpacing.s1,
+            AppSpacing.s4,
+            0,
+          ),
+          child: Text(
+            l.calendarExplanation,
+            style: TextStyle(fontSize: 12, height: 1.5, color: ds.ink3),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s4,
+            AppSpacing.s3,
+            AppSpacing.s4,
+            AppSpacing.s1,
+          ),
+          child: Text(
+            l.priority,
+            style: TextStyle(fontSize: 13, color: ds.ink2),
+          ),
+        ),
         _buildPriority(l),
-        const SizedBox(height: AppSpacing.sm),
-        TagChips(
-          selectedIds: _tagIds,
-          onSelectedIdsChanged: (value) => setState(() => _tagIds = value),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionContent),
-        TextField(
-          controller: _descriptionController,
-          decoration: InputDecoration(
-            hintText: l.description,
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.body.copyWith(
-              color: context.semantic.textTertiary,
-            ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s4,
+            AppSpacing.s3,
+            AppSpacing.s4,
+            0,
           ),
-          onChanged: (_) => setState(() {}),
-          maxLines: 4,
-          textCapitalization: TextCapitalization.sentences,
+          child: TagChips(
+            selectedIds: _tagIds,
+            onSelectedIdsChanged: (value) => setState(() => _tagIds = value),
+          ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        DsSectionLabel(l.sectionContent),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+          child: TextField(
+            controller: _descriptionController,
+            decoration: InputDecoration(
+              hintText: l.description,
+              filled: false,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              hintStyle: TextStyle(
+                fontSize: 15,
+                height: 1.55,
+                color: ds.ink3,
+              ),
+            ),
+            style: TextStyle(fontSize: 15, height: 1.55, color: ds.ink),
+            onChanged: (_) => setState(() {}),
+            maxLines: 4,
+            textCapitalization: TextCapitalization.sentences,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s3),
         _buildSubtasks(l),
-        const SizedBox(height: AppSpacing.lg),
-        AttachmentList(
-          parentType: 'todo',
-          parentId: widget.todo?.id,
-          draft: _attachments,
-          onDraftChanged: (value) => setState(() => _attachments = value),
+        const SizedBox(height: AppSpacing.s3),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+          child: AttachmentList(
+            parentType: 'todo',
+            parentId: widget.todo?.id,
+            draft: _attachments,
+            onDraftChanged: (value) => setState(() => _attachments = value),
+          ),
         ),
       ],
     );
@@ -915,41 +988,38 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   }
 
   Widget _buildLegacyNotice(BuildContext context, AppLocalizations l) {
-    final theme = Theme.of(context);
+    final ds = context.ds;
     final supported = legacyRuleIsSupported(widget.todo!.rrule ?? '');
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.s3),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        color: ds.warnSoft,
+        borderRadius: BorderRadius.circular(AppRadii.sm + 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             supported ? l.recurringNeedsRepair : l.recurringBroken,
-            style: AppTypography.body,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            supported ? l.recurringNeedsRepairHint : l.recurringBrokenHint,
-            style: AppTypography.caption.copyWith(
-              color: context.semantic.textSecondary,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+              color: ds.ink,
             ),
           ),
+          const SizedBox(height: AppSpacing.s1),
+          Text(
+            supported ? l.recurringNeedsRepairHint : l.recurringBrokenHint,
+            style: TextStyle(fontSize: 12, height: 1.5, color: ds.ink2),
+          ),
           if (supported) ...[
-            const SizedBox(height: AppSpacing.xs),
-            TextButton(
+            const SizedBox(height: AppSpacing.s1),
+            DsButton(
+              label: l.recurringNeedsRepair,
+              tone: DsButtonTone.ghost,
+              small: true,
               onPressed: _repairLegacyRecurrence,
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(48, 48),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                textStyle: AppTypography.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              child: Text(l.recurringNeedsRepair),
             ),
           ],
         ],
@@ -979,29 +1049,21 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       5: l.priorityMedium,
       1: l.priorityHigh,
     };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l.priority,
-          style: AppTypography.caption.copyWith(
-            color: context.semantic.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Wrap(
-          spacing: AppSpacing.sm,
-          children: const [0, 9, 5, 1]
-              .map(
-                (value) => ChoiceChip(
-                  label: Text(labels[value]!),
-                  selected: _priority == value,
-                  onSelected: (_) => setState(() => _priority = value),
-                ),
-              )
-              .toList(),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+      child: Wrap(
+        spacing: AppSpacing.s2,
+        runSpacing: AppSpacing.s1,
+        children: [
+          for (final value in const [0, 9, 5, 1])
+            DsChip(
+              label: labels[value]!,
+              selected: _priority == value,
+              warm: value == 1,
+              onTap: () => setState(() => _priority = value),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1016,10 +1078,17 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         final current =
             calendars.where((c) => c.id == selected).firstOrNull ??
             calendars.first;
-        return ScheduleRow(
+        return DsSettingRow(
           label: l.calendarField,
+          leading: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: ColorUtils.parseHex(current.color),
+              shape: BoxShape.circle,
+            ),
+          ),
           value: current.name,
-          trailing: const Icon(CupertinoIcons.chevron_down, size: 12),
           onTap: () async {
             final picked = await pickCalendar(
               context,
@@ -1034,53 +1103,64 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   }
 
   Widget _buildSubtasks(AppLocalizations l) {
+    final ds = context.ds;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionLabel(
-          l.subtasks,
-          action: TextButton.icon(
-            onPressed: () => _showAddSubtaskDialog(l),
-            icon: const Icon(CupertinoIcons.add, size: 13),
-            label: Text(l.addSubtask),
-            style: TextButton.styleFrom(
-              minimumSize: const Size(0, 48),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              textStyle: AppTypography.caption.copyWith(
-                fontWeight: FontWeight.w600,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s4,
+            AppSpacing.s2,
+            AppSpacing.s2,
+            0,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l.subtasks,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: ds.ink2,
+                  ),
+                ),
               ),
-            ),
+              DsButton(
+                label: l.addSubtask,
+                icon: CupertinoIcons.add,
+                tone: DsButtonTone.ghost,
+                small: true,
+                onPressed: () => _showAddSubtaskDialog(l),
+              ),
+            ],
           ),
         ),
         if (_subtasks.isEmpty)
-          Text(
-            l.noSubtasks,
-            style: AppTypography.caption.copyWith(
-              color: context.semantic.textTertiary,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s4,
+              AppSpacing.s1,
+              AppSpacing.s4,
+              0,
+            ),
+            child: Text(
+              l.noSubtasks,
+              style: TextStyle(fontSize: 12.5, color: ds.ink3),
             ),
           )
         else
           for (final sub in _subtasks)
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 48),
+            SizedBox(
+              height: 44,
               child: Row(
                 children: [
-                  IconButton(
-                    icon: Icon(
-                      sub.isCompleted
-                          ? CupertinoIcons.checkmark_circle_fill
-                          : CupertinoIcons.circle,
-                      size: 18,
-                      color: sub.isCompleted
-                          ? Theme.of(context).colorScheme.primary
-                          : context.semantic.textTertiary,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
-                    onPressed: () => setState(() {
+                  const SizedBox(width: AppSpacing.s3),
+                  DsCheck(
+                    checked: sub.isCompleted,
+                    size: 18,
+                    compact: true,
+                    onChanged: (_) => setState(() {
                       final index = _subtasks.indexOf(sub);
                       _subtasks = [..._subtasks]
                         ..[index] = DraftSubtask(
@@ -1090,26 +1170,27 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
                         );
                     }),
                   ),
+                  const SizedBox(width: AppSpacing.s2),
                   Expanded(
                     child: Text(
                       sub.summary,
-                      style: AppTypography.body.copyWith(
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        color: sub.isCompleted ? ds.ink3 : ds.ink,
                         decoration: sub.isCompleted
                             ? TextDecoration.lineThrough
-                            : null,
-                        color: sub.isCompleted
-                            ? context.semantic.textTertiary
                             : null,
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.xmark, size: 14),
+                  DsIconButton(
+                    icon: CupertinoIcons.xmark,
+                    size: 14,
+                    compact: true,
                     tooltip: l.removeSubtask,
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
                     onPressed: () => setState(() {
                       _subtasks = [..._subtasks]..remove(sub);
                       if (sub.id != null) _removedSubtaskIds.add(sub.id!);
@@ -1125,25 +1206,31 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   void _showAddSubtaskDialog(AppLocalizations l) {
     final controller = TextEditingController();
     showDialog<void>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.addSubtask),
-        content: TextField(
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.addSubtask,
+        width: 420,
+        actions: [
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.add,
+            tone: DsButtonTone.primary,
+            onPressed: () => _addSubtask(ctx, controller.text),
+          ),
+        ],
+        child: TextField(
           controller: controller,
           autofocus: true,
+          style: TextStyle(fontSize: 15, color: context.ds.ink),
           decoration: InputDecoration(hintText: l.subtaskHint),
           onSubmitted: (_) => _addSubtask(ctx, controller.text),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          FilledButton(
-            onPressed: () => _addSubtask(ctx, controller.text),
-            child: Text(l.add),
-          ),
-        ],
       ),
     );
   }
@@ -1172,23 +1259,32 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   Future<void> _delete() async {
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.moveToTrash),
-        content: Text(l.confirmDelete),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.moveToTrash,
+        width: 420,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.moveToTrash,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.moveToTrash),
           ),
         ],
+        child: Text(
+          l.confirmDelete,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.55,
+            color: context.ds.ink2,
+          ),
+        ),
       ),
     );
     if (confirmed != true || !mounted) return;

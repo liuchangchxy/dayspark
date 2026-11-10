@@ -153,7 +153,7 @@ void main() {
     final dragDistance =
         (tester.getCenter(find.text('Task 1')).dy -
             tester.getCenter(find.text('Task 0')).dy) *
-        1.5;
+        1.2;
     final gesture = await tester.startGesture(
       tester.getCenter(find.text('Task 0')),
     );
@@ -191,9 +191,12 @@ void main() {
     await _settle(tester);
     expect(find.text('Done task'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Display'));
+    await tester.tap(find.byTooltip('Filter & display'));
     await _settle(tester);
-    await tester.tap(find.text('Hide completed'));
+    // The display option is now the "show completed" switch.
+    await tester.tap(find.byType(Switch));
+    await _settle(tester);
+    await tester.tap(find.text('Done'));
     await _settle(tester);
 
     expect(find.text('Done task'), findsNothing);

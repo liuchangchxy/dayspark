@@ -2,19 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dayspark/domain/providers/search_provider.dart';
-import 'package:dayspark/core/utils/date_formatters.dart';
-import 'package:dayspark/domain/models/calendar_event_adapter.dart';
-import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
-import 'package:dayspark/domain/providers/todos_provider.dart';
-import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/providers/search_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
-import 'package:dayspark/ui/widgets/empty_state.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
+import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -25,19 +27,18 @@ class SearchPage extends ConsumerStatefulWidget {
 
 class _SearchPageState extends ConsumerState<SearchPage> {
   final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
   String _query = '';
   int _eventPage = 1;
   int _todoPage = 1;
   Timer? _debounceTimer;
 
-  /// The results already on screen. A new query keeps them visible while the
-  /// next page of matches loads, so typing does not blank the list and bounce
-  /// the reader back to an empty column on every keystroke.
   SearchResults? _shown;
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _searchFocus.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -75,11 +76,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _todoPage = 1;
       _shown = null;
     });
+    _searchFocus.requestFocus();
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final desktop = isWorkspaceLayout(context);
     final queryState = SearchQueryState(
       query: _query,
       eventPage: _eventPage,
@@ -89,24 +92,31 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final loading = resultsAsync.isLoading;
     final results = resultsAsync.valueOrNull ?? _shown;
     if (resultsAsync.hasValue && !identical(results, _shown)) {
-      // Written after this frame: the value arrives from the provider during
-      // build, and mutating state mid-build is not allowed.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _shown = resultsAsync.value);
       });
     }
 
-    return WorkspacePage(
-      title: l.search,
-      titleWidget: Row(
+    final field = Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: context.ds.surface,
+        borderRadius: AppRadii.control,
+        border: Border.all(color: context.ds.line),
+      ),
+      child: Row(
         children: [
+          const SizedBox(width: AppSpacing.s3),
+          Icon(CupertinoIcons.search, size: 17, color: context.ds.ink3),
+          const SizedBox(width: AppSpacing.s2),
           Expanded(
             child: TextField(
               controller: _searchController,
+              focusNode: _searchFocus,
               autofocus: true,
-              style: AppTypography.body,
+              style: AppTypography.body.copyWith(color: context.ds.ink),
               decoration: InputDecoration(
-                hintText: l.search,
+                hintText: l.searchEmptyHint,
                 isDense: true,
                 filled: false,
                 border: InputBorder.none,
@@ -114,7 +124,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 focusedBorder: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
                 hintStyle: AppTypography.body.copyWith(
-                  color: context.semantic.textTertiary,
+                  color: context.ds.ink3,
                 ),
               ),
               textInputAction: TextInputAction.search,
@@ -124,8 +134,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   _clear();
                   return;
                 }
-                // Rebuild now so the clear affordance appears with the first
-                // character; the query itself waits for the debounce.
                 setState(() {});
                 _debounceTimer?.cancel();
                 _debounceTimer = Timer(const Duration(milliseconds: 300), () {
@@ -143,55 +151,92 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
           ),
           if (_searchController.text.isNotEmpty)
-            IconButton(
-              icon: const Icon(CupertinoIcons.clear, size: 16),
+            DsIconButton(
+              icon: CupertinoIcons.clear,
+              size: 15,
+              compact: true,
               tooltip: l.close,
               onPressed: _clear,
             ),
+          if (desktop)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: DsKeyCap('ESC'),
+            ),
+          const SizedBox(width: AppSpacing.s1),
         ],
       ),
-      child: _query.isEmpty
-          ? EmptyState(
-              icon: CupertinoIcons.search,
-              title: l.searchEmptyTitle,
-              hint: l.searchEmptyHint,
-              extra: _suggestions(context, ref, l),
-            )
-          : Column(
-              children: [
-                if (loading)
-                  const LinearProgressIndicator(minHeight: 2)
-                else
-                  const SizedBox(height: 2),
-                Expanded(
-                  child: resultsAsync.hasError && results == null
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                l.searchFailed,
-                                style: AppTypography.body.copyWith(
-                                  color: context.semantic.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              TextButton(
-                                onPressed: () => ref.invalidate(
-                                  pagedSearchResultsProvider(queryState),
-                                ),
-                                style: TextButton.styleFrom(
-                                  minimumSize: const Size(0, 48),
-                                ),
-                                child: Text(l.retry),
-                              ),
-                            ],
-                          ),
-                        )
-                      : _results(context, ref, l, results),
-                ),
-              ],
-            ),
+    );
+
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            desktop ? 0 : AppSpacing.s4,
+            AppSpacing.s2,
+            desktop ? 0 : AppSpacing.s4,
+            AppSpacing.s2,
+          ),
+          child: field,
+        ),
+        if (loading)
+          const LinearProgressIndicator(minHeight: 2)
+        else
+          const SizedBox(height: 2),
+        Expanded(
+          child: _query.isEmpty
+              ? _suggestions(context, ref, l, desktop)
+              : resultsAsync.hasError && results == null
+              ? _failure(context, l, queryState)
+              : _results(context, ref, l, results, desktop),
+        ),
+      ],
+    );
+
+    final content = CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          if (GoRouter.maybeOf(context)?.canPop() ?? false) {
+            context.pop();
+          }
+        },
+      },
+      child: Focus(autofocus: true, child: body),
+    );
+
+    if (!desktop) {
+      return WorkspacePage(title: l.search, child: content);
+    }
+    return WorkspacePage(
+      title: l.search,
+      maxContentWidth: 680,
+      child: Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.s3),
+        child: content,
+      ),
+    );
+  }
+
+  Widget _failure(BuildContext context, AppLocalizations l, SearchQueryState q) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            l.searchFailed,
+            style: AppTypography.body.copyWith(color: context.ds.ink2),
+          ),
+          const SizedBox(height: AppSpacing.s2),
+          DsButton(
+            label: l.retry,
+            tone: DsButtonTone.secondary,
+            small: true,
+            onPressed: () =>
+                ref.invalidate(pagedSearchResultsProvider(q)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -200,61 +245,71 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     WidgetRef ref,
     AppLocalizations l,
     SearchResults? results,
+    bool desktop,
   ) {
     if (results == null) {
       return const Center(child: CircularProgressIndicator());
     }
     if (results.isEmpty) {
-      return Center(
-        child: Text(
-          l.noResults,
-          style: AppTypography.body.copyWith(
-            color: context.semantic.textSecondary,
-          ),
-        ),
+      return DsEmpty(
+        icon: CupertinoIcons.search,
+        title: l.noResults,
+        message: l.searchEmptyHint,
       );
     }
     return ListView(
       key: const PageStorageKey('search-results'),
+      padding: const EdgeInsets.only(bottom: AppSpacing.s6),
       children: [
         if (results.events.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(l.events, style: AppTypography.overline),
+          DsSectionLabel(
+            '${l.events} · ${results.events.length}',
+            padding: EdgeInsets.fromLTRB(
+              desktop ? 0 : AppSpacing.s4,
+              AppSpacing.s3,
+              desktop ? 0 : AppSpacing.s4,
+              AppSpacing.s1,
+            ),
           ),
-          ...results.events.map((event) {
-            return ListTile(
-              leading: const Icon(CupertinoIcons.calendar_badge_plus),
-              title: Text(event.summary),
-              subtitle: Text(DateFormatters.formatDate(event.startDt)),
+          for (final event in results.events)
+            DsRow(
+              title: event.summary,
+              meta: DsMeta(
+                parts: [
+                  DsMetaPart(formatDeadline(context, event.startDt)),
+                  if (event.location != null && event.location!.isNotEmpty)
+                    DsMetaPart(event.location!),
+                ],
+              ),
+              leading: Icon(
+                CupertinoIcons.calendar,
+                size: 16,
+                color: context.ds.ink3,
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: desktop ? 4 : AppSpacing.s4,
+                vertical: 10,
+              ),
               onTap: () => _openDetail(
                 '/event/detail',
                 CalendaEventAdapter.fromDrift(event),
               ),
-            );
-          }),
-          if (results.hasMoreEvents)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: TextButton.icon(
-                icon: const Icon(CupertinoIcons.chevron_down),
-                label: Text(l.loadMore),
-                style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
-                onPressed: () {
-                  setState(() => _eventPage++);
-                },
-              ),
             ),
+          if (results.hasMoreEvents)
+            _loadMore(l, () => setState(() => _eventPage++), desktop),
         ],
         if (results.todos.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(l.todos, style: AppTypography.overline),
+          DsSectionLabel(
+            '${l.todos} · ${results.todos.length}',
+            padding: EdgeInsets.fromLTRB(
+              desktop ? 0 : AppSpacing.s4,
+              AppSpacing.s4,
+              desktop ? 0 : AppSpacing.s4,
+              AppSpacing.s1,
+            ),
           ),
-          // Results are read-only: a search answer is something to open, and a
-          // checkbox here would be an edit offered inside a lookup.
-          ...results.todos.map(
-            (todo) => TodoListTile(
+          for (final todo in results.todos)
+            TodoListTile(
               summary: todo.summary,
               isCompleted: todo.status == 'COMPLETED',
               priority: todo.priority,
@@ -263,41 +318,58 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               dueDate: todo.dueDate,
               onTap: () => _openDetail('/todo/detail', todo),
             ),
-          ),
           if (results.hasMoreTodos)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: TextButton.icon(
-                icon: const Icon(CupertinoIcons.chevron_down),
-                label: Text(l.loadMore),
-                style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
-                onPressed: () {
-                  setState(() => _todoPage++);
-                },
-              ),
-            ),
+            _loadMore(l, () => setState(() => _todoPage++), desktop),
         ],
       ],
     );
   }
 
-  /// Search starts blank otherwise; the inbox is the closest thing to "your
-  /// recent stuff" without storing a query history (DESIGN 空状态模板).
-  Widget _suggestions(BuildContext context, WidgetRef ref, AppLocalizations l) {
+  Widget _loadMore(AppLocalizations l, VoidCallback onTap, bool desktop) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: desktop ? 0 : AppSpacing.s4,
+        vertical: AppSpacing.s2,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: DsButton(
+          label: l.loadMore,
+          tone: DsButtonTone.ghost,
+          small: true,
+          onPressed: onTap,
+        ),
+      ),
+    );
+  }
+
+  Widget _suggestions(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l,
+    bool desktop,
+  ) {
     final inbox = ref.watch(inboxTodosProvider).valueOrNull ?? const [];
-    if (inbox.isEmpty) return const SizedBox.shrink();
-    final top = inbox.take(3).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    if (inbox.isEmpty) {
+      return DsEmpty(
+        icon: CupertinoIcons.search,
+        title: l.searchEmptyTitle,
+        message: l.searchEmptyHint,
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.only(bottom: AppSpacing.s6),
       children: [
-        Text(
+        DsSectionLabel(
           l.searchSuggestions,
-          style: AppTypography.overline.copyWith(
-            color: context.semantic.textSecondary,
+          padding: EdgeInsets.fromLTRB(
+            desktop ? 0 : AppSpacing.s4,
+            AppSpacing.s3,
+            desktop ? 0 : AppSpacing.s4,
+            AppSpacing.s1,
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        for (final todo in top)
+        for (final todo in inbox.take(5))
           TodoListTile(
             summary: todo.summary,
             isCompleted: todo.status == 'COMPLETED',

@@ -3,15 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
 /// Chrome shared by every pushed page.
 ///
-/// On mobile it is a normal AppBar. On desktop the page lives inside
-/// [WorkspaceScaffold], so it renders a compact workspace header instead — no
-/// second navigation bar, no duplicated window frame. One widget, so a page
-/// cannot accidentally look like a phone screen on the desktop.
+/// Mobile: a 54px paper top bar. Desktop: the page sits inside
+/// [WorkspaceScaffold] and renders the same 54px bar without a second window
+/// frame. One widget so "Save" never moves between platforms.
 class WorkspacePage extends StatelessWidget {
   const WorkspacePage({
     super.key,
@@ -22,116 +21,118 @@ class WorkspacePage extends StatelessWidget {
     this.footer,
     this.maxContentWidth,
     this.scrollableHeader = false,
+    this.subtitle,
   });
 
   final String title;
+  final String? subtitle;
   final Widget child;
   final Widget? titleWidget;
   final List<Widget> actions;
-
-  /// Pinned to the bottom of the content pane (a save bar, an input).
   final Widget? footer;
-
-  /// Caps the content column on wide screens. Null means full width.
   final double? maxContentWidth;
-
   final bool scrollableHeader;
 
   @override
   Widget build(BuildContext context) {
     final desktop = isWorkspaceLayout(context);
     final canPop = GoRouter.maybeOf(context)?.canPop() ?? false;
-    final showBackButton = !desktop || canPop;
+    final showBack = canPop;
+
+    final content = maxContentWidth == null
+        ? child
+        : Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth!),
+              child: child,
+            ),
+          );
 
     if (!desktop) {
       return Scaffold(
-        appBar: AppBar(
-          leading: showBackButton ? BackButton(onPressed: () => _leave(context)) : null,
-          title: titleWidget ?? Text(title),
+        backgroundColor: context.ds.bg,
+        appBar: DsTopBar(
+          title: titleWidget == null ? title : '',
+          leading: showBack
+              ? DsIconButton(
+                  icon: CupertinoIcons.back,
+                  tooltip: MaterialLocalizations.of(
+                    context,
+                  ).backButtonTooltip,
+                  onPressed: () => _leave(context),
+                )
+              : null,
           actions: actions,
         ),
-        body: child,
-        bottomNavigationBar: footer,
+        body: titleWidget == null
+            ? child
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s4,
+                      0,
+                      AppSpacing.s4,
+                      AppSpacing.s3,
+                    ),
+                    child: titleWidget,
+                  ),
+                  Expanded(child: child),
+                ],
+              ),
+        bottomNavigationBar: footer == null
+            ? null
+            : Container(
+                decoration: BoxDecoration(
+                  color: context.ds.surface,
+                  border: Border(
+                    top: BorderSide(color: context.ds.lineSoft),
+                  ),
+                ),
+                child: SafeArea(top: false, child: footer!),
+              ),
       );
     }
 
-    final theme = Theme.of(context);
-    // The header belongs to the content column, not to the window: a title
-    // pinned to the far left above a centred 720px form reads as two unrelated
-    // things stacked on top of each other.
-    Widget header = SizedBox(
-      height: 48,
-      child: Padding(
-        // Same horizontal inset as the content column below, so the title sits
-        // on the same optical line as the first field of the form.
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        child: Row(
-          children: [
-            if (showBackButton) ...[
-              IconButton(
-                icon: const Icon(CupertinoIcons.back, size: 18),
-                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                onPressed: () => _leave(context),
-                visualDensity: VisualDensity.compact,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-            ],
-            Expanded(
-              child:
-                  titleWidget ??
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            ...actions,
-          ],
-        ),
-      ),
+    final header = DsMainBar(
+      title: title,
+      actions: [
+        if (showBack)
+          DsIconButton(
+            icon: CupertinoIcons.back,
+            size: 18,
+            compact: true,
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            onPressed: () => _leave(context),
+          ),
+        if (actions.isNotEmpty) ...actions,
+      ],
+      contextLabel: subtitle,
     );
-    if (maxContentWidth != null) {
-      header = Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxContentWidth!),
-          child: header,
-        ),
-      );
-    }
+
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: context.ds.bg,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           header,
-          Expanded(
-            child: maxContentWidth == null
-                ? child
-                : Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: maxContentWidth!),
-                      child: child,
-                    ),
-                  ),
-          ),
-          if (footer != null) ...[
-            Container(height: 1, color: context.semantic.separator),
-            SafeArea(top: false, child: footer!),
-          ],
+          Expanded(child: content),
+          if (footer != null)
+            Container(
+              decoration: BoxDecoration(
+                color: context.ds.surface,
+                border: Border(top: BorderSide(color: context.ds.lineSoft)),
+              ),
+              child: SafeArea(top: false, child: footer!),
+            ),
         ],
       ),
     );
   }
 }
 
-/// Deep links and the desktop rail can land on a page with nothing beneath it,
-/// so leaving has to fall back to Home instead of throwing.
 void _leave(BuildContext context) {
   final router = GoRouter.maybeOf(context);
   if (router != null && router.canPop()) {
@@ -141,8 +142,8 @@ void _leave(BuildContext context) {
   router?.go('/');
 }
 
-/// Primary action on a [WorkspacePage] — same shape in the mobile AppBar and
-/// in the desktop header, so "Save" never moves between platforms.
+/// Primary action on a [WorkspacePage] — same shape in the mobile top bar and
+/// the desktop header.
 class PageSaveButton extends StatelessWidget {
   const PageSaveButton({
     super.key,
@@ -157,28 +158,12 @@ class PageSaveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return TextButton(
-      onPressed: saving ? null : onPressed,
-      style: TextButton.styleFrom(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-        disabledBackgroundColor: theme.colorScheme.primary.withValues(
-          alpha: 0.4,
-        ),
-        minimumSize: const Size(0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        tapTargetSize: MaterialTapTargetSize.padded,
-        textStyle: AppTypography.caption.copyWith(fontWeight: FontWeight.w600),
-      ),
-      child: saving
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Text(label),
+    return DsButton(
+      label: label,
+      tone: DsButtonTone.primary,
+      small: true,
+      loading: saving,
+      onPressed: onPressed,
     );
   }
 }

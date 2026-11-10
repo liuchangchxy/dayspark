@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 
 Widget _wrap(Widget child) => ProviderScope(
@@ -50,10 +51,10 @@ void main() {
         );
 
         expect(find.text('1'), findsOneWidget);
-        expect(find.byType(Checkbox), findsOneWidget);
+        expect(find.byType(DsCheck), findsOneWidget);
 
-        await tester.tap(find.byType(Checkbox));
-        await tester.pump();
+        await tester.tap(find.byType(DsCheck));
+        await tester.pumpAndSettle();
 
         expect(toggles, 1);
       },
@@ -79,8 +80,8 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byType(Checkbox));
-      await tester.pump();
+      await tester.tap(find.byType(DsCheck));
+      await tester.pumpAndSettle();
 
       expect(toggles, 1);
       expect(rowTaps, 0);
@@ -107,7 +108,7 @@ void main() {
       );
 
       await tester.tap(find.text('Buy groceries'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(rowTaps, 1);
       expect(toggles, 0);
@@ -131,8 +132,8 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byType(Checkbox));
-      await tester.pump();
+      await tester.tap(find.byType(DsCheck));
+      await tester.pumpAndSettle();
 
       expect(toggles, 1);
       expect(rowTaps, 0);
@@ -161,13 +162,13 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      expect(tester.getSize(find.byType(Checkbox)), const Size(48, 48));
+      expect(tester.getSize(find.byType(DsCheck)), const Size(48, 48));
       final title = tester.getRect(find.textContaining('Mixed English'));
-      final date = tester.getRect(find.text('Tomorrow'));
+      final date = tester.getRect(find.textContaining('Deadline: Tomorrow'));
       expect(date.top, greaterThanOrEqualTo(title.bottom));
     });
 
-    testWidgets('desktop deadline sits beside the title without a card', (
+    testWidgets('desktop deadline sits under the title without a card', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -186,9 +187,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(Card), findsNothing);
       final title = tester.getRect(find.text('Prepare review'));
-      final date = tester.getRect(find.text('Tomorrow'));
-      expect(date.left, greaterThan(title.right));
-      expect((date.center.dy - title.center.dy).abs(), lessThan(4));
+      final date = tester.getRect(find.textContaining('Deadline: Tomorrow'));
+      expect(date.top, greaterThanOrEqualTo(title.bottom));
       expect(tester.takeException(), isNull);
     });
 
@@ -209,7 +209,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Buy groceries'), findsOneWidget);
-      expect(find.byType(Checkbox), findsOneWidget);
+      expect(find.byType(DsCheck), findsOneWidget);
     });
 
     testWidgets('shows completed state with strikethrough', (tester) async {
@@ -228,8 +228,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Done task'), findsOneWidget);
-      final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
-      expect(checkbox.value, true);
+      final title = tester.widget<Text>(find.text('Done task'));
+      expect(title.style?.decoration, TextDecoration.lineThrough);
+      final checkbox = tester.widget<DsCheck>(find.byType(DsCheck));
+      expect(checkbox.checked, true);
     });
 
     testWidgets('shows due date label', (tester) async {
@@ -249,13 +251,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Tomorrow'), findsOneWidget);
+      expect(find.textContaining('Deadline: Tomorrow'), findsOneWidget);
     });
 
-    // D Final places the repeat glyph inside the title block
-    // (`.todo-title .repeat`), so it must hug the name rather than float
-    // next to the trailing date column.
-    testWidgets('recurrence glyph sits inside the title block', (tester) async {
+    testWidgets('recurrence label sits in the meta line under the title', (
+      tester,
+    ) async {
       final now = DateTime.now();
       await tester.pumpWidget(
         _wrap(
@@ -286,20 +287,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final glyph = find.byIcon(CupertinoIcons.repeat);
+      final repeat = find.text('Every day');
       final title = find.text('Recurring task');
-      expect(glyph, findsOneWidget);
+      expect(repeat, findsOneWidget);
       expect(title, findsOneWidget);
-
-      final glyphCenter = tester.getCenter(glyph);
-      final titleRight = tester.getBottomRight(title).dx;
-      final dueLabel = find.text('In 3 days');
-      // The glyph follows the title on the same line, well left of the
-      // right-aligned date column.
-      expect(glyphCenter.dx, greaterThanOrEqualTo(titleRight));
-      if (dueLabel.evaluate().isNotEmpty) {
-        expect(glyphCenter.dx, lessThan(tester.getTopLeft(dueLabel).dx));
-      }
+      expect(
+        tester.getRect(repeat).top,
+        greaterThanOrEqualTo(tester.getRect(title).bottom),
+      );
+      expect(find.byIcon(CupertinoIcons.repeat), findsNothing);
     });
   });
 }

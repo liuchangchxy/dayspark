@@ -6,11 +6,12 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
@@ -31,11 +32,11 @@ class TrashPage extends ConsumerWidget {
       maxContentWidth: 720,
       actions: [
         if (hasAny)
-          IconButton(
-            icon: const Icon(CupertinoIcons.trash, size: 18),
-            tooltip: l.emptyTrash,
+          DsButton(
+            label: l.emptyTrash,
+            tone: DsButtonTone.danger,
+            small: true,
             onPressed: () => _confirmEmptyTrash(context, ref, l),
-            visualDensity: VisualDensity.compact,
           ),
       ],
       child: deletedAsync.when(
@@ -104,18 +105,14 @@ class TrashPage extends ConsumerWidget {
   ) {
     // No swipe-to-delete: on a desktop pointer a swipe is a mistimed drag, and
     // the row already carries two explicit buttons.
-    return ListTile(
+    return DsRow(
       key: ValueKey('trash-todo-${todo.id}'),
-      leading: const Icon(CupertinoIcons.checkmark_rectangle, size: 20),
-      title: Text(
-        todo.summary,
-        style: const TextStyle(decoration: TextDecoration.lineThrough),
-      ),
-      subtitle: Text(
-        todo.deletedAt != null
-            ? DateFormatters.formatDateTime(todo.deletedAt!)
-            : '',
-        style: TextStyle(fontSize: AppTypography.caption.fontSize),
+      title: todo.summary,
+      meta: DsMeta(
+        parts: [
+          if (todo.deletedAt != null)
+            DsMetaPart(l.deletedOn(DateFormatters.formatDate(todo.deletedAt!))),
+        ],
       ),
       trailing: _restoreDeleteActions(
         context,
@@ -133,19 +130,15 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
     Event event,
   ) {
-    return ListTile(
+    return DsRow(
       key: ValueKey('trash-event-${event.id}'),
-      leading: const Icon(CupertinoIcons.calendar_badge_plus, size: 20),
-      title: Text(
-        event.summary,
-        style: const TextStyle(decoration: TextDecoration.lineThrough),
-      ),
-      subtitle: Text(
-        event.deletedAt != null
-            ? '${DateFormatters.formatDateTime(event.startDt)} · '
-                  '${DateFormatters.formatDateTime(event.deletedAt!)}'
-            : '',
-        style: TextStyle(fontSize: AppTypography.caption.fontSize),
+      title: event.summary,
+      meta: DsMeta(
+        parts: [
+          DsMetaPart(DateFormatters.formatDateTime(event.startDt)),
+          if (event.deletedAt != null)
+            DsMetaPart(l.deletedOn(DateFormatters.formatDate(event.deletedAt!))),
+        ],
       ),
       trailing: _restoreDeleteActions(
         context,
@@ -167,9 +160,11 @@ class TrashPage extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          icon: const Icon(CupertinoIcons.arrow_uturn_left, size: 18),
-          tooltip: l.restoreTodo,
+        DsButton(
+          label: l.restoreTodo,
+          icon: CupertinoIcons.arrow_uturn_left,
+          small: true,
+          tone: DsButtonTone.secondary,
           onPressed: () async {
             await onRestore();
             if (context.mounted) {
@@ -179,12 +174,12 @@ class TrashPage extends ConsumerWidget {
             }
           },
         ),
-        IconButton(
-          icon: Icon(
-            CupertinoIcons.delete,
-            size: 18,
-            color: Theme.of(context).colorScheme.error,
-          ),
+        const SizedBox(width: AppSpacing.s2),
+        DsIconButton(
+          icon: CupertinoIcons.delete,
+          size: 17,
+          compact: true,
+          color: context.ds.danger,
           tooltip: l.permanentDelete,
           onPressed: () async {
             final confirmed = await _confirmPermanentDelete(context, l);
@@ -198,25 +193,7 @@ class TrashPage extends ConsumerWidget {
   }
 
   Widget _sectionHeader(BuildContext context, String title, int count) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: AppTypography.title.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            '$count',
-            style: TextStyle(
-              fontSize: AppTypography.caption.fontSize,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
+    return DsSectionLabel('$title · $count');
   }
 
   Future<bool> _confirmPermanentDelete(

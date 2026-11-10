@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/infrastructure/platform/alarm_service.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 class NotificationsSection extends ConsumerWidget {
   const NotificationsSection({super.key});
@@ -43,23 +43,22 @@ class NotificationsSection extends ConsumerWidget {
       children: [
         // The alarm plugin only ships Android and iOS implementations, so on
         // Windows the switch would flip a preference nothing reads.
-        if (showsAlarm) ...[
-          SwitchListTile(
-            secondary: const Icon(CupertinoIcons.alarm),
-            title: Text(l.systemAlarm),
-            subtitle: Text(l.systemAlarmDesc),
-            value: ref.watch(systemAlarmProvider),
-            onChanged: (v) async {
-              await AlarmService.setEnabled(v);
-              ref.read(systemAlarmProvider.notifier).state = v;
-            },
+        if (showsAlarm)
+          DsSettingRow(
+            label: l.systemAlarm,
+            value: l.systemAlarmDesc,
+            trailing: Switch(
+              value: ref.watch(systemAlarmProvider),
+              onChanged: (v) async {
+                await AlarmService.setEnabled(v);
+                ref.read(systemAlarmProvider.notifier).state = v;
+              },
+            ),
           ),
-        ],
-        if (showsMacPermission) ...[
-          ListTile(
-            leading: const Icon(CupertinoIcons.bell),
-            title: Text(l.notificationPermission),
-            subtitle: Text(l.notificationPermissionDesc),
+        if (showsMacPermission)
+          DsSettingRow(
+            label: l.notificationPermission,
+            value: l.notificationPermissionDesc,
             onTap: () async {
               await NotificationService().requestPermission();
               if (!context.mounted) return;
@@ -68,19 +67,16 @@ class NotificationsSection extends ConsumerWidget {
               );
             },
           ),
-        ],
         if (showsExactAlarm &&
-            ref.watch(canScheduleExactProvider).valueOrNull == false) ...[
-          ListTile(
-            leading: const Icon(CupertinoIcons.timer),
-            title: Text(l.exactAlarmTitle),
-            subtitle: Text(l.exactAlarmDesc),
+            ref.watch(canScheduleExactProvider).valueOrNull == false)
+          DsSettingRow(
+            label: l.exactAlarmTitle,
+            value: l.exactAlarmDesc,
             onTap: () async {
               await NotificationService().requestExactAlarmsPermission();
               ref.invalidate(canScheduleExactProvider);
             },
           ),
-        ],
       ],
     );
   }

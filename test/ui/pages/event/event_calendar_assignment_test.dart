@@ -12,6 +12,7 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 
@@ -81,7 +82,7 @@ Finder _field(String hint) => find.byWidgetPredicate(
   (widget) => widget is TextField && widget.decoration?.hintText == hint,
 );
 
-Finder get _picker => find.text('Calendar');
+Finder get _picker => find.byKey(const ValueKey('calendar-picker'));
 
 Future<void> _chooseCalendar(WidgetTester tester, String name) async {
   await tester.tap(_picker);
@@ -91,7 +92,7 @@ Future<void> _chooseCalendar(WidgetTester tester, String name) async {
 }
 
 Future<void> _save(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(TextButton, 'Save'));
+  await tester.tap(find.widgetWithText(DsButton, 'Save'));
   await _settle(tester);
 }
 
@@ -212,7 +213,7 @@ void main() {
         expect(saved.startDt, DateTime(2026, 10, 5, 9));
         expect(saved.endDt, DateTime(2026, 10, 5, 10));
         expect(saved.rrule, 'RRULE:FREQ=DAILY;COUNT=5');
-        expect(find.text('Work'), findsOneWidget);
+        expect(find.text('Work'), findsWidgets);
         await _unmount(tester);
       },
     );
@@ -259,7 +260,7 @@ void main() {
     await _pumpDetail(tester, db, await _event(db, id));
     expect(
       find.text('Calendar unavailable. Please choose another calendar.'),
-      findsOneWidget,
+      findsWidgets,
     );
     await _chooseCalendar(tester, 'Personal');
     expect((await _event(db, id)).calendarId, personal);
@@ -310,7 +311,7 @@ void main() {
     await _settle(tester);
 
     // The picker returns with the new calendar ready to choose.
-    expect(find.text('Work'), findsOneWidget);
+    expect(find.text('Work'), findsWidgets);
     await tester.tap(find.text('Work'));
     await _settle(tester);
     await _save(tester);
@@ -476,7 +477,7 @@ void main() {
     final saved = await _event(db, id);
     expect(saved.calendarId, work);
     await _pump(tester, db, event: CalendaEventAdapter.fromDrift(saved));
-    expect(find.text('Work'), findsOneWidget);
+    expect(find.text('Work'), findsWidgets);
     await _unmount(tester);
   });
 

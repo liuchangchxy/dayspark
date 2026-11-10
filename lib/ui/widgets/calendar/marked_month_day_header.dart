@@ -47,12 +47,17 @@ class MarkedMonthDayHeader extends StatelessWidget {
   /// say "something is due that day" without opening the day.
   final bool hasDeadline;
 
+  /// Draws the number as a filled circle, the way the compact mobile grid
+  /// marks the day the agenda below belongs to.
+  final bool selected;
+
   const MarkedMonthDayHeader({
     super.key,
     required this.date,
     this.style,
     this.dim = false,
     this.hasDeadline = false,
+    this.selected = false,
   });
 
   @override
@@ -81,7 +86,7 @@ class MarkedMonthDayHeader extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isToday)
+            if (selected || isToday)
               Container(
                 width: 24,
                 height: 24,

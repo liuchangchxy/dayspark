@@ -29,6 +29,14 @@
   "allCalendars": "全部日历",
   "targetCalendar": "目标日历",
   "manageCalendars": "日历管理",
+  "myCalendars": "我的日历",
+  "allTags": "全部标签",
+  "categoryCount": "{count} 个",
+  "@categoryCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "newCalendar": "新建日历",
   "navigationError": "导航错误",
   "pageNotFound": "页面未找到或加载失败：{uri}",
@@ -65,6 +73,10 @@
   "dueDate": "截止日期",
   "dueTime": "具体时间",
   "allDay": "全天",
+  "plannedShort": "计划",
+  "dayItemCount": "{count} 项",
+  "deadlineLane": "截止（不占用时间） · {count}",
+  "noPlansDay": "没有安排",
   "priority": "优先级",
   "priorityNone": "无",
   "priorityLow": "低",
@@ -180,7 +192,13 @@
   "aiNotConfiguredHint": "AI 未配置，请前往「设置 > AI」进行配置",
   "aiError": "AI 没有完成这次请求",
   "aiFilled": "已填入：{fields}",
-  "@aiFilled": {"placeholders": {"fields": {"type": "String"}}},
+  "@aiFilled": {
+    "placeholders": {
+      "fields": {
+        "type": "String"
+      }
+    }
+  },
   "deleteEventConfirm": "确定删除「{title}」吗？",
   "deleteRecurringEventConfirm": "确定删除整个重复日程「{title}」及其全部实例吗？",
   "recurringSeriesNotice": "这是重复日程。保存会修改整个系列；下面的时间是系列起始，不是你点开的那一次。暂不支持只修改单次实例。",
@@ -261,6 +279,12 @@
   "tutorial": "教程",
   "undo": "撤销",
   "deleted": "已删除",
+  "deletedOn": "删除于 {date}",
+  "@deletedOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
   "snoozedFor": "已延后 {duration}",
   "markComplete": "标记完成",
   "snooze": "延后",
@@ -512,14 +536,14 @@
   "noSchedulableTodos": "暂无可安排的待办",
   "action": "今天",
   "scheduledSection": "计划执行",
-  "dueTodaySection": "今天要完成",
+  "dueTodaySection": "今天截止",
   "unplannedInbox": "未安排",
-  "unplannedCount": "{count} 条未安排",
+  "unplannedCount": "未安排 {count} 项",
   "todayTimeline": "今日安排",
   "emptyActionHint": "今日暂无日程、任务安排或截止事项。",
   "scheduledTodoSuccess": "已安排：{summary}",
   "plannedExecution": "计划执行",
-  "deadlinePrefix": "截止：{date}",
+  "deadlinePrefix": "截止 {date}",
   "deadlineToday": "今日截止",
   "eventLabel": "日程",
   "completedTodaySection": "今日已完成",
@@ -623,7 +647,6 @@
   "submitOnGitHub": "在 GitHub 提交",
   "clearChatAction": "清空",
   "clearChatConfirm": "清空这段对话？清空后无法恢复。",
-  "openUpdatePage": "查看更新",
   "couldNotOpenLink": "无法打开这个链接。",
   "invalidTimeRange": "结束时间必须晚于开始时间。",
   "deleteThisOccurrence": "仅此次",
@@ -679,6 +702,33 @@
   "quickAddTodo": "添加待办",
   "quickCreateHint": "输入待办标题",
   "moreOptions": "更多",
+  "lessOptions": "收起",
+  "addTime": "添加时间",
+  "remindNone": "不提醒",
+  "notes": "备注",
+  "notesHint": "补充说明",
+  "openFullForm": "打开完整表单",
+  "moreSection": "更多",
+  "inProgress": "正在进行",
+  "executingPlan": "正在执行",
   "createCalendarFromPicker": "+ 新建日历",
-  "unplannedCount": "未安排 {count} 项"
+  "byDate": "按日期",
+  "showCompleted": "显示已完成",
+  "filterAndDisplay": "筛选与显示",
+  "clearFilters": "清除",
+  "allLabel": "全部",
+  "unplannedViewEmptyTitle": "没有未安排的待办",
+  "unplannedViewEmptyHint": "每个待办都已经有执行时间。想找没排期的，切到“全部待办”。",
+  "todosEmptyTitle": "这里还没有待办",
+  "todosEmptyHint": "把要做的事写下来，先不用决定什么时候做。",
+  "noPlannedExecution": "未安排",
+  "unplannedRailHint": "还没有执行时间的待办。安排一个，它今天就有位置。",
+  "unplannedRailEmpty": "所有待办都已安排。",
+  "allScheduled": "全部已安排",
+  "selectTodoPaneTitle": "选择一条待办",
+  "selectTodoPaneHint": "从左侧选择查看详情，或在顶部直接添加。",
+  "filterCountLabel": "{count} 项筛选",
+  "todoAllContext": "共 {count} 项未完成",
+  "calendarTags": "日历与标签",
+  "other": "其他"
 }

@@ -1,56 +1,55 @@
 import 'dart:async';
-import 'package:intl/intl.dart';
-import 'package:lunar/lunar.dart';
-import 'package:dayspark/ui/shell/workspace_scaffold.dart';
-import 'package:dayspark/ui/shell/workspace_navigation.dart';
-import 'package:flutter/foundation.dart';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dayspark/domain/providers/events_provider.dart';
-import 'package:dayspark/domain/providers/task_allocations_provider.dart';
-import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
-import 'package:dayspark/domain/models/calendar_event_adapter.dart';
-import 'package:dayspark/domain/providers/feature_flags_provider.dart';
-import 'package:dayspark/domain/providers/default_tab_provider.dart';
-import 'package:dayspark/domain/providers/todos_provider.dart';
-import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
-import 'package:dayspark/domain/providers/tags_provider.dart';
+
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
+import 'package:dayspark/domain/providers/action_projection_provider.dart';
+import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/default_tab_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/record_bus_provider.dart';
+import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
-import 'package:dayspark/infrastructure/platform/notification_service.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
-import 'package:dayspark/domain/providers/calendar_view_provider.dart';
-import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
-import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
-import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
+import 'package:dayspark/infrastructure/platform/notification_service.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
-import 'package:dayspark/domain/providers/action_projection_provider.dart';
+import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
+import 'package:dayspark/ui/shell/workspace_navigation.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/ui/widgets/todo/todo_quick_add.dart';
 import 'package:dayspark/ui/widgets/todo/todo_quick_create_sheet.dart';
-import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
-import 'package:dayspark/ui/pages/event/event_detail_page.dart';
-import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_theme.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
 
 /// The three primary destinations and their shared chrome.
 ///
-/// Home owns navigation state; the sidebar (desktop) and the navigation bar
-/// (mobile) are two presentations of the same three destinations, so neither
-/// platform gains a navigation concept the other lacks.
+/// Home owns navigation state; the sidebar (desktop) and the tab bar (mobile)
+/// are two presentations of the same three destinations, so neither platform
+/// gains a navigation concept the other lacks.
 class HomePage extends ConsumerStatefulWidget {
   final int initialTab;
   final DateTime? initialDate;
@@ -71,10 +70,8 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage>
     with WidgetsBindingObserver {
   bool _userChangedTab = false;
-  final Set<int> _selectedTagIds = {};
   bool _calendarTabWasActive = false;
-  // Page header title, pushed up from CalendarSection so it sits in the AppBar.
-  // Kept as state rather than read in build(): the calendar owns its anchor.
+  // Subtitle pushed up from CalendarSection so it can sit in the chrome.
   String? _calendarTitle;
   String? _calendarSubtitle;
   Timer? _dayCheckTimer;
@@ -149,17 +146,12 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  /// The active destination has exactly one owner — [workspaceTabProvider] —
-  /// so the sidebar (which lives outside this page) and the in-page tab bar
-  /// can never disagree about which pane is showing.
   int get _currentTab => _tabIndexFor(ref.watch(workspaceTabProvider));
 
   void _initCurrentTab() {
     final index = widget.initialTab >= 0
         ? widget.initialTab.clamp(0, 2)
         : _tabIndexFor(ref.read(defaultTabProvider));
-    // Deferred: initState runs inside the build phase, and Riverpod forbids
-    // mutating a provider while the tree is building.
     Future.microtask(() {
       if (mounted) {
         ref.read(workspaceTabProvider.notifier).state = AppTab.values[index];
@@ -194,18 +186,12 @@ class _HomePageState extends ConsumerState<HomePage>
     });
   }
 
-  /// Single writer for the active destination: the in-page tab bar, the
-  /// sidebar and the persisted preference all funnel through here, so the
-  /// sidebar highlight can never disagree with the content pane.
   void _setTab(int index) {
     _userChangedTab = true;
     ref.read(workspaceTabProvider.notifier).state =
         AppTab.values[index.clamp(0, 2)];
   }
 
-  // Side effects run once after first frame: notification wiring, overdue
-  // prompt, midnight day rollover check, changelog popup, cold-start widget
-  // snapshot (ongoing refresh is write-driven via homeWidgetAutoRefreshProvider).
   Future<void> _runStartupSideEffects() async {
     try {
       await _localizeDefaultCalendarName();
@@ -224,9 +210,6 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  /// The seed row is written before localization is available, so the
-  /// untouched default is renamed here. A calendar the user named or recolored
-  /// is left alone.
   Future<void> _localizeDefaultCalendarName() async {
     await Future<void>.delayed(Duration.zero);
     if (!mounted) return;
@@ -275,9 +258,6 @@ class _HomePageState extends ConsumerState<HomePage>
     });
   }
 
-  // The widget snapshot and the reminder schedules both go stale across a day
-  // boundary (today/upcoming buckets, reminders that fell due), so the
-  // rollover refreshes both even when the calendar day itself did not change.
   void _handleDayRollover() {
     _refreshHomeWidget();
     _syncActionDateIfDayChanged();
@@ -294,9 +274,6 @@ class _HomePageState extends ConsumerState<HomePage>
   void _handleResumed() {
     _syncActionDateIfDayChanged();
     _refreshHomeWidget();
-    // The bus only carries in-process writes; the conservative full recompute
-    // is what catches an external process (CLI) editing the same file, plus
-    // any write path not yet migrated to the seam.
     unawaited(ref.read(reminderReconcilerProvider).reconcileAll());
     _dayCheckTimer?.cancel();
     _scheduleNextMidnightCheck();
@@ -309,9 +286,6 @@ class _HomePageState extends ConsumerState<HomePage>
   void _listenForWidgetRefreshTriggers() {
     Future.microtask(() {
       if (!mounted) return;
-      // Widget copy and colors are baked into the snapshot at build time, so
-      // a language or theme change must rebuild it through this same entry
-      // point — a listener per setting would eventually miss one.
       ref.listenManual(localeProvider, (_, __) => _refreshHomeWidget());
       ref.listenManual(themeModeProvider, (_, __) => _refreshHomeWidget());
       ref.listenManual(themeColorProvider, (_, __) => _refreshHomeWidget());
@@ -372,15 +346,11 @@ class _HomePageState extends ConsumerState<HomePage>
         context.push('/todo/detail', extra: todo);
         return;
       }
-      // Route through the toggle provider so completing from a notification
-      // also cancels the todo's remaining reminder notifications.
       await ref.read(toggleTodoProvider)(id: parentId, isCompleted: true);
     } else if (actionId == NotificationActions.snooze) {
       if (reminderId == null) return;
       final l = AppLocalizations.of(context)!;
       final newTime = DateTime.now().add(const Duration(hours: 1));
-      // Snooze addresses the reminder row id, not the parent id, so it
-      // lands in the same notification id space cancel() can reach.
       NotificationService().snooze(
         id: reminderId,
         title: parentType == 'event' ? l.eventReminder : l.todoReminder,
@@ -403,19 +373,18 @@ class _HomePageState extends ConsumerState<HomePage>
     super.dispose();
   }
 
+  // ---------------------------------------------------------------- build
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final desktop = isWorkspaceLayout(context);
-    final isActionTab = _currentTab == 0;
-    final isCalendarTab = _currentTab == 1;
-    final pageLabel = isActionTab
-        ? l.today
-        : isCalendarTab
-        ? l.calendar
-        : l.todos;
+    final width = MediaQuery.sizeOf(context).width;
+    final tab = ref.watch(workspaceTabProvider);
+    final isActionTab = tab == AppTab.action;
+    final isCalendarTab = tab == AppTab.calendar;
+    final selection = ref.watch(workspaceSelectionProvider);
 
-    // Refresh events stream when switching to calendar tab
     if (isCalendarTab && !_calendarTabWasActive) {
       _calendarTabWasActive = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -429,143 +398,196 @@ class _HomePageState extends ConsumerState<HomePage>
       _calendarTabWasActive = false;
     }
 
-    final mainColumn = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildPageHeader(
-          context,
-          l,
-          desktop,
-          isActionTab,
-          isCalendarTab,
-          pageLabel,
+    final body = KeyedSubtree(
+      key: ValueKey('workspace-content-$_currentTab'),
+      child: isActionTab
+          ? _buildActionTab(
+              selection != null && desktop && width >= 1180
+                  ? _buildDetailPane(selection)
+                  : null,
+            )
+          : isCalendarTab
+          ? _buildCalendarArea(selection, width, desktop)
+          : _buildTodoArea(selection, width, desktop),
+    );
+
+    if (!desktop) {
+      return Scaffold(
+        backgroundColor: context.ds.bg,
+        appBar: _mobileTopBar(context, l, tab),
+        body: body,
+        bottomNavigationBar: _MobileTabBar(
+          current: _currentTab,
+          onSelected: _setTab,
         ),
-        Expanded(
-          child: KeyedSubtree(
-            key: ValueKey('workspace-content-$_currentTab'),
-            child: isActionTab
-                ? _buildActionTab()
-                : isCalendarTab
-                ? Padding(
-                    padding: EdgeInsets.symmetric(horizontal: desktop ? 28 : 0),
-                    child: _buildCalendarTab(),
-                  )
-                : Padding(
-                    padding: EdgeInsets.symmetric(horizontal: desktop ? 28 : 0),
-                    child: _buildTodoTab(),
-                  ),
+      );
+    }
+
+    return WorkspaceScaffold(
+      child: Scaffold(
+        backgroundColor: context.ds.bg,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _desktopMainBar(context, l, tab, width),
+            Expanded(child: body),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _mobileTopBar(
+    BuildContext context,
+    AppLocalizations l,
+    AppTab tab,
+  ) {
+    final view = ref.watch(todosViewProvider);
+    final isAction = tab == AppTab.action;
+    final isCalendar = tab == AppTab.calendar;
+    final title = isAction
+        ? ''
+        : isCalendar
+        ? l.calendar
+        : view is TodosInboxView
+        ? l.inbox
+        : view is TodosAllView
+        ? l.allTasks
+        : l.todos;
+    final subtitle = isCalendar
+        ? (_calendarSubtitle ?? _fallbackCalendarContext())
+        : null;
+    return DsTopBar(
+      title: title,
+      subtitle: subtitle,
+      actions: [
+        DsIconButton(
+          icon: CupertinoIcons.search,
+          tooltip: l.search,
+          onPressed: () => context.push('/search'),
+        ),
+        DsIconButton(
+          icon: CupertinoIcons.settings,
+          tooltip: l.settings,
+          onPressed: () => context.push('/settings'),
+        ),
+        DsCreateAction(
+          key: const ValueKey('workspace-create'),
+          label: isAction
+              ? l.newItem
+              : isCalendar
+              ? l.eventLabel
+              : l.todos,
+          onPressed: () {
+            if (isAction) {
+              _showCreateChooser(context);
+            } else if (isCalendar) {
+              _openNewEvent(context);
+            } else {
+              final v = ref.read(todosViewProvider);
+              showTodoQuickCreateSheet(
+                context,
+                dueDate: v is TodosDayView ? v.day : null,
+              );
+            }
+          },
+        ),
+        const SizedBox(width: 2),
+      ],
+    );
+  }
+
+  Widget _desktopMainBar(
+    BuildContext context,
+    AppLocalizations l,
+    AppTab tab,
+    double width,
+  ) {
+    final view = ref.watch(todosViewProvider);
+    final isAction = tab == AppTab.action;
+    final isCalendar = tab == AppTab.calendar;
+    if (isAction) {
+      return DsMainBar(
+        title: l.today,
+        contextLabel: _actionDateNote(ref.watch(actionDateProvider)),
+        actions: [
+          DsButton(
+            key: const ValueKey('workspace-create-todo'),
+            label: l.newTodo,
+            icon: CupertinoIcons.add,
+            tone: DsButtonTone.secondary,
+            small: true,
+            onPressed: () => showTodoQuickCreateSheet(context),
+          ),
+          DsCreateAction(
+            key: const ValueKey('workspace-create'),
+            label: l.eventLabel,
+            onPressed: () => _openNewEvent(context),
+          ),
+        ],
+      );
+    }
+    if (isCalendar) {
+      return DsMainBar(
+        title: l.calendar,
+        contextLabel: _calendarSubtitle ?? _fallbackCalendarContext(),
+        actions: [
+          DsButton(
+            key: const ValueKey('workspace-create-todo'),
+            label: l.newTodo,
+            icon: CupertinoIcons.add,
+            tone: DsButtonTone.secondary,
+            small: true,
+            onPressed: () => showTodoQuickCreateSheet(context),
+          ),
+          DsCreateAction(
+            key: const ValueKey('workspace-create'),
+            label: l.eventLabel,
+            onPressed: () => _openNewEvent(context),
+          ),
+        ],
+      );
+    }
+    final count = _countVisibleTodos(view);
+    return DsMainBar(
+      title: view is TodosInboxView
+          ? l.inbox
+          : view is TodosAllView
+          ? l.allTasks
+          : l.todos,
+      contextLabel: view is TodosInboxView
+          ? l.unplannedCount(count)
+          : view is TodosAllView
+          ? l.todoAllContext(count)
+          : l.dateLabel(view is TodosDayView ? view.day.month : 1,
+              view is TodosDayView ? view.day.day : 1),
+      actions: [
+        DsButton(
+          key: const ValueKey('workspace-create'),
+          label: l.newTodo,
+          icon: CupertinoIcons.add,
+          small: true,
+          onPressed: () => showTodoQuickCreateSheet(
+            context,
+            dueDate: view is TodosDayView ? view.day : null,
           ),
         ),
       ],
     );
+  }
 
-    // Wide desktop: the list keeps its width and the selected object opens
-    // beside it instead of replacing it. Narrow windows keep single-column
-    // navigation, which is what the route model already provides.
-    final selection = ref.watch(workspaceSelectionProvider);
-    final split = desktop && isMasterDetailLayout(context);
-    final body = split
-        ? Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: mainColumn),
-              if (selection != null) ...[
-                Container(width: 1, color: context.semantic.separator),
-                SizedBox(
-                  width: 400,
-                  child: ColoredBox(
-                    color: Theme.of(context).colorScheme.surface,
-                    child: _buildDetailPane(selection),
-                  ),
-                ),
-              ],
-            ],
-          )
-        : mainColumn;
+  String _fallbackCalendarContext() {
+    final viewed = ref.watch(viewedDateProvider);
+    final locale = Localizations.localeOf(context).toString();
+    return '${DateFormat.MMMd(locale).format(viewed)} · '
+        '${DateFormat.E(locale).format(viewed)}';
+  }
 
-    final content = Scaffold(
-      backgroundColor: desktop ? Theme.of(context).colorScheme.surface : null,
-      appBar: desktop
-          ? null
-          : AppBar(
-              titleSpacing: AppSpacing.lg,
-              centerTitle: false,
-              title: Text(
-                l.appName,
-                style: AppTypography.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(1),
-                child: Container(height: 1, color: context.semantic.separator),
-              ),
-              actions: [
-                Semantics(
-                  button: true,
-                  label: l.search,
-                  child: IconButton(
-                    icon: const Icon(CupertinoIcons.search),
-                    tooltip: l.search,
-                    onPressed: () => context.push('/search'),
-                  ),
-                ),
-                if (ref
-                        .watch(featureFlagsProvider)
-                        .valueOrNull
-                        ?.isEnabled(FeatureFlag.aiAssistant) ??
-                    true)
-                  Semantics(
-                    button: true,
-                    label: l.aiAssistant,
-                    child: IconButton(
-                      icon: const Icon(CupertinoIcons.sparkles),
-                      tooltip: l.aiAssistant,
-                      onPressed: () => context.push('/ai-chat'),
-                    ),
-                  ),
-                Semantics(
-                  button: true,
-                  label: l.settings,
-                  child: IconButton(
-                    icon: const Icon(CupertinoIcons.settings),
-                    tooltip: l.settings,
-                    onPressed: () => context.push('/settings'),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                _buildCreateEntry(
-                  context,
-                  isCalendarTab: isCalendarTab,
-                  isActionTab: isActionTab,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-              ],
-            ),
-      body: body,
-      bottomNavigationBar: desktop
-          ? null
-          : NavigationBar(
-              selectedIndex: _currentTab,
-              onDestinationSelected: _setTab,
-              destinations: [
-                NavigationDestination(
-                  icon: const Icon(CupertinoIcons.bolt),
-                  label: l.today,
-                ),
-                NavigationDestination(
-                  icon: const Icon(CupertinoIcons.calendar),
-                  label: l.calendar,
-                ),
-                NavigationDestination(
-                  icon: const Icon(CupertinoIcons.checkmark_rectangle),
-                  label: l.todos,
-                ),
-              ],
-            ),
-    );
-    if (!desktop) return content;
-    return WorkspaceScaffold(child: content);
+  String _actionDateNote(DateTime date) {
+    final locale = Localizations.localeOf(context);
+    final weekday = DateFormat.E(locale.toString()).format(date);
+    final md = DateFormat.Md(locale.toString()).format(date);
+    return '$weekday · $md';
   }
 
   Widget _buildDetailPane(WorkspaceSelection selection) {
@@ -591,11 +613,11 @@ class _HomePageState extends ConsumerState<HomePage>
     ref.read(workspaceSelectionProvider.notifier).state = null;
   }
 
-  /// A list tap means "show me this" on every platform; only the place it
-  /// shows differs. Wide windows put it in the pane, narrow ones use the
-  /// route that was already there.
   void _openTodo(Todo todo) {
-    if (isMasterDetailLayout(context)) {
+    final width = MediaQuery.sizeOf(context).width;
+    final tab = ref.read(workspaceTabProvider);
+    final minPane = tab == AppTab.action ? 1180.0 : 900.0;
+    if (width >= minPane) {
       ref.read(workspaceSelectionProvider.notifier).state = TodoSelection(todo);
       return;
     }
@@ -603,7 +625,10 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _openEvent(CalendaEventAdapter event) {
-    if (isMasterDetailLayout(context)) {
+    final width = MediaQuery.sizeOf(context).width;
+    final tab = ref.read(workspaceTabProvider);
+    final minPane = tab == AppTab.calendar ? 1180.0 : 980.0;
+    if (width >= minPane) {
       ref.read(workspaceSelectionProvider.notifier).state = EventSelection(
         event,
       );
@@ -612,77 +637,7 @@ class _HomePageState extends ConsumerState<HomePage>
     context.push('/event/detail', extra: event);
   }
 
-  Widget _buildPageHeader(
-    BuildContext context,
-    AppLocalizations l,
-    bool desktop,
-    bool isActionTab,
-    bool isCalendarTab,
-    String pageLabel,
-  ) {
-    final horizontal = desktop ? 28.0 : AppSpacing.lg;
-    final (title, subtitle) = isCalendarTab
-        ? (_calendarTitle ?? pageLabel, _calendarSubtitle ?? '')
-        : isActionTab
-        ? (l.today, _actionDateNote(ref.watch(actionDateProvider)))
-        : (l.todos, '');
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        horizontal,
-        desktop ? AppSpacing.lg : AppSpacing.md,
-        horizontal,
-        AppSpacing.md,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: desktop
-                  ? CrossAxisAlignment.start
-                  : CrossAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.display,
-                ),
-                if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    subtitle,
-                    style: AppTypography.overline.copyWith(
-                      color: context.semantic.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (desktop) ...[
-            const SizedBox(width: AppSpacing.md),
-            _buildCreateEntry(
-              context,
-              isCalendarTab: isCalendarTab,
-              isActionTab: isActionTab,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _actionDateNote(DateTime date) {
-    final locale = Localizations.localeOf(context);
-    final weekday = DateFormat.EEEE(locale.toString()).format(date);
-    if (locale.languageCode != 'zh') return weekday;
-    final lunar = Lunar.fromDate(date);
-    final l = AppLocalizations.of(context)!;
-    return '$weekday · ${lunar.getMonthInChinese()}${l.month}${lunar.getDayInChinese()}';
-  }
-
-  Widget _buildActionTab() {
+  Widget _buildActionTab(Widget? detail) {
     return ActionSection(
       onNavigateToCalendar: () => _setTab(1),
       onNavigateToUnplanned: () {
@@ -691,6 +646,29 @@ class _HomePageState extends ConsumerState<HomePage>
       },
       onEventTap: _openEvent,
       onTodoTap: _openTodo,
+      detail: detail,
+    );
+  }
+
+  // ---------------------------------------------------------------- calendar
+
+  Widget _buildCalendarArea(
+    WorkspaceSelection? selection,
+    double width,
+    bool desktop,
+  ) {
+    final calendar = Padding(
+      padding: EdgeInsets.symmetric(horizontal: desktop ? 24 : 0),
+      child: _buildCalendarTab(),
+    );
+    if (!desktop || selection == null || width < 1180) return calendar;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: calendar),
+        Container(width: 1, color: context.ds.line),
+        SizedBox(width: 400, child: _buildDetailPane(selection)),
+      ],
     );
   }
 
@@ -721,10 +699,6 @@ class _HomePageState extends ConsumerState<HomePage>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(l.error)),
         data: (allocationItems) {
-          // Visible-window expansion: month grid reaches ~6 weeks around the
-          // anchor ([-7, +34] days); ±45d covers it with margin.
-          // Event tiles carry the calendar's colour, so the colour a user
-          // picks in Manage Calendars is the one they see on the grid.
           final calendarColors = {
             for (final calendar
                 in ref.watch(calendarsProvider).valueOrNull ?? const [])
@@ -833,8 +807,6 @@ class _HomePageState extends ConsumerState<HomePage>
                 },
               );
             },
-            // 拖拽改期只走 provider：重排提醒由提交后的领域事件接管
-            // （旧的内联补丁与重排器并存会互相争抢）。
             onEventChanged: (event) async {
               await ref.read(updateEventProvider)(
                 event.drifId,
@@ -859,49 +831,625 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  Widget _buildCreateEntry(
-    BuildContext context, {
-    required bool isCalendarTab,
-    required bool isActionTab,
-  }) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final label = isActionTab
-        ? l.newItem
-        : isCalendarTab
-        ? l.newEventAction
-        : l.newTodoAction;
-    return TextButton.icon(
-      key: const ValueKey('workspace-create'),
-      onPressed: () {
-        if (isActionTab) {
-          _showCreateChooser(context);
-        } else if (isCalendarTab) {
-          _openNewEvent(context);
-        } else {
-          final view = ref.read(todosViewProvider);
-          showTodoQuickCreateSheet(
-            context,
-            dueDate: view is TodosDayView ? view.day : null,
-          );
-        }
-      },
-      style: TextButton.styleFrom(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-        minimumSize: const Size(48, 48),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        textStyle: AppTypography.caption.copyWith(fontWeight: FontWeight.w600),
-      ),
-      icon: const Icon(CupertinoIcons.add, size: 15),
-      label: Text(label),
+  // ---------------------------------------------------------------- todos
+
+  bool _matchesFilters(
+    Todo todo,
+    Map<int, Set<int>> tagMap,
+    int? calendarFilter,
+    Set<int> tagFilter,
+    int? priorityFilter,
+  ) {
+    if (calendarFilter != null && todo.calendarId != calendarFilter) {
+      return false;
+    }
+    if (priorityFilter != null && todo.priority != priorityFilter) {
+      return false;
+    }
+    if (tagFilter.isNotEmpty) {
+      final ids = tagMap[todo.id];
+      if (ids == null || !tagFilter.any(ids.contains)) return false;
+    }
+    return true;
+  }
+
+  bool get _todoPaneVisible {
+    final width = MediaQuery.sizeOf(context).width;
+    final tab = ref.read(workspaceTabProvider);
+    return width >= (tab == AppTab.action ? 980 : 900);
+  }
+
+  int _countVisibleTodos(TodosView view) {
+    final tagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
+    final calendarFilter = ref.watch(todoCalendarFilterProvider);
+    final tagFilter = ref.watch(todoTagFilterProvider);
+    final priorityFilter = ref.watch(todoPriorityFilterProvider);
+    final todos = switch (view) {
+      TodosInboxView() =>
+        ref.watch(unplannedTodosProvider).valueOrNull ?? const <Todo>[],
+      TodosAllView() =>
+        ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[],
+      TodosDayView(:final day) => _dayTodos(day).cast<Todo>(),
+    };
+    return todos
+        .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
+        .where(
+          (t) => _matchesFilters(
+            t,
+            tagMap,
+            calendarFilter,
+            tagFilter,
+            priorityFilter,
+          ),
+        )
+        .length;
+  }
+
+  List<Todo> _dayTodos(DateTime day) {
+    final all = ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[];
+    final target = DateTime(day.year, day.month, day.day);
+    return all.where((todo) {
+      if (todo.dueDate == null) return false;
+      final due = DateTime(
+        todo.dueDate!.year,
+        todo.dueDate!.month,
+        todo.dueDate!.day,
+      );
+      return due == target;
+    }).toList();
+  }
+
+  Widget _buildTodoArea(
+    WorkspaceSelection? selection,
+    double width,
+    bool desktop,
+  ) {
+    final view = ref.watch(todosViewProvider);
+    final filters = _filterButton(context);
+    final dueDays = <DateTime>{
+      for (final todo
+          in ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[])
+        if (todo.dueDate != null)
+          DateTime(
+            todo.dueDate!.year,
+            todo.dueDate!.month,
+            todo.dueDate!.day,
+          ),
+    };
+    final listPane = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (desktop)
+          TodoDesktopToolbar(
+            view: view,
+            dueDays: dueDays,
+            onViewSelected: (next) =>
+                ref.read(todosViewProvider.notifier).state = next,
+            trailing: [filters],
+          )
+        else
+          DateStrip(
+            view: view,
+            dueDays: dueDays,
+            onViewSelected: (next) =>
+                ref.read(todosViewProvider.notifier).state = next,
+            trailing: [filters],
+          ),
+        TodoQuickAdd(dueDate: view is TodosDayView ? view.day : null),
+        Expanded(child: _buildTodoList(view, selection)),
+      ],
+    );
+
+    if (!desktop || width < 900) return listPane;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(width: width >= 1180 ? 380 : 340, child: listPane),
+        Container(width: 1, color: context.ds.line),
+        Expanded(
+          child: ColoredBox(
+            color: context.ds.surface,
+            child: selection is TodoSelection
+                ? _buildDetailPane(selection)
+                : DsEmpty(
+                    icon: CupertinoIcons.checkmark_rectangle,
+                    title: AppLocalizations.of(context)!.selectTodoPaneTitle,
+                    message: AppLocalizations.of(context)!.selectTodoPaneHint,
+                  ),
+          ),
+        ),
+      ],
     );
   }
 
-  /// Creating from the calendar means "on the day I am looking at", not "at
-  /// midnight": a new event should start at a plausible hour.
+  int get _filterCount {
+    var count = 0;
+    if (ref.watch(todoCalendarFilterProvider) != null) count++;
+    if (ref.watch(todoTagFilterProvider).isNotEmpty) count++;
+    if (ref.watch(todoPriorityFilterProvider) != null) count++;
+    return count;
+  }
+
+  Widget _filterButton(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
+    final count = _filterCount;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        DsIconButton(
+          icon: CupertinoIcons.slider_horizontal_3,
+          tooltip: l.filterAndDisplay,
+          size: 17,
+          compact: true,
+          onPressed: () => _showFilterSheet(context),
+        ),
+        if (count > 0)
+          Positioned(
+            right: 2,
+            top: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: ds.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                  color: ds.onPrimary,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showFilterSheet(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final calendars =
+        ref.read(calendarsProvider).valueOrNull ?? const <Calendar>[];
+    final tags = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
+    return showDsSheet<void>(
+      context: context,
+      title: l.filterAndDisplay,
+      body: Consumer(
+        builder: (ctx, r, _) {
+          final ds = ctx.ds;
+          final calFilter = r.watch(todoCalendarFilterProvider);
+          final tagFilter = r.watch(todoTagFilterProvider);
+          final prioFilter = r.watch(todoPriorityFilterProvider);
+          final hideCompleted =
+              r.watch(hideCompletedProvider).valueOrNull ?? false;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DsGroupLabel(l.calendar),
+                Wrap(
+                  spacing: AppSpacing.s2,
+                  runSpacing: AppSpacing.s2,
+                  children: [
+                    for (final calendar in calendars)
+                      DsChip(
+                        label: calendar.name,
+                        selected: calFilter == calendar.id,
+                        leading: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: ColorUtils.parseHex(calendar.color),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        onTap: () => r
+                            .read(todoCalendarFilterProvider.notifier)
+                            .state = calFilter == calendar.id
+                            ? null
+                            : calendar.id,
+                      ),
+                  ],
+                ),
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.s4),
+                  DsGroupLabel(l.tags),
+                  Wrap(
+                    spacing: AppSpacing.s2,
+                    runSpacing: AppSpacing.s2,
+                    children: [
+                      for (final tag in tags)
+                        DsChip(
+                          label: tag.name,
+                          selected: tagFilter.contains(tag.id),
+                          leading: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: ColorUtils.parseHex(tag.color),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          onTap: () {
+                            final next = {...tagFilter};
+                            if (!next.remove(tag.id)) next.add(tag.id);
+                            r.read(todoTagFilterProvider.notifier).state = next;
+                          },
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.s4),
+                DsGroupLabel(l.priority),
+                Wrap(
+                  spacing: AppSpacing.s2,
+                  runSpacing: AppSpacing.s2,
+                  children: [
+                    DsChip(
+                      label: l.priorityNone,
+                      selected: prioFilter == null,
+                      onTap: () =>
+                          r.read(todoPriorityFilterProvider.notifier).state =
+                              null,
+                    ),
+                    for (final entry in [
+                      (1, l.priorityHigh),
+                      (5, l.priorityMedium),
+                      (9, l.priorityLow),
+                    ])
+                      DsChip(
+                        label: entry.$2,
+                        selected: prioFilter == entry.$1,
+                        onTap: () => r
+                            .read(todoPriorityFilterProvider.notifier)
+                            .state = prioFilter == entry.$1 ? null : entry.$1,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.s3),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: ds.lineSoft),
+                    ),
+                  ),
+                  child: DsSettingRow(
+                    label: hideCompleted
+                        ? l.hideCompleted
+                        : l.showCompleted,
+                    trailing: Switch.adaptive(
+                      value: !hideCompleted,
+                      activeTrackColor: ds.primary,
+                      onChanged: (show) =>
+                          r.read(setHideCompletedProvider)(!show),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      actions: [
+        DsButton(
+          label: l.clearFilters,
+          tone: DsButtonTone.ghost,
+          small: true,
+          onPressed: () {
+            ref.read(todoCalendarFilterProvider.notifier).state = null;
+            ref.read(todoTagFilterProvider.notifier).state = const {};
+            ref.read(todoPriorityFilterProvider.notifier).state = null;
+          },
+        ),
+        DsButton(
+          label: l.done,
+          small: true,
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTodoList(TodosView view, WorkspaceSelection? selection) {
+    final l = AppLocalizations.of(context)!;
+    final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
+    final tagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
+    final calendarFilter = ref.watch(todoCalendarFilterProvider);
+    final tagFilter = ref.watch(todoTagFilterProvider);
+    final priorityFilter = ref.watch(todoPriorityFilterProvider);
+    final selectedId = selection is TodoSelection ? selection.todo.id : null;
+
+    bool visible(Todo t) => _matchesFilters(
+      t,
+      tagMap,
+      calendarFilter,
+      tagFilter,
+      priorityFilter,
+    );
+    bool active(Todo t) =>
+        t.status != 'COMPLETED' && t.status != 'CANCELLED';
+
+    Widget row(Todo todo, {bool completed = false, Widget? dragHandle}) {
+      return TodoListTile(
+        summary: todo.summary,
+        isCompleted: completed || todo.status == 'COMPLETED',
+        priority: todo.priority,
+        todoId: todo.id,
+        todo: todo,
+        dueDate: todo.dueDate,
+        startDate: todo.startDate,
+        selected: _todoPaneVisible && selectedId == todo.id,
+        dragHandle: dragHandle,
+        onTap: () => _openTodo(todo),
+        onToggle: (occurrenceId, next) => ref.read(toggleTodoProvider)(
+          id: todo.id,
+          isCompleted: next,
+          occurrenceId: occurrenceId,
+        ),
+      );
+    }
+
+    final pendingCount = _countVisibleTodos(view);
+
+    Widget reorderable(List<Todo> todos, String keyPrefix) {
+      final showHandle = _desktopDrag && isWorkspaceLayout(context);
+      return SliverReorderableList(
+        itemCount: todos.length,
+        onReorderItem: (oldIndex, newIndex) =>
+            _onReorderItem(todos, oldIndex, newIndex),
+        itemBuilder: (context, index) {
+          final todo = todos[index];
+          final key = ValueKey('$keyPrefix-${todo.id}');
+          final tile = Material(
+            type: MaterialType.transparency,
+            child: row(
+              todo,
+              dragHandle: showHandle ? _dragHandle(index) : null,
+            ),
+          );
+          if (showHandle) return KeyedSubtree(key: key, child: tile);
+          return ReorderableDelayedDragStartListener(
+            key: key,
+            index: index,
+            child: tile,
+          );
+        },
+      );
+    }
+
+    List<Widget> completedSlivers(List<Todo> completed) {
+      if (hideCompleted || completed.isEmpty) return const [];
+      return [
+        SliverToBoxAdapter(
+          child: DsSectionLabel(
+            '${l.completed} · ${completed.length}',
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s4,
+              AppSpacing.s5,
+              AppSpacing.s4,
+              AppSpacing.s1,
+            ),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildListDelegate([
+            for (final todo in completed) row(todo, completed: true),
+          ]),
+        ),
+      ];
+    }
+
+    List<Todo> completedFor(DateTime? day) {
+      final base = ref.watch(completedTodosProvider).valueOrNull ?? const [];
+      return base.where(visible).where((todo) {
+        if (day == null) return true;
+        final at = todo.completedAt;
+        if (at == null) return false;
+        return at.year == day.year &&
+            at.month == day.month &&
+            at.day == day.day;
+      }).toList();
+    }
+
+    final slivers = <Widget>[];
+
+    if (view is TodosAllView) {
+      final async = ref.watch(allTodosProvider);
+      if (async.isLoading && !async.hasValue) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final pending = (async.valueOrNull ?? const <Todo>[])
+          .where(active)
+          .where(visible)
+          .toList();
+      final completed = completedFor(null);
+      if (pending.isEmpty && completed.isEmpty) {
+        return _todoEmpty(l, view);
+      }
+      if (pending.isNotEmpty) {
+        slivers.add(
+          SliverToBoxAdapter(
+            child: DsSectionLabel(
+              '${l.allTasks} · $pendingCount',
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s4,
+                AppSpacing.s3,
+                AppSpacing.s4,
+                AppSpacing.s1,
+              ),
+            ),
+          ),
+        );
+        slivers.add(reorderable(pending, 'all'));
+      }
+      slivers.addAll(completedSlivers(completed));
+    } else if (view is TodosInboxView) {
+      final async = ref.watch(unplannedTodosProvider);
+      if (async.isLoading && !async.hasValue) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final pending = (async.valueOrNull ?? const <Todo>[])
+          .where(active)
+          .where(visible)
+          .toList();
+      final completed = completedFor(null);
+      if (pending.isEmpty && completed.isEmpty) {
+        return _todoEmpty(l, view);
+      }
+      if (pending.isNotEmpty) {
+        slivers.add(
+          SliverToBoxAdapter(
+            child: DsSectionLabel(
+              '${l.noPlannedExecution} · $pendingCount',
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s4,
+                AppSpacing.s3,
+                AppSpacing.s4,
+                AppSpacing.s1,
+              ),
+            ),
+          ),
+        );
+        slivers.add(reorderable(pending, 'inbox'));
+      }
+      slivers.addAll(completedSlivers(completed));
+    } else {
+      final day = (view as TodosDayView).day;
+      final async = ref.watch(allTodosProvider);
+      if (async.isLoading && !async.hasValue) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final overdue = <Todo>[];
+      final due = <Todo>[];
+      for (final todo in (async.valueOrNull ?? const <Todo>[])
+          .where(active)
+          .where(visible)) {
+        if (todo.dueDate == null) continue;
+        final when = DateTime(
+          todo.dueDate!.year,
+          todo.dueDate!.month,
+          todo.dueDate!.day,
+        );
+        if (day == today && when.isBefore(today)) {
+          overdue.add(todo);
+        } else if (when == DateTime(day.year, day.month, day.day)) {
+          due.add(todo);
+        }
+      }
+      final completed = completedFor(day);
+      if (overdue.isEmpty && due.isEmpty && completed.isEmpty) {
+        return _todoEmpty(l, view);
+      }
+      if (overdue.isNotEmpty) {
+        slivers.add(
+          SliverToBoxAdapter(
+            child: DsSectionLabel(
+              '${l.overdue} · ${overdue.length}',
+              color: context.ds.danger,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s4,
+                AppSpacing.s3,
+                AppSpacing.s4,
+                AppSpacing.s1,
+              ),
+            ),
+          ),
+        );
+        slivers.add(
+          SliverList(
+            delegate: SliverChildListDelegate([
+              for (final todo in overdue) row(todo),
+            ]),
+          ),
+        );
+      }
+      if (due.isNotEmpty) {
+        slivers.add(
+          SliverToBoxAdapter(
+            child: DsSectionLabel(
+              '${l.dateLabel(day.month, day.day)} · ${due.length}',
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s4,
+                AppSpacing.s4,
+                AppSpacing.s4,
+                AppSpacing.s1,
+              ),
+            ),
+          ),
+        );
+        slivers.add(reorderable(due, 'date'));
+      }
+      slivers.addAll(completedSlivers(completed));
+    }
+
+    if (pendingCount == 0 && slivers.isEmpty) {
+      return _todoEmpty(l, view);
+    }
+
+    slivers.add(
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.s6)),
+    );
+    return CustomScrollView(slivers: slivers);
+  }
+
+  bool get _desktopDrag =>
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.windows;
+
+  Widget _dragHandle(int index) {
+    return ReorderableDragStartListener(
+      index: index,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.grab,
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Icon(
+            CupertinoIcons.line_horizontal_3,
+            size: 16,
+            color: context.ds.ink3,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onReorderItem(List<Todo> todos, int oldIndex, int newIndex) {
+    final list = [...todos];
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+    ref.read(reorderTodosProvider)(list.map((t) => t.id).toList());
+  }
+
+  Widget _todoEmpty(AppLocalizations l, TodosView view) {
+    final inbox = view is TodosInboxView;
+    return DsEmpty(
+      icon: CupertinoIcons.checkmark_rectangle,
+      title: inbox ? l.unplannedViewEmptyTitle : l.todosEmptyTitle,
+      message: inbox ? l.unplannedViewEmptyHint : l.todosEmptyHint,
+      action: DsButton(
+        label: l.newTodo,
+        tone: DsButtonTone.secondary,
+        small: true,
+        icon: CupertinoIcons.add,
+        onPressed: () => showTodoQuickCreateSheet(
+          context,
+          dueDate: view is TodosDayView ? view.day : null,
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------- create
+
   void _openNewEvent(BuildContext context) {
     final viewed = ref.read(viewedDateProvider);
     final now = DateTime.now();
@@ -918,600 +1466,122 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  /// Today genuinely contains both kinds of object, so its action is neutral
-  /// and asks once which one to create.
   Future<void> _showCreateChooser(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final desktop = isWorkspaceLayout(context);
     final now = DateTime.now();
-    final options = <Widget>[
-      ListTile(
-        leading: const Icon(CupertinoIcons.checkmark_rectangle),
-        title: Text(l.todos),
-        onTap: () {
-          Navigator.of(context).pop();
-          showTodoQuickCreateSheet(context);
-        },
-      ),
-      ListTile(
-        leading: const Icon(CupertinoIcons.calendar_badge_plus),
-        title: Text(l.newEvent),
-        onTap: () {
-          Navigator.of(context).pop();
-          final start = DateTime(
-            now.year,
-            now.month,
-            now.day,
-            (now.hour + 1).clamp(0, 23),
-          );
-          context.push(
-            '/event/new?start=${start.millisecondsSinceEpoch}'
-            '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
-          );
-        },
-      ),
-    ];
-    if (desktop) {
-      return showDialog<void>(
-        animationStyle: AnimationStyle.noAnimation,
-        context: context,
-        builder: (ctx) => SimpleDialog(
-          title: Text(l.newItem),
-          children: options,
-        ),
-      );
-    }
-    return showModalBottomSheet<void>(
+    return showDsSheet<void>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Text(l.newItem, style: AppTypography.title),
+      title: l.newItem,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DsRow(
+            title: l.todos,
+            leading: Icon(
+              CupertinoIcons.checkmark_rectangle,
+              size: 18,
+              color: context.ds.ink2,
             ),
-            ...options,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _tagFilterChip(BuildContext context, Tag tag) {
-    final selected = _selectedTagIds.contains(tag.id);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      child: FilterChip(
-        label: Text(tag.name),
-        selected: selected,
-        selectedColor: ColorUtils.parseHex(tag.color).withValues(alpha: 0.3),
-        checkmarkColor: ColorUtils.parseHex(tag.color),
-        onSelected: (v) {
-          setState(() {
-            if (v) {
-              _selectedTagIds.add(tag.id);
-            } else {
-              _selectedTagIds.remove(tag.id);
-            }
-          });
-        },
-      ),
-    );
-  }
-
-  Widget _buildTodoTab() {
-    final l = AppLocalizations.of(context)!;
-    final desktop = isWorkspaceLayout(context);
-    final view = ref.watch(todosViewProvider);
-    final tagsAsync = ref.watch(tagsProvider);
-
-    return Column(
-      children: [
-        if (desktop)
-          TodoDesktopToolbar(
-            view: view,
-            onViewSelected: (next) =>
-                ref.read(todosViewProvider.notifier).state = next,
-            trailing: [_displayMenu(context)],
-          )
-        else
-          DateStrip(
-            view: view,
-            onViewSelected: (next) =>
-                ref.read(todosViewProvider.notifier).state = next,
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+            onTap: () {
+              Navigator.of(context, rootNavigator: true).pop();
+              showTodoQuickCreateSheet(context);
+            },
           ),
-        tagsAsync.when(
-          data: (tags) {
-            if (desktop) {
-              if (tags.isEmpty) return const SizedBox.shrink();
-              return SizedBox(
-                height: 44,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.only(right: AppSpacing.md),
-                  children: tags
-                      .map((tag) => _tagFilterChip(context, tag))
-                      .toList(),
-                ),
+          DsRow(
+            title: l.newEvent,
+            leading: Icon(
+              CupertinoIcons.calendar_badge_plus,
+              size: 18,
+              color: context.ds.ink2,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+            onTap: () {
+              Navigator.of(context, rootNavigator: true).pop();
+              final start = DateTime(
+                now.year,
+                now.month,
+                now.day,
+                (now.hour + 1).clamp(0, 23),
               );
-            }
-            return SizedBox(
-              height: 48,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: tags.isEmpty
-                        ? const SizedBox.shrink()
-                        : ListView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
+              context.push(
+                '/event/new?start=${start.millisecondsSinceEpoch}'
+                '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileTabBar extends StatelessWidget {
+  const _MobileTabBar({required this.current, required this.onSelected});
+
+  final int current;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
+    final items = [
+      (l.today, CupertinoIcons.sun_max),
+      (l.calendar, CupertinoIcons.calendar),
+      (l.todos, CupertinoIcons.checkmark_circle),
+    ];
+    return Container(
+      key: const ValueKey('mobile-tab-bar'),
+      color: ds.navBg,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: ds.line)),
+          ),
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    selected: current == i,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => onSelected(i),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              height: 28,
+                              child: Icon(
+                                items[i].$2,
+                                size: 21,
+                                color: current == i ? ds.primary : ds.ink3,
+                              ),
                             ),
-                            children: tags
-                                .map((tag) => _tagFilterChip(context, tag))
-                                .toList(),
-                          ),
-                  ),
-                  _displayMenu(context),
-                  _manageTagsButton(context, l),
-                  _trashButton(context, l),
-                ],
-              ),
-            );
-          },
-          loading: () => const SizedBox.shrink(),
-          error: (_, __) => const SizedBox.shrink(),
-        ),
-        TodoQuickAdd(dueDate: view is TodosDayView ? view.day : null),
-        Expanded(child: _buildTodoList(view)),
-      ],
-    );
-  }
-
-  /// Display preferences belong to the Todo page, not to global Settings.
-  Widget _displayMenu(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
-    return PopupMenuButton<bool>(
-      tooltip: l.displayOptions,
-      icon: const Icon(CupertinoIcons.ellipsis_circle, size: 18),
-      onSelected: (value) => ref.read(setHideCompletedProvider)(value),
-      itemBuilder: (ctx) => [
-        CheckedPopupMenuItem(
-          value: !hideCompleted,
-          checked: hideCompleted,
-          child: Text(l.hideCompleted),
-        ),
-      ],
-    );
-  }
-
-  Widget _manageTagsButton(BuildContext context, AppLocalizations l) {
-    return Semantics(
-      button: true,
-      label: l.manageTags,
-      child: IconButton(
-        icon: const Icon(CupertinoIcons.tag, size: 18),
-        tooltip: l.manageTags,
-        onPressed: () => context.push('/tags'),
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-
-  Widget _trashButton(BuildContext context, AppLocalizations l) {
-    return Semantics(
-      button: true,
-      label: l.trash,
-      child: IconButton(
-        icon: const Icon(CupertinoIcons.trash, size: 18),
-        tooltip: l.trash,
-        onPressed: () => context.push('/trash'),
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-
-  Widget _buildTodoList(TodosView view) {
-    final l = AppLocalizations.of(context)!;
-    final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
-    final todoTagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
-    final hasTagFilter = _selectedTagIds.isNotEmpty;
-    bool matchesTags(Todo t) {
-      if (!hasTagFilter) return true;
-      final tags = todoTagMap[t.id];
-      if (tags == null) return false;
-      return _selectedTagIds.any((id) => tags.contains(id));
-    }
-
-    final tagKey = _selectedTagIds.isEmpty
-        ? ''
-        : (_selectedTagIds.toList()..sort()).join(',');
-
-    if (view is TodosAllView) {
-      final allAsync = ref.watch(allTodosProvider);
-      return allAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(l.error)),
-        data: (todos) {
-          final pending = todos
-              .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
-              .where(matchesTags)
-              .toList();
-          final completed = hideCompleted
-              ? <Todo>[]
-              : todos
-                    .where((t) => t.status == 'COMPLETED')
-                    .where(matchesTags)
-                    .toList();
-          if (pending.isEmpty && completed.isEmpty) return _emptyState(l);
-          return CustomScrollView(
-            slivers: [
-              if (pending.isNotEmpty) ...[
-                SliverToBoxAdapter(
-                  child: _sectionHeader(l.allTasks, pending.length, null),
-                ),
-                SliverReorderableList(
-                  itemCount: pending.length,
-                  onReorderItem: (oldIndex, newIndex) =>
-                      _onReorderItem(pending, oldIndex, newIndex),
-                  itemBuilder: (context, index) {
-                    final t = pending[index];
-                    return _reorderableTodoTile(
-                      t,
-                      Key('all-${t.id}'),
-                      index: index,
-                    );
-                  },
-                ),
-              ],
-              if (completed.isNotEmpty) ..._completedSliverGroups(completed),
-            ],
-          );
-        },
-      );
-    }
-
-    if (view is TodosInboxView) {
-      final inboxAsync = ref.watch(unplannedTodosProvider);
-      final completedAsync = ref.watch(completedTodosProvider);
-      return inboxAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(l.error)),
-        data: (inboxTodos) {
-          final filteredInbox = inboxTodos.where(matchesTags).toList();
-          final completed = hideCompleted
-              ? <Todo>[]
-              : (completedAsync.valueOrNull ?? []).where(matchesTags).toList();
-          if (filteredInbox.isEmpty && completed.isEmpty) {
-            return _emptyState(l);
-          }
-          return CustomScrollView(
-            slivers: [
-              if (filteredInbox.isNotEmpty) ...[
-                SliverToBoxAdapter(
-                  child: _sectionHeader(l.inbox, filteredInbox.length, null),
-                ),
-                SliverReorderableList(
-                  itemCount: filteredInbox.length,
-                  onReorderItem: (oldIndex, newIndex) =>
-                      _onReorderItem(filteredInbox, oldIndex, newIndex),
-                  itemBuilder: (context, index) {
-                    final t = filteredInbox[index];
-                    return _reorderableTodoTile(
-                      t,
-                      Key('inbox-${t.id}'),
-                      index: index,
-                    );
-                  },
-                ),
-              ],
-              if (completed.isNotEmpty) ..._completedSliverGroups(completed),
-            ],
-          );
-        },
-      );
-    }
-
-    final date = (view as TodosDayView).day;
-    final tagFilteredAsync = ref.watch(pendingTodosByTagsProvider(tagKey));
-    final completedAsync = ref.watch(completedTodosProvider);
-
-    return tagFilteredAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(l.error)),
-      data: (allPending) {
-        final completed = completedAsync.valueOrNull ?? [];
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-
-        final overdue = <Todo>[];
-        final dateTodos = <Todo>[];
-
-        for (final t in allPending) {
-          if (t.dueDate == null) continue;
-          final due = DateTime(
-            t.dueDate!.year,
-            t.dueDate!.month,
-            t.dueDate!.day,
-          );
-          if (due.isBefore(today) && date.isAtSameMomentAs(today)) {
-            overdue.add(t);
-          } else if (due == date) {
-            dateTodos.add(t);
-          }
-        }
-
-        final dateCompleted = hideCompleted
-            ? <Todo>[]
-            : completed.where(matchesTags).where((t) {
-                if (t.completedAt == null) return false;
-                final c = DateTime(
-                  t.completedAt!.year,
-                  t.completedAt!.month,
-                  t.completedAt!.day,
-                );
-                return c == date;
-              }).toList();
-
-        if (overdue.isEmpty && dateTodos.isEmpty && dateCompleted.isEmpty) {
-          return _emptyState(l);
-        }
-
-        return CustomScrollView(
-          slivers: [
-            if (overdue.isNotEmpty) ...[
-              SliverToBoxAdapter(
-                child: _sectionHeader(
-                  l.overdue,
-                  overdue.length,
-                  Theme.of(context).colorScheme.error,
-                ),
-              ),
-              SliverList(
-                delegate: SliverChildListDelegate(
-                  overdue
-                      .asMap()
-                      .entries
-                      .map((e) => _todoTile(e.value))
-                      .toList(),
-                ),
-              ),
-            ],
-            if (dateTodos.isNotEmpty) ...[
-              SliverToBoxAdapter(
-                child: _sectionHeader(
-                  date == today ? l.today : l.dateLabel(date.month, date.day),
-                  dateTodos.length,
-                  Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              SliverReorderableList(
-                itemCount: dateTodos.length,
-                onReorderItem: (oldIndex, newIndex) =>
-                    _onReorderItem(dateTodos, oldIndex, newIndex),
-                itemBuilder: (context, index) {
-                  final t = dateTodos[index];
-                  return _reorderableTodoTile(
-                    t,
-                    Key('date-${t.id}'),
-                    index: index,
-                  );
-                },
-              ),
-            ],
-            if (dateCompleted.isNotEmpty) ...[
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Divider(height: 1),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: _sectionHeader(l.completed, dateCompleted.length, null),
-              ),
-              SliverList(
-                delegate: SliverChildListDelegate(
-                  dateCompleted
-                      .map((t) => _todoTile(t, isCompleted: true))
-                      .toList(),
-                ),
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  void _onReorderItem(List<Todo> todos, int oldIndex, int newIndex) {
-    final list = [...todos];
-    // onReorderItem already reports newIndex adjusted for the removed item.
-    final item = list.removeAt(oldIndex);
-    list.insert(newIndex, item);
-    ref.read(reorderTodosProvider)(list.map((t) => t.id).toList());
-  }
-
-  Widget _reorderableTodoTile(Todo todo, Key key, {required int index}) {
-    final desktopDrag =
-        defaultTargetPlatform == TargetPlatform.linux ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.windows;
-    // Per-tile Material: during a reorder drag the tile is reparented into
-    // the drag overlay, where the Scaffold Material may already be defunct.
-    final tile = Material(
-      type: MaterialType.transparency,
-      child: _todoTile(
-        todo,
-        dragHandle: desktopDrag
-            ? ReorderableDragStartListener(
-                index: index,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.grab,
-                  child: SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: Icon(
-                      CupertinoIcons.line_horizontal_3,
-                      size: 16,
-                      color: context.semantic.textTertiary,
+                            Text(
+                              items[i].$1,
+                              style: TextStyle(
+                                fontSize: 11,
+                                height: 1.3,
+                                fontWeight: FontWeight.w500,
+                                color: current == i ? ds.primary : ds.ink3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              )
-            : null,
-      ),
-    );
-    if (desktopDrag) return KeyedSubtree(key: key, child: tile);
-    return ReorderableDelayedDragStartListener(
-      key: key,
-      index: index,
-      child: tile,
-    );
-  }
-
-  List<Widget> _completedSliverGroups(List<Todo> completed) {
-    final groups = <DateTime, List<Todo>>{};
-    for (final t in completed) {
-      final date = t.completedAt != null
-          ? DateTime(
-              t.completedAt!.year,
-              t.completedAt!.month,
-              t.completedAt!.day,
-            )
-          : DateTime(1970, 1, 1);
-      groups.putIfAbsent(date, () => []).add(t);
-    }
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-
-    final slivers = <Widget>[
-      const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Divider(height: 1),
-        ),
-      ),
-    ];
-
-    final sortedDates = groups.keys.toList()..sort((a, b) => b.compareTo(a));
-    for (final date in sortedDates) {
-      final todos = groups[date]!;
-      String label;
-      if (date == today) {
-        label = AppLocalizations.of(context)!.today;
-      } else if (date == yesterday) {
-        label = AppLocalizations.of(context)!.yesterday;
-      } else {
-        label = AppLocalizations.of(context)!.dateLabel(date.month, date.day);
-      }
-      slivers.add(
-        SliverToBoxAdapter(
-          child: ExpansionTile(
-            title: Row(
-              children: [
-                Text(label, style: AppTypography.title),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  '${todos.length}',
-                  style: AppTypography.caption.copyWith(
-                    color: context.semantic.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            initiallyExpanded: date == today,
-            tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            children: todos
-                .map((t) => _todoTile(t, isCompleted: true))
-                .toList(),
+            ],
           ),
         ),
-      );
-    }
-    return slivers;
-  }
-
-  Widget _emptyState(AppLocalizations l) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ExcludeSemantics(
-            child: Icon(
-              CupertinoIcons.checkmark_rectangle,
-              size: 56,
-              color: context.semantic.textTertiary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            l.noPendingTodos,
-            style: AppTypography.title.copyWith(
-              color: context.semantic.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionHeader(String title, int count, Color? accentColor) {
-    return Padding(
-      // Keeps the Todo section headers on the shared 28dp desktop content
-      // origin that Action and Calendar already use.
-      padding: EdgeInsets.fromLTRB(
-        isWorkspaceLayout(context) ? 0 : AppSpacing.lg,
-        AppSpacing.md,
-        isWorkspaceLayout(context) ? 0 : AppSpacing.lg,
-        AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: AppTypography.overline.copyWith(
-              fontWeight: FontWeight.w600,
-              color: accentColor ?? context.semantic.textSecondary,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            '$count',
-            style: AppTypography.caption.copyWith(
-              color: context.semantic.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _todoTile(
-    Todo todo, {
-    bool isCompleted = false,
-    Widget? dragHandle,
-  }) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: TodoListTile(
-        dragHandle: dragHandle,
-        summary: todo.summary,
-        isCompleted: isCompleted,
-        priority: todo.priority,
-        todoId: todo.id,
-        todo: todo,
-        dueDate: todo.dueDate,
-        startDate: todo.startDate,
-        onToggle: (occurrenceId, nextCompleted) => ref.read(toggleTodoProvider)(
-          id: todo.id,
-          isCompleted: nextCompleted,
-          occurrenceId: occurrenceId,
-        ),
-        onTap: () => _openTodo(todo),
       ),
     );
   }

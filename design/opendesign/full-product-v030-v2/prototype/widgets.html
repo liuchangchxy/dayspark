@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DaySpark · 桌面小组件规范</title>
+  <link rel="stylesheet" href="../assets/tokens.css" />
+  <style>
+    body { min-height: 100vh; }
+    :root { --wall: #e4e2da; }
+    [data-theme="dark"] { --wall: #0c0d0a; }
+    .page { max-width: 1240px; margin: 0 auto; padding: 0 28px 64px; }
+
+    .whead {
+      position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 14px 0; background: var(--bg); border-bottom: 1px solid var(--line);
+    }
+    .whead .brand { display: flex; align-items: center; gap: 9px; margin-right: 8px; }
+    .whead .mark { width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; background: var(--ink); color: var(--surface); font-weight: 600; font-size: 12px; }
+    .whead h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: 0; }
+    .whead .sub { font-size: 12px; color: var(--ink-3); }
+    .whead .grow { flex: 1; }
+    .whead .seg button { min-height: 32px; }
+
+    .lead { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; padding: 22px 0 10px; }
+    .lead p { margin: 0; max-width: 620px; font-size: 13.5px; line-height: 1.7; color: var(--ink-2); }
+    .lead .badge { font-size: 11px; color: var(--ink-3); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
+
+    .sizes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 14px; }
+    .size-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .size-meta { display: flex; align-items: baseline; gap: 8px; }
+    .size-meta b { font-size: 14px; }
+    .size-meta span { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+    .size-meta .dp { margin-left: auto; }
+
+    .stage {
+      display: grid; place-items: center; min-height: 330px; padding: 18px;
+      background: var(--wall); border-radius: var(--r-lg); border: 1px solid var(--line-soft);
+    }
+
+    .widget {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+      box-shadow: var(--shadow-1);
+      overflow: hidden; color: var(--ink); text-align: left;
+    }
+    .widget.small { width: 172px; height: 172px; }
+    .widget.medium { width: 316px; height: 180px; }
+    .widget.large { width: 316px; height: 316px; }
+
+    .wbody { height: 100%; display: flex; flex-direction: column; padding: 12px 14px; }
+    .wheadrow { display: flex; align-items: center; gap: 6px; }
+    .wheadrow .lbl { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--ink-3); }
+    .wheadrow .cnt { margin-left: auto; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+    .wtitle { font-size: 13px; font-weight: 600; }
+
+    .wrow { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; min-width: 0; min-height: 44px; box-sizing: border-box; }
+    .wrow + .wrow { border-top: 1px solid var(--line-soft); }
+    .wrow .wmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .wrow .wname { font-size: 13px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+    .wrow .wmeta { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wrow .wtime { flex: none; width: 36px; font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; padding-top: 1px; }
+    .wrow .wdot { flex: none; width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; }
+    .wcheck { flex: none; width: 18px; height: 18px; margin-top: 1px; border: 1.6px solid var(--ink-3); border-radius: 50%; background: transparent; display: grid; place-items: center; color: transparent; padding: 0; }
+    .wcheck:hover { border-color: var(--primary); }
+    .wcheck.done { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+    .wmore { margin-top: auto; padding-top: 7px; font-size: 11px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; }
+
+    .wsec { margin-top: 8px; }
+    .wsec .wsech { display: flex; align-items: baseline; font-size: 10px; font-weight: 600; letter-spacing: .05em; color: var(--ink-3); padding-bottom: 2px; }
+    .wsec .wsech .more { margin-left: auto; font-weight: 400; letter-spacing: 0; }
+
+    .wbig { font-size: 44px; line-height: 1.1; font-weight: 600; letter-spacing: -.01em; }
+    .wday { font-size: 11px; color: var(--ink-3); }
+    .wnext { margin-top: auto; border-top: 1px solid var(--line-soft); padding-top: 9px; }
+    .wnext .wt { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+    .wnext .wm { font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+
+    .wbar { height: 4px; border-radius: 2px; background: var(--surface-3); overflow: hidden; margin-top: 8px; }
+    .wbar i { display: block; height: 100%; background: var(--primary); }
+
+    .wcal { display: flex; flex-direction: column; height: 100%; }
+    .wev { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; }
+    .wev .bar { flex: none; width: 3px; border-radius: 2px; align-self: stretch; background: var(--primary); }
+    .wev .m { flex: 1 1 auto; min-width: 0; }
+    .wev .t { font-size: 12px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wev .s { font-size: 10.5px; color: var(--ink-3); }
+
+    .minimonth { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+    .minimonth .mw { text-align: center; font-size: 9px; color: var(--ink-3); padding: 1px 0; }
+    .minimonth .md { position: relative; text-align: center; font-size: 10px; color: var(--ink-2); padding: 2px 0; border-radius: 5px; }
+    .minimonth .md.out { opacity: .4; }
+    .minimonth .md.today { background: var(--primary); color: var(--on-primary); font-weight: 600; }
+    .minimonth .md.has::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 3px; height: 3px; border-radius: 50%; background: var(--primary); transform: translateX(-50%); }
+    .minimonth .md.today.has::after { background: var(--on-primary); }
+
+    .qtile { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; justify-content: center; padding: 12px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); text-align: left; }
+    .qtile:hover { background: var(--surface-2); }
+    .qtile .qi { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); }
+    .qtile .qn { font-size: 12px; font-weight: 600; }
+    .qtile .qd { font-size: 10px; color: var(--ink-3); }
+    .qgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 100%; }
+    .qrow { display: flex; gap: 8px; height: 100%; }
+
+    .notes { display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
+    .notes li { font-size: 12px; line-height: 1.55; color: var(--ink-2); margin-left: 14px; }
+    .notes li::marker { color: var(--ink-3); }
+
+    .rules { margin-top: 30px; }
+    .rules h2 { font-size: 16px; margin: 0 0 4px; }
+    .rules .intro { font-size: 12.5px; color: var(--ink-3); margin-bottom: 14px; }
+    .rulegrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .rule { padding: 14px 16px; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-sm); }
+    .rule b { display: block; font-size: 13px; margin-bottom: 4px; }
+    .rule p { margin: 0; font-size: 12px; line-height: 1.65; color: var(--ink-2); }
+    .rule .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--ink-3); margin-bottom: 6px; }
+
+    .spec { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .spec .box { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-sm); padding: 14px 16px; }
+    .spec h3 { margin: 0 0 6px; font-size: 13px; }
+    .spec ul { margin: 0; padding-left: 16px; font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+      background: var(--ink); color: var(--bg); font-size: 12.5px; padding: 9px 16px; border-radius: 999px;
+      opacity: 0; pointer-events: none; transition: opacity 160ms var(--ease-out); z-index: 50;
+    }
+    .toast.show { opacity: 1; }
+
+
+    /* ---------- visual polish: widget surfaces stay quiet ---------- */
+    .whead { padding: 12px 0; gap: 10px; }
+    .whead .sub { font-size: 12px; }
+    .whead .seg button { min-height: 30px; font-size: 12.5px; }
+    .lead { padding: 20px 0 6px; }
+    .lead p { font-size: 13px; line-height: 1.7; }
+    .lead .badge { font-size: 11px; }
+    .sizes { gap: 20px; margin-top: 16px; }
+    .size-meta b { font-size: 13px; font-weight: 600; }
+    .size-meta span { font-size: 11px; letter-spacing: .02em; }
+    .stage { min-height: 340px; border-radius: 10px; border-color: var(--line-soft); }
+    .wbody { padding: 14px 16px; }
+    .wheadrow .lbl { font-size: 11px; font-weight: 600; letter-spacing: .06em; }
+    .wheadrow .cnt { font-size: 11px; }
+    .wtitle { font-size: 13px; font-weight: 600; }
+    .wrow { min-height: 44px; padding: 6px 0; gap: 9px; }
+    .wrow .wname { line-height: 1.4; }
+    .wrow .wmeta { font-size: 11px; letter-spacing: .01em; }
+    .wrow .wtime { width: 38px; font-size: 11px; }
+    .wrow .wdot { width: 6px; height: 6px; margin-top: 7px; opacity: .8; }
+    .wcheck { width: 17px; height: 17px; border-width: 1.5px; margin-top: 2px; }
+    .wday { font-size: 11px; letter-spacing: .02em; }
+    .wnext { padding-top: 10px; }
+    .wnext .wt { font-size: 12.5px; font-weight: 600; }
+    .wnext .wm { font-size: 11px; }
+    .wsec { margin-top: 10px; }
+    .wsec .wsech { font-size: 11px; font-weight: 600; letter-spacing: .06em; }
+    .wbar { height: 3px; border-radius: 2px; margin-top: 10px; }
+    .wev { padding: 7px 0; gap: 9px; }
+    .wev .bar { width: 2px; border-radius: 1px; opacity: .85; }
+    .wev .t { font-size: 12.5px; font-weight: 500; }
+    .wev .s { font-size: 11px; }
+    .minimonth { gap: 2px 1px; }
+    .minimonth .mw { font-size: 9.5px; }
+    .minimonth .md {
+      width: 22px; height: 22px; margin: 1px auto; padding: 0;
+      display: grid; place-items: center; border-radius: 50%; font-size: 10.5px;
+    }
+    .minimonth .md.today { font-weight: 600; }
+    .minimonth .md.has::after { bottom: 0; }
+    .widget.large .minimonth { gap: 1px; }
+    .widget.large .minimonth .md { width: 20px; height: 20px; font-size: 10px; }
+    .widget.large .wsec { margin-top: 7px; }
+    .widget.large .wev { padding: 5px 0; }
+    .qtile { border: 0; border-radius: 10px; background: var(--surface-2); padding: 12px; }
+    .qtile:hover { background: var(--surface-3); }
+    .qtile .qi { width: 28px; height: 28px; border-radius: 7px; background: transparent; color: var(--ink-2); }
+    .qtile .qn { font-size: 12.5px; font-weight: 600; }
+    .qtile .qd { font-size: 11px; }
+    .qgrid, .qrow { gap: 8px; }
+    .rules { margin-top: 32px; }
+    .rules h2 { font-size: 17px; font-weight: 600; letter-spacing: 0; }
+    .rulegrid { gap: 14px; }
+    .rule b { font-size: 13px; font-weight: 600; }
+    .rule p { font-size: 12.5px; line-height: 1.65; }
+    .spec { gap: 14px; }
+    .spec h3 { font-size: 14px; font-weight: 600; }
+    .toast { border-radius: 8px; padding: 9px 14px; }
+
+    @media (max-width: 980px) {
+      .sizes { grid-template-columns: 1fr; }
+      .stage { min-height: 260px; }
+      .rulegrid { grid-template-columns: 1fr 1fr; }
+      .spec { grid-template-columns: 1fr; }
+    }
+
+    /* second-pass polish: structural action grid, no cards inside cards */
+    .qrow, .qgrid { gap: 1px; background: var(--line-soft); }
+    .qtile { background: var(--surface); border-radius: 0; }
+    .qtile:hover { background: var(--surface-2); }
+    .wbody > .qrow, .wbody > .qgrid { height: 100%; }
+    [data-theme="dark"] .wev .bar { filter: brightness(1.45) saturate(1.05); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="whead">
+      <div class="brand"><span class="mark">D</span><div><h1>桌面小组件</h1><div class="sub">DaySpark · Android 主屏 / 锁屏规范</div></div></div>
+      <span class="grow"></span>
+      <div class="seg" id="type-seg">
+        <button data-type="todo" aria-selected="true">待办</button>
+        <button data-type="calendar" aria-selected="false">日历</button>
+        <button data-type="timeline" aria-selected="false">时间轴</button>
+        <button data-type="quick" aria-selected="false">快捷操作</button>
+      </div>
+      <button class="btn sm secondary" id="theme-btn">深色预览</button>
+      <button class="btn sm ghost" id="reset-btn">重置数据</button>
+    </header>
+
+    <div class="lead">
+      <p>同一份数据，三种尺寸。尺寸变大不是多塞几行，而是改变结构：小尺寸只回答一个问题，中尺寸给出可扫读的列表，大尺寸展开分组与时间关系。</p>
+      <span class="badge">点击组件里的圆圈可完成待办 · 数据与 App 共享</span>
+      <p id="type-note" style="display:none;flex-basis:100%;margin:0;font-size:11.5px;color:var(--warn)"></p>
+    </div>
+
+    <section class="sizes" id="sizes"></section>
+
+    <section class="rules">
+      <h2>尺寸规则</h2>
+      <div class="intro">四种组件共用同一套尺寸语义，避免同一块主屏上出现四套不同的信息密度。</div>
+      <div class="rulegrid">
+        <div class="rule"><span class="tag">小 · 2×2</span><b>一个决定</b><p>只显示最该被看到的一件事，或一个数字。不出现列表、不出现分组、不出现操作说明。</p></div>
+        <div class="rule"><span class="tag">中 · 4×2</span><b>一条可扫读的序列</b><p>3–4 条同质条目，统一的时间列与状态。允许完成操作，不展开分组标题。</p></div>
+        <div class="rule"><span class="tag">大 · 4×4</span><b>结构与关系</b><p>可以分组、显示时间轴、迷你月历或 2×2 操作面板。大尺寸必须利用纵向空间表达层级。</p></div>
+        <div class="rule"><span class="tag">信息优先级</span><b>时间 → 标题 → 状态</b><p>时间与截止永远比日历名、标签更靠前。颜色只用于日历归属与逾期，不做装饰。</p></div>
+        <div class="rule"><span class="tag">点击</span><b>整体进入，局部操作</b><p>点组件空白处打开对应页面；点圆圈完成待办；点单条打开详情。行高 44dp，整行命中区扩展到 48dp。</p></div>
+        <div class="rule"><span class="tag">刷新</span><b>不做秒级刷新</b><p>时间轴按 15 分钟边界刷新，今天/日历在数据变更与零点刷新。避免常驻前台服务。</p></div>
+      </div>
+
+      <div class="spec">
+        <div class="box">
+          <h3>Android 实现约束</h3>
+          <ul>
+            <li>当前仓库只有待办 / 日历 / 今天三类 provider；日历组件最小 4×4，快捷操作组件尚不存在。</li>
+            <li>Glance / RemoteViews 二选一，不依赖 WebView。</li>
+            <li>不支持组件内滚动；条目数量固定，超出以“还有 N 项”收口。</li>
+            <li>深色模式使用独立色值，不做透明度叠加。</li>
+            <li>锁屏组件不显示具体任务标题，只显示数量与最近时间。</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h3>与 App 的边界</h3>
+          <ul>
+            <li>组件只读 + 完成待办，不提供完整编辑表单。</li>
+            <li>“计划执行”与“截止”在组件里使用不同措辞，不能合并成一个时间。</li>
+            <li>点击“未安排”进入待办页的未安排视图，不直接创建。</li>
+            <li>快捷操作只做入口，不在组件内弹出输入法。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../assets/icons.js"></script>
+  <script src="../assets/store.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var DS = window.DS, ic = window.icon;
+    var type = 'todo', dark = false;
+    var sizesEl = document.getElementById('sizes');
+    var toastEl = document.getElementById('toast');
+    var toastTimer = null;
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 1800);
+    }
+    function time(iso) { return DS.fmt.time(iso); }
+    function dueMeta(t) { return t.due ? (t.dueHasTime ? '截止 ' + DS.fmt.time(t.due) : '截止 ' + DS.fmt.md(t.due)) : ''; }
+    function planMeta(t) { return t.allocation ? '计划 ' + DS.fmt.range(t.allocation.start, t.allocation.end) : ''; }
+
+    function head(label, count) {
+      return '<div class="wheadrow"><span class="lbl">' + label + '</span>' + (count != null ? '<span class="cnt">' + count + '</span>' : '') + '</div>';
+    }
+
+    function todayTodoList() {
+      var out = [];
+      function push(t) { if (out.indexOf(t) < 0) out.push(t); }
+      DS.overdue().forEach(push);
+      DS.dueOn(DS.NOW).forEach(push);
+      DS.allocationsOn(DS.NOW).forEach(push);
+      return out;
+    }
+
+    function todoWidget(size) {
+      var m = DS.todayModel();
+      var todayList = todayTodoList();
+      var plans = DS.allocationsOn(DS.NOW);
+      var focus = plans.filter(function (t) { return new Date(t.allocation.start) <= DS.NOW && new Date(t.allocation.end) > DS.NOW; })[0] ||
+        plans.filter(function (t) { return new Date(t.allocation.start) > DS.NOW; })[0] ||
+        m.dueToday[0] || m.unplanned[0] || null;
+
+      if (size === 'small') {
+        var title = focus ? focus.title : '今天没有待办';
+        var meta = focus
+          ? (focus.allocation ? '计划 ' + DS.fmt.range(focus.allocation.start, focus.allocation.end) : (focus.due ? dueMeta(focus) : '未安排'))
+          : '打开 DaySpark 添加一件';
+        return '<div class="widget small"><div class="wbody">' +
+          head('今天') +
+          '<div style="margin-top:8px;font-size:11px;color:var(--ink-3)">' + (focus && focus.allocation ? '接下来' : '最该处理') + '</div>' +
+          '<div style="margin-top:2px;font-size:14px;font-weight: 600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(title) + '</div>' +
+          '<div style="font-size:10.5px;color:var(--ink-3);margin-top:3px">' + esc(meta) + '</div>' +
+          '<div class="wmore">未安排 ' + m.unplanned.length + ' 项</div>' +
+          '</div></div>';
+      }
+
+      if (size === 'medium') {
+        var rows = todayList.slice(0, 3).map(function (t) {
+          return '<div class="wrow"><button class="wcheck" data-toggle="' + t.id + '" aria-label="完成 ' + esc(t.title) + '">' + ic('check', 10) + '</button>' +
+            '<div class="wmain"><div class="wname">' + esc(t.title) + '</div><div class="wmeta">' + esc(planMeta(t) || dueMeta(t) || '未安排') + '</div></div></div>';
+        }).join('');
+        return '<div class="widget medium"><div class="wbody">' + head('今天', todayList.length + ' 项') +
+          '<div style="margin-top:2px">' + (rows || '<div class="wmeta" style="padding-top:8px">今天没有待办</div>') + '</div></div></div>';
+      }
+
+      var nowRows = plans.filter(function (t) { return new Date(t.allocation.end) > DS.NOW; }).slice(0, 2).map(function (t) {
+        var running = new Date(t.allocation.start) <= DS.NOW;
+        return '<div class="wrow"><div class="wtime">' + time(t.allocation.start) + '</div><div class="wdot" style="background:' + (running ? 'var(--primary)' : 'var(--ink-3)') + '"></div>' +
+          '<div class="wmain"><div class="wname">' + esc(t.title) + '</div><div class="wmeta">' + (running ? '正在执行' : '接下来') + ' · ' + DS.fmt.range(t.allocation.start, t.allocation.end) + '</div></div></div>';
+      }).join('');
+      var due = m.dueToday.slice(0, 1).map(function (t) {
+        return '<div class="wrow"><button class="wcheck" data-toggle="' + t.id + '">' + ic('check', 10) + '</button>' +
+          '<div class="wmain"><div class="wname">' + esc(t.title) + '</div><div class="wmeta" style="color:var(--warn)">' + esc(dueMeta(t)) + '</div></div></div>';
+      }).join('');
+      var extra = m.unplanned.filter(function (t) { return m.dueToday.indexOf(t) < 0 && plans.indexOf(t) < 0; }).slice(0, 1).map(function (t) {
+        return '<div class="wrow"><button class="wcheck" data-toggle="' + t.id + '">' + ic('check', 10) + '</button>' +
+          '<div class="wmain"><div class="wname">' + esc(t.title) + '</div><div class="wmeta">未安排</div></div></div>';
+      }).join('');
+      return '<div class="widget large"><div class="wbody">' + head('今天 · ' + DS.fmt.weekday(DS.NOW) + ' ' + DS.fmt.md(DS.NOW), todayList.length) +
+        '<div class="wsec"><div class="wsech">正在执行 / 接下来</div>' + (nowRows || '<div class="wmeta">今天没有已安排的待办</div>') + '</div>' +
+        '<div class="wsec"><div class="wsech">今天截止 · ' + m.dueToday.length + '</div>' + (due || '<div class="wmeta">今天没有截止项</div>') + '</div>' +
+        (extra ? '<div class="wsec"><div class="wsech">未安排 · ' + m.unplanned.length + '</div>' + extra + '</div>' : '') +
+        '</div></div>';
+    }
+
+    function calendarWidget(size) {
+      var todayEvents = DS.eventsOn(DS.NOW);
+      if (size === 'small') {
+        var next = todayEvents.filter(function (e) { return new Date(e.start) >= DS.NOW; })[0] || todayEvents[0];
+        return '<div class="widget small"><div class="wbody">' +
+          head(DS.fmt.weekday(DS.NOW)) +
+          '<div class="wbig" style="margin-top:6px">' + DS.NOW.getDate() + '</div>' +
+          '<div class="wday">' + DS.fmt.md(DS.NOW) + '</div>' +
+          '<div class="wnext">' + (next ? '<div class="wt">' + esc(next.title) + '</div><div class="wm">' + DS.fmt.range(next.start, next.end) + '</div>' : '<div class="wm">今天没有日程</div>') + '</div>' +
+          '</div></div>';
+      }
+      if (size === 'medium') {
+        var evs = todayEvents.slice(0, 3).map(function (e) {
+          return '<div class="wev"><div class="bar" style="background:' + DS.calendar(e.calendarId).color + '"></div><div class="m"><div class="t">' + esc(e.title) + '</div><div class="s">' + DS.fmt.range(e.start, e.end) + (e.location ? ' · ' + esc(e.location) : '') + '</div></div></div>';
+        }).join('');
+        return '<div class="widget medium"><div class="wbody">' + head(DS.fmt.weekday(DS.NOW) + ' · ' + DS.fmt.md(DS.NOW), todayEvents.length + ' 个日程') +
+          '<div style="margin-top:4px;flex:1;min-height:0">' + (evs || '<div class="wmeta">今天没有日程</div>') + '</div>' +
+          '</div></div>';
+      }
+      return '<div class="widget large"><div class="wbody">' + head(DS.fmt.md(DS.NOW), '今天') + miniMonth() +
+        '<div class="wsec" style="flex:1;min-height:0"><div class="wsech">今天的日程' + (todayEvents.length > 2 ? '<span class="more">还有 ' + (todayEvents.length - 2) + ' 个</span>' : '') + '</div>' +
+        (todayEvents.slice(0, 2).map(function (e) {
+          return '<div class="wev"><div class="bar" style="background:' + DS.calendar(e.calendarId).color + '"></div><div class="m"><div class="t">' + esc(e.title) + '</div><div class="s">' + DS.fmt.range(e.start, e.end) + '</div></div></div>';
+        }).join('') || '<div class="wmeta">今天没有日程</div>') + '</div></div></div>';
+    }
+
+    function miniMonth() {
+      var now = DS.NOW;
+      var first = new Date(now.getFullYear(), now.getMonth(), 1);
+      var off = (first.getDay() + 6) % 7;
+      var start = DS.addDays(first, -off);
+      var wd = ['一', '二', '三', '四', '五', '六', '日'];
+      var out = '<div class="minimonth" style="margin:6px 0 0">' + wd.map(function (w) { return '<div class="mw">' + w + '</div>'; }).join('');
+      for (var i = 0; i < 42; i++) {
+        var d = DS.addDays(start, i);
+        var has = DS.eventsOn(d).length > 0;
+        out += '<div class="md' + (d.getMonth() === now.getMonth() ? '' : ' out') + (DS.sameDay(d, now) ? ' today' : '') + (has ? ' has' : '') + '">' + d.getDate() + '</div>';
+      }
+      return out + '</div>';
+    }
+
+    function timelineWidget(size) {
+      var items = [];
+      DS.todayModel().earlier.forEach(function (i) { items.push(i); });
+      DS.todayModel().current.forEach(function (i) { items.push(i); });
+      DS.todayModel().later.forEach(function (i) { items.push(i); });
+      items.sort(function (a, b) { return a.start - b.start; });
+
+      if (size === 'small') {
+        var cur = DS.todayModel().current[0];
+        var next = DS.todayModel().later[0];
+        var item = cur || next;
+        var pct = cur ? Math.round((DS.NOW - cur.start) / (cur.end - cur.start) * 100) : 0;
+        return '<div class="widget small"><div class="wbody">' + head('时间轴') +
+          (item ? '<div style="margin-top:8px;font-size:11px;color:var(--ink-3)">' + (cur ? '进行中' : '接下来') + ' ' + DS.fmt.range(item.start, item.end) + '</div>' +
+            '<div style="font-size:13.5px;font-weight: 600;line-height:1.3;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(item.kind === 'allocation' ? item.todo.title : item.ref.title) + '</div>' +
+            (cur ? '<div class="wbar"><i style="width:' + pct + '%"></i></div>' : '') : '<div class="wmeta">今天没有安排</div>') +
+          '<div class="wmore">' + DS.fmt.time(DS.NOW) + ' · 现在</div></div></div>';
+      }
+
+      if (size === 'medium') {
+        var upcoming = items.filter(function (i) { return i.end >= DS.NOW; }).slice(0, 3);
+        return '<div class="widget medium"><div class="wbody">' + head('接下来', upcoming.length + ' 项') +
+          '<div style="margin-top:4px">' + upcoming.map(function (i) {
+            return '<div class="wrow"><div class="wtime">' + time(i.start) + '</div><div class="wdot" style="background:' + (i.kind === 'allocation' ? 'var(--ink-3)' : DS.calendar(i.ref.calendarId).color) + '"></div>' +
+              '<div class="wmain"><div class="wname">' + esc(i.kind === 'allocation' ? i.todo.title : i.ref.title) + '</div><div class="wmeta">' + DS.fmt.range(i.start, i.end) + (i.kind === 'allocation' ? ' · 计划' : '') + '</div></div></div>';
+          }).join('') + '</div><div class="wmore">' + DS.fmt.time(DS.NOW) + ' · 现在</div></div></div>';
+      }
+
+      var START = 8, END = 20, H = 20;
+      var body = '';
+      for (var h = START; h < END; h++) {
+        body += '<div style="display:flex;gap:8px;height:' + H + 'px"><div style="width:32px;flex:none;font-size:9.5px;color:var(--ink-3);text-align:right">' + ('0' + h).slice(-2) + ':00</div><div style="flex:1;border-top:1px solid var(--line-soft)"></div></div>';
+      }
+      var blocks = items.filter(function (i) {
+        var hh = i.start.getHours() + i.start.getMinutes() / 60;
+        return hh >= START && hh < END;
+      });
+      var laid = [], cluster = [], clusterEnd = 0;
+      function flushCluster() {
+        if (!cluster.length) return;
+        var laneEnds = [];
+        cluster.forEach(function (b) {
+          var lane = 0;
+          while (lane < laneEnds.length && laneEnds[lane] > b.i.start.getTime()) lane++;
+          if (lane === laneEnds.length) laneEnds.push(0);
+          laneEnds[lane] = b.i.end.getTime();
+          b.lane = lane;
+        });
+        cluster.forEach(function (b) { b.lanes = laneEnds.length; laid.push(b); });
+        cluster = [];
+        clusterEnd = 0;
+      }
+      blocks.forEach(function (i) {
+        if (cluster.length && i.start.getTime() >= clusterEnd) flushCluster();
+        cluster.push({ i: i });
+        clusterEnd = Math.max(clusterEnd, i.end.getTime());
+      });
+      flushCluster();
+      var blockHtml = laid.map(function (b) {
+        var i = b.i;
+        var top = ((i.start.getHours() + i.start.getMinutes() / 60) - START) * H;
+        var hgt = Math.max(16, ((i.end - i.start) / 3600000) * H - 2);
+        var isPlan = i.kind === 'allocation';
+        var width = 'calc((100% - 40px) / ' + b.lanes + ' - 3px)';
+        var left = 'calc(40px + (100% - 40px) * ' + b.lane + ' / ' + b.lanes + ')';
+        var evColor = isPlan ? 'var(--ink-3)' : DS.calendar(i.ref.calendarId).color;
+        return '<div style="position:absolute;left:' + left + ';width:' + width + ';top:' + top + 'px;height:' + hgt + 'px;border-left:2px solid ' + evColor + ';background:' + (isPlan ? 'var(--surface-2)' : 'color-mix(in srgb, ' + evColor + ' 11%, var(--surface))') + ';border-radius:0 4px 4px 0;padding:2px 6px;overflow:hidden;z-index:2">' +
+          '<div style="font-size:10.5px;font-weight: 600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(isPlan ? i.todo.title : i.ref.title) + '</div></div>';
+      }).join('');
+      var nowTop = ((DS.NOW.getHours() + DS.NOW.getMinutes() / 60) - START) * H;
+      return '<div class="widget large"><div class="wbody" style="padding-bottom:8px">' + head('今天 · 时间轴', DS.fmt.time(DS.NOW)) +
+        '<div style="position:relative;margin-top:4px;flex:1;min-height:0;overflow:hidden">' + body + blockHtml +
+        (nowTop > 0 && nowTop < (END - START) * H ? '<div style="position:absolute;left:36px;right:0;top:' + nowTop + 'px;height:2px;background:var(--warm);z-index:1;pointer-events:none"></div>' : '') +
+        '</div></div></div>';
+    }
+
+    function quickWidget(size) {
+      var acts = [
+        { icon: 'plus', name: '新建待办', desc: '标题、截止、提醒' },
+        { icon: 'calendarPlus', name: '新建日程', desc: '时间、地点、日历' },
+        { icon: 'sparkle', name: '语音速记', desc: '说一句，生成待办' },
+        { icon: 'clock', name: '开始专注', desc: '25 分钟' }
+      ];
+      if (size === 'small') {
+        return '<div class="widget small"><div class="wbody" style="padding:0">' +
+          '<button class="qtile" data-quick="新建待办" style="border:0;height:100%;border-radius:0;align-items:center;justify-content:center;gap:6px">' +
+          '<span class="qi" style="width:38px;height:38px;border-radius:12px">' + ic('plus', 18) + '</span><span class="qn" style="font-size:13px">新建待办</span><span class="qd">点一下就开始</span></button>' +
+          '</div></div>';
+      }
+      if (size === 'medium') {
+        return '<div class="widget medium"><div class="wbody" style="padding:0"><div class="qrow">' +
+          acts.slice(0, 3).map(function (a) {
+            return '<button class="qtile" data-quick="' + a.name + '" style="flex:1;align-items:center;text-align:center;padding:8px 6px"><span class="qi">' + ic(a.icon, 17) + '</span><span class="qn">' + a.name + '</span></button>';
+          }).join('') + '</div></div></div>';
+      }
+      return '<div class="widget large"><div class="wbody" style="padding:0"><div class="qgrid">' +
+        acts.map(function (a) {
+          return '<button class="qtile" data-quick="' + a.name + '"><span class="qi">' + ic(a.icon, 17) + '</span><span class="qn">' + a.name + '</span><span class="qd">' + a.desc + '</span></button>';
+        }).join('') + '</div></div></div>';
+    }
+
+    var META = {
+      todo: { title: '待办', desc: '小：一个焦点；中：今天的前三条；大：现在 / 今天截止 / 未安排。' },
+      calendar: { title: '日历', desc: '小：日期与下一个日程；中：今天的日程列表；大：迷你月历 + 当天日程。', note: '新增：当前实现从 4×4 起，2×2 需新增布局并下调 minWidth / minHeight。' },
+      timeline: { title: '时间轴', desc: '小：正在进行的一件事；中：接下来三项；大：8–18 点的完整时间轴。' },
+      quick: { title: '快捷操作', desc: '小：一个主操作；中：三个并排入口；大：2×2 操作面板。', note: '新增：当前仓库没有快捷操作组件，整套为本次设计。' }
+    };
+
+    var SIZE_LABEL = {
+      small: { name: '小', spec: '2×2 · 172×172dp', note: '只保留一个决定，不出现列表。' },
+      medium: { name: '中', spec: '4×2 · 316×180dp', note: '3–4 条同质条目，允许直接完成。' },
+      large: { name: '大', spec: '4×4 · 316×316dp', note: '必须分组或表达时间关系，不能只多两行。' }
+    };
+
+    function widgetFor(size) {
+      if (type === 'todo') return todoWidget(size);
+      if (type === 'calendar') return calendarWidget(size);
+      if (type === 'timeline') return timelineWidget(size);
+      return quickWidget(size);
+    }
+
+    function render() {
+      var meta = META[type];
+      var noteEl = document.getElementById('type-note');
+      noteEl.textContent = meta.note || '';
+      noteEl.style.display = meta.note ? 'block' : 'none';
+      sizesEl.innerHTML = ['small', 'medium', 'large'].map(function (s) {
+        var m = SIZE_LABEL[s];
+        return '<div class="size-col"><div class="size-meta"><b>' + m.name + '</b><span>' + m.spec + '</span></div>' +
+          '<div class="stage">' + widgetFor(s) + '</div>' +
+          '<ul class="notes"><li>' + m.note + '</li><li>' + meta.desc.split('；')[['small', 'medium', 'large'].indexOf(s)] + '</li></ul></div>';
+      }).join('');
+    }
+
+    document.getElementById('type-seg').addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-type]');
+      if (!b) return;
+      type = b.getAttribute('data-type');
+      Array.prototype.forEach.call(this.querySelectorAll('button'), function (x) { x.setAttribute('aria-selected', String(x === b)); });
+      render();
+    });
+
+    document.getElementById('theme-btn').addEventListener('click', function () {
+      dark = !dark;
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      this.textContent = dark ? '浅色预览' : '深色预览';
+      render();
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', function () {
+      DS.reset(); toast('演示数据已重置'); render();
+    });
+
+    sizesEl.addEventListener('click', function (ev) {
+      var t = ev.target.closest('[data-toggle]');
+      if (t) { DS.toggleTodo(t.getAttribute('data-toggle')); render(); return; }
+      var q = ev.target.closest('[data-quick]');
+      if (q) { toast('原型：将打开「' + q.getAttribute('data-quick') + '」'); return; }
+    });
+
+    DS.subscribe(function () { render(); });
+    render();
+  })();
+  </script>
+</body>
+</html>

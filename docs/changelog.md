@@ -3,8 +3,8 @@
 **TL;DR / 快速了解**
 - 2026-10-06：重复 Todo 架构回正：实例完成状态按 `(series syncId, occurrenceId)` 稀疏存储；完成/撤销只影响选定 occurrence；新 schema v14 不推断旧 `COMPLETED` series 的实例；同步、Busy Time 与 MCP 同步接入。PR #2 已建立；本轮 hard-delete 生命周期、MCP occurrence 查询与 missed-obligation 语义修正由 PR 更新承载。
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.30.0+30** — 全局 UI/UX 骨架统一：顶层只剩 Action / Calendar / Todo（Today/Inbox 成为 Todo 内部视图），Action 只回答"现在/今天该做什么"，Todo 只问截止时间与执行时间且执行时间新建时即可安排，新建与编辑合并为同一个表单页、点开对象先看详情再决定编辑，桌面侧栏通过 `ShellRoute` 全站常驻、所有页面统一 `WorkspacePage`；旧重复待办的一次性修复不再暴露 RRULE / 导入证据 / 手打时区，只剩"从哪天开始重复"一个问题 / One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox are Todo views), Action answers only "what now/today", Todo asks only deadline and execution time (schedule at creation), create and edit are one form while tapping an item opens a read-only detail, the desktop rail persists across the whole app through `ShellRoute`, and the one-time legacy repair asks only which day the series repeats from
-- 上一版本 / Previous: **v0.29.0+29** — 同步补齐最后一块：提醒/标签/附件元数据跨设备同步（schema v15），附件本体真正上传与按需下载，删附件时本地文件 + 行 + 服务端 blob 一起清，整机备份升级成 zip（`db.json` + 附件本体），客户端残留的重复规则 legacy 分支删除 / Sync closes the last gaps: reminders, tags and attachment metadata cross devices (schema v15), attachment blobs are really uploaded and fetched on demand, deleting one clears local file + row + server blob, backup is one zip (`db.json` plus attachment bodies), and the client's leftover recurrence-legacy branches are gone
+- 最新版本 / Latest: **v0.31.0+31** — 按 OpenDesign v030-v2 重写表现层：设计令牌（bg `#f3f3ef` / surface `#fdfdfb` / ink `#1b1b18` / primary `#2d4f7c`）、`lib/ui/design/ds.dart` 组件库、今天 / 日历 / 待办 / 详情 / 表单 / 搜索 / 设置 / 回收站 / 日历与标签管理全部重排，手机单日日历视图与共享日期条，桌面 236px 侧栏 + 主区 + 详情面，Android 生产小组件改为新色板与 18dp 圆角底 / Presentation rebuilt from the OpenDesign v030-v2 prototypes: new token set, a `ds.dart` component library, every page (Today, Calendar, Todos, details, forms, Search, Settings, Trash, calendar and tag management) relaid out, a phone single-day calendar view with a shared day strip, a 236px desktop rail with a detail pane, and Android production widgets on the new palette with 18dp rounded surfaces
+- 上一版本 / Previous: **v0.30.0+30** — 全局 UI/UX 骨架统一：顶层只剩 Action / Calendar / Todo（Today/Inbox 成为 Todo 内部视图），Action 只回答"现在/今天该做什么"，Todo 只问截止时间与执行时间且执行时间新建时即可安排，新建与编辑合并为同一个表单页，桌面侧栏通过 `ShellRoute` 全站常驻 / One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox are Todo views), Action answers only "what now/today", Todo asks only deadline and execution time, create and edit are one form, and the desktop rail persists across the whole app through `ShellRoute`
 - 更早 / Earlier: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
 - 最新流程改进 / Pipeline: **门禁总账 + 变异实证（一条没红过的门禁视为不存在）+ 出口清单 + 流程文档五件** — 2026-10-01
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
@@ -22,6 +22,44 @@
 
 - [x] Todo 详情面板复用提醒选择与保存路径，支持查看、添加、修改和删除。
 - [x] Event 详情面板显示当前日历并支持切换，保存后随实时数据更新。
+
+## v0.31.0+31 — OpenDesign v030-v2 Presentation / 按设计重写表现层
+
+**用户反馈原文 / User feedback:** 「保留现有业务层，重新实现 Presentation」「这些 prototype 不是参考，而是要实现的目标产品；旧 Flutter 页面与 prototype 冲突时 prototype 优先；旧 Widget 很难改成目标样式就删除或重写」「从设计反推 Flutter，而不是从旧 Flutter 渐进修改」；必须保持 Domain model / Drift / Todo / Event / TaskAllocation / Reminder / Recurring / Sync / Account / AI / ICS / Backup 的业务语义与既有数据兼容性。
+
+### Features / 新功能
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|------|
+| 1 | **设计令牌替换为 OpenDesign v030-v2** | `context.ds` 提供 bg `#f3f3ef` / surface `#fdfdfb` / ink `#1b1b18` / primary `#2d4f7c` / warm / warn / danger 全套；圆角收敛为 6/8/12/16，字号改为 6 级，阴影只保留一层 |
+| 2 | **表现层组件库 `lib/ui/design/ds.dart`** | DsTopBar、DsMainBar、DsSettingRow、DsSegmented、DsChip、DsField、DsGroup/DsGroupLabel、DsEmpty、DsHairline、DsCreateAction、DsKeyCap、`showDsSheet`、`AppRadii`，页面全部改由它们拼装 |
+| 3 | **今天页按原型重排** | 桌面端 236px 侧栏 + 主区 + 1180px 以上详情面；手机端日期条 68px、行动区按「正在发生 / 稍后 / 今日时间轴 / 今天截止 / 逾期」分区，行内改为标题 + 元信息两级，不再卡片堆叠 |
+| 4 | **日历页重写** | 时间轴 8:00–22:00、`_hourHeight = 56`、左侧 52px 刻度槽；新增手机端单日视图（DayStrip + 截止泳道 + 单日时间轴）；周议程改为「周一 · 11/9 + 今天 pill + N 项」分段 + 42px 时间列 + 3px 强调条；桌面月视图改为文字行（`HH:mm 标题` / `计划 标题` / `截止 标题`，超过 3 条折叠为 `+N`） |
+| 5 | **共享日期条 `DayStrip`** | 3 天前 / 6 天后，48px 单元格，选中为主色实心圆，有事项的日期带圆点；今天页与待办页共用，不再各写一套 |
+| 6 | **待办列表行按原型收敛** | 行尾由「拖拽手柄」改为日历色圆点（桌面端拖拽手柄叠加在其右侧），手机端不再出现拖拽手柄；截止/计划/重复元信息改为 `·` 分隔的单行 |
+| 7 | **待办工具栏窄屏折行** | <430px 时三个视图分段控件整行等宽，筛选按钮落到第二行；桌面仍是一行 + `Spacer`，修复 390px 下溢出 81px |
+| 8 | **日历管理与标签管理按原型重排** | 分组标签（我的日历 / 全部标签）+ 行内右侧「N 项」计数 + chevron + 全宽「新建」次按钮 + 说明行；删除入口保留 |
+| 9 | **设置页 IA 与行结构对齐原型** | 日历与标签分组收敛为「日历管理 N 个 / 标签 N 个」两行入口；其他分组保留回收站计数；桌面两栏 + 188px 分区导航 |
+| 10 | **回收站按原型重排** | 行内显示「删除于 M/d」+「恢复」次按钮 + 永久删除图标按钮，空状态改为图标 + 标题 + 一句说明 + 动作 |
+| 11 | **AI / 账户 / 导入导出 / 外观 / 通知 / 关于 全部改用新令牌与新行组件** | 保留全部业务动作与文案 key，仅替换表现层 |
+| 12 | **Android 生产小组件改为新色板 + 圆角底** | 新增 `widget_root_bg.xml`（18dp 圆角 + 1dp 描边），8 个布局文件统一引用；亮/暗色板同步为 v030 令牌（背景 `#FDFDFB` / 暗色 `#191A17`），`WidgetSupport.applyRoot` 改为 `setBackgroundResource` |
+| 13 | **桌面壳层统一** | 侧栏 236px（<980px 折叠为 64px 图标栏）、搜索 Ctrl+K、设置常驻底部；所有页面经 `WorkspacePage` 渲染，标题栏 + 操作区一致 |
+
+### Fixes / 修复
+
+| # | Change / 变更 | Detail / 说明 |
+|---|------|------|
+| 1 | **今天页副标题显示农历** | 桌面端今天页副标题此前显示 `周二 · 十月初二`，原型是 `周二 · 11/10`；改为 `DateFormat.E + DateFormat.Md` 并移除 `package:lunar` 依赖 |
+| 2 | **截止泳道渲染成一条长行** | 周视图截止行原本是内联长文本，改为 IntrinsicHeight 网格行 + 堆叠文字（最多 2 条 + `+N`） |
+| 3 | **桌面月视图单元格显示彩色条** | 改为原型要求的文字行（时间 + 标题，截止为暖色），超过 3 条折叠 |
+| 4 | **待办详情页重复的提醒标题** | `RemindersSection` 自带标题，详情页去掉重复的一层 |
+| 5 | **分段控件标签被截断为「未/全/按」** | 去掉外层 `Flexible` 包裹 |
+| 6 | **日期条 2px 溢出** | 高度 64 → 68 |
+
+### Constraints / 新增约束
+
+- 待办工具栏窄屏必须折行，不能只靠 `Flexible` 压缩（见 `docs/CONSTRAINTS.md` UI 章节）
+- 日历管理与标签管理行的计数口径与侧栏一致：未完成且未取消
 
 ## v0.30.0+30 — Core UX / 核心体验重构
 

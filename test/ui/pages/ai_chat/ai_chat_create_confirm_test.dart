@@ -12,6 +12,7 @@ import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/ai_chat/ai_chat_page.dart';
 
 class FakeAiChatNotifier extends StateNotifier<List<AiChatMessage>>
@@ -202,9 +203,9 @@ void main() {
     // The write is in flight, so the chip that started it is disabled.
     final chip = find.ancestor(
       of: find.text('Add Task'),
-      matching: find.byType(InkWell),
+      matching: find.byType(DsChip),
     );
-    expect(tester.widget<InkWell>(chip).onTap, isNull);
+    expect(tester.widget<DsChip>(chip).onTap, isNull);
 
     gate.complete();
     await _settle(tester);

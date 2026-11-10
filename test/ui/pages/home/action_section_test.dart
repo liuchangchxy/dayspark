@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
@@ -11,6 +12,7 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -92,6 +94,10 @@ void main() {
   testWidgets(
     'visually distinguishes Event, Planned Allocation, and Deadline',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
       // 1. Event
       await db
           .into(db.events)
@@ -163,26 +169,30 @@ void main() {
       // Overdue section: no count, no duplicated deadline label.
       expect(find.text('Overdue'), findsOneWidget);
       expect(find.text('Fix Bug'), findsOneWidget);
-      expect(find.text('Deadline: 2026-10-02'), findsOneWidget);
+      expect(
+        find.text(
+          'Overdue ${DateFormatters.formatShortDate(DateTime(2026, 10, 2))}',
+        ),
+        findsOneWidget,
+      );
 
       // Events and allocations that already ended stay folded into the
       // secondary section instead of pushing the rest of the day down.
-      expect(find.text('Earlier today'), findsOneWidget);
-      await tester.tap(find.text('Earlier today'));
+      expect(find.text('Completed'), findsOneWidget);
+      await tester.tap(find.text('Completed'));
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // The day's schedule. End time is stated once, not as a range that
-      // repeats the time in the left column.
+      // The day's schedule states the full range once.
       expect(find.text('Client Call'), findsOneWidget);
-      expect(find.text('until 11:00'), findsOneWidget);
+      expect(find.text('10:00–11:00'), findsOneWidget);
 
       expect(find.text('Write Spec'), findsOneWidget);
-      expect(find.text('Planned time'), findsOneWidget);
+      expect(find.text('Planned 14:00–15:30'), findsOneWidget);
 
       // To do today merges due-today todos with today's recurring instances.
-      expect(find.text('To do today'), findsOneWidget);
+      expect(find.text('Due today'), findsOneWidget);
       expect(find.text('Submit Invoice'), findsOneWidget);
 
       // The old rhythm strip, inspector and section counters are gone.
@@ -196,6 +206,9 @@ void main() {
   testWidgets('planned Todo with a deadline keeps one row and both facts', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final todoId = await db
         .into(db.todos)
         .insert(
@@ -228,7 +241,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    await tester.tap(find.text('Earlier today'));
+    await tester.tap(find.text('Completed'));
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -236,8 +249,14 @@ void main() {
     // One obligation, one row: the plan is primary and the deadline is
     // metadata on it, not a second full row.
     expect(find.text('Write Paper'), findsOneWidget);
-    expect(find.text('Planned time · Deadline: 18:00'), findsOneWidget);
-    expect(find.text('To do today'), findsNothing);
+    expect(find.text('Planned 14:00–15:00'), findsOneWidget);
+    expect(
+      find.text(
+        'Deadline: ${DateFormatters.formatShortDate(DateTime(2026, 10, 6))}',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Due today'), findsNothing);
     await _unmount(tester);
   });
 
@@ -271,7 +290,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     await tester.tap(
-      find.text('Review a deliberately long bilingual title 设计评审与交付'),
+      find
+          .text('Review a deliberately long bilingual title 设计评审与交付')
+          .first,
     );
     await tester.pump();
     // One tap, straight to detail: there is no desktop side pane to select
@@ -321,7 +342,11 @@ void main() {
   testWidgets(
     'checking allocation checkbox completes ordinary todo without mutating dueDate',
     (tester) async {
-      final originalDueDate = DateTime(2026, 10, 6, 23, 59);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final now = DateTime.now();
+      final originalDueDate = DateTime(now.year, now.month, now.day, 23, 59);
       final todoId = await db
           .into(db.todos)
           .insert(
@@ -337,8 +362,8 @@ void main() {
       );
       await container.read(createTaskAllocationProvider)(
         todoId: todoId,
-        startAt: DateTime(2026, 10, 6, 9, 0),
-        endAt: DateTime(2026, 10, 6, 10, 0),
+        startAt: now.subtract(const Duration(minutes: 30)),
+        endAt: now.add(const Duration(minutes: 90)),
       );
       container.dispose();
 
@@ -347,7 +372,9 @@ void main() {
           child: const ActionSection(),
           overrides: [
             databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => fixedDate),
+            actionDateProvider.overrideWith(
+              (ref) => DateTime(now.year, now.month, now.day),
+            ),
           ],
         ),
       );
@@ -356,18 +383,11 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // The allocation already ended, so it lives in the folded section.
-      await tester.tap(find.text('Earlier today'));
-      for (var i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
-      // Find checkbox in today's schedule for Ship Feature and tap it
-      final checkboxes = find.byType(Checkbox);
-      expect(checkboxes, findsWidgets);
-
-      // Tap the first checkbox (Ship Feature in timeline)
-      await tester.tap(checkboxes.first);
+      // The running allocation is the "now" card; its checkbox completes
+      // the todo.
+      final checks = find.byType(DsCheck);
+      expect(checks, findsWidgets);
+      await tester.tap(checks.first);
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -386,6 +406,9 @@ void main() {
   testWidgets(
     'Phase 2: renders today recurring instance and checkbox completes exact instance',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final today = DateTime.now();
       final todayDate = DateTime(today.year, today.month, today.day);
       final todayStr =
@@ -429,10 +452,10 @@ void main() {
       }
 
       expect(find.text('Daily Yoga'), findsOneWidget);
-      expect(find.text('To do today'), findsOneWidget);
+      expect(find.text('Due today'), findsOneWidget);
 
       // Find and tap the checkbox for Daily Yoga
-      final checkbox = find.byType(Checkbox);
+      final checkbox = find.byType(DsCheck);
       expect(checkbox, findsOneWidget);
       await tester.tap(checkbox);
 
@@ -457,7 +480,7 @@ void main() {
       expect(state.status, 'completed');
 
       // Verify UI moved Daily Yoga into the completed section
-      expect(find.text('Earlier today'), findsOneWidget);
+      expect(find.text('Completed'), findsOneWidget);
 
       await _unmount(tester);
     },

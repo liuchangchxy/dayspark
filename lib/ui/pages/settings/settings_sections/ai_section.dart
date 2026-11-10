@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 
 class AiSection extends ConsumerWidget {
@@ -22,59 +23,53 @@ class AiSection extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SwitchListTile(
-          secondary: const Icon(CupertinoIcons.sparkles),
-          title: Row(
+        DsSettingRow(
+          label: l.aiAssistant,
+          value: enabled ? l.aiConfigured : l.aiNotConfiguredShort,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(child: Text(l.aiAssistant)),
-              _tutorialLink(context, 'ai-setup'),
+              DsIconButton(
+                icon: CupertinoIcons.book,
+                size: 15,
+                compact: true,
+                tooltip: l.tutorial,
+                onPressed: () => launchUrl(
+                  Uri.parse(
+                    'https://github.com/$_repo/blob/main/docs/ai-setup.md',
+                  ),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+              Switch(
+                value: enabled,
+                onChanged: (v) => ref.read(setFeatureFlagProvider)(
+                  FeatureFlag.aiAssistant,
+                  v,
+                ),
+              ),
             ],
           ),
-          subtitle: Text(
-            enabled ? l.aiConfigured : l.aiNotConfiguredShort,
-          ),
-          value: enabled,
-          onChanged: (v) =>
-              ref.read(setFeatureFlagProvider)(FeatureFlag.aiAssistant, v),
         ),
         if (enabled)
-          ListTile(
-            leading: const SizedBox(width: 24),
-            title: Text(l.aiConfig),
-            subtitle: _buildAiSubtitle(context, ref),
-            trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
+          DsSettingRow(
+            label: l.aiConfig,
+            value: _aiSubtitle(context, ref),
             onTap: () => showAiConfigDialog(context, ref),
           ),
       ],
     );
   }
 
-  Widget _tutorialLink(BuildContext context, String docName) {
-    return IconButton(
-      icon: Icon(
-        CupertinoIcons.book,
-        size: 16,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-      tooltip: AppLocalizations.of(context)!.tutorial,
-      onPressed: () => launchUrl(
-        Uri.parse('https://github.com/$_repo/blob/main/docs/$docName.md'),
-        mode: LaunchMode.externalApplication,
-      ),
-    );
-  }
-
-  Widget _buildAiSubtitle(BuildContext context, WidgetRef ref) {
+  String _aiSubtitle(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final configured = ref.watch(isAiConfiguredProvider).valueOrNull ?? false;
-    if (!configured) return Text(l.aiNotConfiguredShort);
+    if (!configured) return l.aiNotConfiguredShort;
     final config = ref.watch(aiConfigProvider).value;
-    if (config == null) return Text(l.aiNotConfiguredShort);
+    if (config == null) return l.aiNotConfiguredShort;
     final preset = kAiPresets
         .where((item) => item.baseUrl == config.baseUrl)
         .firstOrNull;
-    return Text(
-      preset == null ? config.model : '${preset.name} · ${config.model}',
-    );
+    return preset == null ? config.model : '${preset.name} · ${config.model}';
   }
 }

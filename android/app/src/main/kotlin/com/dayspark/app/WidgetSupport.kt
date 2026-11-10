@@ -178,10 +178,10 @@ internal object WidgetSupport {
   }
 
   fun applyRoot(views: RemoteViews, rootId: Int, theme: WidgetSnapshot.ThemeBlock?) {
-    val background = theme?.colors?.get("background")
-    if (background != null) {
-      views.setInt(rootId, "setBackgroundColor", background)
-    }
+    // The root background is a rounded, hairline-bordered surface. Setting a
+    // flat colour here would square off the corners the widget spec asks for,
+    // so the drawable wins and values-night supplies the dark palette.
+    views.setInt(rootId, "setBackgroundResource", R.drawable.widget_root_bg)
   }
 
   fun textColor(

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 
 class FeedbackPage extends StatefulWidget {
@@ -68,39 +69,40 @@ class _FeedbackPageState extends State<FeedbackPage> {
       title: l.feedback,
       maxContentWidth: 640,
       child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s4,
+          AppSpacing.s4,
+          AppSpacing.s4,
+          AppSpacing.s6,
+        ),
         children: [
-          TextField(
-            controller: _controller,
-            onChanged: _onChanged,
-            decoration: InputDecoration(
-              labelText: l.feedback,
-              hintText: l.feedbackHint,
-              alignLabelWithHint: true,
+          DsField(
+            label: l.feedback,
+            child: DsTextField(
+              controller: _controller,
+              hint: l.feedbackHint,
+              maxLines: 8,
+              onChanged: _onChanged,
             ),
-            maxLines: 8,
-            textCapitalization: TextCapitalization.sentences,
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.s4),
           // The primary button says what it does. "Submit" implied the text
           // left the device; it only ever reached the clipboard.
-          FilledButton.icon(
+          DsButton(
+            label: _copied ? l.feedbackCopied : l.copyFeedback,
+            icon: _copied
+                ? CupertinoIcons.checkmark_circle
+                : CupertinoIcons.doc_on_clipboard,
+            expand: true,
             onPressed: _copied ? null : _copy,
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-            icon: Icon(
-              _copied
-                  ? CupertinoIcons.checkmark_circle
-                  : CupertinoIcons.doc_on_clipboard,
-              size: 18,
-            ),
-            label: Text(_copied ? l.feedbackCopied : l.copyFeedback),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
+          const SizedBox(height: AppSpacing.s2),
+          DsButton(
+            label: l.submitOnGitHub,
+            icon: CupertinoIcons.link,
+            tone: DsButtonTone.secondary,
+            expand: true,
             onPressed: _openOnGitHub,
-            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-            icon: const Icon(CupertinoIcons.link, size: 18),
-            label: Text(l.submitOnGitHub),
           ),
         ],
       ),

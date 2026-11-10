@@ -13,7 +13,7 @@ import 'package:dayspark/ui/pages/settings/settings_sections/appearance_section.
 import 'package:dayspark/ui/pages/settings/settings_sections/import_export_section.dart';
 
 Future<void> _pumpSettings(WidgetTester tester) async {
-  tester.view.physicalSize = const Size(800, 4000);
+  tester.view.physicalSize = const Size(390, 4000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 

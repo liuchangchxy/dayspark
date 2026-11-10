@@ -10,7 +10,8 @@ import 'package:dayspark/domain/providers/sync_client_provider.dart';
 import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 class AccountSection extends ConsumerStatefulWidget {
   const AccountSection({super.key, this.showHeader = false});
@@ -69,7 +70,14 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
               AppSpacing.lg,
               AppSpacing.xs,
             ),
-            child: Text(l.account, style: AppTypography.title),
+            child: Text(
+              l.account,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: context.ds.ink,
+              ),
+            ),
           ),
         // A failure to read the account is not the same as being logged out:
         // showing the sign-in form would invite a second login over a session
@@ -98,7 +106,8 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
                     Expanded(
                       child: Text(
                         l.accountLoadFailed,
-                        style: AppTypography.body.copyWith(
+                        style: TextStyle(
+                          fontSize: 14,
                           color: Theme.of(context).colorScheme.error,
                         ),
                       ),
@@ -121,99 +130,86 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   }
 
   List<Widget> _buildLoggedOut(AppLocalizations l, AccountAuthState state) {
+    final ds = context.ds;
     final error = state.error;
     return [
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s4,
+          AppSpacing.s2,
+          AppSpacing.s4,
+          AppSpacing.s4,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               l.syncExplanation,
-              style: AppTypography.caption.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              style: TextStyle(fontSize: 12, height: 1.55, color: ds.ink3),
+            ),
+            const SizedBox(height: AppSpacing.s3),
+            DsField(
+              label: l.serverUrl,
+              child: DsTextField(
+                controller: _serverUrlController,
+                hint: 'https://sync.example.com',
+                keyboardType: TextInputType.url,
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _serverUrlController,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              decoration: InputDecoration(
-                labelText: l.serverUrl,
-                hintText: 'https://sync.example.com',
-                isDense: true,
+            const SizedBox(height: AppSpacing.s2),
+            DsField(
+              label: l.email,
+              child: DsTextField(
+                controller: _emailController,
+                hint: 'you@example.com',
+                keyboardType: TextInputType.emailAddress,
               ),
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              decoration: InputDecoration(labelText: l.email, isDense: true),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: InputDecoration(labelText: l.password, isDense: true),
+            const SizedBox(height: AppSpacing.s2),
+            DsField(
+              label: l.password,
+              child: DsTextField(
+                controller: _passwordController,
+                obscureText: true,
+              ),
             ),
             if (error != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.s2),
               Text(
                 _errorText(l, error),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: AppTypography.caption.fontSize,
-                ),
+                style: TextStyle(fontSize: 12, color: ds.danger),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.s3),
             if (state.busy)
               const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: SizedBox(
-                  width: AppSpacing.lg,
-                  height: AppSpacing.lg,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                padding: EdgeInsets.only(bottom: AppSpacing.s3),
+                child: LinearProgressIndicator(minHeight: 2),
               ),
             Row(
               children: [
                 Expanded(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: OutlinedButton(
-                      onPressed: state.busy
-                          ? null
-                          : () => _submit(registering: true),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                      ),
-                      child: Text(l.register),
-                    ),
+                  child: DsButton(
+                    label: l.register,
+                    tone: DsButtonTone.secondary,
+                    expand: true,
+                    onPressed: state.busy
+                        ? null
+                        : () => _submit(registering: true),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.s2),
                 Expanded(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: FilledButton(
-                      onPressed: state.busy
-                          ? null
-                          : () => _submit(registering: false),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                      ),
-                      child: Text(l.login),
-                    ),
+                  child: DsButton(
+                    label: l.login,
+                    expand: true,
+                    onPressed: state.busy
+                        ? null
+                        : () => _submit(registering: false),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -225,57 +221,49 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     final engine = ref.watch(syncEngineProvider);
     final server = ref.watch(syncSettingsProvider).valueOrNull?.baseUrl;
     return [
-      ListTile(
-        leading: const Icon(CupertinoIcons.person_crop_circle),
-        title: Text(state.email!),
-        subtitle: Text(_statusText(l, status)),
+      DsSettingRow(
+        label: state.email!,
+        value: _statusText(l, status),
       ),
       if (server != null)
-        ListTile(
-          leading: const Icon(CupertinoIcons.globe),
-          title: Text(l.serverUrl),
-          subtitle: Text(server),
+        DsSettingRow(
+          label: l.serverUrl,
+          value: server,
         ),
-      ListTile(
-        leading: const Icon(CupertinoIcons.device_phone_portrait),
-        title: Text(l.connectedDevices),
+      DsSettingRow(
+        label: l.connectedDevices,
         onTap: () => _showDevicesDialog(context),
       ),
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s4,
+          vertical: AppSpacing.s2,
+        ),
         child: Row(
           children: [
             Expanded(
               child: Tooltip(
                 message: l.syncTooltip,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: OutlinedButton.icon(
-                    onPressed: engine == null
-                        ? null
-                        : () => unawaited(engine.requestRound()),
-                    icon: const Icon(CupertinoIcons.refresh, size: 18),
-                    label: Text(l.syncNow),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
-                    ),
-                  ),
+                child: DsButton(
+                  label: l.syncNow,
+                  icon: CupertinoIcons.refresh,
+                  tone: DsButtonTone.secondary,
+                  expand: true,
+                  onPressed: engine == null
+                      ? null
+                      : () => unawaited(engine.requestRound()),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: OutlinedButton(
-                onPressed: state.busy ? null : () => _confirmLogout(l),
-                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-                child: Text(l.logout),
-              ),
+            const SizedBox(width: AppSpacing.s2),
+            DsButton(
+              label: l.logout,
+              tone: DsButtonTone.ghost,
+              onPressed: state.busy ? null : () => _confirmLogout(l),
             ),
           ],
         ),
       ),
-      const SizedBox(height: 8),
     ];
   }
 
@@ -283,23 +271,32 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   /// lives, so it is confirmed rather than fired on the first tap.
   Future<void> _confirmLogout(AppLocalizations l) async {
     final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.signOutConfirm),
-        content: Text(l.signOutBody),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.signOutConfirm,
+        width: 420,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.signOut,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l.signOut),
           ),
         ],
+        child: Text(
+          l.signOutBody,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.55,
+            color: context.ds.ink2,
+          ),
+        ),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -334,53 +331,49 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   void _showDevicesDialog(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     showDialog<void>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.connectedDevices),
-        content: SizedBox(
-          width: 360,
-          child: Consumer(
-            builder: (ctx, ref, _) {
-              final devices = ref.watch(connectedDevicesProvider);
-              return switch (devices) {
-                AsyncData(:final value) when value.isEmpty => Text(
-                  l.devicesEmpty,
-                ),
-                AsyncData(:final value) => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final d in value)
-                      ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(
-                          CupertinoIcons.device_laptop,
-                          size: 20,
-                        ),
-                        title: Text(d.name ?? l.deviceUnknownName),
-                        subtitle: Text(
-                          l.deviceLastSeen(
-                            DateFormatters.formatRelativeTime(d.lastSeen, l),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                AsyncError() => Text(l.devicesLoadFailed),
-                _ => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              };
-            },
-          ),
-        ),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.connectedDevices,
+        width: 460,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.ok,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.ok),
           ),
         ],
+        child: Consumer(
+          builder: (ctx, ref, _) {
+            final devices = ref.watch(connectedDevicesProvider);
+            return switch (devices) {
+              AsyncData(:final value) when value.isEmpty => Text(
+                l.devicesEmpty,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: context.ds.ink3,
+                ),
+              ),
+              AsyncData(:final value) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final d in value)
+                    DsSettingRow(
+                      label: d.name ?? l.deviceUnknownName,
+                      value: l.deviceLastSeen(
+                        DateFormatters.formatRelativeTime(d.lastSeen, l),
+                      ),
+                    ),
+                ],
+              ),
+              AsyncError() => Text(l.devicesLoadFailed),
+              _ => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            };
+          },
+        ),
       ),
     );
   }

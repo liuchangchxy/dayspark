@@ -15,11 +15,11 @@ import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
-import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 
 class AiChatPage extends ConsumerStatefulWidget {
   const AiChatPage({super.key});
@@ -80,23 +80,32 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
   Future<void> _confirmClear(AppLocalizations l) async {
     final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.clearChat),
-        content: Text(l.clearChatConfirm),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.clearChat,
+        width: 420,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.clearChatAction,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l.clearChatAction),
           ),
         ],
+        child: Text(
+          l.clearChatConfirm,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.55,
+            color: context.ds.ink2,
+          ),
+        ),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -132,12 +141,13 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       maxContentWidth: 860,
       actions: [
         if (messages.isNotEmpty)
-          IconButton(
-            icon: const Icon(CupertinoIcons.delete, size: 18),
+          DsIconButton(
+            icon: CupertinoIcons.delete,
+            size: 18,
+            compact: true,
             // Clearing is not undoable, so it asks once.
             onPressed: () => _confirmClear(l),
             tooltip: l.clearChat,
-            visualDensity: VisualDensity.compact,
           ),
       ],
       child: isConfigured
@@ -145,14 +155,19 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
               children: [
                 Expanded(
                   child: messages.isEmpty
-                      ? EmptyState(
+                      ? DsEmpty(
                           icon: CupertinoIcons.sparkles,
                           title: l.aiHint,
-                          hint: l.aiExample,
+                          message: l.aiExample,
                         )
                       : ListView.builder(
                           controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.s4,
+                            AppSpacing.s4,
+                            AppSpacing.s4,
+                            AppSpacing.s2,
+                          ),
                           itemCount: messages.length,
                           itemBuilder: (context, index) {
                             final msg = messages[index];
@@ -164,14 +179,14 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.md,
-                                  vertical: AppSpacing.md,
+                                  horizontal: AppSpacing.s3 + 2,
+                                  vertical: AppSpacing.s3,
                                 ),
                                 constraints: BoxConstraints(
                                   maxWidth: (() {
                                     final maxBubbleWidth =
                                         MediaQuery.of(context).size.width *
-                                        0.75;
+                                        0.78;
                                     return maxBubbleWidth > 600
                                         ? 600.0
                                         : maxBubbleWidth;
@@ -179,21 +194,23 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: isUser
-                                      ? Theme.of(context).colorScheme.primary
-                                            .withValues(alpha: 0.1)
-                                      : Theme.of(
-                                          context,
-                                        ).colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(8),
+                                      ? context.ds.primarySoft
+                                      : context.ds.surface,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.lg,
+                                  ),
+                                  border: Border.all(color: context.ds.line),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     SelectableText(
                                       msg.content,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodyMedium,
+                                      style: TextStyle(
+                                        fontSize: 14.5,
+                                        height: 1.6,
+                                        color: context.ds.ink,
+                                      ),
                                     ),
                                     // Answers are actions only while they are
                                     // the latest one: an old reply's buttons
@@ -279,55 +296,80 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           },
                         ),
                 ),
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            decoration: InputDecoration(
-                              hintText: l.typeMessage,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.lg,
-                                vertical: AppSpacing.md,
+                Container(
+                  decoration: BoxDecoration(
+                    color: context.ds.bg,
+                    border: Border(
+                      top: BorderSide(color: context.ds.line),
+                    ),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.s3,
+                        AppSpacing.s2,
+                        AppSpacing.s3,
+                        AppSpacing.s2,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: DsTextField(
+                              controller: _controller,
+                              hint: l.typeMessage,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => _send(),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.s2),
+                          MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: _sending ? null : _send,
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: _sending
+                                      ? context.ds.surface3
+                                      : context.ds.primary,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.sm + 2,
+                                  ),
+                                ),
+                                child: _sending
+                                    ? Padding(
+                                        padding: const EdgeInsets.all(11),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: context.ds.ink3,
+                                        ),
+                                      )
+                                    : Icon(
+                                        CupertinoIcons.arrow_up,
+                                        size: 18,
+                                        color: context.ds.onPrimary,
+                                      ),
                               ),
                             ),
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) => _send(),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton.filled(
-                          onPressed: _sending ? null : _send,
-                          icon: _sending
-                              ? const SizedBox(
-                                  width: AppSpacing.lg,
-                                  height: AppSpacing.lg,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(CupertinoIcons.arrow_up_circle_fill),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ],
             )
-          : EmptyState(
+          : DsEmpty(
               icon: CupertinoIcons.chat_bubble_2,
               title: l.aichatNoKeyTitle,
-              hint: l.aichatNoKeyHint,
-              action: FilledButton.icon(
+              message: l.aichatNoKeyHint,
+              action: DsButton(
+                label: l.aichatSetupKey,
+                icon: CupertinoIcons.settings,
+                small: true,
                 onPressed: () => showAiConfigDialog(context, ref),
-                icon: const Icon(CupertinoIcons.settings, size: 18),
-                label: Text(l.aichatSetupKey),
               ),
             ),
     );
@@ -820,7 +862,8 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                       width: 96,
                       child: Text(
                         row.$1,
-                        style: AppTypography.caption.copyWith(
+                        style: TextStyle(
+                          fontSize: 12,
                           color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -885,38 +928,11 @@ class _QuickActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    final color = enabled
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).disabledColor;
-    return InkWell(
+    return DsChip(
+      label: label,
+      leading: Icon(icon, size: 13, color: context.ds.ink2),
+      compact: true,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      // Bubble chips are the only affordance on a reply, so they reach the
-      // 48dp minimum touch target.
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppTypography.caption.fontSize,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ import 'package:dayspark/domain/providers/search_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
+import 'package:dayspark/ui/shell/workspace_sidebar.dart';
 
 /// The rail is a destination switcher, not a history. Clicking the item you
 /// are already on, or bouncing between two of them, must leave exactly one
@@ -76,11 +78,16 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    await tester.tap(find.text('Calendar'));
+    Finder rail(String label) => find.descendant(
+      of: find.byType(WorkspaceSidebar),
+      matching: find.byKey(ValueKey('nav-$label')),
+    );
+
+    await tester.tap(rail('calendar'));
     await _settle(tester);
     expect(_currentUri(), '/?tab=1');
 
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(rail('calendar'));
     await _settle(tester);
     expect(_currentUri(), '/?tab=1');
 
@@ -88,7 +95,7 @@ void main() {
     await _settle(tester);
     expect(find.byType(TrashPage), findsOneWidget);
 
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(rail('calendar'));
     await _settle(tester);
     expect(_currentUri(), '/?tab=1');
 
@@ -98,6 +105,29 @@ void main() {
       reason: 'four clicks between three destinations, one page under the rail',
     );
     expect(AppRouter.router.canPop(), isFalse);
+    await _unmount(tester);
+  });
+
+  testWidgets('Ctrl K opens Search from anywhere in the workspace', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    AppRouter.router.go('/');
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    // The rail prints "Ctrl K" next to its search row; if nothing is bound the
+    // hint is a lie the user discovers by pressing it.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await _settle(tester);
+
+    expect(_currentUri(), '/search');
+    expect(_matchCount(), 1);
     await _unmount(tester);
   });
 

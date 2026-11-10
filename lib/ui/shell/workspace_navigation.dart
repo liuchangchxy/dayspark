@@ -67,6 +67,13 @@ final workspaceSelectionProvider = StateProvider<WorkspaceSelection?>(
   (ref) => null,
 );
 
+/// The desktop sidebar's calendar / tag rows filter the Todo destination in
+/// place rather than opening a management page. Two providers, because the
+/// design lets a calendar and a tag narrow the same list independently.
+final todoCalendarFilterProvider = StateProvider<int?>((ref) => null);
+final todoTagFilterProvider = StateProvider<Set<int>>((ref) => const {});
+final todoPriorityFilterProvider = StateProvider<int?>((ref) => null);
+
 /// The width at which a right-hand detail pane can sit beside a list without
 /// squeezing either. Narrower desktops keep single-column navigation.
 const double kMasterDetailBreakpoint = 1180;

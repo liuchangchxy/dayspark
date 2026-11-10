@@ -12,6 +12,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
@@ -69,6 +70,9 @@ void main() {
   testWidgets(
     'Phase 2 vertical acceptance: TaskSeries -> Calendar slot -> pick concrete occurrenceId -> TaskAllocation -> visible in Calendar and Action -> exact-instance complete and reopen with dueDate invariant and series preservation',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       // -------------------------------------------------------------
       // Dynamic time setup:
       // Derive test allocation start strictly in the future (+2h)
@@ -312,7 +316,7 @@ void main() {
       expect(find.text('Daily Sprint Standup'), findsWidgets);
 
       // Checkbox in todayTimeline for this allocation item
-      final checkboxFinder = find.byType(Checkbox);
+      final checkboxFinder = find.byType(DsCheck);
       expect(checkboxFinder, findsWidgets);
 
       // Target the exact occurrence-bound allocation row, then the checkbox
@@ -322,7 +326,7 @@ void main() {
       );
       final allocationCheckboxFinder = find.descendant(
         of: allocationRow,
-        matching: find.byType(Checkbox),
+        matching: find.byType(DsCheck),
       );
       expect(
         allocationCheckboxFinder,

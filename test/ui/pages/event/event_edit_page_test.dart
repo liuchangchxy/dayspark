@@ -13,6 +13,7 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 
 /// `/edit` is a child of `/` so `context.pop()` after saving has somewhere to
@@ -128,7 +129,7 @@ Finder _field(String hint) => find.byWidgetPredicate(
 );
 
 Future<void> _save(WidgetTester tester) async {
-  await tester.tap(find.widgetWithText(TextButton, 'Save'));
+  await tester.tap(find.widgetWithText(DsButton, 'Save'));
   await _settle(tester);
 }
 
@@ -403,7 +404,7 @@ void main() {
         reason: 'the dialog must not read as "delete this one occurrence"',
       );
 
-      await tester.tap(find.widgetWithText(TextButton, 'Move to Trash'));
+      await tester.tap(find.widgetWithText(DsButton, 'Move to Trash'));
       await _settle(tester);
 
       final after = await _row(db, seeded.id);
@@ -542,8 +543,8 @@ void main() {
       // An inverted range is stated where the duration would be, and Save is
       // disabled rather than accepting a value it has to reject afterwards.
       expect(find.text('The end has to come after the start.'), findsOneWidget);
-      final save = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Save'),
+      final save = tester.widget<DsButton>(
+        find.widgetWithText(DsButton, 'Save'),
       );
       expect(save.onPressed, isNull);
       final after = await _row(db, id);
@@ -571,8 +572,8 @@ void main() {
       await _save(tester);
 
       expect(find.text('The end has to come after the start.'), findsOneWidget);
-      final save = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Save'),
+      final save = tester.widget<DsButton>(
+        find.widgetWithText(DsButton, 'Save'),
       );
       expect(save.onPressed, isNull);
       final after = await _row(db, id);
@@ -596,8 +597,8 @@ void main() {
       await tester.pump();
 
       expect(find.text('The end has to come after the start.'), findsNothing);
-      final save = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Save'),
+      final save = tester.widget<DsButton>(
+        find.widgetWithText(DsButton, 'Save'),
       );
       expect(save.onPressed, isNotNull);
 
@@ -627,8 +628,8 @@ void main() {
       await tester.pump();
 
       expect(find.text('The end has to come after the start.'), findsNothing);
-      final save = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Save'),
+      final save = tester.widget<DsButton>(
+        find.widgetWithText(DsButton, 'Save'),
       );
       expect(save.onPressed, isNotNull);
 

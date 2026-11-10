@@ -14,13 +14,12 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
-import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
-import 'package:dayspark/ui/widgets/tag_chips.dart';
 
 /// An event that is editable where it is read — the same contract as
 /// [TodoDetailPane], so the two object types never teach different gestures.
@@ -145,116 +144,126 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     return ListView(
       key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.lg,
-        AppSpacing.lg,
-        AppSpacing.xxl,
+        AppSpacing.s5,
+        AppSpacing.s4,
+        AppSpacing.s5,
+        AppSpacing.s8,
       ),
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        if (widget.embedded)
+          Align(
+            alignment: Alignment.centerRight,
+            child: DsIconButton(
+              icon: CupertinoIcons.xmark,
+              size: 16,
+              compact: true,
+              tooltip: l.close,
+              onPressed: widget.onClose,
+            ),
+          ),
+        Wrap(
+          spacing: AppSpacing.s2,
+          runSpacing: AppSpacing.s2,
           children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('event-detail-title'),
-                controller: _title,
-                focusNode: _titleFocus,
-                style: AppTypography.headline,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (value) {
-                  _titleTimer?.cancel();
-                  if (value.trim().isEmpty) return;
-                  _titleTimer = Timer(
-                    const Duration(milliseconds: 600),
-                    _flushTitle,
-                  );
-                },
-                onSubmitted: (_) => _flushTitle(),
-                decoration: InputDecoration(
-                  hintText: l.title,
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintStyle: AppTypography.headline.copyWith(
-                    color: context.semantic.textTertiary,
-                  ),
+            DsChip(
+              key: const ValueKey('calendar-picker'),
+              solid: true,
+              label: currentCalendar?.name ?? l.calendarUnavailable,
+              leading: Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: live.color,
+                  shape: BoxShape.circle,
                 ),
               ),
+              onTap: calendars != null &&
+                      calendars.isNotEmpty &&
+                      (calendars.length > 1 || currentCalendar == null)
+                  ? () => _pickCalendar(live, calendars)
+                  : null,
             ),
-            if (widget.embedded)
-              IconButton(
-                icon: const Icon(CupertinoIcons.xmark, size: 16),
-                tooltip: l.close,
-                onPressed: widget.onClose,
-                visualDensity: VisualDensity.compact,
-              ),
+            if (live.rrule != null)
+              DsChip(label: l.recurringSeriesNoticeShort, compact: true),
           ],
         ),
-        if (live.rrule != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Icon(
-                CupertinoIcons.repeat,
-                size: 13,
-                color: context.semantic.textSecondary,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  l.recurringSeriesNoticeShort,
-                  style: AppTypography.caption.copyWith(
-                    color: context.semantic.textSecondary,
-                  ),
-                ),
-              ),
-            ],
+        const SizedBox(height: AppSpacing.s2),
+        TextField(
+          key: const ValueKey('event-detail-title'),
+          controller: _title,
+          focusNode: _titleFocus,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+            letterSpacing: -0.2,
+            color: context.ds.ink,
           ),
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        const SizedBox(height: AppSpacing.sm),
-        ScheduleRow(
+          textCapitalization: TextCapitalization.sentences,
+          onChanged: (value) {
+            _titleTimer?.cancel();
+            if (value.trim().isEmpty) return;
+            _titleTimer = Timer(
+              const Duration(milliseconds: 600),
+              _flushTitle,
+            );
+          },
+          onSubmitted: (_) => _flushTitle(),
+          decoration: InputDecoration(
+            hintText: l.title,
+            filled: false,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            hintStyle: TextStyle(fontSize: 22, color: context.ds.ink3),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s2),
+        Text(
+          '${formatMoment(context, start)}'
+          '${live.isAllDay ? '' : ' – ${formatMoment(context, end)}'}',
+          style: AppTypography.caption.copyWith(color: context.ds.ink2),
+        ),
+        const SizedBox(height: AppSpacing.s4),
+        DsSectionLabel(
+          l.sectionTime,
+          padding: const EdgeInsets.only(bottom: AppSpacing.s1),
+        ),
+        DsSettingRow(
           label: l.allDay,
           value: live.isAllDay ? l.durationAllDay : l.eventLabel,
-          trailing: Switch(
+          trailing: Switch.adaptive(
             value: live.isAllDay,
+            activeTrackColor: context.ds.primary,
             onChanged: (value) => _toggleAllDay(live, value),
           ),
         ),
-        ScheduleRow(
+        DsSettingRow(
           label: l.startTime,
           value: live.isAllDay
               ? formatDeadline(context, start)
               : formatMoment(context, start),
           onTap: () => _pickBoundary(live, isStart: true),
         ),
-        ScheduleRow(
+        DsSettingRow(
           label: l.endTime,
           value: live.isAllDay
               ? formatDeadline(context, end)
               : formatMoment(context, end),
           onTap: () => _pickBoundary(live, isStart: false),
         ),
-        ScheduleRow(
+        DsSettingRow(
           label: l.duration,
           value: validRange
               ? (live.isAllDay
                     ? l.durationAllDay
                     : formatExecutionLength(context, length))
               : l.invalidTimeRange,
-          placeholder: !validRange,
-        ),
-        RepeatRow(
-          rrule: live.rrule,
-          anchorDate: start,
-          onChanged: (value) =>
-              _saveSchedule(live, setRrule: true, rrule: value),
+          danger: !validRange,
         ),
         if (calendars != null)
-          ScheduleRow(
+          DsSettingRow(
             label: l.calendar,
             value: calendars.isEmpty
                 ? l.noCalendar
@@ -265,22 +274,39 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                 ? () => _pickCalendar(live, calendars)
                 : null,
           ),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        const SizedBox(height: AppSpacing.sm),
+        RepeatRow(
+          rrule: live.rrule,
+          anchorDate: start,
+          onChanged: (value) =>
+              _saveSchedule(live, setRrule: true, rrule: value),
+        ),
+        const SizedBox(height: AppSpacing.s3),
+        DsHairline(color: context.ds.lineSoft),
+        DsSectionLabel(
+          l.sectionContent,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
+        ),
         TextField(
           controller: _location,
           focusNode: _locationFocus,
+          style: AppTypography.body.copyWith(color: context.ds.ink),
           decoration: InputDecoration(
             hintText: l.location,
+            prefixIcon: Icon(
+              CupertinoIcons.location,
+              size: 16,
+              color: context.ds.ink3,
+            ),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 30,
+              minHeight: 24,
+            ),
             filled: false,
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
             contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.body.copyWith(
-              color: context.semantic.textTertiary,
-            ),
+            hintStyle: AppTypography.body.copyWith(color: context.ds.ink3),
           ),
           textCapitalization: TextCapitalization.sentences,
           onChanged: (_) {
@@ -291,10 +317,11 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             );
           },
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.s2),
         TextField(
           controller: _description,
           focusNode: _descriptionFocus,
+          style: AppTypography.body.copyWith(color: context.ds.ink),
           decoration: InputDecoration(
             hintText: l.description,
             filled: false,
@@ -302,9 +329,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
             contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.body.copyWith(
-              color: context.semantic.textTertiary,
-            ),
+            hintStyle: AppTypography.body.copyWith(color: context.ds.ink3),
           ),
           maxLines: null,
           textCapitalization: TextCapitalization.sentences,
@@ -316,30 +341,32 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             );
           },
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.s3),
         _tags(context, live),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.s3),
+        DsHairline(color: context.ds.lineSoft),
+        const SizedBox(height: AppSpacing.s3),
         AttachmentList(parentType: 'event', parentId: live.drifId),
-        const SizedBox(height: AppSpacing.xl),
-        const RowDivider(),
-        const SizedBox(height: AppSpacing.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => _delete(live),
-            icon: Icon(
-              CupertinoIcons.trash,
-              size: 16,
-              color: Theme.of(context).colorScheme.error,
+        const SizedBox(height: AppSpacing.s6),
+        DsHairline(color: context.ds.lineSoft),
+        const SizedBox(height: AppSpacing.s3),
+        Wrap(
+          spacing: AppSpacing.s2,
+          runSpacing: AppSpacing.s2,
+          children: [
+            DsButton(
+              label: l.edit,
+              tone: DsButtonTone.secondary,
+              small: true,
+              onPressed: () => context.push('/event/edit', extra: live),
             ),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-              minimumSize: const Size(48, 48),
+            DsButton(
+              label: l.moveToTrash,
+              tone: DsButtonTone.danger,
+              small: true,
+              onPressed: () => _delete(live),
             ),
-            label: Text(l.moveToTrash),
-          ),
+          ],
         ),
       ],
     );
@@ -348,10 +375,36 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   Widget _tags(BuildContext context, CalendaEventAdapter live) {
     final assigned =
         ref.watch(eventTagsProvider(live.drifId)).valueOrNull ?? const [];
-    return TagChips(
-      parentType: 'event',
-      parentId: live.drifId,
-      assignedTags: assigned,
+    if (assigned.isEmpty) {
+      return SizedBox(
+        height: 40,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            AppLocalizations.of(context)!.tags,
+            style: AppTypography.small.copyWith(color: context.ds.ink3),
+          ),
+        ),
+      );
+    }
+    return Wrap(
+      spacing: AppSpacing.s2,
+      runSpacing: AppSpacing.s2,
+      children: [
+        for (final tag in assigned)
+          DsChip(
+            label: tag.name,
+            solid: true,
+            leading: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: ColorUtils.parseHex(tag.color),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
     );
   }
 

@@ -88,3 +88,16 @@ research/todo-qingdan/tools/*.png
 research/todo-qingdan/docs/
 research/todo-qingdan/tools/*.md
 /data/
+
+# 本机视觉 QA 脚本与探针（一次性产物，不入库）
+.audit-tools/
+scripts/visual_qa_cdp.py
+scripts/batch_visual_qa.py
+scripts/check_flutter_web.py
+
+# OpenDesign 设计原型：文档与可运行 prototype 入库，截图证据与中间产物不入公开仓库
+design/**/_evidence/
+design/opendesign/todo-mobile-v030/concept-a/
+design/opendesign/todo-mobile-v030/concept-b/
+design/opendesign/todo-mobile-v030/concept-c/
+design/opendesign/todo-mobile-v030/final/

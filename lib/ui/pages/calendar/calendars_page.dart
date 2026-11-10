@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/color_swatch_grid.dart';
@@ -20,18 +23,12 @@ class CalendarsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
     final calendarsAsync = ref.watch(calendarsProvider);
 
     return WorkspacePage(
       title: l.manageCalendars,
       maxContentWidth: 720,
-      actions: [
-        IconButton(
-          icon: const Icon(CupertinoIcons.add, size: 18),
-          tooltip: l.newCalendar,
-          onPressed: () => _editCalendar(context, ref, null),
-        ),
-      ],
       child: calendarsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) {
@@ -63,31 +60,74 @@ class CalendarsPage extends ConsumerWidget {
           }
 
           final canDelete = calendars.length > 1;
+          final todos = ref.watch(allTodosProvider).valueOrNull ?? const [];
 
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            itemCount: calendars.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final calendar = calendars[index];
-              // The row opens the editor: the colour is part of the calendar,
-              // and a row that only *looks* clickable is worse than a plain one.
-              return ListTile(
-                leading: CircleAvatar(
-                  radius: 12,
-                  backgroundColor: ColorUtils.parseHex(calendar.color),
+          return ListView(
+            key: const ValueKey('calendars-list'),
+            padding: const EdgeInsets.only(bottom: AppSpacing.s6),
+            children: [
+              DsGroupLabel(l.myCalendars),
+              DsGroup(
+                children: [
+                  for (final calendar in calendars)
+                    DsSettingRow(
+                      label: calendar.name,
+                      value: l.dayItemCount(
+                        todos
+                            .where(
+                              (t) =>
+                                  t.calendarId == calendar.id &&
+                                  t.status != 'COMPLETED' &&
+                                  t.status != 'CANCELLED',
+                            )
+                            .length,
+                      ),
+                      leading: DsDot(
+                        color: ColorUtils.parseHex(calendar.color),
+                        size: 8,
+                      ),
+                      trailing: canDelete
+                          ? DsIconButton(
+                              icon: CupertinoIcons.trash,
+                              size: 16,
+                              compact: true,
+                              tooltip: l.deleteCalendar,
+                              onPressed: () =>
+                                  _confirmDelete(context, ref, calendar),
+                            )
+                          : null,
+                      onTap: () => _editCalendar(context, ref, calendar),
+                    ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  AppSpacing.s3,
+                  AppSpacing.s4,
+                  AppSpacing.s1,
                 ),
-                title: Text(calendar.name),
-                onTap: () => _editCalendar(context, ref, calendar),
-                trailing: canDelete
-                    ? IconButton(
-                        icon: const Icon(CupertinoIcons.trash, size: 18),
-                        tooltip: l.deleteCalendar,
-                        onPressed: () => _confirmDelete(context, ref, calendar),
-                      )
-                    : null,
-              );
-            },
+                child: DsButton(
+                  label: l.newCalendar,
+                  icon: CupertinoIcons.add,
+                  tone: DsButtonTone.secondary,
+                  expand: true,
+                  onPressed: () => _editCalendar(context, ref, null),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s5,
+                  AppSpacing.s3,
+                  AppSpacing.s5,
+                  AppSpacing.s2,
+                ),
+                child: Text(
+                  l.calendarExplanation,
+                  style: AppTypography.caption.copyWith(color: ds.ink3),
+                ),
+              ),
+            ],
           );
         },
       ),

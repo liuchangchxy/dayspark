@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
-import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 /// Minimal capture surface opened by a widget's `+`.
 ///
@@ -80,64 +80,95 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
     final landing = widget.dueDate == null ? l.inbox : l.deadlineToday;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(landing),
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.xmark),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: Text(l.save),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+      backgroundColor: ds.bg,
+      body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.dueDate != null) ...[
-              Align(
-                alignment: Alignment.centerLeft,
-                child: InputChip(
-                  avatar: const Icon(CupertinoIcons.calendar, size: 13),
-                  label: Text(
-                    l.deadlinePrefix(
-                      DateFormatters.formatDate(widget.dueDate!),
+            SizedBox(
+              height: 54,
+              child: Row(
+                children: [
+                  const SizedBox(width: AppSpacing.s1),
+                  DsIconButton(
+                    icon: CupertinoIcons.xmark,
+                    size: 18,
+                    compact: true,
+                    onPressed: () =>
+                        context.canPop() ? context.pop() : context.go('/'),
+                  ),
+                  const SizedBox(width: AppSpacing.s1),
+                  Expanded(
+                    child: Text(
+                      landing,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: ds.ink,
+                      ),
                     ),
                   ),
-                  onPressed: null,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-            TextField(
-              controller: _controller,
-              focusNode: _focus,
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              textCapitalization: TextCapitalization.sentences,
-              style: AppTypography.body,
-              onSubmitted: (_) => _save(),
-              decoration: InputDecoration(
-                hintText: l.widgetQuickAddHint,
-                filled: true,
-                fillColor: context.semantic.surfaceSecondary,
+                  DsButton(
+                    label: l.save,
+                    small: true,
+                    loading: _saving,
+                    onPressed: _saving ? null : _save,
+                  ),
+                  const SizedBox(width: AppSpacing.s3),
+                ],
               ),
             ),
-            if (_error != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                _error!,
-                style: AppTypography.caption.copyWith(
-                  color: Theme.of(context).colorScheme.error,
+            Container(height: 1, color: ds.line),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  AppSpacing.s4,
+                  AppSpacing.s4,
+                  AppSpacing.s6,
                 ),
+                children: [
+                  if (widget.dueDate != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.s3),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: DsChip(
+                          label: l.deadlinePrefix(
+                            formatDeadline(context, widget.dueDate!),
+                          ),
+                          warm: true,
+                          leading: Icon(
+                            CupertinoIcons.flag,
+                            size: 13,
+                            color: ds.warn,
+                          ),
+                        ),
+                      ),
+                    ),
+                  DsTextField(
+                    key: const ValueKey('todo-quick-create-title'),
+                    controller: _controller,
+                    focusNode: _focus,
+                    autofocus: true,
+                    hint: l.widgetQuickAddHint,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _save(),
+                  ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.s2),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(fontSize: 12, color: ds.danger),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ],
         ),
       ),

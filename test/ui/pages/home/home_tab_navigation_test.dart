@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
+import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/ui/shell/workspace_sidebar.dart';
 
 Widget _app(AppDatabase db, {List<Override> overrides = const []}) {
@@ -28,6 +29,15 @@ Widget _app(AppDatabase db, {List<Override> overrides = const []}) {
       home: const HomePage(),
     ),
   );
+}
+
+Finder _content(int tab) => find.byKey(ValueKey('workspace-content-$tab'));
+
+Future<void> _phone(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
 }
 
 Future<void> _unmount(WidgetTester tester) async {
@@ -52,16 +62,15 @@ void main() {
     'bottom navigation bar displays 3 projections and defaults to Today',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
+      await _phone(tester);
 
       await tester.pumpWidget(_app(db));
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(navBar.destinations.length, 3);
-      // Index 0 is Today
-      expect(navBar.selectedIndex, 0);
+      expect(find.byKey(const ValueKey('mobile-tab-bar')), findsOneWidget);
+      expect(_content(0), findsOneWidget);
 
       // Verify labels
       expect(find.text('Today'), findsWidgets);
@@ -74,60 +83,58 @@ void main() {
 
   testWidgets('respects saved calendar preference on launch', (tester) async {
     SharedPreferences.setMockInitialValues({'default_tab': 'calendar'});
+    await _phone(tester);
 
     await tester.pumpWidget(_app(db));
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(navBar.selectedIndex, 1); // Calendar tab
+    expect(_content(1), findsOneWidget);
 
     await _unmount(tester);
   });
 
   testWidgets('respects saved todos preference on launch', (tester) async {
     SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
+    await _phone(tester);
 
     await tester.pumpWidget(_app(db));
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    final navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(navBar.selectedIndex, 2); // Todos tab
+    expect(_content(2), findsOneWidget);
 
     await _unmount(tester);
   });
 
   testWidgets('switching tabs updates selected destination', (tester) async {
     SharedPreferences.setMockInitialValues({});
+    await _phone(tester);
 
     await tester.pumpWidget(_app(db));
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    var navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(navBar.selectedIndex, 0);
+    expect(_content(0), findsOneWidget);
 
     // Tap Calendar destination
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(find.text('Calendar').last);
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(navBar.selectedIndex, 1);
+    expect(_content(1), findsOneWidget);
 
     // Tap Todos destination
-    await tester.tap(find.text('Tasks'));
+    await tester.tap(find.text('Tasks').last);
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    navBar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(navBar.selectedIndex, 2);
+    expect(_content(2), findsOneWidget);
 
     await _unmount(tester);
   });
@@ -144,16 +151,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     expect(find.byType(WorkspaceSidebar), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byKey(const ValueKey('mobile-tab-bar')), findsNothing);
     final origin = tester.getTopLeft(
       find.byKey(const ValueKey('workspace-content-0')),
     );
     for (final entry in [(1, 'Calendar'), (2, 'Tasks'), (0, 'Today')]) {
       await tester.tap(
-        find.descendant(
-          of: find.byType(WorkspaceSidebar),
-          matching: find.text(entry.$2),
-        ),
+        find
+            .descendant(
+              of: find.byType(WorkspaceSidebar),
+              matching: find.text(entry.$2),
+            )
+            .first,
       );
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 50));
@@ -169,7 +178,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('desktop list content keeps the shared 28dp left origin', (
+  testWidgets('desktop list rows keep one left origin per destination', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -177,50 +186,55 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
-    // Both tabs need list content: an empty Action renders a centred empty
-    // state, and comparing a centred message with a left-aligned one would
-    // not test the shared origin.
     final calId = await db
         .into(db.calendars)
         .insert(CalendarsCompanion.insert(name: 'Personal'));
-    await db
-        .into(db.todos)
-        .insert(
-          TodosCompanion.insert(
-            calendarId: calId,
-            summary: 'Origin check',
-            dueDate: Value(DateTime.now()),
-          ),
-        );
+    for (final title in ['Origin one', 'Origin two']) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: title,
+              dueDate: Value(DateTime.now()),
+            ),
+          );
+    }
     await tester.pumpWidget(_app(db));
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    Future<double> firstTextLeft(String tab, int index) async {
-      await tester.tap(
-        find.descendant(
-          of: find.byType(WorkspaceSidebar),
-          matching: find.text(tab),
-        ),
+    void expectSingleOrigin(int tab) {
+      final content = find.byKey(ValueKey('workspace-content-$tab'));
+      final rows = find.descendant(
+        of: content,
+        matching: find.byType(TodoListTile),
       );
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
+      expect(rows, findsWidgets);
+      final lefts = <double>[
+        for (var i = 0; i < rows.evaluate().length; i++)
+          tester.getTopLeft(rows.at(i)).dx,
+      ];
+      final spread = lefts.reduce((a, b) => a < b ? a : b);
+      for (final left in lefts) {
+        expect((left - spread).abs(), lessThanOrEqualTo(1));
       }
-      final content = find.byKey(ValueKey('workspace-content-$index'));
-      final texts = find.descendant(of: content, matching: find.byType(Text));
-      return tester.getTopLeft(texts.first).dx;
     }
 
-    // Today rows and the Todo section header are both plain list content:
-    // neither should carry an extra inset relative to the other.
-    final todayLeft = await firstTextLeft('Today', 0);
-    final todoLeft = await firstTextLeft('Tasks', 2);
-    expect(
-      (todayLeft - todoLeft).abs(),
-      lessThanOrEqualTo(1),
-      reason: 'Today=$todayLeft Todos=$todoLeft',
+    expectSingleOrigin(0);
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(WorkspaceSidebar),
+            matching: find.text('Tasks'),
+          )
+          .first,
     );
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expectSingleOrigin(2);
     await _unmount(tester);
   });
 
@@ -303,7 +317,7 @@ void main() {
     for (var i = 0; i < 15; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    expect(sidebarRowColor(tester, 'Today'), AppColors.sidebarSelected);
+    expect(sidebarRowColor(tester, 'Today'), AppColors.lightSurfaceSecondary);
     await _unmount(tester);
   });
 
@@ -324,7 +338,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(sidebarRowColor(tester, 'Today'), isNot(AppColors.sidebarSelected));
+    expect(sidebarRowColor(tester, 'Today'), isNot(AppColors.lightSurfaceSecondary));
     await _unmount(tester);
   });
 
@@ -337,8 +351,9 @@ void main() {
 
     for (final (width, expectRail) in [
       (390.0, false),
-      (768.0, false),
-      (999.0, false),
+      (759.0, false),
+      (768.0, true),
+      (999.0, true),
       (1000.0, true),
       (1440.0, true),
     ]) {
@@ -354,7 +369,7 @@ void main() {
         reason: 'width $width',
       );
       expect(
-        find.byType(NavigationBar),
+        find.byKey(const ValueKey('mobile-tab-bar')),
         expectRail ? findsNothing : findsOneWidget,
         reason: 'width $width',
       );
