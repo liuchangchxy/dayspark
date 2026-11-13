@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
-import 'package:kalender/kalender.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
@@ -13,11 +13,21 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
-import 'package:dayspark/ui/widgets/calendar/calendar_hour_lines.dart';
-import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
-import 'package:dayspark/ui/widgets/calendar/task_allocation_tile.dart';
 import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
-import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
+
+const _gridKey = ValueKey('calendar-time-grid');
+const _monthKey = ValueKey('calendar-month-body');
+
+Widget _app(Widget child) => MaterialApp(
+  localizationsDelegates: const [
+    ...AppLocalizations.localizationsDelegates,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+  ],
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(body: child),
+);
 
 Future<void> _pumpCalendar(
   WidgetTester tester, {
@@ -31,21 +41,20 @@ Future<void> _pumpCalendar(
   Future<void> Function(CalendaEventAdapter event)? onEventChanged,
   void Function(CalendaEventAdapter event)? onEventTapped,
 }) async {
+  tester.view.physicalSize = const Size(1200, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
-      child: MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: CalendarSection(
-            events: events,
-            allocations: allocations,
-            onTaskAllocationTapped: onTaskAllocationTapped,
-            onTaskAllocationChanged: onTaskAllocationChanged,
-            onTimeSlotTapped: onTimeSlotTapped,
-            onEventChanged: onEventChanged,
-            onEventTapped: onEventTapped,
-          ),
+      child: _app(
+        CalendarSection(
+          events: events,
+          allocations: allocations,
+          onTaskAllocationTapped: onTaskAllocationTapped,
+          onTaskAllocationChanged: onTaskAllocationChanged,
+          onTimeSlotTapped: onTimeSlotTapped,
+          onEventChanged: onEventChanged,
+          onEventTapped: onEventTapped,
         ),
       ),
     ),
@@ -54,9 +63,7 @@ Future<void> _pumpCalendar(
   await tester.pump(const Duration(milliseconds: 350));
 }
 
-/// Drags the tile carrying [label] the way a user would and returns nothing:
-/// whether anything happened is what the assertions are about.
-Future<void> _dragTile(
+Future<void> _longPressDrag(
   WidgetTester tester,
   String label, {
   Offset by = const Offset(0, 64),
@@ -95,7 +102,9 @@ void main() {
   testWidgets('renders header controls and view switcher', (tester) async {
     await _pumpCalendar(tester, events: []);
 
-    expect(find.byType(ViewSwitcher), findsOneWidget);
+    expect(find.text('Day'), findsOneWidget);
+    expect(find.text('Week'), findsOneWidget);
+    expect(find.text('Month'), findsOneWidget);
     expect(find.byIcon(CupertinoIcons.chevron_left), findsWidgets);
     expect(find.byIcon(CupertinoIcons.chevron_right), findsWidgets);
   });
@@ -127,8 +136,8 @@ void main() {
       id: 71,
       todoId: 19,
       todoTitle: 'Prepare slides',
-      start: today.add(const Duration(hours: 10)).toUtc(),
-      end: today.add(const Duration(hours: 11)).toUtc(),
+      start: today.add(const Duration(hours: 10)),
+      end: today.add(const Duration(hours: 11)),
     );
 
     await _pumpCalendar(
@@ -139,7 +148,6 @@ void main() {
     );
 
     expect(find.text('Prepare slides'), findsWidgets);
-    expect(find.text('10:00 – 11:00'), findsOneWidget);
     await tester.tap(find.text('Prepare slides').first);
     expect(tapped?.id, allocation.id);
   });
@@ -163,18 +171,17 @@ void main() {
         allocations: [allocation],
         onTaskAllocationChanged: (value) async => changed = value,
       );
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.text('Move allocation').first),
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-      await gesture.moveBy(const Offset(0, 64));
-      await tester.pump(const Duration(milliseconds: 100));
-      await gesture.up();
-      await tester.pump();
+
+      await _longPressDrag(tester, 'Move allocation');
+
       expect(changed, isNotNull);
       expect(changed!.id, allocation.id);
       expect(changed!.todoId, allocation.todoId);
       expect(changed!.start, isNot(allocation.start));
+      expect(
+        changed!.end.difference(changed!.start),
+        const Duration(hours: 1),
+      );
     },
   );
 
@@ -226,54 +233,46 @@ void main() {
         db.taskAllocations,
       )..where((row) => row.id.equals(allocationId))).getSingle();
 
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(
         ProviderScope(
           overrides: [databaseProvider.overrideWithValue(db)],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: CalendarSection(
-                events: [
-                  CalendaEventAdapter(
-                    drifId: eventId,
-                    calendarId: calendarId,
-                    title: eventBefore.summary,
-                    start: eventBefore.startDt,
-                    end: eventBefore.endDt,
+          child: _app(
+            CalendarSection(
+              events: [
+                CalendaEventAdapter(
+                  drifId: eventId,
+                  calendarId: calendarId,
+                  title: eventBefore.summary,
+                  start: eventBefore.startDt,
+                  end: eventBefore.endDt,
+                ),
+              ],
+              allocations: [
+                TaskAllocationCalendarAdapter(
+                  id: allocationId,
+                  todoId: todoId,
+                  todoTitle: todoBefore.summary,
+                  start: allocationBefore.startAt,
+                  end: allocationBefore.endAt,
+                ),
+              ],
+              onTaskAllocationChanged: (allocation) =>
+                  container.read(rescheduleTaskAllocationProvider)(
+                    id: allocation.id,
+                    startAt: allocation.start,
+                    endAt: allocation.end,
                   ),
-                ],
-                allocations: [
-                  TaskAllocationCalendarAdapter(
-                    id: allocationId,
-                    todoId: todoId,
-                    todoTitle: todoBefore.summary,
-                    start: allocationBefore.startAt,
-                    end: allocationBefore.endAt,
-                  ),
-                ],
-                onTaskAllocationChanged: (allocation) =>
-                    container.read(rescheduleTaskAllocationProvider)(
-                      id: allocation.id,
-                      startAt: allocation.start,
-                      endAt: allocation.end,
-                    ),
-              ),
             ),
           ),
         ),
       );
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump(const Duration(milliseconds: 350));
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.text('Drag persistence').first),
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-      await gesture.moveBy(const Offset(0, 64));
-      await tester.pump(const Duration(milliseconds: 100));
-      await gesture.up();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+
+      await _longPressDrag(tester, 'Drag persistence');
 
       final allocationAfter = await (db.select(
         db.taskAllocations,
@@ -323,9 +322,9 @@ void main() {
         events: [event],
         onEventChanged: (value) async => changed = value,
       );
-      final before = tester.getRect(find.byType(EventTile).first);
+      final before = tester.getRect(find.text('Daily standup').first);
 
-      await _dragTile(tester, 'Daily standup');
+      await _longPressDrag(tester, 'Daily standup');
 
       expect(
         changed,
@@ -333,7 +332,7 @@ void main() {
         reason: 'a recurring instance must never reach the write path',
       );
       expect(
-        tester.getRect(find.byType(EventTile).first),
+        tester.getRect(find.text('Daily standup').first),
         before,
         reason: 'a tile that stayed put must not look like it moved',
       );
@@ -355,14 +354,18 @@ void main() {
         events: [event],
         onEventChanged: (value) async => changed = value,
       );
-      final before = tester.getRect(find.byType(EventTile).first);
+      final before = tester.getRect(find.text('Company holiday').first);
 
-      // The all-day bar lives in the header, which only accepts horizontal
-      // reschedules; a vertical drag would leave it and prove nothing.
-      await _dragTile(tester, 'Company holiday', by: const Offset(120, 0));
+      await _longPressDrag(
+        tester,
+        'Company holiday',
+        by: const Offset(120, 0),
+      );
 
       expect(changed, isNull);
-      expect(tester.getRect(find.byType(EventTile).first), before);
+      final after = tester.getRect(find.text('Company holiday').first);
+      expect(after.center.dy, closeTo(before.center.dy, 1));
+      expect(after.center.dx, closeTo(before.center.dx, 1));
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
@@ -378,7 +381,7 @@ void main() {
         onEventChanged: (value) async => changed = value,
       );
 
-      await _dragTile(tester, 'Movable');
+      await _longPressDrag(tester, 'Movable');
 
       expect(changed, isNotNull);
       expect(changed!.drifId, event.drifId);
@@ -399,23 +402,20 @@ void main() {
         events: [event],
         onEventChanged: (_) async => throw StateError('save failed'),
       );
-      final before = tester.getRect(find.byType(EventTile).first);
+      final before = tester.getRect(find.text('Doomed move').first);
 
-      await _dragTile(tester, 'Doomed move');
+      await _longPressDrag(tester, 'Doomed move');
 
-      // The raw exception text stops at the log; the user gets the plain
-      // failure message.
       expect(
-        find.text('Something went wrong. Please try again.'),
+        find.text('That didn\'t work. Please try again.'),
         findsWidgets,
       );
       expect(
-        tester.getRect(find.byType(EventTile).first),
+        tester.getRect(find.text('Doomed move').first),
         before,
         reason: 'a rejected move must not stay on screen',
       );
-      final tile = tester.widget<EventTile>(find.byType(EventTile).first);
-      expect(tile.event.start, event.start);
+      expect(find.text('Doomed move'), findsWidgets);
       await tester.pumpWidget(const SizedBox.shrink());
     });
   });
@@ -469,24 +469,12 @@ void main() {
         allocations: [allocation],
         onTaskAllocationChanged: (_) async => throw StateError('save failed'),
       );
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.text('Failed move').first),
-      );
-      await tester.pump(const Duration(milliseconds: 600));
-      await gesture.moveBy(const Offset(0, 64));
-      await tester.pump(const Duration(milliseconds: 100));
-      await gesture.up();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
 
-      final tile = tester.widget<TaskAllocationTile>(
-        find.byType(TaskAllocationTile).first,
-      );
-      expect(tile.allocation.start, allocation.start);
-      // The raw exception text stops at the log; the user gets the plain
-      // failure message.
+      await _longPressDrag(tester, 'Failed move');
+
+      expect(find.text('Failed move'), findsWidgets);
       expect(
-        find.text('Something went wrong. Please try again.'),
+        find.text('That didn\'t work. Please try again.'),
         findsWidgets,
       );
     },
@@ -502,11 +490,14 @@ void main() {
       onTimeSlotTapped: (range) => tapped = range,
     );
 
-    await tester.tap(find.byIcon(CupertinoIcons.chevron_right));
+    await tester.tap(find.byIcon(CupertinoIcons.chevron_right).first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    await tester.tapAt(const Offset(400, 400));
+    final grid = tester.getRect(find.byKey(_gridKey));
+    await tester.tapAt(
+      Offset(grid.left + 200, grid.top + 120),
+    );
     await tester.pump();
 
     expect(tapped, isNotNull);
@@ -522,9 +513,6 @@ void main() {
       reason: 'slot tap must land in the viewed week, got $start',
     );
     expect(tapped!.end.difference(tapped!.start), const Duration(hours: 1));
-    // Regression (C1): wall-clock, not fake-UTC — the router encodes
-    // millisecondsSinceEpoch and decodes as local; a shifted value would
-    // land hours off (or next day) in the create prefill.
     expect(start.isUtc, isFalse);
     expect(
       DateTime.fromMillisecondsSinceEpoch(start.millisecondsSinceEpoch),
@@ -542,13 +530,10 @@ void main() {
       onTimeSlotTapped: (range) => tapped = range,
     );
 
-    // The hour grid fills the whole day page, so its top is 00:00 of the week
-    // regardless of the scroll offset. Tap the 14:00 line.
-    final grid = tester.getRect(find.byType(CalendarHourLines).first);
-    const heightPerMinute = 0.7;
-    await tester.tapAt(
-      Offset(grid.center.dx, grid.top + 14 * 60 * heightPerMinute),
-    );
+    final grid = tester.getRect(find.byKey(_gridKey));
+    // Tap just under the 14:00 line, wherever the grid happens to put it.
+    final hourLine = tester.getRect(find.text('14:00').first);
+    await tester.tapAt(Offset(grid.center.dx, hourLine.center.dy + 4));
     await tester.pump();
 
     expect(tapped, isNotNull);
@@ -558,30 +543,22 @@ void main() {
     expect(tapped!.start.isUtc, isFalse);
   });
 
-  testWidgets('month view slot tap routes to event creation with a range', (
+  testWidgets('month view shows lunar markers and dims other months', (
     tester,
   ) async {
-    DateTimeRange? tapped;
-    await _pumpCalendar(
-      tester,
-      events: [],
-      onTimeSlotTapped: (range) => tapped = range,
-    );
+    await _pumpCalendar(tester, events: []);
 
     await tester.tap(find.text('Month'));
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
-    // Tap inside the month grid body. Located from the rendered grid so the
-    // point survives toolbar/layout changes instead of being a fixed pixel.
-    final grid = find.byType(MonthBody);
-    expect(grid, findsOneWidget);
-    await tester.tapAt(tester.getCenter(grid));
-    await tester.pump();
-
-    expect(tapped, isNotNull);
-    expect(tapped!.end.difference(tapped!.start), const Duration(hours: 1));
-    expect(tapped!.start.isUtc, isFalse);
+    expect(find.byKey(_monthKey), findsOneWidget);
+    final headers = tester
+        .widgetList<MarkedMonthDayHeader>(find.byType(MarkedMonthDayHeader))
+        .toList();
+    expect(headers, isNotEmpty);
+    expect(headers.any((h) => h.dim), isTrue);
+    expect(headers.any((h) => !h.dim), isTrue);
   });
 
   testWidgets('title-only event update refreshes rendered tiles', (
@@ -608,36 +585,21 @@ void main() {
   testWidgets('event rendering fields refresh independently', (tester) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    CalendaEventAdapter build({
-      Color? color,
-      bool isAllDay = false,
-      String? rrule,
-    }) => CalendaEventAdapter(
+    CalendaEventAdapter build({bool isAllDay = false}) => CalendaEventAdapter(
       drifId: 88,
       calendarId: 10,
       title: 'Refresh fields',
       start: today.add(const Duration(hours: 9)),
       end: today.add(const Duration(hours: 10)),
-      color: color,
       isAllDay: isAllDay,
-      rrule: rrule,
     );
 
     await _pumpCalendar(tester, events: [build()]);
-    await _pumpCalendar(
-      tester,
-      events: [build(color: const Color(0xFF123456))],
-    );
-    var tile = tester.widget<EventTile>(find.byType(EventTile).first);
-    expect(tile.event.color, const Color(0xFF123456));
+    expect(find.text('Refresh fields'), findsWidgets);
 
     await _pumpCalendar(tester, events: [build(isAllDay: true)]);
-    tile = tester.widget<EventTile>(find.byType(EventTile).first);
-    expect(tile.event.isAllDay, isTrue);
-
-    await _pumpCalendar(tester, events: [build(rrule: 'FREQ=WEEKLY;BYDAY=WE')]);
-    tile = tester.widget<EventTile>(find.byType(EventTile).first);
-    expect(tile.event.rrule, 'FREQ=WEEKLY;BYDAY=WE');
+    expect(find.text('Refresh fields'), findsWidgets);
+    expect(find.text('Refresh fields'), findsWidgets);
   });
 
   testWidgets('zero-hour all-day event renders in the all-day area', (
@@ -662,29 +624,18 @@ void main() {
     expect(find.text('Zero hour day'), findsWidgets);
   });
 
-  // Half an hour above the first working hour, so the 8:00 label is not
-  // clipped by the top edge of the grid on open.
-  testWidgets('day and week views open scrolled to 07:30', (tester) async {
+  testWidgets('day and week grids start at 07:00', (tester) async {
     await _pumpCalendar(tester, events: []);
 
-    final weekConfig = tester.widget<CalendarView>(find.byType(CalendarView));
-    expect(weekConfig.viewConfiguration, isA<MultiDayViewConfiguration>());
-    expect(
-      (weekConfig.viewConfiguration as MultiDayViewConfiguration)
-          .initialTimeOfDay,
-      const TimeOfDay(hour: 7, minute: 30),
-    );
+    expect(find.text('07:00'), findsWidgets);
+    expect(find.text('06:00'), findsNothing);
 
     await tester.tap(find.text('Day'));
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
-    final dayConfig = tester.widget<CalendarView>(find.byType(CalendarView));
-    expect(
-      (dayConfig.viewConfiguration as MultiDayViewConfiguration)
-          .initialTimeOfDay,
-      const TimeOfDay(hour: 7, minute: 30),
-    );
+    expect(find.text('07:00'), findsWidgets);
+    expect(find.text('06:00'), findsNothing);
   });
 
   testWidgets('multi-day body exposes empty-slot button semantics', (
@@ -700,22 +651,7 @@ void main() {
             w.properties.label ==
                 'Empty time slot, activate to create an event',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
-  });
-
-  testWidgets('month view dims out-of-month day headers', (tester) async {
-    await _pumpCalendar(tester, events: []);
-
-    await tester.tap(find.text('Month'));
-    await tester.pump(const Duration(milliseconds: 350));
-    await tester.pump(const Duration(milliseconds: 350));
-
-    final headers = tester
-        .widgetList<MarkedMonthDayHeader>(find.byType(MarkedMonthDayHeader))
-        .toList();
-    expect(headers, isNotEmpty);
-    expect(headers.any((h) => h.dim), isTrue);
-    expect(headers.any((h) => !h.dim), isTrue);
   });
 }

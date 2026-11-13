@@ -4,9 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -17,13 +17,14 @@ import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
-import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 
 /// One page for "write an event", mirroring [TodoFormPage]: passing [event]
@@ -374,23 +375,31 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
   Future<void> _confirmDiscard() async {
     final l = AppLocalizations.of(context)!;
     final discard = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.discardChanges),
-        content: Text(l.discardChangesBody),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.discardChanges,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.keepEditing,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.keepEditing),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.discard,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.discard),
           ),
         ],
+        child: Text(
+          l.discardChangesBody,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.55,
+            color: context.ds.ink2,
+          ),
+        ),
       ),
     );
     if (discard == true && mounted) Navigator.of(context).pop();
@@ -399,27 +408,34 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
   Future<void> _delete() async {
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.moveToTrash),
-        content: Text(
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.moveToTrash,
+        width: 420,
+        actions: [
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.moveToTrash,
+            tone: DsButtonTone.danger,
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+        child: Text(
           _isRecurring
               ? l.deleteRecurringEventConfirm(widget.event!.title)
               : l.deleteEventConfirm(widget.event!.title),
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.55,
+            color: context.ds.ink2,
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.moveToTrash),
-          ),
-        ],
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -514,26 +530,30 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
 
   Widget _buildCalendarRow(AppLocalizations l) {
     final calendarsAsync = ref.watch(calendarsProvider);
+    final ds = context.ds;
     return calendarsAsync.when(
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
       data: (calendars) {
         if (calendars.isEmpty) {
-          return Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l.noCalendar,
-                  style: AppTypography.caption.copyWith(
-                    color: Theme.of(context).colorScheme.error,
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l.noCalendar,
+                    style: AppTypography.small.copyWith(color: ds.danger),
                   ),
                 ),
-              ),
-              TextButton(
-                onPressed: () => ref.invalidate(calendarsProvider),
-                child: Text(l.retry),
-              ),
-            ],
+                DsButton(
+                  label: l.retry,
+                  tone: DsButtonTone.ghost,
+                  small: true,
+                  onPressed: () => ref.invalidate(calendarsProvider),
+                ),
+              ],
+            ),
           );
         }
         final selected = _calendarId ?? calendars.first.id;
@@ -541,10 +561,16 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
         // A dangling calendar (deleted on another device) must be resolved by
         // the user. Falling back to `calendars.first` would silently move the
         // event to a calendar nobody chose.
-        return ScheduleRow(
+        return DsSettingRow(
+          key: const ValueKey('calendar-picker'),
           label: l.calendarField,
+          leading: current == null
+              ? null
+              : DsDot(
+                  color: ColorUtils.parseHex(current.color),
+                  size: 8,
+                ),
           value: current?.name ?? l.calendarUnavailable,
-          trailing: const Icon(CupertinoIcons.chevron_down, size: 12),
           onTap: () async {
             final picked = await pickCalendar(
               context,
@@ -584,23 +610,34 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
           maxContentWidth: desktop ? 720 : null,
           actions: [
             if (_isEditing)
-              IconButton(
-                icon: const Icon(CupertinoIcons.trash, size: 18),
-                onPressed: _saving ? null : _delete,
+              DsIconButton(
+                icon: CupertinoIcons.trash,
+                size: 18,
+                compact: true,
                 tooltip: l.moveToTrash,
+                onPressed: _saving ? null : _delete,
               ),
-            IconButton(
-              icon: _aiLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(CupertinoIcons.sparkles, size: 18),
-              onPressed: _aiLoading ? null : _aiParse,
-              tooltip: l.aiParse,
-            ),
-            const SizedBox(width: AppSpacing.sm),
+            if (_aiLoading)
+              const SizedBox(
+                width: 36,
+                height: 36,
+                child: Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else
+              DsIconButton(
+                icon: CupertinoIcons.sparkles,
+                size: 18,
+                compact: true,
+                tooltip: l.aiParse,
+                onPressed: _aiParse,
+              ),
+            const SizedBox(width: AppSpacing.s1),
             PageSaveButton(
               label: l.save,
               saving: _saving,
@@ -610,82 +647,90 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
             ),
           ],
           child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              desktop ? AppSpacing.xl : AppSpacing.lg,
-              AppSpacing.lg,
-              desktop ? AppSpacing.xl : AppSpacing.lg,
-              AppSpacing.xxl,
-            ),
+            padding: const EdgeInsets.only(bottom: 96),
             children: [
-              TextField(
-                controller: _titleController,
-                autofocus: !_isEditing,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (_) => setState(() {}),
-                style: AppTypography.headline,
-                decoration: InputDecoration(
-                  hintText: l.title,
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintStyle: AppTypography.headline.copyWith(
-                    color: context.semantic.textTertiary,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  AppSpacing.s3,
+                  AppSpacing.s4,
+                  AppSpacing.s1,
+                ),
+                child: TextField(
+                  controller: _titleController,
+                  autofocus: !_isEditing,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (_) => setState(() {}),
+                  style: AppTypography.headline.copyWith(
+                    color: context.ds.ink,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: l.title,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    hintStyle: AppTypography.headline.copyWith(
+                      color: context.ds.faint,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              const RowDivider(),
-              const SizedBox(height: AppSpacing.sm),
-              if (_isRecurring) ...[
+              if (_isRecurring)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.s4,
+                    0,
+                    AppSpacing.s4,
+                    AppSpacing.s2,
+                  ),
                   child: Row(
                     children: [
                       Icon(
                         CupertinoIcons.repeat,
                         size: 13,
-                        color: context.semantic.textSecondary,
+                        color: context.ds.ink3,
                       ),
-                      const SizedBox(width: AppSpacing.xs),
+                      const SizedBox(width: AppSpacing.s1),
                       Expanded(
                         child: Text(
                           l.recurringSeriesNoticeShort,
-                          style: AppTypography.caption.copyWith(
-                            color: context.semantic.textSecondary,
+                          style: AppTypography.small.copyWith(
+                            color: context.ds.ink3,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-              // One row, one switch: the value text is not a second button
-              // competing with the switch for the same answer.
-              ScheduleRow(
+              const DsHairline(),
+              DsSectionLabel(l.sectionTime),
+              DsSettingRow(
                 label: l.allDay,
-                value: _isAllDay ? l.durationAllDay : l.eventLabel,
+                // The switch already says which state it is in; the value it
+                // used to print ("日程") contradicted its own label.
                 trailing: Switch(
                   value: _isAllDay,
                   onChanged: _setAllDay,
                 ),
               ),
-              ScheduleRow(
+              DsSettingRow(
                 label: l.startTime,
                 value: _isAllDay
                     ? formatDeadline(context, _start)
                     : formatMoment(context, _start),
                 onTap: () => _pickBoundary(true),
               ),
-              ScheduleRow(
+              DsSettingRow(
                 label: l.endTime,
                 value: _isAllDay
                     ? formatDeadline(context, _end)
                     : formatMoment(context, _end),
                 onTap: () => _pickBoundary(false),
               ),
-              ScheduleRow(
+              DsSettingRow(
                 label: l.duration,
                 // The length is a consequence of the two times, never a number
                 // the app invents when they disagree.
@@ -697,72 +742,93 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                               _endDt.difference(_startDt),
                             ))
                     : l.invalidTimeRange,
-                placeholder: !_validRange,
               ),
-              RepeatRow(
-                rrule: _rrule,
-                anchorDate: _start,
-                anchorLabel: null,
-                onChanged: (value) => setState(() => _rrule = value),
+              // RepeatRow is a ScheduleRow, which carries no gutter of its own;
+              // every other row in this form is a DsSettingRow that does, so
+              // without this the label sat flush against the window edge.
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s4,
+                ),
+                child: RepeatRow(
+                  rrule: _rrule,
+                  anchorDate: _start,
+                  anchorLabel: null,
+                  onChanged: (value) => setState(() => _rrule = value),
+                ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              const RowDivider(),
-              const SizedBox(height: AppSpacing.md),
+              const DsHairline(),
+              // The row names the field it sets; a heading over it repeated
+              // the same two words.
               _buildCalendarRow(l),
-              const SizedBox(height: AppSpacing.lg),
-              TextField(
-                controller: _locationController,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: l.location,
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintStyle: AppTypography.body.copyWith(
-                    color: context.semantic.textTertiary,
-                  ),
+              DsSectionLabel(l.sectionContent),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  AppSpacing.s2,
+                  AppSpacing.s4,
+                  AppSpacing.s2,
+                ),
+                child: DsTextField(
+                  controller: _locationController,
+                  hint: l.location,
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: _descriptionController,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: l.description,
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintStyle: AppTypography.body.copyWith(
-                    color: context.semantic.textTertiary,
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  0,
+                  AppSpacing.s4,
+                  AppSpacing.s2,
                 ),
-                maxLines: 4,
-                textCapitalization: TextCapitalization.sentences,
+                child: DsTextField(
+                  controller: _descriptionController,
+                  hint: l.description,
+                  maxLines: 4,
+                  onChanged: (_) => setState(() {}),
+                ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              TagChips(
-                selectedIds: _tagIds,
-                onSelectedIdsChanged: (value) =>
-                    setState(() => _tagIds = value),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  AppSpacing.s3,
+                  AppSpacing.s4,
+                  0,
+                ),
+                child: TagChips(
+                  selectedIds: _tagIds,
+                  onSelectedIdsChanged: (value) =>
+                      setState(() => _tagIds = value),
+                ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              RemindersSection(
-                parentType: 'event',
-                parentId: widget.event?.drifId,
-                anchorTime: _start,
-                draft: _reminders,
-                onDraftChanged: (value) => setState(() => _reminders = value),
+              // RemindersSection draws its own heading and add action; a
+              // second label above it printed "提醒" twice, six pixels apart.
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s4,
+                ),
+                child: RemindersSection(
+                  parentType: 'event',
+                  parentId: widget.event?.drifId,
+                  anchorTime: _start,
+                  draft: _reminders,
+                  onDraftChanged: (value) =>
+                      setState(() => _reminders = value),
+                ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              AttachmentList(
-                parentType: 'event',
-                parentId: widget.event?.drifId,
-                draft: _attachments,
-                onDraftChanged: (value) => setState(() => _attachments = value),
+              const SizedBox(height: AppSpacing.s3),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s4,
+                ),
+                child: AttachmentList(
+                  parentType: 'event',
+                  parentId: widget.event?.drifId,
+                  draft: _attachments,
+                  onDraftChanged: (value) =>
+                      setState(() => _attachments = value),
+                ),
               ),
             ],
           ),

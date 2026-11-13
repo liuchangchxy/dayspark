@@ -12,7 +12,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/weekday_1"
@@ -21,7 +21,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/weekday_2"
@@ -30,7 +30,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/weekday_3"
@@ -39,7 +39,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/weekday_4"
@@ -48,7 +48,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/weekday_5"
@@ -57,7 +57,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/weekday_6"
@@ -66,5 +66,5 @@
         android:layout_weight="1"
         android:gravity="center"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 </LinearLayout>

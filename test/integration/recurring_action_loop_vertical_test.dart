@@ -69,6 +69,9 @@ void main() {
   testWidgets(
     'Phase 2 vertical acceptance: TaskSeries -> Calendar slot -> pick concrete occurrenceId -> TaskAllocation -> visible in Calendar and Action -> exact-instance complete and reopen with dueDate invariant and series preservation',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       // -------------------------------------------------------------
       // Dynamic time setup:
       // Derive test allocation start strictly in the future (+2h)
@@ -311,26 +314,11 @@ void main() {
 
       expect(find.text('Daily Sprint Standup'), findsWidgets);
 
-      // Checkbox in todayTimeline for this allocation item
-      final checkboxFinder = find.byType(Checkbox);
-      expect(checkboxFinder, findsWidgets);
-
-      // Target the exact occurrence-bound allocation row, then the checkbox
-      // inside it: tapping the row itself opens the todo, not completion.
-      final allocationRow = find.byKey(
-        ValueKey('action-allocation-${allocation.id}'),
-      );
-      final allocationCheckboxFinder = find.descendant(
-        of: allocationRow,
-        matching: find.byType(Checkbox),
-      );
-      expect(
-        allocationCheckboxFinder,
-        findsOneWidget,
-        reason:
-            'Timeline allocation checkbox for this exact allocation must be visible',
-      );
-      await tester.tap(allocationCheckboxFinder);
+      // The series' pending instance is a row in the mobile sheet; its
+      // completion circle is the Action surface's tick target.
+      final instanceCheck = find.byKey(ValueKey('action-complete-$seriesId'));
+      expect(instanceCheck, findsOneWidget);
+      await tester.tap(instanceCheck);
       await tester.pumpAndSettle();
 
       // -------------------------------------------------------------

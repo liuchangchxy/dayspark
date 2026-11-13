@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/services/action_projection_query.dart';
@@ -600,19 +602,33 @@ void main() {
     });
 
     test('theme includes error and warning tokens', () {
+      // The block is the widget's copy of the app palette, so the accent is
+      // pinned to the token and not to a literal: a palette change has to
+      // reach the widget, and this assertion should not need a second edit.
+      String hex(Color color) =>
+          '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+
       final light = HomeWidgetService.buildThemeBlock(dark: false);
       expect(light['dark'], false);
       final lightColors = light['colors'] as Map;
-      expect(lightColors['accent'], '#2457D6');
+      expect(lightColors['accent'], hex(AppColors.lightAccent));
       expect(lightColors['error'], isA<String>());
       expect(lightColors['warning'], isA<String>());
 
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
       final darkColors = dark['colors'] as Map;
-      expect(darkColors['accent'], '#0A84FF');
+      expect(darkColors['accent'], hex(AppColors.darkAccent));
       expect(darkColors['error'], isA<String>());
       expect(darkColors['warning'], isA<String>());
+
+      // A chosen accent has to reach the widget, or the widget keeps the rust
+      // dot while the app next to it is blue.
+      final blue = HomeWidgetService.buildThemeBlock(
+        dark: false,
+        accent: AppAccent.blue,
+      );
+      expect((blue['colors'] as Map)['accent'], hex(AppAccent.blue.light));
     });
   });
 

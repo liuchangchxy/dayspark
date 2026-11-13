@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import java.util.Date
@@ -78,7 +79,7 @@ class TodayWidgetProvider : AppWidgetProvider() {
         WidgetSize.LARGE -> R.layout.widget_action_large
       }
       val views = RemoteViews(context.packageName, layout)
-      WidgetSupport.applyRoot(views, R.id.action_root, theme)
+      WidgetSupport.applyRoot(context, views, R.id.action_root, theme)
 
       val primary = context.getColor(R.color.widget_text_primary)
       val secondary = context.getColor(R.color.widget_text_secondary)
@@ -98,16 +99,20 @@ class TodayWidgetProvider : AppWidgetProvider() {
       views.setOnClickPendingIntent(R.id.action_weekday, root)
 
       val overdueCount = block.counts.overdue
-      val chip = views
-      if (overdueCount > 0 && size == WidgetSize.SMALL) {
-        chip.setViewVisibility(R.id.action_overdue_chip, View.VISIBLE)
-        val label = ui?.withCount(ui.overdueCount, overdueCount) ?: "$overdueCount"
-        chip.setTextViewText(R.id.action_overdue_chip, label)
-        WidgetSupport.textColor(chip, R.id.action_overdue_chip, theme, "error", error)
-        chip.setOnClickPendingIntent(R.id.action_overdue_chip, root)
-      } else {
-        chip.setViewVisibility(R.id.action_overdue_chip, View.GONE)
+      // A pinned small card is only ~100dp wide inside its padding: a 24sp date
+      // plus a weekday plus an overdue badge plus the "+" leaves nothing, and
+      // the header came out clipped on a real launcher. Small keeps the date at
+      // the 17sp step and drops the weekday and the badge — the overdue rows
+      // themselves now carry that information.
+      if (size == WidgetSize.SMALL) {
+        views.setTextViewTextSize(
+          R.id.action_date,
+          TypedValue.COMPLEX_UNIT_SP,
+          17f,
+        )
+        views.setViewVisibility(R.id.action_weekday, View.GONE)
       }
+      views.setViewVisibility(R.id.action_overdue_chip, View.GONE)
 
       views.setOnClickPendingIntent(
         R.id.action_add_todo,
@@ -118,6 +123,10 @@ class TodayWidgetProvider : AppWidgetProvider() {
         ),
       )
       WidgetSupport.textColor(views, R.id.action_add_todo, theme, "accent", accent)
+      // Medium and large use a worded button; small is a bare "+" and keeps it.
+      ui?.addTodo?.takeIf { it.isNotEmpty() && size != WidgetSize.SMALL }?.let {
+        views.setTextViewText(R.id.action_add_todo, it)
+      }
       if (size != WidgetSize.SMALL) {
         views.setOnClickPendingIntent(
           R.id.action_add_event,
@@ -128,6 +137,9 @@ class TodayWidgetProvider : AppWidgetProvider() {
           ),
         )
         WidgetSupport.textColor(views, R.id.action_add_event, theme, "accent", accent)
+        ui?.addEvent?.takeIf { it.isNotEmpty() }?.let {
+          views.setTextViewText(R.id.action_add_event, it)
+        }
       }
 
       views.removeAllViews(R.id.action_rows)
@@ -142,7 +154,9 @@ class TodayWidgetProvider : AppWidgetProvider() {
 
       val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
       val budget = when (size) {
-        WidgetSize.SMALL -> 1
+        // Small is a single column here but the launcher can still give it
+        // several rows; one fixed row left the rest of the card empty.
+        WidgetSize.SMALL -> WidgetSupport.rowBudget(height, 60, 0, 48, 1, 8)
         WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 120, 40, 48, 1, 6)
         WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 150, 60, 48, 2, 14)
       }
@@ -180,11 +194,14 @@ class TodayWidgetProvider : AppWidgetProvider() {
       if (stale) {
         // A snapshot from another day must never be rendered as today.
       } else if (size == WidgetSize.SMALL) {
-        val first = currentRows.firstOrNull()
-          ?: laterRows.firstOrNull()
-          ?: dueRows.firstOrNull()
-        if (first != null) {
-          views.addView(R.id.action_rows, first)
+        // Small has no room for section headers, so it shows the app's own
+        // order — now, later, due today, overdue — and fills whatever rows the
+        // frame has. Picking only the first of now/later/due hid the overdue
+        // list entirely on a frame that was several rows tall.
+        val rows = currentRows + laterRows + dueRows + overdueRows
+        for (row in rows) {
+          if (shown >= budget) break
+          views.addView(R.id.action_rows, row)
           shown++
         }
       } else {

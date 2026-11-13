@@ -47,6 +47,14 @@ Widget _createTestApp() => ProviderScope(
   ),
 );
 
+Future<void> _pumpApp(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(_createTestApp());
+  await _settle(tester);
+}
+
 Future<void> _settle(WidgetTester tester) async {
   // Pump enough frames for initial async operations to complete.
   // Avoid pumpAndSettle since Drift broadcast streams never complete.
@@ -62,16 +70,12 @@ Future<void> _openSettings(WidgetTester tester) async {
 
 void main() {
   testWidgets('home page renders', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
-    expect(find.byType(AppBar), findsOneWidget);
     expect(find.byKey(const ValueKey('workspace-create')), findsOneWidget);
     expect(find.text('Today'), findsWidgets);
-    expect(find.text('Calendar'), findsOneWidget);
-    // D Final keeps the Action filter pills on mobile only, so this desktop
-    // surface exposes "Todos" solely through the bottom navigation label.
-    expect(find.text('Tasks'), findsOneWidget);
+    expect(find.text('Calendar'), findsWidgets);
+    expect(find.text('Tasks'), findsWidgets);
     expect(find.byIcon(CupertinoIcons.settings), findsOneWidget);
     expect(find.byType(PopupMenuButton<String>), findsNothing);
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
@@ -80,17 +84,16 @@ void main() {
   testWidgets('create entry on Today asks which object to create', (
     tester,
   ) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
     await tester.tap(find.byKey(const ValueKey('workspace-create')));
     await _settle(tester);
 
     expect(find.text('New'), findsWidgets);
-    expect(find.widgetWithText(ListTile, 'Tasks'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, 'New Event'), findsOneWidget);
+    expect(find.text('Tasks'), findsWidgets);
+    expect(find.text('New Event'), findsWidgets);
 
-    await tester.tap(find.widgetWithText(ListTile, 'Tasks'));
+    await tester.tap(find.text('Tasks').last);
     await _settle(tester);
     expect(
       find.byKey(const ValueKey('todo-quick-create-title')),
@@ -101,8 +104,7 @@ void main() {
   testWidgets('create entry opens event create on calendar tab', (
     tester,
   ) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
     await tester.tap(find.text('Calendar'));
     await _settle(tester);
@@ -115,8 +117,7 @@ void main() {
   });
 
   testWidgets('event create has form fields', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
     await tester.tap(find.text('Calendar'));
     await _settle(tester);
@@ -132,46 +133,26 @@ void main() {
   });
 
   testWidgets('settings page renders core sections', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
     await _openSettings(tester);
 
-    expect(find.text('Settings'), findsOneWidget);
-
-    // Scroll down to find Appearance
-    final gesture = await tester.startGesture(Offset.zero);
-    for (var i = 0; i < 15; i++) {
-      await gesture.moveBy(const Offset(0, -50));
-      await tester.pump();
-    }
-    await gesture.up();
-    await _settle(tester);
+    expect(find.text('Settings'), findsWidgets);
 
     expect(find.text('General'), findsOneWidget);
   });
 
-  testWidgets('theme dialog opens', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+  testWidgets('theme options render in settings', (tester) async {
+    await _pumpApp(tester);
 
     await _openSettings(tester);
-
-    await tester.scrollUntilVisible(
-      find.text('General'),
-      100,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('General'));
-    await _settle(tester);
 
     expect(find.text('Light'), findsOneWidget);
     expect(find.text('Dark'), findsOneWidget);
   });
 
   testWidgets('search page renders', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
     await tester.tap(find.byIcon(CupertinoIcons.search));
     await _settle(tester);
@@ -180,8 +161,7 @@ void main() {
   });
 
   testWidgets('about page renders', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
     final router = GoRouter.of(tester.element(find.byType(HomePage)));
     router.go('/about');
@@ -192,8 +172,7 @@ void main() {
   });
 
   testWidgets('trash page renders', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
     final router = GoRouter.of(tester.element(find.byType(HomePage)));
     router.go('/trash');
@@ -204,8 +183,7 @@ void main() {
   });
 
   testWidgets('todo create page renders', (tester) async {
-    await tester.pumpWidget(_createTestApp());
-    await _settle(tester);
+    await _pumpApp(tester);
 
     final router = GoRouter.of(tester.element(find.byType(HomePage)));
     router.go('/todo/new');

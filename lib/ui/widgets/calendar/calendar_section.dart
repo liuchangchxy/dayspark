@@ -1,51 +1,26 @@
-import 'dart:async';
-import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:kalender/kalender.dart';
+
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/widgets/calendar/event_tile.dart';
-import 'package:dayspark/ui/widgets/calendar/calendar_day_header.dart';
-import 'package:dayspark/ui/widgets/calendar/calendar_hour_lines.dart';
-import 'package:dayspark/ui/widgets/calendar/kalender_calendar_event.dart';
-import 'package:dayspark/ui/widgets/calendar/kalender_task_allocation.dart';
-import 'package:dayspark/ui/widgets/calendar/task_allocation_tile.dart';
-import 'package:dayspark/ui/widgets/calendar/marked_month_day_header.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_month_view.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_week_view.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
-import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_theme.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
+
+final calendarNowProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 class CalendarSection extends ConsumerStatefulWidget {
-  final List<CalendaEventAdapter> events;
-  final List<CalendarDeadline> deadlines;
-  final ValueChanged<CalendarDeadline>? onDeadlineTapped;
-  final List<TaskAllocationCalendarAdapter> allocations;
-  final void Function(CalendaEventAdapter event)? onEventTapped;
-  final void Function(DateTimeRange range)? onTimeSlotTapped;
-  final Future<void> Function(CalendaEventAdapter event)? onEventChanged;
-  final void Function(TaskAllocationCalendarAdapter allocation)?
-  onTaskAllocationTapped;
-  final Future<void> Function(TaskAllocationCalendarAdapter allocation)?
-  onTaskAllocationChanged;
-  final void Function(DateTime anchor)? onAnchorChanged;
-
-  /// When true the section drops its inline date-range title (the host shows
-  /// it in the page header instead) but keeps the view switcher and paging
-  /// controls (DESIGN 页面主标题).
-  final bool hideHeader;
-
-  /// Called whenever the title for the current view/anchor changes, so the
-  /// host can put it in the page header.
-  final void Function(String title, String? subtitle)? onHeaderChanged;
-
   const CalendarSection({
     super.key,
     required this.events,
@@ -62,662 +37,313 @@ class CalendarSection extends ConsumerStatefulWidget {
     this.onHeaderChanged,
   });
 
+  final List<CalendaEventAdapter> events;
+  final List<CalendarDeadline> deadlines;
+  final ValueChanged<CalendarDeadline>? onDeadlineTapped;
+  final List<TaskAllocationCalendarAdapter> allocations;
+  final void Function(CalendaEventAdapter event)? onEventTapped;
+  final void Function(DateTimeRange range)? onTimeSlotTapped;
+  final Future<void> Function(CalendaEventAdapter event)? onEventChanged;
+  final void Function(TaskAllocationCalendarAdapter allocation)?
+  onTaskAllocationTapped;
+  final Future<void> Function(TaskAllocationCalendarAdapter allocation)?
+  onTaskAllocationChanged;
+  final void Function(DateTime anchor)? onAnchorChanged;
+  final bool hideHeader;
+  final void Function(String title, String? subtitle)? onHeaderChanged;
+
   @override
   ConsumerState<CalendarSection> createState() => _CalendarSectionState();
 }
 
 class _CalendarSectionState extends ConsumerState<CalendarSection> {
-  late final CalendarController _calendarController;
-  late final DefaultEventsController _eventsController;
-  late final CalendarInteraction _interaction;
-  late final TileComponents _tileComponents;
-  DateTime _anchorDate = DateTime.now();
-  String _eventsSignature = '';
-  CalendarViewMode? _configMode;
-  ViewConfiguration? _viewConfiguration;
+  String? _lastTitle;
+  String? _lastSubtitle;
 
-  /// Last pointer-down, in global coordinates. kalender's own tap detail can
-  /// lose it (see [_timeForDayDetail]); this is the position the app actually
-  /// saw, independent of the widget that ends up recognizing the tap.
-  Offset? _lastPointerDown;
+  CalendarViewMode get _mode => ref.watch(calendarViewModeProvider);
 
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    _anchorDate = DateTime(now.year, now.month, now.day);
-    _calendarController = CalendarController();
-    _eventsController = DefaultEventsController();
-    // Creation goes through tap → onTimeSlotTapped → route push, so kalender's
-    // drag-to-create gesture must stay off.
-    _interaction = CalendarInteraction(allowEventCreation: false);
-    _tileComponents = TileComponents(tileBuilder: _buildTile);
-    _calendarController.visibleDateTimeRange.addListener(_onVisibleRange);
-    _syncEvents();
+  DateTime get _anchor {
+    final viewed = ref.watch(viewedDateProvider);
+    return DateTime(viewed.year, viewed.month, viewed.day);
   }
 
-  @override
-  void didUpdateWidget(covariant CalendarSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _syncEvents();
+  DateTime get _now => ref.watch(calendarNowProvider)();
+
+  DateTime get _weekStart => calWeekStart(_anchor);
+
+  void _setAnchor(DateTime next) {
+    final date = calDayOf(next);
+    if (date == _anchor) return;
+    ref.read(viewedDateProvider.notifier).state = date;
+    widget.onAnchorChanged?.call(date);
   }
 
-  @override
-  void dispose() {
-    _calendarController.visibleDateTimeRange.removeListener(_onVisibleRange);
-    _calendarController.dispose();
-    _eventsController.dispose();
-    super.dispose();
-  }
-
-  CalendarViewMode get _viewMode => ref.watch(calendarViewModeProvider);
-
-  bool get _isViewingToday {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    switch (_viewMode) {
+  void _shift(int direction) {
+    switch (_mode) {
       case CalendarViewMode.day:
-        return _anchorDate == today;
+        _setAnchor(_anchor.add(Duration(days: direction)));
       case CalendarViewMode.week:
-        final weekday = today.weekday;
-        final weekStart = today.subtract(Duration(days: weekday - 1));
-        final weekEnd = weekStart.add(const Duration(days: 6));
-        return !_anchorDate.isBefore(weekStart) &&
-            !_anchorDate.isAfter(weekEnd);
+        _setAnchor(_anchor.add(Duration(days: 7 * direction)));
       case CalendarViewMode.month:
-        return _anchorDate.year == now.year && _anchorDate.month == now.month;
+        _setAnchor(DateTime(_anchor.year, _anchor.month + direction, 1));
     }
-  }
-
-  void _syncEvents({bool force = false}) {
-    final calendarEvents = <CalendarEvent>[
-      ...widget.events.map(KalenderCalendarEvent.fromAdapter),
-      ...widget.allocations.map(KalenderTaskAllocation.fromAdapter),
-    ];
-    final signature = calendarEvents.map(_eventSignature).join(',');
-    if (!force && signature == _eventsSignature) return;
-    _eventsSignature = signature;
-    _eventsController
-      ..clearEvents()
-      ..addEvents(calendarEvents);
-  }
-
-  Future<void> _persistTaskAllocationChange(
-    TaskAllocationCalendarAdapter allocation,
-  ) async {
-    try {
-      await widget.onTaskAllocationChanged?.call(allocation);
-    } catch (error) {
-      if (!mounted) return;
-      _syncEvents(force: true);
-      final l = AppLocalizations.of(context)!;
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(SnackBar(content: Text(l.error)));
-    }
-  }
-
-  Future<void> _persistEventChange(CalendaEventAdapter event) async {
-    try {
-      await widget.onEventChanged?.call(event);
-    } catch (error) {
-      if (!mounted) return;
-      _syncEvents(force: true);
-      final l = AppLocalizations.of(context)!;
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(SnackBar(content: Text(l.error)));
-    }
-  }
-
-  /// Drags that must not reach the row. kalender already refuses them through
-  /// [EventInteraction.allowNone]; if one ever arrives anyway, put the tile
-  /// back where the row actually is and say why — a tile left at the drop
-  /// position over an unchanged row is the failure this guards.
-  void _rejectDrag(CalendaEventAdapter adapter) {
-    _syncEvents(force: true);
-    final l = AppLocalizations.of(context)!;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(
-        content: Text(
-          adapter.rrule != null
-              ? l.recurringDragDisabled
-              : l.allDayDragDisabled,
-        ),
-      ),
-    );
-  }
-
-  String _eventSignature(CalendarEvent event) {
-    if (event is KalenderCalendarEvent) {
-      final adapter = event.adapter;
-      return <Object?>[
-        event.id,
-        adapter.drifId,
-        adapter.calendarId,
-        adapter.title,
-        adapter.description,
-        adapter.location,
-        adapter.color?.toARGB32(),
-        adapter.isAllDay,
-        adapter.rrule,
-        adapter.start.microsecondsSinceEpoch,
-        adapter.end.microsecondsSinceEpoch,
-      ].join('|');
-    }
-    final allocation = (event as KalenderTaskAllocation).allocation;
-    return <Object?>[
-      event.id,
-      allocation.id,
-      allocation.todoId,
-      allocation.todoTitle,
-      allocation.start.microsecondsSinceEpoch,
-      allocation.end.microsecondsSinceEpoch,
-    ].join('|');
-  }
-
-  DateTime _anchorFromRange(DateTimeRange range, CalendarViewMode mode) {
-    switch (mode) {
-      case CalendarViewMode.month:
-        // The month grid starts up to 6 days before the displayed month;
-        // +7d always lands inside that month.
-        final d = range.start.add(const Duration(days: 7));
-        return DateTime(d.year, d.month, d.day);
-      case CalendarViewMode.day:
-      case CalendarViewMode.week:
-        final s = range.start;
-        return DateTime(s.year, s.month, s.day);
-    }
-  }
-
-  void _onVisibleRange() {
-    final range = _calendarController.visibleDateTimeRange.value;
-    if (range == null) return;
-    _applyVisibleRange(range);
-  }
-
-  void _applyVisibleRange(DateTimeRange range) {
-    final mode = ref.read(calendarViewModeProvider);
-    final anchor = _anchorFromRange(range, mode);
-    void apply() {
-      if (!mounted || anchor == _anchorDate) return;
-      setState(() => _anchorDate = anchor);
-      widget.onAnchorChanged?.call(anchor);
-      ref.read(viewedDateProvider.notifier).state = anchor;
-    }
-
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => apply());
-    } else {
-      apply();
-    }
-  }
-
-  void _setAnchor(DateTime anchor) {
-    if (anchor == _anchorDate) return;
-    setState(() => _anchorDate = anchor);
-    widget.onAnchorChanged?.call(anchor);
-    ref.read(viewedDateProvider.notifier).state = anchor;
-  }
-
-  Widget _buildToolbar(AppLocalizations l) {
-    return Padding(
-      // When Home hosts the calendar it already supplies the shared 28dp
-      // content origin, so the toolbar must not add a second inset.
-      padding: EdgeInsets.fromLTRB(
-        widget.hideHeader ? 0 : AppSpacing.lg,
-        widget.hideHeader ? AppSpacing.sm : AppSpacing.xs,
-        AppSpacing.sm,
-        AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          ViewSwitcher(
-            currentMode: _viewMode,
-            onModeChanged: (mode) =>
-                ref.read(calendarViewModeProvider.notifier).setViewMode(mode),
-          ),
-          if (!_isViewingToday) ...[
-            const SizedBox(width: AppSpacing.sm),
-            Semantics(
-              button: true,
-              label: l.today,
-              child: TextButton(
-                onPressed: _goToToday,
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                  ),
-                  minimumSize: const Size(48, 48),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(l.today),
-              ),
-            ),
-          ],
-          const Spacer(),
-          Semantics(
-            button: true,
-            label: l.previousPeriod,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: IconButton(
-                icon: const Icon(CupertinoIcons.chevron_left, size: 20),
-                onPressed: _navigateBack,
-              ),
-            ),
-          ),
-          Semantics(
-            button: true,
-            label: l.nextPeriod,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: IconButton(
-                icon: const Icon(CupertinoIcons.chevron_right, size: 20),
-                onPressed: _navigateForward,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Title shown in the page header. Day and week carry their range; month
-  /// carries only "9月" because the year sits underneath it (DESIGN 页面主标题).
-  String get headerTitle => switch (_viewMode) {
-    CalendarViewMode.day => _formatDayHeader(),
-    CalendarViewMode.week => _formatWeekHeader(),
-    CalendarViewMode.month => _formatMonthOnly(),
-  };
-
-  /// Subtitle under [headerTitle]; null when the title already carries it.
-  String? get headerSubtitle => _viewMode == CalendarViewMode.month
-      ? DateFormat.y(
-          Localizations.localeOf(context).toString(),
-        ).format(_anchorDate)
-      : null;
-
-  String _formatMonthOnly() {
-    final locale = Localizations.localeOf(context).toString();
-    final month = DateFormat.MMM(locale).format(_anchorDate);
-    // zh formats as "9月" already; "2026年9月" would duplicate the year.
-    return month;
-  }
-
-  String _formatDayHeader() {
-    final locale = Localizations.localeOf(context).toString();
-    final dateStr = DateFormat.MMMd(locale).format(_anchorDate);
-    final weekday = DateFormat.E(locale).format(_anchorDate);
-    return '$dateStr  $weekday';
-  }
-
-  String _formatWeekHeader() {
-    final locale = Localizations.localeOf(context).toString();
-    final weekday = _anchorDate.weekday;
-    final weekStart = _anchorDate.subtract(Duration(days: weekday - 1));
-    final weekEnd = weekStart.add(const Duration(days: 6));
-    return '${DateFormat.Md(locale).format(weekStart)} – ${DateFormat.Md(locale).format(weekEnd)}';
   }
 
   void _goToToday() {
-    final now = DateTime.now();
+    final now = _now;
+    _setAnchor(DateTime(now.year, now.month, now.day));
+  }
+
+  void _openDay(DateTime day) {
+    _setAnchor(day);
+    ref.read(calendarViewModeProvider.notifier).setViewMode(
+      CalendarViewMode.day,
+    );
+  }
+
+  bool get _viewingToday {
+    final now = _now;
     final today = DateTime(now.year, now.month, now.day);
-    _calendarController.jumpToDate(today);
-    _setAnchor(today);
+    switch (_mode) {
+      case CalendarViewMode.day:
+        return _anchor == today;
+      case CalendarViewMode.week:
+        final start = _weekStart;
+        return !today.isBefore(start) &&
+            today.isBefore(start.add(const Duration(days: 7)));
+      case CalendarViewMode.month:
+        return _anchor.year == today.year && _anchor.month == today.month;
+    }
   }
 
-  void _navigateBack() {
-    _calendarController.jumpToDate(switch (_viewMode) {
-      CalendarViewMode.day => _anchorDate.subtract(const Duration(days: 1)),
-      CalendarViewMode.week => _anchorDate.subtract(const Duration(days: 7)),
-      CalendarViewMode.month => DateTime(_anchorDate.year, _anchorDate.month - 1, 1),
+  String _title(AppLocalizations l) {
+    final locale = Localizations.localeOf(context).toString();
+    switch (_mode) {
+      case CalendarViewMode.day:
+        return DateFormat.MMMMEEEEd(locale).format(_anchor);
+      case CalendarViewMode.week:
+        final end = _weekStart.add(const Duration(days: 6));
+        return '${DateFormat.MMMd(locale).format(_weekStart)} – '
+            '${DateFormat.MMMd(locale).format(end)}';
+      case CalendarViewMode.month:
+        return DateFormat.yMMMM(locale).format(_anchor);
+    }
+  }
+
+  (DateTime, DateTime) _visibleRange() {
+    switch (_mode) {
+      case CalendarViewMode.day:
+        return (_anchor, _anchor.add(const Duration(days: 1)));
+      case CalendarViewMode.week:
+        return (_weekStart, _weekStart.add(const Duration(days: 7)));
+      case CalendarViewMode.month:
+        final first = DateTime(_anchor.year, _anchor.month);
+        return (first, DateTime(_anchor.year, _anchor.month + 1));
+    }
+  }
+
+  String? _secondaryTitle(AppLocalizations l) {
+    if (_mode == CalendarViewMode.month) return null;
+    final (start, end) = _visibleRange();
+    final count = widget.events
+        .where((event) => !event.start.isBefore(start) && event.start.isBefore(end))
+        .length;
+    return l.eventsAndFree(count);
+  }
+
+  /// Whether the days on screen hold nothing at all. [widget.events] covers a
+  /// wide window around the anchor, so `events.isEmpty` stays false as long as
+  /// anything at all is scheduled that season; the view's own range is the only
+  /// honest question to ask.
+  bool get _visibleEmpty {
+    final (start, end) = _visibleRange();
+    bool overlaps(DateTime from, DateTime to) =>
+        from.isBefore(end) && to.isAfter(start);
+    return !widget.events.any((event) => overlaps(event.start, event.end)) &&
+        !widget.allocations.any(
+          (allocation) => overlaps(allocation.start, allocation.end),
+        ) &&
+        !widget.deadlines.any(
+          (deadline) => !deadline.due.isBefore(start) && deadline.due.isBefore(end),
+        );
+  }
+
+  void _emitHeader() {
+    final title = _title(AppLocalizations.of(context)!);
+    final locale = Localizations.localeOf(context).toString();
+    final subtitle = switch (_mode) {
+      CalendarViewMode.day || CalendarViewMode.week =>
+        '${DateFormat.Md(locale).format(_anchor)} · '
+            '${DateFormat.E(locale).format(_anchor)}',
+      CalendarViewMode.month => '${_anchor.month}/${_anchor.year}',
+    };
+    if (title == _lastTitle && subtitle == _lastSubtitle) return;
+    _lastTitle = title;
+    _lastSubtitle = subtitle;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onHeaderChanged?.call(title, subtitle);
     });
   }
 
-  void _navigateForward() {
-    _calendarController.jumpToDate(switch (_viewMode) {
-      CalendarViewMode.day => _anchorDate.add(const Duration(days: 1)),
-      CalendarViewMode.week => _anchorDate.add(const Duration(days: 7)),
-      CalendarViewMode.month => DateTime(_anchorDate.year, _anchorDate.month + 1, 1),
-    });
-  }
-
-  // kalender's tap details carry wall-clock components marked isUtc (not a
-  // real instant). Rebuild as local so the router's
-  // millisecondsSinceEpoch → fromMillisecondsSinceEpoch round-trip doesn't
-  // shift the prefill by the UTC offset.
-  DateTime _asLocalWallClock(DateTime d) =>
-      d.isUtc ? DateTime(d.year, d.month, d.day, d.hour, d.minute) : d;
-
-  /// Rebuilds the tapped wall-clock from the pointer's actual position.
-  ///
-  /// kalender records the tap position in an ancestor [Listener] of its
-  /// gesture detector. With event creation disabled the detector has no child
-  /// and therefore hit-tests as translucent, which keeps that ancestor out of
-  /// the hit path: its offset stays at (0, 0) and every tap reports midnight.
-  /// The page's own listener sees the pointer down regardless, so derive the
-  /// time from the day column the detail points at.
-  DateTime _timeForDayDetail(DayDetail details) {
-    final date = _asLocalWallClock(details.date);
-    final pointer = _lastPointerDown;
-    final config = _viewConfiguration;
-    if (pointer == null || config is! MultiDayViewConfiguration) return date;
-    final timeOfDayRange = config.timeOfDayRange;
-    final totalMinutes = timeOfDayRange.duration.inMinutes;
-    final height = details.renderBox.size.height;
-    if (totalMinutes <= 0 || height <= 0) return date;
-    final local = details.renderBox.globalToLocal(pointer);
-    // kalender's own create gesture snaps to 10-minute intervals; a tap that
-    // lands a pixel off the 14:00 line should still prefill 14:00.
-    const snapMinutes = 10;
-    final offsetMinutes =
-        ((local.dy.clamp(0, height) / height * totalMinutes) / snapMinutes)
-            .round() *
-        snapMinutes;
-    final minuteOfDay =
-        (timeOfDayRange.start.hour * 60 +
-                timeOfDayRange.start.minute +
-                offsetMinutes)
-            .clamp(0, 24 * 60 - 1);
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-      minuteOfDay ~/ 60,
-      minuteOfDay % 60,
-    );
-  }
-
-  void _handleTapDetail(TapDetail details) {
-    final DateTime raw;
-    if (details is DayDetail) {
-      raw = _timeForDayDetail(details);
-    } else if (details is MultiDayDetail) {
-      raw = details.dateTimeRange.start;
-    } else {
-      return;
-    }
-    final start = _asLocalWallClock(raw);
-    widget.onTimeSlotTapped?.call(
-      DateTimeRange(start: start, end: start.add(const Duration(hours: 1))),
-    );
-  }
-
-  Widget _buildTile(CalendarEvent event, DateTimeRange tileRange) {
-    if (event is KalenderTaskAllocation) {
-      return TaskAllocationTile(
-        allocation: event.allocation,
-        onTap: () => widget.onTaskAllocationTapped?.call(event.allocation),
-      );
-    }
-    if (event is KalenderCalendarEvent) {
-      return EventTile(
-        event: event.adapter,
-        onTap: () => widget.onEventTapped?.call(event.adapter),
-      );
-    }
-    return const SizedBox.shrink();
-  }
-
-  CalendarCallbacks _buildCallbacks() {
-    return CalendarCallbacks(
-      onEventChanged: (event, updatedEvent) {
-        if (event is KalenderTaskAllocation) {
-          unawaited(
-            _persistTaskAllocationChange(
-              event.allocation.copyWith(
-                start: updatedEvent.dateTimeRange.start.toLocal(),
-                end: updatedEvent.dateTimeRange.end.toLocal(),
-              ),
-            ),
-          );
-          return;
-        }
-        if (event is! KalenderCalendarEvent) return;
-        final adapter = event.adapter;
-        // S1 guard: never persist drags onto recurring/all-day events.
-        if (adapter.rrule != null || adapter.isAllDay) {
-          _rejectDrag(adapter);
-          return;
-        }
-        unawaited(
-          _persistEventChange(
-            adapter.copyWithData(
-              start: updatedEvent.dateTimeRange.start.toLocal(),
-              end: updatedEvent.dateTimeRange.end.toLocal(),
-            ),
+  Future<void> _reschedule(CalBlockItem item, int minutes) async {
+    if (minutes == 0) return;
+    final shift = Duration(minutes: minutes);
+    final l = AppLocalizations.of(context)!;
+    try {
+      if (item.event != null) {
+        final event = item.event!;
+        final handler = widget.onEventChanged;
+        if (handler == null) return;
+        await handler(
+          event.copyWithData(
+            start: event.start.add(shift),
+            end: event.end.add(shift),
           ),
         );
-      },
-      onPageChanged: _applyVisibleRange,
-      onTappedWithDetail: _handleTapDetail,
-    );
-  }
-
-  ViewConfiguration _resolveViewConfiguration() {
-    final mode = _viewMode;
-    if (_viewConfiguration == null || _configMode != mode) {
-      _configMode = mode;
-      _viewConfiguration = switch (mode) {
-        // Half an hour above the first working hour: landing exactly on 8:00
-        // clips the label that explains where you are.
-        CalendarViewMode.day => MultiDayViewConfiguration.singleDay(
-          initialDateTime: _anchorDate,
-          initialTimeOfDay: const TimeOfDay(hour: 7, minute: 30),
-        ),
-        CalendarViewMode.week => MultiDayViewConfiguration.week(
-          initialDateTime: _anchorDate,
-          initialTimeOfDay: const TimeOfDay(hour: 7, minute: 30),
-        ),
-        CalendarViewMode.month => MonthViewConfiguration.singleMonth(
-          initialDateTime: _anchorDate,
-        ),
-      };
+      } else {
+        final allocation = item.allocation!;
+        final handler = widget.onTaskAllocationChanged;
+        if (handler == null) return;
+        await handler(
+          allocation.copyWith(
+            start: allocation.start.add(shift),
+            end: allocation.end.add(shift),
+          ),
+        );
+      }
+    } on Object catch (error) {
+      debugPrint('calendar: reschedule failed: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
     }
-    return _viewConfiguration!;
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    widget.onHeaderChanged?.call(headerTitle, headerSubtitle);
-    final theme = Theme.of(context);
+    final desktop = isWorkspaceLayout(context);
+    _emitHeader();
+    final mode = _mode;
+    final anchor = _anchor;
+    final now = _now;
 
-    final calendarView = CalendarView(
-      eventsController: _eventsController,
-      calendarController: _calendarController,
-      viewConfiguration: _resolveViewConfiguration(),
-      callbacks: _buildCallbacks(),
-      components: CalendarComponents(
-        multiDayComponents: MultiDayComponents(
-          headerComponents: MultiDayHeaderComponents(
-            // kalender's default is a filled tonal IconButton that crowds the
-            // time gutter; the gutter carries the timeline, so the week number
-            // stays a quiet label (DESIGN Kalender 接管条款).
-            weekNumberBuilder: (range, style) => Center(
-              child: Text(
-                '${range.weekNumbers.$1}',
-                style: AppTypography.overline.copyWith(
-                  color: context.semantic.textTertiary,
-                ),
-              ),
-            ),
-            // Big number + weekday, today in accent (own widget, not
-            // kalender's grey IconButton two-liner).
-            dayHeaderBuilder: (date, style) {
-              final now = DateTime.now();
-              final today = DateTime(now.year, now.month, now.day);
-              final day = DateTime(date.year, date.month, date.day);
-              return CalendarDayHeader(date: day, isToday: day == today);
-            },
-          ),
-          bodyComponents: MultiDayBodyComponents(
-            // Full-hour lines only; kalender's adaptive half-hour
-            // segments read as prison bars on dark backgrounds.
-            hourLines: (heightPerMinute, range, style, timelineStyle) =>
-                CalendarHourLines(
-                  heightPerMinute: heightPerMinute,
-                  timeOfDayRange: range,
-                  color: theme.dividerColor.withValues(alpha: 0.35),
-                ),
-          ),
-        ),
-        multiDayComponentStyles: MultiDayComponentStyles(
-          bodyStyles: MultiDayBodyComponentStyles(
-            timeIndicatorStyle: TimeIndicatorStyle(
-              lineColor: context.semantic.warning,
-              circleColor: context.semantic.warning,
-            ),
-            // Grid recedes: derived from divider at ~1/3 so events lead.
-            hourLinesStyle: HourLinesStyle(
-              color: theme.dividerColor.withValues(alpha: 0.35),
-            ),
-            daySeparatorStyle: DaySeparatorStyle(
-              color: theme.dividerColor.withValues(alpha: 0.35),
-            ),
-            // Ruler labels: fixed 24h H:mm, self-measuring, no CJK clipping.
-            timelineStyle: TimelineStyle(
-              stringBuilder: (timeOfDay) =>
-                  '${timeOfDay.hour}:${timeOfDay.minute.toString().padLeft(2, '0')}',
-              textStyle: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.right,
-              // Gutter padding is measured with the text, so labels can
-              // never clip at the screen edge. Vertical padding also sets
-              // label density: 44 keeps totalItems < 12 at the default
-              // 0.7 heightPerMinute, i.e. hourly labels on hourly lines
-              // (36 lands exactly on the 30-minute boundary). Zeroing it
-              // collapses labels to every 5 minutes.
-              textPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 44,
-              ),
-            ),
-          ),
-        ),
-        monthComponentStyles: MonthComponentStyles(
-          headerStyles: MonthHeaderComponentStyles(
-            weekDayHeaderStyle: WeekDayHeaderStyle(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              // Weekday names follow the app language, not the browser locale.
-              stringBuilder: (date) => DateFormat.E(
-                Localizations.localeOf(context).toString(),
-              ).format(date),
-            ),
-          ),
-        ),
-        monthComponents: MonthComponents(
-          bodyComponents: MonthBodyComponents(
-            // Month day cells carry solar-term labels and statutory
-            // holiday / makeup-workday badges.
-            monthDayHeaderBuilder: (date, style) => MarkedMonthDayHeader(
-              date: date,
-              style: style,
-              dim:
-                  date.year != _anchorDate.year ||
-                  date.month != _anchorDate.month,
-              hasDeadline: widget.deadlines.any(
-                (item) =>
-                    item.due.year == date.year &&
-                    item.due.month == date.month &&
-                    item.due.day == date.day,
-              ),
-            ),
-          ),
-        ),
-      ),
-      header: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CalendarHeader(
-            callbacks: _buildCallbacks(),
-            interaction: _interaction,
-            multiDayTileComponents: _tileComponents,
-          ),
-          if (_viewMode != CalendarViewMode.month &&
-              widget.deadlines.isNotEmpty)
-            CalendarDeadlineLane(
-              dates: List.generate(_viewMode == CalendarViewMode.day ? 1 : 7, (
-                index,
-              ) {
-                final start = _viewMode == CalendarViewMode.day
-                    ? _anchorDate
-                    : _anchorDate.subtract(
-                        Duration(days: _anchorDate.weekday - 1),
-                      );
-                return DateTime(start.year, start.month, start.day + index);
-              }),
+    final content = switch (mode) {
+      CalendarViewMode.month => desktop
+          ? CalendarMonthView(
+              anchor: anchor,
+              events: widget.events,
+              allocations: widget.allocations,
               deadlines: widget.deadlines,
-              onTapped: widget.onDeadlineTapped,
+              now: now,
+              onSelectDay: _setAnchor,
+              onOpenDay: _openDay,
+              onEvent: widget.onEventTapped,
+              onAllocation: widget.onTaskAllocationTapped,
+              onDeadline: widget.onDeadlineTapped,
+              onSlot: widget.onTimeSlotTapped,
+            )
+          : CalendarMobileMonthView(
+              anchor: anchor,
+              events: widget.events,
+              allocations: widget.allocations,
+              deadlines: widget.deadlines,
+              now: now,
+              onSelectDay: _setAnchor,
+              onOpenDay: _openDay,
+              onEvent: widget.onEventTapped,
+              onAllocation: widget.onTaskAllocationTapped,
+              onDeadline: widget.onDeadlineTapped,
             ),
-        ],
-      ),
-      body: CalendarBody(
-        callbacks: _buildCallbacks(),
-        interaction: _interaction,
-        multiDayTileComponents: _tileComponents,
-        monthTileComponents: _tileComponents,
-        multiDayBodyConfiguration: MultiDayBodyConfiguration(
-          eventLayoutStrategy: sideBySideLayoutStrategy,
-        ),
-      ),
-    );
+      CalendarViewMode.week => desktop
+          ? CalendarWeekGrid(
+              days: [
+                for (var i = 0; i < 7; i++)
+                  _weekStart.add(Duration(days: i)),
+              ],
+              events: widget.events,
+              allocations: widget.allocations,
+              deadlines: widget.deadlines,
+              now: now,
+              onEvent: widget.onEventTapped,
+              onAllocation: widget.onTaskAllocationTapped,
+              onDeadline: widget.onDeadlineTapped,
+              onSlot: widget.onTimeSlotTapped,
+              onReschedule: _reschedule,
+            )
+          : CalendarMobileWeekView(
+              weekStart: _weekStart,
+              selected: anchor,
+              events: widget.events,
+              allocations: widget.allocations,
+              deadlines: widget.deadlines,
+              now: now,
+              onSelectDay: _setAnchor,
+              onEvent: widget.onEventTapped,
+              onAllocation: widget.onTaskAllocationTapped,
+              onDeadline: widget.onDeadlineTapped,
+              onSlot: widget.onTimeSlotTapped,
+              onReschedule: _reschedule,
+            ),
+      CalendarViewMode.day => desktop
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: CalendarWeekGrid(
+                  days: [anchor],
+                  events: widget.events,
+                  allocations: widget.allocations,
+                  deadlines: widget.deadlines,
+                  now: now,
+                  onEvent: widget.onEventTapped,
+                  onAllocation: widget.onTaskAllocationTapped,
+                  onDeadline: widget.onDeadlineTapped,
+                  onSlot: widget.onTimeSlotTapped,
+                  onReschedule: _reschedule,
+                ),
+              ),
+            )
+          : CalendarMobileDayView(
+              day: anchor,
+              events: widget.events,
+              allocations: widget.allocations,
+              deadlines: widget.deadlines,
+              now: now,
+              onSelectDay: _setAnchor,
+              onEvent: widget.onEventTapped,
+              onAllocation: widget.onTaskAllocationTapped,
+              onDeadline: widget.onDeadlineTapped,
+              onSlot: widget.onTimeSlotTapped,
+              onReschedule: _reschedule,
+            ),
+    };
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildToolbar(l),
+        desktop
+            ? _desktopToolbar(l)
+            : _mobileToolbar(l),
         Expanded(
           child: Stack(
             children: [
-              // kalender exposes no semantics node for the blank tap-target
-              // slots, so the day/week body region carries the button label
-              // instead (tiles inside keep their own semantics). The wrapper
-              // stays on every mode so CalendarView keeps its state across
-              // view switches.
-              Semantics(
-                button: _viewMode != CalendarViewMode.month,
-                label: _viewMode == CalendarViewMode.month
-                    ? null
-                    : l.emptySlotSemantics,
-                child: Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (event) =>
-                      _lastPointerDown = event.position,
-                  child: calendarView,
-                ),
-              ),
-              // Empty grid reads as a dead spreadsheet; float one
-              // non-interactive hint instead (taps pass through to slots).
-              if (widget.events.isEmpty &&
-                  widget.allocations.isEmpty &&
-                  _viewMode != CalendarViewMode.month)
-                Positioned(
-                  // Clears the day-header row so the hint never sits on the
-                  // weekday labels.
-                  top: 88,
-                  left: AppSpacing.lg,
-                  right: AppSpacing.lg,
+              Positioned.fill(child: content),
+              // An empty calendar used to be a bare grid with no affordance,
+              // which reads as broken rather than as a week with nothing on it.
+              // A month grid already shows every day, so it speaks for itself.
+              if (_visibleEmpty && mode != CalendarViewMode.month)
+                Positioned.fill(
                   child: IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          l.emptyCalendarHint,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                    // Taps fall through to the grid, which is how the empty
+                    // state gets used: point at a slot and it becomes an event.
+                    child: Align(
+                      alignment: const Alignment(0, -0.2),
+                      child: Text(
+                        l.emptyCalendarHint,
+                        textAlign: TextAlign.center,
+                        style: AppTypography.small.copyWith(
+                          color: context.ds.ink3,
                         ),
                       ),
                     ),
@@ -729,4 +355,223 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
       ],
     );
   }
+
+  Widget _desktopToolbar(AppLocalizations l) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: AppSpacing.s1,
+        bottom: AppSpacing.s3,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            _title(l),
+            style: (_mode == CalendarViewMode.month
+                    ? AppTypography.headline
+                    : AppTypography.bodyStrong)
+                .copyWith(color: context.ds.ink, fontSize: 18),
+          ),
+          if (_secondaryTitle(l) != null) ...[
+            const SizedBox(width: AppSpacing.s2),
+            Text(
+              _secondaryTitle(l)!,
+              style: TextStyle(fontSize: 12, color: context.ds.ink3),
+            ),
+          ],
+          const Spacer(),
+          if (!widget.hideHeader) ...[
+            DsSegmented<CalendarViewMode>(
+              height: 28,
+              selected: _mode,
+              options: [
+                DsSegmentOption(CalendarViewMode.day, l.day),
+                DsSegmentOption(CalendarViewMode.week, l.week),
+                DsSegmentOption(CalendarViewMode.month, l.month),
+              ],
+              onSelected: (next) =>
+                  ref.read(calendarViewModeProvider.notifier).setViewMode(next),
+            ),
+            const SizedBox(width: AppSpacing.s2),
+          ],
+          DsIconButton(
+            icon: CupertinoIcons.chevron_left,
+            size: 18,
+            compact: true,
+            tooltip: MaterialLocalizations.of(context).previousPageTooltip,
+            onPressed: () => _shift(-1),
+          ),
+          if (!_viewingToday)
+            DsButton(
+              label: l.today,
+              tone: DsButtonTone.ghost,
+              small: true,
+              onPressed: _goToToday,
+            ),
+          DsIconButton(
+            icon: CupertinoIcons.chevron_right,
+            size: 18,
+            compact: true,
+            tooltip: MaterialLocalizations.of(context).nextPageTooltip,
+            onPressed: () => _shift(1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mobileToolbar(AppLocalizations l) {
+    final ds = context.ds;
+    final secondary = _secondaryTitle(l);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s4,
+        AppSpacing.s1,
+        AppSpacing.s2,
+        AppSpacing.s1,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                DsIconButton(
+                  icon: CupertinoIcons.chevron_left,
+                  size: 18,
+                  onPressed: () => _shift(-1),
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _title(l),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: ds.ink,
+                        ),
+                      ),
+                      if (secondary != null)
+                        Text(
+                          secondary,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: ds.ink3),
+                        ),
+                    ],
+                  ),
+                ),
+                DsIconButton(
+                  icon: CupertinoIcons.chevron_right,
+                  size: 18,
+                  onPressed: () => _shift(1),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                _MobileModeSwitch(
+                  mode: _mode,
+                  onSelected: (next) => ref
+                      .read(calendarViewModeProvider.notifier)
+                      .setViewMode(next),
+                ),
+                const Spacer(),
+                if (!_viewingToday)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _goToToday,
+                    child: SizedBox(
+                      width: 52,
+                      height: 44,
+                      child: Center(
+                        child: Text(
+                          l.today,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: ds.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+class _MobileModeSwitch extends StatelessWidget {
+  const _MobileModeSwitch({required this.mode, required this.onSelected});
+
+  final CalendarViewMode mode;
+  final ValueChanged<CalendarViewMode> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
+    final options = [
+      (CalendarViewMode.day, l.day),
+      (CalendarViewMode.week, l.week),
+      (CalendarViewMode.month, l.month),
+    ];
+    return Container(
+      decoration: BoxDecoration(
+        color: ds.surface2,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final option in options)
+            Semantics(
+              button: true,
+              selected: option.$1 == mode,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onSelected(option.$1),
+                child: SizedBox(
+                  width: 48,
+                  height: 44,
+                  child: Container(
+                    margin: const EdgeInsets.all(2),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: option.$1 == mode ? ds.surface : null,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      option.$2,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: option.$1 == mode
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: option.$1 == mode ? ds.ink : ds.ink3,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+typedef CalendarDeadlineLaneView = CalendarDeadlineLane;

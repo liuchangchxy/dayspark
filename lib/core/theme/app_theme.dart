@@ -1,201 +1,270 @@
 import 'package:flutter/material.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 
-/// App-wide theme configuration. Read DESIGN.md for design rationale.
+/// App-wide theme built from the v030 design tokens.
+///
+/// Material chrome is a fallback here, not the design language: the product
+/// surfaces (rows, chips, segments, sheets) are drawn by the widgets in
+/// `lib/ui/design/`. What matters in this file is that every Material default
+/// inherits paper, ink, one accent, 8px controls and 12px overlays.
 @immutable
 abstract final class AppTheme {
   static ThemeData light({Color? accent}) =>
-      _buildTheme(Brightness.light, accent);
+      _buildTheme(DsColors.light, accent);
+
   static ThemeData dark({Color? accent}) =>
-      _buildTheme(Brightness.dark, accent);
+      _buildTheme(DsColors.dark, accent);
 
-  static ThemeData _buildTheme(Brightness brightness, [Color? accentOverride]) {
-    final isLight = brightness == Brightness.light;
-    final bg = isLight ? AppColors.lightBackground : AppColors.darkBackground;
-    final surface = isLight ? AppColors.lightSurface : AppColors.darkSurface;
-    final surfaceSecondary = isLight
-        ? AppColors.lightSurfaceSecondary
-        : AppColors.darkSurfaceSecondary;
-    final textPrimary = isLight
-        ? AppColors.lightTextPrimary
-        : AppColors.darkTextPrimary;
-    final textSecondary = isLight
-        ? AppColors.lightTextSecondary
-        : AppColors.darkTextSecondary;
-    final textTertiary = isLight
-        ? AppColors.lightTextTertiary
-        : AppColors.darkTextTertiary;
-    final separator = isLight
-        ? AppColors.lightSeparator
-        : AppColors.darkSeparator;
-    final error = isLight ? AppColors.lightError : AppColors.darkError;
-    final success = isLight ? AppColors.lightSuccess : AppColors.darkSuccess;
-    final warning = isLight ? AppColors.lightWarning : AppColors.darkWarning;
+  static ThemeData _buildTheme(DsColors base, Color? accentOverride) {
+    // The default accent is already the token pair; re-deriving its soft and
+    // tint would move them a step off the table, so it keeps the exact set.
+    final ds = accentOverride == null || accentOverride == base.primary
+        ? base
+        : base.withAccent(accentOverride);
+    final scheme = ColorScheme(
+      brightness: ds.brightness,
+      primary: ds.primary,
+      onPrimary: ds.onPrimary,
+      primaryContainer: ds.primarySoft,
+      onPrimaryContainer: ds.primary,
+      secondary: ds.warm,
+      onSecondary: ds.isDark ? ds.bg : Colors.white,
+      secondaryContainer: ds.warmSoft,
+      onSecondaryContainer: ds.warm,
+      tertiary: ds.success,
+      onTertiary: ds.isDark ? ds.bg : Colors.white,
+      tertiaryContainer: ds.successSoft,
+      onTertiaryContainer: ds.success,
+      error: ds.danger,
+      onError: ds.isDark ? ds.bg : Colors.white,
+      errorContainer: ds.dangerSoft,
+      onErrorContainer: ds.danger,
+      surface: ds.surface,
+      onSurface: ds.ink,
+      onSurfaceVariant: ds.ink2,
+      surfaceContainerLowest: ds.bg,
+      surfaceContainerLow: ds.surface,
+      surfaceContainer: ds.surface,
+      surfaceContainerHigh: ds.surface2,
+      surfaceContainerHighest: ds.surface2,
+      outline: ds.line,
+      outlineVariant: ds.lineSoft,
+      shadow: const Color(0xFF141410),
+      scrim: ds.scrim,
+      inverseSurface: ds.ink,
+      onInverseSurface: ds.bg,
+    );
 
-    // DESIGN 主题色条款: the preset only swaps the accent pair; every
-    // semantic token is filled back from the palette. Never fromSeed.
-    final accent =
-        accentOverride ??
-        (isLight ? AppColors.lightAccent : AppColors.darkAccent);
-    final accentHover = isLight
-        ? AppColors.lightAccentHover
-        : AppColors.darkAccentHover;
-
-    final colorScheme = ColorScheme(
-      brightness: brightness,
-      primary: accent,
-      onPrimary: Colors.white,
-      secondary: accent,
-      onSecondary: Colors.white,
-      error: error,
-      onError: Colors.white,
-      surface: surface,
-      onSurface: textPrimary,
-      surfaceContainerHighest: surfaceSecondary,
-      surfaceContainerHigh: surfaceSecondary,
-      outline: separator,
-      outlineVariant: isLight
-          ? AppColors.lightSeparatorSoft
-          : AppColors.darkSeparatorSoft,
+    final textTheme = AppTypography.textTheme().apply(
+      bodyColor: ds.ink,
+      displayColor: ds.ink,
+      fontFamilyFallback: AppTypography.fallback,
     );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: brightness,
-      colorScheme: colorScheme,
-      scaffoldBackgroundColor: bg,
-      textTheme: AppTypography.textTheme().apply(
-        bodyColor: textPrimary,
-        displayColor: textPrimary,
-      ),
-      extensions: [
-        AppSemanticColors(
-          textSecondary: textSecondary,
-          textTertiary: textTertiary,
-          separator: separator,
-          separatorSoft: isLight
-              ? AppColors.lightSeparatorSoft
-              : AppColors.darkSeparatorSoft,
-          surfaceSecondary: surfaceSecondary,
-          accentHover: accentHover,
-          success: success,
-          warning: warning,
-        ),
-      ],
+      brightness: ds.brightness,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: ds.bg,
+      canvasColor: ds.surface,
+      textTheme: textTheme,
+      fontFamilyFallback: AppTypography.fallback,
+      splashFactory: InkSparkle.splashFactory,
+      extensions: [ds, AppSemanticColors.fromDs(ds)],
       cardTheme: CardThemeData(
-        color: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        color: ds.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.card),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: bg,
-        foregroundColor: textPrimary,
+        backgroundColor: ds.bg,
+        foregroundColor: ds.ink,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        toolbarHeight: 54,
+        titleTextStyle: AppTypography.headline.copyWith(color: ds.ink),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 64,
-        backgroundColor: surface,
-        indicatorColor: accent.withValues(alpha: 0.10),
-        labelTextStyle: WidgetStatePropertyAll(AppTypography.overline),
+        height: 56,
+        backgroundColor: ds.navBg,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: Colors.transparent,
+        labelTextStyle: WidgetStatePropertyAll(
+          AppTypography.overline.copyWith(letterSpacing: 0),
+        ),
         elevation: 0,
       ),
       checkboxTheme: CheckboxThemeData(
         shape: const CircleBorder(),
-        side: BorderSide(color: textSecondary, width: 1),
+        side: BorderSide(color: ds.ink3, width: 1.5),
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? ds.primary
+              : Colors.transparent,
+        ),
+        checkColor: WidgetStatePropertyAll(ds.onPrimary),
         materialTapTargetSize: MaterialTapTargetSize.padded,
+        visualDensity: VisualDensity.compact,
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(44, 44),
+          padding: EdgeInsets.zero,
+          foregroundColor: ds.ink2,
+        ),
       ),
-      dividerTheme: DividerThemeData(color: separator, thickness: 1, space: 1),
+      dividerTheme: DividerThemeData(color: ds.lineSoft, thickness: 1, space: 1),
+      listTileTheme: ListTileThemeData(
+        iconColor: ds.ink2,
+        textColor: ds.ink,
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+        minVerticalPadding: AppSpacing.s2,
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: accent,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
+          backgroundColor: ds.primary,
+          foregroundColor: ds.onPrimary,
+          elevation: 0,
+          minimumSize: const Size(0, 44),
+          shape: RoundedRectangleBorder(borderRadius: AppRadii.control),
+          textStyle: AppTypography.bodyStrong,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        // Deliberately one step off the card surface: a field filled the same
-        // colour as the card it sits in disappears.
-        fillColor: surfaceSecondary,
+        fillColor: ds.surface,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s3,
+          vertical: AppSpacing.s3,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+          borderRadius: AppRadii.control,
+          borderSide: BorderSide(color: ds.line),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+          borderRadius: AppRadii.control,
+          borderSide: BorderSide(color: ds.line),
         ),
-        // Filled fields carry the shape; focus only rings them. A full-width
-        // 2px accent outline on top of a filled ground reads as neon in dark
-        // mode (autofocused fields land there on page open).
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: accent.withValues(alpha: isLight ? 0.85 : 0.45),
-            width: 1,
-          ),
+          borderRadius: AppRadii.control,
+          borderSide: BorderSide(color: ds.primary),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
-        ),
-        hintStyle: TextStyle(color: textTertiary),
+        hintStyle: AppTypography.body.copyWith(color: ds.ink3),
+        labelStyle: AppTypography.caption.copyWith(color: ds.ink2),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: accent,
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
+        backgroundColor: ds.primary,
+        foregroundColor: ds.onPrimary,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.control),
       ),
       expansionTileTheme: const ExpansionTileThemeData(
         expansionAnimationStyle: AnimationStyle.noAnimation,
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        shape: Border(),
+        collapsedShape: Border(),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: ds.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.dialog),
+        titleTextStyle: AppTypography.title.copyWith(color: ds.ink),
+        contentTextStyle: AppTypography.body.copyWith(color: ds.ink2),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        backgroundColor: ds.surface,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: ds.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadii.sheetTop,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          backgroundColor: ds.primary,
+          foregroundColor: ds.onPrimary,
+          disabledBackgroundColor: ds.primary.withValues(alpha: 0.45),
+          disabledForegroundColor: ds.onPrimary.withValues(alpha: 0.7),
+          elevation: 0,
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+          shape: RoundedRectangleBorder(borderRadius: AppRadii.control),
+          textStyle: AppTypography.bodyStrong,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: accent),
+        style: TextButton.styleFrom(
+          foregroundColor: ds.primary,
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s3),
+          shape: RoundedRectangleBorder(borderRadius: AppRadii.control),
+          textStyle: AppTypography.bodyStrong,
+        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          foregroundColor: ds.ink,
+          side: BorderSide(color: ds.line),
+          minimumSize: const Size(0, 44),
+          shape: RoundedRectangleBorder(borderRadius: AppRadii.control),
+          textStyle: AppTypography.bodyStrong,
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            RoundedRectangleBorder(borderRadius: AppRadii.control),
           ),
+          side: WidgetStatePropertyAll(BorderSide(color: ds.line)),
         ),
       ),
+      chipTheme: ChipThemeData(
+        backgroundColor: ds.surface,
+        selectedColor: ds.primarySoft,
+        side: BorderSide(color: ds.line),
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.chip),
+        labelStyle: AppTypography.caption.copyWith(color: ds.ink2),
+        secondaryLabelStyle: AppTypography.caption.copyWith(color: ds.primary),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        elevation: 0,
+        pressElevation: 0,
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: ds.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadii.control,
+          side: BorderSide(color: ds.line),
+        ),
+        textStyle: AppTypography.body.copyWith(color: ds.ink),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: ds.ink,
+        contentTextStyle: AppTypography.caption.copyWith(color: ds.bg),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+        ),
+        elevation: 0,
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: ds.ink,
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+        ),
+        textStyle: AppTypography.small.copyWith(color: ds.bg),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: ds.primary),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: _NoAnimationPageTransitionsBuilder(),
@@ -205,7 +274,17 @@ abstract final class AppTheme {
           TargetPlatform.linux: _NoAnimationPageTransitionsBuilder(),
         },
       ),
-      datePickerTheme: DatePickerThemeData(headerForegroundColor: Colors.white),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: ds.surface,
+        surfaceTintColor: Colors.transparent,
+        headerBackgroundColor: ds.primary,
+        headerForegroundColor: ds.onPrimary,
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.dialog),
+      ),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: ds.surface,
+        shape: RoundedRectangleBorder(borderRadius: AppRadii.dialog),
+      ),
     );
   }
 }
@@ -225,7 +304,9 @@ class _NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-/// Tokens that Material's [ColorScheme] has no slot for.
+/// Legacy token slots Material's [ColorScheme] has no home for. Populated from
+/// [DsColors] so a call site written before the rewrite keeps matching the new
+/// palette.
 @immutable
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   const AppSemanticColors({
@@ -238,6 +319,17 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.success,
     required this.warning,
   });
+
+  factory AppSemanticColors.fromDs(DsColors ds) => AppSemanticColors(
+    textSecondary: ds.ink2,
+    textTertiary: ds.ink3,
+    separator: ds.line,
+    separatorSoft: ds.lineSoft,
+    surfaceSecondary: ds.surface2,
+    accentHover: ds.primaryHover,
+    success: ds.success,
+    warning: ds.warn,
+  );
 
   final Color textSecondary;
   final Color textTertiary;
@@ -292,22 +384,13 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
 }
 
 extension AppThemeContext on BuildContext {
-  /// Semantic tokens when the app theme is installed, otherwise a fallback
-  /// derived from the ambient [ColorScheme] so widgets still render under a
-  /// bare MaterialApp (widget tests, embedded previews).
+  /// The v030 token set. Falls back to the light palette under a bare
+  /// MaterialApp (widget tests, embedded previews).
+  DsColors get ds => Theme.of(this).extension<DsColors>() ?? DsColors.light;
+
   AppSemanticColors get semantic {
     final installed = Theme.of(this).extension<AppSemanticColors>();
     if (installed != null) return installed;
-    final scheme = Theme.of(this).colorScheme;
-    return AppSemanticColors(
-      textSecondary: scheme.onSurfaceVariant,
-      textTertiary: scheme.outline,
-      separator: scheme.outlineVariant,
-      separatorSoft: scheme.outlineVariant,
-      surfaceSecondary: scheme.surfaceContainerHighest,
-      accentHover: scheme.primary,
-      success: scheme.primary,
-      warning: scheme.error,
-    );
+    return AppSemanticColors.fromDs(ds);
   }
 }

@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/color_swatch_grid.dart';
@@ -20,18 +23,12 @@ class CalendarsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
     final calendarsAsync = ref.watch(calendarsProvider);
 
     return WorkspacePage(
       title: l.manageCalendars,
       maxContentWidth: 720,
-      actions: [
-        IconButton(
-          icon: const Icon(CupertinoIcons.add, size: 18),
-          tooltip: l.newCalendar,
-          onPressed: () => _editCalendar(context, ref, null),
-        ),
-      ],
       child: calendarsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) {
@@ -40,11 +37,16 @@ class CalendarsPage extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(l.actionFailedRetry, style: AppTypography.body),
-                const SizedBox(height: AppSpacing.sm),
-                TextButton(
+                Text(
+                  l.actionFailedRetry,
+                  style: AppTypography.body.copyWith(color: ds.ink2),
+                ),
+                const SizedBox(height: AppSpacing.s2),
+                DsButton(
+                  label: l.retry,
+                  tone: DsButtonTone.ghost,
+                  small: true,
                   onPressed: () => ref.invalidate(calendarsProvider),
-                  child: Text(l.retry),
                 ),
               ],
             ),
@@ -55,39 +57,82 @@ class CalendarsPage extends ConsumerWidget {
             return EmptyState(
               icon: CupertinoIcons.calendar,
               title: l.noCalendar,
-              action: FilledButton(
+              action: DsButton(
+                label: l.create,
                 onPressed: () => _editCalendar(context, ref, null),
-                child: Text(l.create),
               ),
             );
           }
 
           final canDelete = calendars.length > 1;
+          final todos = ref.watch(allTodosProvider).valueOrNull ?? const [];
 
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            itemCount: calendars.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final calendar = calendars[index];
-              // The row opens the editor: the colour is part of the calendar,
-              // and a row that only *looks* clickable is worse than a plain one.
-              return ListTile(
-                leading: CircleAvatar(
-                  radius: 12,
-                  backgroundColor: ColorUtils.parseHex(calendar.color),
+          return ListView(
+            key: const ValueKey('calendars-list'),
+            padding: const EdgeInsets.only(bottom: AppSpacing.s6),
+            children: [
+              DsGroupLabel(l.myCalendars),
+              DsGroup(
+                children: [
+                  for (final calendar in calendars)
+                    DsSettingRow(
+                      label: calendar.name,
+                      value: l.dayItemCount(
+                        todos
+                            .where(
+                              (t) =>
+                                  t.calendarId == calendar.id &&
+                                  t.status != 'COMPLETED' &&
+                                  t.status != 'CANCELLED',
+                            )
+                            .length,
+                      ),
+                      leading: DsDot(
+                        color: ColorUtils.parseHex(calendar.color),
+                        size: 8,
+                      ),
+                      trailing: canDelete
+                          ? DsIconButton(
+                              icon: CupertinoIcons.trash,
+                              size: 16,
+                              compact: true,
+                              tooltip: l.deleteCalendar,
+                              onPressed: () =>
+                                  _confirmDelete(context, ref, calendar),
+                            )
+                          : null,
+                      onTap: () => _editCalendar(context, ref, calendar),
+                    ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  AppSpacing.s3,
+                  AppSpacing.s4,
+                  AppSpacing.s1,
                 ),
-                title: Text(calendar.name),
-                onTap: () => _editCalendar(context, ref, calendar),
-                trailing: canDelete
-                    ? IconButton(
-                        icon: const Icon(CupertinoIcons.trash, size: 18),
-                        tooltip: l.deleteCalendar,
-                        onPressed: () => _confirmDelete(context, ref, calendar),
-                      )
-                    : null,
-              );
-            },
+                child: DsButton(
+                  label: l.newCalendar,
+                  icon: CupertinoIcons.add,
+                  tone: DsButtonTone.secondary,
+                  expand: true,
+                  onPressed: () => _editCalendar(context, ref, null),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s5,
+                  AppSpacing.s3,
+                  AppSpacing.s5,
+                  AppSpacing.s2,
+                ),
+                child: Text(
+                  l.calendarExplanation,
+                  style: AppTypography.caption.copyWith(color: ds.ink3),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -101,83 +146,106 @@ class CalendarsPage extends ConsumerWidget {
   ) async {
     final l = AppLocalizations.of(context)!;
     final nameController = TextEditingController(text: calendar?.name ?? '');
-    var selectedColor = calendar?.color ?? kCalendarColors.first;
-    String? error;
-    var saving = false;
+    final selectedColor = ValueNotifier<String>(
+      calendar?.color ?? kCalendarColors.first,
+    );
+    final error = ValueNotifier<String?>(null);
+    final saving = ValueNotifier<bool>(false);
 
-    await showDialog<void>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: Text(calendar == null ? l.newCalendar : l.editCalendar),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: l.calendarName,
-                  border: const OutlineInputBorder(),
-                  errorText: error,
+    Future<void> save(BuildContext sheetContext) async {
+      final name = nameController.text.trim();
+      if (name.isEmpty) {
+        error.value = l.calendarNameRequired;
+        return;
+      }
+      error.value = null;
+      saving.value = true;
+      try {
+        if (calendar == null) {
+          await ref.read(createCalendarProvider)(
+            name: name,
+            color: selectedColor.value,
+          );
+        } else {
+          await ref.read(updateCalendarProvider)(
+            id: calendar.id,
+            name: name,
+            color: selectedColor.value,
+          );
+        }
+        if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+      } catch (failure) {
+        debugPrint('calendars: save error: $failure');
+        if (sheetContext.mounted) {
+          saving.value = false;
+          error.value = l.actionFailedRetry;
+        }
+      }
+    }
+
+    await showDsSheet<void>(
+      context: context,
+      title: calendar == null ? l.newCalendar : l.editCalendar,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ValueListenableBuilder<String?>(
+            valueListenable: error,
+            builder: (ctx, message, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DsField(
+                  label: l.calendarName,
+                  child: DsTextField(
+                    controller: nameController,
+                    autofocus: true,
+                    onSubmitted: (_) => save(ctx),
+                  ),
                 ),
-                autofocus: true,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              ColorSwatchGrid(
-                colors: kCalendarColors,
-                selected: selectedColor,
-                onSelected: (hex) => setState(() => selectedColor = hex),
-              ),
-            ],
+                if (message != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.s3),
+                    child: Text(
+                      message,
+                      style: AppTypography.small.copyWith(
+                        color: context.ds.danger,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.cancel),
+          ValueListenableBuilder<String>(
+            valueListenable: selectedColor,
+            builder: (ctx, color, _) => ColorSwatchGrid(
+              colors: kCalendarColors,
+              selected: color,
+              onSelected: (hex) => selectedColor.value = hex,
             ),
-            TextButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final name = nameController.text.trim();
-                      if (name.isEmpty) {
-                        setState(() => error = l.calendarNameRequired);
-                        return;
-                      }
-                      setState(() {
-                        saving = true;
-                        error = null;
-                      });
-                      try {
-                        if (calendar == null) {
-                          await ref.read(createCalendarProvider)(
-                            name: name,
-                            color: selectedColor,
-                          );
-                        } else {
-                          await ref.read(updateCalendarProvider)(
-                            id: calendar.id,
-                            name: name,
-                            color: selectedColor,
-                          );
-                        }
-                        if (ctx.mounted) Navigator.of(ctx).pop();
-                      } catch (failure) {
-                        debugPrint('calendars: save error: $failure');
-                        if (ctx.mounted) {
-                          setState(() {
-                            saving = false;
-                            error = l.actionFailedRetry;
-                          });
-                        }
-                      }
-                    },
-              child: Text(calendar == null ? l.create : l.save),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+      actions: [
+        const Spacer(),
+        Builder(
+          builder: (ctx) => DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
+            onPressed: () => Navigator.of(ctx).maybePop(),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.s2),
+        ValueListenableBuilder<bool>(
+          valueListenable: saving,
+          builder: (ctx, isSaving, _) => DsButton(
+            label: calendar == null ? l.create : l.save,
+            loading: isSaving,
+            onPressed: () => save(ctx),
+          ),
+        ),
+      ],
     );
   }
 
@@ -203,67 +271,72 @@ class CalendarsPage extends ConsumerWidget {
     final contents = eventCount.length + todoCount.length;
 
     final decision = await showDialog<_DeleteDecision>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.deleteCalendar),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(calendar.name),
-            if (contents > 0) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                l.calendarHasContents(eventCount.length, todoCount.length),
-                style: AppTypography.caption,
-              ),
-            ],
-          ],
-        ),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.deleteCalendar,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          if (contents > 0 && targets.isNotEmpty)
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(ctx).pop(const _DeleteDecision.move()),
-              child: Text(l.moveContentsTo),
-            ),
-          TextButton(
-            onPressed: () =>
-                Navigator.of(ctx).pop(const _DeleteDecision.deleteAll()),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(contents > 0 ? l.deleteCalendarAndContents : l.delete),
           ),
         ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              calendar.name,
+              style: AppTypography.body.copyWith(color: context.ds.ink),
+            ),
+            if (contents > 0) ...[
+              const SizedBox(height: AppSpacing.s2),
+              Text(
+                l.calendarHasContents(eventCount.length, todoCount.length),
+                style: AppTypography.caption.copyWith(color: context.ds.ink3),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.s4),
+            if (contents > 0 && targets.isNotEmpty) ...[
+              DsButton(
+                label: l.moveContentsTo,
+                tone: DsButtonTone.secondary,
+                expand: true,
+                onPressed: () =>
+                    Navigator.of(ctx).pop(const _DeleteDecision.move()),
+              ),
+              const SizedBox(height: AppSpacing.s2),
+            ],
+            DsButton(
+              label: contents > 0 ? l.deleteCalendarAndContents : l.delete,
+              tone: DsButtonTone.danger,
+              expand: true,
+              onPressed: () =>
+                  Navigator.of(ctx).pop(const _DeleteDecision.deleteAll()),
+            ),
+          ],
+        ),
       ),
     );
     if (decision == null || !context.mounted) return;
 
     var targetId = decision.targetId;
     if (decision.move && targets.isNotEmpty && targetId == null) {
-      targetId = await showModalBottomSheet<int>(
+      targetId = await showDsSheet<int>(
         context: context,
-        builder: (ctx) => SafeArea(
-          child: Column(
+        title: l.moveContentsTo,
+        body: Builder(
+          builder: (sheetContext) => Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Text(l.moveContentsTo, style: AppTypography.title),
-              ),
               for (final target in targets)
-                ListTile(
-                  leading: CircleAvatar(
-                    radius: 10,
-                    backgroundColor: ColorUtils.parseHex(target.color),
+                DsSettingRow(
+                  label: target.name,
+                  leading: DsDot(
+                    color: ColorUtils.parseHex(target.color),
+                    size: 8,
                   ),
-                  title: Text(target.name),
-                  onTap: () => Navigator.of(ctx).pop(target.id),
+                  onTap: () => Navigator.of(sheetContext).pop(target.id),
                 ),
             ],
           ),

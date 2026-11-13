@@ -574,26 +574,32 @@ struct WidgetPalette {
     let border: Color
     let error: Color
     let warning: Color
+    let dark: Bool
 
     init(_ snapshot: WidgetSnapshot?) {
         let colors = snapshot?.theme?.colors
-        #if os(iOS)
-        let fallbackBackground = Color(.systemBackground)
-        let fallbackSurface = Color(.secondarySystemBackground)
-        let fallbackError = Color.red
-        let fallbackWarning = Color.orange
-        #else
-        let fallbackBackground = Color(nsColor: .windowBackgroundColor)
-        let fallbackSurface = Color(nsColor: .controlBackgroundColor)
-        let fallbackError = Color.red
-        let fallbackWarning = Color.orange
-        #endif
+        // Without a snapshot (gallery placeholder, or the first render before
+        // the app has written one) WidgetKit still has to draw something, and
+        // the system palette drew a blue-accented stranger next to the real
+        // widget. These constants are the same Direction C tokens the snapshot
+        // carries; keep them in step with lib/core/theme/app_colors.dart.
+        let dark = snapshot?.theme?.dark ?? false
+        self.dark = dark
+        let fallbackBackground = Color(hex: dark ? "#131311" : "#FCFCFA")!
+        let fallbackSurface = Color(hex: dark ? "#1A1B18" : "#FFFFFF")!
+        let fallbackTextPrimary = Color(hex: dark ? "#ECECE6" : "#191A17")!
+        let fallbackTextSecondary = Color(hex: dark ? "#B9BAB1" : "#3F413A")!
+        let fallbackAccent = Color(hex: dark ? "#E0703C" : "#C2410C")!
+        let fallbackBorder = Color(hex: dark ? "#2C2D28" : "#E8E7E1")!
+        let fallbackError = Color(hex: dark ? "#D97B52" : "#A8481E")!
+        let fallbackWarning = Color(hex: dark ? "#D6AD6A" : "#7D5416")!
+
         background = Color(hex: colors?.background) ?? fallbackBackground
         surface = Color(hex: colors?.surface) ?? fallbackSurface
-        textPrimary = Color(hex: colors?.textPrimary) ?? Color.primary
-        textSecondary = Color(hex: colors?.textSecondary) ?? Color.secondary
-        accent = Color(hex: colors?.accent) ?? Color.blue
-        border = Color(hex: colors?.border) ?? Color.gray.opacity(0.35)
+        textPrimary = Color(hex: colors?.textPrimary) ?? fallbackTextPrimary
+        textSecondary = Color(hex: colors?.textSecondary) ?? fallbackTextSecondary
+        accent = Color(hex: colors?.accent) ?? fallbackAccent
+        border = Color(hex: colors?.border) ?? fallbackBorder
         error = Color(hex: colors?.error) ?? fallbackError
         warning = Color(hex: colors?.warning) ?? fallbackWarning
     }
@@ -716,7 +722,7 @@ private struct SectionLabel: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 10, weight: .bold))
+            .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(color ?? palette.textSecondary)
             .lineLimit(1)
     }
@@ -848,7 +854,7 @@ struct ActionWidgetView: View {
     private func header(snapshot: WidgetSnapshot, overdueCount: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(WidgetDates.short(snapshot.todayIso))
-                .font(small ? .title3.weight(.semibold) : .title2.weight(.semibold))
+                .font(small ? .title3.weight(.semibold) : .system(size: 24, weight: .semibold))
                 .foregroundStyle(palette.textPrimary)
             Text(WidgetDates.dayTitle(snapshot.todayIso))
                 .font(.caption2)
@@ -857,7 +863,7 @@ struct ActionWidgetView: View {
             Spacer(minLength: 2)
             if small && overdueCount > 0 {
                 Text(ui?.withCount(ui?.overdueCount, overdueCount) ?? "\(overdueCount)")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(palette.error)
                     .lineLimit(1)
             }
@@ -1060,7 +1066,7 @@ struct ActionWidgetView: View {
                         .foregroundStyle(palette.textSecondary)
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 9))
+                        .font(.system(size: 11))
                         .foregroundStyle(palette.textSecondary)
                 }
                 .frame(minHeight: 20)
@@ -1140,7 +1146,7 @@ struct TodosWidgetView: View {
             } else {
                 if snapshotStale {
                     Text(ui?.stale ?? WidgetCopy.openToUpdate)
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(palette.error)
                         .lineLimit(1)
                 }
@@ -1410,7 +1416,7 @@ struct CalendarWidgetView: View {
             }()
             Link(destination: WidgetLinks.calendar(selectedIso)) {
                 Text(WidgetDates.monthTitle(year: model.year, month: model.month) + staleSuffix)
-                    .font(.caption.weight(.semibold))
+                    .font(large ? .subheadline.weight(.semibold) : .footnote.weight(.semibold))
                     .foregroundStyle(palette.accent)
                     .lineLimit(1)
             }
@@ -1437,7 +1443,7 @@ struct CalendarWidgetView: View {
         HStack(spacing: 0) {
             ForEach(WidgetDates.weekdaySymbolsMondayFirst(), id: \.self) { symbol in
                 Text(symbol)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity)
             }
@@ -1476,7 +1482,7 @@ struct CalendarWidgetView: View {
         return Button(intent: SelectCalendarDateIntent(dateIso: iso, enterDay: !large)) {
             VStack(spacing: 1) {
                 Text("\(day)")
-                    .font(.system(size: large ? 12 : 10, weight: isSelected || isToday ? .bold : .regular))
+                    .font(.system(size: large ? 12 : 11, weight: isSelected || isToday ? .semibold : .regular))
                     .foregroundStyle(isSelected || isToday ? palette.accent : palette.textPrimary)
                 Circle()
                     .fill(dotColor ?? .clear)
@@ -1485,7 +1491,7 @@ struct CalendarWidgetView: View {
             .frame(maxWidth: .infinity, minHeight: large ? 25 : 20)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(isSelected ? palette.accent.opacity(0.16) : .clear)
+                    .fill(isSelected ? palette.accent.opacity(palette.dark ? 0.16 : 0.10) : .clear)
             )
         }
         .buttonStyle(.plain)
@@ -1526,7 +1532,7 @@ struct CalendarWidgetView: View {
         return VStack(alignment: .leading, spacing: 2) {
             if !large && !dayMode {
                 Text(WidgetDates.dayTitle(selectedIso))
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(palette.textSecondary)
             }
             if items.isEmpty {
@@ -1564,12 +1570,12 @@ struct CalendarWidgetView: View {
                 .fill(isDeadline ? palette.textSecondary : (Color(hex: item.color) ?? palette.accent))
                 .frame(width: 3, height: 18)
             Text(time)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(palette.textSecondary)
                 .frame(width: 48, alignment: .leading)
                 .lineLimit(1)
             Text(item.summary)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
             Spacer(minLength: 0)

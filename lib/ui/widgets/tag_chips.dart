@@ -1,13 +1,13 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:go_router/go_router.dart';
 
 /// A row of tag chips that toggles tag assignment.
@@ -44,11 +44,12 @@ class TagChips extends ConsumerWidget {
         .when(
           data: (allTags) {
             if (allTags.isEmpty) {
-              return TextButton.icon(
+              return DsButton(
+                label: l.createTag,
+                icon: CupertinoIcons.add,
+                tone: DsButtonTone.ghost,
+                small: true,
                 onPressed: () => context.push('/tags'),
-                icon: const Icon(CupertinoIcons.add, size: 14),
-                label: Text(l.createTag),
-                style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
               );
             }
             final assigned = _isDraft
@@ -59,32 +60,23 @@ class TagChips extends ConsumerWidget {
               children: [
                 Text(
                   l.tags,
-                  style: AppTypography.caption.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: context.ds.ink2,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.s1),
                 Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xs,
+                  spacing: AppSpacing.s1 + 2,
+                  runSpacing: AppSpacing.s1 + 2,
                   children: allTags.map((tag) {
                     final isAssigned = assigned.contains(tag.id);
                     final tagColor = ColorUtils.parseHex(tag.color);
-                    return FilterChip(
-                      label: Text(tag.name),
-                      avatar: CircleAvatar(
-                        radius: 6,
-                        backgroundColor: tagColor,
-                      ),
+                    return DsChip(
+                      label: tag.name,
+                      leading: DsDot(color: tagColor),
                       selected: isAssigned,
-                      selectedColor: tagColor.withValues(
-                        alpha: Theme.of(context).brightness == Brightness.light
-                            ? 0.4
-                            : 0.3,
-                      ),
-                      checkmarkColor: tagColor,
-                      onSelected: (selected) =>
-                          _toggle(context, ref, tag.id, selected),
+                      onTap: () => _toggle(context, ref, tag.id, !isAssigned),
                     );
                   }).toList(),
                 ),

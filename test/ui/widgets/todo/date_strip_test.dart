@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
+import 'package:dayspark/ui/widgets/schedule/day_strip.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
 
 Widget _harness(ProviderContainer container, {required bool desktop}) {
@@ -89,12 +89,12 @@ void main() {
     await tester.pumpWidget(_harness(container, desktop: false));
     await tester.pump();
 
-    await tester.tap(find.byIcon(CupertinoIcons.chevron_right));
+    final target = today.add(const Duration(days: 3));
+    await tester.tap(find.byKey(ValueKey(DayStrip.dayKey(target))));
     await tester.pump();
 
     final view = container.read(todosViewProvider) as TodosDayView;
-    expect(view.day.isAtSameMomentAs(today), isFalse);
-    expect(view.day.difference(today).inDays.abs(), inInclusiveRange(6, 8));
+    expect(view.day.isAtSameMomentAs(target), isTrue);
   });
 
   testWidgets('desktop toolbar offers the same Today entry from All', (

@@ -9,7 +9,6 @@
 // web 冒烟截图（端到端）负责，不由本文件负责。
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -74,7 +73,7 @@ void main() {
     testWidgets('$platform：系统闹钟开关出现（插件支持该平台）', (tester) async {
       await _pumpNotificationsSection(tester, platform);
       expect(
-        find.byType(SwitchListTile),
+        find.byType(Switch),
         findsOneWidget,
         reason: 'alarm 插件只在 Android / iOS 上真正排程',
       );
@@ -90,7 +89,7 @@ void main() {
   ]) {
     testWidgets('$platform：不显示系统闹钟开关（无实现，不能提供无效操作）', (tester) async {
       await _pumpNotificationsSection(tester, platform);
-      expect(find.byType(SwitchListTile), findsNothing);
+      expect(find.byType(Switch), findsNothing);
       debugDefaultTargetPlatformOverride = null;
     });
   }
@@ -110,16 +109,16 @@ void main() {
       },
     );
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      tester.widget<Switch>(find.byType(Switch)).value,
       isTrue,
     );
 
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(Switch));
     await tester.pump();
 
     expect(toggled, isFalse);
     expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      tester.widget<Switch>(find.byType(Switch)).value,
       isFalse,
       reason: '视觉状态必须在后台 stopAll 完成前改变',
     );
@@ -129,7 +128,6 @@ void main() {
 
   testWidgets('macOS：提供通知权限入口（该平台确实会发提醒）', (tester) async {
     await _pumpNotificationsSection(tester, TargetPlatform.macOS);
-    expect(find.byIcon(CupertinoIcons.bell), findsOneWidget);
     expect(find.text('Notification permission'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
   });
@@ -143,7 +141,7 @@ void main() {
       exactAlarmsAllowed: false,
     );
     await tester.pump();
-    expect(find.byIcon(CupertinoIcons.timer), findsOneWidget);
+    expect(find.text('Exact alarm permission'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -154,7 +152,7 @@ void main() {
       exactAlarmsAllowed: true,
     );
     await tester.pump();
-    expect(find.byIcon(CupertinoIcons.timer), findsNothing);
+    expect(find.text('Exact alarm permission'), findsNothing);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -165,7 +163,7 @@ void main() {
       exactAlarmsAllowed: false,
     );
     await tester.pump();
-    expect(find.byIcon(CupertinoIcons.timer), findsNothing);
+    expect(find.text('Exact alarm permission'), findsNothing);
     debugDefaultTargetPlatformOverride = null;
   });
 }

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/calendar/calendars_page.dart';
 
@@ -28,6 +29,9 @@ void main() {
           databaseProvider.overrideWithValue(db),
           if (calendars != null)
             calendarsProvider.overrideWith((ref) => Stream.value(calendars)),
+          // The page counts active todos per calendar; a live drift stream
+          // here would leave a timer pending after the tree is disposed.
+          allTodosProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: const MaterialApp(
           locale: Locale('en'),
@@ -70,7 +74,7 @@ void main() {
       await tester.tap(find.byIcon(CupertinoIcons.add));
       await tester.pump();
 
-      expect(find.text('New Calendar'), findsOneWidget);
+      expect(find.text('New Calendar'), findsWidgets);
       expect(find.text('Calendar Name'), findsOneWidget);
       expect(find.text('Create'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);

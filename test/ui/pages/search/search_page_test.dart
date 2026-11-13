@@ -161,7 +161,7 @@ void main() {
     expect(find.byType(Checkbox), findsNothing);
     expect(router.routeInformationProvider.value.uri.path, '/search');
 
-    await tester.tap(find.text('GUI验收-普通Todo-Edit').first);
+    await tester.tap(find.text('GUI验收-普通Todo-Edit').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Todo detail route'), findsOneWidget);

@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -19,7 +18,8 @@ import 'package:dayspark/domain/services/ics_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
-import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import '../settings_ui.dart';
 
 class ImportExportSection extends ConsumerWidget {
   const ImportExportSection({super.key, this.showHeader = false});
@@ -33,7 +33,7 @@ class ImportExportSection extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (showHeader)
           Padding(
@@ -45,32 +45,33 @@ class ImportExportSection extends ConsumerWidget {
             ),
             child: Text(l.data, style: AppTypography.title),
           ),
-        SectionLabel(l.dataExchange),
-        ListTile(
-          leading: const Icon(CupertinoIcons.arrow_down_doc),
-          title: Text(l.importIcs),
-          subtitle: Text(l.calendarData),
-          onTap: () => _importIcs(context, ref),
-        ),
-        ListTile(
-          leading: const Icon(CupertinoIcons.arrow_up_doc),
-          title: Text(l.exportIcs),
-          subtitle: Text(l.exportAllCalendars),
-          onTap: () => _exportIcs(context, ref),
-        ),
-        const Divider(height: 1),
-        SectionLabel(l.daysparkBackup),
-        ListTile(
-          leading: const Icon(CupertinoIcons.archivebox),
-          title: Text(l.fullBackup),
-          subtitle: Text(l.fullBackupDesc),
-          onTap: () => _exportBackup(context, ref),
-        ),
-        ListTile(
-          leading: const Icon(CupertinoIcons.arrow_down_to_line),
-          title: Text(l.mergeBackup),
-          subtitle: Text(l.mergeBackupDesc),
-          onTap: () => _mergeBackup(context, ref),
+        SettingsRows(
+          children: [
+            SettingsRow(
+              label: l.importIcs,
+              subtitle: l.calendarData,
+              chevron: SettingsChevron.right,
+              onTap: () => _importIcs(context, ref),
+            ),
+            SettingsRow(
+              label: l.exportIcs,
+              value: l.exportAllCalendars,
+              chevron: SettingsChevron.right,
+              onTap: () => _exportIcs(context, ref),
+            ),
+            SettingsRow(
+              label: l.fullBackup,
+              subtitle: l.fullBackupDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _exportBackup(context, ref),
+            ),
+            SettingsRow(
+              label: l.mergeBackup,
+              subtitle: l.mergeBackupDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _mergeBackup(context, ref),
+            ),
+          ],
         ),
       ],
     );
@@ -152,25 +153,17 @@ class ImportExportSection extends ConsumerWidget {
     if (result == null || result.files.isEmpty) return;
     if (!context.mounted) return;
 
-    final targetId = await showDialog<int>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(l.importTo),
+    final targetId = await showDsSheet<int>(
+      context: context,
+      title: l.importTo,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           for (final calendar in calendars)
-            SimpleDialogOption(
-              padding: EdgeInsets.zero,
-              onPressed: () => Navigator.of(ctx).pop(calendar.id),
-              child: ListTile(
-                title: Text(calendar.name),
-                trailing: const Icon(CupertinoIcons.chevron_forward, size: 16),
-              ),
+            DsSettingRow(
+              label: calendar.name,
+              onTap: () => Navigator.of(context).pop(calendar.id),
             ),
-          const Divider(height: 1),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
         ],
       ),
     );

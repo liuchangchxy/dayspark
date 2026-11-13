@@ -121,11 +121,12 @@ void main() {
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
     // The dialog title and the destructive button share a label; the button is
-    // the last one.
+    // the last one. Both surfaces build a Dialog (AlertDialog on the todo pane,
+    // DsDialog on the event pane).
     await tester.tap(
       find
           .descendant(
-            of: find.byType(AlertDialog),
+            of: find.byType(Dialog),
             matching: find.text('Move to Trash'),
           )
           .last,

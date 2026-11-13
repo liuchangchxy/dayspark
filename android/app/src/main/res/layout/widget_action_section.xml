@@ -7,5 +7,5 @@
     android:paddingTop="4dp"
     android:singleLine="true"
     android:textColor="@color/widget_text_secondary"
-    android:textSize="10sp"
-    android:textStyle="bold" />
+    android:fontFamily="sans-serif-medium"
+    android:textSize="11sp" />

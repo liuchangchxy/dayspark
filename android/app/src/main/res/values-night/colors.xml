@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="widget_background">#121212</color>
-    <color name="widget_surface">#1E1E1E</color>
-    <color name="widget_text_primary">#F5F5F5</color>
-    <color name="widget_text_secondary">#A0A0A0</color>
-    <color name="widget_accent">#90CAF9</color>
-    <color name="widget_border">#333333</color>
-    <color name="widget_button_bg">#24FFFFFF</color>
-    <color name="widget_error">#FF453A</color>
+    <!-- System-dark fallbacks, used only when no snapshot exists. -->
+    <color name="widget_background">#131311</color>
+    <color name="widget_surface">#1A1B18</color>
+    <color name="widget_text_primary">#ECECE6</color>
+    <color name="widget_text_secondary">#B9BAB1</color>
+    <color name="widget_accent">#E0703C</color>
+    <color name="widget_border">#2C2D28</color>
+    <color name="widget_button_bg">#24E0703C</color>
+    <color name="widget_error">#D97B52</color>
+    <color name="widget_warning">#D6AD6A</color>
+    <color name="widget_check_border">#6E7069</color>
+
+    <color name="widget_background_dark">#131311</color>
+    <color name="widget_border_dark">#2C2D28</color>
 </resources>
