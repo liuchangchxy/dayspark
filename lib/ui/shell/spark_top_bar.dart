@@ -90,18 +90,25 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
           final tight = constraints.maxWidth < 860;
           return Row(
             children: [
-              const _Brand(),
+              // The mark and the full weekday date are the two pieces whose
+              // width is set by the locale and the font, not by this file: a
+              // wide face at the 1000px breakpoint pushes the row past the
+              // edge. Both are flexible so the date ellipsizes instead of
+              // overflowing, whichever face the host happens to have.
+              const Flexible(child: _Brand()),
               const SizedBox(width: AppSpacing.s4),
               Container(width: 1, height: 20, color: ds.line),
               const SizedBox(width: AppSpacing.s3),
-              _DateNav(
-                date: viewed,
-                locale: locale,
-                isToday: isToday,
-                compact: narrow,
-                onPrevious: () => _shift(viewed, -1),
-                onNext: () => _shift(viewed, 1),
-                onToday: () => _goToday(now),
+              Flexible(
+                child: _DateNav(
+                  date: viewed,
+                  locale: locale,
+                  isToday: isToday,
+                  compact: narrow,
+                  onPrevious: () => _shift(viewed, -1),
+                  onNext: () => _shift(viewed, 1),
+                  onToday: () => _goToday(now),
+                ),
               ),
               if (roomy && isToday) ...[
                 const SizedBox(width: AppSpacing.s4),
@@ -298,23 +305,25 @@ class _DateNav extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _StepButton(icon: CupertinoIcons.chevron_back, onPressed: onPrevious),
-        Tooltip(
-          message: AppLocalizations.of(context)!.today,
-          child: InkWell(
-            onTap: onToday,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.s2,
-                vertical: 4,
-              ),
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.caption.copyWith(
-                  color: isToday ? ds.ink : ds.ink2,
-                  fontWeight: FontWeight.w500,
-                  fontFeatures: AppTypography.tabular,
+        Flexible(
+          child: Tooltip(
+            message: AppLocalizations.of(context)!.today,
+            child: InkWell(
+              onTap: onToday,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s2,
+                  vertical: 4,
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(
+                    color: isToday ? ds.ink : ds.ink2,
+                    fontWeight: FontWeight.w500,
+                    fontFeatures: AppTypography.tabular,
+                  ),
                 ),
               ),
             ),
