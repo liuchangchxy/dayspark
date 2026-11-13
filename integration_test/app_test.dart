@@ -11,9 +11,10 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/main.dart' show DaySparkApp;
-import 'package:dayspark/ui/shell/workspace_sidebar.dart';
+import 'package:dayspark/ui/shell/spark_top_bar.dart';
 import 'package:dayspark/ui/widgets/schedule/day_strip.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
+import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 
 /// Real-app flows: the shipped [DaySparkApp], router, providers and database
 /// run inside the native integration harness. Each test answers one question
@@ -210,11 +211,14 @@ void main() {
     await showView(tester, 'By date');
 
     expect(
-      MediaQuery.sizeOf(tester.element(find.byType(WorkspaceSidebar))).width,
+      MediaQuery.sizeOf(tester.element(find.byType(SparkTopBar))).width,
       1440,
+      reason: 'the window really is as wide as the test asked for',
     );
-    final firstRow = find.byKey(Key('date-$firstId'));
-    final secondRow = find.byKey(Key('date-$secondId'));
+    // The rows have no per-todo key of their own; the title is what the user
+    // reads, so it is what the flow follows.
+    final firstRow = find.widgetWithText(TodoListTile, 'First task');
+    final secondRow = find.widgetWithText(TodoListTile, 'Second task');
     expect(firstRow, findsOneWidget);
     expect(secondRow, findsOneWidget);
 
