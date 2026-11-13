@@ -7,6 +7,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
 void main() {
@@ -85,9 +86,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // 弹窗确认对话框
-    expect(find.byType(AlertDialog), findsOneWidget);
-    // 点击确认删除按钮（FilledButton）
-    await tester.tap(find.widgetWithText(FilledButton, '永久删除'));
+    expect(find.byType(DsDialog), findsOneWidget);
+    // 点击确认删除按钮（DsButton）
+    await tester.tap(find.widgetWithText(DsButton, '永久删除'));
     await tester.pumpAndSettle();
 
     expect(deletedTodoId, 42);
@@ -100,8 +101,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(AlertDialog), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, '永久删除'));
+    expect(find.byType(DsDialog), findsOneWidget);
+    await tester.tap(find.widgetWithText(DsButton, '永久删除'));
     await tester.pumpAndSettle();
 
     expect(deletedEventId, 99);

@@ -815,10 +815,16 @@ class HomeWidgetService {
         Brightness.dark;
     final dark =
         mode == ThemeMode.dark || (mode == ThemeMode.system && platformDark);
-    return buildThemeBlock(dark: dark);
+    return buildThemeBlock(dark: dark, accent: readStoredAccent(prefs));
   }
 
-  static Map<String, Object?> buildThemeBlock({required bool dark}) {
+  /// The widget's palette. [accent] is the one the user picked in settings:
+  /// the widget sits next to the app on the same home screen, so a fixed rust
+  /// dot under a blue app would be the mismatch people notice first.
+  static Map<String, Object?> buildThemeBlock({
+    required bool dark,
+    AppAccent accent = AppAccent.terracotta,
+  }) {
     return {
       'dark': dark,
       'colors': {
@@ -832,7 +838,7 @@ class HomeWidgetService {
         'textSecondary': _hex(
           dark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
         ),
-        'accent': _hex(dark ? AppColors.darkAccent : AppColors.lightAccent),
+        'accent': _hex(accent.resolve(dark ? Brightness.dark : Brightness.light)),
         'border': _hex(dark ? AppColors.darkBorder : AppColors.lightBorder),
         'error': _hex(dark ? AppColors.darkError : AppColors.lightError),
         'warning': _hex(dark ? AppColors.darkWarning : AppColors.lightWarning),

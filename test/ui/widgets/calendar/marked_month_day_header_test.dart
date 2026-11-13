@@ -75,7 +75,7 @@ void main() {
   testWidgets('month view grid shows current-month solar terms', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(760, 1100);
+    tester.view.physicalSize = const Size(1200, 1100);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 

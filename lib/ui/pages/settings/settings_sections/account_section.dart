@@ -10,7 +10,10 @@ import 'package:dayspark/domain/providers/sync_client_provider.dart';
 import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import '../settings_ui.dart';
 
 class AccountSection extends ConsumerStatefulWidget {
   const AccountSection({super.key, this.showHeader = false});
@@ -69,15 +72,24 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
               AppSpacing.lg,
               AppSpacing.xs,
             ),
-            child: Text(l.account, style: AppTypography.title),
+            child: Text(
+              l.account,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: context.ds.ink,
+              ),
+            ),
           ),
         // A failure to read the account is not the same as being logged out:
         // showing the sign-in form would invite a second login over a session
         // that still exists.
         ...account.when(
-          data: (state) => state.email == null
-              ? _buildLoggedOut(l, state)
-              : _buildLoggedIn(l, state),
+          data: (state) => [
+            state.email == null
+                ? _buildLoggedOut(l, state)
+                : _buildLoggedIn(l, state),
+          ],
           loading: () => const [
             Padding(
               padding: EdgeInsets.all(AppSpacing.lg),
@@ -98,7 +110,8 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
                     Expanded(
                       child: Text(
                         l.accountLoadFailed,
-                        style: AppTypography.body.copyWith(
+                        style: TextStyle(
+                          fontSize: 14,
                           color: Theme.of(context).colorScheme.error,
                         ),
                       ),
@@ -120,186 +133,149 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     );
   }
 
-  List<Widget> _buildLoggedOut(AppLocalizations l, AccountAuthState state) {
+  Widget _buildLoggedOut(AppLocalizations l, AccountAuthState state) {
+    final ds = context.ds;
     final error = state.error;
-    return [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              l.syncExplanation,
-              style: AppTypography.caption.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+    return SettingsRows(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Text(
+            l.syncExplanation,
+            style: TextStyle(fontSize: 12, height: 1.55, color: ds.ink3),
+          ),
+        ),
+        _FieldRow(
+          label: l.serverUrl,
+          child: DsTextField(
+            controller: _serverUrlController,
+            hint: 'https://sync.example.com',
+            keyboardType: TextInputType.url,
+          ),
+        ),
+        _FieldRow(
+          label: l.email,
+          child: DsTextField(
+            controller: _emailController,
+            hint: 'you@example.com',
+            keyboardType: TextInputType.emailAddress,
+          ),
+        ),
+        _FieldRow(
+          label: l.password,
+          child: DsTextField(
+            controller: _passwordController,
+            obscureText: true,
+          ),
+        ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            child: Text(
+              _errorText(l, error),
+              style: TextStyle(fontSize: 12, color: ds.danger),
+            ),
+          ),
+        if (state.busy)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: DsButton(
+                  label: l.register,
+                  tone: DsButtonTone.secondary,
+                  expand: true,
+                  onPressed: state.busy
+                      ? null
+                      : () => _submit(registering: true),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _serverUrlController,
-              keyboardType: TextInputType.url,
-              autocorrect: false,
-              decoration: InputDecoration(
-                labelText: l.serverUrl,
-                hintText: 'https://sync.example.com',
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              decoration: InputDecoration(labelText: l.email, isDense: true),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: InputDecoration(labelText: l.password, isDense: true),
-            ),
-            if (error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _errorText(l, error),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: AppTypography.caption.fontSize,
+              const SizedBox(width: AppSpacing.s2),
+              Expanded(
+                child: DsButton(
+                  label: l.login,
+                  expand: true,
+                  onPressed: state.busy
+                      ? null
+                      : () => _submit(registering: false),
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            if (state.busy)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: SizedBox(
-                  width: AppSpacing.lg,
-                  height: AppSpacing.lg,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            Row(
-              children: [
-                Expanded(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: OutlinedButton(
-                      onPressed: state.busy
-                          ? null
-                          : () => _submit(registering: true),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                      ),
-                      child: Text(l.register),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: FilledButton(
-                      onPressed: state.busy
-                          ? null
-                          : () => _submit(registering: false),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                      ),
-                      child: Text(l.login),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
+          ),
         ),
-      ),
-    ];
+      ],
+    );
   }
 
-  List<Widget> _buildLoggedIn(AppLocalizations l, AccountAuthState state) {
+  Widget _buildLoggedIn(AppLocalizations l, AccountAuthState state) {
     final status = ref.watch(syncStatusProvider);
     final engine = ref.watch(syncEngineProvider);
     final server = ref.watch(syncSettingsProvider).valueOrNull?.baseUrl;
-    return [
-      ListTile(
-        leading: const Icon(CupertinoIcons.person_crop_circle),
-        title: Text(state.email!),
-        subtitle: Text(_statusText(l, status)),
-      ),
-      if (server != null)
-        ListTile(
-          leading: const Icon(CupertinoIcons.globe),
-          title: Text(l.serverUrl),
-          subtitle: Text(server),
+    return SettingsRows(
+      children: [
+        SettingsRow(label: state.email!, value: _statusText(l, status)),
+        if (server != null) SettingsRow(label: l.serverUrl, value: server),
+        SettingsRow(
+          label: l.connectedDevices,
+          chevron: SettingsChevron.right,
+          onTap: () => _showDevicesDialog(context),
         ),
-      ListTile(
-        leading: const Icon(CupertinoIcons.device_phone_portrait),
-        title: Text(l.connectedDevices),
-        onTap: () => _showDevicesDialog(context),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Tooltip(
-                message: l.syncTooltip,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: OutlinedButton.icon(
-                    onPressed: engine == null
-                        ? null
-                        : () => unawaited(engine.requestRound()),
-                    icon: const Icon(CupertinoIcons.refresh, size: 18),
-                    label: Text(l.syncNow),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
-                    ),
-                  ),
-                ),
-              ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Tooltip(
+            message: l.syncTooltip,
+            child: DsButton(
+              label: l.syncNow,
+              icon: CupertinoIcons.refresh,
+              tone: DsButtonTone.secondary,
+              expand: true,
+              onPressed: engine == null
+                  ? null
+                  : () => unawaited(engine.requestRound()),
             ),
-            const SizedBox(width: 8),
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: OutlinedButton(
-                onPressed: state.busy ? null : () => _confirmLogout(l),
-                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-                child: Text(l.logout),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-      const SizedBox(height: 8),
-    ];
+        SettingsRow(
+          label: l.logout,
+          danger: true,
+          chevron: SettingsChevron.right,
+          onTap: state.busy ? null : () => _confirmLogout(l),
+        ),
+      ],
+    );
   }
 
   /// Logging out stops sync on a device that may be the only place the data
   /// lives, so it is confirmed rather than fired on the first tap.
   Future<void> _confirmLogout(AppLocalizations l) async {
     final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.signOutConfirm),
-        content: Text(l.signOutBody),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.signOutConfirm,
+        width: 420,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.signOut,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l.signOut),
           ),
         ],
+        child: Text(
+          l.signOutBody,
+          style: TextStyle(fontSize: 14, height: 1.55, color: context.ds.ink2),
+        ),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -334,53 +310,46 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   void _showDevicesDialog(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     showDialog<void>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.connectedDevices),
-        content: SizedBox(
-          width: 360,
-          child: Consumer(
-            builder: (ctx, ref, _) {
-              final devices = ref.watch(connectedDevicesProvider);
-              return switch (devices) {
-                AsyncData(:final value) when value.isEmpty => Text(
-                  l.devicesEmpty,
-                ),
-                AsyncData(:final value) => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final d in value)
-                      ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(
-                          CupertinoIcons.device_laptop,
-                          size: 20,
-                        ),
-                        title: Text(d.name ?? l.deviceUnknownName),
-                        subtitle: Text(
-                          l.deviceLastSeen(
-                            DateFormatters.formatRelativeTime(d.lastSeen, l),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                AsyncError() => Text(l.devicesLoadFailed),
-                _ => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              };
-            },
-          ),
-        ),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.connectedDevices,
+        width: 460,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.ok,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.ok),
           ),
         ],
+        child: Consumer(
+          builder: (ctx, ref, _) {
+            final devices = ref.watch(connectedDevicesProvider);
+            return switch (devices) {
+              AsyncData(:final value) when value.isEmpty => Text(
+                l.devicesEmpty,
+                style: TextStyle(fontSize: 13, color: context.ds.ink3),
+              ),
+              AsyncData(:final value) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final d in value)
+                    DsSettingRow(
+                      label: d.name ?? l.deviceUnknownName,
+                      value: l.deviceLastSeen(
+                        DateFormatters.formatRelativeTime(d.lastSeen, l),
+                      ),
+                    ),
+                ],
+              ),
+              AsyncError() => Text(l.devicesLoadFailed),
+              _ => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            };
+          },
+        ),
       ),
     );
   }
@@ -412,5 +381,39 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
       AccountAuthError.invalidCredentials => l.invalidCredentials,
       AccountAuthError.failed => l.authFailed,
     };
+  }
+}
+
+class _FieldRow extends StatelessWidget {
+  const _FieldRow({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Container(
+      constraints: const BoxConstraints(minHeight: 56),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 104,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.caption.copyWith(
+                fontSize: 14,
+                color: ds.ink2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: child),
+        ],
+      ),
+    );
   }
 }

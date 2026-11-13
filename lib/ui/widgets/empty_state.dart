@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_theme.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 /// The one empty-state shape: icon, title, one line of explanation, action.
 ///
@@ -27,52 +26,26 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final hasHint = hint != null && hint!.isNotEmpty;
+    final trailing = action == null && extra == null
+        ? null
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (action != null) action!,
+              if (extra != null) ...[
+                const SizedBox(height: AppSpacing.s3),
+                extra!,
+              ],
+            ],
+          );
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xl,
-          vertical: AppSpacing.xl,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ExcludeSemantics(
-              child: Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.10),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 40, color: scheme.primary),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              title,
-              style: AppTypography.title,
-              textAlign: TextAlign.center,
-            ),
-            if (hint != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                hint!,
-                style: AppTypography.caption.copyWith(
-                  color: context.semantic.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            if (action != null) ...[
-              const SizedBox(height: AppSpacing.xl),
-              action!,
-            ],
-            if (extra != null) ...[
-              const SizedBox(height: AppSpacing.xl),
-              extra!,
-            ],
-          ],
+        child: DsEmpty(
+          icon: icon,
+          title: hasHint ? title : null,
+          message: hasHint ? hint! : title,
+          action: trailing,
         ),
       ),
     );

@@ -14,6 +14,7 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/ai_chat/ai_chat_page.dart';
 
 class FakeAiChatNotifier extends StateNotifier<List<AiChatMessage>>
@@ -151,10 +152,10 @@ void main() {
 
       // Step 3: Explicit confirmation dialog
       expect(find.text('Schedule Task'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Schedule'), findsOneWidget);
+      expect(find.widgetWithText(DsButton, 'Schedule'), findsOneWidget);
 
       // Confirm write
-      await tester.tap(find.widgetWithText(FilledButton, 'Schedule'));
+      await tester.tap(find.widgetWithText(DsButton, 'Schedule'));
       await _settle(tester);
 
       // Success SnackBar
@@ -258,7 +259,7 @@ void main() {
       // Step 4: Confirmation dialog
       expect(find.text('Schedule Task'), findsOneWidget);
       expect(find.textContaining('Recurring:'), findsOneWidget);
-      await tester.tap(find.widgetWithText(FilledButton, 'Schedule'));
+      await tester.tap(find.widgetWithText(DsButton, 'Schedule'));
       await _settle(tester);
 
       // Verification
@@ -331,7 +332,7 @@ void main() {
 
       // Step 3: Confirmation dialog is showing
       expect(find.text('Schedule Task'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Schedule'), findsOneWidget);
+      expect(find.widgetWithText(DsButton, 'Schedule'), findsOneWidget);
 
       // Simulate TOCTOU race: An event is inserted into the exact slot right before user taps "Schedule"
       await db
@@ -346,7 +347,7 @@ void main() {
           );
 
       // User confirms
-      await tester.tap(find.widgetWithText(FilledButton, 'Schedule'));
+      await tester.tap(find.widgetWithText(DsButton, 'Schedule'));
       await _settle(tester);
 
       // Assert: SnackBar shows conflict error message

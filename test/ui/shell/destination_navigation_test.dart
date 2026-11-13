@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,11 +15,13 @@ import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/providers/search_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
+import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
+import 'package:dayspark/ui/shell/spark_top_bar.dart';
 
-/// The rail is a destination switcher, not a history. Clicking the item you
-/// are already on, or bouncing between two of them, must leave exactly one
-/// page under the rail — otherwise Back grows a stack of duplicates.
+/// The bar is a destination switcher, not a history. Clicking the segment you
+/// are already on, or bouncing between pages, must leave exactly one page
+/// under the bar — otherwise Back grows a stack of duplicates.
 Widget _app(AppDatabase db) => ProviderScope(
   overrides: [databaseProvider.overrideWithValue(db)],
   child: MaterialApp.router(
@@ -46,7 +49,7 @@ Future<void> _unmount(WidgetTester tester) async {
 }
 
 String _currentUri() =>
-    AppRouter.router.routerDelegate.currentConfiguration.uri.toString();
+    AppRouter.router.routeInformationProvider.value.uri.toString();
 
 int _matchCount() =>
     AppRouter.router.routerDelegate.currentConfiguration.matches.length;
@@ -76,28 +79,58 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    await tester.tap(find.text('Calendar'));
-    await _settle(tester);
-    expect(_currentUri(), '/?tab=1');
+    Finder bar(String label) => find
+        .descendant(of: find.byType(SparkTopBar), matching: find.text(label))
+        .first;
 
-    await tester.tap(find.text('Calendar'));
-    await _settle(tester);
-    expect(_currentUri(), '/?tab=1');
+    Finder calendarTab() => find.byKey(const ValueKey('workspace-content-1'));
 
-    await tester.tap(find.text('Trash'));
+    await tester.tap(bar('Month'));
+    await _settle(tester);
+    expect(calendarTab(), findsOneWidget);
+
+    await tester.tap(bar('Month'));
+    await _settle(tester);
+    expect(calendarTab(), findsOneWidget);
+
+    AppRouter.router.go('/trash');
     await _settle(tester);
     expect(find.byType(TrashPage), findsOneWidget);
 
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(bar('Month'));
     await _settle(tester);
-    expect(_currentUri(), '/?tab=1');
+    expect(calendarTab(), findsOneWidget);
 
     expect(
       _matchCount(),
       1,
-      reason: 'four clicks between three destinations, one page under the rail',
+      reason: 'three clicks into the same destination, one page under the bar',
     );
     expect(AppRouter.router.canPop(), isFalse);
+    await _unmount(tester);
+  });
+
+  testWidgets('Ctrl K opens Search from anywhere in the workspace', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    AppRouter.router.go('/');
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    // The rail prints "Ctrl K" next to its search row; if nothing is bound the
+    // hint is a lie the user discovers by pressing it.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await _settle(tester);
+
+    expect(find.byType(SearchPage), findsOneWidget);
+    expect(AppRouter.router.routerDelegate.currentConfiguration.matches.last
+        .matchedLocation, '/search');
     await _unmount(tester);
   });
 

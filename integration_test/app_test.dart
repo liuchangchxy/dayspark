@@ -11,8 +11,10 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/main.dart' show DaySparkApp;
-import 'package:dayspark/ui/shell/workspace_sidebar.dart';
+import 'package:dayspark/ui/shell/spark_top_bar.dart';
+import 'package:dayspark/ui/widgets/schedule/day_strip.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
+import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 
 /// Real-app flows: the shipped [DaySparkApp], router, providers and database
 /// run inside the native integration harness. Each test answers one question
@@ -73,12 +75,25 @@ void main() {
   }
 
   Future<void> openTasks(WidgetTester tester) async {
+    final railEntry = find.byKey(const ValueKey('nav-todos'));
+    if (railEntry.evaluate().isNotEmpty) {
+      await tester.tap(railEntry);
+      await settle(tester);
+      return;
+    }
     await tester.tap(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byKey(const ValueKey('mobile-tab-bar')),
         matching: find.text('Tasks'),
       ),
     );
+    await settle(tester);
+  }
+
+  Future<void> showView(WidgetTester tester, String label) async {
+    final switcher = find.byKey(const ValueKey('todos-view-switch'));
+    expect(switcher, findsOneWidget);
+    await tester.tap(find.descendant(of: switcher, matching: find.text(label)));
     await settle(tester);
   }
 
@@ -95,6 +110,7 @@ void main() {
 
     await launch(tester);
     await openTasks(tester);
+    await showView(tester, 'By date');
 
     final field = find.byKey(const ValueKey('todo-quick-add'));
     expect(field, findsOneWidget);
@@ -135,14 +151,14 @@ void main() {
 
     await launch(tester);
     await openTasks(tester);
+    await showView(tester, 'By date');
 
     final weekStrip = find.byKey(const ValueKey('date-strip-week'));
     expect(weekStrip, findsOneWidget);
     expect(find.text('Today task'), findsOneWidget);
     expect(find.text('Other day task'), findsNothing);
 
-    await tester.tap(find.text('All Tasks').first);
-    await settle(tester);
+    await showView(tester, 'All Tasks');
     expect(weekStrip, findsNothing, reason: 'All is not attached to a day');
     expect(find.text('Today task'), findsOneWidget);
     expect(find.text('Other day task'), findsOneWidget);
@@ -166,11 +182,15 @@ void main() {
       reason: 'the list follows the selected day',
     );
     expect(find.text('Today task'), findsNothing);
+
+    await tester.tap(find.byKey(ValueKey(DayStrip.dayKey(today))));
+    await settle(tester);
     expect(
-      find.widgetWithText(TextButton, 'Today'),
+      find.text('Today task'),
       findsOneWidget,
-      reason: 'a selected day other than today offers a way back',
+      reason: 'the strip still offers today after browsing away',
     );
+    expect(find.text('Other day task'), findsNothing);
 
     await unmount(tester);
   });
@@ -186,20 +206,19 @@ void main() {
 
     await launch(tester, size: const Size(1440, 1000));
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(WorkspaceSidebar),
-        matching: find.text('Tasks'),
-      ),
-    );
+    await tester.tap(find.byKey(const ValueKey('nav-todos')));
     await settle(tester);
+    await showView(tester, 'By date');
 
     expect(
-      MediaQuery.sizeOf(tester.element(find.byType(WorkspaceSidebar))).width,
+      MediaQuery.sizeOf(tester.element(find.byType(SparkTopBar))).width,
       1440,
+      reason: 'the window really is as wide as the test asked for',
     );
-    final firstRow = find.byKey(Key('date-$firstId'));
-    final secondRow = find.byKey(Key('date-$secondId'));
+    // The rows have no per-todo key of their own; the title is what the user
+    // reads, so it is what the flow follows.
+    final firstRow = find.widgetWithText(TodoListTile, 'First task');
+    final secondRow = find.widgetWithText(TodoListTile, 'Second task');
     expect(firstRow, findsOneWidget);
     expect(secondRow, findsOneWidget);
 

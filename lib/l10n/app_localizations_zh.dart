@@ -96,6 +96,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get manageCalendars => '日历管理';
 
   @override
+  String get myCalendars => '我的日历';
+
+  @override
+  String get allTags => '全部标签';
+
+  @override
+  String categoryCount(int count) {
+    return '$count 个';
+  }
+
+  @override
   String get newCalendar => '新建日历';
 
   @override
@@ -188,6 +199,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get location => '地点';
 
   @override
+  String get locationHint => '添加地点';
+
+  @override
   String get startDate => '重复开始';
 
   @override
@@ -204,6 +218,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get allDay => '全天';
+
+  @override
+  String get plannedShort => '计划';
+
+  @override
+  String overdueDays(int count) {
+    return '逾期 $count 天';
+  }
+
+  @override
+  String dayItemCount(int count) {
+    return '$count 项';
+  }
+
+  @override
+  String deadlineLane(int count) {
+    return '截止（不占用时间） · $count';
+  }
+
+  @override
+  String get noPlansDay => '没有安排';
 
   @override
   String get priority => '优先级';
@@ -243,6 +278,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiConfig => 'AI 配置';
+
+  @override
+  String get aiEnable => '启用';
 
   @override
   String get aiAssistant => 'AI 助手';
@@ -326,7 +364,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get month => '月';
 
   @override
-  String get overdue => '已逾期';
+  String get overdue => '逾期';
 
   @override
   String get tomorrow => '明天';
@@ -342,6 +380,70 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get quickAdd => '快速添加';
+
+  @override
+  String get notSynced => '未同步';
+
+  @override
+  String get completedLabel => '已完成';
+
+  @override
+  String get nextOpening => '下一个空档';
+
+  @override
+  String todayStillOpen(int count) {
+    return '今天还有 $count 项';
+  }
+
+  @override
+  String durationHours(int hours) {
+    return '$hours 小时';
+  }
+
+  @override
+  String durationMinutes(int minutes) {
+    return '$minutes 分';
+  }
+
+  @override
+  String durationHoursMinutes(int hours, int minutes) {
+    return '$hours 小时 $minutes 分';
+  }
+
+  @override
+  String freeFor(String duration) {
+    return '空闲 $duration';
+  }
+
+  @override
+  String get timelineTitle => '今日时间线';
+
+  @override
+  String get scheduledLabel => '已排';
+
+  @override
+  String get freeLabel => '空闲';
+
+  @override
+  String remainingMinutes(int minutes) {
+    return '还剩 $minutes 分钟';
+  }
+
+  @override
+  String eventsAndFree(int count) {
+    return '$count 项日程';
+  }
+
+  @override
+  String get nextUp => '接下来';
+
+  @override
+  String syncedAt(String time) {
+    return '已同步 $time';
+  }
+
+  @override
+  String get meLabel => '我';
 
   @override
   String get todayEventsHeader => '今日日程';
@@ -701,6 +803,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get deleted => '已删除';
+
+  @override
+  String deletedOn(String date) {
+    return '删除于 $date';
+  }
 
   @override
   String snoozedFor(String duration) {
@@ -1154,7 +1261,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aichatNoKeyTitle => '先接上 AI';
 
   @override
-  String get aichatNoKeyHint => 'DaySpark 用你自己的 API key。去「设置 → 高级功能」填一个，再回来。';
+  String get aichatNoKeyHint => 'DaySpark 用你自己的 API key。去「设置 → AI 助手」填一个，再回来。';
 
   @override
   String get aichatSetupKey => '去填 key';
@@ -1222,7 +1329,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scheduledSection => '计划执行';
 
   @override
-  String get dueTodaySection => '今天要完成';
+  String get dueTodaySection => '今天截止';
 
   @override
   String get unplannedInbox => '未安排';
@@ -1248,7 +1355,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String deadlinePrefix(String date) {
-    return '截止：$date';
+    return '截止 $date';
   }
 
   @override
@@ -1357,6 +1464,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get actionNothingNowHint => '有日程或截止事项时，当天会出现在这里。';
+
+  @override
+  String get actionEmptyDay => '今天还没有安排';
 
   @override
   String get recurringNeedsRepair => '有重复待办需要一次性确认';
@@ -1726,5 +1836,93 @@ class AppLocalizationsZh extends AppLocalizations {
   String get moreOptions => '更多';
 
   @override
+  String get lessOptions => '收起';
+
+  @override
+  String get addTime => '添加时间';
+
+  @override
+  String get remindNone => '不提醒';
+
+  @override
+  String get notes => '备注';
+
+  @override
+  String get notesHint => '补充说明';
+
+  @override
+  String get openFullForm => '打开完整表单';
+
+  @override
+  String get moreSection => '更多';
+
+  @override
+  String get inProgress => '正在进行';
+
+  @override
+  String get executingPlan => '正在执行';
+
+  @override
   String get createCalendarFromPicker => '+ 新建日历';
+
+  @override
+  String get byDate => '按日期';
+
+  @override
+  String get showCompleted => '显示已完成';
+
+  @override
+  String get filterAndDisplay => '筛选与显示';
+
+  @override
+  String get clearFilters => '清除';
+
+  @override
+  String get allLabel => '全部';
+
+  @override
+  String get unplannedViewEmptyTitle => '没有未安排的待办';
+
+  @override
+  String get unplannedViewEmptyHint => '每个待办都已经有执行时间。想找没排期的，切到“全部待办”。';
+
+  @override
+  String get todosEmptyTitle => '这里还没有待办';
+
+  @override
+  String get todosEmptyHint => '把要做的事写下来，先不用决定什么时候做。';
+
+  @override
+  String get noPlannedExecution => '未安排';
+
+  @override
+  String get unplannedRailHint => '还没有执行时间的待办。安排一个，它今天就有位置。';
+
+  @override
+  String get unplannedRailEmpty => '所有待办都已安排。';
+
+  @override
+  String get allScheduled => '全部已安排';
+
+  @override
+  String get selectTodoPaneTitle => '选择一条待办';
+
+  @override
+  String get selectTodoPaneHint => '从左侧选择查看详情，或在顶部直接添加。';
+
+  @override
+  String filterCountLabel(int count) {
+    return '$count 项筛选';
+  }
+
+  @override
+  String todoAllContext(int count) {
+    return '共 $count 项未完成';
+  }
+
+  @override
+  String get calendarTags => '日历与标签';
+
+  @override
+  String get other => '其他';
 }

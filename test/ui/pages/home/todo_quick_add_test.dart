@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 
 GoRouter _router() => GoRouter(
@@ -87,10 +88,10 @@ void main() {
     expect(field, findsOneWidget);
     // The day view supplies a deadline, so it is stated before anything is
     // written instead of being attached silently.
-    expect(find.byType(InputChip), findsOneWidget);
+    expect(find.byType(DsChip), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byType(InputChip),
+        of: find.byType(DsChip),
         matching: find.textContaining('Deadline:'),
       ),
       findsOneWidget,
@@ -140,9 +141,12 @@ void main() {
 
     final title = find.byKey(const ValueKey('todo-quick-create-title'));
     expect(title, findsOneWidget);
-    final chip = find.descendant(
-      of: find.byType(BottomSheet),
-      matching: find.byType(InputChip),
+    final chip = find.ancestor(
+      of: find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.textContaining('Deadline:'),
+      ),
+      matching: find.byType(DsChip),
     );
     expect(chip, findsOneWidget);
     expect(
@@ -157,7 +161,7 @@ void main() {
     await _settle(tester);
 
     await tester.enterText(title, 'Visible deadline');
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.tap(find.widgetWithText(DsButton, 'Save'));
     await _settle(tester);
 
     final row = (await db.select(db.todos).get()).single;

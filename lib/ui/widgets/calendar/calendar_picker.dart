@@ -62,49 +62,56 @@ class _CalendarPickerSheet extends ConsumerWidget {
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
     final selected = selectedId ?? (calendars.isEmpty ? null : calendars.first.id);
     return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.md,
-              AppSpacing.lg,
-              AppSpacing.sm,
-            ),
-            child: Text(l.calendarField, style: AppTypography.title),
-          ),
-          for (final calendar in calendars)
-            ListTile(
-              minVerticalPadding: AppSpacing.sm,
-              leading: Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: ColorUtils.parseHex(calendar.color),
-                  shape: BoxShape.circle,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.sm,
                 ),
+                child: Text(l.calendarField, style: AppTypography.title),
               ),
-              title: Text(calendar.name),
-              trailing: calendar.id == selected
-                  ? Icon(
-                      CupertinoIcons.checkmark,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : null,
-              onTap: () => Navigator.of(context).pop(calendar.id),
-            ),
-          const Divider(height: 1),
-          ListTile(
-            minVerticalPadding: AppSpacing.sm,
-            leading: const Icon(CupertinoIcons.add, size: 18),
-            title: Text(l.createCalendarFromPicker),
-            onTap: () =>
-                Navigator.of(context).pop<Object>(_createCalendarSentinel),
+              for (final calendar in calendars)
+                ListTile(
+                  minVerticalPadding: AppSpacing.sm,
+                  leading: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: ColorUtils.parseHex(calendar.color),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  title: Text(calendar.name),
+                  trailing: calendar.id == selected
+                      ? Icon(
+                          CupertinoIcons.checkmark,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        )
+                      : null,
+                  onTap: () => Navigator.of(context).pop(calendar.id),
+                ),
+              const Divider(height: 1),
+              ListTile(
+                minVerticalPadding: AppSpacing.sm,
+                leading: const Icon(CupertinoIcons.add, size: 18),
+                title: Text(l.createCalendarFromPicker),
+                onTap: () =>
+                    Navigator.of(context).pop<Object>(_createCalendarSentinel),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

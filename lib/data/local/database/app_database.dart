@@ -56,7 +56,7 @@ class AppDatabase extends _$AppDatabase {
       await into(calendars).insert(
         CalendarsCompanion.insert(
           name: 'Personal',
-          color: const Value('#2563EB'),
+          color: const Value('#5F7183'),
         ),
       );
     },
@@ -207,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
           await into(calendars).insert(
             CalendarsCompanion.insert(
               name: 'Personal',
-              color: const Value('#2563EB'),
+              color: const Value('#5F7183'),
             ),
           );
         }

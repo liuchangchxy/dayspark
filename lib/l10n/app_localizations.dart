@@ -269,6 +269,24 @@ abstract class AppLocalizations {
   /// **'Manage Calendars'**
   String get manageCalendars;
 
+  /// No description provided for @myCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'My Calendars'**
+  String get myCalendars;
+
+  /// No description provided for @allTags.
+  ///
+  /// In en, this message translates to:
+  /// **'All Tags'**
+  String get allTags;
+
+  /// No description provided for @categoryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} total'**
+  String categoryCount(int count);
+
   /// No description provided for @newCalendar.
   ///
   /// In en, this message translates to:
@@ -449,6 +467,12 @@ abstract class AppLocalizations {
   /// **'Location'**
   String get location;
 
+  /// No description provided for @locationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add location'**
+  String get locationHint;
+
   /// No description provided for @startDate.
   ///
   /// In en, this message translates to:
@@ -484,6 +508,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All day'**
   String get allDay;
+
+  /// No description provided for @plannedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned'**
+  String get plannedShort;
+
+  /// No description provided for @overdueDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day late} other{{count} days late}}'**
+  String overdueDays(int count);
+
+  /// No description provided for @dayItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String dayItemCount(int count);
+
+  /// No description provided for @deadlineLane.
+  ///
+  /// In en, this message translates to:
+  /// **'Due (no time block) · {count}'**
+  String deadlineLane(int count);
+
+  /// No description provided for @noPlansDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing planned'**
+  String get noPlansDay;
 
   /// No description provided for @priority.
   ///
@@ -562,6 +616,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI Configuration'**
   String get aiConfig;
+
+  /// No description provided for @aiEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get aiEnable;
 
   /// No description provided for @aiAssistant.
   ///
@@ -760,6 +820,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quick add'**
   String get quickAdd;
+
+  /// No description provided for @notSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced'**
+  String get notSynced;
+
+  /// No description provided for @completedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get completedLabel;
+
+  /// No description provided for @nextOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Next opening'**
+  String get nextOpening;
+
+  /// No description provided for @todayStillOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} still open today'**
+  String todayStillOpen(int count);
+
+  /// No description provided for @durationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h'**
+  String durationHours(int hours);
+
+  /// No description provided for @durationMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String durationMinutes(int minutes);
+
+  /// No description provided for @durationHoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h {minutes} min'**
+  String durationHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @freeFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Free {duration}'**
+  String freeFor(String duration);
+
+  /// No description provided for @timelineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s timeline'**
+  String get timelineTitle;
+
+  /// No description provided for @scheduledLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get scheduledLabel;
+
+  /// No description provided for @freeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get freeLabel;
+
+  /// No description provided for @remainingMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min left'**
+  String remainingMinutes(int minutes);
+
+  /// No description provided for @eventsAndFree.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} events'**
+  String eventsAndFree(int count);
+
+  /// No description provided for @nextUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextUp;
+
+  /// No description provided for @syncedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Synced {time}'**
+  String syncedAt(String time);
+
+  /// No description provided for @meLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Me'**
+  String get meLabel;
 
   /// No description provided for @todayEventsHeader.
   ///
@@ -1426,6 +1582,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deleted'**
   String get deleted;
+
+  /// No description provided for @deletedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted on {date}'**
+  String deletedOn(String date);
 
   /// No description provided for @snoozedFor.
   ///
@@ -2420,7 +2582,7 @@ abstract class AppLocalizations {
   /// No description provided for @dueTodaySection.
   ///
   /// In en, this message translates to:
-  /// **'To do today'**
+  /// **'Due today'**
   String get dueTodaySection;
 
   /// No description provided for @unplannedInbox.
@@ -2674,6 +2836,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upcoming events and deadlines will show up here on the day.'**
   String get actionNothingNowHint;
+
+  /// No description provided for @actionEmptyDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled yet'**
+  String get actionEmptyDay;
 
   /// No description provided for @recurringNeedsRepair.
   ///
@@ -3329,11 +3497,179 @@ abstract class AppLocalizations {
   /// **'More'**
   String get moreOptions;
 
+  /// No description provided for @lessOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Less'**
+  String get lessOptions;
+
+  /// No description provided for @addTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Add time'**
+  String get addTime;
+
+  /// No description provided for @remindNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminder'**
+  String get remindNone;
+
+  /// No description provided for @notes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get notes;
+
+  /// No description provided for @notesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add notes'**
+  String get notesHint;
+
+  /// No description provided for @openFullForm.
+  ///
+  /// In en, this message translates to:
+  /// **'Open full form'**
+  String get openFullForm;
+
+  /// No description provided for @moreSection.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreSection;
+
+  /// No description provided for @inProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get inProgress;
+
+  /// No description provided for @executingPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Executing'**
+  String get executingPlan;
+
   /// No description provided for @createCalendarFromPicker.
   ///
   /// In en, this message translates to:
   /// **'+ New calendar'**
   String get createCalendarFromPicker;
+
+  /// No description provided for @byDate.
+  ///
+  /// In en, this message translates to:
+  /// **'By date'**
+  String get byDate;
+
+  /// No description provided for @showCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Show completed'**
+  String get showCompleted;
+
+  /// No description provided for @filterAndDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter & display'**
+  String get filterAndDisplay;
+
+  /// No description provided for @clearFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearFilters;
+
+  /// No description provided for @allLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allLabel;
+
+  /// No description provided for @unplannedViewEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No unplanned tasks'**
+  String get unplannedViewEmptyTitle;
+
+  /// No description provided for @unplannedViewEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Every task has a planned time. Switch to All Tasks to see everything.'**
+  String get unplannedViewEmptyHint;
+
+  /// No description provided for @todosEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks here'**
+  String get todosEmptyTitle;
+
+  /// No description provided for @todosEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write down what you need to do, no need to decide when yet.'**
+  String get todosEmptyHint;
+
+  /// No description provided for @noPlannedExecution.
+  ///
+  /// In en, this message translates to:
+  /// **'Not scheduled'**
+  String get noPlannedExecution;
+
+  /// No description provided for @unplannedRailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks without a planned time. Schedule one to give it a place in the day.'**
+  String get unplannedRailHint;
+
+  /// No description provided for @unplannedRailEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is scheduled.'**
+  String get unplannedRailEmpty;
+
+  /// No description provided for @allScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'everything scheduled'**
+  String get allScheduled;
+
+  /// No description provided for @selectTodoPaneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a task'**
+  String get selectTodoPaneTitle;
+
+  /// No description provided for @selectTodoPaneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a task on the left, or add one above.'**
+  String get selectTodoPaneHint;
+
+  /// No description provided for @filterCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} filters'**
+  String filterCountLabel(int count);
+
+  /// No description provided for @todoAllContext.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} unfinished'**
+  String todoAllContext(int count);
+
+  /// No description provided for @calendarTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar & tags'**
+  String get calendarTags;
+
+  /// No description provided for @other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get other;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -1,0 +1,1527 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DaySpark · 桌面端原型</title>
+  <link rel="stylesheet" href="../assets/tokens.css" />
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+    body { background: var(--bg); }
+
+    .workspace { display: grid; grid-template-columns: 232px minmax(0, 1fr); height: 100vh; }
+
+    /* ---------- sidebar ---------- */
+    .sidebar {
+      display: flex; flex-direction: column; min-height: 0;
+      background: var(--surface); border-right: 1px solid var(--line);
+      padding: 10px 10px 8px;
+    }
+    .brandrow { display: flex; align-items: center; gap: 8px; padding: 6px 8px 12px; }
+    .mark {
+      width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+      background: var(--primary); color: var(--on-primary); font-size: 13px; font-weight: 600;
+    }
+    .brandrow .name { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+    .brandrow .ver { font-size: 10.5px; color: var(--ink-3); }
+
+    .searchbtn {
+      display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px;
+      padding: 0 10px; margin-bottom: 10px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2);
+      color: var(--ink-3); font-size: 13px;
+    }
+    .searchbtn:hover { border-color: var(--ink-3); color: var(--ink-2); }
+    .searchbtn .key { margin-left: auto; }
+
+    .nav { display: flex; flex-direction: column; gap: 1px; }
+    .nav button {
+      display: flex; align-items: center; gap: 9px; width: 100%;
+      min-height: 34px; padding: 0 9px; border: 0; border-radius: 7px;
+      background: transparent; color: var(--ink-2); font-size: 13.5px; text-align: left;
+    }
+    .nav button:hover { background: var(--surface-2); color: var(--ink); }
+    .nav button[aria-current="page"], .nav button[aria-current="true"] { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+    .nav button .count { margin-left: auto; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+    .nav .sub { padding-left: 32px; font-size: 12.5px; }
+    .nav button.sub[aria-current="true"] { background: var(--surface-2); color: var(--ink); font-weight: 600; }
+    .nav-label { padding: 14px 9px 5px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--ink-3); }
+    .side-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-top: 4px; }
+    .side-scroll::-webkit-scrollbar { width: 8px; }
+    .side-scroll::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 8px; }
+    .calrow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 30px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-2); font-size: 12.5px; text-align: left; }
+    .calrow:hover { background: var(--surface-2); }
+    .calrow[aria-current="true"] { background: var(--primary-soft); color: var(--ink); }
+    .calrow .n { margin-left: auto; font-size: 11px; color: var(--ink-3); }
+    .sidebar-foot { border-top: 1px solid var(--line-soft); padding-top: 6px; margin-top: 6px; }
+
+    /* ---------- main ---------- */
+    .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .mainbar {
+      display: flex; align-items: center; gap: 10px;
+      min-height: 58px; padding: 0 20px; border-bottom: 1px solid var(--line-soft); background: var(--bg);
+    }
+    .mainbar h1 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
+    .mainbar .ctx { font-size: 12px; color: var(--ink-3); }
+    .mainbar .grow { flex: 1; }
+    .content { flex: 1 1 auto; min-height: 0; display: flex; }
+    .content > * { flex: 1 1 auto; min-width: 0; min-height: 0; }
+    .pane { flex: 1 1 auto; min-width: 0; overflow-y: auto; }
+    .pane::-webkit-scrollbar, .inspector::-webkit-scrollbar { width: 10px; }
+    .pane::-webkit-scrollbar-thumb, .inspector::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 8px; }
+    .inspector { flex: none; width: 388px; border-left: 1px solid var(--line); background: var(--surface); overflow-y: auto; }
+    .inspector[hidden] { display: none !important; }
+
+    .col { max-width: 760px; margin: 0 auto; padding: 12px 24px 40px; }
+
+    /* today */
+    .todaygrid { display: grid; grid-template-columns: minmax(0, 1fr) 316px; gap: 0; height: 100%; }
+    .todaygrid .col { max-width: none; margin: 0; }
+    .rail { border-left: 1px solid var(--line); padding: 14px 16px; overflow-y: auto; background: var(--bg); }
+    .rail h2 { margin: 0 0 4px; font-size: 13px; }
+    .rail .hint { font-size: 12px; color: var(--ink-3); margin-bottom: 10px; }
+    .today-side { border-left: 1px solid var(--line); background: var(--surface); overflow-y: auto; }
+    .nowcard { display: block; width: 100%; border: 0; background: transparent; text-align: left; border-left: 2px solid var(--primary); padding: 2px 0 2px 14px; cursor: pointer; }
+    .nowcard:hover { background: var(--surface-2); }
+    .nowcard .k { font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--primary); }
+    .nowcard .t { font-size: 17px; font-weight: 600; margin-top: 1px; letter-spacing: -.01em; }
+    .nowcard .m { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+    .narrow-only { display: none; }
+    .done-toggle { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: transparent; color: var(--ink-3); font-size: 12px; font-weight: 600; padding: 20px 0 4px; }
+    .done-toggle:hover { color: var(--ink); }
+    .todaygrid .row .trail { display: none; }
+    .rail .btn.sm { min-height: 32px; padding: 0 10px; }
+
+    /* list */
+    .listhead { display: flex; align-items: center; gap: 8px; padding: 12px 24px 6px; }
+    .listhead .count { color: var(--ink-3); font-size: 12px; }
+
+    /* master detail */
+    .md { display: grid; grid-template-columns: 396px minmax(0, 1fr); height: 100%; }
+    .md .listpane { border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; }
+    .md .detailpane { overflow-y: auto; min-height: 0; background: var(--surface); }
+    .quickadd { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line-soft); }
+    .quickadd input { flex: 1; min-height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; background: var(--surface); font-size: 13.5px; }
+    .quickadd input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px var(--primary-soft); }
+
+    .row.sel { background: var(--primary-soft); }
+    .row.sel .name { color: var(--primary); }
+    .row { cursor: default; border-radius: 0; }
+    .row:hover { background: var(--surface-2); }
+    .row.sel:hover { background: var(--primary-soft); }
+
+    .pane-empty { display: grid; place-items: center; height: 100%; padding: 32px; }
+    .pane-empty .pe-inner { max-width: 300px; text-align: left; color: var(--ink-3); }
+    .pane-empty .pe-icon { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-bottom: 10px; color: var(--ink-3); }
+    .pane-empty .pe-title { font-size: 15px; font-weight: 600; color: var(--ink-2); }
+    .pane-empty .pe-sub { margin-top: 4px; font-size: 13px; line-height: 1.6; }
+
+    /* calendar desktop */
+    .calwrap { display: flex; flex-direction: column; height: 100%; }
+    .caltoolbar { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-bottom: 1px solid var(--line-soft); }
+    .weekgrid { flex: 1 1 auto; overflow: auto; min-height: 0; }
+    .weekgrid .headrow { position: sticky; top: 0; z-index: 4; display: grid; grid-template-columns: 56px repeat(7, minmax(90px, 1fr)); background: var(--bg); border-bottom: 1px solid var(--line); }
+    .weekgrid .dayhead { padding: 8px 6px; text-align: center; font-size: 12px; color: var(--ink-3); }
+    .weekgrid .dayhead b { display: block; font-size: 16px; color: var(--ink); font-weight: 600; margin-top: 2px; }
+    .weekgrid .dayhead.today b { color: var(--primary); }
+    .weekgrid .body { position: relative; display: grid; grid-template-columns: 56px repeat(7, minmax(90px, 1fr)); }
+    .weekgrid .hours { position: relative; }
+    .weekgrid .hourlabel { height: 56px; font-size: 11px; color: var(--ink-3); text-align: right; padding-right: 8px; transform: translateY(-6px); }
+    .weekgrid .hourlabel:first-child { transform: none; padding-top: 1px; }
+    .weekgrid .daycol { position: relative; border-left: 1px solid var(--line); height: 784px; }
+    .weekgrid .daycol .hline { height: 56px; border-bottom: 1px solid var(--line); }
+    .weekgrid .ev { left: 3px; right: 3px; }
+    .ev {
+      position: absolute; z-index: 2; display: flex; flex-direction: column; gap: 1px;
+      padding: 4px 6px; border: 0; border-left: 3px solid var(--primary); border-radius: 6px;
+      background: var(--primary-soft); color: var(--ink); text-align: left; overflow: hidden;
+      font-size: 11.5px; line-height: 1.25;
+    }
+    .ev:hover { filter: brightness(0.97); }
+    .ev .et { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ev .em { font-size: 10.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ev.compact { padding: 2px 5px; justify-content: center; }
+    .ev.compact .em { display: none; }
+    .ev.plan { background: var(--surface-2); border-left-color: var(--ink-3); }
+    .ev.plan .et { color: var(--ink-2); }
+    .ev.multi { padding: 3px 4px; font-size: 10.5px; }
+    .ev.multi .em, .ev.multi .hollow { display: none; }
+    .ev .hollow { width: 7px; height: 7px; border: 1.5px solid var(--ink-3); border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+    .weekgrid .nowline { position: absolute; left: 0; right: 0; height: 2px; background: var(--warm); z-index: 3; pointer-events: none; }
+    .deadrow { display: grid; grid-template-columns: 56px repeat(7, minmax(90px, 1fr)); border-bottom: 1px solid var(--line); background: var(--surface); }
+    .deadrow .dh { font-size: 10px; color: var(--ink-3); text-align: right; padding: 5px 6px 0 0; }
+    .deadrow .dc { min-height: 24px; padding: 3px 5px; border-left: 1px solid var(--line); }
+    .deadrow .dt { display: block; font-size: 10.5px; line-height: 1.5; color: var(--warn); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .monthwrap { padding: 0 20px 30px; overflow: auto; }
+    .monthgrid { width: 100%; border-bottom: 1px solid var(--line-soft); }
+    .monthgrid .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .monthgrid .wd { padding: 8px 10px; font-size: 11.5px; color: var(--ink-3); border-bottom: 1px solid var(--line); }
+    .monthgrid.desktop .cell {
+      height: 96px; display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+      padding: 6px 7px; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+      background: var(--surface); cursor: pointer; min-width: 0; overflow: hidden;
+    }
+    .monthgrid.desktop .cell:hover { background: var(--surface-2); }
+    .monthgrid.desktop .cell .num { font-size: 12.5px; color: var(--ink-2); }
+    .monthgrid.desktop .cell.today .num { color: var(--primary); font-weight: 600; }
+    .monthgrid.desktop .cell .mini { display: block; width: 100%; font-size: 10.5px; color: var(--ink-2); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* settings desktop */
+    .settingsgrid { display: grid; grid-template-columns: 200px minmax(0, 1fr); height: 100%; }
+    .settingsnav { border-right: 1px solid var(--line); padding: 14px 10px; background: var(--surface); }
+    .settingsnav button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 9px 10px; border-radius: 7px; color: var(--ink-2); font-size: 13px; }
+    .settingsnav button:hover { background: var(--surface-2); }
+    .settingsnav button[aria-current="page"], .settingsnav button[aria-current="true"] { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+    .settingsbody { padding: 20px 28px 40px; overflow-y: auto; max-width: 720px; }
+    .settingsbody h2 { margin: 0 0 14px; font-size: 18px; }
+
+    /* command palette + dialog */
+    .scrim { position: fixed; inset: 0; z-index: 60; background: var(--scrim); display: grid; place-items: start center; padding-top: 10vh; }
+    .palette { width: 620px; max-width: calc(100vw - 40px); background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-2); overflow: hidden; }
+    .pal-inputrow { display: flex; align-items: center; gap: 10px; padding: 0 18px; border-bottom: 1px solid var(--line-soft); color: var(--ink-3); }
+    .pal-inputrow svg { flex: none; }
+    .palette input { flex: 1 1 auto; width: 100%; border: 0; padding: 16px 0; font-size: 15px; background: transparent; outline: none; }
+    .palette .results { max-height: 420px; overflow-y: auto; padding: 8px; }
+    .palette .pk { padding: 10px 14px 4px; font-size: 11px; color: var(--ink-3); font-weight: 600; }
+    .palette .results button { display: block; width: 100%; border: 0; background: transparent; text-align: left; border-radius: 8px; padding: 0; }
+    .palette .results button:hover, .palette .results button.sel { background: var(--surface-2); }
+    .pal-foot { display: flex; gap: 14px; padding: 9px 18px; border-top: 1px solid var(--line-soft); font-size: 11px; color: var(--ink-3); }
+    .pal-foot b { font-weight: 600; color: var(--ink-2); }
+
+    .dlg-wrap { position: fixed; inset: 0; z-index: 70; background: var(--scrim); display: grid; place-items: center; padding: 24px; }
+    .dlg { width: 560px; max-width: 100%; max-height: 86vh; overflow: hidden; display: flex; flex-direction: column; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-2); }
+    .dlg-head { display: flex; align-items: center; padding: 14px 18px 6px; }
+    .dlg-head .t { flex: 1; font-size: 16px; font-weight: 600; }
+    .dlg-body { padding: 6px 18px 4px; overflow-y: auto; }
+    .dlg-foot { display: flex; gap: 8px; padding: 12px 18px 16px; border-top: 1px solid var(--line-soft); }
+
+    .ctxmenu { position: fixed; z-index: 80; min-width: 190px; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-2); }
+    .ctxmenu button { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: transparent; padding: 8px 10px; border-radius: 6px; text-align: left; font-size: 13px; color: var(--ink); }
+    .ctxmenu button:hover { background: var(--surface-2); }
+    .ctxmenu button.danger { color: var(--danger); }
+    .ctxmenu .sep { height: 1px; background: var(--line-soft); margin: 4px 2px; }
+
+    .kvline { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+    .kvline .k { color: var(--ink-3); }
+    .detailwrap { max-width: 720px; padding: 20px 28px 40px; }
+    .subtask { display: flex; align-items: center; gap: 4px; min-height: 28px; }
+    .subtask .check { width: 28px; height: 28px; margin: 0; }
+    .subtask .check span { width: 17px; height: 17px; }
+
+    .theme-seg button { min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink-2); font-size: 12.5px; }
+    .theme-seg button:hover { border-color: var(--ink-3); }
+    .theme-seg button[aria-pressed="true"] { background: var(--primary-soft); border-color: transparent; color: var(--primary); font-weight: 600; }
+
+    @media (max-width: 1180px) {
+      .md { grid-template-columns: 340px minmax(0, 1fr); }
+      .todaygrid { grid-template-columns: minmax(0, 1fr) 280px; }
+    }
+
+    /* ---------- visual polish: dense neutral workspace ---------- */
+    .workspace { grid-template-columns: 236px minmax(0, 1fr); }
+    .sidebar { background: var(--nav-bg); border-right: 1px solid var(--line); padding: 12px 10px 8px; }
+    .brandrow { padding: 4px 8px 14px; }
+    .mark {
+      width: 24px; height: 24px; border-radius: 6px; background: var(--ink); color: var(--surface);
+      font-size: 12px; font-weight: 600; letter-spacing: 0;
+    }
+    .brandrow .name { font-size: 13.5px; font-weight: 600; letter-spacing: 0; }
+    .brandrow .ver { font-size: 10.5px; color: var(--ink-3); }
+    .searchbtn {
+      min-height: 32px; margin-bottom: 12px; padding: 0 9px;
+      border: 0; border-radius: 6px; background: var(--surface-2); color: var(--ink-3); font-size: 12.5px;
+    }
+    .searchbtn:hover { background: var(--surface-3); border: 0; color: var(--ink-2); }
+    .nav { gap: 1px; }
+    .nav button {
+      min-height: 32px; padding: 0 9px; border-radius: 6px;
+      color: var(--ink-2); font-size: 13px; font-weight: 400;
+    }
+    .nav button:hover { background: var(--surface-2); color: var(--ink); }
+    .nav button[aria-current="page"], .nav button[aria-current="true"] {
+      background: var(--surface-2); color: var(--ink); font-weight: 600;
+    }
+    .nav button .count { font-size: 11px; color: var(--ink-3); }
+    .nav .sub { padding-left: 31px; font-size: 12.5px; }
+    .nav button.sub[aria-current="true"] { background: transparent; color: var(--ink); font-weight: 600; }
+    .nav-label { padding: 16px 9px 5px; font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--ink-3); }
+    .calrow { min-height: 30px; border-radius: 6px; color: var(--ink-2); font-size: 12.5px; }
+    .calrow:hover { background: var(--surface-2); }
+    .calrow[aria-current="true"] { background: var(--surface-2); color: var(--ink); }
+    .calrow .dot { width: 6px; height: 6px; opacity: .8; }
+    .calrow .n { font-size: 10.5px; }
+    .sidebar-foot { border-top: 1px solid var(--line-soft); padding-top: 4px; margin-top: 4px; }
+
+    .mainbar { min-height: 54px; padding: 0 24px; background: var(--bg); border-bottom: 1px solid var(--line-soft); }
+    .mainbar h1 { font-size: 18px; font-weight: 600; letter-spacing: 0; }
+    .mainbar .ctx { font-size: 12px; color: var(--ink-3); }
+    .mainbar .btn.sm { min-height: 32px; border-radius: 6px; font-weight: 500; }
+    .mainbar .btn.secondary { background: transparent; }
+    .col { max-width: 720px; padding: 20px 28px 48px; }
+    .todaygrid { grid-template-columns: minmax(0, 1fr) 300px; }
+    .rail { padding: 20px 18px; background: var(--bg); border-left: 1px solid var(--line-soft); }
+    .rail h2 { margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .03em; color: var(--ink-3); }
+    .rail .hint { font-size: 12px; color: var(--ink-3); margin-bottom: 12px; }
+    .rail .row { padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+    .rail .row:last-child { border-bottom: 0; }
+    .rail .btn.ghost { opacity: 0; color: var(--ink-3); }
+    .rail .row:hover .btn.ghost, .rail .row:focus-within .btn.ghost { opacity: 1; color: var(--primary); }
+    .todaygrid .row .trail { display: none; }
+
+    .nowcard { padding: 2px 0; border-left: 0; background: transparent; }
+    .nowcard:hover { background: transparent; }
+    .nowcard .k { font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--warm); }
+    .nowcard .t { font-size: 20px; font-weight: 600; margin-top: 3px; letter-spacing: 0; line-height: 1.4; }
+    .nowcard .m { font-size: 12px; color: var(--ink-2); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+    .listhead { padding: 14px 20px 8px; }
+    .listhead .count { font-size: 11px; color: var(--ink-3); }
+    .quickadd { padding: 10px 20px; border-bottom: 1px solid var(--line-soft); }
+    .quickadd input {
+      min-height: 34px; padding: 0 10px; border: 0; border-radius: 6px;
+      background: var(--surface-2); font-size: 13px;
+    }
+    .quickadd input:focus { border: 0; box-shadow: inset 0 0 0 1px var(--primary); }
+
+    .md { grid-template-columns: 380px minmax(0, 1fr); }
+    .md .listpane { border-right: 1px solid var(--line); background: var(--bg); }
+    .md .detailpane { background: var(--surface); }
+    .md .row { padding: 10px 20px; border-bottom: 1px solid var(--line-soft); }
+    .md .row.sel { background: var(--surface-2); }
+    .md .row.sel .name { color: var(--ink); font-weight: 600; }
+    .md .row.sel:hover { background: var(--surface-2); }
+    .detailwrap { max-width: 680px; padding: 24px 32px 48px; }
+    .detailwrap h2 { font-size: 24px !important; font-weight: 600 !important; letter-spacing: 0 !important; line-height: 1.4 !important; }
+    .kvline { grid-template-columns: 84px minmax(0, 1fr); padding: 11px 0; font-size: 13px; }
+    .kvline .k { font-size: 12px; color: var(--ink-3); }
+
+    .caltoolbar { padding: 10px 24px; border-bottom: 1px solid var(--line-soft); }
+    .weekgrid .headrow { background: var(--bg); border-bottom: 1px solid var(--line); }
+    .weekgrid .dayhead { padding: 10px 6px; font-size: 11.5px; color: var(--ink-3); }
+    .weekgrid .dayhead b { font-size: 15px; font-weight: 600; color: var(--ink); margin-top: 2px; }
+    .weekgrid .dayhead.today b {
+      width: 24px; height: 24px; margin: 2px auto 0; display: grid; place-items: center;
+      border-radius: 50%; background: var(--primary); color: var(--on-primary);
+    }
+    .weekgrid .hourlabel { font-size: 10.5px; color: var(--ink-3); }
+    .weekgrid .daycol { border-left: 1px solid var(--line-soft); }
+    .weekgrid .daycol .hline { border-bottom: 1px solid var(--line-soft); }
+    .weekgrid .nowline { height: 2px; background: var(--warm); z-index: 3; }
+    .ev {
+      padding: 4px 6px; border-radius: 4px;
+      border: 0;
+      border-left: 2px solid var(--ev-color, var(--primary));
+      background: color-mix(in srgb, var(--ev-color, var(--primary)) 11%, var(--surface));
+      font-size: 11.5px; line-height: 1.3;
+    }
+    .ev:hover { filter: none; background: color-mix(in srgb, var(--ev-color, var(--primary)) 16%, var(--surface)); }
+    .ev .et { font-weight: 600; }
+    .ev .em { color: var(--ink-2); }
+    .ev.plan { background: transparent; border: 1px dashed var(--line); border-left: 2px solid var(--ink-3); }
+    .ev.plan .et { color: var(--ink-2); }
+    .deadrow { background: transparent; }
+    .deadrow .dh { font-size: 10px; color: var(--ink-3); }
+    .deadrow .dc { border-left: 1px solid var(--line-soft); }
+    .deadrow .dt { font-size: 10.5px; color: var(--warn); }
+
+    .monthwrap { padding: 0 24px 32px; }
+    .monthgrid { border-bottom: 0; }
+    .monthgrid .wd { padding: 10px; font-size: 11px; color: var(--ink-3); border-bottom: 1px solid var(--line); }
+    .monthgrid.desktop .cell {
+      height: auto; min-height: 92px; padding: 7px 8px; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+      background: var(--surface);
+    }
+    .monthgrid.desktop .cell:hover { background: var(--surface-2); }
+    .monthgrid.desktop .cell .num {
+      width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%;
+      font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums;
+    }
+    .monthgrid.desktop .cell.today .num { background: var(--primary); color: var(--on-primary); font-weight: 600; }
+    .monthgrid.desktop .cell .mini { font-size: 10.5px; color: var(--ink-2); }
+
+    .settingsgrid { grid-template-columns: 188px minmax(0, 1fr); }
+    .settingsnav { padding: 16px 10px; background: var(--bg); border-right: 1px solid var(--line-soft); }
+    .settingsnav button { padding: 8px 10px; border-radius: 6px; font-size: 13px; font-weight: 400; }
+    .settingsnav button[aria-current="page"], .settingsnav button[aria-current="true"] {
+      background: var(--surface-2); color: var(--ink); font-weight: 600;
+    }
+    .settingsbody { padding: 24px 32px 48px; max-width: 680px; }
+    .settingsbody h2 { margin-bottom: 18px; font-size: 20px; font-weight: 600; letter-spacing: 0; }
+    .settingsbody .group { border: 1px solid var(--line-soft); border-radius: 10px; }
+    .settingsbody .group .setting-row + .setting-row { border-top: 1px solid var(--line-soft); }
+    .settingsbody .setting-row { min-height: 48px; padding: 6px 16px; }
+    .settingsbody .setting-row .label { font-size: 14px; }
+    .settingsbody .setting-row .value { font-size: 12.5px; color: var(--ink-3); }
+    .settingsbody .theme-seg button { border-radius: 6px; }
+    .settingsbody .theme-seg button[aria-pressed="true"] { background: var(--surface-2); border-color: var(--line); color: var(--ink); }
+
+    .palette { border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-2); }
+    .palette .pk { font-size: 11px; letter-spacing: .04em; }
+    .palette .results button { border-radius: 6px; }
+    .dlg { border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-2); }
+    .dlg-head { padding: 16px 20px 8px; }
+    .dlg-head .t { font-size: 16px; font-weight: 600; letter-spacing: 0; }
+    .ctxmenu { border-radius: 8px; padding: 5px; }
+    .ctxmenu button { border-radius: 5px; font-size: 12.5px; padding: 7px 9px; }
+    .chip { border-radius: 6px; }
+    .btn { border-radius: 8px; font-weight: 600; }
+    .btn.sm { border-radius: 6px; }
+    .icon-btn { border-radius: 7px; }
+
+    @media (max-width: 1180px) {
+      .md { grid-template-columns: 340px minmax(0, 1fr); }
+      .todaygrid { grid-template-columns: minmax(0, 1fr) 280px; }
+    }
+    @media (max-width: 980px) {
+      .workspace { grid-template-columns: 64px minmax(0, 1fr); }
+    }
+    @media (max-width: 980px) {
+      .workspace { grid-template-columns: 64px minmax(0, 1fr); }
+      .sidebar { padding: 10px 6px; }
+      .brandrow .name, .brandrow .ver, .searchbtn span, .nav button span, .nav .count, .nav-label, .calrow span:not(.dot), .sidebar-foot .setting-label { display: none; }
+      .nav button { justify-content: center; padding: 0; }
+      .searchbtn { justify-content: center; padding: 0; }
+      .side-scroll { display: none; }
+      .md { grid-template-columns: minmax(0, 1fr); }
+      .md .detailpane { position: fixed; inset: 0 0 0 64px; z-index: 50; background: var(--surface); box-shadow: var(--shadow-2); }
+      .todaygrid { grid-template-columns: minmax(0, 1fr); }
+      .rail { display: none; }
+      .today-side { position: fixed; inset: 0 0 0 64px; z-index: 50; box-shadow: var(--shadow-2); }
+      .narrow-only { display: inline-flex; }
+    }
+
+    /* second-pass polish: center reading columns, structure the deadline lane */
+    .todaygrid { grid-template-columns: minmax(0, 1fr) 300px; }
+    .todaygrid .col { max-width: 820px; }
+    .md .row .trail { display: none; }
+    .weekgrid .daycol { border-left-color: var(--line); }
+    .weekgrid .daycol .hline { border-bottom-color: var(--line-soft); }
+    .deadrow { background: var(--bg); border-bottom: 1px solid var(--line); }
+    .deadrow .dc { min-height: 30px; padding: 5px 8px; border-left-color: var(--line-soft); }
+    .deadrow .dt { color: var(--ink-2); line-height: 1.5; }
+    .deadrow .dt::before {
+      content: ""; display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+      background: var(--warn); margin-right: 5px; vertical-align: 1px;
+    }
+    .monthgrid.desktop .cell .mini { font-size: 11px; line-height: 1.55; }
+    .monthgrid.desktop .cell .mini.more { color: var(--ink-3); }
+    .monthgrid.desktop { display: flex; flex-direction: column; height: calc(100vh - 184px); min-height: 640px; }
+    .monthgrid.desktop .week:first-child { flex: 0 0 auto; min-height: 0; }
+    .monthgrid.desktop .week { flex: 1 1 0; min-height: 92px; }
+    [data-theme="dark"] .ev {
+      background: color-mix(in srgb, var(--ev-color, var(--primary)) 17%, var(--surface));
+      border-left-color: color-mix(in srgb, var(--ev-color, var(--primary)) 60%, #fff);
+    }
+    [data-theme="dark"] .calrow .dot { filter: brightness(1.35) saturate(1.05); }
+  </style>
+</head>
+<body>
+  <div class="workspace" id="workspace"></div>
+  <div id="overlay"></div>
+  <div id="ctxmenu"></div>
+
+  <script src="../assets/icons.js"></script>
+  <script src="../assets/store.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var DS = window.DS, ic = window.icon;
+    var root = document.getElementById('workspace');
+    var overlay = document.getElementById('overlay');
+    var ctxEl = document.getElementById('ctxmenu');
+
+    var START_TAB = { '今天': 'today', '日历': 'calendar', '待办': 'todos' };
+    var view = { name: START_TAB[DS.state.settings.defaultTab] || 'today', todoView: 'unplanned', calFilter: null, calView: 'week', selectedDay: new Date(DS.NOW), monthCursor: new Date(DS.NOW.getFullYear(), DS.NOW.getMonth(), 1), settings: 'general' };
+    function applyClock() { document.documentElement.dataset.clock = DS.state.settings.timeFormat === '12 小时' ? '12' : '24'; }
+    applyClock();
+    var aiBusy = false, aiError = '', aiPrompt = '', syncBusy = false, syncMsg = '';
+    var selectedTodoId = null, selectedEventId = null, selectedCalendarId = DS.state.calendars[0].id, doneOpen = false;
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); }
+    function pad(n) { return ('0' + n).slice(-2); }
+    function localDate(d) { d = new Date(d); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+    function localDateTime(d) { d = new Date(d); return localDate(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+    function dot(id) { var c = DS.calendar(id); return '<i class="dot" style="background:' + c.color + '"></i>'; }
+    function selTodo() { return selectedTodoId ? DS.byId(DS.state.todos, selectedTodoId) : null; }
+
+    /* ---------------- sidebar ---------------- */
+    function sidebar() {
+      var un = DS.unplanned().length;
+      var todayCount = DS.todayModel().dueToday.length + DS.todayModel().overdue.length;
+      return '<aside class="sidebar">' +
+        '<div class="brandrow"><span class="mark">D</span><div><div class="name">DaySpark</div><div class="ver">v0.30 · 设计原型</div></div></div>' +
+        '<button class="searchbtn" data-act="palette">' + ic('search', 16) + '<span>搜索</span><span class="key">Ctrl K</span></button>' +
+        '<nav class="nav" aria-label="主导航">' +
+        '<button data-act="view" data-id="today" aria-current="' + (view.name === 'today') + '">' + ic('today', 17) + '<span>今天</span>' + (todayCount ? '<span class="count">' + todayCount + '</span>' : '') + '</button>' +
+        '<button data-act="view" data-id="calendar" aria-current="' + (view.name === 'calendar') + '">' + ic('calendar', 17) + '<span>日历</span></button>' +
+        '<button data-act="view" data-id="todos" aria-current="' + (view.name === 'todos') + '">' + ic('todo', 17) + '<span>待办</span><span class="count">' + DS.activeTodos().length + '</span></button>' +
+        '<button class="sub" data-act="todo-view" data-id="unplanned" aria-current="' + (view.name === 'todos' && view.todoView === 'unplanned') + '"><span>未安排</span><span class="count">' + un + '</span></button>' +
+        '<button class="sub" data-act="todo-view" data-id="all" aria-current="' + (view.name === 'todos' && view.todoView === 'all') + '"><span>全部待办</span></button>' +
+        '</nav>' +
+        '<div class="side-scroll">' +
+        '<div class="nav-label">日历</div>' +
+        DS.state.calendars.map(function (c) {
+          return '<button class="calrow" data-act="filter-cal" data-id="' + c.id + '" aria-current="' + (view.calFilter === c.id) + '"><span class="dot" style="background:' + c.color + '"></span><span class="od-truncate">' + esc(c.name) + '</span><span class="n">' + DS.activeTodos().filter(function (t) { return t.calendarId === c.id; }).length + '</span></button>';
+        }).join('') +
+        '<div class="nav-label">标签</div>' +
+        DS.state.tags.map(function (t) {
+          return '<button class="calrow" data-act="tag" data-id="' + t.id + '"><span class="dot" style="background:' + t.color + '"></span><span class="od-truncate">' + esc(t.name) + '</span></button>';
+        }).join('') +
+        '<div class="nav-label">更多</div>' +
+        '<button class="calrow" data-act="view" data-id="calendars">' + ic('calendarPlus', 15) + '<span>日历管理</span></button>' +
+        '<button class="calrow" data-act="view" data-id="trash">' + ic('trash', 15) + '<span>回收站</span><span class="n">' + DS.trashedTodos().length + '</span></button>' +
+        '</div>' +
+        '<div class="sidebar-foot"><div class="nav"><button data-act="view" data-id="settings" aria-current="' + (view.name === 'settings') + '">' + ic('settings', 17) + '<span class="setting-label">设置</span></button></div></div>' +
+        '</aside>';
+    }
+
+    /* ---------------- rows ---------------- */
+    function todoRow(t, sel) {
+      var meta = [];
+      if (t.allocation) meta.push('计划 ' + DS.fmt.time(t.allocation.start) + '–' + DS.fmt.time(t.allocation.end));
+      if (t.due) {
+        var od = !t.done && new Date(t.due) < DS.NOW && !DS.sameDay(t.due, DS.NOW);
+        meta.push((od ? '逾期 ' : '截止 ') + DS.fmt.due(t));
+      }
+      if (t.repeat) meta.push({ daily: '每天', weekly: '每周', monthly: '每月' }[t.repeat]);
+      return '<div class="row' + (sel ? ' sel' : '') + '" data-act="select-todo" data-id="' + t.id + '" tabindex="0">' +
+        '<button class="check" data-act="toggle-todo" data-id="' + t.id + '" role="checkbox" aria-checked="' + (t.done ? 'true' : 'false') + '" aria-label="完成 ' + esc(t.title) + '"><span>' + ic('check', 13) + '</span></button>' +
+        '<div class="main"><div class="name' + (t.done ? ' done' : '') + '">' + esc(t.title) + '</div>' +
+        (meta.length ? '<div class="meta">' + meta.map(function (m, i) { return '<span class="' + (m.indexOf('逾期') === 0 ? 'danger' : '') + '">' + esc(m) + '</span>'; }).join('') + '</div>' : '') +
+        '</div><div class="trail">' + dot(t.calendarId) + '</div></div>';
+    }
+
+    function eventRow(e) {
+      return '<div class="row" data-act="select-event" data-id="' + e.id + '" tabindex="0">' +
+        '<span class="evtime">' + DS.fmt.time(e.start) + '</span>' +
+        '<div class="main"><div class="name">' + esc(e.title) + '</div>' +
+        '<div class="meta"><span>' + DS.fmt.range(e.start, e.end) + '</span>' + (e.location ? '<span>' + esc(e.location) + '</span>' : '') + '</div></div>' +
+        '<div class="trail">' + dot(e.calendarId) + '</div></div>';
+    }
+
+    /* ---------------- today ---------------- */
+    function renderToday() {
+      var m = DS.todayModel();
+      var left = '<div class="col">';
+      if (m.current.length) {
+        left += m.current.map(function (item) {
+          var isPlan = item.kind === 'allocation';
+          return '<button class="nowcard" style="margin:8px 0 4px" data-act="' + (isPlan ? 'select-todo' : 'select-event') + '" data-id="' + (isPlan ? item.todo.id : item.ref.id) + '"><div class="k">' + (isPlan ? '正在执行' : '正在进行') + '</div>' +
+            '<div class="t">' + esc(isPlan ? item.todo.title : item.ref.title) + '</div>' +
+            '<div class="m">' + DS.fmt.range(item.start, item.end) + (isPlan ? ' · 计划执行' : '') + '</div></button>';
+        }).join('');
+      }
+      if (m.later.length) {
+        left += '<div class="section-label" style="padding-left:0">接下来</div>' + m.later.map(function (i) {
+          return i.kind === 'event' ? eventRow(i.ref) : allocationRow(i.todo);
+        }).join('');
+      }
+      if (m.dueToday.length) left += '<div class="section-label" style="padding-left:0">今天截止</div>' + m.dueToday.map(function (t) { return todoRow(t); }).join('');
+      if (m.overdue.length) left += '<div class="section-label danger" style="padding-left:0">已逾期</div>' + m.overdue.map(function (t) { return todoRow(t); }).join('');
+      if (m.completed.length) {
+        left += '<button class="done-toggle" data-act="toggle-done">' + ic(doneOpen ? 'chevronDown' : 'chevronRight', 14) + '已完成 ' + m.completed.length + '</button>';
+        if (doneOpen) left += m.completed.map(function (t) { return todoRow(t); }).join('');
+      }
+      if (!m.current.length && !m.later.length && !m.dueToday.length && !m.overdue.length) {
+        left += '<div class="empty"><div class="empty-title">今天没有固定安排</div><div class="empty-sub">从右侧未安排里挑一件，拖到时间轴或点“安排”。</div></div>';
+      }
+      left += '<div style="padding:18px 0 0"><button class="btn ghost narrow-only" data-act="todo-view" data-id="unplanned">查看未安排 ' + m.unplanned.length + ' 项</button></div>';
+      left += '</div>';
+
+      var right = selTodo()
+        ? '<aside class="today-side"><div style="display:flex;align-items:center;padding:8px 12px 0"><span style="flex:1;font-size:12px;color:var(--ink-3);padding-left:8px">待办详情</span><button class="icon-btn" data-act="clear-selection" aria-label="关闭详情">' + ic('close', 18) + '</button></div>' + todoInspector() + '</aside>'
+        : '<aside class="rail"><h2>未安排 · ' + m.unplanned.length + '</h2>' +
+        '<div class="hint">还没有计划执行时间的待办。</div>' +
+        (m.unplanned.slice(0, 12).map(function (t) {
+          return '<div class="row" style="padding:7px 0" data-act="select-todo" data-id="' + t.id + '">' +
+            '<div class="main"><div class="name" style="font-size:13.5px">' + esc(t.title) + '</div>' +
+            (t.due ? '<div class="meta"><span>截止 ' + esc(DS.fmt.due(t)) + '</span></div>' : '') + '</div>' +
+            '<button class="btn ghost sm" data-act="schedule" data-id="' + t.id + '">安排</button></div>';
+        }).join('') || '<div class="hint">全部待办都已经安排好时间。</div>') +
+        '</aside>';
+      return '<div class="todaygrid">' + left + right + '</div>';
+    }
+
+    function allocationRow(t) {
+      return '<div class="row" data-act="select-todo" data-id="' + t.id + '" tabindex="0">' +
+        '<span class="evtime plan">' + DS.fmt.time(t.allocation.start) + '</span>' +
+        '<div class="main"><div class="name">' + esc(t.title) + '</div>' +
+        '<div class="meta"><span>计划执行 ' + DS.fmt.range(t.allocation.start, t.allocation.end) + '</span>' +
+        (t.due ? '<span class="warn">截止 ' + esc(DS.fmt.due(t)) + '</span>' : '') + '</div></div>' +
+        '<div class="trail">' + dot(t.calendarId) + '</div></div>';
+    }
+
+    /* ---------------- todos master-detail ---------------- */
+    function visibleTodos() {
+      var list = view.todoView === 'unplanned' ? DS.unplanned() : DS.activeTodos();
+      if (view.calFilter) list = list.filter(function (t) { return t.calendarId === view.calFilter; });
+      return list;
+    }
+
+    function todoList() {
+      var list = visibleTodos();
+      var fcal = view.calFilter ? DS.calendar(view.calFilter) : null;
+      var head = '<div class="listhead"><div class="seg">' +
+        [['unplanned', '未安排'], ['all', '全部']].map(function (x) {
+          return '<button aria-selected="' + (view.todoView === x[0]) + '" data-act="todo-view" data-id="' + x[0] + '">' + x[1] + '</button>';
+        }).join('') + '</div><span style="flex:1"></span>' +
+        (fcal ? '<button class="chip on" data-act="clear-cal-filter" title="清除日历筛选"><span class="dot" style="background:' + fcal.color + '"></span>' + esc(fcal.name) + ' ×</button>' : '') +
+        '<span class="count">' + list.length + '</span></div>';
+      var add = '<div class="quickadd">' + ic('plus', 16) + '<input id="qa-input" placeholder="添加待办，回车保存" aria-label="快速添加待办"></div>';
+      var rows = list.length ? list.map(function (t) { return todoRow(t, selectedTodoId === t.id); }).join('') :
+        '<div class="empty"><div class="empty-title">没有待办</div><div class="empty-sub">用上面的输入框快速添加。</div></div>';
+      return head + add + rows;
+    }
+
+    function todoInspector() {
+      var t = selTodo();
+      if (!t) return '<div class="pane-empty"><div class="pe-inner"><span class="pe-icon">' + ic('todo', 22) + '</span><div class="pe-title">选择一条待办</div><div class="pe-sub">从左侧选择查看详情，或在顶部直接添加。</div></div></div>';
+      var cal = DS.calendar(t.calendarId);
+      var b = '<div class="detailwrap"><div class="row" style="padding:0;gap:6px;flex-wrap:wrap"><span class="chip solid"><span class="dot" style="background:' + cal.color + '"></span>' + esc(cal.name) + '</span>' +
+        (t.priority ? '<span class="chip ' + (t.priority === 3 ? 'danger' : 'warm') + '">' + ['', '低优先', '中优先', '高优先'][t.priority] + '</span>' : '') +
+        t.tags.map(function (id) { var tg = DS.tag(id); return tg ? '<span class="chip solid"><span class="dot" style="background:' + tg.color + '"></span>' + esc(tg.name) + '</span>' : ''; }).join('') +
+        '</div><h2 style="margin:12px 0 4px;font-size:22px;line-height:1.3;letter-spacing:-0.01em">' + esc(t.title) + '</h2>';
+      b += '<div class="kvline"><div class="k">截止</div><div>' + (t.due ? esc(t.dueHasTime ? DS.fmt.dateTime(t.due) : DS.fmt.md(t.due) + ' ' + DS.fmt.weekday(t.due)) : '无') + '</div></div>';
+      b += '<div class="kvline"><div class="k">计划执行</div><div>' + (t.allocation ? esc(DS.fmt.md(t.allocation.start) + ' ' + DS.fmt.range(t.allocation.start, t.allocation.end)) : '<span style="color:var(--ink-3)">未安排</span>') + '</div></div>';
+      if (t.reminders.length) b += '<div class="kvline"><div class="k">提醒</div><div>提前 ' + t.reminders[0].offset + ' 分钟</div></div>';
+      if (t.repeat) b += '<div class="kvline"><div class="k">重复</div><div>' + ({ daily: '每天', weekly: '每周', monthly: '每月' }[t.repeat] || t.repeat) + '</div></div>';
+      b += '<div class="kvline"><div class="k">子任务</div><div>' + (t.subtasks.length ? t.subtasks.map(function (s) {
+        return '<div class="subtask"><button class="check" data-act="sub-toggle" data-id="' + t.id + '" data-sub="' + s.id + '" aria-label="完成子任务"><span>' + ic('check', 10) + '</span></button><span style="' + (s.done ? 'color:var(--ink-3);text-decoration:line-through' : '') + '">' + esc(s.title) + '</span></div>';
+      }).join('') : '<span style="color:var(--ink-3)">暂无</span>') +
+        '<button class="btn ghost sm" style="margin-top:4px" data-act="add-subtask" data-id="' + t.id + '">' + ic('plus', 14) + '添加子任务</button></div></div>';
+      b += '<div class="kvline"><div class="k">备注</div><div style="white-space:pre-wrap">' + (t.notes ? esc(t.notes) : '<span style="color:var(--ink-3)">无</span>') + '</div></div>';
+      b += '<div style="display:flex;gap:8px;padding:14px 0 0;margin-top:14px;border-top:1px solid var(--line-soft);flex-wrap:wrap">' +
+        '<button class="btn" data-act="toggle-todo" data-id="' + t.id + '">' + (t.done ? '标为未完成' : '完成') + '</button>' +
+        '<button class="btn secondary" data-act="schedule" data-id="' + t.id + '">安排时间</button>' +
+        '<button class="btn ghost" data-act="edit-todo" data-id="' + t.id + '">编辑</button>' +
+        '<span style="flex:1"></span><button class="btn danger" data-act="delete-todo" data-id="' + t.id + '">删除</button></div></div>';
+      return b;
+    }
+
+    /* ---------------- calendar ---------------- */
+    function renderCalendar() {
+      var bar = '<div class="caltoolbar"><div class="seg">' +
+        [['day', '日'], ['week', '周'], ['month', '月']].map(function (x) { return '<button aria-selected="' + (view.calView === x[0]) + '" data-act="cal-view" data-id="' + x[0] + '">' + x[1] + '</button>'; }).join('') +
+        '</div><button class="btn sm secondary" data-act="cal-today">今天</button>' +
+        '<button class="icon-btn" data-act="cal-prev" aria-label="上一段">' + ic('chevronLeft', 18) + '</button>' +
+        '<button class="icon-btn" data-act="cal-next" aria-label="下一段">' + ic('chevronRight', 18) + '</button>' +
+        '</div>';
+      if (view.calView === 'month') return '<div class="calwrap">' + bar + renderMonth() + '</div>';
+      if (view.calView === 'day') return '<div class="calwrap">' + bar + renderDay() + '</div>';
+      return '<div class="calwrap">' + bar + renderWeek() + '</div>';
+    }
+
+    function monthTitle() {
+      if (view.calView === 'month') return (view.monthCursor.getMonth() + 1) + '月 ' + view.monthCursor.getFullYear();
+      return DS.fmt.md(view.selectedDay) + ' ' + DS.fmt.weekday(view.selectedDay);
+    }
+
+    function calContext() {
+      if (view.calView === 'month') return view.monthCursor.getFullYear() + '年' + (view.monthCursor.getMonth() + 1) + '月';
+      if (view.calView === 'week') { var ds = weekDays(); return DS.fmt.md(ds[0]) + ' – ' + DS.fmt.md(ds[6]); }
+      return DS.fmt.md(view.selectedDay) + ' ' + DS.fmt.weekday(view.selectedDay);
+    }
+
+    function weekDays() {
+      var base = DS.startOfDay(view.selectedDay);
+      var off = DS.weekIndex(base);
+      var start = DS.addDays(base, -off);
+      var out = [];
+      for (var i = 0; i < 7; i++) out.push(DS.addDays(start, i));
+      return out;
+    }
+
+    function layoutBlocks(blocks) {
+      blocks.sort(function (a, b) { return a.s - b.s; });
+      var out = [], cluster = [], clusterEnd = 0;
+      function flush() {
+        if (!cluster.length) return;
+        var laneEnds = [];
+        cluster.forEach(function (item) {
+          var lane = 0;
+          while (laneEnds[lane] != null && laneEnds[lane] > item.s) lane++;
+          laneEnds[lane] = item.e;
+          item.lane = lane;
+        });
+        var n = laneEnds.length;
+        cluster.forEach(function (item) { item.lanes = n; out.push(item); });
+        cluster = [];
+      }
+      blocks.forEach(function (item) {
+        if (cluster.length && item.s >= clusterEnd) flush();
+        cluster.push(item);
+        clusterEnd = Math.max(clusterEnd, item.e);
+      });
+      flush();
+      return out;
+    }
+
+    function dayBlocks(day) {
+      var blocks = [];
+      DS.eventsOn(day).forEach(function (e) { blocks.push({ kind: 'event', ref: e, s: new Date(e.start), e: new Date(e.end) }); });
+      DS.allocationsOn(day).forEach(function (t) { blocks.push({ kind: 'plan', ref: t, s: new Date(t.allocation.start), e: new Date(t.allocation.end) }); });
+      return layoutBlocks(blocks);
+    }
+
+    function blockHtml(b, START, H, minH) {
+      var top = ((b.s.getHours() + b.s.getMinutes() / 60) - START) * H;
+      var hgt = Math.max(minH, ((b.e - b.s) / 3600000) * H);
+      var width = 100 / b.lanes, left = b.lane * width;
+      var style = 'top:' + top + 'px;height:' + hgt + 'px;left:calc(' + left + '% + 3px);width:calc(' + width + '% - 6px);right:auto;';
+      if (b.kind === 'event') {
+        style += '--ev-color:' + DS.calendar(b.ref.calendarId).color + ';';
+        return '<button class="ev' + (hgt < 44 ? ' compact' : '') + (b.lanes > 1 ? ' multi' : '') + '" data-act="select-event" data-id="' + b.ref.id + '" style="' + style + '">' +
+          '<div class="et">' + esc(b.ref.title) + '</div><div class="em">' + DS.fmt.range(b.s, b.e) + '</div></button>';
+      }
+      return '<button class="ev plan' + (hgt < 44 ? ' compact' : '') + (b.lanes > 1 ? ' multi' : '') + '" data-act="select-todo" data-id="' + b.ref.id + '" style="' + style + '">' +
+        '<div class="et"><i class="hollow"></i>' + esc(b.ref.title) + '</div><div class="em">计划 · ' + DS.fmt.range(b.s, b.e) + '</div></button>';
+    }
+
+    function renderWeek() {
+      var days = weekDays();
+      var START = 8, END = 22, H = 56;
+      var head = '<div class="headrow"><div class="dayhead"></div>' + days.map(function (d) {
+        return '<div class="dayhead' + (DS.sameDay(d, DS.NOW) ? ' today' : '') + '">' + DS.fmt.weekday(d) + '<b>' + d.getDate() + '</b></div>';
+      }).join('') + '</div>';
+      var body = '<div class="body"><div class="hours">' + (function () {
+        var s = '';
+        for (var h = START; h < END; h++) s += '<div class="hourlabel">' + DS.fmt.hour(h) + '</div>';
+        return s;
+      })() + '</div>' + days.map(function (d) {
+        var col = '<div class="daycol" data-day="' + d.toISOString() + '">';
+        for (var h = 0; h < (END - START); h++) col += '<div class="hline" data-act="slot" data-day="' + d.toISOString() + '" data-hour="' + (START + h) + '"></div>';
+        dayBlocks(d).forEach(function (b) { col += blockHtml(b, START, H, 20); });
+        if (DS.sameDay(d, DS.NOW)) {
+          var mins = (DS.NOW.getHours() + DS.NOW.getMinutes() / 60 - START) * H;
+          if (mins > 0 && mins < (END - START) * H) col += '<div class="nowline" style="top:' + mins + 'px"></div>';
+        }
+        return col + '</div>';
+      }).join('') + '</div>';
+      return '<div class="weekgrid">' + head + deadlineRow(days) + body + '</div>';
+    }
+
+    function deadlineCell(day) {
+      return '<div class="dc">' + DS.dueOn(day).slice(0, 2).map(function (t) {
+        return '<span class="dt" title="' + esc(t.title) + '">' + esc(t.title) + '</span>';
+      }).join('') + '</div>';
+    }
+
+    function deadlineRow(days) {
+      return '<div class="deadrow"><div class="dh">截止</div>' + days.map(deadlineCell).join('') + '</div>';
+    }
+
+    function renderDay() {
+      var START = 8, END = 22, H = 56;
+      var d = view.selectedDay;
+      var dead = DS.dueOn(d).length
+        ? '<div class="deadrow" style="grid-template-columns:56px minmax(0,1fr)"><div class="dh">截止</div>' + deadlineCell(d) + '</div>'
+        : '';
+      return '<div class="weekgrid" style="max-width:720px">' + dead + '<div class="body" style="grid-template-columns:56px minmax(0,1fr)"><div class="hours">' +
+        (function () { var s = ''; for (var h = START; h < END; h++) s += '<div class="hourlabel">' + DS.fmt.hour(h) + '</div>'; return s; })() +
+        '</div><div class="daycol" style="height:' + ((END - START) * H) + 'px">' +
+        (function () { var s = ''; for (var h = 0; h < (END - START); h++) s += '<div class="hline" data-act="slot" data-hour="' + (START + h) + '"></div>'; return s; })() +
+        dayBlocks(d).map(function (b) { return blockHtml(b, START, H, 24); }).join('') +
+        '</div></div></div>';
+    }
+
+    function renderMonth() {
+      var cur = view.monthCursor;
+      var first = new Date(cur.getFullYear(), cur.getMonth(), 1);
+      var off = DS.weekIndex(first);
+      var gridStart = DS.addDays(first, -off);
+      var heads = DS.state.settings.weekStart === '周日' ? ['周日', '周一', '周二', '周三', '周四', '周五', '周六'] : ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+      var out = '<div class="monthwrap"><div class="monthgrid desktop"><div class="week">' + heads.map(function (h) { return '<div class="wd">' + h + '</div>'; }).join('') + '</div>';
+      for (var w = 0; w < 6; w++) {
+        out += '<div class="week">';
+        for (var d = 0; d < 7; d++) {
+          var day = DS.addDays(gridStart, w * 7 + d);
+          var evs = DS.eventsOn(day), plans = DS.allocationsOn(day);
+          var inM = day.getMonth() === cur.getMonth();
+          var items = [];
+          evs.forEach(function (e) { items.push({ text: DS.fmt.time(e.start) + ' ' + esc(e.title), cls: '' }); });
+          plans.forEach(function (t) { items.push({ text: '计划 ' + esc(t.title), cls: ' style="color:var(--ink-3)"' }); });
+          DS.dueOn(day).forEach(function (t) { items.push({ text: '截止 ' + esc(t.title), cls: ' style="color:var(--warn)"' }); });
+          var lines = items.slice(0, 3);
+          if (items.length > 3) {
+            lines = items.slice(0, 2);
+            lines.push({ text: '+' + (items.length - 2), cls: '', more: true });
+          }
+          out += '<div class="cell' + (inM ? '' : ' out') + (DS.sameDay(day, DS.NOW) ? ' today' : '') + '" data-act="pick-day" data-id="' + day.toISOString() + '" style="opacity:' + (inM ? 1 : .5) + '">' +
+            '<span class="num">' + day.getDate() + '</span>' +
+            lines.map(function (l) { return '<span class="mini' + (l.more ? ' more' : '') + '"' + l.cls + '>' + l.text + '</span>'; }).join('') +
+            '</div>';
+        }
+        out += '</div>';
+      }
+      return out + '</div></div>';
+    }
+
+    /* ---------------- settings ---------------- */
+    function renderSettings() {
+      var s = DS.state.settings;
+      var sections = [['general', '通用'], ['calendar', '日历与标签'], ['notify', '通知'], ['data', '数据'], ['sync', '同步'], ['ai', 'AI 助手'], ['about', '关于']];
+      var nav = '<div class="settingsnav">' + sections.map(function (x) {
+        return '<button data-act="settings-section" data-id="' + x[0] + '" aria-current="' + (view.settings === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>';
+      var body = '<div class="settingsbody">';
+      if (view.settings === 'general') {
+        body += '<h2>通用</h2>' +
+          '<div class="group" style="margin-left:0;margin-right:0"><div style="padding:12px 16px 8px"><div style="font-size:13px;font-weight: 600">主题</div></div>' +
+          '<div class="theme-seg" style="display:flex;gap:6px;padding:0 16px 12px">' +
+          [['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']].map(function (x) {
+            return '<button data-act="set-theme" data-id="' + x[0] + '" aria-pressed="' + (s.theme === x[0]) + '">' + x[1] + '</button>';
+          }).join('') + '</div>' +
+          '<div style="padding:4px 16px 2px;font-size:13px;font-weight: 600">主题色</div>' +
+          '<div style="display:flex;gap:6px;padding:6px 16px 14px">' +
+          [['蓝', '#2D4F7C'], ['青', '#3F6B68'], ['绿', '#4C6B55'], ['橙', '#8A5237'], ['紫', '#63556F'], ['玫红', '#85525F']].map(function (a) {
+            return '<button data-act="set-accent" data-id="' + a[1] + '" aria-pressed="' + (s.accent === a[0]) + '" aria-label="' + a[0] + '" style="width:34px;height:34px;border:0;background:transparent;display:grid;place-items:center"><i style="width:22px;height:22px;border-radius:50%;background:' + a[1] + ';display:grid;place-items:center;color:#fff;box-shadow:' + (s.accent === a[0] ? '0 0 0 2px var(--surface),0 0 0 4px var(--ink)' : 'none') + '">' + (s.accent === a[0] ? ic('check', 12) : '') + '</i></button>';
+          }).join('') + '</div></div>' +
+          '<div class="group" style="margin-left:0;margin-right:0">' +
+          '<button class="setting-row" data-act="pick-language"><span class="label">语言</span><span class="value">' + esc(s.language) + '</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="pick-default-tab"><span class="label">启动时打开</span><span class="value">' + esc(s.defaultTab) + '</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="pick-week-start"><span class="label">周起始日</span><span class="value">' + esc(s.weekStart) + '</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="pick-time-format"><span class="label">时间格式</span><span class="value">' + esc(s.timeFormat) + '</span>' + ic('chevronRight', 15) + '</button></div>';
+      } else if (view.settings === 'calendar') {
+        body += '<h2>日历与标签</h2><div class="group" style="margin-left:0;margin-right:0">' +
+          DS.state.calendars.map(function (c) {
+            return '<button class="setting-row" data-act="edit-calendar" data-id="' + c.id + '"><span class="dot" style="background:' + c.color + '"></span><span class="label">' + esc(c.name) + '</span><span class="value">' + DS.activeTodos().filter(function (t) { return t.calendarId === c.id; }).length + ' 项</span>' + ic('chevronRight', 15) + '</button>';
+          }).join('') + '</div>' +
+          '<div style="display:flex;gap:8px;margin:12px 0 24px"><button class="btn secondary" data-act="new-calendar">' + ic('plus', 16) + '新建日历</button></div>' +
+          '<h2 style="font-size:15px">标签</h2><div class="group" style="margin-left:0;margin-right:0">' +
+          DS.state.tags.map(function (t) {
+            return '<button class="setting-row" data-act="edit-tag" data-id="' + t.id + '"><span class="dot" style="background:' + t.color + '"></span><span class="label">' + esc(t.name) + '</span><span class="value">' + DS.activeTodos().filter(function (x) { return x.tags.indexOf(t.id) >= 0; }).length + ' 项</span>' + ic('chevronRight', 15) + '</button>';
+          }).join('') + '</div>' +
+          '<div style="margin-top:12px"><button class="btn secondary" data-act="new-tag">' + ic('plus', 16) + '新建标签</button></div>' +
+          '<div class="help" style="margin-top:14px">日历用于分组和颜色；把待办真正排进时间轴，请使用“计划执行”。</div>';
+      } else if (view.settings === 'notify') {
+        body += '<h2>通知</h2><div class="group" style="margin-left:0;margin-right:0">' +
+          '<div class="setting-row"><span class="label">通知权限</span><span class="value">已允许</span></div>' +
+          '<div class="setting-row"><span class="label">提醒声音</span><span class="value">系统默认</span></div>' +
+          '<div class="setting-row"><span class="label">精确闹钟</span><span class="value">已开启</span></div></div>' +
+          '<div class="help" style="margin-top:12px">通知引擎不在本次设计范围内，这里只保留用户需要理解的三项。</div>';
+      } else if (view.settings === 'data') {
+        body += '<h2>数据</h2><div class="help" style="margin-bottom:12px">日历数据交换和完整备份是两件事，分开处理。</div>' +
+          '<div class="group" style="margin-left:0;margin-right:0">' +
+          '<button class="setting-row" data-act="data-sheet" data-id="ics-in"><span class="label">导入 .ics</span><span class="value">从其他日历导入</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="data-sheet" data-id="ics-out"><span class="label">导出 .ics</span><span class="value">全部日历</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="data-sheet" data-id="backup-out"><span class="label">导出完整备份</span><span class="value">含待办与设置</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="data-sheet" data-id="backup-in"><span class="label">合并备份</span><span class="value">不清空现有数据</span>' + ic('chevronRight', 15) + '</button></div>';
+      } else if (view.settings === 'sync') {
+        var ss = DS.state.settings, authed = !!ss.syncAuthed;
+        body += '<h2>同步</h2><div class="help" style="margin-bottom:14px">使用自己的 DaySpark 同步服务器，在手机和桌面之间同步，不经过第三方云。</div>' +
+          '<div class="group" style="margin-left:0;margin-right:0">' +
+          '<button class="setting-row" data-act="sync-edit" data-id="server"><span class="label">同步服务器</span><span class="value">' + (ss.syncServer ? esc(ss.syncServer) : '未设置') + '</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="sync-edit" data-id="email"><span class="label">邮箱</span><span class="value">' + (ss.syncEmail ? esc(ss.syncEmail) : '—') + '</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="sync-edit" data-id="password"><span class="label">密码</span><span class="value">' + (ss.syncPassSet ? '已保存' : '—') + '</span>' + ic('chevronRight', 15) + '</button>' +
+          '<div class="setting-row"><span class="label">账号状态</span><span class="value">' + (authed ? '已登录' : '未登录') + '</span></div>' +
+          '<div class="setting-row"><span class="label">上次同步</span><span class="value">' + esc(ss.syncLast || '—') + '</span></div></div>' +
+          (authed
+            ? '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn" data-act="sync-now"' + (syncBusy ? ' disabled' : '') + '>' + (syncBusy ? '同步中…' : '立即同步') + '</button>' +
+              '<button class="btn ghost" data-act="sync-logout">退出登录</button></div>'
+            : '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn" data-act="sync-login">登录</button><button class="btn secondary" data-act="sync-register">注册</button></div>') +
+          (syncMsg ? '<div class="help" style="color:var(--danger);margin-top:10px">' + esc(syncMsg) + '</div>' : '') +
+          '<div class="help" style="margin-top:12px">原型只演示界面状态，不发起网络请求；密码不会以明文保存。</div>';
+      } else if (view.settings === 'ai') {
+        var as = DS.state.settings;
+        var aOn = !!as.aiEnabled, aModel = as.aiModel || '', aKey = !!as.aiKeySet;
+        var aReady = aOn && aModel && aKey;
+        body += '<h2>AI 助手</h2>' +
+          '<div class="group" style="margin-left:0;margin-right:0">' +
+          '<div class="setting-row"><span class="label">启用 AI 助手</span><button class="chip' + (aOn ? ' on' : '') + '" data-act="toggle-ai" aria-pressed="' + aOn + '">' + (aOn ? '已启用' : '已关闭') + '</button></div>' +
+          '<button class="setting-row" data-act="ai-provider"><span class="label">服务商</span><span class="value">' + esc(as.aiProvider || 'OpenAI 兼容') + '</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="ai-model"><span class="label">模型</span><span class="value">' + (aModel ? esc(aModel) : '未配置') + '</span>' + ic('chevronRight', 15) + '</button>' +
+          '<button class="setting-row" data-act="ai-key"><span class="label">API 密钥</span><span class="value">' + (aKey ? '已保存' : '未配置') + '</span>' + ic('chevronRight', 15) + '</button></div>' +
+          '<div class="help" style="margin-top:12px">' +
+          (!aOn ? '启用后，新建待办时可以用一句话生成标题、截止和提醒。'
+            : !aReady ? '还需要填写模型与 API 密钥才能使用。'
+              : '已配置 ' + esc(as.aiProvider || 'OpenAI 兼容') + ' · ' + esc(aModel) + '。') + '</div>';
+        if (aReady) {
+          body += '<div style="margin-top:18px"><div style="font-size:13px;font-weight: 600;margin-bottom:8px">试用</div>' +
+            '<input class="input" id="ai-prompt" value="' + esc(aiPrompt) + '" placeholder="例如：周五前交设计稿，提前一天提醒">' +
+            '<div style="display:flex;gap:8px;margin-top:10px;align-items:center"><button class="btn secondary" data-act="ai-try"' + (aiBusy ? ' disabled' : '') + '>' + (aiBusy ? '生成中…' : '生成待办') + '</button>' +
+            '<span class="help">' + (aiBusy ? '正在请求模型…' : aiError ? '<span style="color:var(--danger)">' + esc(aiError) + '</span>' : '原型不会把输入或密钥发送到任何服务') + '</span></div></div>';
+        }
+      } else {
+        body += '<h2>关于</h2><div class="group" style="margin-left:0;margin-right:0">' +
+          '<div class="setting-row"><span class="label">DaySpark</span><span class="value">0.30.0</span></div>' +
+          '<div class="setting-row"><span class="label">反馈</span><span class="value">—</span></div>' +
+          '<div class="setting-row"><span class="label">开源许可</span><span class="value">查看</span></div></div>';
+      }
+      return '<div class="settingsgrid">' + nav + body + '</div></div>';
+    }
+
+    /* ---------------- shell render ---------------- */
+    function render() {
+      var mainbar, content;
+      if (view.name === 'today') {
+        mainbar = '<div class="mainbar"><h1>今天</h1><span class="ctx">' + esc(DS.fmt.weekday(DS.NOW) + '，' + DS.fmt.md(DS.NOW)) + '</span><span class="grow"></span>' +
+          '<button class="btn sm secondary" data-act="new-todo">' + ic('plus', 15) + '待办</button>' +
+          '<button class="btn sm" data-act="new-event">' + ic('plus', 15) + '日程</button></div>';
+        content = renderToday();
+      } else if (view.name === 'todos') {
+        var vt = visibleTodos();
+        mainbar = '<div class="mainbar"><h1>' + (view.todoView === 'unplanned' ? '未安排' : '全部待办') + '</h1><span class="ctx">' +
+          (view.todoView === 'unplanned' ? vt.length + ' 项 · 等待安排' : '共 ' + vt.length + ' 项未完成') + '</span><span class="grow"></span>' +
+          '<button class="btn sm" data-act="new-todo">' + ic('plus', 15) + '新建待办</button></div>';
+        content = '<div class="md"><div class="listpane">' + todoList() + '</div><div class="detailpane">' + todoInspector() + '</div></div>';
+      } else if (view.name === 'calendar') {
+        mainbar = '<div class="mainbar"><h1>日历</h1><span class="ctx">' + esc(calContext()) + '</span><span class="grow"></span>' +
+          '<button class="btn sm secondary" data-act="new-todo">' + ic('plus', 15) + '待办</button>' +
+          '<button class="btn sm" data-act="new-event">' + ic('plus', 15) + '日程</button></div>';
+        content = renderCalendar();
+      } else if (view.name === 'settings') {
+        mainbar = '<div class="mainbar"><h1>设置</h1><span class="grow"></span></div>';
+        content = renderSettings();
+      } else if (view.name === 'calendars' || view.name === 'trash') {
+        mainbar = '<div class="mainbar"><h1>' + (view.name === 'calendars' ? '日历管理' : '回收站') + '</h1><span class="grow"></span></div>';
+        content = view.name === 'calendars'
+          ? '<div class="settingsbody"><div class="group" style="margin-left:0">' + DS.state.calendars.map(function (c) {
+              return '<div class="setting-row"><span class="dot" style="background:' + c.color + '"></span><span class="label">' + esc(c.name) + '</span></div>';
+            }).join('') + '</div><div style="margin-top:12px"><button class="btn secondary" data-act="new-calendar">' + ic('plus', 16) + '新建日历</button></div></div>'
+          : '<div class="settingsbody">' + (DS.trashedTodos().length ? DS.trashedTodos().map(function (t) {
+              return '<div class="row"><div class="main"><div class="name">' + esc(t.title) + '</div><div class="meta">已删除</div></div><button class="btn sm secondary" data-act="restore-todo" data-id="' + t.id + '">恢复</button></div>';
+            }).join('') : '<div class="empty"><div class="empty-title">回收站是空的</div></div>') + '</div>';
+      }
+      root.innerHTML = sidebar() + '<div class="main">' + mainbar + '<div class="content">' + content + '</div></div>';
+      if (view.name === 'todos') {
+        var qa = document.getElementById('qa-input');
+        if (qa) qa.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter' && qa.value.trim()) {
+            DS.upsertTodo({ title: qa.value.trim(), due: null, dueHasTime: false, calendarId: DS.state.calendars[0].id, priority: 0, tags: [], reminders: [], subtasks: [], allocation: null, notes: '', repeat: null });
+            qa.value = '';
+          }
+        });
+      }
+    }
+
+    /* ---------------- dialogs ---------------- */
+    var dlgOpen = false;
+    function closeDlg() { overlay.innerHTML = ''; dlgOpen = false; }
+    function dlg(title, body, foot) {
+      overlay.innerHTML = '<div class="dlg-wrap" data-act="dlg-close"><div class="dlg" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="dlg-head"><div class="t">' + esc(title) + '</div><button class="icon-btn" data-act="dlg-close" aria-label="关闭">' + ic('close', 18) + '</button></div>' +
+        '<div class="dlg-body">' + body + '</div><div class="dlg-foot">' + foot + '</div></div></div>';
+      dlgOpen = true;
+      var inp = overlay.querySelector('input, textarea');
+      if (inp) setTimeout(function () { inp.focus(); }, 30);
+    }
+
+    function categoryEditor(kind, id) {
+      var isCal = kind === 'calendar';
+      var colors = ['#4F6D8C', '#6F5D7E', '#4F7368', '#9A6248', '#8F5A68', '#6B7048'];
+      var isNew = !id;
+      var item = isNew
+        ? { id: null, name: '', color: colors[(isCal ? DS.state.calendars.length : DS.state.tags.length) % colors.length] }
+        : DS.byId(isCal ? DS.state.calendars : DS.state.tags, id);
+      if (!item) return;
+      var name = item.name, color = item.color;
+      var canDelete = !isNew && (!isCal || DS.state.calendars.length > 1);
+      var body = '<div class="field"><label for="dc-name">名称</label><input class="input" id="dc-name" value="' + esc(name) + '"></div>' +
+        '<div class="section-label" style="padding-left:0">颜色</div>' +
+        '<div style="display:flex;gap:8px;padding:4px 0 8px">' + colors.map(function (c) {
+          return '<button data-act="dc-color" data-id="' + c + '" aria-pressed="' + (color === c) + '" aria-label="颜色 ' + c + '" style="width:40px;height:40px;border:0;background:transparent;display:grid;place-items:center">' +
+            '<i style="width:26px;height:26px;border-radius:50%;background:' + c + ';display:grid;place-items:center;color:#fff;box-shadow:' + (color === c ? '0 0 0 2px var(--surface),0 0 0 4px var(--ink)' : 'none') + '">' + (color === c ? ic('check', 13) : '') + '</i></button>';
+        }).join('') + '</div>';
+      dlg(isNew ? (isCal ? '新建日历' : '新建标签') : (isCal ? '编辑日历' : '编辑标签'), body,
+        (canDelete ? '<button class="btn ghost" data-act="dc-del" style="color:var(--danger)">删除</button>' : '') +
+        '<span style="flex:1"></span><button class="btn ghost" data-act="dlg-close">取消</button><button class="btn" data-act="dc-save">保存</button>');
+      overlay.__cat = { kind: kind, id: id, color: color, isNew: isNew };
+      var inp = document.getElementById('dc-name');
+      if (inp) inp.addEventListener('input', function () { overlay.__cat.name = inp.value; });
+    }
+
+    function dataSheet(kind) {
+      var cfgs = {
+        'ics-in': { t: '导入 .ics', intro: '从其他日历导入日程。待办、标签和设置不受影响。', run: '选择文件并导入', pick: true },
+        'ics-out': { t: '导出 .ics', intro: '只导出日程，用于其他日历应用；待办与设置不包含在内。', run: '导出 .ics' },
+        'backup-out': { t: '导出完整备份', intro: '完整备份包含待办、日程、标签、日历和设置。', run: '导出备份' },
+        'backup-in': { t: '合并备份', intro: '合并备份中的内容，不删除现有数据；重复项以较新的修改为准。', run: '选择文件并合并', pick: true }
+      };
+      var c = cfgs[kind]; if (!c) return;
+      var body = '<div class="help" style="font-size:13px;line-height:1.7;margin-bottom:12px">' + esc(c.intro) + '</div>';
+      if (c.pick) body += '<div class="group" style="margin:0 0 12px"><button class="setting-row" data-act="data-pick"><span class="label">文件</span><span class="value" id="data-file">未选择</span>' + ic('file', 16) + '</button></div>';
+      if (kind.indexOf('ics') === 0) {
+        body += '<div style="font-size:12px;color:var(--ink-3);font-weight: 600;padding:4px 0 6px">日历</div><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          ['全部', '个人', '工作', '学习'].map(function (x, i) {
+            return '<button class="chip' + (i === 0 ? ' on' : '') + '" data-act="data-opt">' + x + '</button>';
+          }).join('') + '</div>';
+      }
+      if (kind === 'backup-out') {
+        body += '<div style="font-size:12px;color:var(--ink-3);font-weight: 600;padding:4px 0 6px">包含</div><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          ['待办与日程', '标签与日历', '设置', '回收站'].map(function (x, i) {
+            return '<button class="chip' + (i < 3 ? ' on' : '') + '" data-act="data-opt">' + x + '</button>';
+          }).join('') + '</div>';
+      }
+      if (kind === 'backup-in') {
+        body += '<div style="font-size:12px;color:var(--ink-3);font-weight: 600;padding:4px 0 6px">处理方式</div><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          ['合并（推荐）', '用备份替换'].map(function (x, i) {
+            return '<button class="chip' + (i === 0 ? ' on' : '') + '" data-act="data-opt">' + x + '</button>';
+          }).join('') + '</div>';
+      }
+      dlg(c.t, body, '<span style="flex:1"></span><button class="btn" data-act="data-run">' + c.run + '</button>');
+      overlay.__data = { kind: kind, file: null };
+    }
+
+    function dataSuccess() {
+      var d = overlay.__data; if (!d) return;
+      var msg = {
+        'ics-in': ['日程已导入', '这些日程已加入所选日历。'],
+        'ics-out': ['已生成 .ics', '文件包含所选日历中的日程。'],
+        'backup-out': ['备份已生成', '请把文件保存在安全的位置。'],
+        'backup-in': ['备份已合并', '现有数据保留，重复项按较新的修改合并。']
+      }[d.kind];
+      dlg('完成', '<div style="padding:18px 4px 10px"><h2 style="margin:0 0 8px;font-size:18px">' + msg[0] + '</h2><div style="font-size:13px;color:var(--ink-2);line-height:1.7">' + msg[1] + '</div></div>',
+        '<span style="flex:1"></span><button class="btn" data-act="dlg-close">完成</button>');
+      overlay.__data = d;
+    }
+
+    function textDialog(title, label, value, onSave, type) {      dlg(title, '<div class="field"><label for="text-dlg-input">' + esc(label) + '</label><input class="input" id="text-dlg-input" type="' + (type || 'text') + '" value="' + esc(value || '') + '"></div>',
+        '<button class="btn ghost" data-act="dlg-close">取消</button><span style="flex:1"></span><button class="btn" data-act="text-save">保存</button>');
+      overlay.__text = { onSave: onSave };
+      var inp = document.getElementById('text-dlg-input');
+      if (inp) {
+        inp.focus(); inp.select();
+        inp.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); var sv = overlay.querySelector('[data-act="text-save"]'); if (sv) sv.click(); }
+        });
+      }
+    }
+
+    function choiceDialog(title, items, onPick) {
+      dlg(title, '<div class="group" style="margin:0">' + items.map(function (it) {
+        return '<button class="setting-row" data-act="dlg-choice" data-id="' + esc(it.id) + '"><span style="color:var(--ink-2)">' + ic(it.icon || 'chevronRight', 18) + '</span><span class="label">' + esc(it.label) + '</span>' + (it.on ? ic('check', 15) : '') + '</button>';
+      }).join('') + '</div>', '');
+      overlay.__choice = { onPick: onPick };
+    }
+
+    function todoForm(id, prefill) {
+      var src = id ? DS.byId(DS.state.todos, id) : null;
+      var d = src ? JSON.parse(JSON.stringify(src)) : {
+        title: '', notes: '', due: (prefill && prefill.due) || null, dueHasTime: false,
+        calendarId: DS.state.calendars[0].id, priority: 0, tags: [], reminders: [], repeat: null, subtasks: [], allocation: null
+      };
+      var body = '<div class="field"><label for="d-title">标题</label><input class="input" id="d-title" value="' + esc(d.title) + '"></div>' +
+        '<div style="display:flex;gap:10px"><div class="field od-fill"><label>截止日期</label><input class="input" type="date" id="d-due" value="' + (d.due ? localDate(d.due) : '') + '"></div>' +
+        '<div class="field od-fill"><label>截止时间（可选）</label><input class="input" type="time" id="d-duetime" value="' + (d.due && d.dueHasTime ? DS.fmt.inputTime(d.due) : '') + '"></div></div>' +
+        '<div style="display:flex;gap:10px"><div class="field od-fill"><label>计划执行开始</label><input class="input" type="datetime-local" id="d-planstart" value="' + (d.allocation ? localDateTime(d.allocation.start) : '') + '"></div>' +
+        '<div class="field od-fill"><label>结束</label><input class="input" type="datetime-local" id="d-planend" value="' + (d.allocation ? localDateTime(d.allocation.end) : '') + '"></div></div>' +
+        '<div class="field"><label>所属日历</label><div style="display:flex;gap:6px;flex-wrap:wrap">' + DS.state.calendars.map(function (c) {
+          return '<button class="chip ' + (d.calendarId === c.id ? 'on' : '') + '" data-act="d-cal" data-id="' + c.id + '"><span class="dot" style="background:' + c.color + '"></span>' + esc(c.name) + '</button>';
+        }).join('') + '</div></div>' +
+        '<div class="field"><label>优先级</label><div style="display:flex;gap:6px">' + ['无', '低', '中', '高'].map(function (n, i) {
+          return '<button class="chip ' + (d.priority === i ? 'on' : '') + '" data-act="d-prio" data-id="' + i + '">' + n + '</button>';
+        }).join('') + '</div></div>' +
+        '<div class="field"><label>标签</label><div style="display:flex;gap:6px;flex-wrap:wrap">' + DS.state.tags.map(function (tg) {
+          return '<button class="chip ' + (d.tags.indexOf(tg.id) >= 0 ? 'on' : '') + '" data-act="d-tag" data-id="' + tg.id + '"><span class="dot" style="background:' + tg.color + '"></span>' + esc(tg.name) + '</button>';
+        }).join('') + '</div></div>' +
+        '<div class="field"><label>提醒</label><div style="display:flex;gap:6px;flex-wrap:wrap">' + [[0, '准时'], [10, '10 分钟'], [30, '30 分钟'], [60, '1 小时'], [-1, '无']].map(function (r) {
+          var on = r[0] === -1 ? !d.reminders.length : (d.reminders[0] && d.reminders[0].offset === r[0]);
+          return '<button class="chip ' + (on ? 'on' : '') + '" data-act="d-rem" data-id="' + r[0] + '">' + r[1] + '</button>';
+        }).join('') + '</div></div>' +
+        '<div class="field"><label for="d-notes">备注</label><textarea class="input" id="d-notes">' + esc(d.notes) + '</textarea></div>';
+      dlg(id ? '编辑待办' : '新建待办', body,
+        '<button class="btn ghost" data-act="dlg-close">取消</button><span style="flex:1"></span>' +
+        '<button class="btn" data-act="d-save" data-id="' + (id || '') + '">保存</button>');
+      overlay.__todo = d;
+    }
+
+    function eventForm(id, prefill) {
+      var src = id ? DS.byId(DS.state.events, id) : null;
+      var start = (src ? new Date(src.start) : (prefill && prefill.start) || (function () { var x = new Date(view.selectedDay); x.setHours(15, 0, 0, 0); return x; })());
+      var end = (src ? new Date(src.end) : (prefill && prefill.end) || new Date(start.getTime() + 3600000));
+      var d = src ? JSON.parse(JSON.stringify(src)) : { title: '', start: start.toISOString(), end: end.toISOString(), allDay: false, calendarId: DS.state.calendars[0].id, location: '', notes: '', reminders: [], repeat: null };
+      var body = '<div class="field"><label for="e-title">标题</label><input class="input" id="e-title" value="' + esc(d.title) + '"></div>' +
+        '<div style="display:flex;gap:10px"><div class="field od-fill"><label>日期</label><input class="input" type="date" id="e-date" value="' + localDate(d.start) + '"></div>' +
+        '<div class="field od-fill"><label>开始</label><input class="input" type="time" id="e-start" value="' + DS.fmt.inputTime(d.start) + '"></div>' +
+        '<div class="field od-fill"><label>结束</label><input class="input" type="time" id="e-end" value="' + DS.fmt.inputTime(d.end) + '"></div></div>' +
+        '<div class="field"><label>所属日历</label><div style="display:flex;gap:6px;flex-wrap:wrap">' + DS.state.calendars.map(function (c) {
+          return '<button class="chip ' + (d.calendarId === c.id ? 'on' : '') + '" data-act="e-cal" data-id="' + c.id + '"><span class="dot" style="background:' + c.color + '"></span>' + esc(c.name) + '</button>';
+        }).join('') + '</div></div>' +
+        '<div class="field"><label for="e-loc">地点</label><input class="input" id="e-loc" value="' + esc(d.location) + '"></div>' +
+        '<div class="field"><label for="e-notes">备注</label><textarea class="input" id="e-notes">' + esc(d.notes) + '</textarea></div>';
+      dlg(id ? '编辑日程' : '新建日程', body,
+        '<button class="btn ghost" data-act="dlg-close">取消</button><span style="flex:1"></span>' +
+        (id ? '<button class="btn danger" data-act="e-delete" data-id="' + id + '">删除</button>' : '') +
+        '<button class="btn" data-act="e-save" data-id="' + (id || '') + '">保存</button>');
+      overlay.__event = d;
+    }
+
+    /* ---------------- command palette ---------------- */
+    function palette() {
+      overlay.innerHTML = '<div class="dlg-wrap" style="padding-top:10vh;place-items:start center" data-act="dlg-close"><div class="palette" role="dialog" aria-modal="true" aria-label="搜索">' +
+        '<div class="pal-inputrow">' + ic('search', 18) +
+        '<input id="pal-input" placeholder="搜索待办、日程，或输入命令" aria-label="搜索"></div>' +
+        '<div class="results" id="pal-results"></div>' +
+        '<div class="pal-foot"><span><b>↑↓</b> 选择</span><span><b>Enter</b> 打开</span><span><b>Esc</b> 关闭</span></div></div></div>';
+      dlgOpen = true;
+      var input = document.getElementById('pal-input');
+      input.focus();
+      input.addEventListener('input', function () { paletteResults(input.value); });
+      input.addEventListener('keydown', function (ev) {
+        if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+          ev.preventDefault();
+          palMove(ev.key === 'ArrowDown' ? 1 : -1);
+        } else if (ev.key === 'Enter') {
+          var items = palItems();
+          if (items[palIndex]) { ev.preventDefault(); ev.stopPropagation(); items[palIndex].click(); }
+        }
+      });
+      paletteResults('');
+    }
+    var palIndex = 0;
+    function palItems() {
+      return Array.prototype.slice.call(document.querySelectorAll('#pal-results [data-act]'));
+    }
+    function palMove(dir) {
+      var items = palItems();
+      if (!items.length) return;
+      palIndex = Math.max(0, Math.min(items.length - 1, palIndex + dir));
+      items.forEach(function (el, i) { el.classList.toggle('sel', i === palIndex); });
+      items[palIndex].scrollIntoView({ block: 'nearest' });
+    }
+    function paletteResults(q) {
+      var box = document.getElementById('pal-results');
+      if (!box) return;
+      if (!q.trim()) {
+        box.innerHTML = '<div class="pk">快捷操作</div>' +
+          '<button class="nav" style="width:100%" data-act="pal-new-todo"><span style="display:flex;gap:8px;align-items:center;padding:8px 10px">' + ic('plus', 16) + '新建待办</span></button>' +
+          '<button class="nav" style="width:100%" data-act="pal-new-event"><span style="display:flex;gap:8px;align-items:center;padding:8px 10px">' + ic('calendarPlus', 16) + '新建日程</span></button>' +
+          '<button class="nav" style="width:100%" data-act="pal-view" data-id="settings"><span style="display:flex;gap:8px;align-items:center;padding:8px 10px">' + ic('settings', 16) + '打开设置</span></button>';
+        palIndex = 0;
+        var items0 = palItems();
+        if (items0[0]) items0[0].classList.add('sel');
+        return;
+      }
+      var r = DS.search(q);
+      if (!r.todos.length && !r.events.length) { box.innerHTML = '<div class="pk">没有结果</div>'; return; }
+      var html = '';
+      if (r.todos.length) html += '<div class="pk">待办 · ' + r.todos.length + '</div>' + r.todos.map(function (t) {
+        return '<button class="nav" style="width:100%" data-act="pal-todo" data-id="' + t.id + '"><span style="display:flex;flex-direction:column;align-items:flex-start;padding:8px 10px"><span style="font-size:13.5px">' + esc(t.title) + '</span><span style="font-size:11.5px;color:var(--ink-3)">' + (t.due ? '截止 ' + esc(DS.fmt.due(t)) : '无截止') + '</span></span></button>';
+      }).join('');
+      if (r.events.length) html += '<div class="pk">日程 · ' + r.events.length + '</div>' + r.events.map(function (e) {
+        return '<button class="nav" style="width:100%" data-act="pal-event" data-id="' + e.id + '"><span style="display:flex;flex-direction:column;align-items:flex-start;padding:8px 10px"><span style="font-size:13.5px">' + esc(e.title) + '</span><span style="font-size:11.5px;color:var(--ink-3)">' + DS.fmt.md(e.start) + ' ' + DS.fmt.range(e.start, e.end) + '</span></span></button>';
+      }).join('');
+      box.innerHTML = html;
+      palIndex = 0;
+      var items = palItems();
+      if (items[0]) items[0].classList.add('sel');
+    }
+
+    /* ---------------- context menu ---------------- */
+    function showCtx(x, y, todoId) {
+      var t = DS.byId(DS.state.todos, todoId);
+      if (!t) return;
+      ctxEl.innerHTML = '<div class="ctxmenu" style="left:' + x + 'px;top:' + y + 'px">' +
+        '<button data-act="ctx-toggle" data-id="' + t.id + '">' + ic('check', 14) + (t.done ? '标为未完成' : '完成') + '</button>' +
+        '<button data-act="ctx-schedule" data-id="' + t.id + '">' + ic('clock', 14) + '安排时间</button>' +
+        '<button data-act="edit-todo" data-id="' + t.id + '">' + ic('edit', 14) + '编辑</button>' +
+        '<div class="sep"></div><button class="danger" data-act="delete-todo" data-id="' + t.id + '">' + ic('trash', 14) + '移到回收站</button>' +
+        '</div>';
+      var close = function (ev) { if (!ev.target.closest('.ctxmenu')) { ctxEl.innerHTML = ''; document.removeEventListener('mousedown', close); } };
+      setTimeout(function () { document.addEventListener('mousedown', close); }, 0);
+    }
+
+    /* ---------------- events ---------------- */
+    document.addEventListener('click', function (ev) {
+      var el = ev.target.closest('[data-act]');
+      if (!el) return;
+      var act = el.getAttribute('data-act');
+      var id = el.getAttribute('data-id');
+
+      switch (act) {
+        case 'view': view.name = id; view.calFilter = null; if (id === 'calendar') selectedEventId = null; render(); return;
+        case 'todo-view': view.name = 'todos'; view.todoView = id; view.calFilter = null; render(); return;
+        case 'filter-cal':
+          view.calFilter = view.calFilter === id ? null : id;
+          view.name = 'todos'; view.todoView = 'all'; selectedTodoId = null;
+          render(); return;
+        case 'clear-cal-filter': view.calFilter = null; render(); return;
+        case 'settings-section': view.name = 'settings'; view.settings = id; render(); return;
+        case 'select-todo': selectedTodoId = id; render(); return;
+        case 'clear-selection': selectedTodoId = null; render(); return;
+        case 'toggle-done': doneOpen = !doneOpen; render(); return;
+        case 'select-event': selectedEventId = id; eventDetail(id); return;
+        case 'toggle-todo': DS.toggleTodo(id); render(); return;
+        case 'sub-toggle': {
+          var t = DS.byId(DS.state.todos, id);
+          t.subtasks.forEach(function (s) { if (s.id === el.getAttribute('data-sub')) s.done = !s.done; });
+          DS.emit(); return;
+        }
+        case 'add-subtask': {
+          var st = DS.byId(DS.state.todos, id);
+          textDialog('添加子任务', '子任务标题', '', function (stTitle) {
+            st.subtasks.push({ id: DS.uid('s'), title: stTitle, done: false });
+            DS.emit();
+          });
+          return;
+        }
+        case 'schedule': schedule(id); return;
+        case 'cal-view': view.calView = id; render(); return;
+        case 'cal-prev': moveCal(-1); return;
+        case 'cal-next': moveCal(1); return;
+        case 'cal-today': view.selectedDay = new Date(DS.NOW); view.monthCursor = new Date(DS.NOW.getFullYear(), DS.NOW.getMonth(), 1); render(); return;
+        case 'pick-day': view.selectedDay = new Date(id); view.calView = 'day'; render(); return;
+        case 'slot': {
+          var day = new Date(el.getAttribute('data-day') || view.selectedDay.toISOString());
+          var hour = +el.getAttribute('data-hour');
+          var s = new Date(day); s.setHours(hour, 0, 0, 0);
+          eventForm(null, { start: s, end: new Date(s.getTime() + 3600000) });
+          return;
+        }
+        case 'new-todo': todoForm(); return;
+        case 'new-event': eventForm(); return;
+        case 'edit-todo': todoForm(id); return;
+        case 'delete-todo':
+          if (confirm('把这条待办移到回收站？')) { DS.deleteTodo(id); if (selectedTodoId === id) selectedTodoId = null; ctxEl.innerHTML = ''; render(); }
+          return;
+        case 'restore-todo': DS.restoreTodo(id); render(); return;
+        case 'ctx-toggle': ctxEl.innerHTML = ''; DS.toggleTodo(id); return;
+        case 'ctx-schedule': ctxEl.innerHTML = ''; schedule(id); return;
+        case 'dlg-choice': {
+          var ch = overlay.__choice; if (!ch) return;
+          closeDlg();
+          if (ch.onPick) ch.onPick(id);
+          return;
+        }
+        case 'pick-language':
+          choiceDialog('语言', [
+            { id: '跟随系统', label: '跟随系统', icon: 'settings', on: DS.state.settings.language === '跟随系统' },
+            { id: '简体中文', label: '简体中文', icon: 'list', on: DS.state.settings.language === '简体中文' }
+          ], function (v) { DS.setSetting('language', v); render(); });
+          return;
+        case 'pick-default-tab':
+          choiceDialog('启动时打开', [
+            { id: '今天', label: '今天', icon: 'today', on: DS.state.settings.defaultTab === '今天' },
+            { id: '日历', label: '日历', icon: 'calendar', on: DS.state.settings.defaultTab === '日历' },
+            { id: '待办', label: '待办', icon: 'todo', on: DS.state.settings.defaultTab === '待办' }
+          ], function (v) { DS.setSetting('defaultTab', v); render(); });
+          return;
+        case 'pick-week-start':
+          choiceDialog('周起始日', [
+            { id: '周一', label: '周一', icon: 'calendar', on: DS.state.settings.weekStart === '周一' },
+            { id: '周日', label: '周日', icon: 'calendar', on: DS.state.settings.weekStart === '周日' }
+          ], function (v) { DS.setSetting('weekStart', v); render(); });
+          return;
+        case 'pick-time-format':
+          choiceDialog('时间格式', [
+            { id: '24 小时', label: '24 小时（14:30）', icon: 'clock', on: DS.state.settings.timeFormat === '24 小时' },
+            { id: '12 小时', label: '12 小时（2:30 PM）', icon: 'clock', on: DS.state.settings.timeFormat === '12 小时' }
+          ], function (v) { DS.setSetting('timeFormat', v); applyClock(); render(); });
+          return;
+        case 'dlg-close':
+          if (el.classList.contains('dlg-wrap')) { if (ev.target === el) closeDlg(); }
+          else closeDlg();
+          return;
+
+        case 'd-cal': overlay.__todo.calendarId = id;
+          markChips('[data-act="d-cal"]', function (x) { return x === id; }); return;
+        case 'd-prio': overlay.__todo.priority = +id;
+          markChips('[data-act="d-prio"]', function (x) { return +x === overlay.__todo.priority; }); return;
+        case 'd-tag': {
+          var ti = overlay.__todo.tags.indexOf(id);
+          if (ti >= 0) overlay.__todo.tags.splice(ti, 1); else overlay.__todo.tags.push(id);
+          markChips('[data-act="d-tag"]', function (x) { return overlay.__todo.tags.indexOf(x) >= 0; });
+          return;
+        }
+        case 'd-rem': {
+          var off = +id;
+          overlay.__todo.reminders = off < 0 ? [] : [{ id: DS.uid('r'), offset: off }];
+          markChips('[data-act="d-rem"]', function (x) {
+            return +x === -1 ? !overlay.__todo.reminders.length : (overlay.__todo.reminders[0] && overlay.__todo.reminders[0].offset === +x);
+          });
+          return;
+        }
+        case 'd-save': {
+          var d = overlay.__todo;
+          var title = document.getElementById('d-title');
+          if (!title || !title.value.trim()) { alert('请先写一个标题'); return; }
+          d.title = title.value.trim();
+          var notes = document.getElementById('d-notes'); d.notes = notes ? notes.value : '';
+          var due = document.getElementById('d-due');
+          var dueT = document.getElementById('d-duetime');
+          if (due && due.value) {
+            var p = due.value.split('-');
+            var dt = new Date(+p[0], +p[1] - 1, +p[2], 0, 0, 0, 0);
+            d.dueHasTime = !!(dueT && dueT.value);
+            if (d.dueHasTime) { var tp = dueT.value.split(':'); dt.setHours(+tp[0], +tp[1], 0, 0); }
+            d.due = dt.toISOString();
+          } else { d.due = null; d.dueHasTime = false; }
+          var ps = document.getElementById('d-planstart');
+          var pe = document.getElementById('d-planend');
+          if (ps && ps.value && pe && pe.value) d.allocation = { start: new Date(ps.value).toISOString(), end: new Date(pe.value).toISOString() };
+          else d.allocation = null;
+          DS.upsertTodo(d); closeDlg(); render(); return;
+        }
+        case 'e-cal': overlay.__event.calendarId = id;
+          markChips('[data-act="e-cal"]', function (x) { return x === id; }); return;
+        case 'e-save': {
+          var ev = overlay.__event;
+          var t2 = document.getElementById('e-title');
+          if (!t2 || !t2.value.trim()) { alert('请先写一个标题'); return; }
+          ev.title = t2.value.trim();
+          var date = document.getElementById('e-date'), st = document.getElementById('e-start'), en = document.getElementById('e-end');
+          var dp = date.value.split('-'), sp = st.value.split(':'), ep = en.value.split(':');
+          var sd = new Date(+dp[0], +dp[1] - 1, +dp[2], +sp[0], +sp[1], 0, 0);
+          var ed = new Date(+dp[0], +dp[1] - 1, +dp[2], +ep[0], +ep[1], 0, 0);
+          if (ed <= sd) { alert('结束时间需要晚于开始时间'); return; }
+          ev.start = sd.toISOString(); ev.end = ed.toISOString();
+          var loc = document.getElementById('e-loc'); ev.location = loc ? loc.value : '';
+          var nt = document.getElementById('e-notes'); ev.notes = nt ? nt.value : '';
+          DS.upsertEvent(ev); closeDlg(); render(); return;
+        }
+        case 'e-delete': if (confirm('删除这个日程？')) { DS.deleteEvent(id); closeDlg(); render(); } return;
+
+        case 'palette': palette(); return;
+        case 'pal-new-todo': closeDlg(); todoForm(); return;
+        case 'pal-new-event': closeDlg(); eventForm(); return;
+        case 'pal-view': closeDlg(); view.name = id; render(); return;
+        case 'pal-todo': closeDlg(); view.name = 'todos'; view.todoView = 'all'; selectedTodoId = id; render(); return;
+        case 'pal-event': closeDlg(); view.name = 'calendar'; view.selectedDay = new Date(DS.byId(DS.state.events, id).start); render(); return;
+
+        case 'set-theme': {
+          DS.setSetting('theme', id);
+          var dark = id === 'dark' || (id === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+          render(); return;
+        }
+        case 'set-accent': {
+          var map = { '#2D4F7C': '蓝', '#3F6B68': '青', '#4C6B55': '绿', '#8A5237': '橙', '#63556F': '紫', '#85525F': '玫红' };
+          DS.setSetting('accent', map[id]);
+          document.documentElement.style.setProperty('--primary', id);
+          render(); return;
+        }
+        case 'new-calendar': categoryEditor('calendar', null); return;
+        case 'new-tag': categoryEditor('tag', null); return;
+        case 'toggle-ai':
+          aiError = '';
+          DS.setSetting('aiEnabled', !DS.state.settings.aiEnabled); return;
+        case 'ai-provider':
+          dlg('服务商', '<div class="od-stack" style="display:flex;flex-direction:column;gap:6px">' +
+            ['OpenAI 兼容', 'Anthropic', '自定义端点'].map(function (p) {
+              return '<button class="setting-row" data-act="ai-pick" data-id="' + p + '"><span class="label">' + p + '</span>' +
+                ((DS.state.settings.aiProvider || 'OpenAI 兼容') === p ? ic('check', 16) : '') + '</button>';
+            }).join('') + '</div>', '<button class="btn ghost" data-act="dlg-close">关闭</button>');
+          return;
+        case 'ai-pick':
+          closeDlg(); DS.setSetting('aiProvider', id); return;
+        case 'ai-model':
+          textDialog('模型', '模型名称', DS.state.settings.aiModel || '', function (v) {
+            if (v) { aiError = ''; DS.setSetting('aiModel', v); }
+          }); return;
+        case 'ai-key':
+          textDialog('API 密钥', '密钥（仅本次原型，不保存明文）', '', function (v) {
+            if (v) { aiError = ''; DS.setSetting('aiKeySet', true); }
+          }, 'password'); return;
+        case 'ai-try': {
+          var ap2 = document.getElementById('ai-prompt');
+          if (!ap2 || !ap2.value.trim()) { aiError = '请先写一句要生成的内容。'; render(); return; }
+          aiPrompt = ap2.value.trim();
+          aiBusy = true; aiError = ''; render();
+          setTimeout(function () {
+            if (view.name !== 'settings' || view.settings !== 'ai') return;
+            aiBusy = false;
+            aiError = '连接失败：原型未接入模型服务。';
+            render();
+          }, 900);
+          return;
+        }
+        case 'sync-edit': {
+          var sst = DS.state.settings;
+          if (id === 'password') textDialog('同步密码', '密码', '', function (v) { if (v) DS.setSetting('syncPassSet', true); }, 'password');
+          else if (id === 'server') textDialog('同步服务器', '服务器地址', sst.syncServer || '', function (v) { DS.setSetting('syncServer', v); }, 'url');
+          else textDialog('邮箱', '邮箱地址', sst.syncEmail || '', function (v) { DS.setSetting('syncEmail', v); }, 'email');
+          return;
+        }
+        case 'sync-login': {
+          var sl2 = DS.state.settings;
+          syncMsg = '';
+          if (!sl2.syncServer || !sl2.syncEmail || !sl2.syncPassSet) {
+            syncMsg = '请先填写服务器、邮箱和密码。'; render(); return;
+          }
+          syncBusy = true; render();
+          setTimeout(function () {
+            if (view.name !== 'settings' || view.settings !== 'sync') return;
+            syncBusy = false;
+            DS.setSetting('syncAuthed', true);
+            DS.setSetting('syncLast', '尚未同步');
+          }, 700);
+          return;
+        }
+        case 'sync-register':
+          syncMsg = '注册需要同步服务器支持；当前原型未连接服务器。';
+          render(); return;
+        case 'sync-now':
+          syncBusy = true; syncMsg = ''; render();
+          setTimeout(function () {
+            if (view.name !== 'settings' || view.settings !== 'sync') return;
+            syncBusy = false;
+            DS.setSetting('syncLast', '刚刚');
+          }, 900);
+          return;
+        case 'sync-logout':
+          syncBusy = false; syncMsg = '';
+          DS.setSetting('syncAuthed', false); return;
+
+        case 'data-sheet': dataSheet(id); return;
+        case 'data-pick': {
+          var ddp = overlay.__data; if (!ddp) return;
+          ddp.file = ddp.kind === 'ics-in' ? '家人共享.ics' : 'dayspark-backup-2026-11-10.json';
+          var df = document.getElementById('data-file'); if (df) df.textContent = ddp.file;
+          return;
+        }
+        case 'data-opt': {
+          var ddo = overlay.__data; if (!ddo) return;
+          if (ddo.kind === 'backup-out') { el.classList.toggle('on'); }
+          else {
+            Array.prototype.forEach.call(el.parentNode.querySelectorAll('[data-act="data-opt"]'), function (b) { b.classList.remove('on'); });
+            el.classList.add('on');
+          }
+          return;
+        }
+        case 'data-run': {
+          var ddr = overlay.__data; if (!ddr) return;
+          var need = ddr.kind === 'ics-in' || ddr.kind === 'backup-in';
+          if (need && !ddr.file) {
+            ddr.file = ddr.kind === 'ics-in' ? '家人共享.ics' : 'dayspark-backup-2026-11-10.json';
+            var df2 = document.getElementById('data-file'); if (df2) df2.textContent = ddr.file;
+            return;
+          }
+          dataSuccess(); return;
+        }
+        case 'edit-calendar': categoryEditor('calendar', id); return;
+        case 'edit-tag': categoryEditor('tag', id); return;
+        case 'dc-color': {
+          var dcc = overlay.__cat; if (!dcc) return;
+          dcc.color = id;
+          Array.prototype.forEach.call(overlay.querySelectorAll('[data-act="dc-color"]'), function (btn) {
+            var on = btn.getAttribute('data-id') === id;
+            btn.setAttribute('aria-pressed', String(on));
+            var sw = btn.querySelector('i');
+            if (sw) { sw.style.boxShadow = on ? '0 0 0 2px var(--surface),0 0 0 4px var(--ink)' : 'none'; sw.innerHTML = on ? ic('check', 13) : ''; }
+          });
+          return;
+        }
+        case 'dc-save': {
+          var dcs = overlay.__cat; if (!dcs) return;
+          var dname = (document.getElementById('dc-name') || {}).value || dcs.name;
+          dname = dname.trim(); if (!dname) return;
+          if (dcs.kind === 'calendar') {
+            if (dcs.isNew) DS.addCalendar(dname, dcs.color); else DS.updateCalendar(dcs.id, { name: dname, color: dcs.color });
+          } else {
+            if (dcs.isNew) DS.addTag(dname, dcs.color); else DS.updateTag(dcs.id, { name: dname, color: dcs.color });
+          }
+          closeDlg(); render(); return;
+        }
+        case 'dc-del': {
+          var dcd = overlay.__cat; if (!dcd) return;
+          var dn = document.getElementById('dc-name');
+          if (dn && dn.value.trim()) dcd.name = dn.value.trim();
+          dlg('确认删除', '<div class="help" style="font-size:13.5px">删除“' + esc(dcd.name) + '”？' +
+            (dcd.kind === 'calendar' ? '其中的待办和日程会移到另一个日历。' : '待办上的这个标签会被移除。') + '</div>',
+            '<button class="btn ghost" data-act="dlg-close">取消</button><span style="flex:1"></span><button class="btn danger" data-act="dc-confirm">删除</button>');
+          return;
+        }
+        case 'dc-confirm': {
+          var dcf = overlay.__cat; if (!dcf) return;
+          if (dcf.kind === 'calendar') DS.deleteCalendar(dcf.id); else DS.deleteTag(dcf.id);
+          closeDlg(); render(); return;
+        }
+        case 'text-save': {
+          var tp = overlay.__text;
+          var tin = document.getElementById('text-dlg-input');
+          var tv = tin ? tin.value.trim() : '';
+          if (!tp || !tv) return;
+          closeDlg(); tp.onSave(tv);
+          return;
+        }
+        default: return;
+      }
+    });
+
+    function markChips(sel, isOn) {
+      overlay.querySelectorAll(sel).forEach(function (b) {
+        b.classList.toggle('on', !!isOn(b.getAttribute('data-id')));
+      });
+    }
+
+    function moveCal(dir) {
+      if (view.calView === 'month') {
+        view.monthCursor = new Date(view.monthCursor.getFullYear(), view.monthCursor.getMonth() + dir, 1);
+      } else {
+        view.selectedDay = DS.addDays(view.selectedDay, dir * (view.calView === 'week' ? 7 : 1));
+        view.monthCursor = new Date(view.selectedDay.getFullYear(), view.selectedDay.getMonth(), 1);
+      }
+      render();
+    }
+
+    function eventDetail(id) {
+      var e = DS.byId(DS.state.events, id);
+      if (!e) return;
+      var b = '<div style="padding:16px 20px"><div class="chip solid"><span class="dot" style="background:' + DS.calendar(e.calendarId).color + '"></span>' + esc(DS.calendar(e.calendarId).name) + '</div>' +
+        '<h2 style="margin:10px 0 4px;font-size:20px">' + esc(e.title) + '</h2>' +
+        '<div style="font-size:13px;color:var(--ink-2)">' + esc(DS.fmt.md(e.start) + ' ' + DS.fmt.weekday(e.start)) + ' · ' + DS.fmt.range(e.start, e.end) + '</div>' +
+        (e.location ? '<div class="kvline"><div class="k">地点</div><div>' + esc(e.location) + '</div></div>' : '') +
+        (e.notes ? '<div class="kvline"><div class="k">备注</div><div style="white-space:pre-wrap">' + esc(e.notes) + '</div></div>' : '') +
+        '</div>';
+      dlg('日程详情', b, '<button class="btn ghost" data-act="dlg-close">关闭</button><span style="flex:1"></span>' +
+        '<button class="btn" data-act="edit-event" data-id="' + e.id + '">编辑</button>' +
+        '<button class="btn danger" data-act="delete-event" data-id="' + e.id + '">删除</button>');
+    }
+
+    function schedule(id) {
+      var t = DS.byId(DS.state.todos, id);
+      if (!t) return;
+      var d = new Date(DS.NOW); d.setHours(15, 0, 0, 0);
+      var body = '<div class="field"><label>开始</label><input class="input" type="datetime-local" id="s-start" value="' + localDateTime(d) + '"></div>' +
+        '<div class="field"><label>结束</label><input class="input" type="datetime-local" id="s-end" value="' + localDateTime(new Date(d.getTime() + 3600000)) + '"></div>' +
+        '<div class="help">计划执行会出现在日历和今天里，它不改变截止日期。</div>';
+      dlg('安排时间 · ' + t.title, body, '<button class="btn ghost" data-act="dlg-close">取消</button><span style="flex:1"></span><button class="btn" data-act="s-save" data-id="' + id + '">确定</button>');
+    }
+
+    document.addEventListener('click', function (ev) {
+      var el = ev.target.closest('[data-act]');
+      if (!el) return;
+      if (el.getAttribute('data-act') === 's-save') {
+        var t = DS.byId(DS.state.todos, el.getAttribute('data-id'));
+        var s = document.getElementById('s-start').value;
+        var e2 = document.getElementById('s-end').value;
+        t.allocation = { start: new Date(s).toISOString(), end: new Date(e2).toISOString() };
+        DS.emit(); closeDlg(); render();
+      }
+      if (el.getAttribute('data-act') === 'delete-event') {
+        if (confirm('删除这个日程？')) { DS.deleteEvent(el.getAttribute('data-id')); closeDlg(); render(); }
+      }
+      if (el.getAttribute('data-act') === 'edit-event') { var eid = el.getAttribute('data-id'); closeDlg(); eventForm(eid); }
+    });
+
+    document.addEventListener('contextmenu', function (ev) {
+      var row = ev.target.closest('[data-act="select-todo"]');
+      if (!row) return;
+      ev.preventDefault();
+      showCtx(ev.clientX, ev.clientY, row.getAttribute('data-id'));
+    });
+
+    document.addEventListener('keydown', function (ev) {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); palette(); return; }
+      if (ev.key === 'Escape') { if (dlgOpen) closeDlg(); ctxEl.innerHTML = ''; return; }
+      if (ev.key === 'Enter' && dlgOpen) {
+        var save = overlay.querySelector('[data-act$="-save"]');
+        if (save) { ev.preventDefault(); save.click(); }
+      }
+      if (!dlgOpen && ev.key.toLowerCase() === 'n' && !/input|textarea/i.test(document.activeElement.tagName)) { ev.preventDefault(); todoForm(); }
+    });
+
+    DS.subscribe(function () { render(); });
+
+    (function () {
+      var ACCENT = { '蓝': '#2D4F7C', '青': '#3F6B68', '绿': '#4C6B55', '橙': '#8A5237', '紫': '#63556F', '玫红': '#85525F' };
+      if (ACCENT[DS.state.settings.accent]) document.documentElement.style.setProperty('--primary', ACCENT[DS.state.settings.accent]);
+      var mode = DS.state.settings.theme;
+      var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    })();
+
+    render();
+  })();
+  </script>
+</body>
+</html>

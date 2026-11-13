@@ -5,8 +5,10 @@ import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/utils/version_compare.dart';
 
 class AboutPage extends StatefulWidget {
@@ -119,71 +121,79 @@ class _AboutPageState extends State<AboutPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
+    final ds = context.ds;
 
     return WorkspacePage(
       title: l.about,
       maxContentWidth: 640,
       child: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.s4,
+          AppSpacing.s6,
+          AppSpacing.s4,
+          AppSpacing.s8,
+        ),
         children: [
-          Icon(
-            CupertinoIcons.calendar_badge_plus,
-            size: 80,
-            color: theme.colorScheme.primary,
+          Center(
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: ds.primary,
+                borderRadius: BorderRadius.circular(AppRadii.lg),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                'D',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w600,
+                  color: ds.onPrimary,
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.s3),
           Text(
             'DaySpark',
             textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: ds.ink,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.s1),
           Text(
             '${l.currentVersion}: v$_currentVersion'
             '${_currentBuild.isEmpty ? '' : ' ($_currentBuild)'}',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall,
+            style: TextStyle(fontSize: 12, color: ds.ink3),
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-              onPressed: _checking ? null : _checkUpdate,
-              icon: _checking
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    )
-                  : const Icon(CupertinoIcons.arrow_down_circle, size: 18),
-              label: Text(l.checkUpdate),
-            ),
+          const SizedBox(height: AppSpacing.s5),
+          DsButton(
+            label: l.checkUpdate,
+            icon: CupertinoIcons.arrow_down_circle,
+            expand: true,
+            loading: _checking,
+            onPressed: _checking ? null : _checkUpdate,
           ),
           if (_error != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.s3),
             Text(
               _error!,
-              style: TextStyle(
-                color: theme.colorScheme.error,
-                fontSize: AppTypography.caption.fontSize,
-              ),
+              style: TextStyle(fontSize: 12, color: ds.danger),
             ),
           ],
           if (_latestRelease != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.s3),
             if (_hasUpdate) ...[
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.s4),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  color: ds.tint(ds.primary),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  border: Border.all(color: ds.line),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,92 +202,90 @@ class _AboutPageState extends State<AboutPage> {
                       children: [
                         Icon(
                           CupertinoIcons.arrow_down_circle_fill,
-                          color: theme.colorScheme.primary,
-                          size: 20,
+                          color: ds.primary,
+                          size: 18,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.s2),
                         Flexible(
                           child: Text(
                             l.newVersionAvailable(
                               _latestRelease!['tag_name'] as String? ?? '',
                             ),
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: ds.primary,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.s3),
                     Text(
                       _latestRelease!['body'] as String? ?? '',
-                      style: theme.textTheme.bodySmall,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.55,
+                        color: ds.ink2,
+                      ),
                       maxLines: 8,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.s3),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: FilledButton(
+                      child: DsButton(
+                        label: l.openUpdatePage,
+                        small: true,
                         onPressed: () {
                           final htmlUrl =
                               _latestRelease!['html_url'] as String? ?? '';
                           if (htmlUrl.isNotEmpty) _openUrl(htmlUrl);
                         },
-                        child: Text(l.openUpdatePage),
                       ),
                     ),
                   ],
                 ),
               ),
-            ] else ...[
-              Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      CupertinoIcons.checkmark_circle_fill,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 20,
+            ] else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    CupertinoIcons.checkmark_circle_fill,
+                    color: ds.success,
+                    size: 18,
+                  ),
+                  const SizedBox(width: AppSpacing.s2),
+                  Text(
+                    l.upToDate,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: ds.success,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      l.upToDate,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
           ],
-          const SizedBox(height: 32),
-          const Divider(),
-          const SizedBox(height: 16),
-          ListTile(
-            leading: const Icon(CupertinoIcons.star),
-            title: Text(l.starOnGithub),
+          const SizedBox(height: AppSpacing.s6),
+          const DsHairline(),
+          const SizedBox(height: AppSpacing.s2),
+          DsSettingRow(
+            label: l.starOnGithub,
             onTap: () => _openUrl('https://github.com/$_repo'),
-            trailing: const Icon(CupertinoIcons.link, size: 16),
           ),
-          ListTile(
-            leading: const Icon(CupertinoIcons.exclamationmark_triangle),
-            title: Text(l.reportIssue),
+          DsSettingRow(
+            label: l.reportIssue,
             onTap: () => context.push('/feedback'),
-            trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
           ),
-          ListTile(
-            leading: const Icon(CupertinoIcons.doc_text),
-            title: Text(l.thirdPartyLicenses),
+          DsSettingRow(
+            label: l.thirdPartyLicenses,
             onTap: () => showLicensePage(
               context: context,
               applicationName: 'DaySpark',
               applicationVersion: _currentVersion,
             ),
-            trailing: const Icon(CupertinoIcons.right_chevron, size: 16),
           ),
         ],
       ),
