@@ -682,3 +682,11 @@
   避免劫持 `/todo/new`、`/event/detail` 等真实路由）；iOS `SceneDelegate` 把 URL 转进
   `flutter/navigation` 的 `pushRouteInformation`；Android quick-add 改用带路径的 `dayspark://open/new-todo`
 - **Date**: 2026-11-07
+
+## CI / 工具链
+
+### CI 工具链钉版本，不跟 runner 镜像漂移（2026-11-13）
+- `ci.yml` / `release.yml` 的 flutter-action 一律 `flutter-version: "3.47.3"`（禁止 `channel: "stable"`）；`build-android` 加 `actions/setup-java@v4` + temurin 17
+- **Why**: 2026-11-12 runner 侧静默变了两个值，代码一字未改而所有 PR 全红：stable 浮动到 Flutter 3.50.0，`package:flutter/material.dart` 被标 deprecated，`flutter analyze` 在 info 级 `deprecated_member_use` 上失败；`ubuntu-latest` 默认 JDK 变成 25.0.5，Gradle 8.14 拒绝，`build-android` 21 秒失败。根因在 runner，改业务代码解决不了
+- 升级 Flutter / Gradle / JDK 是显式改动：`pubspec` 环境、`gradle/wrapper`、两个 workflow 一起改，先普通 push 验证再打 tag
+- **Date**: 2026-11-13
