@@ -17,6 +17,7 @@ import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/services/action_projection_query.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/infrastructure/platform/widget_command.dart';
+import 'package:dayspark/infrastructure/platform/widget_instances.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
@@ -221,6 +222,12 @@ class HomeWidgetService {
 
       final prefs = await SharedPreferences.getInstance();
       final sixThingsEnabled = prefs.getBool('six_things_mode') ?? false;
+
+      // Commands and legacy taps above are drained unconditionally: a tap
+      // queued by a widget that has since been removed is still a user action.
+      // Rendering, however, has no consumer without an instance.
+      if (!await hasInstalledWidgets()) return;
+
       final calendarColors = {
         for (final row in await db.select(db.calendars).get())
           row.id: row.color,

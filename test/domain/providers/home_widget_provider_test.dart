@@ -51,6 +51,7 @@ void main() {
   late int flushes;
   late List<MethodCall> methodCalls;
   late Map<String, String> pendingCommands;
+  late bool hasWidgets;
 
   setUp(() async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -59,6 +60,7 @@ void main() {
     flushes = 0;
     methodCalls = <MethodCall>[];
     pendingCommands = <String, String>{};
+    hasWidgets = true;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           methodCalls.add(call);
@@ -92,6 +94,8 @@ void main() {
             case 'ackCommand':
               pendingCommands.remove((call.arguments as Map)['commandId']);
               return true;
+            case 'hasWidgets':
+              return hasWidgets;
             default:
               return null;
           }
@@ -286,6 +290,13 @@ void main() {
         await pumpEventQueue(times: 50);
       }
 
+      // The refresh is deliberately deferred (coalescing + IME hold-off), so a
+      // bus publish must be followed by time before the flush can be counted.
+      Future<void> settleRefresh() async {
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        await waitUntil(() => false);
+      }
+
       // 1. A raw drift write no longer drives a refresh: tableUpdates is gone.
       final beforeRawWrite = flushes;
       await testDb
@@ -311,14 +322,55 @@ void main() {
         RecordApplied(RecordType.todo, 2, previousReference: DateTime(2026)),
         RecordApplied(RecordType.event, 3, previousReference: null),
       ]);
-      await waitUntil(() => flushes > beforeBatchOfThree);
+      await settleRefresh();
       expect(flushes - beforeBatchOfThree, 1, reason: '一次批 = 一次 refresh');
 
       // 3. Batch size is irrelevant: one change still flushes exactly once.
       final beforeBatchOfOne = flushes;
       bus.publish([RecordApplied(RecordType.todo, 1, previousReference: null)]);
-      await waitUntil(() => flushes > beforeBatchOfOne);
+      await settleRefresh();
       expect(flushes - beforeBatchOfOne, 1, reason: '批次内容不影响刷新次数');
+
+      // 4. A burst collapses: the refresh window absorbs every publish.
+      final beforeBurst = flushes;
+      for (var i = 0; i < 8; i++) {
+        bus.publish([
+          RecordApplied(RecordType.todo, i + 1, previousReference: null),
+        ]);
+      }
+      await settleRefresh();
+      expect(
+        flushes - beforeBurst,
+        1,
+        reason: '连续提交只允许一次快照重建，否则平台通道风暴会落在打字窗口里',
+      );
     },
   );
+
+  test('no widget instance: commands still drain, nothing renders', () async {
+    hasWidgets = false;
+    final todoId = await insertTodo();
+    pendingCommands['cmd_1'] = jsonEncode({
+      'version': 1,
+      'commandId': 'cmd_1',
+      'action': 'complete',
+      'target': 'todo',
+      'todoId': todoId,
+      'at': '2026-09-24T05:00:00.000Z',
+    });
+
+    await container.read(updateHomeWidgetProvider)();
+
+    final todo = await (testDb.select(
+      testDb.todos,
+    )..where((t) => t.id.equals(todoId))).getSingle();
+    expect(todo.status, 'COMPLETED', reason: '队列里的用户动作不能因为没实例就丢');
+    expect(pendingCommands, isEmpty, reason: '命令必须被确认，否则永远重试');
+    expect(storedSnapshot(), isEmpty, reason: '零实例时重建快照是纯浪费');
+    expect(
+      methodCalls.map((call) => call.method),
+      isNot(contains('updateWidget')),
+      reason: '没有实例就没有原生刷新',
+    );
+  });
 }

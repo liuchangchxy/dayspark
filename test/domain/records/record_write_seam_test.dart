@@ -145,6 +145,15 @@ void main() {
     await pumpEventQueue(times: 50);
   }
 
+  // The widget snapshot is rebuilt on a debounce now (it must not land inside
+  // the typing window), so waiting for it needs real time, not just microtasks.
+  Future<void> waitForWidgetRefresh(bool Function() condition) async {
+    for (var i = 0; i < 80 && !condition(); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    await pumpEventQueue(times: 20);
+  }
+
   List<RecordChange> flatBatches() => batches.expand((b) => b).toList();
 
   Future<int> insertTodo({
@@ -654,7 +663,7 @@ void main() {
       expect(applied.map((a) => a.previousReference), everyElement(isNull));
     });
 
-    test('5 ICS 导入 → 小组件快照立即含导入事件（不再靠 tableUpdates）', () async {
+    test('5 ICS 导入 → 小组件快照在防抖窗口后含导入事件（不再靠 tableUpdates）', () async {
       await wireSeamConsumers(widget: true);
       final now = DateTime.now();
       final stamp =
@@ -668,7 +677,7 @@ void main() {
 
       await IcsService(db).importIcs(ics, calId);
 
-      await waitUntil(
+      await waitForWidgetRefresh(
         () => (store[HomeWidgetService.snapshotKey] as String? ?? '')
             .contains('Imported today'),
       );
@@ -680,7 +689,7 @@ void main() {
       expect(
         jsonEncode(action['timeline']),
         contains('Imported today'),
-        reason: 'ICS 导入必须立刻把新事件推进 v5 快照（裸 insert 不给 tableUpdates 了）',
+        reason: 'ICS 导入必须把新事件推进 v5 快照（裸 insert 不给 tableUpdates 了）',
       );
     });
   });

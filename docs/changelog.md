@@ -13,6 +13,12 @@
 
 ## 未发布 / Unreleased
 
+**用户反馈原文 / User feedback:** 「连续创建约 2 条 Todo 后，再输入新的 Todo 会严重卡顿，甚至无法正常输入。」
+
+- [x] 定位：逐键路径不是瓶颈（75 条待办时 UI 线程帧构建 ≤15ms）；累积在写入提交后的整条链路——每次提交立即全量重建小组件快照（58–152ms，其中 `ActionProjectionQuery.fetch` 14–30ms 在 UI isolate）+ 同步 `SharedPreferences.commit` + 3 次 AppWidget 广播（原生 `onUpdate` 21–36ms/实例），正好落在下一次按键之前，与 IME 投递抢主线程。
+- [x] 修复：`WidgetRefreshScheduler` 合并突发提交（400ms 尾防抖）、文本焦点期间暂缓（上限 4s，小组件不会长期不更新）、单飞；零小组件实例时跳过渲染（命令与旧 pendingTaps 仍消费）。实测 15 次连续创建快照重建 15 → 5 次，且不再贴着保存时刻。证据见 `docs/qa/task1-input-latency-2026-11-14.md`。
+- [ ] 待真机：Gboard 中文 composing 与系统语音输入下的 20 条连建验收（本机无连接设备）。
+
 **用户反馈原文 / User feedback:** 「在现有 Widget / Journey 与最终人工 / Agent GUI 验收之间，补回一个轻量、现役、可运行的真实 App 自动交互层，并把现有测试明确分成 fast / ui / full 三档。」
 
 - [x] 重写 `integration_test/app_test.dart`，覆盖待办快速添加、日期浏览和宽屏详情切换。
