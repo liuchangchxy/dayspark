@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/services/action_projection_query.dart';
@@ -620,6 +621,14 @@ void main() {
       expect(darkColors['accent'], hex(AppColors.darkAccent));
       expect(darkColors['error'], isA<String>());
       expect(darkColors['warning'], isA<String>());
+
+      // A chosen accent has to reach the widget, or the widget keeps the rust
+      // dot while the app next to it is blue.
+      final blue = HomeWidgetService.buildThemeBlock(
+        dark: false,
+        accent: AppAccent.blue,
+      );
+      expect((blue['colors'] as Map)['accent'], hex(AppAccent.blue.light));
     });
   });
 

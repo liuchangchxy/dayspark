@@ -288,15 +288,12 @@ class _DateNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final zh = Localizations.localeOf(context).languageCode == 'zh';
-    final weekday = DateFormat.E(locale).format(date);
+    // ICU patterns carry each locale's own date punctuation and word order;
+    // assembling "年/月/日" here would hardcode Chinese and drift from every
+    // other locale the app ships.
     final label = compact
-        ? zh
-              ? '${date.month} 月 ${date.day} 日'
-              : DateFormat.MMMd(locale).format(date)
-        : zh
-        ? '${date.year} 年 ${date.month} 月 ${date.day} 日 $weekday'
-        : '${DateFormat.MMMd(locale).format(date)}, ${date.year} $weekday';
+        ? DateFormat.MMMd(locale).format(date)
+        : DateFormat.yMMMMEEEEd(locale).format(date);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

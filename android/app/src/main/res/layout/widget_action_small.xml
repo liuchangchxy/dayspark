@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_root_bg"
     android:orientation="vertical"
-    android:padding="10dp">
+    android:padding="8dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,7 +19,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="sans-serif-medium"
             android:textColor="@color/widget_text_primary"
-            android:textSize="22sp" />
+            android:textSize="24sp" />
 
         <TextView
             android:id="@+id/action_weekday"
@@ -30,7 +30,7 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
 
         <TextView
             android:id="@+id/action_overdue_chip"
@@ -39,7 +39,7 @@
             android:layout_marginEnd="4dp"
             android:maxLines="1"
             android:textColor="@color/widget_accent"
-            android:textSize="10sp"
+            android:textSize="11sp"
             android:visibility="gone" />
 
         <TextView
@@ -49,15 +49,8 @@
             android:gravity="center"
             android:text="+"
             android:textColor="@color/widget_accent"
-            android:textSize="22sp" />
+            android:textSize="20sp" />
     </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/action_rows"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="vertical" />
 
     <TextView
         android:id="@+id/action_empty"
@@ -67,6 +60,13 @@
         android:textColor="@color/widget_text_secondary"
         android:textSize="12sp"
         android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/action_rows"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical" />
 
     <TextView
         android:id="@+id/action_completed"

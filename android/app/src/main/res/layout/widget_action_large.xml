@@ -17,7 +17,11 @@
             android:id="@+id/action_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:ellipsize="end"
             android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:maxWidth="78dp"
+            android:singleLine="true"
             android:textColor="@color/widget_text_primary"
             android:textSize="24sp" />
 
@@ -25,9 +29,10 @@
             android:id="@+id/action_weekday"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:ellipsize="end"
+            android:maxLines="1"
             android:singleLine="true"
             android:textColor="@color/widget_text_secondary"
             android:textSize="12sp" />
@@ -44,22 +49,41 @@
 
         <TextView
             android:id="@+id/action_add_todo"
-            android:layout_width="44dp"
+            android:layout_width="wrap_content"
             android:layout_height="44dp"
+            android:ellipsize="end"
             android:gravity="center"
+            android:maxLines="1"
+            android:maxWidth="56dp"
+            android:minWidth="44dp"
+            android:singleLine="true"
             android:text="@string/widget_add_todo"
             android:textColor="@color/widget_accent"
             android:textSize="12sp" />
 
         <TextView
             android:id="@+id/action_add_event"
-            android:layout_width="44dp"
+            android:layout_width="wrap_content"
             android:layout_height="44dp"
+            android:ellipsize="end"
             android:gravity="center"
+            android:maxLines="1"
+            android:maxWidth="56dp"
+            android:minWidth="44dp"
+            android:singleLine="true"
             android:text="@string/widget_add_event"
             android:textColor="@color/widget_accent"
             android:textSize="12sp" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/action_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="4dp"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="13sp"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/action_rows"
@@ -67,14 +91,6 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:orientation="vertical" />
-
-    <TextView
-        android:id="@+id/action_empty"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="13sp"
-        android:visibility="gone" />
 
     <TextView
         android:id="@+id/action_completed"

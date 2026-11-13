@@ -5,6 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 const themeModePrefKey = 'theme_mode';
 const _keyThemeColor = 'theme_color';
 
+/// The accent saved by the settings page, for painters with no widget tree to
+/// read `themeColorProvider` from — the home-widget snapshot is the one caller.
+AppAccent readStoredAccent(SharedPreferences prefs) =>
+    AppAccent.fromId(prefs.getString(_keyThemeColor));
+
 /// The locked accent presets (DESIGN 主题色条款).
 ///
 /// Each preset carries a matched light/dark pair. Users pick a preset, never a

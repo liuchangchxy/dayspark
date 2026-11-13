@@ -92,11 +92,24 @@ class CalendarWidgetProvider : AppWidgetProvider() {
         R.layout.widget_calendar_medium
       }
       val views = RemoteViews(context.packageName, layout)
-      WidgetSupport.applyRoot(views, R.id.calendar_root, theme)
+      WidgetSupport.applyRoot(context, views, R.id.calendar_root, theme)
+      if (large) {
+        views.setInt(
+          R.id.calendar_divider,
+          "setBackgroundColor",
+          WidgetSupport.borderColor(context, theme),
+        )
+      }
 
-      val primary = context.getColor(R.color.widget_text_primary)
-      val secondary = context.getColor(R.color.widget_text_secondary)
-      val accent = context.getColor(R.color.widget_accent)
+      // Every visible ink must come from the snapshot when one exists. The
+      // @color fallbacks below are overridden in values-night, so using them
+      // beside a snapshot-driven root puts a light-theme grid on dark paper
+      // whenever the app theme and the system disagree.
+      val primary = theme?.colors?.get("textPrimary")
+        ?: context.getColor(R.color.widget_text_primary)
+      val secondary = theme?.colors?.get("textSecondary")
+        ?: context.getColor(R.color.widget_text_secondary)
+      val accent = theme?.colors?.get("accent") ?: context.getColor(R.color.widget_accent)
       val error = theme?.colors?.get("error") ?: context.getColor(R.color.widget_error)
 
       val now = Calendar.getInstance()
@@ -201,10 +214,11 @@ class CalendarWidgetProvider : AppWidgetProvider() {
               },
             )
             if (isSelected) {
+              val washAlpha = if (theme?.dark == true) 41 else 26
               cell.setInt(
                 R.id.calendar_cell,
                 "setBackgroundColor",
-                Color.argb(38, Color.red(accent), Color.green(accent), Color.blue(accent)),
+                Color.argb(washAlpha, Color.red(accent), Color.green(accent), Color.blue(accent)),
               )
             } else {
               cell.setInt(R.id.calendar_cell, "setBackgroundColor", Color.TRANSPARENT)
