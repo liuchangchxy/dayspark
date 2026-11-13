@@ -1,396 +1,269 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
+import 'package:dayspark/ui/widgets/schedule/day_strip.dart';
 
-/// The Todo destination's own controls. Today, Inbox and All are *views* of
-/// Todo — they live here, inside the destination, rather than competing with
-/// Action and Calendar as top-level destinations.
+/// The Todo destination's own controls: which list, which day, what to hide.
+///
+/// The three views are peers in one segmented control, so switching from a day
+/// to everything never feels like changing destination.
 class DateStrip extends StatelessWidget {
   const DateStrip({
     super.key,
     required this.view,
     required this.onViewSelected,
+    this.trailing = const [],
+    this.dueDays = const {},
   });
 
   final TodosView view;
   final ValueChanged<TodosView> onViewSelected;
+  final List<Widget> trailing;
+  final Set<DateTime> dueDays;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final locale = Localizations.localeOf(context).toString();
-    final selectedDate = view is TodosDayView ? (view as TodosDayView).day : null;
+    final day = view is TodosDayView ? (view as TodosDayView).day : null;
 
-    final anchor = selectedDate ?? today;
-
-    final monthLabel = DateFormat.yM(locale).format(anchor);
-    final showTodayButton = selectedDate != null && selectedDate != today;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  monthLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.title,
-                ),
-              ),
-              if (showTodayButton)
-                TextButton(
-                  onPressed: () => onViewSelected(TodosDayView(today)),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                    ),
-                  ),
-                  child: Text(
-                    l.today,
-                    style: AppTypography.caption.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                if (selectedDate == null) ...[
-                  _filterChip(
-                    context: context,
-                    label: l.today,
-                    selected: false,
-                    accentColor: theme.colorScheme.primary,
-                    onTap: () => onViewSelected(TodosDayView(today)),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                ],
-                _filterChip(
-                  context: context,
-                  label: l.allTasks,
-                  selected: view is TodosAllView,
-                  accentColor: theme.colorScheme.primary,
-                  onTap: () => onViewSelected(const TodosAllView()),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                _filterChip(
-                  context: context,
-                  label: l.inbox,
-                  selected: view is TodosInboxView,
-                  accentColor: theme.colorScheme.tertiary,
-                  onTap: () => onViewSelected(const TodosInboxView()),
-                ),
-              ],
-            ),
-          ),
-          // The week strip only means something while a day is selected; All
-          // and Inbox are not attached to a date, so they drop it rather than
-          // leave a dead control on screen.
-          if (selectedDate != null)
-            TodoWeekStrip(
-              anchor: anchor,
-              selectedDate: selectedDate,
-              today: today,
-              locale: locale,
-              onSelected: (date) => onViewSelected(TodosDayView(date)),
-            ),
-        ],
-      ),
-    );
-  }
-
-}
-
-/// One week of days, with a selected day and a today marker.
-///
-/// Shared by the mobile header and the desktop toolbar: a desktop user needs to
-/// move to another day just as much as a phone user does, and duplicating the
-/// strip is how the two layouts drifted apart in the first place.
-class TodoWeekStrip extends StatelessWidget {
-  const TodoWeekStrip({
-    super.key,
-    required this.anchor,
-    required this.selectedDate,
-    required this.today,
-    required this.locale,
-    required this.onSelected,
-  });
-
-  final DateTime anchor;
-  final DateTime selectedDate;
-  final DateTime today;
-  final String locale;
-  final ValueChanged<DateTime> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final weekStart = anchor.subtract(Duration(days: anchor.weekday - 1));
-    return Row(
-      key: const ValueKey('date-strip-week'),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        IconButton(
-          icon: const Icon(CupertinoIcons.chevron_left, size: 18),
-          tooltip: MaterialLocalizations.of(context).previousMonthTooltip,
-          onPressed: () => onSelected(
-            _shiftWeek(anchor, weekStart, -7),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s4,
+            AppSpacing.s2 + 2,
+            AppSpacing.s3,
+            AppSpacing.s2,
           ),
-        ),
-        Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(7, (i) {
-              final date = weekStart.add(Duration(days: i));
-              final isSelected = date == selectedDate;
-              final isToday = date == today;
-              final weekdayLabel = DateFormat.E(
-                locale,
-              ).format(date).characters.take(2).toString();
-
-              return Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    onTap: () => onSelected(date),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Center(
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.md,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : isToday
-                              ? theme.colorScheme.primary.withValues(
-                                  alpha: 0.3,
-                                )
-                              : null,
-                          borderRadius: BorderRadius.circular(8),
-                          border: isToday && !isSelected
-                              ? Border.all(
-                                  color: theme.colorScheme.primary,
-                                )
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              weekdayLabel,
-                              style: TextStyle(
-                                fontSize: AppTypography.overline.fontSize,
-                                color: isSelected
-                                    ? theme.colorScheme.onPrimary
-                                    : context.semantic.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              '${date.day}',
-                              style: TextStyle(
-                                fontSize: AppTypography.body.fontSize,
-                                fontWeight: isToday
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
+          child: Builder(
+            builder: (context) {
+              // One row: the three views share the width, the controls sit at
+              // the end. A second line for a lone filter icon read as a stray
+              // control rather than part of the same bar.
+              final trailingRow = <Widget>[
+                if (day == null)
+                  TextButton(
+                    onPressed: () => onViewSelected(TodosDayView(today)),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      foregroundColor: context.ds.ink2,
+                      textStyle: AppTypography.small.copyWith(
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
+                    child: Text(l.today),
                   ),
-                ),
+                ...trailing,
+              ];
+              return Row(
+                children: [
+                  Expanded(child: _views(context, l, today, day, expand: true)),
+                  if (trailingRow.isNotEmpty) ...[
+                    const SizedBox(width: AppSpacing.s2),
+                    ...trailingRow,
+                  ],
+                ],
               );
-            }),
+            },
           ),
         ),
-        IconButton(
-          icon: const Icon(CupertinoIcons.chevron_right, size: 18),
-          tooltip: MaterialLocalizations.of(context).nextMonthTooltip,
-          onPressed: () => onSelected(_shiftWeek(anchor, weekStart, 7)),
-        ),
+        if (day != null)
+          DayStrip(
+            selected: day,
+            onPick: (next) => onViewSelected(TodosDayView(next)),
+            hasItems: (date) => dueDays.any((due) => _sameDay(due, date)),
+          ),
       ],
     );
   }
 
-  /// Keep the weekday the user was on when moving a week, clamped to the week
-  /// that is actually on screen.
-  static DateTime _shiftWeek(DateTime anchor, DateTime weekStart, int days) {
-    final offset = anchor.difference(weekStart).inDays.clamp(0, 6);
-    return weekStart.add(Duration(days: days + offset));
+  Widget _views(
+    BuildContext context,
+    AppLocalizations l,
+    DateTime today,
+    DateTime? day, {
+    bool expand = false,
+  }) {
+    return DsSegmented<String>(
+      key: const ValueKey('todos-view-switch'),
+      height: 30,
+      expand: expand,
+      selected: view is TodosInboxView
+          ? 'unplanned'
+          : view is TodosAllView
+          ? 'all'
+          : 'date',
+      options: [
+        DsSegmentOption('unplanned', l.inbox),
+        DsSegmentOption('all', l.allTasks),
+        DsSegmentOption('date', l.byDate),
+      ],
+      onSelected: (next) {
+        switch (next) {
+          case 'unplanned':
+            if (view is! TodosInboxView) {
+              onViewSelected(const TodosInboxView());
+            }
+            break;
+          case 'all':
+            if (view is! TodosAllView) {
+              onViewSelected(const TodosAllView());
+            }
+            break;
+          case 'date':
+            if (view is! TodosDayView) {
+              onViewSelected(TodosDayView(day ?? today));
+            }
+            break;
+        }
+      },
+    );
   }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-/// The same controls as [DateStrip], laid out for the desktop content origin
-/// rather than for a full-width phone row.
+/// The backlog card's own header: which list, how much is waiting, and the
+/// day strip for the by-date list.
+///
+/// This is the two-column layout's header. The view names carry the title, so
+/// the card needs no separate heading line above them.
+class TodoBacklogHead extends StatelessWidget {
+  const TodoBacklogHead({
+    super.key,
+    required this.view,
+    required this.onViewSelected,
+    required this.count,
+    required this.overdue,
+    this.trailing = const [],
+    this.dueDays = const {},
+  });
+
+  final TodosView view;
+  final ValueChanged<TodosView> onViewSelected;
+  final int count;
+  final int overdue;
+  final List<Widget> trailing;
+  final Set<DateTime> dueDays;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = view is TodosDayView ? (view as TodosDayView).day : null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          height: 58,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4 + 2),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: ds.line)),
+          ),
+          child: Row(
+            children: [
+              DsSegmented<String>(
+                key: const ValueKey('todos-view-switch'),
+                height: 30,
+                selected: view is TodosInboxView
+                    ? 'unplanned'
+                    : view is TodosAllView
+                    ? 'all'
+                    : 'date',
+                options: [
+                  DsSegmentOption('unplanned', l.inbox),
+                  DsSegmentOption('all', l.allTasks),
+                  DsSegmentOption('date', l.byDate),
+                ],
+                onSelected: (next) {
+                  switch (next) {
+                    case 'unplanned':
+                      if (view is! TodosInboxView) {
+                        onViewSelected(const TodosInboxView());
+                      }
+                      break;
+                    case 'all':
+                      if (view is! TodosAllView) {
+                        onViewSelected(const TodosAllView());
+                      }
+                      break;
+                    case 'date':
+                      if (view is! TodosDayView) {
+                        onViewSelected(TodosDayView(day ?? today));
+                      }
+                      break;
+                  }
+                },
+              ),
+              const SizedBox(width: AppSpacing.s3),
+              Flexible(
+                child: Text(
+                  overdue > 0
+                      ? '${l.dayItemCount(count)} · ${l.overdue} $overdue'
+                      : l.dayItemCount(count),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.small.copyWith(
+                    color: overdue > 0 ? ds.danger : ds.ink3,
+                    fontFeatures: AppTypography.tabular,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              ...trailing,
+            ],
+          ),
+        ),
+        if (day != null)
+          DayStrip(
+            selected: day,
+            onPick: (next) => onViewSelected(TodosDayView(next)),
+            hasItems: (date) => dueDays.any((due) => _sameDay(due, date)),
+          ),
+      ],
+    );
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+/// The same controls laid out for the desktop list pane: the segmented control
+/// stays, the week strip loses its outer margins.
 class TodoDesktopToolbar extends StatelessWidget {
   const TodoDesktopToolbar({
     super.key,
     required this.view,
     required this.onViewSelected,
     this.trailing = const [],
+    this.dueDays = const {},
   });
 
   final TodosView view;
   final ValueChanged<TodosView> onViewSelected;
   final List<Widget> trailing;
+  final Set<DateTime> dueDays;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l = AppLocalizations.of(context)!;
-    final locale = Localizations.localeOf(context).toString();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final selectedDate = view is TodosDayView ? (view as TodosDayView).day : null;
-    final anchor = selectedDate ?? today;
-    final showTodayButton = selectedDate != null && selectedDate != today;
-
-    final row = Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Row(
-        children: [
-          Text(
-            DateFormat.yM(locale).format(anchor),
-            style: AppTypography.title,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          if (showTodayButton)
-            TextButton(
-              onPressed: () => onViewSelected(TodosDayView(today)),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              ),
-              child: Text(
-                l.today,
-                style: AppTypography.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  if (selectedDate == null) ...[
-                    _filterChip(
-                      context: context,
-                      label: l.today,
-                      selected: false,
-                      accentColor: theme.colorScheme.primary,
-                      onTap: () => onViewSelected(TodosDayView(today)),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                  ],
-                  _filterChip(
-                    context: context,
-                    label: l.allTasks,
-                    selected: view is TodosAllView,
-                    accentColor: theme.colorScheme.primary,
-                    onTap: () => onViewSelected(const TodosAllView()),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  _filterChip(
-                    context: context,
-                    label: l.inbox,
-                    selected: view is TodosInboxView,
-                    accentColor: theme.colorScheme.tertiary,
-                    onTap: () => onViewSelected(const TodosInboxView()),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const Spacer(),
-          ...trailing,
-        ],
-      ),
-    );
-
-    if (selectedDate == null) return row;
-    return Column(
-      children: [
-        row,
-        TodoWeekStrip(
-          anchor: anchor,
-          selectedDate: selectedDate,
-          today: today,
-          locale: locale,
-          onSelected: (date) => onViewSelected(TodosDayView(date)),
-        ),
-      ],
+    return DateStrip(
+      view: view,
+      onViewSelected: onViewSelected,
+      trailing: trailing,
+      dueDays: dueDays,
     );
   }
-}
-
-Widget _filterChip({
-  required BuildContext context,
-  required String label,
-  required bool selected,
-  required Color accentColor,
-  required VoidCallback onTap,
-}) {
-  final theme = Theme.of(context);
-  return Semantics(
-    button: true,
-    label: label,
-    child: Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 32),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: selected ? accentColor : null,
-            borderRadius: BorderRadius.circular(8),
-            border: !selected
-                ? Border.all(color: theme.dividerColor)
-                : null,
-          ),
-          child: Text(
-            label,
-            style: AppTypography.caption.copyWith(
-              fontWeight: FontWeight.w600,
-              color: selected
-                  ? theme.colorScheme.onTertiary
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
 }

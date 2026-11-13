@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/sync_client_provider.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
 import 'package:dayspark/domain/sync/sync_engine.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/account_section.dart';
 
 import '../../../domain/sync/sync_test_support.dart';
@@ -135,8 +136,8 @@ void main() {
       expect(find.text('Sync server'), findsOneWidget);
       expect(find.text('Email'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Login'), findsOneWidget);
-      expect(find.widgetWithText(OutlinedButton, 'Register'), findsOneWidget);
+      expect(find.widgetWithText(DsButton, 'Login'), findsOneWidget);
+      expect(find.widgetWithText(DsButton, 'Register'), findsOneWidget);
       expect(find.byIcon(CupertinoIcons.person_crop_circle), findsNothing);
     },
   );

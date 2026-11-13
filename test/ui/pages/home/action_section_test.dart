@@ -92,6 +92,10 @@ void main() {
   testWidgets(
     'visually distinguishes Event, Planned Allocation, and Deadline',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
       // 1. Event
       await db
           .into(db.events)
@@ -148,7 +152,7 @@ void main() {
 
       await tester.pumpWidget(
         _wrapWithApp(
-          child: const ActionSection(),
+          child: ActionSection(date: fixedDate),
           overrides: [
             databaseProvider.overrideWithValue(db),
             actionDateProvider.overrideWith((ref) => fixedDate),
@@ -160,30 +164,16 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // Overdue section: no count, no duplicated deadline label.
-      expect(find.text('Overdue'), findsOneWidget);
-      expect(find.text('Fix Bug'), findsOneWidget);
-      expect(find.text('Deadline: 2026-10-02'), findsOneWidget);
-
-      // Events and allocations that already ended stay folded into the
-      // secondary section instead of pushing the rest of the day down.
-      expect(find.text('Earlier today'), findsOneWidget);
-      await tester.tap(find.text('Earlier today'));
-      for (var i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
-      // The day's schedule. End time is stated once, not as a range that
-      // repeats the time in the left column.
+      // The day's plan is drawn to scale: the event and the planned
+      // allocation are timeline blocks carrying their own titles.
       expect(find.text('Client Call'), findsOneWidget);
-      expect(find.text('until 11:00'), findsOneWidget);
-
       expect(find.text('Write Spec'), findsOneWidget);
-      expect(find.text('Planned time'), findsOneWidget);
 
-      // To do today merges due-today todos with today's recurring instances.
-      expect(find.text('To do today'), findsOneWidget);
+      // Todos live in the bottom sheet as rows: a due-today task carries its
+      // due label, and an overdue task is marked overdue instead.
       expect(find.text('Submit Invoice'), findsOneWidget);
+      expect(find.text('Fix Bug'), findsOneWidget);
+      expect(find.text('Overdue'), findsOneWidget);
 
       // The old rhythm strip, inspector and section counters are gone.
       expect(find.byKey(const ValueKey('action-rhythm')), findsNothing);
@@ -196,6 +186,9 @@ void main() {
   testWidgets('planned Todo with a deadline keeps one row and both facts', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final todoId = await db
         .into(db.todos)
         .insert(
@@ -217,7 +210,7 @@ void main() {
 
     await tester.pumpWidget(
       _wrapWithApp(
-        child: const ActionSection(),
+        child: ActionSection(date: fixedDate),
         overrides: [
           databaseProvider.overrideWithValue(db),
           actionDateProvider.overrideWith((ref) => fixedDate),
@@ -228,16 +221,25 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    await tester.tap(find.text('Earlier today'));
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    // One obligation, one row: the plan is primary and the deadline is
-    // metadata on it, not a second full row.
-    expect(find.text('Write Paper'), findsOneWidget);
-    expect(find.text('Planned time · Deadline: 18:00'), findsOneWidget);
-    expect(find.text('To do today'), findsNothing);
+    // One obligation, one row: the plan is a timeline block, and the deadline
+    // rides on that row's own text rather than becoming a second row.
+    expect(find.text('Write Paper'), findsNWidgets(2));
+    expect(find.byKey(ValueKey('action-complete-$todoId')), findsOneWidget);
+    final row = find
+        .ancestor(
+          of: find.byKey(ValueKey('action-complete-$todoId')),
+          matching: find.byType(Row),
+        )
+        .first;
+    expect(
+      find.descendant(of: row, matching: find.text('Write Paper')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: row, matching: find.text('18:00')),
+      findsOneWidget,
+    );
+    expect(find.text('Due today'), findsNothing);
     await _unmount(tester);
   });
 
@@ -271,7 +273,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     await tester.tap(
-      find.text('Review a deliberately long bilingual title 设计评审与交付'),
+      find
+          .text('Review a deliberately long bilingual title 设计评审与交付')
+          .first,
     );
     await tester.pump();
     // One tap, straight to detail: there is no desktop side pane to select
@@ -321,7 +325,11 @@ void main() {
   testWidgets(
     'checking allocation checkbox completes ordinary todo without mutating dueDate',
     (tester) async {
-      final originalDueDate = DateTime(2026, 10, 6, 23, 59);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final now = DateTime.now();
+      final originalDueDate = DateTime(now.year, now.month, now.day, 23, 59);
       final todoId = await db
           .into(db.todos)
           .insert(
@@ -337,8 +345,8 @@ void main() {
       );
       await container.read(createTaskAllocationProvider)(
         todoId: todoId,
-        startAt: DateTime(2026, 10, 6, 9, 0),
-        endAt: DateTime(2026, 10, 6, 10, 0),
+        startAt: now.subtract(const Duration(minutes: 30)),
+        endAt: now.add(const Duration(minutes: 90)),
       );
       container.dispose();
 
@@ -347,7 +355,9 @@ void main() {
           child: const ActionSection(),
           overrides: [
             databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => fixedDate),
+            actionDateProvider.overrideWith(
+              (ref) => DateTime(now.year, now.month, now.day),
+            ),
           ],
         ),
       );
@@ -356,18 +366,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // The allocation already ended, so it lives in the folded section.
-      await tester.tap(find.text('Earlier today'));
-      for (var i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
-      // Find checkbox in today's schedule for Ship Feature and tap it
-      final checkboxes = find.byType(Checkbox);
-      expect(checkboxes, findsWidgets);
-
-      // Tap the first checkbox (Ship Feature in timeline)
-      await tester.tap(checkboxes.first);
+      // The sheet row's completion circle completes the todo.
+      final checks = find.byKey(ValueKey('action-complete-$todoId'));
+      expect(checks, findsOneWidget);
+      await tester.tap(checks);
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -386,6 +388,9 @@ void main() {
   testWidgets(
     'Phase 2: renders today recurring instance and checkbox completes exact instance',
     (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final today = DateTime.now();
       final todayDate = DateTime(today.year, today.month, today.day);
       final todayStr =
@@ -429,10 +434,10 @@ void main() {
       }
 
       expect(find.text('Daily Yoga'), findsOneWidget);
-      expect(find.text('To do today'), findsOneWidget);
+      expect(find.text('1 still open today'), findsOneWidget);
 
-      // Find and tap the checkbox for Daily Yoga
-      final checkbox = find.byType(Checkbox);
+      // Find and tap the completion circle for Daily Yoga
+      final checkbox = find.byKey(ValueKey('action-complete-$seriesId'));
       expect(checkbox, findsOneWidget);
       await tester.tap(checkbox);
 
@@ -456,8 +461,9 @@ void main() {
               .getSingle();
       expect(state.status, 'completed');
 
-      // Verify UI moved Daily Yoga into the completed section
-      expect(find.text('Earlier today'), findsOneWidget);
+      // Verify UI no longer offers the completed instance as open today
+      expect(find.text('Daily Yoga'), findsNothing);
+      expect(find.text('0 still open today'), findsOneWidget);
 
       await _unmount(tester);
     },

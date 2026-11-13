@@ -3,7 +3,7 @@
     android:id="@+id/fallback_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/widget_background"
+    android:background="@drawable/widget_root_bg"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="16dp">

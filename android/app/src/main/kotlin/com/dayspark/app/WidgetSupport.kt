@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
 import android.view.View
@@ -20,14 +21,20 @@ internal object WidgetSupport {
 
   fun dimensionsOf(manager: AppWidgetManager, appWidgetId: Int): Pair<Int, Int> {
     val options = manager.getAppWidgetOptions(appWidgetId)
-    val width = maxOf(
-      options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH),
-      options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH),
-    )
-    val height = maxOf(
-      options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT),
-      options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT),
-    )
+    val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
+    val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
+    val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+    val maxHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
+    // A widget in portrait is always at least as wide as in landscape and at
+    // least as tall as it is in landscape, so the portrait size is min(width)
+    // and max(height). This launcher reports the pair the other way round —
+    // a 1x5 pin came back as 116x163 with a 238x333 landscape size — and the
+    // widget was drawn at the larger size anyway. Taking min width and max
+    // height picks the frame the launcher actually draws, whichever way it
+    // labels the two, and keeps a wide short widget from sizing itself as if
+    // it spanned the landscape columns.
+    val width = minWidth.takeIf { it > 0 } ?: maxWidth
+    val height = maxOf(minHeight, maxHeight)
     return width to height
   }
 
@@ -177,12 +184,32 @@ internal object WidgetSupport {
     }
   }
 
-  fun applyRoot(views: RemoteViews, rootId: Int, theme: WidgetSnapshot.ThemeBlock?) {
-    val background = theme?.colors?.get("background")
-    if (background != null) {
-      views.setInt(rootId, "setBackgroundColor", background)
-    }
+  fun applyRoot(
+    context: Context,
+    views: RemoteViews,
+    rootId: Int,
+    theme: WidgetSnapshot.ThemeBlock?,
+  ) {
+    // The root is a rounded, hairline-bordered surface, so a flat colour would
+    // square off its corners. Two drawables keep the shape while letting the
+    // snapshot's brightness pick the paper: every text colour already comes from
+    // the snapshot, and a root that followed values-night instead could put dark
+    // ink on dark paper whenever the app and the system disagree. With no
+    // snapshot there is nothing to follow, so the system's own mode is used.
+    val dark = theme?.dark ?: isSystemDark(context)
+    val res = if (dark) R.drawable.widget_root_bg_dark else R.drawable.widget_root_bg
+    views.setInt(rootId, "setBackgroundResource", res)
   }
+
+  fun isSystemDark(context: Context): Boolean =
+    (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+      Configuration.UI_MODE_NIGHT_YES
+
+  fun borderColor(context: Context, theme: WidgetSnapshot.ThemeBlock?): Int =
+    theme?.colors?.get("border")
+      ?: context.getColor(
+        if (isSystemDark(context)) R.color.widget_border_dark else R.color.widget_border_light,
+      )
 
   fun textColor(
     views: RemoteViews,

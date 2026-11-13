@@ -5,15 +5,18 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -21,8 +24,8 @@ import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_actions.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
-import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
@@ -36,9 +39,13 @@ import 'package:timezone/timezone.dart' as tz;
 /// reach. The same [TodoDetailPane] is the mobile page body and the desktop
 /// right-hand pane, so the two platforms cannot drift apart.
 class TodoDetailPage extends StatelessWidget {
-  const TodoDetailPage({super.key, required this.todo});
+  const TodoDetailPage({super.key, required this.todo, this.clock});
 
   final Todo todo;
+
+  /// The instant the pane reads its status from. Tests pin it so a capture
+  /// does not drift with the wall clock; live screens use the clock.
+  final DateTime Function()? clock;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +54,7 @@ class TodoDetailPage extends StatelessWidget {
     return WorkspacePage(
       title: l.todos,
       maxContentWidth: desktop ? 720 : null,
-      child: TodoDetailPane(todo: todo),
+      child: TodoDetailPane(todo: todo, clock: clock),
     );
   }
 }
@@ -59,6 +66,7 @@ class TodoDetailPane extends ConsumerStatefulWidget {
     this.embedded = false,
     this.onClose,
     this.onDeleted,
+    this.clock,
   });
 
   final Todo todo;
@@ -68,6 +76,7 @@ class TodoDetailPane extends ConsumerStatefulWidget {
 
   final VoidCallback? onClose;
   final VoidCallback? onDeleted;
+  final DateTime Function()? clock;
 
   @override
   ConsumerState<TodoDetailPane> createState() => _TodoDetailPaneState();
@@ -160,202 +169,581 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
 
     final completed = live.status == 'COMPLETED';
     final legacy = _isUnknownLegacy(live);
-    final horizontal = widget.embedded ? AppSpacing.lg : AppSpacing.lg;
+    final now = widget.clock?.call() ?? DateTime.now();
+    final ds = context.ds;
+    final mobile = !isWorkspaceLayout(context);
+    final side = widget.embedded ? 18.0 : (mobile ? 20.0 : 24.0);
+    final rowHeight = mobile ? 56.0 : 58.0;
+    final calendars =
+        ref.watch(calendarsProvider).valueOrNull ?? const <Calendar>[];
+    final currentCalendar = calendars
+        .where((calendar) => calendar.id == live.calendarId)
+        .firstOrNull;
+    final calendarColor = currentCalendar == null
+        ? ds.ink3
+        : ColorUtils.parseHex(currentCalendar.color);
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay = live.dueDate == null
+        ? null
+        : DateTime(
+            live.dueDate!.year,
+            live.dueDate!.month,
+            live.dueDate!.day,
+          );
+    final days = dueDay?.difference(today).inDays;
+    final String status;
+    final Color statusColor;
+    if (completed) {
+      status = l.completed;
+      statusColor = ds.ink3;
+    } else if (dueDay == null) {
+      status = l.noDeadline;
+      statusColor = ds.ink3;
+    } else if (days! < 0) {
+      status = l.overdueDays(-days);
+      statusColor = ds.danger;
+    } else if (days == 0) {
+      status = l.today;
+      statusColor = ds.primaryHover;
+    } else {
+      status = l.upcoming;
+      statusColor = ds.ink3;
+    }
+    final startLabel = live.startDate == null
+        ? null
+        : formatDeadline(context, live.startDate!);
+    final dueLabel = live.dueDate == null
+        ? null
+        : formatDeadline(context, live.dueDate!);
+    final leftDate = startLabel ?? dueLabel;
+    final rightDate = startLabel == null ? null : dueLabel;
 
-    return ListView(
-      key: PageStorageKey<String>('todo-detail-$_todoId'),
-      padding: EdgeInsets.fromLTRB(
-        horizontal,
-        AppSpacing.lg,
-        horizontal,
-        AppSpacing.xxl,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('todo-detail-title'),
-                controller: _summary,
-                focusNode: _summaryFocus,
-                style: AppTypography.headline,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (value) {
-                  _summaryTimer?.cancel();
-                  if (value.trim().isEmpty) return;
-                  _summaryTimer = Timer(
-                    const Duration(milliseconds: 600),
-                    _flushSummary,
-                  );
-                },
-                onSubmitted: (_) => _flushSummary(),
-                decoration: InputDecoration(
-                  hintText: l.title,
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintStyle: AppTypography.headline.copyWith(
-                    color: context.semantic.textTertiary,
+        Expanded(
+          child: ListView(
+            key: PageStorageKey<String>('todo-detail-$_todoId'),
+            padding: EdgeInsets.fromLTRB(
+              side,
+              widget.embedded ? 18 : 14,
+              side,
+              24,
+            ),
+            children: [
+              _header(
+                context,
+                l,
+                live,
+                currentCalendar?.name,
+                calendarColor,
+              ),
+              _status(
+                context,
+                status,
+                statusColor,
+                completed ? 1.0 : 0.0,
+                leftDate,
+                rightDate,
+              ),
+              DsSectionLabel(
+                l.sectionTime,
+                padding: const EdgeInsets.only(top: 16, bottom: 6),
+              ),
+              Container(height: 1, color: ds.line),
+              _deadlineRow(context, l, live, rowHeight, mobile),
+              const SizedBox(height: 8),
+              if (legacy) ...[
+                _legacyNotice(context, l, live),
+              ] else ...[
+                ExecutionScheduleSection(todo: live, deadline: live.dueDate),
+                RepeatRow(
+                  rrule: live.rrule,
+                  anchorDate: live.startDate ?? live.dueDate,
+                  onChanged: (value) =>
+                      _saveSchedule(setRule: true, rule: value),
+                  startDate: live.startDate,
+                  onStartDateChanged: (value) => _saveSchedule(
+                    setStart: true,
+                    start: value,
+                    setRule: value == null,
+                    rule: value == null ? null : live.rrule,
+                  ),
+                  needsDate: live.startDate == null && live.dueDate == null,
+                ),
+              ],
+              RemindersSection(
+                parentType: 'todo',
+                parentId: live.id,
+                anchorTime: live.dueDate,
+              ),
+              DsSectionLabel(
+                l.sectionOrganize,
+                padding: const EdgeInsets.only(top: 16, bottom: 6),
+              ),
+              Container(height: 1, color: ds.line),
+              if (calendars.isNotEmpty)
+                _calendarRow(
+                  context,
+                  l,
+                  live,
+                  currentCalendar,
+                  calendarColor,
+                  rowHeight,
+                ),
+              _priorityRow(context, l, live, rowHeight),
+              const SizedBox(height: 12),
+              _tags(context, live),
+              DsSectionLabel(
+                l.sectionContent,
+                padding: const EdgeInsets.only(top: 16, bottom: 6),
+              ),
+              _notes(context, l),
+              const SizedBox(height: 16),
+              _subtasks(context, l, live),
+              const SizedBox(height: 12),
+              AttachmentList(parentType: 'todo', parentId: live.id),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+        _footer(context, l, live, completed, mobile, side),
+      ],
+    );
+  }
+
+  Widget _header(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live,
+    String? calendarName,
+    Color calendarColor,
+  ) {
+    final ds = context.ds;
+    final locale = Localizations.localeOf(context).toString();
+    final anchor = live.dueDate ?? live.startDate;
+    final date = anchor == null
+        ? null
+        : '${DateFormat.MMMd(locale).format(anchor)} '
+              '${DateFormat.E(locale).format(anchor)}';
+    final eyebrow = [
+      calendarName ?? l.todoDetails,
+      if (date != null) date,
+    ].join(' · ');
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _PaneDot(color: calendarColor),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      eyebrow,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 16 / 11,
+                        color: ds.ink3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  DsCheck(
+                    checked: live.status == 'COMPLETED',
+                    size: 18,
+                    compact: true,
+                    label: live.status == 'COMPLETED'
+                        ? l.markIncomplete
+                        : l.markComplete,
+                    onChanged: (_) =>
+                        _toggleCompletion(live, live.status == 'COMPLETED'),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('todo-detail-title'),
+                      controller: _summary,
+                      focusNode: _summaryFocus,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        height: 26 / 20,
+                        letterSpacing: 0.2,
+                        color: ds.ink,
+                      ),
+                      strutStyle: const StrutStyle(
+                        fontSize: 20,
+                        height: 26 / 20,
+                        forceStrutHeight: true,
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: (value) {
+                        _summaryTimer?.cancel();
+                        if (value.trim().isEmpty) return;
+                        _summaryTimer = Timer(
+                          const Duration(milliseconds: 600),
+                          _flushSummary,
+                        );
+                      },
+                      onSubmitted: (_) => _flushSummary(),
+                      decoration: InputDecoration(
+                        hintText: l.title,
+                        isDense: true,
+                        // The title sits on the page, not in a box: the theme
+                        // fills every field, and a white patch behind the one
+                        // line of 20px type reads as a stray input.
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        hintStyle: TextStyle(fontSize: 20, color: ds.ink3),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (widget.embedded) ...[
+          const SizedBox(width: 8),
+          _PaneCloseButton(onPressed: widget.onClose, tooltip: l.close),
+        ],
+      ],
+    );
+  }
+
+  Widget _status(
+    BuildContext context,
+    String status,
+    Color statusColor,
+    double fraction,
+    String? left,
+    String? right,
+  ) {
+    final ds = context.ds;
+    final timeStyle = TextStyle(
+      fontSize: 11,
+      height: 15 / 11,
+      color: ds.faint,
+      fontFeatures: AppTypography.tabular,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 11),
+          child: Row(
+            children: [
+              _PaneDot(color: statusColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  status,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    height: 18 / 12,
+                    color: statusColor,
                   ),
                 ),
               ),
-            ),
-            if (widget.embedded)
-              IconButton(
-                icon: const Icon(CupertinoIcons.xmark, size: 16),
-                tooltip: l.close,
-                onPressed: widget.onClose,
-                visualDensity: VisualDensity.compact,
-              ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Row(
-          children: [
-            Icon(
-              completed
-                  ? CupertinoIcons.checkmark_circle_fill
-                  : CupertinoIcons.circle,
-              size: 16,
-              color: completed
-                  ? Theme.of(context).colorScheme.primary
-                  : context.semantic.textTertiary,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                completed ? l.completed : l.openTask,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.caption.copyWith(
-                  color: context.semantic.textSecondary,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () => _toggleCompletion(live, completed),
-              style: TextButton.styleFrom(
-                minimumSize: const Size(48, 40),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(completed ? l.markIncomplete : l.markComplete),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        const RowDivider(),
-        SectionLabel(l.sectionTime),
-        if (legacy) ...[
-          const SizedBox(height: AppSpacing.md),
-          _legacyNotice(context, l, live),
-        ] else ...[
-          ScheduleRow(
-            label: l.deadline,
-            value: live.dueDate == null
-                ? l.noDeadline
-                : formatDeadline(context, live.dueDate!),
-            placeholder: live.dueDate == null,
-            emptyValue: l.noDeadline,
-            clearTooltip: l.clearDeadline,
-            onTap: () => _pickDue(live),
-            onClear: live.dueDate == null
-                ? null
-                : () => _saveSchedule(setDue: true),
+            ],
           ),
-          RepeatRow(
-            rrule: live.rrule,
-            anchorDate: live.startDate ?? live.dueDate,
-            onChanged: (value) => _saveSchedule(setRule: true, rule: value),
-            startDate: live.startDate,
-            onStartDateChanged: (value) => _saveSchedule(
-              setStart: true,
-              start: value,
-              setRule: value == null,
-              rule: value == null ? null : live.rrule,
+        ),
+        // A todo has no progress to show while it is open: an empty bar under
+        // the status reads as a control that failed to load.
+        if (fraction > 0) ...[
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: SizedBox(
+              height: 5,
+              child: Stack(
+                children: [
+                  Positioned.fill(child: ColoredBox(color: ds.surface3)),
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: fraction,
+                    heightFactor: 1,
+                    child: ColoredBox(color: ds.primary),
+                  ),
+                ],
+              ),
             ),
-            needsDate: live.startDate == null && live.dueDate == null,
           ),
-          ExecutionScheduleSection(todo: live, deadline: live.dueDate),
         ],
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionReminder),
-        RemindersSection(
-          parentType: 'todo',
-          parentId: live.id,
-          anchorTime: live.dueDate,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionOrganize),
-        _calendar(context, l, live),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          l.calendarExplanation,
-          style: AppTypography.caption.copyWith(
-            color: context.semantic.textTertiary,
+        if (left != null) ...[
+          const SizedBox(height: 5),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(left, style: timeStyle),
+              if (right != null) Text(right, style: timeStyle),
+            ],
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _priority(context, l, live),
-        const SizedBox(height: AppSpacing.sm),
-        _tags(context, live),
-        const SizedBox(height: AppSpacing.lg),
-        const RowDivider(),
-        SectionLabel(l.sectionContent),
-        TextField(
-          controller: _description,
-          focusNode: _descriptionFocus,
-          decoration: InputDecoration(
-            hintText: l.description,
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.body.copyWith(
-              color: context.semantic.textTertiary,
+        ],
+      ],
+    );
+  }
+
+  Widget _deadlineRow(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live,
+    double rowHeight,
+    bool mobile,
+  ) {
+    return _PaneFieldRow(
+      label: l.deadline,
+      height: rowHeight,
+      value: live.dueDate == null
+          ? l.noDeadline
+          : formatDeadline(context, live.dueDate!),
+      onTap: () => _pickDue(live),
+      showChevron: true,
+      trailing: live.dueDate == null
+          ? null
+          : _PaneInlineClear(
+              onPressed: () => _saveSchedule(setDue: true),
+              tooltip: l.clearDeadline,
+              size: mobile ? 44 : 32,
             ),
+    );
+  }
+
+  Widget _calendarRow(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live,
+    Calendar? currentCalendar,
+    Color calendarColor,
+    double rowHeight,
+  ) {
+    return _PaneFieldRow(
+      label: l.calendarField,
+      height: rowHeight,
+      leading: _PaneDot(color: calendarColor, size: 7),
+      value: currentCalendar?.name ?? l.calendarUnavailable,
+      onTap: () => _pickCalendar(live),
+      showChevron: true,
+    );
+  }
+
+  Widget _priorityRow(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live,
+    double rowHeight,
+  ) {
+    return _PaneFieldRow(
+      label: l.priority,
+      height: rowHeight,
+      valueChild: Align(
+        alignment: Alignment.centerLeft,
+        child: _priorityChips(context, l, live),
+      ),
+    );
+  }
+
+  Widget _priorityChips(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live,
+  ) {
+    final labels = <int, String>{
+      0: l.priorityNone,
+      9: l.priorityLow,
+      5: l.priorityMedium,
+      1: l.priorityHigh,
+    };
+    return Wrap(
+      spacing: AppSpacing.s1,
+      runSpacing: AppSpacing.s1,
+      children: [
+        for (final value in const [0, 9, 5, 1])
+          DsChip(
+            label: labels[value]!,
+            selected: live.priority == value,
+            compact: true,
+            onTap: () => _savePriority(value),
           ),
-          maxLines: null,
-          textCapitalization: TextCapitalization.sentences,
-          onChanged: (_) {
-            _descriptionTimer?.cancel();
-            _descriptionTimer = Timer(
-              const Duration(milliseconds: 600),
-              _flushDescription,
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _subtasks(context, l, live),
-        const SizedBox(height: AppSpacing.lg),
-        AttachmentList(parentType: 'todo', parentId: live.id),
-        const SizedBox(height: AppSpacing.xl),
-        const RowDivider(),
-        const SizedBox(height: AppSpacing.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => _delete(live),
-            icon: Icon(
-              CupertinoIcons.trash,
-              size: 16,
-              color: Theme.of(context).colorScheme.error,
+      ],
+    );
+  }
+
+  Widget _notes(BuildContext context, AppLocalizations l) {
+    final ds = context.ds;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // The section label above already names this block; a second overline
+        // six pixels lower read as a stray duplicate rather than a heading.
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: ds.bg,
+            border: Border.all(color: ds.lineSoft),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: TextField(
+            controller: _description,
+            focusNode: _descriptionFocus,
+            style: TextStyle(fontSize: 13, height: 22 / 13, color: ds.ink2),
+            strutStyle: const StrutStyle(
+              fontSize: 13,
+              height: 22 / 13,
+              forceStrutHeight: true,
             ),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-              minimumSize: const Size(48, 48),
+            cursorColor: ds.primary,
+            decoration: InputDecoration(
+              hintText: l.description,
+              isDense: true,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              hintStyle: TextStyle(
+                fontSize: 13,
+                height: 22 / 13,
+                color: ds.ink3,
+              ),
             ),
-            label: Text(l.moveToTrash),
+            maxLines: null,
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) {
+              _descriptionTimer?.cancel();
+              _descriptionTimer = Timer(
+                const Duration(milliseconds: 600),
+                _flushDescription,
+              );
+            },
           ),
         ),
       ],
     );
+  }
+
+  Widget _footer(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live,
+    bool completed,
+    bool mobile,
+    double side,
+  ) {
+    final ds = context.ds;
+    final height = mobile ? 48.0 : 36.0;
+    final primaryLabel = completed ? l.markIncomplete : l.markComplete;
+    final primary = _PaneButton(
+      label: primaryLabel,
+      height: height,
+      primary: true,
+      onPressed: () => _toggleCompletion(live, completed),
+    );
+    final schedule = _PaneButton(
+      label: l.schedule,
+      height: height,
+      onPressed: () => scheduleTodoBlock(context, ref, live),
+    );
+    final edit = _PaneButton(
+      label: l.edit,
+      height: height,
+      onPressed: () => context.push('/todo/edit', extra: live),
+    );
+    final remove = _PaneButton(
+      label: l.moveToTrash,
+      height: height,
+      danger: true,
+      onPressed: () => _delete(live),
+    );
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.embedded ? ds.surface : ds.bg,
+        border: Border(top: BorderSide(color: ds.line)),
+      ),
+      padding: EdgeInsets.fromLTRB(side, mobile ? 12 : 14, side, 0),
+      child: SafeArea(
+        top: false,
+        minimum: EdgeInsets.only(bottom: mobile ? 12 : 16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final fontSize = height >= 44 ? 14.0 : 12.0;
+            final singleRow =
+                _estimatedWidth(primaryLabel, fontSize) +
+                    _estimatedWidth(l.schedule, fontSize) +
+                    _estimatedWidth(l.edit, fontSize) +
+                    _estimatedWidth(l.moveToTrash, fontSize) +
+                    24 <=
+                constraints.maxWidth;
+            if (singleRow) {
+              return SizedBox(
+                height: height,
+                child: Row(
+                  children: [
+                    Expanded(child: primary),
+                    const SizedBox(width: 8),
+                    schedule,
+                    const SizedBox(width: 8),
+                    edit,
+                    const SizedBox(width: 8),
+                    remove,
+                  ],
+                ),
+              );
+            }
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: height,
+                  child: Row(children: [Expanded(child: primary)]),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: height,
+                  child: Row(
+                    children: [
+                      Expanded(child: schedule),
+                      const SizedBox(width: 8),
+                      Expanded(child: edit),
+                      const SizedBox(width: 8),
+                      Expanded(child: remove),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  double _estimatedWidth(String label, double fontSize) =>
+      label.runes.length * fontSize + 22;
+
+  Future<void> _pickCalendar(Todo live) async {
+    final picked = await pickCalendar(
+      context,
+      ref,
+      selectedId: live.calendarId,
+    );
+    if (picked != null) await _writeBasics(calendarId: picked);
   }
 
   bool _isUnknownLegacy(Todo row) {
@@ -385,99 +773,73 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     );
   }
 
-  Widget _calendar(BuildContext context, AppLocalizations l, Todo live) {
-    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
-    if (calendars.isEmpty) return const SizedBox.shrink();
-    final current = calendars.where((c) => c.id == live.calendarId).firstOrNull;
-    return ScheduleRow(
-      label: l.calendarField,
-      value: current?.name ?? l.calendarUnavailable,
-      trailing: const Icon(CupertinoIcons.chevron_down, size: 12),
-      onTap: () async {
-        final picked = await pickCalendar(
-          context,
-          ref,
-          selectedId: live.calendarId,
-        );
-        if (picked != null) {
-          await _writeBasics(calendarId: picked);
-        }
-      },
-    );
-  }
-
   Widget _subtasks(BuildContext context, AppLocalizations l, Todo live) {
     final subtasks = ref.watch(subtasksProvider(live.id)).valueOrNull ?? const [];
+    final ds = context.ds;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionLabel(
-          l.subtasks,
-          action: TextButton.icon(
-            onPressed: () => _addSubtask(context, l, live),
-            icon: const Icon(CupertinoIcons.add, size: 13),
-            label: Text(l.addSubtask),
-            style: TextButton.styleFrom(
-              minimumSize: const Size(0, 48),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              textStyle: AppTypography.caption.copyWith(
-                fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            Text(
+              l.subtasks,
+              style: AppTypography.small.copyWith(
+                color: ds.ink2,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ),
+            const Spacer(),
+            DsButton(
+              label: l.addSubtask,
+              tone: DsButtonTone.ghost,
+              small: true,
+              icon: CupertinoIcons.add,
+              onPressed: () => _addSubtask(context, l, live),
+            ),
+          ],
         ),
         if (subtasks.isEmpty)
-          Text(
-            l.noSubtasks,
-            style: AppTypography.caption.copyWith(
-              color: context.semantic.textTertiary,
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              l.noSubtasks,
+              style: AppTypography.small.copyWith(color: ds.ink3),
             ),
           )
         else
           for (final sub in subtasks)
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 48),
+            SizedBox(
+              height: 40,
               child: Row(
                 children: [
-                  IconButton(
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
-                    icon: Icon(
-                      sub.status == 'COMPLETED'
-                          ? CupertinoIcons.checkmark_circle_fill
-                          : CupertinoIcons.circle,
-                      size: 18,
-                      color: sub.status == 'COMPLETED'
-                          ? Theme.of(context).colorScheme.primary
-                          : context.semantic.textTertiary,
-                    ),
-                    onPressed: () => ref.read(toggleTodoProvider)(
+                  DsCheck(
+                    checked: sub.status == 'COMPLETED',
+                    size: 17,
+                    compact: true,
+                    onChanged: (_) => ref.read(toggleTodoProvider)(
                       id: sub.id,
                       isCompleted: sub.status != 'COMPLETED',
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.s2),
                   Expanded(
                     child: Text(
                       sub.summary,
                       style: AppTypography.body.copyWith(
+                        fontSize: 14,
                         decoration: sub.status == 'COMPLETED'
                             ? TextDecoration.lineThrough
                             : null,
                         color: sub.status == 'COMPLETED'
-                            ? context.semantic.textTertiary
-                            : null,
+                            ? ds.ink3
+                            : ds.ink,
                       ),
                     ),
                   ),
-                  IconButton(
-                    constraints: const BoxConstraints(
-                      minWidth: 48,
-                      minHeight: 48,
-                    ),
-                    icon: const Icon(CupertinoIcons.xmark, size: 14),
+                  DsIconButton(
+                    icon: CupertinoIcons.xmark,
+                    size: 14,
+                    compact: true,
                     tooltip: l.removeSubtask,
                     onPressed: () => ref.read(deleteTodoProvider)(sub.id),
                   ),
@@ -529,46 +891,16 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     );
   }
 
-  Widget _priority(BuildContext context, AppLocalizations l, Todo live) {
-    final labels = {
-      0: l.priorityNone,
-      9: l.priorityLow,
-      5: l.priorityMedium,
-      1: l.priorityHigh,
-    };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l.priority,
-          style: AppTypography.caption.copyWith(
-            color: context.semantic.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Wrap(
-          spacing: AppSpacing.sm,
-          children: const [0, 9, 5, 1]
-              .map(
-                (value) => ChoiceChip(
-                  label: Text(labels[value]!),
-                  selected: live.priority == value,
-                  onSelected: (_) => _savePriority(value),
-                ),
-              )
-              .toList(),
-        ),
-      ],
-    );
-  }
-
   Widget _tags(BuildContext context, Todo live) {
     final assigned =
         ref.watch(todoTagsProvider(live.id)).valueOrNull ?? const [];
-    return TagChips(
-      parentType: 'todo',
-      parentId: live.id,
-      assignedTags: assigned,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TagChips(
+        parentType: 'todo',
+        parentId: live.id,
+        assignedTags: assigned,
+      ),
     );
   }
 
@@ -814,4 +1146,259 @@ void _leaveToSource(BuildContext context) {
     return;
   }
   router?.go('/');
+}
+
+class _PaneDot extends StatelessWidget {
+  const _PaneDot({required this.color, this.size = 6});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
+}
+
+class _PaneCloseButton extends StatelessWidget {
+  const _PaneCloseButton({required this.onPressed, required this.tooltip});
+
+  final VoidCallback? onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: MouseRegion(
+          cursor: onPressed == null
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              onTap: onPressed,
+              hoverColor: ds.surface2,
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: Icon(CupertinoIcons.xmark, size: 16, color: ds.ink3),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaneInlineClear extends StatelessWidget {
+  const _PaneInlineClear({
+    required this.onPressed,
+    required this.tooltip,
+    required this.size,
+  });
+
+  final VoidCallback onPressed;
+  final String tooltip;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              onTap: onPressed,
+              hoverColor: ds.surface2,
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: size,
+                height: size,
+                child: Icon(CupertinoIcons.xmark, size: 13, color: ds.ink3),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaneFieldRow extends StatelessWidget {
+  const _PaneFieldRow({
+    required this.label,
+    required this.height,
+    this.value,
+    this.valueChild,
+    this.leading,
+    this.trailing,
+    this.onTap,
+    this.showChevron = false,
+  });
+
+  final String label;
+  final double height;
+  final String? value;
+  final Widget? valueChild;
+  final Widget? leading;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final bool showChevron;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final content = SizedBox(
+      height: height,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 62,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                height: 16 / 11,
+                color: ds.ink3,
+              ),
+            ),
+          ),
+          Expanded(
+            child:
+                valueChild ??
+                Row(
+                  children: [
+                    if (leading != null) ...[
+                      leading!,
+                      const SizedBox(width: 7),
+                    ],
+                    Flexible(
+                      child: Text(
+                        value ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 18 / 13,
+                          color: ds.ink,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+          if (trailing != null) trailing!,
+          if (showChevron)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(
+                CupertinoIcons.chevron_forward,
+                size: 13,
+                color: ds.faint,
+              ),
+            ),
+        ],
+      ),
+    );
+    final row = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      ),
+      child: content,
+    );
+    if (onTap == null) return row;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(onTap: onTap, hoverColor: ds.surface2, child: row),
+      ),
+    );
+  }
+}
+
+class _PaneButton extends StatelessWidget {
+  const _PaneButton({
+    required this.label,
+    required this.onPressed,
+    required this.height,
+    this.primary = false,
+    this.danger = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final double height;
+  final bool primary;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final bg = primary ? ds.primary : ds.surface;
+    final fg = primary ? ds.onPrimary : (danger ? ds.danger : ds.ink2);
+    final enabled = onPressed != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      child: MouseRegion(
+        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        child: Opacity(
+          opacity: enabled ? 1 : 0.45,
+          child: Material(
+            color: bg,
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              onTap: onPressed,
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                height: height,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: primary ? Colors.transparent : ds.line,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: height >= 44 ? 14 : 12,
+                    fontWeight: height >= 44
+                        ? FontWeight.w600
+                        : FontWeight.w500,
+                    color: fg,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -41,7 +41,7 @@ void _ensureDefaultCalendar(AppDatabase db) {
             .insert(
               CalendarsCompanion.insert(
                 name: 'Personal',
-                color: const Value('#2563EB'),
+                color: const Value('#5F7183'),
               ),
             );
       }

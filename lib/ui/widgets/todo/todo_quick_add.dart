@@ -4,21 +4,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
-import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
-/// One always-present line for "just add it".
+/// The always-present "just add it" line.
 ///
 /// Enter writes the row and keeps the field focused, so five small tasks cost
-/// five lines of typing rather than five trips through the form. Anything that
-/// needs a date rule, a schedule or reminders still belongs to the full form.
+/// five lines of typing. The desktop version sits on a surface-2 ground; the
+/// mobile one is a hairline row, which is how the prototype keeps the list
+/// from looking like a stack of cards.
 class TodoQuickAdd extends ConsumerStatefulWidget {
   const TodoQuickAdd({super.key, this.dueDate});
 
-  /// Landing date for the new row: the day being viewed, or none in Inbox/All.
   final DateTime? dueDate;
 
   @override
@@ -40,8 +41,6 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
     final text = raw.trim();
     if (text.isEmpty) return;
     final l = AppLocalizations.of(context)!;
-    // Clear and refocus before the write: the next task can be typed while the
-    // previous one is still committing.
     _controller.clear();
     _focus.requestFocus();
     try {
@@ -73,76 +72,97 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final horizontal = isWorkspaceLayout(context) ? 28.0 : AppSpacing.lg;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final ds = context.ds;
+    final desktop = isWorkspaceLayout(context);
+
+    final field = Row(
       children: [
-        if (widget.dueDate != null)
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              horizontal,
-              AppSpacing.xs,
-              horizontal,
-              0,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: InputChip(
-                visualDensity: VisualDensity.compact,
-                avatar: const Icon(CupertinoIcons.calendar, size: 13),
-                label: Text(
-                  l.deadlinePrefix(
-                    DateFormatters.formatDate(widget.dueDate!),
-                  ),
-                ),
-                onPressed: null,
-              ),
-            ),
-          ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: horizontal),
-          child: SizedBox(
-            height: 48,
-            child: Row(
-              children: [
-                Icon(
-                  CupertinoIcons.add,
-                  size: 15,
-                  color: context.semantic.textTertiary,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('todo-quick-add'),
-                    controller: _controller,
-                    focusNode: _focus,
-                    textInputAction: TextInputAction.done,
-                    textCapitalization: TextCapitalization.sentences,
-                    // onEditingComplete, not onSubmitted: the framework only
-                    // unfocuses after submit when onSubmitted is the handler,
-                    // and a field that loses focus after every line cannot
-                    // take the next one.
-                    onEditingComplete: () => _submit(_controller.text),
-                    style: AppTypography.body,
-                    decoration: InputDecoration(
-                      hintText: l.quickAddTodo,
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      isDense: true,
-                      hintStyle: AppTypography.body.copyWith(
-                        color: context.semantic.textTertiary,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+        Icon(CupertinoIcons.add, size: 16, color: ds.ink3),
+        const SizedBox(width: AppSpacing.s2),
+        Expanded(
+          child: TextField(
+            key: const ValueKey('todo-quick-add'),
+            controller: _controller,
+            focusNode: _focus,
+            textInputAction: TextInputAction.done,
+            textCapitalization: TextCapitalization.sentences,
+            onEditingComplete: () => _submit(_controller.text),
+            style: AppTypography.body.copyWith(color: ds.ink),
+            decoration: InputDecoration(
+              hintText: l.quickAddTodo,
+              filled: false,
+              isDense: true,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              hintStyle: AppTypography.body.copyWith(color: ds.ink3),
             ),
           ),
         ),
-        Container(height: 1, color: context.semantic.separatorSoft),
+      ],
+    );
+
+    final dueChip = widget.dueDate == null
+        ? null
+        : DsChip(
+            compact: true,
+            label: l.deadlinePrefix(formatDeadline(context, widget.dueDate!)),
+            leading: Icon(CupertinoIcons.flag, size: 12, color: ds.warn),
+            warm: true,
+          );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (desktop) ...[
+          if (dueChip != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s5,
+                AppSpacing.s2,
+                AppSpacing.s5,
+                AppSpacing.s1,
+              ),
+              child: Align(alignment: Alignment.centerLeft, child: dueChip),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s5,
+              AppSpacing.s2,
+              AppSpacing.s5,
+              AppSpacing.s2,
+            ),
+            child: Container(
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: ds.surface2,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              child: field,
+            ),
+          ),
+        ] else
+          // The due chip shares the field's row: on a phone a lone chip on the
+          // line above cost 30px of list space and read as a stray control.
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+            child: Row(
+              children: [
+                Expanded(child: field),
+                if (dueChip != null) ...[
+                  const SizedBox(width: AppSpacing.s2),
+                  dueChip,
+                ],
+              ],
+            ),
+          ),
+        Container(
+          height: 1,
+          color: desktop ? ds.lineSoft : ds.lineSoft,
+        ),
       ],
     );
   }

@@ -12,6 +12,7 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 
 /// "Delete" on a recurring series has two very different meanings. The detail
@@ -131,7 +132,7 @@ void main() {
     expect(find.text('This occurrence only'), findsOneWidget);
     expect(find.text('The whole series'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(TextButton, 'This occurrence only'));
+    await tester.tap(find.widgetWithText(DsButton, 'This occurrence only'));
     await _settle(tester);
 
     final after = await _row(db, seeded.id);
@@ -151,7 +152,7 @@ void main() {
     final seeded = await _seedSeries(db);
     await _openDeleteDialog(tester, db, seeded.occurrence);
 
-    await tester.tap(find.widgetWithText(TextButton, 'The whole series'));
+    await tester.tap(find.widgetWithText(DsButton, 'The whole series'));
     await _settle(tester);
 
     final after = await _row(db, seeded.id);
@@ -171,7 +172,7 @@ void main() {
     final before = await _row(db, seeded.id);
     await _openDeleteDialog(tester, db, seeded.occurrence);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.tap(find.widgetWithText(DsButton, 'Cancel'));
     await _settle(tester);
 
     final after = await _row(db, seeded.id);

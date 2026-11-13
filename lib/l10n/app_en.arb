@@ -29,6 +29,14 @@
   "allCalendars": "All Calendars",
   "targetCalendar": "Target Calendar",
   "manageCalendars": "Manage Calendars",
+  "myCalendars": "My Calendars",
+  "allTags": "All Tags",
+  "categoryCount": "{count} total",
+  "@categoryCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "newCalendar": "New Calendar",
   "navigationError": "Navigation Error",
   "pageNotFound": "Page not found or failed to load: {uri}",
@@ -66,12 +74,31 @@
   "title": "Title",
   "description": "Description",
   "location": "Location",
+  "locationHint": "Add location",
   "startDate": "Repeat starts",
   "startAfterDeadline": "Starts at has to come before the deadline.",
   "endDate": "Ends at",
   "dueDate": "Due date",
   "dueTime": "Time",
   "allDay": "All day",
+  "plannedShort": "Planned",
+  "overdueDays": "{count, plural, =1{1 day late} other{{count} days late}}",
+  "@overdueDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "dayItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@dayItemCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "deadlineLane": "Due (no time block) · {count}",
+  "@deadlineLane": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noPlansDay": "Nothing planned",
   "priority": "Priority",
   "priorityNone": "None",
   "priorityLow": "Low",
@@ -85,6 +112,7 @@
   "noTags": "No tags yet",
   "notConfigured": "Not configured",
   "aiConfig": "AI Configuration",
+  "aiEnable": "Enabled",
   "aiAssistant": "AI Assistant",
   "apiKey": "API Key",
   "baseUrl": "Base URL",
@@ -118,6 +146,37 @@
   "events": "Events",
   "upcoming": "Upcoming",
   "quickAdd": "Quick add",
+  "notSynced": "Not synced",
+  "completedLabel": "Done",
+  "nextOpening": "Next opening",
+  "todayStillOpen": "{count} still open today",
+  "@todayStillOpen": {"placeholders": {"count": {"type": "int"}}},
+  "durationHours": "{hours} h",
+  "@durationHours": {"placeholders": {"hours": {"type": "int"}}},
+  "durationMinutes": "{minutes} min",
+  "@durationMinutes": {"placeholders": {"minutes": {"type": "int"}}},
+  "durationHoursMinutes": "{hours} h {minutes} min",
+  "@durationHoursMinutes": {"placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
+  "freeFor": "Free {duration}",
+  "@freeFor": {"placeholders": {"duration": {"type": "String"}}},
+  "timelineTitle": "Today's timeline",
+  "scheduledLabel": "Scheduled",
+  "freeLabel": "Free",
+  "remainingMinutes": "{minutes} min left",
+  "@remainingMinutes": {"placeholders": {"minutes": {"type": "int"}}},
+  "overdue": "Overdue",
+  "eventsAndFree": "{count} events",
+  "@eventsAndFree": {"placeholders": {"count": {"type": "int"}}},
+  "nextUp": "Next",
+  "syncedAt": "Synced {time}",
+  "meLabel": "Me",
+  "@syncedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "todayEventsHeader": "Today's Events",
   "widgetNoPlans": "No plans for today",
   "widgetTodos": "Tasks",
@@ -218,7 +277,13 @@
   "aiNotConfiguredHint": "AI not configured. Go to Settings > AI.",
   "aiError": "The assistant couldn't finish that",
   "aiFilled": "Filled in: {fields}",
-  "@aiFilled": {"placeholders": {"fields": {"type": "String"}}},
+  "@aiFilled": {
+    "placeholders": {
+      "fields": {
+        "type": "String"
+      }
+    }
+  },
   "deleteEventConfirm": "Delete \"{title}\"?",
   "@deleteEventConfirm": {
     "placeholders": {
@@ -326,6 +391,12 @@
   "tutorial": "Tutorial",
   "undo": "Undo",
   "deleted": "Deleted",
+  "deletedOn": "Deleted on {date}",
+  "@deletedOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
   "snoozedFor": "Snoozed for {duration}",
   "@snoozedFor": {
     "placeholders": {
@@ -605,7 +676,7 @@
   "noSchedulableTodos": "No pending tasks available to schedule",
   "action": "Today",
   "scheduledSection": "Scheduled",
-  "dueTodaySection": "To do today",
+  "dueTodaySection": "Due today",
   "unplannedInbox": "Unplanned",
   "unplannedCount": "{count} unplanned",
   "@unplannedCount": {
@@ -676,12 +747,19 @@
   "scheduleNow": "Schedule now",
   "actionNothingNow": "Nothing needs you right now",
   "actionNothingNowHint": "Upcoming events and deadlines will show up here on the day.",
+  "actionEmptyDay": "Nothing scheduled yet",
   "recurringNeedsRepair": "Some repeating tasks need a one-time fix",
   "recurringNeedsRepairHint": "These were imported without a time zone. Open one to confirm when it repeats.",
   "recurringBroken": "A repeating task cannot be calculated",
   "recurringBrokenHint": "Its repeat rule is no longer valid. Open it to set a new one.",
   "untilTime": "until {time}",
-  "@untilTime": {"placeholders": {"time": {"type": "String"}}},
+  "@untilTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "laterToday": "Next up",
   "nothingScheduled": "Nothing scheduled",
   "minutesShort": "{count} min",
@@ -776,7 +854,6 @@
   "submitOnGitHub": "Submit on GitHub",
   "clearChatAction": "Clear",
   "clearChatConfirm": "Clear this conversation? It can't be restored.",
-  "openUpdatePage": "View release",
   "couldNotOpenLink": "Couldn't open that link.",
   "invalidTimeRange": "The end has to come after the start.",
   "deleteThisOccurrence": "This occurrence only",
@@ -863,13 +940,47 @@
   "quickAddTodo": "Add task",
   "quickCreateHint": "Task title",
   "moreOptions": "More",
+  "lessOptions": "Less",
+  "addTime": "Add time",
+  "remindNone": "No reminder",
+  "notes": "Notes",
+  "notesHint": "Add notes",
+  "openFullForm": "Open full form",
+  "moreSection": "More",
+  "inProgress": "In progress",
+  "executingPlan": "Executing",
   "createCalendarFromPicker": "+ New calendar",
-  "unplannedCount": "{count} unplanned",
-  "@unplannedCount": {
+  "byDate": "By date",
+  "showCompleted": "Show completed",
+  "filterAndDisplay": "Filter & display",
+  "clearFilters": "Clear",
+  "allLabel": "All",
+  "unplannedViewEmptyTitle": "No unplanned tasks",
+  "unplannedViewEmptyHint": "Every task has a planned time. Switch to All Tasks to see everything.",
+  "todosEmptyTitle": "No tasks here",
+  "todosEmptyHint": "Write down what you need to do, no need to decide when yet.",
+  "noPlannedExecution": "Not scheduled",
+  "unplannedRailHint": "Tasks without a planned time. Schedule one to give it a place in the day.",
+  "unplannedRailEmpty": "Everything is scheduled.",
+  "allScheduled": "everything scheduled",
+  "selectTodoPaneTitle": "Select a task",
+  "selectTodoPaneHint": "Choose a task on the left, or add one above.",
+  "filterCountLabel": "{count} filters",
+  "@filterCountLabel": {
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
-  }
+  },
+  "todoAllContext": "{count} unfinished",
+  "@todoAllContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarTags": "Calendar & tags",
+  "other": "Other"
 }

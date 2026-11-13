@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
@@ -85,20 +86,13 @@ void main() {
 
     await start(tester);
 
-    await tester.tap(find.byKey(const ValueKey('workspace-create')));
-    await _settle(tester);
-    await tester.tap(
-      find.descendant(
-        of: find.byType(SimpleDialog),
-        matching: find.text('Tasks'),
-      ),
-    );
+    await tester.tap(find.byKey(const ValueKey('workspace-create-todo')));
     await _settle(tester);
     await tester.enterText(
       find.byKey(const ValueKey('todo-quick-create-title')),
       'Book the flights',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.tap(find.widgetWithText(DsButton, 'Save'));
     await _settle(tester);
 
     final created = (await db.select(db.todos).get()).single;
@@ -156,7 +150,12 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Move to Trash'),
       300,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .descendant(
+            of: find.byType(TodoDetailPage),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await _settle(tester);
     await tester.tap(find.text('Move to Trash'));

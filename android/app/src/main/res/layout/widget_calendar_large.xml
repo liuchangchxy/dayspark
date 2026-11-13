@@ -3,7 +3,7 @@
     android:id="@+id/calendar_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/widget_background"
+    android:background="@drawable/widget_root_bg"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -21,7 +21,7 @@
             android:gravity="center_vertical"
             android:fontFamily="sans-serif-medium"
             android:textColor="@color/widget_accent"
-            android:textSize="14sp" />
+            android:textSize="15sp" />
 
         <TextView
             android:id="@+id/calendar_today"
@@ -39,7 +39,7 @@
             android:gravity="center"
             android:text="+"
             android:textColor="@color/widget_accent"
-            android:textSize="22sp" />
+            android:textSize="20sp" />
     </LinearLayout>
 
     <LinearLayout
@@ -70,6 +70,7 @@
         android:visibility="gone" />
 
     <FrameLayout
+        android:id="@+id/calendar_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="8dp"
@@ -83,8 +84,18 @@
         android:paddingBottom="2dp"
         android:singleLine="true"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="11sp"
-        android:textStyle="bold" />
+        android:fontFamily="sans-serif-medium"
+        android:textSize="11sp" />
+
+    <TextView
+        android:id="@+id/calendar_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="44dp"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/calendar_summary"
@@ -92,12 +103,4 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:orientation="vertical" />
-
-    <TextView
-        android:id="@+id/calendar_empty"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="12sp"
-        android:visibility="gone" />
 </LinearLayout>

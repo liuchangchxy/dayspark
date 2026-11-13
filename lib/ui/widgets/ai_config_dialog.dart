@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 /// Show the AI configuration dialog. Used by both Settings and AI Chat pages.
 Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
@@ -24,7 +26,7 @@ Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
   final isCustom = selectedPresetIndex < 0 && currentUrl.isNotEmpty;
 
   await showDialog(
-    animationStyle: AnimationStyle.noAnimation, context: context,
+    context: context,
     builder: (ctx) => _AiConfigDialog(
       l: l,
       initialConfig: config,
@@ -96,6 +98,12 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
     return kAiPresets[_presetIndex].baseUrl;
   }
 
+  String get _providerLabel {
+    if (_isCustom) return widget.l.customProvider;
+    final index = _presetIndex >= 0 ? _presetIndex : 0;
+    return kAiPresets[index].name;
+  }
+
   Future<void> _detectModels() async {
     final key = widget.keyController.text.trim();
     final url = _baseUrl;
@@ -125,162 +133,124 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
     }
   }
 
+  Future<void> _pickProvider() async {
+    final l = widget.l;
+    final current = _isCustom
+        ? kAiPresets.length
+        : (_presetIndex >= 0 ? _presetIndex : 0);
+    final picked = await showDsSheet<int>(
+      context: context,
+      title: l.aiProvider,
+      body: Builder(
+        builder: (sheetContext) {
+          final ds = sheetContext.ds;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < kAiPresets.length; i++)
+                DsSettingRow(
+                  label: kAiPresets[i].name,
+                  selected: current == i,
+                  trailing: current == i
+                      ? Icon(
+                          CupertinoIcons.checkmark,
+                          size: 15,
+                          color: ds.primary,
+                        )
+                      : null,
+                  onTap: () => Navigator.of(sheetContext).pop(i),
+                ),
+              DsSettingRow(
+                label: l.customProvider,
+                selected: current == kAiPresets.length,
+                trailing: current == kAiPresets.length
+                    ? Icon(
+                        CupertinoIcons.checkmark,
+                        size: 15,
+                        color: ds.primary,
+                      )
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(kAiPresets.length),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (picked == kAiPresets.length) {
+        _isCustom = true;
+      } else {
+        _isCustom = false;
+        _presetIndex = picked;
+        _urlController.text = kAiPresets[picked].baseUrl;
+      }
+      _detectedModels = [];
+    });
+  }
+
+  Future<void> _pickModel() async {
+    final current = _modelController.text;
+    final picked = await showDsSheet<String>(
+      context: context,
+      title: widget.l.selectModel,
+      body: Builder(
+        builder: (sheetContext) {
+          final ds = sheetContext.ds;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final model in _detectedModels)
+                DsSettingRow(
+                  label: model,
+                  selected: model == current,
+                  trailing: model == current
+                      ? Icon(
+                          CupertinoIcons.checkmark,
+                          size: 15,
+                          color: ds.primary,
+                        )
+                      : null,
+                  onTap: () => Navigator.of(sheetContext).pop(model),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _modelController.text = picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = widget.l;
     final config = widget.initialConfig;
+    final ds = context.ds;
 
-    return AlertDialog(
-      title: Text(l.aiConfig),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Provider dropdown
-            Text(l.aiProvider, style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 4),
-            DropdownButton<int>(
-              value: _isCustom
-                  ? kAiPresets.length
-                  : (_presetIndex >= 0 ? _presetIndex : 0),
-              isExpanded: true,
-              items: [
-                ...kAiPresets.asMap().entries.map(
-                  (e) =>
-                      DropdownMenuItem(value: e.key, child: Text(e.value.name)),
-                ),
-                DropdownMenuItem(
-                  value: kAiPresets.length,
-                  child: Text(l.customProvider),
-                ),
-              ],
-              onChanged: (val) {
-                setState(() {
-                  if (val == kAiPresets.length) {
-                    _isCustom = true;
-                  } else {
-                    _isCustom = false;
-                    _presetIndex = val!;
-                    _urlController.text = kAiPresets[val].baseUrl;
-                  }
-                  _detectedModels = [];
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Base URL (always visible, editable for custom)
-            TextField(
-              controller: _urlController,
-              decoration: InputDecoration(
-                labelText: l.baseUrl,
-                hintText: 'https://api.openai.com/v1',
-              ),
-              keyboardType: TextInputType.url,
-              enabled: _isCustom,
-              onChanged: (_) => setState(() => _detectedModels = []),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Format: http://host:port/v1 (e.g., http://192.168.1.100:11434/v1)',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // API Key
-            TextField(
-              controller: widget.keyController,
-              decoration: InputDecoration(
-                labelText: l.apiKey,
-                hintText: 'sk-...',
-              ),
-              obscureText: true,
-              onChanged: (_) => setState(() => _detectedModels = []),
-            ),
-            const SizedBox(height: 12),
-
-            // Model: dropdown if detected, text field otherwise
-            Row(
-              children: [
-                Text(l.model, style: Theme.of(context).textTheme.labelMedium),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _detecting ? null : _detectModels,
-                  icon: _detecting
-                      ? const SizedBox(
-                          width: AppSpacing.lg,
-                          height: AppSpacing.lg,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(CupertinoIcons.search, size: 14),
-                  label: Text(_detecting ? l.detectingModels : l.detectModels),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            if (_detectFailed)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  l.modelDetectFailed,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: AppTypography.caption.fontSize,
-                  ),
-                ),
-              ),
-            if (_detectedModels.isNotEmpty)
-              DropdownButton<String>(
-                value: _detectedModels.contains(_modelController.text)
-                    ? _modelController.text
-                    : null,
-                isExpanded: true,
-                hint: Text(l.selectModel),
-                items: _detectedModels
-                    .map(
-                      (m) => DropdownMenuItem(
-                        value: m,
-                        child: Text(m, overflow: TextOverflow.ellipsis),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _modelController.text = val);
-                  }
-                },
-              )
-            else
-              TextField(
-                controller: _modelController,
-                decoration: InputDecoration(
-                  labelText: l.model,
-                  hintText: 'gpt-4o-mini',
-                ),
-              ),
-          ],
-        ),
-      ),
+    return DsDialog(
+      title: l.aiConfig,
+      width: 520,
       actions: [
         if (config != null)
-          TextButton(
+          DsButton(
+            label: l.remove,
+            tone: DsButtonTone.danger,
             onPressed: () async {
               await ref.read(deleteAiConfigProvider)();
               if (context.mounted) Navigator.of(context).pop();
             },
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.remove),
           ),
-        TextButton(
+        const Spacer(),
+        DsButton(
+          label: l.cancel,
+          tone: DsButtonTone.ghost,
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(l.cancel),
         ),
-        FilledButton(
+        const SizedBox(width: AppSpacing.s2),
+        DsButton(
+          label: l.save,
           onPressed: () async {
             var key = widget.keyController.text.trim();
             if (key.startsWith('••••') || key.isEmpty) {
@@ -297,9 +267,83 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
             );
             if (context.mounted) Navigator.of(context).pop();
           },
-          child: Text(l.save),
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DsSettingRow(
+            label: l.aiProvider,
+            value: _providerLabel,
+            onTap: _pickProvider,
+          ),
+          const SizedBox(height: AppSpacing.s3),
+          DsField(
+            label: l.baseUrl,
+            help:
+                'Format: http://host:port/v1 (e.g., http://192.168.1.100:11434/v1)',
+            child: DsTextField(
+              controller: _urlController,
+              hint: 'https://api.openai.com/v1',
+              keyboardType: TextInputType.url,
+              enabled: _isCustom,
+              onChanged: (_) => setState(() => _detectedModels = []),
+            ),
+          ),
+          DsField(
+            label: l.apiKey,
+            child: DsTextField(
+              controller: widget.keyController,
+              hint: 'sk-...',
+              obscureText: true,
+              onChanged: (_) => setState(() => _detectedModels = []),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l.model,
+                  style: AppTypography.small.copyWith(
+                    color: ds.ink2,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              DsButton(
+                label: _detecting ? l.detectingModels : l.detectModels,
+                tone: DsButtonTone.ghost,
+                icon: CupertinoIcons.search,
+                small: true,
+                loading: _detecting,
+                onPressed: _detecting ? null : _detectModels,
+              ),
+            ],
+          ),
+          if (_detectFailed) ...[
+            const SizedBox(height: AppSpacing.s1),
+            Text(
+              l.modelDetectFailed,
+              style: AppTypography.caption.copyWith(color: ds.danger),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.s1),
+          if (_detectedModels.isNotEmpty)
+            DsSettingRow(
+              label: l.selectModel,
+              value: _detectedModels.contains(_modelController.text)
+                  ? _modelController.text
+                  : null,
+              onTap: _pickModel,
+            )
+          else
+            DsTextField(
+              controller: _modelController,
+              hint: 'gpt-4o-mini',
+            ),
+        ],
+      ),
     );
   }
 }

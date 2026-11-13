@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -113,7 +114,7 @@ void main() {
     await tester.pumpWidget(_app(db, series));
     await _settle(tester);
 
-    await tester.tap(find.text('Mark Complete'));
+    await tester.tap(find.byType(DsCheck).first);
     await _settle(tester);
 
     expect(

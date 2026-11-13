@@ -128,6 +128,11 @@
 
 ## UI / 界面
 
+### 待办工具栏窄屏必须折行，不能只靠 Flexible 压缩
+- 三个视图分段控件（未安排 / 全部待办 / 按日期）在 <430px 宽度下改为整行等宽，筛选按钮落到第二行；桌面宽度下仍是一行 + `Spacer`。
+- **Why**: 分段控件用 `Flexible` 只压缩不换行，中文标签 + 筛选按钮在 390px 视口下会溢出 81px（`RenderFlex overflowed`），而原型在 360px 断点就是折行的。
+- **Date**: 2026-11-10
+
 ### 搜索收件箱建议项必须使用真实 Todo 完成控件
 - 搜索页空查询下的收件箱建议 Todo 使用 `TodoListTile` 或等价的独立 Checkbox；不要用装饰性空心圆加整行 `ListTile.onTap` 伪装完成控件。
 - 手工验收搜索页时区分空查询建议项与提交查询后的搜索结果。屏幕上有空心圆不代表运行时存在 Checkbox；需核对实际控件树与点击区域，并同时验证 Checkbox 完成、标题/正文编辑。
@@ -618,6 +623,11 @@
 
 ## Operations & Tooling / 运维与环境
 
+### 调查沟通直接报告事实、行动与结果
+- 禁止使用“没有证据表明”“不能证明”等用于辩解或预防质疑的否定性防御表述；待查事项写成具体检查并继续执行。
+- **Why**: 用户要求把沟通和精力集中在实际排查、解决问题与可用结果。
+- **Date**: 2026-11-10
+
 ### 严禁未经授权擅自启动外部系统应用或代理（如 Clash/Surge）
 - **现象**：当命令行网络调用（如 `gh api`）遇到 GitHub API 偶发超时或 EOF 时，AI 擅自执行 `open -a "Clash Verge"` 尝试绕过网络问题。
 - **对策**：严禁自行启动宿主机非任务范围的外部 GUI 软件、代理服务或常驻进程；若出现外部网络阻断，应向用户报告真实网络状态或在受控命令内重试，不得擅自修改机器运行环境。
@@ -649,6 +659,21 @@
 - **Why**: 这类错误在 Flutter 侧完全不可见，`flutter analyze` / 单测都不会报，只有 launcher inflate 时才炸
 - **Date**: 2026-11-07
 
+### 多模型并发：OpenCode 上游（2026-11-11）
+- NAS OpenCode 与本机 OpenCode 使用同一上游；禁止按两个独立吞吐或计费池安排任务。
+- **Why**: 用户明确指出二者是同一个东西；不同入口名称不能证明上游独立。
+- **Date**: 2026-11-11
+
+### 多模型并发：模型选择（2026-11-11）
+- 不使用 StepFun；优先用户指定的 Command Code、OpenCode Go 和可用的免费 DeepSeek Flash。
+- **Why**: 用户明确反馈 StepFun 的 token 速度过慢并要求停止使用。
+- **Date**: 2026-11-11
+
+### Magpie 路由设计（2026-11-11）
+- 整理本机和 NAS 路由时先明确上游归属、NAS 离线回退与独立并发，不以隐藏别名代替整体设计；委派任务只包含必要步骤。
+- **Why**: 用户指出此前未设计 NAS 离线场景，任务提示词过长且执行缓慢。
+- **Date**: 2026-11-11
+
 ### Widget deep link 的冷启动路径只剩 path+query（2026-11-07）
 - 现象：`dayspark://open/todo?id=1` 冷启动会落到首页或错误页
 - 根因：Flutter Android embedding 的 `getInitialRoute()` 对 `ACTION_VIEW` 只返回 `path + query`，
@@ -657,3 +682,11 @@
   避免劫持 `/todo/new`、`/event/detail` 等真实路由）；iOS `SceneDelegate` 把 URL 转进
   `flutter/navigation` 的 `pushRouteInformation`；Android quick-add 改用带路径的 `dayspark://open/new-todo`
 - **Date**: 2026-11-07
+
+## CI / 工具链
+
+### CI 工具链钉版本，不跟 runner 镜像漂移（2026-11-13）
+- `ci.yml` / `release.yml` 的 flutter-action 一律 `flutter-version: "3.47.3"`（禁止 `channel: "stable"`）；`build-android` 加 `actions/setup-java@v4` + temurin 17
+- **Why**: 2026-11-12 runner 侧静默变了两个值，代码一字未改而所有 PR 全红：stable 浮动到 Flutter 3.50.0，`package:flutter/material.dart` 被标 deprecated，`flutter analyze` 在 info 级 `deprecated_member_use` 上失败；`ubuntu-latest` 默认 JDK 变成 25.0.5，Gradle 8.14 拒绝，`build-android` 21 秒失败。根因在 runner，改业务代码解决不了
+- 升级 Flutter / Gradle / JDK 是显式改动：`pubspec` 环境、`gradle/wrapper`、两个 workflow 一起改，先普通 push 验证再打 tag
+- **Date**: 2026-11-13

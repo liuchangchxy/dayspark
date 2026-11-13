@@ -31,6 +31,21 @@ Page<void> _pageTransition(Widget child) {
   return NoTransitionPage(child: child);
 }
 
+/// A page that floats over the one you were on instead of replacing it.
+///
+/// Quick add is a sheet, not a destination: an opaque route painted the app
+/// away and left a card sitting in an empty window, so the page it covers has
+/// to keep rendering underneath.
+Page<void> _overlayPage(Widget child) {
+  return CustomTransitionPage<void>(
+    child: child,
+    opaque: false,
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+    transitionsBuilder: (_, __, ___, page) => page,
+  );
+}
+
 class _NavObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
@@ -238,7 +253,7 @@ abstract final class AppRouter {
           final date = DateTime.tryParse(
             state.uri.queryParameters['date'] ?? '',
           );
-          return _pageTransition(
+          return _overlayPage(
             QuickAddPage(
               dueDate: date == null
                   ? null

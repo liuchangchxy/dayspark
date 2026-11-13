@@ -142,7 +142,7 @@ void main() {
     await _settle(tester);
     expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
 
-    tester.view.physicalSize = const Size(900, 1000);
+    tester.view.physicalSize = const Size(880, 1000);
     await tester.pump();
     await _settle(tester);
 
@@ -153,7 +153,7 @@ void main() {
     );
     expect(
       MediaQuery.sizeOf(tester.element(find.text('Task 0'))).width,
-      900,
+      880,
     );
 
     await tester.tap(find.text('Task 0'));

@@ -13,7 +13,7 @@ import 'package:dayspark/ui/pages/settings/settings_sections/appearance_section.
 import 'package:dayspark/ui/pages/settings/settings_sections/import_export_section.dart';
 
 Future<void> _pumpSettings(WidgetTester tester) async {
-  tester.view.physicalSize = const Size(800, 4000);
+  tester.view.physicalSize = const Size(390, 4000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -44,29 +44,29 @@ void main() {
     );
   });
 
-  testWidgets('orders sections general → calendar → data → sync → ai → about', (
+  testWidgets('orders sections account → general → calendar → data → ai → about', (
     tester,
   ) async {
     await _pumpSettings(tester);
 
+    expect(
+      _y(tester, find.byType(AccountSection)),
+      lessThan(_y(tester, find.byType(AppearanceSection))),
+    );
     expect(
       _y(tester, find.byType(AppearanceSection)),
       lessThan(_y(tester, find.text('Manage Calendars'))),
     );
     expect(
       _y(tester, find.text('Manage Calendars')),
-      lessThan(_y(tester, find.byType(ImportExportSection))),
-    );
-    expect(
-      _y(tester, find.byType(ImportExportSection)),
-      lessThan(_y(tester, find.byType(AccountSection))),
-    );
-    expect(
-      _y(tester, find.byType(AccountSection)),
       lessThan(_y(tester, find.byType(AiSection))),
     );
     expect(
       _y(tester, find.byType(AiSection)),
+      lessThan(_y(tester, find.byType(ImportExportSection))),
+    );
+    expect(
+      _y(tester, find.byType(ImportExportSection)),
       lessThan(_y(tester, find.byType(AboutSection))),
     );
     expect(find.text('Six Things'), findsNothing);

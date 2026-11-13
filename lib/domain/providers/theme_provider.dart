@@ -5,17 +5,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 const themeModePrefKey = 'theme_mode';
 const _keyThemeColor = 'theme_color';
 
+/// The accent saved by the settings page, for painters with no widget tree to
+/// read `themeColorProvider` from — the home-widget snapshot is the one caller.
+AppAccent readStoredAccent(SharedPreferences prefs) =>
+    AppAccent.fromId(prefs.getString(_keyThemeColor));
+
 /// The locked accent presets (DESIGN 主题色条款).
 ///
-/// Each preset carries a matched light/dark pair from the iOS system palette.
-/// Users pick a preset, never a raw color — a free picker lets one bad hue
-/// drag the whole surface family off the token table.
+/// Each preset carries a matched light/dark pair. Users pick a preset, never a
+/// raw color — a free picker lets one bad hue drag the whole surface family
+/// off the token table. [terracotta] is the app's own accent, so it is first
+/// and it is what an install with no stored choice gets.
 enum AppAccent {
-  blue('blue', '蓝', 'Blue', Color(0xFF2457D6), Color(0xFF0A84FF)),
-  green('green', '绿', 'Green', Color(0xFF34C759), Color(0xFF30D158)),
-  orange('orange', '橙', 'Orange', Color(0xFFFF9500), Color(0xFFFF9F0A)),
-  purple('purple', '紫', 'Purple', Color(0xFFAF52DE), Color(0xFFBF5AF2)),
-  pink('pink', '粉', 'Pink', Color(0xFFFF2D55), Color(0xFFFF375F));
+  terracotta('terracotta', '陶土', 'Terracotta', Color(0xFFC2410C), Color(0xFFE0703C)),
+  blue('blue', '蓝', 'Blue', Color(0xFF2D4F7C), Color(0xFF8FB0D9)),
+  teal('teal', '青', 'Teal', Color(0xFF3F6B68), Color(0xFF8FB8B2)),
+  green('green', '绿', 'Green', Color(0xFF4C6B55), Color(0xFFA3C4A8)),
+  orange('orange', '橙', 'Orange', Color(0xFF8A5237), Color(0xFFD9A184)),
+  purple('purple', '紫', 'Purple', Color(0xFF63556F), Color(0xFFB7A5C6)),
+  pink('pink', '玫红', 'Rose', Color(0xFF85525F), Color(0xFFC99AA5));
 
   const AppAccent(this.id, this.zhName, this.enName, this.light, this.dark);
 
@@ -32,16 +40,26 @@ enum AppAccent {
       locale.languageCode == 'zh' ? zhName : enName;
 
   static AppAccent fromId(String? id) =>
-      values.firstWhere((a) => a.id == id, orElse: () => AppAccent.blue);
+      values.firstWhere((a) => a.id == id, orElse: () => AppAccent.terracotta);
 
   /// Maps a color stored by the old free-picker onto the nearest preset.
   static AppAccent fromLegacyColor(int? argb) {
-    if (argb == null) return AppAccent.blue;
+    if (argb == null) return AppAccent.terracotta;
+    const legacy = {
+      0xFF007AFF: AppAccent.blue,
+      0xFF5AC8FA: AppAccent.teal,
+      0xFF34C759: AppAccent.green,
+      0xFFFF9500: AppAccent.orange,
+      0xFFAF52DE: AppAccent.purple,
+      0xFFFF2D55: AppAccent.pink,
+    };
+    final mapped = legacy[argb];
+    if (mapped != null) return mapped;
     final color = Color(argb);
     for (final accent in values) {
       if (accent.light == color || accent.dark == color) return accent;
     }
-    return AppAccent.blue;
+    return AppAccent.terracotta;
   }
 }
 
@@ -77,7 +95,7 @@ final themeColorProvider = StateNotifierProvider<ThemeColorNotifier, AppAccent>(
 );
 
 class ThemeColorNotifier extends StateNotifier<AppAccent> {
-  ThemeColorNotifier() : super(AppAccent.blue) {
+  ThemeColorNotifier() : super(AppAccent.terracotta) {
     _load();
   }
 
