@@ -67,6 +67,7 @@
   "title": "标题",
   "description": "备注",
   "location": "地点",
+  "locationHint": "添加地点",
   "startDate": "重复开始",
   "startAfterDeadline": "开始日期不能晚于截止时间。",
   "endDate": "结束日期",
@@ -74,6 +75,10 @@
   "dueTime": "具体时间",
   "allDay": "全天",
   "plannedShort": "计划",
+  "overdueDays": "逾期 {count} 天",
+  "@overdueDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "dayItemCount": "{count} 项",
   "deadlineLane": "截止（不占用时间） · {count}",
   "noPlansDay": "没有安排",
@@ -90,6 +95,7 @@
   "noTags": "暂无标签",
   "notConfigured": "未配置",
   "aiConfig": "AI 配置",
+  "aiEnable": "启用",
   "aiAssistant": "AI 助手",
   "apiKey": "API 密钥",
   "baseUrl": "接口地址",
@@ -123,6 +129,23 @@
   "events": "日程",
   "upcoming": "接下来",
   "quickAdd": "快速添加",
+  "notSynced": "未同步",
+  "completedLabel": "已完成",
+  "nextOpening": "下一个空档",
+  "todayStillOpen": "今天还有 {count} 项",
+  "durationHours": "{hours} 小时",
+  "durationMinutes": "{minutes} 分",
+  "durationHoursMinutes": "{hours} 小时 {minutes} 分",
+  "freeFor": "空闲 {duration}",
+  "timelineTitle": "今日时间线",
+  "scheduledLabel": "已排",
+  "freeLabel": "空闲",
+  "remainingMinutes": "还剩 {minutes} 分钟",
+  "overdue": "逾期",
+  "eventsAndFree": "{count} 项日程",
+  "nextUp": "接下来",
+  "syncedAt": "已同步 {time}",
+  "meLabel": "我",
   "todayEventsHeader": "今日日程",
   "widgetNoPlans": "今天没有安排",
   "widgetTodos": "待办",
@@ -502,9 +525,9 @@
   "@aichatNoKeyTitle": {
     "description": "先接上 AI"
   },
-  "aichatNoKeyHint": "DaySpark 用你自己的 API key。去「设置 → 高级功能」填一个，再回来。",
+  "aichatNoKeyHint": "DaySpark 用你自己的 API key。去「设置 → AI 助手」填一个，再回来。",
   "@aichatNoKeyHint": {
-    "description": "DaySpark 用你自己的 API key。去「设置 → 高级功能」填一个，再回来。"
+    "description": "DaySpark 用你自己的 API key。去「设置 → AI 助手」填一个，再回来。"
   },
   "aichatSetupKey": "去填 key",
   "@aichatSetupKey": {
@@ -579,6 +602,7 @@
   "scheduleNow": "立即安排",
   "actionNothingNow": "现在没有需要你处理的事",
   "actionNothingNowHint": "有日程或截止事项时，当天会出现在这里。",
+  "actionEmptyDay": "今天还没有安排",
   "recurringNeedsRepair": "有重复待办需要一次性确认",
   "recurringNeedsRepairHint": "这些是导入进来的，缺少时区。打开其中一条确认重复方式即可。",
   "recurringBroken": "有一条重复待办无法计算",

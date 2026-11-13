@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
-import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
@@ -64,14 +64,6 @@ class TodoListTile extends ConsumerWidget {
     return DateFormatters.formatShortDate(dueDate!);
   }
 
-  bool get _isOverdue {
-    if (dueDate == null) return false;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final due = DateTime(dueDate!.year, dueDate!.month, dueDate!.day);
-    return due.isBefore(today);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
@@ -80,6 +72,8 @@ class TodoListTile extends ConsumerWidget {
     final allocationAsync = ref.watch(taskAllocationsForTodoProvider(todoId));
 
     final meta = <DsMetaPart>[];
+    final calendarName = _calendarName(ref);
+    if (calendarName != null) meta.add(DsMetaPart(calendarName));
     final allocation = allocationAsync.valueOrNull?.firstOrNull;
     if (allocation != null) {
       final start = allocation.startAt.toLocal();
@@ -87,17 +81,6 @@ class TodoListTile extends ConsumerWidget {
       meta.add(
         DsMetaPart(
           '${l.plannedExecution} ${DateFormatters.formatTime(start)}–${DateFormatters.formatTime(end)}',
-        ),
-      );
-    }
-    if (dueDate != null) {
-      final overdue = !isCompleted && _isOverdue;
-      meta.add(
-        DsMetaPart(
-          overdue
-              ? '${l.overdue} ${DateFormatters.formatShortDate(dueDate!)}'
-              : l.deadlinePrefix(_dueLabel(context)),
-          color: overdue ? ds.danger : null,
         ),
       );
     }
@@ -143,27 +126,85 @@ class TodoListTile extends ConsumerWidget {
                 Expanded(child: DsMeta(parts: meta)),
               ],
             ),
-      trailing: _trailing(ref),
+      trailing: _trailing(context, ref),
     );
   }
 
-  Widget? _trailing(WidgetRef ref) {
-    final dot = _calendarDot(ref);
-    if (dragHandle == null) return dot;
-    if (dot == null) return dragHandle;
-    return Row(mainAxisSize: MainAxisSize.min, children: [dot, dragHandle!]);
+  Widget? _trailing(BuildContext context, WidgetRef ref) {
+    final due = _dueCapsule(context);
+    if (dragHandle == null) return due;
+    if (due == null) return dragHandle;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [due, const SizedBox(width: 6), dragHandle!],
+    );
   }
 
-  Widget? _calendarDot(WidgetRef ref) {
+  /// The deadline as a label at the row's right edge: red for a missed one, a
+  /// tinted chip for one that has a clock time, quiet text otherwise.
+  ///
+  /// The meta line is left to say what the task is about, so scanning the right
+  /// edge alone answers "what is due, and how late".
+  Widget? _dueCapsule(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
+    final due = dueDate;
+    if (due == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(due.year, due.month, due.day);
+    final hasTime = due.hour != 0 || due.minute != 0;
+    TextStyle style(double size) => AppTypography.small.copyWith(
+      fontSize: size,
+      height: 1,
+      fontFeatures: AppTypography.tabular,
+    );
+
+    if (!isCompleted && day.isBefore(today)) {
+      final days = today.difference(day).inDays;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color: ds.dangerSoft,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          l.overdueDays(days),
+          style: style(11).copyWith(color: ds.danger, fontWeight: FontWeight.w500),
+        ),
+      );
+    }
+
+    final label = _dueLabel(context);
+    if (hasTime) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color: ds.surface2,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DsDot(color: ds.primary, size: 5),
+            const SizedBox(width: 5),
+            Text(label, style: style(11).copyWith(color: ds.ink2)),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(right: 2, top: 2),
+      child: Text(label, style: style(11).copyWith(color: ds.ink3)),
+    );
+  }
+
+  String? _calendarName(WidgetRef ref) {
     final row = todo;
     if (row == null) return null;
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
     final calendar = calendars.where((c) => c.id == row.calendarId).firstOrNull;
-    if (calendar == null) return null;
-    return Padding(
-      padding: const EdgeInsets.only(left: 8),
-      child: DsDot(color: ColorUtils.parseHex(calendar.color), size: 7),
-    );
+    return calendar?.name;
   }
 
   String? _repeatLabel(BuildContext context) {

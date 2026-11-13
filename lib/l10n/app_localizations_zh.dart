@@ -199,6 +199,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get location => '地点';
 
   @override
+  String get locationHint => '添加地点';
+
+  @override
   String get startDate => '重复开始';
 
   @override
@@ -218,6 +221,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get plannedShort => '计划';
+
+  @override
+  String overdueDays(int count) {
+    return '逾期 $count 天';
+  }
 
   @override
   String dayItemCount(int count) {
@@ -270,6 +278,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiConfig => 'AI 配置';
+
+  @override
+  String get aiEnable => '启用';
 
   @override
   String get aiAssistant => 'AI 助手';
@@ -353,7 +364,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get month => '月';
 
   @override
-  String get overdue => '已逾期';
+  String get overdue => '逾期';
 
   @override
   String get tomorrow => '明天';
@@ -369,6 +380,70 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get quickAdd => '快速添加';
+
+  @override
+  String get notSynced => '未同步';
+
+  @override
+  String get completedLabel => '已完成';
+
+  @override
+  String get nextOpening => '下一个空档';
+
+  @override
+  String todayStillOpen(int count) {
+    return '今天还有 $count 项';
+  }
+
+  @override
+  String durationHours(int hours) {
+    return '$hours 小时';
+  }
+
+  @override
+  String durationMinutes(int minutes) {
+    return '$minutes 分';
+  }
+
+  @override
+  String durationHoursMinutes(int hours, int minutes) {
+    return '$hours 小时 $minutes 分';
+  }
+
+  @override
+  String freeFor(String duration) {
+    return '空闲 $duration';
+  }
+
+  @override
+  String get timelineTitle => '今日时间线';
+
+  @override
+  String get scheduledLabel => '已排';
+
+  @override
+  String get freeLabel => '空闲';
+
+  @override
+  String remainingMinutes(int minutes) {
+    return '还剩 $minutes 分钟';
+  }
+
+  @override
+  String eventsAndFree(int count) {
+    return '$count 项日程';
+  }
+
+  @override
+  String get nextUp => '接下来';
+
+  @override
+  String syncedAt(String time) {
+    return '已同步 $time';
+  }
+
+  @override
+  String get meLabel => '我';
 
   @override
   String get todayEventsHeader => '今日日程';
@@ -1186,7 +1261,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aichatNoKeyTitle => '先接上 AI';
 
   @override
-  String get aichatNoKeyHint => 'DaySpark 用你自己的 API key。去「设置 → 高级功能」填一个，再回来。';
+  String get aichatNoKeyHint => 'DaySpark 用你自己的 API key。去「设置 → AI 助手」填一个，再回来。';
 
   @override
   String get aichatSetupKey => '去填 key';
@@ -1389,6 +1464,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get actionNothingNowHint => '有日程或截止事项时，当天会出现在这里。';
+
+  @override
+  String get actionEmptyDay => '今天还没有安排';
 
   @override
   String get recurringNeedsRepair => '有重复待办需要一次性确认';

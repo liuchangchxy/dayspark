@@ -38,9 +38,14 @@ class DsTopBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
+    // Scaffold already reserves [preferredSize] plus the status bar for the
+    // app bar slot, so the bar has to fill that slot rather than sit at its
+    // top: a fixed 54 drew the title under the clock on a real phone.
+    final inset = MediaQuery.paddingOf(context).top;
     return Container(
-      height: 54,
+      height: 54 + inset,
       padding: EdgeInsets.only(
+        top: inset,
         left: leading == null ? AppSpacing.s4 : AppSpacing.s1,
         right: AppSpacing.s2,
       ),
@@ -486,10 +491,13 @@ class DsSegmented<T> extends StatelessWidget {
     final ds = context.ds;
     final children = [
       for (final option in options)
+        // A segment sizes to its label unless the caller asks it to split the
+        // width evenly; a flex child would otherwise share the row's space and
+        // clip short labels like "未安排" mid-word.
         if (expand)
           Expanded(child: _segment(context, ds, option))
         else
-          Flexible(child: _segment(context, ds, option)),
+          _segment(context, ds, option),
     ];
     return Container(
       padding: const EdgeInsets.all(2),
@@ -566,6 +574,63 @@ class DsSectionLabel extends StatelessWidget {
         style: AppTypography.overline.copyWith(
           color: color ?? context.ds.ink3,
         ),
+      ),
+    );
+  }
+}
+
+/// A list group's band: a dot, the group name, and its count at the far edge.
+///
+/// Sits flush against the rows it introduces, so scanning a long backlog reads
+/// as a few named stretches rather than one undifferentiated column.
+class DsGroupHead extends StatelessWidget {
+  const DsGroupHead(this.label, {super.key, this.count, this.danger = false});
+
+  final String label;
+  final int? count;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4 + 2),
+      decoration: BoxDecoration(
+        color: ds.bg,
+        border: Border(top: BorderSide(color: ds.lineSoft)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: danger ? ds.danger : ds.faint,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: AppTypography.small.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: danger ? ds.danger : ds.ink3,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const Spacer(),
+          if (count != null)
+            Text(
+              '$count',
+              style: AppTypography.small.copyWith(
+                fontSize: 11,
+                color: ds.faint,
+                fontFeatures: AppTypography.tabular,
+              ),
+            ),
+        ],
       ),
     );
   }

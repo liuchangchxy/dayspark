@@ -18,7 +18,11 @@ abstract final class AppTheme {
       _buildTheme(DsColors.dark, accent);
 
   static ThemeData _buildTheme(DsColors base, Color? accentOverride) {
-    final ds = accentOverride == null ? base : base.withAccent(accentOverride);
+    // The default accent is already the token pair; re-deriving its soft and
+    // tint would move them a step off the table, so it keeps the exact set.
+    final ds = accentOverride == null || accentOverride == base.primary
+        ? base
+        : base.withAccent(accentOverride);
     final scheme = ColorScheme(
       brightness: ds.brightness,
       primary: ds.primary,
@@ -56,14 +60,7 @@ abstract final class AppTheme {
     final textTheme = AppTypography.textTheme().apply(
       bodyColor: ds.ink,
       displayColor: ds.ink,
-      fontFamilyFallback: const [
-        'Segoe UI',
-        'SF Pro Text',
-        'PingFang SC',
-        'Hiragino Sans GB',
-        'Microsoft YaHei',
-        'Noto Sans SC',
-      ],
+      fontFamilyFallback: AppTypography.fallback,
     );
 
     return ThemeData(
@@ -73,14 +70,7 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: ds.bg,
       canvasColor: ds.surface,
       textTheme: textTheme,
-      fontFamilyFallback: const [
-        'Segoe UI',
-        'SF Pro Text',
-        'PingFang SC',
-        'Hiragino Sans GB',
-        'Microsoft YaHei',
-        'Noto Sans SC',
-      ],
+      fontFamilyFallback: AppTypography.fallback,
       splashFactory: InkSparkle.splashFactory,
       extensions: [ds, AppSemanticColors.fromDs(ds)],
       cardTheme: CardThemeData(

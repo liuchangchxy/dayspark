@@ -50,11 +50,16 @@ class TagsPage extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(l.actionFailedRetry, style: AppTypography.body),
-                const SizedBox(height: AppSpacing.sm),
-                TextButton(
+                Text(
+                  l.actionFailedRetry,
+                  style: AppTypography.body.copyWith(color: ds.ink2),
+                ),
+                const SizedBox(height: AppSpacing.s2),
+                DsButton(
+                  label: l.retry,
+                  tone: DsButtonTone.ghost,
+                  small: true,
                   onPressed: () => ref.invalidate(tagsProvider),
-                  child: Text(l.retry),
                 ),
               ],
             ),
@@ -66,10 +71,10 @@ class TagsPage extends ConsumerWidget {
               icon: CupertinoIcons.tag,
               title: l.noTags,
               hint: l.tagEmptyHint,
-              action: FilledButton.icon(
+              action: DsButton(
+                label: l.tagsEmptyAction,
+                icon: CupertinoIcons.add,
                 onPressed: () => _editTag(context, ref, null),
-                icon: const Icon(CupertinoIcons.add, size: 18),
-                label: Text(l.tagsEmptyAction),
               ),
             );
           }
@@ -151,25 +156,30 @@ class TagsPage extends ConsumerWidget {
   ) async {
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.deleteTag),
-        // A delete that says which tag, and what happens to the records, is
-        // the difference between a mistake and a decision.
-        content: Text(l.tagDeleteBody(tag.name)),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.deleteTag,
+        width: 440,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.delete,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l.delete),
           ),
         ],
+        // A delete that says which tag, and what happens to the records, is
+        // the difference between a mistake and a decision.
+        child: Text(
+          l.tagDeleteBody(tag.name),
+          style: AppTypography.body.copyWith(color: context.ds.ink2),
+        ),
       ),
     );
     if (confirmed != true) return;
@@ -182,97 +192,117 @@ class TagsPage extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final existing = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
     final nameController = TextEditingController(text: tag?.name ?? '');
-    var selectedColor = tag?.color ?? '#6B7280';
-    String? error;
-    var saving = false;
+    final selectedColor = ValueNotifier<String>(tag?.color ?? '#6B7280');
+    final error = ValueNotifier<String?>(null);
+    final saving = ValueNotifier<bool>(false);
 
-    await showDialog<void>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: Text(tag == null ? l.createTag : l.editTag),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                autofocus: tag == null,
-                maxLength: _maxTagNameLength,
-                decoration: InputDecoration(
-                  labelText: l.tagName,
-                  errorText: error,
+    Future<void> save(BuildContext sheetContext) async {
+      final name = nameController.text.trim();
+      if (name.isEmpty) {
+        error.value = l.tagNameRequired;
+        return;
+      }
+      if (name.length > _maxTagNameLength) {
+        error.value = l.tagNameTooLong(_maxTagNameLength);
+        return;
+      }
+      final clash = existing.any(
+        (other) =>
+            other.id != tag?.id &&
+            other.name.toLowerCase() == name.toLowerCase(),
+      );
+      if (clash) {
+        error.value = l.tagDuplicate;
+        return;
+      }
+      error.value = null;
+      saving.value = true;
+      try {
+        if (tag == null) {
+          await ref.read(createTagProvider)(
+            name: name,
+            color: selectedColor.value,
+          );
+        } else {
+          await ref.read(updateTagProvider)(
+            id: tag.id,
+            name: name,
+            color: selectedColor.value,
+          );
+        }
+        if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+      } catch (failure) {
+        debugPrint('tags: save error: $failure');
+        if (sheetContext.mounted) {
+          saving.value = false;
+          error.value = l.actionFailedRetry;
+        }
+      }
+    }
+
+    await showDsSheet<void>(
+      context: context,
+      title: tag == null ? l.createTag : l.editTag,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ValueListenableBuilder<String?>(
+            valueListenable: error,
+            builder: (ctx, message, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DsField(
+                  label: l.tagName,
+                  child: DsTextField(
+                    controller: nameController,
+                    autofocus: tag == null,
+                    onSubmitted: (_) => save(ctx),
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              ColorSwatchGrid(
-                colors: _tagColors,
-                selected: selectedColor,
-                onSelected: (hex) => setState(() => selectedColor = hex),
-              ),
-            ],
+                if (message != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.s3),
+                    child: Text(
+                      message,
+                      style: AppTypography.small.copyWith(
+                        color: context.ds.danger,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.cancel),
+          ValueListenableBuilder<String>(
+            valueListenable: selectedColor,
+            builder: (ctx, color, _) => ColorSwatchGrid(
+              colors: _tagColors,
+              selected: color,
+              onSelected: (hex) => selectedColor.value = hex,
             ),
-            FilledButton(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final name = nameController.text.trim();
-                      if (name.isEmpty) {
-                        setState(() => error = l.tagNameRequired);
-                        return;
-                      }
-                      if (name.length > _maxTagNameLength) {
-                        setState(
-                          () => error = l.tagNameTooLong(_maxTagNameLength),
-                        );
-                        return;
-                      }
-                      final clash = existing.any(
-                        (other) =>
-                            other.id != tag?.id &&
-                            other.name.toLowerCase() == name.toLowerCase(),
-                      );
-                      if (clash) {
-                        setState(() => error = l.tagDuplicate);
-                        return;
-                      }
-                      setState(() {
-                        saving = true;
-                        error = null;
-                      });
-                      try {
-                        if (tag == null) {
-                          await ref.read(createTagProvider)(
-                            name: name,
-                            color: selectedColor,
-                          );
-                        } else {
-                          await ref.read(updateTagProvider)(
-                            id: tag.id,
-                            name: name,
-                            color: selectedColor,
-                          );
-                        }
-                        if (ctx.mounted) Navigator.of(ctx).pop();
-                      } catch (failure) {
-                        debugPrint('tags: save error: $failure');
-                        if (ctx.mounted) {
-                          setState(() {
-                            saving = false;
-                            error = l.actionFailedRetry;
-                          });
-                        }
-                      }
-                    },
-              child: Text(tag == null ? l.create : l.save),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+      actions: [
+        const Spacer(),
+        Builder(
+          builder: (ctx) => DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
+            onPressed: () => Navigator.of(ctx).maybePop(),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.s2),
+        ValueListenableBuilder<bool>(
+          valueListenable: saving,
+          builder: (ctx, isSaving, _) => DsButton(
+            label: tag == null ? l.create : l.save,
+            loading: isSaving,
+            onPressed: () => save(ctx),
+          ),
+        ),
+      ],
     );
   }
 }

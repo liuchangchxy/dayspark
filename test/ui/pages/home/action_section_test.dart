@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
@@ -12,7 +11,6 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -154,7 +152,7 @@ void main() {
 
       await tester.pumpWidget(
         _wrapWithApp(
-          child: const ActionSection(),
+          child: ActionSection(date: fixedDate),
           overrides: [
             databaseProvider.overrideWithValue(db),
             actionDateProvider.overrideWith((ref) => fixedDate),
@@ -166,34 +164,16 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // Overdue section: no count, no duplicated deadline label.
-      expect(find.text('Overdue'), findsOneWidget);
-      expect(find.text('Fix Bug'), findsOneWidget);
-      expect(
-        find.text(
-          'Overdue ${DateFormatters.formatShortDate(DateTime(2026, 10, 2))}',
-        ),
-        findsOneWidget,
-      );
-
-      // Events and allocations that already ended stay folded into the
-      // secondary section instead of pushing the rest of the day down.
-      expect(find.text('Completed'), findsOneWidget);
-      await tester.tap(find.text('Completed'));
-      for (var i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
-      // The day's schedule states the full range once.
+      // The day's plan is drawn to scale: the event and the planned
+      // allocation are timeline blocks carrying their own titles.
       expect(find.text('Client Call'), findsOneWidget);
-      expect(find.text('10:00–11:00'), findsOneWidget);
-
       expect(find.text('Write Spec'), findsOneWidget);
-      expect(find.text('Planned 14:00–15:30'), findsOneWidget);
 
-      // To do today merges due-today todos with today's recurring instances.
-      expect(find.text('Due today'), findsOneWidget);
+      // Todos live in the bottom sheet as rows: a due-today task carries its
+      // due label, and an overdue task is marked overdue instead.
       expect(find.text('Submit Invoice'), findsOneWidget);
+      expect(find.text('Fix Bug'), findsOneWidget);
+      expect(find.text('Overdue'), findsOneWidget);
 
       // The old rhythm strip, inspector and section counters are gone.
       expect(find.byKey(const ValueKey('action-rhythm')), findsNothing);
@@ -230,7 +210,7 @@ void main() {
 
     await tester.pumpWidget(
       _wrapWithApp(
-        child: const ActionSection(),
+        child: ActionSection(date: fixedDate),
         overrides: [
           databaseProvider.overrideWithValue(db),
           actionDateProvider.overrideWith((ref) => fixedDate),
@@ -241,19 +221,22 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    await tester.tap(find.text('Completed'));
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
-    // One obligation, one row: the plan is primary and the deadline is
-    // metadata on it, not a second full row.
-    expect(find.text('Write Paper'), findsOneWidget);
-    expect(find.text('Planned 14:00–15:00'), findsOneWidget);
+    // One obligation, one row: the plan is a timeline block, and the deadline
+    // rides on that row's own text rather than becoming a second row.
+    expect(find.text('Write Paper'), findsNWidgets(2));
+    expect(find.byKey(ValueKey('action-complete-$todoId')), findsOneWidget);
+    final row = find
+        .ancestor(
+          of: find.byKey(ValueKey('action-complete-$todoId')),
+          matching: find.byType(Row),
+        )
+        .first;
     expect(
-      find.text(
-        'Deadline: ${DateFormatters.formatShortDate(DateTime(2026, 10, 6))}',
-      ),
+      find.descendant(of: row, matching: find.text('Write Paper')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: row, matching: find.text('18:00')),
       findsOneWidget,
     );
     expect(find.text('Due today'), findsNothing);
@@ -383,11 +366,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // The running allocation is the "now" card; its checkbox completes
-      // the todo.
-      final checks = find.byType(DsCheck);
-      expect(checks, findsWidgets);
-      await tester.tap(checks.first);
+      // The sheet row's completion circle completes the todo.
+      final checks = find.byKey(ValueKey('action-complete-$todoId'));
+      expect(checks, findsOneWidget);
+      await tester.tap(checks);
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -452,10 +434,10 @@ void main() {
       }
 
       expect(find.text('Daily Yoga'), findsOneWidget);
-      expect(find.text('Due today'), findsOneWidget);
+      expect(find.text('1 still open today'), findsOneWidget);
 
-      // Find and tap the checkbox for Daily Yoga
-      final checkbox = find.byType(DsCheck);
+      // Find and tap the completion circle for Daily Yoga
+      final checkbox = find.byKey(ValueKey('action-complete-$seriesId'));
       expect(checkbox, findsOneWidget);
       await tester.tap(checkbox);
 
@@ -479,8 +461,9 @@ void main() {
               .getSingle();
       expect(state.status, 'completed');
 
-      // Verify UI moved Daily Yoga into the completed section
-      expect(find.text('Completed'), findsOneWidget);
+      // Verify UI no longer offers the completed instance as open today
+      expect(find.text('Daily Yoga'), findsNothing);
+      expect(find.text('0 still open today'), findsOneWidget);
 
       await _unmount(tester);
     },

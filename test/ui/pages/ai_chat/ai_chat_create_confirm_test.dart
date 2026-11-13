@@ -148,7 +148,7 @@ void main() {
 
     final dialogTexts = tester
         .widgetList<Text>(find.descendant(
-          of: find.byType(AlertDialog),
+          of: find.byType(DsDialog),
           matching: find.byType(Text),
         ))
         .map((t) => t.data ?? '')

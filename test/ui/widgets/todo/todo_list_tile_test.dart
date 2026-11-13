@@ -164,11 +164,11 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(tester.getSize(find.byType(DsCheck)), const Size(48, 48));
       final title = tester.getRect(find.textContaining('Mixed English'));
-      final date = tester.getRect(find.textContaining('Deadline: Tomorrow'));
-      expect(date.top, greaterThanOrEqualTo(title.bottom));
+      final date = tester.getRect(find.textContaining('Tomorrow'));
+      expect(date.left, greaterThan(title.right));
     });
 
-    testWidgets('desktop deadline sits under the title without a card', (
+    testWidgets('desktop deadline sits at the row edge without a card', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -187,8 +187,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(Card), findsNothing);
       final title = tester.getRect(find.text('Prepare review'));
-      final date = tester.getRect(find.textContaining('Deadline: Tomorrow'));
-      expect(date.top, greaterThanOrEqualTo(title.bottom));
+      final date = tester.getRect(find.textContaining('Tomorrow'));
+      expect(date.left, greaterThan(title.right));
       expect(tester.takeException(), isNull);
     });
 
@@ -251,7 +251,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Deadline: Tomorrow'), findsOneWidget);
+      expect(find.textContaining('Tomorrow'), findsOneWidget);
     });
 
     testWidgets('recurrence label sits in the meta line under the title', (

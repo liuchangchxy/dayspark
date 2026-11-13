@@ -237,7 +237,7 @@ class WorkspaceSidebar extends ConsumerWidget {
   }
 
   static void _goTab(BuildContext context, WidgetRef ref, AppTab tab) {
-    ref.read(workspaceTabProvider.notifier).state = tab;
+    ref.read(workspaceTabProvider.notifier).setTab(tab);
     _goHome(context, tab);
   }
 
@@ -246,7 +246,7 @@ class WorkspaceSidebar extends ConsumerWidget {
     WidgetRef ref,
     TodosView view,
   ) {
-    ref.read(workspaceTabProvider.notifier).state = AppTab.todos;
+    ref.read(workspaceTabProvider.notifier).setTab(AppTab.todos);
     ref.read(todosViewProvider.notifier).state = view;
     _goHome(context, AppTab.todos);
   }

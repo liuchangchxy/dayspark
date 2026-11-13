@@ -43,12 +43,11 @@ class DateStrip extends StatelessWidget {
             AppSpacing.s3,
             AppSpacing.s2,
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Below the prototype's wrap point the three views take the whole
-              // row and the trailing controls drop to a second line, so a long
-              // label can never push the filter control off screen.
-              final wrap = constraints.maxWidth < 430;
+          child: Builder(
+            builder: (context) {
+              // One row: the three views share the width, the controls sit at
+              // the end. A second line for a lone filter icon read as a stray
+              // control rather than part of the same bar.
               final trailingRow = <Widget>[
                 if (day == null)
                   TextButton(
@@ -65,25 +64,13 @@ class DateStrip extends StatelessWidget {
                   ),
                 ...trailing,
               ];
-              if (!wrap) {
-                return Row(
-                  children: [
-                    _views(context, l, today, day),
-                    const Spacer(),
+              return Row(
+                children: [
+                  Expanded(child: _views(context, l, today, day, expand: true)),
+                  if (trailingRow.isNotEmpty) ...[
+                    const SizedBox(width: AppSpacing.s2),
                     ...trailingRow,
                   ],
-                );
-              }
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _views(context, l, today, day, expand: true),
-                  if (trailingRow.isNotEmpty)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: trailingRow,
-                    ),
                 ],
               );
             },
@@ -139,6 +126,114 @@ class DateStrip extends StatelessWidget {
             break;
         }
       },
+    );
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+/// The backlog card's own header: which list, how much is waiting, and the
+/// day strip for the by-date list.
+///
+/// This is the two-column layout's header. The view names carry the title, so
+/// the card needs no separate heading line above them.
+class TodoBacklogHead extends StatelessWidget {
+  const TodoBacklogHead({
+    super.key,
+    required this.view,
+    required this.onViewSelected,
+    required this.count,
+    required this.overdue,
+    this.trailing = const [],
+    this.dueDays = const {},
+  });
+
+  final TodosView view;
+  final ValueChanged<TodosView> onViewSelected;
+  final int count;
+  final int overdue;
+  final List<Widget> trailing;
+  final Set<DateTime> dueDays;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = view is TodosDayView ? (view as TodosDayView).day : null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          height: 58,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4 + 2),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: ds.line)),
+          ),
+          child: Row(
+            children: [
+              DsSegmented<String>(
+                key: const ValueKey('todos-view-switch'),
+                height: 30,
+                selected: view is TodosInboxView
+                    ? 'unplanned'
+                    : view is TodosAllView
+                    ? 'all'
+                    : 'date',
+                options: [
+                  DsSegmentOption('unplanned', l.inbox),
+                  DsSegmentOption('all', l.allTasks),
+                  DsSegmentOption('date', l.byDate),
+                ],
+                onSelected: (next) {
+                  switch (next) {
+                    case 'unplanned':
+                      if (view is! TodosInboxView) {
+                        onViewSelected(const TodosInboxView());
+                      }
+                      break;
+                    case 'all':
+                      if (view is! TodosAllView) {
+                        onViewSelected(const TodosAllView());
+                      }
+                      break;
+                    case 'date':
+                      if (view is! TodosDayView) {
+                        onViewSelected(TodosDayView(day ?? today));
+                      }
+                      break;
+                  }
+                },
+              ),
+              const SizedBox(width: AppSpacing.s3),
+              Flexible(
+                child: Text(
+                  overdue > 0
+                      ? '${l.dayItemCount(count)} · ${l.overdue} $overdue'
+                      : l.dayItemCount(count),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.small.copyWith(
+                    color: overdue > 0 ? ds.danger : ds.ink3,
+                    fontFeatures: AppTypography.tabular,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              ...trailing,
+            ],
+          ),
+        ),
+        if (day != null)
+          DayStrip(
+            selected: day,
+            onPick: (next) => onViewSelected(TodosDayView(next)),
+            hasItems: (date) => dueDays.any((due) => _sameDay(due, date)),
+          ),
+      ],
     );
   }
 

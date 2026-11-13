@@ -20,6 +20,8 @@ import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
 
 class AiChatPage extends ConsumerStatefulWidget {
   const AiChatPage({super.key});
@@ -39,33 +41,34 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     if (calendars.length == 1) return calendars.first.id;
 
     return showDialog<int>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
+      context: context,
       builder: (ctx) {
         final l = AppLocalizations.of(ctx)!;
-        return SimpleDialog(
-          title: Text(l.calendar),
-          children: calendars.map((c) {
-            return SimpleDialogOption(
-              onPressed: () => Navigator.of(ctx).pop(c.id),
-              child: Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: Color(
-                        int.tryParse(c.color.replaceFirst('#', '0xFF')) ??
-                            0xFF2563EB,
-                      ),
-                      shape: BoxShape.circle,
-                    ),
+        return DsDialog(
+          title: l.calendar,
+          width: 420,
+          actions: [
+            const Spacer(),
+            DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final calendar in calendars)
+                DsSettingRow(
+                  label: calendar.name,
+                  leading: DsDot(
+                    color: ColorUtils.parseHex(calendar.color),
+                    size: 8,
                   ),
-                  Text(c.name),
-                ],
-              ),
-            );
-          }).toList(),
+                  onTap: () => Navigator.of(ctx).pop(calendar.id),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -206,8 +209,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                   children: [
                                     SelectableText(
                                       msg.content,
-                                      style: TextStyle(
-                                        fontSize: 14.5,
+                                      style: AppTypography.body.copyWith(
                                         height: 1.6,
                                         color: context.ds.ink,
                                       ),
@@ -405,45 +407,49 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       }
 
       // Step 1: User selects an existing Todo to schedule
-      final chosenTodo = await showDialog<Todo>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l.selectTodoToSchedule),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: todos.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (ctx, i) {
-                final todo = todos[i];
-                final isRecurring =
-                    todo.rrule != null && todo.rrule!.isNotEmpty;
-                return ListTile(
-                  leading: Icon(
-                    isRecurring ? CupertinoIcons.repeat : CupertinoIcons.circle,
-                    size: 20,
+      final chosenTodo = await showDsSheet<Todo>(
+        context: context,
+        title: l.selectTodoToSchedule,
+        body: Builder(
+          builder: (sheetContext) {
+            final ds = sheetContext.ds;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final todo in todos)
+                  DsRow(
+                    title: todo.summary,
+                    leading: Icon(
+                      todo.rrule != null && todo.rrule!.isNotEmpty
+                          ? CupertinoIcons.repeat
+                          : CupertinoIcons.circle,
+                      size: 18,
+                      color: ds.ink3,
+                    ),
+                    meta: Text(
+                      todo.rrule != null && todo.rrule!.isNotEmpty
+                          ? l.recurringTask
+                          : (todo.dueDate != null
+                                ? '${l.dueDate}: ${DateFormatters.formatShortDate(todo.dueDate!)}'
+                                : l.noDueDate),
+                      style: AppTypography.small.copyWith(color: ds.ink3),
+                    ),
+                    onTap: () => Navigator.of(sheetContext).pop(todo),
                   ),
-                  title: Text(todo.summary),
-                  subtitle: Text(
-                    isRecurring
-                        ? l.recurringTask
-                        : (todo.dueDate != null
-                              ? '${l.dueDate}: ${DateFormatters.formatShortDate(todo.dueDate!)}'
-                              : l.noDueDate),
-                  ),
-                  onTap: () => Navigator.of(ctx).pop(todo),
-                );
-              },
+              ],
+            );
+          },
+        ),
+        actions: [
+          const Spacer(),
+          Builder(
+            builder: (ctx) => DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
+              onPressed: () => Navigator.of(ctx).pop(),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.cancel),
-            ),
-          ],
-        ),
+        ],
       );
 
       if (chosenTodo == null || !context.mounted) return;
@@ -482,42 +488,58 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       }
 
       // Step 4: User selects a slot
-      final selectedSlot = await showDialog<Map<String, dynamic>>(
+      final selectedSlot = await showDsSheet<Map<String, dynamic>>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l.suggestedTimeSlots),
-          content: SingleChildScrollView(
-            child: Column(
+        title: l.suggestedTimeSlots,
+        body: Builder(
+          builder: (sheetContext) {
+            final ds = sheetContext.ds;
+            return Column(
               mainAxisSize: MainAxisSize.min,
-              children: suggestions.map((s) {
-                final startStr = s['start'] as String? ?? '';
-                final endStr = s['end'] as String? ?? '';
-                final start = DateTime.tryParse(startStr);
-                final end = DateTime.tryParse(endStr);
-                final label = (start != null && end != null)
-                    ? DateFormatters.formatTaskAllocationRange(
-                        start,
-                        end,
-                        includeDate: true,
-                      )
-                    : '$startStr - $endStr';
-                return ListTile(
-                  title: Text(label),
-                  subtitle: s['reason'] != null
-                      ? Text(s['reason'] as String)
-                      : null,
-                  onTap: () => Navigator.of(ctx).pop(s),
-                );
-              }).toList(),
+              children: [
+                for (final s in suggestions)
+                  Builder(
+                    builder: (_) {
+                      final startStr = s['start'] as String? ?? '';
+                      final endStr = s['end'] as String? ?? '';
+                      final start = DateTime.tryParse(startStr);
+                      final end = DateTime.tryParse(endStr);
+                      final label = (start != null && end != null)
+                          ? DateFormatters.formatTaskAllocationRange(
+                              start,
+                              end,
+                              includeDate: true,
+                            )
+                          : '$startStr - $endStr';
+                      final reason = s['reason'] as String?;
+                      return DsRow(
+                        title: label,
+                        meta: reason == null
+                            ? null
+                            : Text(
+                                reason,
+                                style: AppTypography.small.copyWith(
+                                  color: ds.ink3,
+                                ),
+                              ),
+                        onTap: () => Navigator.of(sheetContext).pop(s),
+                      );
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          const Spacer(),
+          Builder(
+            builder: (ctx) => DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
+              onPressed: () => Navigator.of(ctx).pop(),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.cancel),
-            ),
-          ],
-        ),
+        ],
       );
 
       if (selectedSlot == null || !context.mounted) return;
@@ -528,45 +550,53 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       // Step 5: Explicit confirmation before write
       final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l.scheduleTodo),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                chosenTodo.summary,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+        context: context,
+        builder: (ctx) {
+          final ds = ctx.ds;
+          return DsDialog(
+            title: l.scheduleTodo,
+            width: 460,
+            actions: [
+              const Spacer(),
+              DsButton(
+                label: l.cancel,
+                tone: DsButtonTone.ghost,
+                onPressed: () => Navigator.of(ctx).pop(false),
               ),
-              if (occurrenceLabel != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  '${l.recurringTask}: $occurrenceLabel',
-                  style: Theme.of(ctx).textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                DateFormatters.formatTaskAllocationRange(
-                  start,
-                  end,
-                  includeDate: true,
-                ),
+              const SizedBox(width: AppSpacing.s2),
+              DsButton(
+                label: l.schedule,
+                onPressed: () => Navigator.of(ctx).pop(true),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l.cancel),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  chosenTodo.summary,
+                  style: AppTypography.bodyStrong.copyWith(color: ds.ink),
+                ),
+                if (occurrenceLabel != null) ...[
+                  const SizedBox(height: AppSpacing.s1),
+                  Text(
+                    '${l.recurringTask}: $occurrenceLabel',
+                    style: AppTypography.small.copyWith(color: ds.ink3),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.s2),
+                Text(
+                  DateFormatters.formatTaskAllocationRange(
+                    start,
+                    end,
+                    includeDate: true,
+                  ),
+                  style: AppTypography.body.copyWith(color: ds.ink2),
+                ),
+              ],
             ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(l.schedule),
-            ),
-          ],
-        ),
+          );
+        },
       );
 
       if (confirmed != true || !context.mounted) return;
@@ -582,7 +612,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l.timeSlotConflict),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            backgroundColor: context.ds.danger,
           ),
         );
         return;
@@ -625,78 +655,85 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
         ).showSnackBar(SnackBar(content: Text(l.noSubtaskSuggestions)));
         return;
       }
-      showDialog(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l.taskBreakdown),
-          content: SingleChildScrollView(
-            child: Column(
+      showDsSheet<void>(
+        context: context,
+        title: l.taskBreakdown,
+        body: Builder(
+          builder: (sheetContext) {
+            final ds = sheetContext.ds;
+            return Column(
               mainAxisSize: MainAxisSize.min,
-              children: subtasks.map((s) {
-                return ListTile(
-                  leading: const Icon(
-                    CupertinoIcons.checkmark_circle,
-                    size: 20,
-                  ),
-                  title: Text(s),
-                  onTap: () async {
-                    Navigator.of(ctx).pop();
-                    // Create the todo directly
-                    try {
-                      final calendars = await ref.read(
-                        calendarsProvider.future,
-                      );
-                      if (calendars.isEmpty) return;
-                      final calId = await _selectCalendar(calendars);
-                      if (calId == null) return;
-                      final todoId = await ref
-                          .read(createTodoProvider)
-                          .call(
-                            calendarId: calId,
-                            summary: s,
-                            // A suggested subtask carries no priority signal;
-                            // 5 would claim the assistant judged it medium.
-                            priority: 0,
-                            status: 'NEEDS-ACTION',
-                          );
-                      String? reminderError;
+              children: [
+                for (final s in subtasks)
+                  DsRow(
+                    title: s,
+                    leading: Icon(
+                      CupertinoIcons.checkmark_circle,
+                      size: 18,
+                      color: ds.ink3,
+                    ),
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      // Create the todo directly
                       try {
-                        await ref.read(addDefaultTodoRemindersProvider)(
-                          todoId: todoId,
-                          dueDate: null,
+                        final calendars = await ref.read(
+                          calendarsProvider.future,
                         );
+                        if (calendars.isEmpty) return;
+                        final calId = await _selectCalendar(calendars);
+                        if (calId == null) return;
+                        final todoId = await ref
+                            .read(createTodoProvider)
+                            .call(
+                              calendarId: calId,
+                              summary: s,
+                              // A suggested subtask carries no priority signal;
+                              // 5 would claim the assistant judged it medium.
+                              priority: 0,
+                              status: 'NEEDS-ACTION',
+                            );
+                        String? reminderError;
+                        try {
+                          await ref.read(addDefaultTodoRemindersProvider)(
+                            todoId: todoId,
+                            dueDate: null,
+                          );
+                        } catch (e) {
+                          debugPrint('ai_chat: addReminders error: $e');
+                          reminderError = '$e';
+                        }
+                        if (context.mounted) {
+                          final msg = reminderError != null
+                              ? '${l.todoCreatedShort} (${l.failedAction})'
+                              : l.todoCreatedShort;
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(msg)));
+                        }
                       } catch (e) {
-                        debugPrint('ai_chat: addReminders error: $e');
-                        reminderError = '$e';
+                        debugPrint('ai_chat: createTodoFromAction error: $e');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l.failedCreateTodo)),
+                          );
+                        }
                       }
-                      if (context.mounted) {
-                        final msg = reminderError != null
-                            ? '${l.todoCreatedShort} (${l.failedAction})'
-                            : l.todoCreatedShort;
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text(msg)));
-                      }
-                    } catch (e) {
-                      debugPrint('ai_chat: createTodoFromAction error: $e');
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(l.failedCreateTodo)),
-                        );
-                      }
-                    }
-                  },
-                );
-              }).toList(),
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          const Spacer(),
+          Builder(
+            builder: (ctx) => DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
+              onPressed: () => Navigator.of(ctx).pop(),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.cancel),
-            ),
-          ],
-        ),
+        ],
       );
     } catch (e) {
       debugPrint('ai_chat: breakDownTask error: $e');
@@ -844,47 +881,45 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     required List<(String, String)> rows,
   }) async {
     final confirmed = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(summary, style: TextTheme.of(ctx).titleMedium),
-            const SizedBox(height: AppSpacing.md),
-            for (final row in rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 96,
-                      child: Text(
-                        row.$1,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Text(row.$2)),
-                  ],
-                ),
-              ),
+      context: context,
+      builder: (ctx) {
+        final ds = ctx.ds;
+        return DsDialog(
+          title: title,
+          width: 460,
+          actions: [
+            const Spacer(),
+            DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
+              onPressed: () => Navigator.of(ctx).pop(false),
+            ),
+            const SizedBox(width: AppSpacing.s2),
+            DsButton(
+              label: l.create,
+              onPressed: () => Navigator.of(ctx).pop(true),
+            ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                summary,
+                style: AppTypography.bodyStrong.copyWith(color: ds.ink),
+              ),
+              const SizedBox(height: AppSpacing.s3),
+              DsGroup(
+                margin: EdgeInsets.zero,
+                children: [
+                  for (final row in rows)
+                    DsSettingRow(label: row.$1, value: row.$2),
+                ],
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l.create),
-          ),
-        ],
-      ),
+        );
+      },
     );
     return confirmed == true;
   }

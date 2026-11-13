@@ -19,6 +19,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import '../settings_ui.dart';
 
 class ImportExportSection extends ConsumerWidget {
   const ImportExportSection({super.key, this.showHeader = false});
@@ -44,28 +45,33 @@ class ImportExportSection extends ConsumerWidget {
             ),
             child: Text(l.data, style: AppTypography.title),
           ),
-        DsSectionLabel(l.dataExchange),
-        DsSettingRow(
-          label: l.importIcs,
-          value: l.calendarData,
-          onTap: () => _importIcs(context, ref),
-        ),
-        DsSettingRow(
-          label: l.exportIcs,
-          value: l.exportAllCalendars,
-          onTap: () => _exportIcs(context, ref),
-        ),
-        const DsHairline(),
-        DsSectionLabel(l.daysparkBackup),
-        DsSettingRow(
-          label: l.fullBackup,
-          value: l.fullBackupDesc,
-          onTap: () => _exportBackup(context, ref),
-        ),
-        DsSettingRow(
-          label: l.mergeBackup,
-          value: l.mergeBackupDesc,
-          onTap: () => _mergeBackup(context, ref),
+        SettingsRows(
+          children: [
+            SettingsRow(
+              label: l.importIcs,
+              subtitle: l.calendarData,
+              chevron: SettingsChevron.right,
+              onTap: () => _importIcs(context, ref),
+            ),
+            SettingsRow(
+              label: l.exportIcs,
+              value: l.exportAllCalendars,
+              chevron: SettingsChevron.right,
+              onTap: () => _exportIcs(context, ref),
+            ),
+            SettingsRow(
+              label: l.fullBackup,
+              subtitle: l.fullBackupDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _exportBackup(context, ref),
+            ),
+            SettingsRow(
+              label: l.mergeBackup,
+              subtitle: l.mergeBackupDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _mergeBackup(context, ref),
+            ),
+          ],
         ),
       ],
     );

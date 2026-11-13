@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
@@ -600,17 +601,23 @@ void main() {
     });
 
     test('theme includes error and warning tokens', () {
+      // The block is the widget's copy of the app palette, so the accent is
+      // pinned to the token and not to a literal: a palette change has to
+      // reach the widget, and this assertion should not need a second edit.
+      String hex(Color color) =>
+          '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+
       final light = HomeWidgetService.buildThemeBlock(dark: false);
       expect(light['dark'], false);
       final lightColors = light['colors'] as Map;
-      expect(lightColors['accent'], '#2D4F7C');
+      expect(lightColors['accent'], hex(AppColors.lightAccent));
       expect(lightColors['error'], isA<String>());
       expect(lightColors['warning'], isA<String>());
 
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
       final darkColors = dark['colors'] as Map;
-      expect(darkColors['accent'], '#8FB0D9');
+      expect(darkColors['accent'], hex(AppColors.darkAccent));
       expect(darkColors['error'], isA<String>());
       expect(darkColors['warning'], isA<String>());
     });

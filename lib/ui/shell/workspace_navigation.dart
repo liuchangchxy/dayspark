@@ -8,7 +8,22 @@ import 'package:dayspark/domain/providers/default_tab_provider.dart';
 /// persisted launch preference. Secondary pages (Settings, Search, a pushed
 /// detail) read this to keep the desktop sidebar highlighting the destination
 /// the user actually came from, and to name the tab they are returning to.
-final workspaceTabProvider = StateProvider<AppTab>((ref) => AppTab.action);
+final workspaceTabProvider = NotifierProvider<WorkspaceTabNotifier, AppTab>(
+  WorkspaceTabNotifier.new,
+);
+
+class WorkspaceTabNotifier extends Notifier<AppTab> {
+  @override
+  AppTab build() => AppTab.action;
+
+  /// Changing destination closes the detail pane. Whatever it holds belongs to
+  /// the view that opened it: a todo editor left open beside the month grid cut
+  /// 400px off the calendar to describe something no longer on screen.
+  void setTab(AppTab tab) {
+    ref.read(workspaceSelectionProvider.notifier).state = null;
+    state = tab;
+  }
+}
 
 /// Which list the Todo destination is showing. Today and Inbox are views of
 /// Todo, not destinations of their own, so the sidebar selects a tab *and* a

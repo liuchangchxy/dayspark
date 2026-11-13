@@ -467,6 +467,12 @@ abstract class AppLocalizations {
   /// **'Location'**
   String get location;
 
+  /// No description provided for @locationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add location'**
+  String get locationHint;
+
   /// No description provided for @startDate.
   ///
   /// In en, this message translates to:
@@ -508,6 +514,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Planned'**
   String get plannedShort;
+
+  /// No description provided for @overdueDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day late} other{{count} days late}}'**
+  String overdueDays(int count);
 
   /// No description provided for @dayItemCount.
   ///
@@ -604,6 +616,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI Configuration'**
   String get aiConfig;
+
+  /// No description provided for @aiEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get aiEnable;
 
   /// No description provided for @aiAssistant.
   ///
@@ -802,6 +820,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quick add'**
   String get quickAdd;
+
+  /// No description provided for @notSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced'**
+  String get notSynced;
+
+  /// No description provided for @completedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get completedLabel;
+
+  /// No description provided for @nextOpening.
+  ///
+  /// In en, this message translates to:
+  /// **'Next opening'**
+  String get nextOpening;
+
+  /// No description provided for @todayStillOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} still open today'**
+  String todayStillOpen(int count);
+
+  /// No description provided for @durationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h'**
+  String durationHours(int hours);
+
+  /// No description provided for @durationMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String durationMinutes(int minutes);
+
+  /// No description provided for @durationHoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h {minutes} min'**
+  String durationHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @freeFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Free {duration}'**
+  String freeFor(String duration);
+
+  /// No description provided for @timelineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s timeline'**
+  String get timelineTitle;
+
+  /// No description provided for @scheduledLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get scheduledLabel;
+
+  /// No description provided for @freeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get freeLabel;
+
+  /// No description provided for @remainingMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min left'**
+  String remainingMinutes(int minutes);
+
+  /// No description provided for @eventsAndFree.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} events'**
+  String eventsAndFree(int count);
+
+  /// No description provided for @nextUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get nextUp;
+
+  /// No description provided for @syncedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Synced {time}'**
+  String syncedAt(String time);
+
+  /// No description provided for @meLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Me'**
+  String get meLabel;
 
   /// No description provided for @todayEventsHeader.
   ///
@@ -2722,6 +2836,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upcoming events and deadlines will show up here on the day.'**
   String get actionNothingNowHint;
+
+  /// No description provided for @actionEmptyDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled yet'**
+  String get actionEmptyDay;
 
   /// No description provided for @recurringNeedsRepair.
   ///

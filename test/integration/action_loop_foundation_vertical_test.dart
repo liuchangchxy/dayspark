@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
+import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 
 Widget _wrapWithScope({
@@ -271,31 +272,47 @@ void main() {
       actSub.close();
 
       // -------------------------------------------------------------
-      // 5. Action projection UI execution: complete through existing Todo writer
+      // 5. Action projection UI execution: the scheduled task is a block on
+      //    the day's timeline; opening it leads to the task detail, where the
+      //    existing writer completes it.
       // -------------------------------------------------------------
+      Todo? opened;
       await tester.pumpWidget(
-        _wrapWithScope(container: container, child: const ActionSection()),
+        _wrapWithScope(
+          container: container,
+          child: ActionSection(
+            date: actionDay,
+            now: now,
+            onTodoTap: (todo) => opened = todo,
+          ),
+        ),
       );
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // ActionSection shows the item wherever it belongs in today's order.
-      // Which header names it depends on the wall clock, so asserting one
-      // fixed header made this test pass or fail depending on the hour.
+      // The allocation is drawn as one titled block and counted in the head.
       expect(find.text('Ship Action Loop Foundation'), findsOneWidget);
-      expect(
-        find.text('Next up').evaluate().isNotEmpty ||
-            find.text('Now').evaluate().isNotEmpty ||
-            find.text('Completed').evaluate().isNotEmpty,
-        isTrue,
-        reason: 'The section must be named for what it shows',
-      );
+      expect(find.text('1 events'), findsOneWidget);
 
-      // Complete the Todo from Action surface checkbox
+      // Tapping the block routes to the todo's detail, exactly as the page's
+      // onTodoTap wiring does.
+      await tester.tap(find.text('Ship Action Loop Foundation'));
+      await tester.pumpAndSettle();
+      expect(opened?.id, todoId);
+
+      // Complete through the detail's check, the surface the block opens into.
+      await tester.pumpWidget(
+        _wrapWithScope(
+          container: container,
+          child: TodoDetailPane(todo: opened!),
+        ),
+      );
+      await tester.pumpAndSettle();
+
       final checkboxFinder = find.byType(DsCheck);
-      expect(checkboxFinder, findsWidgets);
-      await tester.tap(checkboxFinder.first);
+      expect(checkboxFinder, findsOneWidget);
+      await tester.tap(checkboxFinder);
       await tester.pumpAndSettle();
 
       // -------------------------------------------------------------

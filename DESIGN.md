@@ -2,6 +2,8 @@
 
 AI 编码工具读此文件来保持 UI 一致性。
 
+> **状态（2026-11-13）**：线上实现的是 **Direction C · Time-first Planner**。颜色、字阶、间距、组件以 `lib/ui/design/ds.dart` 与 `lib/core/theme/app_colors.dart` 为准；下面「D Final」一节保留为历史契约，不再作为实现依据。
+
 ## D Final 冻结视觉契约（2026-10-23）
 
 本轮 Action / Calendar / Todo / Shell 以 PR #71 `docs/design/ui-ux-prototypes/d-final/` 为唯一视觉基线。以下旧版 Apple 风格条款若与本节冲突，以本节为准；不重新设计。

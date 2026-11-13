@@ -134,21 +134,32 @@ class SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.lg, bottom: AppSpacing.xs),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              text,
-              style: AppTypography.overline.copyWith(
-                color: context.semantic.textSecondary,
-              ),
-            ),
+    final ds = context.ds;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(
+            top: AppSpacing.s4,
+            bottom: AppSpacing.s2,
           ),
-          if (action != null) action!,
-        ],
-      ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  text,
+                  style: AppTypography.overline.copyWith(color: ds.ink3),
+                ),
+              ),
+              if (action != null) action!,
+            ],
+          ),
+        ),
+        // The hairline is part of the label, not of the rows below it: a
+        // section reads as a band with a heading, and every section in a pane
+        // then starts the same way whether or not it happens to own rows.
+        Container(height: 1, color: ds.line),
+      ],
     );
   }
 }

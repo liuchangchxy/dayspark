@@ -12,6 +12,7 @@ import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
@@ -51,15 +52,16 @@ class TrashPage extends ConsumerWidget {
                 icon: CupertinoIcons.trash,
                 title: l.trashEmpty,
                 hint: l.trashEmptyHint,
-                action: FilledButton(
+                action: DsButton(
                   // "Back to todos" has to land on Todos — the Home root
                   // defaults to whichever tab was last open.
+                  label: l.trashEmptyAction,
                   onPressed: () {
-                    ref.read(workspaceTabProvider.notifier).state =
-                        AppTab.todos;
+                    ref
+                        .read(workspaceTabProvider.notifier)
+                        .setTab(AppTab.todos);
                     context.go('/?tab=2');
                   },
-                  child: Text(l.trashEmptyAction),
                 ),
               );
             }
@@ -67,7 +69,7 @@ class TrashPage extends ConsumerWidget {
               slivers: [
                 if (todoRows.isNotEmpty) ...[
                   SliverToBoxAdapter(
-                    child: _sectionHeader(context, l.todos, todoRows.length),
+                    child: _sectionHeader(l.todos, todoRows.length),
                   ),
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
@@ -79,7 +81,7 @@ class TrashPage extends ConsumerWidget {
                 ],
                 if (eventRows.isNotEmpty) ...[
                   SliverToBoxAdapter(
-                    child: _sectionHeader(context, l.events, eventRows.length),
+                    child: _sectionHeader(l.events, eventRows.length),
                   ),
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
@@ -192,8 +194,8 @@ class TrashPage extends ConsumerWidget {
     );
   }
 
-  Widget _sectionHeader(BuildContext context, String title, int count) {
-    return DsSectionLabel('$title · $count');
+  Widget _sectionHeader(String title, int count) {
+    return DsGroupHead(title, count: count);
   }
 
   Future<bool> _confirmPermanentDelete(
@@ -201,23 +203,28 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
   ) async {
     final result = await showDialog<bool>(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.permanentDelete),
-        content: Text(l.confirmPermanentDelete),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.permanentDelete,
+        width: 440,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
           ),
-          FilledButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.permanentDelete,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l.permanentDelete),
           ),
         ],
+        child: Text(
+          l.confirmPermanentDelete,
+          style: AppTypography.body.copyWith(color: context.ds.ink2),
+        ),
       ),
     );
     return result ?? false;
@@ -229,27 +236,32 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
   ) {
     showDialog(
-    animationStyle: AnimationStyle.noAnimation, context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.emptyTrash),
-        content: Text(l.confirmEmptyTrash),
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.emptyTrash,
+        width: 440,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
           ),
-          FilledButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.emptyTrash,
+            tone: DsButtonTone.danger,
             onPressed: () async {
               Navigator.of(ctx).pop();
               await ref.read(emptyTrashProvider)();
               await ref.read(emptyEventTrashProvider)();
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l.emptyTrash),
           ),
         ],
+        child: Text(
+          l.confirmEmptyTrash,
+          style: AppTypography.body.copyWith(color: context.ds.ink2),
+        ),
       ),
     );
   }

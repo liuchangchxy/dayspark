@@ -7,10 +7,12 @@ const _keyThemeColor = 'theme_color';
 
 /// The locked accent presets (DESIGN 主题色条款).
 ///
-/// Each preset carries a matched light/dark pair from the iOS system palette.
-/// Users pick a preset, never a raw color — a free picker lets one bad hue
-/// drag the whole surface family off the token table.
+/// Each preset carries a matched light/dark pair. Users pick a preset, never a
+/// raw color — a free picker lets one bad hue drag the whole surface family
+/// off the token table. [terracotta] is the app's own accent, so it is first
+/// and it is what an install with no stored choice gets.
 enum AppAccent {
+  terracotta('terracotta', '陶土', 'Terracotta', Color(0xFFC2410C), Color(0xFFE0703C)),
   blue('blue', '蓝', 'Blue', Color(0xFF2D4F7C), Color(0xFF8FB0D9)),
   teal('teal', '青', 'Teal', Color(0xFF3F6B68), Color(0xFF8FB8B2)),
   green('green', '绿', 'Green', Color(0xFF4C6B55), Color(0xFFA3C4A8)),
@@ -33,11 +35,11 @@ enum AppAccent {
       locale.languageCode == 'zh' ? zhName : enName;
 
   static AppAccent fromId(String? id) =>
-      values.firstWhere((a) => a.id == id, orElse: () => AppAccent.blue);
+      values.firstWhere((a) => a.id == id, orElse: () => AppAccent.terracotta);
 
   /// Maps a color stored by the old free-picker onto the nearest preset.
   static AppAccent fromLegacyColor(int? argb) {
-    if (argb == null) return AppAccent.blue;
+    if (argb == null) return AppAccent.terracotta;
     const legacy = {
       0xFF007AFF: AppAccent.blue,
       0xFF5AC8FA: AppAccent.teal,
@@ -52,7 +54,7 @@ enum AppAccent {
     for (final accent in values) {
       if (accent.light == color || accent.dark == color) return accent;
     }
-    return AppAccent.blue;
+    return AppAccent.terracotta;
   }
 }
 
@@ -88,7 +90,7 @@ final themeColorProvider = StateNotifierProvider<ThemeColorNotifier, AppAccent>(
 );
 
 class ThemeColorNotifier extends StateNotifier<AppAccent> {
-  ThemeColorNotifier() : super(AppAccent.blue) {
+  ThemeColorNotifier() : super(AppAccent.terracotta) {
     _load();
   }
 

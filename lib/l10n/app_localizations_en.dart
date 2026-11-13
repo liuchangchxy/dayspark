@@ -199,6 +199,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get location => 'Location';
 
   @override
+  String get locationHint => 'Add location';
+
+  @override
   String get startDate => 'Repeat starts';
 
   @override
@@ -218,6 +221,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get plannedShort => 'Planned';
+
+  @override
+  String overdueDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days late',
+      one: '1 day late',
+    );
+    return '$_temp0';
+  }
 
   @override
   String dayItemCount(int count) {
@@ -276,6 +290,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiConfig => 'AI Configuration';
+
+  @override
+  String get aiEnable => 'Enabled';
 
   @override
   String get aiAssistant => 'AI Assistant';
@@ -375,6 +392,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get quickAdd => 'Quick add';
+
+  @override
+  String get notSynced => 'Not synced';
+
+  @override
+  String get completedLabel => 'Done';
+
+  @override
+  String get nextOpening => 'Next opening';
+
+  @override
+  String todayStillOpen(int count) {
+    return '$count still open today';
+  }
+
+  @override
+  String durationHours(int hours) {
+    return '$hours h';
+  }
+
+  @override
+  String durationMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String durationHoursMinutes(int hours, int minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String freeFor(String duration) {
+    return 'Free $duration';
+  }
+
+  @override
+  String get timelineTitle => 'Today\'s timeline';
+
+  @override
+  String get scheduledLabel => 'Scheduled';
+
+  @override
+  String get freeLabel => 'Free';
+
+  @override
+  String remainingMinutes(int minutes) {
+    return '$minutes min left';
+  }
+
+  @override
+  String eventsAndFree(int count) {
+    return '$count events';
+  }
+
+  @override
+  String get nextUp => 'Next';
+
+  @override
+  String syncedAt(String time) {
+    return 'Synced $time';
+  }
+
+  @override
+  String get meLabel => 'Me';
 
   @override
   String get todayEventsHeader => 'Today\'s Events';
@@ -1401,6 +1482,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actionNothingNowHint => 'Upcoming events and deadlines will show up here on the day.';
+
+  @override
+  String get actionEmptyDay => 'Nothing scheduled yet';
 
   @override
   String get recurringNeedsRepair => 'Some repeating tasks need a one-time fix';

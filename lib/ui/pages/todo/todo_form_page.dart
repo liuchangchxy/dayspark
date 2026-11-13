@@ -880,7 +880,8 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             deadline: _deadline,
           ),
         ],
-        DsSectionLabel(l.sectionReminder),
+        // RemindersSection draws its own heading and add action; a second
+        // label above it printed "提醒" twice, six pixels apart.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
           child: RemindersSection(
@@ -932,27 +933,17 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         ),
         DsSectionLabel(l.sectionContent),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-          child: TextField(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s4,
+            AppSpacing.s2,
+            AppSpacing.s4,
+            AppSpacing.s1,
+          ),
+          child: DsTextField(
             controller: _descriptionController,
-            decoration: InputDecoration(
-              hintText: l.description,
-              filled: false,
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              hintStyle: TextStyle(
-                fontSize: 15,
-                height: 1.55,
-                color: ds.ink3,
-              ),
-            ),
-            style: TextStyle(fontSize: 15, height: 1.55, color: ds.ink),
-            onChanged: (_) => setState(() {}),
+            hint: l.description,
             maxLines: 4,
-            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) => setState(() {}),
           ),
         ),
         const SizedBox(height: AppSpacing.s3),

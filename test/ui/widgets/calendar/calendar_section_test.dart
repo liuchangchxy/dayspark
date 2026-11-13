@@ -415,7 +415,7 @@ void main() {
         before,
         reason: 'a rejected move must not stay on screen',
       );
-      expect(find.text('09:00–10:00'), findsWidgets);
+      expect(find.text('Doomed move'), findsWidgets);
       await tester.pumpWidget(const SizedBox.shrink());
     });
   });
@@ -472,7 +472,7 @@ void main() {
 
       await _longPressDrag(tester, 'Failed move');
 
-      expect(find.text('09:00–10:00'), findsWidgets);
+      expect(find.text('Failed move'), findsWidgets);
       expect(
         find.text('That didn\'t work. Please try again.'),
         findsWidgets,
@@ -531,9 +531,9 @@ void main() {
     );
 
     final grid = tester.getRect(find.byKey(_gridKey));
-    await tester.tapAt(
-      Offset(grid.center.dx, grid.top + (14 - 8) * 56 + 4),
-    );
+    // Tap just under the 14:00 line, wherever the grid happens to put it.
+    final hourLine = tester.getRect(find.text('14:00').first);
+    await tester.tapAt(Offset(grid.center.dx, hourLine.center.dy + 4));
     await tester.pump();
 
     expect(tapped, isNotNull);
@@ -624,18 +624,18 @@ void main() {
     expect(find.text('Zero hour day'), findsWidgets);
   });
 
-  testWidgets('day and week grids start at 08:00', (tester) async {
+  testWidgets('day and week grids start at 07:00', (tester) async {
     await _pumpCalendar(tester, events: []);
 
-    expect(find.text('08:00'), findsWidgets);
-    expect(find.text('07:00'), findsNothing);
+    expect(find.text('07:00'), findsWidgets);
+    expect(find.text('06:00'), findsNothing);
 
     await tester.tap(find.text('Day'));
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(find.text('08:00'), findsWidgets);
-    expect(find.text('07:00'), findsNothing);
+    expect(find.text('07:00'), findsWidgets);
+    expect(find.text('06:00'), findsNothing);
   });
 
   testWidgets('multi-day body exposes empty-slot button semantics', (

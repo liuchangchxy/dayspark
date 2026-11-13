@@ -12,7 +12,6 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
@@ -315,26 +314,11 @@ void main() {
 
       expect(find.text('Daily Sprint Standup'), findsWidgets);
 
-      // Checkbox in todayTimeline for this allocation item
-      final checkboxFinder = find.byType(DsCheck);
-      expect(checkboxFinder, findsWidgets);
-
-      // Target the exact occurrence-bound allocation row, then the checkbox
-      // inside it: tapping the row itself opens the todo, not completion.
-      final allocationRow = find.byKey(
-        ValueKey('action-allocation-${allocation.id}'),
-      );
-      final allocationCheckboxFinder = find.descendant(
-        of: allocationRow,
-        matching: find.byType(DsCheck),
-      );
-      expect(
-        allocationCheckboxFinder,
-        findsOneWidget,
-        reason:
-            'Timeline allocation checkbox for this exact allocation must be visible',
-      );
-      await tester.tap(allocationCheckboxFinder);
+      // The series' pending instance is a row in the mobile sheet; its
+      // completion circle is the Action surface's tick target.
+      final instanceCheck = find.byKey(ValueKey('action-complete-$seriesId'));
+      expect(instanceCheck, findsOneWidget);
+      await tester.tap(instanceCheck);
       await tester.pumpAndSettle();
 
       // -------------------------------------------------------------

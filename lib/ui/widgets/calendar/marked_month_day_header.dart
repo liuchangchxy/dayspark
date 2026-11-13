@@ -51,6 +51,16 @@ class MarkedMonthDayHeader extends StatelessWidget {
   /// marks the day the agenda below belongs to.
   final bool selected;
 
+  /// Month grids place the number at the cell's top-left and use the accent
+  /// as text colour instead of a filled circle.
+  final bool alignStart;
+
+  final bool showHolidayBadge;
+
+  /// Highlights the day as "today". Defaults to the wall clock; callers that
+  /// render a pinned `now` should pass their own value.
+  final bool? today;
+
   const MarkedMonthDayHeader({
     super.key,
     required this.date,
@@ -58,6 +68,9 @@ class MarkedMonthDayHeader extends StatelessWidget {
     this.dim = false,
     this.hasDeadline = false,
     this.selected = false,
+    this.alignStart = false,
+    this.showHolidayBadge = true,
+    this.today,
   });
 
   @override
@@ -68,7 +81,10 @@ class MarkedMonthDayHeader extends StatelessWidget {
     final holidayMark = ChineseCalendarService.holiday(date);
     final now = DateTime.now();
     final isToday =
-        date.year == now.year && date.month == now.month && date.day == now.day;
+        today ??
+        (date.year == now.year &&
+            date.month == now.month &&
+            date.day == now.day);
 
     final numberStyle =
         style?.numberTextStyle ??
@@ -77,6 +93,86 @@ class MarkedMonthDayHeader extends StatelessWidget {
           fontWeight: FontWeight.w500,
           color: theme.textTheme.bodyMedium?.color,
         );
+
+    if (alignStart) {
+      final aligned = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${date.day}',
+                style: numberStyle.copyWith(
+                  fontWeight: isToday ? FontWeight.w600 : FontWeight.w500,
+                  color: isToday
+                      ? theme.colorScheme.primary
+                      : numberStyle.color,
+                ),
+              ),
+              if (hasDeadline) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Semantics(
+                  label: l.calendarDeadlineLane,
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.error,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+              if (showHolidayBadge && holidayMark != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: holidayMark.isWorkday
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.error,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    holidayMark.isWorkday
+                        ? l.holidayWorkBadge
+                        : l.holidayRestBadge,
+                    style: TextStyle(
+                      fontSize: AppTypography.overline.fontSize,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                      color: holidayMark.isWorkday
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onError,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (termZh != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Text(
+                solarTermLabel(l, termZh),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.1,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+        ],
+      );
+      if (!dim) return aligned;
+      return Opacity(opacity: 0.3, child: aligned);
+    }
 
     final content = Column(
       mainAxisSize: MainAxisSize.min,

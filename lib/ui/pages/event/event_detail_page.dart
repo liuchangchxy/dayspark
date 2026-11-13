@@ -5,10 +5,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -24,9 +26,13 @@ import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 /// An event that is editable where it is read — the same contract as
 /// [TodoDetailPane], so the two object types never teach different gestures.
 class EventDetailPage extends StatelessWidget {
-  const EventDetailPage({super.key, required this.event});
+  const EventDetailPage({super.key, required this.event, this.clock});
 
   final CalendaEventAdapter event;
+
+  /// The instant the pane reads its status and progress from. Tests pin it so
+  /// a capture does not drift with the wall clock; live screens use the clock.
+  final DateTime Function()? clock;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +41,7 @@ class EventDetailPage extends StatelessWidget {
     return WorkspacePage(
       title: l.eventLabel,
       maxContentWidth: desktop ? 720 : null,
-      child: EventDetailPane(event: event),
+      child: EventDetailPane(event: event, clock: clock),
     );
   }
 }
@@ -47,12 +53,14 @@ class EventDetailPane extends ConsumerStatefulWidget {
     this.embedded = false,
     this.onClose,
     this.onDeleted,
+    this.clock,
   });
 
   final CalendaEventAdapter event;
   final bool embedded;
   final VoidCallback? onClose;
   final VoidCallback? onDeleted;
+  final DateTime Function()? clock;
 
   @override
   ConsumerState<EventDetailPane> createState() => _EventDetailPaneState();
@@ -141,270 +149,493 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         ?.where((c) => c.id == live.calendarId)
         .firstOrNull;
 
-    return ListView(
-      key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s5,
-        AppSpacing.s4,
-        AppSpacing.s5,
-        AppSpacing.s8,
-      ),
+    final now = widget.clock?.call() ?? DateTime.now();
+    final mobile = !isWorkspaceLayout(context);
+    final side = widget.embedded ? 18.0 : (mobile ? 20.0 : 24.0);
+    final rowHeight = mobile ? 56.0 : 58.0;
+    final inProgress = !now.isBefore(start) && now.isBefore(end);
+    final ended = !now.isBefore(end);
+    final remaining = end.difference(now);
+    final status = inProgress
+        ? (remaining.inMinutes >= 1
+              ? '${l.inProgress} · ${l.remainingMinutes(remaining.inMinutes)}'
+              : l.inProgress)
+        : ended
+        ? l.completedLabel
+        : l.upcoming;
+    final statusColor = inProgress ? context.ds.primaryHover : context.ds.ink3;
+    final fraction = validRange
+        ? (now.difference(start).inMilliseconds / length.inMilliseconds)
+              .clamp(0.0, 1.0)
+              .toDouble()
+        : 0.0;
+    final canPickCalendar =
+        calendars != null &&
+        calendars.isNotEmpty &&
+        (calendars.length > 1 || currentCalendar == null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.embedded)
-          Align(
-            alignment: Alignment.centerRight,
-            child: DsIconButton(
-              icon: CupertinoIcons.xmark,
-              size: 16,
-              compact: true,
-              tooltip: l.close,
-              onPressed: widget.onClose,
+        Expanded(
+          child: ListView(
+            key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
+            padding: EdgeInsets.fromLTRB(
+              side,
+              widget.embedded ? 18 : 14,
+              side,
+              24,
             ),
-          ),
-        Wrap(
-          spacing: AppSpacing.s2,
-          runSpacing: AppSpacing.s2,
-          children: [
-            DsChip(
-              key: const ValueKey('calendar-picker'),
-              solid: true,
-              label: currentCalendar?.name ?? l.calendarUnavailable,
-              leading: Container(
-                width: 7,
-                height: 7,
+            children: [
+              _header(context, l, live, currentCalendar),
+              _status(context, live, status, statusColor, fraction, start, end),
+              _fields(
+                context,
+                l,
+                live,
+                calendars,
+                currentCalendar,
+                validRange,
+                rowHeight,
+                canPickCalendar,
+              ),
+              DecoratedBox(
                 decoration: BoxDecoration(
-                  color: live.color,
-                  shape: BoxShape.circle,
+                  border: Border(
+                    bottom: BorderSide(color: context.ds.lineSoft),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    RepeatRow(
+                      rrule: live.rrule,
+                      anchorDate: start,
+                      onChanged: (value) =>
+                          _saveSchedule(live, setRrule: true, rrule: value),
+                    ),
+                    if (live.rrule != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 2, 0, 10),
+                        child: Text(
+                          l.recurringSeriesNoticeShort,
+                          style: AppTypography.small.copyWith(
+                            color: context.ds.ink3,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              onTap: calendars != null &&
-                      calendars.isNotEmpty &&
-                      (calendars.length > 1 || currentCalendar == null)
-                  ? () => _pickCalendar(live, calendars)
-                  : null,
+              const SizedBox(height: 18),
+              _notes(context, l),
+              _tags(context, live),
+              const SizedBox(height: 8),
+              AttachmentList(parentType: 'event', parentId: live.drifId),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+        _footer(context, l, live, mobile, side),
+      ],
+    );
+  }
+
+  Widget _header(
+    BuildContext context,
+    AppLocalizations l,
+    CalendaEventAdapter live,
+    Calendar? calendar,
+  ) {
+    final ds = context.ds;
+    final locale = Localizations.localeOf(context).toString();
+    final date =
+        '${DateFormat.MMMd(locale).format(live.seriesStart)} '
+        '${DateFormat.E(locale).format(live.seriesStart)}';
+    final eyebrow = calendar == null ? date : '${calendar.name} · $date';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  DsDot(color: live.color ?? ds.ink3),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      eyebrow,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.small.copyWith(color: ds.ink3),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              TextField(
+                key: const ValueKey('event-detail-title'),
+                controller: _title,
+                focusNode: _titleFocus,
+                style: AppTypography.headline.copyWith(color: ds.ink),
+                strutStyle: StrutStyle.fromTextStyle(
+                  AppTypography.headline,
+                  forceStrutHeight: true,
+                ),
+                textCapitalization: TextCapitalization.sentences,
+                onChanged: (value) {
+                  _titleTimer?.cancel();
+                  if (value.trim().isEmpty) return;
+                  _titleTimer = Timer(
+                    const Duration(milliseconds: 600),
+                    _flushTitle,
+                  );
+                },
+                onSubmitted: (_) => _flushTitle(),
+                decoration: InputDecoration(
+                  hintText: l.title,
+                  isDense: true,
+                  // The title sits on the page, not in a box: the theme fills
+                  // every field, and a white patch behind the one line of
+                  // 20px type reads as a stray input that lost its border.
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  hintStyle: AppTypography.headline.copyWith(color: ds.ink3),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (widget.embedded) ...[
+          const SizedBox(width: 8),
+          _PaneCloseButton(onPressed: widget.onClose, tooltip: l.close),
+        ],
+      ],
+    );
+  }
+
+  Widget _status(
+    BuildContext context,
+    CalendaEventAdapter live,
+    String status,
+    Color statusColor,
+    double fraction,
+    DateTime start,
+    DateTime end,
+  ) {
+    final ds = context.ds;
+    final left = live.isAllDay
+        ? formatDeadline(context, start)
+        : DateFormatters.formatTime(start);
+    final right = live.isAllDay
+        ? formatDeadline(context, end)
+        : DateFormatters.formatTime(end);
+    final timeStyle = AppTypography.small.copyWith(
+      color: ds.faint,
+      fontFeatures: AppTypography.tabular,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 11),
+          child: Row(
+            children: [
+              DsDot(color: statusColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  status,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.small.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: SizedBox(
+            height: 5,
+            child: Stack(
+              children: [
+                Positioned.fill(child: ColoredBox(color: ds.surface3)),
+                FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: fraction,
+                  heightFactor: 1,
+                  child: ColoredBox(color: ds.primary),
+                ),
+              ],
             ),
-            if (live.rrule != null)
-              DsChip(label: l.recurringSeriesNoticeShort, compact: true),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.s2),
-        TextField(
-          key: const ValueKey('event-detail-title'),
-          controller: _title,
-          focusNode: _titleFocus,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-            height: 1.3,
-            letterSpacing: -0.2,
-            color: context.ds.ink,
-          ),
-          textCapitalization: TextCapitalization.sentences,
-          onChanged: (value) {
-            _titleTimer?.cancel();
-            if (value.trim().isEmpty) return;
-            _titleTimer = Timer(
-              const Duration(milliseconds: 600),
-              _flushTitle,
-            );
-          },
-          onSubmitted: (_) => _flushTitle(),
-          decoration: InputDecoration(
-            hintText: l.title,
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-            hintStyle: TextStyle(fontSize: 22, color: context.ds.ink3),
           ),
         ),
-        const SizedBox(height: AppSpacing.s2),
-        Text(
-          '${formatMoment(context, start)}'
-          '${live.isAllDay ? '' : ' – ${formatMoment(context, end)}'}',
-          style: AppTypography.caption.copyWith(color: context.ds.ink2),
-        ),
-        const SizedBox(height: AppSpacing.s4),
-        DsSectionLabel(
-          l.sectionTime,
-          padding: const EdgeInsets.only(bottom: AppSpacing.s1),
-        ),
-        DsSettingRow(
-          label: l.allDay,
-          value: live.isAllDay ? l.durationAllDay : l.eventLabel,
-          trailing: Switch.adaptive(
-            value: live.isAllDay,
-            activeTrackColor: context.ds.primary,
-            onChanged: (value) => _toggleAllDay(live, value),
-          ),
-        ),
-        DsSettingRow(
-          label: l.startTime,
-          value: live.isAllDay
-              ? formatDeadline(context, start)
-              : formatMoment(context, start),
-          onTap: () => _pickBoundary(live, isStart: true),
-        ),
-        DsSettingRow(
-          label: l.endTime,
-          value: live.isAllDay
-              ? formatDeadline(context, end)
-              : formatMoment(context, end),
-          onTap: () => _pickBoundary(live, isStart: false),
-        ),
-        DsSettingRow(
-          label: l.duration,
-          value: validRange
-              ? (live.isAllDay
-                    ? l.durationAllDay
-                    : formatExecutionLength(context, length))
-              : l.invalidTimeRange,
-          danger: !validRange,
-        ),
-        if (calendars != null)
-          DsSettingRow(
-            label: l.calendar,
-            value: calendars.isEmpty
-                ? l.noCalendar
-                : currentCalendar?.name ?? l.calendarUnavailable,
-            onTap:
-                calendars.isNotEmpty &&
-                    (calendars.length > 1 || currentCalendar == null)
-                ? () => _pickCalendar(live, calendars)
-                : null,
-          ),
-        RepeatRow(
-          rrule: live.rrule,
-          anchorDate: start,
-          onChanged: (value) =>
-              _saveSchedule(live, setRrule: true, rrule: value),
-        ),
-        const SizedBox(height: AppSpacing.s3),
-        DsHairline(color: context.ds.lineSoft),
-        DsSectionLabel(
-          l.sectionContent,
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
-        ),
-        TextField(
-          controller: _location,
-          focusNode: _locationFocus,
-          style: AppTypography.body.copyWith(color: context.ds.ink),
-          decoration: InputDecoration(
-            hintText: l.location,
-            prefixIcon: Icon(
-              CupertinoIcons.location,
-              size: 16,
-              color: context.ds.ink3,
-            ),
-            prefixIconConstraints: const BoxConstraints(
-              minWidth: 30,
-              minHeight: 24,
-            ),
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.body.copyWith(color: context.ds.ink3),
-          ),
-          textCapitalization: TextCapitalization.sentences,
-          onChanged: (_) {
-            _locationTimer?.cancel();
-            _locationTimer = Timer(
-              const Duration(milliseconds: 600),
-              _flushLocation,
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.s2),
-        TextField(
-          controller: _description,
-          focusNode: _descriptionFocus,
-          style: AppTypography.body.copyWith(color: context.ds.ink),
-          decoration: InputDecoration(
-            hintText: l.description,
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.body.copyWith(color: context.ds.ink3),
-          ),
-          maxLines: null,
-          textCapitalization: TextCapitalization.sentences,
-          onChanged: (_) {
-            _descriptionTimer?.cancel();
-            _descriptionTimer = Timer(
-              const Duration(milliseconds: 600),
-              _flushDescription,
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.s3),
-        _tags(context, live),
-        const SizedBox(height: AppSpacing.s3),
-        DsHairline(color: context.ds.lineSoft),
-        const SizedBox(height: AppSpacing.s3),
-        AttachmentList(parentType: 'event', parentId: live.drifId),
-        const SizedBox(height: AppSpacing.s6),
-        DsHairline(color: context.ds.lineSoft),
-        const SizedBox(height: AppSpacing.s3),
-        Wrap(
-          spacing: AppSpacing.s2,
-          runSpacing: AppSpacing.s2,
+        const SizedBox(height: 5),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            DsButton(
-              label: l.edit,
-              tone: DsButtonTone.secondary,
-              small: true,
-              onPressed: () => context.push('/event/edit', extra: live),
-            ),
-            DsButton(
-              label: l.moveToTrash,
-              tone: DsButtonTone.danger,
-              small: true,
-              onPressed: () => _delete(live),
-            ),
+            Text(left, style: timeStyle),
+            Text(right, style: timeStyle),
           ],
         ),
       ],
     );
   }
 
-  Widget _tags(BuildContext context, CalendaEventAdapter live) {
-    final assigned =
-        ref.watch(eventTagsProvider(live.drifId)).valueOrNull ?? const [];
-    if (assigned.isEmpty) {
-      return SizedBox(
-        height: 40,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            AppLocalizations.of(context)!.tags,
-            style: AppTypography.small.copyWith(color: context.ds.ink3),
-          ),
-        ),
-      );
-    }
-    return Wrap(
-      spacing: AppSpacing.s2,
-      runSpacing: AppSpacing.s2,
+  Widget _fields(
+    BuildContext context,
+    AppLocalizations l,
+    CalendaEventAdapter live,
+    List<Calendar>? calendars,
+    Calendar? currentCalendar,
+    bool validRange,
+    double rowHeight,
+    bool canPickCalendar,
+  ) {
+    final ds = context.ds;
+    return Column(
       children: [
-        for (final tag in assigned)
-          DsChip(
-            label: tag.name,
-            solid: true,
-            leading: Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: ColorUtils.parseHex(tag.color),
-                shape: BoxShape.circle,
-              ),
+        const SizedBox(height: 16),
+        Container(height: 1, color: ds.line),
+        _PaneFieldRow(
+          label: l.startTime,
+          height: rowHeight,
+          value: live.isAllDay
+              ? formatDeadline(context, live.seriesStart)
+              : formatMoment(context, live.seriesStart),
+          onTap: () => _pickBoundary(live, isStart: true),
+          showChevron: true,
+        ),
+        _PaneFieldRow(
+          label: l.endTime,
+          height: rowHeight,
+          value: live.isAllDay
+              ? formatDeadline(context, live.seriesEnd)
+              : formatMoment(context, live.seriesEnd),
+          onTap: () => _pickBoundary(live, isStart: false),
+          showChevron: true,
+        ),
+        _PaneFieldRow(
+          label: l.duration,
+          height: rowHeight,
+          value: validRange
+              ? (live.isAllDay
+                    ? l.durationAllDay
+                    : formatExecutionLength(context, live.seriesEnd.difference(live.seriesStart)))
+              : l.invalidTimeRange,
+        ),
+        _PaneFieldRow(
+          label: l.allDay,
+          height: rowHeight,
+          valueChild: Align(
+            alignment: Alignment.centerLeft,
+            child: Switch(
+              value: live.isAllDay,
+              onChanged: (value) => _toggleAllDay(live, value),
             ),
           ),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('calendar-picker'),
+          label: l.calendarField,
+          height: rowHeight,
+          leading: currentCalendar == null
+              ? null
+              : DsDot(
+                  color: ColorUtils.parseHex(currentCalendar.color),
+                  size: 7,
+                ),
+          value: calendars == null
+              ? ''
+              : calendars.isEmpty
+              ? l.noCalendar
+              : (currentCalendar?.name ?? l.calendarUnavailable),
+          onTap: canPickCalendar
+              ? () => _pickCalendar(live, calendars!)
+              : null,
+          showChevron: canPickCalendar,
+        ),
+        _PaneFieldRow(
+          label: l.location,
+          height: rowHeight,
+          // No chevron: this row edits in place, it does not open anything.
+          showChevron: false,
+          valueChild: TextField(
+            controller: _location,
+            focusNode: _locationFocus,
+            style: AppTypography.caption.copyWith(color: ds.ink),
+            cursorColor: ds.primary,
+            decoration: InputDecoration(
+              // The row already says "Location"; repeating it in the empty field
+              // printed the same word twice, six pixels apart. The placeholder
+              // says what to do instead of what the row is.
+              hintText: l.locationHint,
+              isDense: true,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              hintStyle: AppTypography.caption.copyWith(color: ds.ink3),
+            ),
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) {
+              _locationTimer?.cancel();
+              _locationTimer = Timer(
+                const Duration(milliseconds: 600),
+                _flushLocation,
+              );
+            },
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _notes(BuildContext context, AppLocalizations l) {
+    final ds = context.ds;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l.notes,
+          style: AppTypography.overline.copyWith(color: ds.ink3),
+        ),
+        const SizedBox(height: 7),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: ds.bg,
+            border: Border.all(color: ds.lineSoft),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: TextField(
+            controller: _description,
+            focusNode: _descriptionFocus,
+            style: AppTypography.caption.copyWith(
+              color: ds.ink2,
+              height: 22 / 13,
+            ),
+            strutStyle: StrutStyle.fromTextStyle(
+              AppTypography.caption.copyWith(height: 22 / 13),
+              forceStrutHeight: true,
+            ),
+            cursorColor: ds.primary,
+            decoration: InputDecoration(
+              hintText: l.notesHint,
+              isDense: true,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              hintStyle: AppTypography.caption.copyWith(
+                color: ds.ink3,
+                height: 22 / 13,
+              ),
+            ),
+            maxLines: null,
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) {
+              _descriptionTimer?.cancel();
+              _descriptionTimer = Timer(
+                const Duration(milliseconds: 600),
+                _flushDescription,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tags(BuildContext context, CalendaEventAdapter live) {
+    final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
+    final assigned =
+        ref.watch(eventTagsProvider(live.drifId)).valueOrNull ?? const [];
+    // An event with no tags has nothing to show here, and a heading over
+    // nothing reads as content that failed to load.
+    if (assigned.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Text(
+          l.tags,
+          style: AppTypography.overline.copyWith(color: ds.ink3),
+        ),
+        const SizedBox(height: 7),
+        Wrap(
+          spacing: AppSpacing.s2,
+          runSpacing: AppSpacing.s2,
+          children: [
+            for (final tag in assigned)
+              DsChip(
+                label: tag.name,
+                solid: true,
+                leading: DsDot(
+                  color: ColorUtils.parseHex(tag.color),
+                  size: 7,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _footer(
+    BuildContext context,
+    AppLocalizations l,
+    CalendaEventAdapter live,
+    bool mobile,
+    double side,
+  ) {
+    final ds = context.ds;
+    final height = mobile ? 48.0 : 36.0;
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.embedded ? ds.surface : ds.bg,
+        border: Border(top: BorderSide(color: ds.line)),
+      ),
+      padding: EdgeInsets.fromLTRB(side, mobile ? 12 : 14, side, 0),
+      child: SafeArea(
+        top: false,
+        minimum: EdgeInsets.only(bottom: mobile ? 12 : 16),
+        child: SizedBox(
+          height: height,
+          child: Row(
+            children: [
+              Expanded(
+                child: _PaneButton(
+                  label: l.edit,
+                  height: height,
+                  primary: true,
+                  expand: true,
+                  onPressed: () => context.push('/event/edit', extra: live),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _PaneButton(
+                label: l.moveToTrash,
+                height: height,
+                danger: true,
+                onPressed: () => _delete(live),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -508,31 +739,33 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     CalendaEventAdapter live,
     List<Calendar> calendars,
   ) async {
-    final picked = await showModalBottomSheet<int>(
+    final l = AppLocalizations.of(context)!;
+    final picked = await showDsSheet<int>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final calendar in calendars)
-                ListTile(
-                  leading: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: ColorUtils.parseHex(calendar.color),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  title: Text(calendar.name),
-                  trailing: calendar.id == live.calendarId
-                      ? const Icon(CupertinoIcons.checkmark, size: 16)
-                      : null,
-                  onTap: () => Navigator.of(ctx).pop(calendar.id),
+      title: l.calendarField,
+      body: Builder(
+        builder: (sheetContext) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final calendar in calendars)
+              DsSettingRow(
+                label: calendar.name,
+                leading: DsDot(
+                  color: ColorUtils.parseHex(calendar.color),
+                  size: 8,
                 ),
-            ],
-          ),
+                trailing: calendar.id == live.calendarId
+                    ? Icon(
+                        CupertinoIcons.checkmark,
+                        size: 15,
+                        color: sheetContext.ds.primary,
+                      )
+                    : const SizedBox.shrink(),
+                selected: calendar.id == live.calendarId,
+                onTap: () => Navigator.of(sheetContext).pop(calendar.id),
+              ),
+          ],
         ),
       ),
     );
@@ -642,26 +875,38 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       final scope = await showDialog<bool>(
         animationStyle: AnimationStyle.noAnimation,
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l.deleteScopeTitle),
-          content: Text(l.deleteEventConfirm(row.title)),
+        builder: (ctx) => DsDialog(
+          title: l.deleteScopeTitle,
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.cancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l.deleteThisOccurrence),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
+            Expanded(
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: AppSpacing.s2,
+                runSpacing: AppSpacing.s2,
+                children: [
+                  DsButton(
+                    label: l.cancel,
+                    tone: DsButtonTone.ghost,
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                  DsButton(
+                    label: l.deleteThisOccurrence,
+                    tone: DsButtonTone.ghost,
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                  ),
+                  DsButton(
+                    label: l.deleteWholeSeries,
+                    tone: DsButtonTone.danger,
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                  ),
+                ],
               ),
-              child: Text(l.deleteWholeSeries),
             ),
           ],
+          child: Text(
+            l.deleteEventConfirm(row.title),
+            style: AppTypography.body.copyWith(color: context.ds.ink2),
+          ),
         ),
       );
       if (scope == null || !mounted) return;
@@ -682,22 +927,26 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       final confirmed = await showDialog<bool>(
         animationStyle: AnimationStyle.noAnimation,
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l.moveToTrash),
-          content: Text(l.deleteRecurringEventConfirm(row.title)),
+        builder: (ctx) => DsDialog(
+          title: l.moveToTrash,
           actions: [
-            TextButton(
+            const Spacer(),
+            DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l.cancel),
             ),
-            TextButton(
+            const SizedBox(width: AppSpacing.s2),
+            DsButton(
+              label: l.moveToTrash,
+              tone: DsButtonTone.danger,
               onPressed: () => Navigator.of(ctx).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: Text(l.moveToTrash),
             ),
           ],
+          child: Text(
+            l.deleteRecurringEventConfirm(row.title),
+            style: AppTypography.body.copyWith(color: context.ds.ink2),
+          ),
         ),
       );
       if (confirmed != true || !mounted) return;
@@ -705,22 +954,26 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       final confirmed = await showDialog<bool>(
         animationStyle: AnimationStyle.noAnimation,
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l.moveToTrash),
-          content: Text(l.deleteEventConfirm(row.title)),
+        builder: (ctx) => DsDialog(
+          title: l.moveToTrash,
           actions: [
-            TextButton(
+            const Spacer(),
+            DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l.cancel),
             ),
-            TextButton(
+            const SizedBox(width: AppSpacing.s2),
+            DsButton(
+              label: l.moveToTrash,
+              tone: DsButtonTone.danger,
               onPressed: () => Navigator.of(ctx).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: Text(l.moveToTrash),
             ),
           ],
+          child: Text(
+            l.deleteEventConfirm(row.title),
+            style: AppTypography.body.copyWith(color: context.ds.ink2),
+          ),
         ),
       );
       if (confirmed != true || !mounted) return;
@@ -771,4 +1024,205 @@ void _leaveToSource(BuildContext context) {
     return;
   }
   router?.go('/');
+}
+
+class _PaneCloseButton extends StatelessWidget {
+  const _PaneCloseButton({required this.onPressed, required this.tooltip});
+
+  final VoidCallback? onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: MouseRegion(
+          cursor: onPressed == null
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              onTap: onPressed,
+              hoverColor: ds.surface2,
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: Icon(CupertinoIcons.xmark, size: 16, color: ds.ink3),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaneFieldRow extends StatelessWidget {
+  const _PaneFieldRow({
+    super.key,
+    required this.label,
+    required this.height,
+    this.value,
+    this.valueChild,
+    this.leading,
+    this.onTap,
+    this.showChevron = false,
+  });
+
+  final String label;
+  final double height;
+  final String? value;
+  final Widget? valueChild;
+  final Widget? leading;
+  final VoidCallback? onTap;
+  final bool showChevron;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final content = SizedBox(
+      height: height,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 62,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                height: 16 / 11,
+                color: ds.ink3,
+              ),
+            ),
+          ),
+          Expanded(
+            child:
+                valueChild ??
+                Row(
+                  children: [
+                    if (leading != null) ...[
+                      leading!,
+                      const SizedBox(width: 7),
+                    ],
+                    Flexible(
+                      child: Text(
+                        value ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 18 / 13,
+                          color: ds.ink,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+          if (showChevron)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(
+                CupertinoIcons.chevron_forward,
+                size: 13,
+                color: ds.faint,
+              ),
+            ),
+        ],
+      ),
+    );
+    final row = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      ),
+      child: content,
+    );
+    if (onTap == null) return row;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(onTap: onTap, hoverColor: ds.surface2, child: row),
+      ),
+    );
+  }
+}
+
+class _PaneButton extends StatelessWidget {
+  const _PaneButton({
+    required this.label,
+    required this.onPressed,
+    required this.height,
+    this.primary = false,
+    this.danger = false,
+    this.expand = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final double height;
+  final bool primary;
+  final bool danger;
+  final bool expand;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final bg = primary ? ds.primary : ds.surface;
+    final fg = primary ? ds.onPrimary : (danger ? ds.danger : ds.ink2);
+    final enabled = onPressed != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      child: MouseRegion(
+        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        child: Opacity(
+          opacity: enabled ? 1 : 0.45,
+          child: Material(
+            color: bg,
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              onTap: onPressed,
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                height: height,
+                width: expand ? double.infinity : null,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: primary ? Colors.transparent : ds.line,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: height >= 44 ? 14 : 12,
+                    fontWeight: height >= 44
+                        ? FontWeight.w600
+                        : FontWeight.w500,
+                    color: fg,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

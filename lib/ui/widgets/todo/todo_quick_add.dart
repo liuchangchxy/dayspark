@@ -103,30 +103,29 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
       ],
     );
 
+    final dueChip = widget.dueDate == null
+        ? null
+        : DsChip(
+            compact: true,
+            label: l.deadlinePrefix(formatDeadline(context, widget.dueDate!)),
+            leading: Icon(CupertinoIcons.flag, size: 12, color: ds.warn),
+            warm: true,
+          );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.dueDate != null)
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              desktop ? AppSpacing.s5 : AppSpacing.s4,
-              AppSpacing.s2,
-              desktop ? AppSpacing.s5 : AppSpacing.s4,
-              AppSpacing.s1,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: DsChip(
-                compact: true,
-                label: l.deadlinePrefix(
-                  formatDeadline(context, widget.dueDate!),
-                ),
-                leading: Icon(CupertinoIcons.flag, size: 12, color: ds.warn),
-                warm: true,
+        if (desktop) ...[
+          if (dueChip != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s5,
+                AppSpacing.s2,
+                AppSpacing.s5,
+                AppSpacing.s1,
               ),
+              child: Align(alignment: Alignment.centerLeft, child: dueChip),
             ),
-          ),
-        if (desktop)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.s5,
@@ -143,12 +142,22 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
               ),
               child: field,
             ),
-          )
-        else
+          ),
+        ] else
+          // The due chip shares the field's row: on a phone a lone chip on the
+          // line above cost 30px of list space and read as a stray control.
           Container(
             height: 48,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-            child: field,
+            child: Row(
+              children: [
+                Expanded(child: field),
+                if (dueChip != null) ...[
+                  const SizedBox(width: AppSpacing.s2),
+                  dueChip,
+                ],
+              ],
+            ),
           ),
         Container(
           height: 1,

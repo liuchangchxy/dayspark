@@ -26,17 +26,17 @@ void main() {
       expect(AppColors.darkBorder, isA<Color>());
     });
 
-    test('accent values match v0.30 ink blue', () {
-      expect(AppColors.lightAccent, const Color(0xFF2D4F7C));
-      expect(AppColors.darkAccent, const Color(0xFF8FB0D9));
+    test('accent values match the Direction C ember', () {
+      expect(AppColors.lightAccent, const Color(0xFFC2410C));
+      expect(AppColors.darkAccent, const Color(0xFFE0703C));
     });
 
-    test('light background matches v0.30 #F3F3EF', () {
-      expect(AppColors.lightBackground, const Color(0xFFF3F3EF));
+    test('light background matches Direction C #FCFCFA', () {
+      expect(AppColors.lightBackground, const Color(0xFFFCFCFA));
     });
 
-    test('dark background is #121310', () {
-      expect(AppColors.darkBackground, const Color(0xFF121310));
+    test('dark background is #131311', () {
+      expect(AppColors.darkBackground, const Color(0xFF131311));
     });
   });
 
@@ -65,18 +65,18 @@ void main() {
         AppAccent.fromLegacyColor(const Color(0xFF34C759).toARGB32()),
         AppAccent.green,
       );
-      // An unrecognized legacy color falls back to the default.
+      // An unrecognized legacy color falls back to the app's own accent.
       expect(
         AppAccent.fromLegacyColor(const Color(0xFF123456).toARGB32()),
-        AppAccent.blue,
+        AppAccent.terracotta,
       );
-      expect(AppAccent.fromLegacyColor(null), AppAccent.blue);
+      expect(AppAccent.fromLegacyColor(null), AppAccent.terracotta);
     });
 
-    test('fromId falls back to blue for unknown ids', () {
+    test('fromId falls back to the app accent for unknown ids', () {
       expect(AppAccent.fromId('purple'), AppAccent.purple);
-      expect(AppAccent.fromId('nope'), AppAccent.blue);
-      expect(AppAccent.fromId(null), AppAccent.blue);
+      expect(AppAccent.fromId('nope'), AppAccent.terracotta);
+      expect(AppAccent.fromId(null), AppAccent.terracotta);
     });
   });
 }

@@ -44,29 +44,29 @@ void main() {
     );
   });
 
-  testWidgets('orders sections general → calendar → data → sync → ai → about', (
+  testWidgets('orders sections account → general → calendar → data → ai → about', (
     tester,
   ) async {
     await _pumpSettings(tester);
 
+    expect(
+      _y(tester, find.byType(AccountSection)),
+      lessThan(_y(tester, find.byType(AppearanceSection))),
+    );
     expect(
       _y(tester, find.byType(AppearanceSection)),
       lessThan(_y(tester, find.text('Manage Calendars'))),
     );
     expect(
       _y(tester, find.text('Manage Calendars')),
-      lessThan(_y(tester, find.byType(ImportExportSection))),
-    );
-    expect(
-      _y(tester, find.byType(ImportExportSection)),
-      lessThan(_y(tester, find.byType(AccountSection))),
-    );
-    expect(
-      _y(tester, find.byType(AccountSection)),
       lessThan(_y(tester, find.byType(AiSection))),
     );
     expect(
       _y(tester, find.byType(AiSection)),
+      lessThan(_y(tester, find.byType(ImportExportSection))),
+    );
+    expect(
+      _y(tester, find.byType(ImportExportSection)),
       lessThan(_y(tester, find.byType(AboutSection))),
     );
     expect(find.text('Six Things'), findsNothing);

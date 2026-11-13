@@ -5,9 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
+import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
+import '../settings_ui.dart';
 
 class AiSection extends ConsumerWidget {
   const AiSection({super.key});
@@ -20,19 +22,20 @@ class AiSection extends ConsumerWidget {
     final flagsAsync = ref.watch(featureFlagsProvider);
     final enabled =
         flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? true;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    final locale = ref.watch(localeProvider);
+    return SettingsRows(
       children: [
-        DsSettingRow(
-          label: l.aiAssistant,
-          value: enabled ? l.aiConfigured : l.aiNotConfiguredShort,
+        SettingsRow(
+          // The group heading already says "AI Assistant", and the row below
+          // reports whether a key is configured. What this switch owns is
+          // whether the assistant is on, so that is what it is called.
+          label: l.aiEnable,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               DsIconButton(
                 icon: CupertinoIcons.book,
                 size: 15,
-                compact: true,
                 tooltip: l.tutorial,
                 onPressed: () => launchUrl(
                   Uri.parse(
@@ -52,11 +55,22 @@ class AiSection extends ConsumerWidget {
           ),
         ),
         if (enabled)
-          DsSettingRow(
+          SettingsRow(
             label: l.aiConfig,
             value: _aiSubtitle(context, ref),
+            chevron: SettingsChevron.right,
             onTap: () => showAiConfigDialog(context, ref),
           ),
+        SettingsRow(
+          label: l.language,
+          value: locale == null
+              ? l.languageSystem
+              : locale.languageCode == 'zh'
+              ? l.languageZh
+              : l.languageEn,
+          chevron: SettingsChevron.down,
+          onTap: () => _showLanguageDialog(context, ref),
+        ),
       ],
     );
   }
@@ -71,5 +85,28 @@ class AiSection extends ConsumerWidget {
         .where((item) => item.baseUrl == config.baseUrl)
         .firstOrNull;
     return preset == null ? config.model : '${preset.name} · ${config.model}';
+  }
+
+  void _showLanguageDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final current = ref.read(localeProvider);
+    final currentTag = current == null
+        ? 'system'
+        : current.languageCode == 'zh'
+        ? 'zh'
+        : 'en';
+    showSettingsChoice<String>(
+      context: context,
+      title: l.language,
+      current: currentTag,
+      options: [
+        ('system', l.languageSystem),
+        ('zh', l.languageZh),
+        ('en', l.languageEn),
+      ],
+      onSelected: (tag) => ref
+          .read(localeProvider.notifier)
+          .setLocale(tag == 'system' ? null : Locale(tag)),
+    );
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
@@ -542,7 +543,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                 Expanded(
                   child: Text(
                     l.noCalendar,
-                    style: TextStyle(fontSize: 12, color: ds.danger),
+                    style: AppTypography.small.copyWith(color: ds.danger),
                   ),
                 ),
                 DsButton(
@@ -565,13 +566,9 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
           label: l.calendarField,
           leading: current == null
               ? null
-              : Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: ColorUtils.parseHex(current.color),
-                    shape: BoxShape.circle,
-                  ),
+              : DsDot(
+                  color: ColorUtils.parseHex(current.color),
+                  size: 8,
                 ),
           value: current?.name ?? l.calendarUnavailable,
           onTap: () async {
@@ -664,10 +661,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                   autofocus: !_isEditing,
                   textCapitalization: TextCapitalization.sentences,
                   onChanged: (_) => setState(() {}),
-                  style: TextStyle(
-                    fontSize: 22,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
+                  style: AppTypography.headline.copyWith(
                     color: context.ds.ink,
                   ),
                   decoration: InputDecoration(
@@ -678,11 +672,8 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                     focusedBorder: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
-                    hintStyle: TextStyle(
-                      fontSize: 22,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                      color: context.ds.ink3.withValues(alpha: 0.7),
+                    hintStyle: AppTypography.headline.copyWith(
+                      color: context.ds.faint,
                     ),
                   ),
                 ),
@@ -706,9 +697,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                       Expanded(
                         child: Text(
                           l.recurringSeriesNoticeShort,
-                          style: TextStyle(
-                            fontSize: 12,
-                            height: 1.4,
+                          style: AppTypography.small.copyWith(
                             color: context.ds.ink3,
                           ),
                         ),
@@ -720,7 +709,8 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
               DsSectionLabel(l.sectionTime),
               DsSettingRow(
                 label: l.allDay,
-                value: _isAllDay ? l.durationAllDay : l.eventLabel,
+                // The switch already says which state it is in; the value it
+                // used to print ("日程") contradicted its own label.
                 trailing: Switch(
                   value: _isAllDay,
                   onChanged: _setAllDay,
@@ -753,75 +743,50 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                             ))
                     : l.invalidTimeRange,
               ),
-              RepeatRow(
-                rrule: _rrule,
-                anchorDate: _start,
-                anchorLabel: null,
-                onChanged: (value) => setState(() => _rrule = value),
+              // RepeatRow is a ScheduleRow, which carries no gutter of its own;
+              // every other row in this form is a DsSettingRow that does, so
+              // without this the label sat flush against the window edge.
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s4,
+                ),
+                child: RepeatRow(
+                  rrule: _rrule,
+                  anchorDate: _start,
+                  anchorLabel: null,
+                  onChanged: (value) => setState(() => _rrule = value),
+                ),
               ),
               const DsHairline(),
-              DsSectionLabel(l.calendarField),
+              // The row names the field it sets; a heading over it repeated
+              // the same two words.
               _buildCalendarRow(l),
               DsSectionLabel(l.sectionContent),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.s4,
-                  AppSpacing.s1,
+                  AppSpacing.s2,
                   AppSpacing.s4,
                   AppSpacing.s2,
                 ),
-                child: TextField(
+                child: DsTextField(
                   controller: _locationController,
+                  hint: l.location,
                   onChanged: (_) => setState(() {}),
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.55,
-                    color: context.ds.ink,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: l.location,
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    hintStyle: TextStyle(
-                      fontSize: 15,
-                      height: 1.55,
-                      color: context.ds.ink3,
-                    ),
-                  ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s4,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  0,
+                  AppSpacing.s4,
+                  AppSpacing.s2,
                 ),
-                child: TextField(
+                child: DsTextField(
                   controller: _descriptionController,
-                  onChanged: (_) => setState(() {}),
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.55,
-                    color: context.ds.ink,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: l.description,
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    hintStyle: TextStyle(
-                      fontSize: 15,
-                      height: 1.55,
-                      color: context.ds.ink3,
-                    ),
-                  ),
+                  hint: l.description,
                   maxLines: 4,
-                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               Padding(
@@ -837,7 +802,8 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                       setState(() => _tagIds = value),
                 ),
               ),
-              DsSectionLabel(l.sectionReminder),
+              // RemindersSection draws its own heading and add action; a
+              // second label above it printed "提醒" twice, six pixels apart.
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.s4,

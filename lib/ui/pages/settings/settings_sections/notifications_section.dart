@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/infrastructure/platform/alarm_service.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/ds.dart';
+import '../settings_ui.dart';
 
 class NotificationsSection extends ConsumerWidget {
   const NotificationsSection({super.key});
@@ -15,7 +15,7 @@ class NotificationsSection extends ConsumerWidget {
   });
 
   // Android 12+ gate for exact alarms; hidden when granted (USE_EXACT_ALARM
-  // in the manifest means it normally is, so this tile is a fallback).
+  // in the manifest means it normally is, so this row is a fallback).
   static final canScheduleExactProvider = FutureProvider.autoDispose<bool>((
     ref,
   ) async {
@@ -38,15 +38,14 @@ class NotificationsSection extends ConsumerWidget {
         (platform == TargetPlatform.android || platform == TargetPlatform.iOS);
     final showsMacPermission = !kIsWeb && platform == TargetPlatform.macOS;
     final showsExactAlarm = !kIsWeb && platform == TargetPlatform.android;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return SettingsRows(
       children: [
         // The alarm plugin only ships Android and iOS implementations, so on
         // Windows the switch would flip a preference nothing reads.
         if (showsAlarm)
-          DsSettingRow(
+          SettingsRow(
             label: l.systemAlarm,
-            value: l.systemAlarmDesc,
+            subtitle: l.systemAlarmDesc,
             trailing: Switch(
               value: ref.watch(systemAlarmProvider),
               onChanged: (v) async {
@@ -56,9 +55,10 @@ class NotificationsSection extends ConsumerWidget {
             ),
           ),
         if (showsMacPermission)
-          DsSettingRow(
+          SettingsRow(
             label: l.notificationPermission,
-            value: l.notificationPermissionDesc,
+            subtitle: l.notificationPermissionDesc,
+            chevron: SettingsChevron.right,
             onTap: () async {
               await NotificationService().requestPermission();
               if (!context.mounted) return;
@@ -69,9 +69,10 @@ class NotificationsSection extends ConsumerWidget {
           ),
         if (showsExactAlarm &&
             ref.watch(canScheduleExactProvider).valueOrNull == false)
-          DsSettingRow(
+          SettingsRow(
             label: l.exactAlarmTitle,
-            value: l.exactAlarmDesc,
+            subtitle: l.exactAlarmDesc,
+            chevron: SettingsChevron.right,
             onTap: () async {
               await NotificationService().requestExactAlarmsPermission();
               ref.invalidate(canScheduleExactProvider);
