@@ -129,6 +129,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The runner image's default JDK moved to 25, which Gradle 8.14 refuses;
+      # the Android build reads JAVA_HOME, so it gets the JDK the wrapper and
+      # AGP are written for instead of whatever the image ships that week.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.47.3"
