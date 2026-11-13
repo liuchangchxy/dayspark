@@ -18,9 +18,9 @@ Future<bool> hasInstalledWidgets() async {
   try {
     final installed = await _widgetChannel.invokeMethod<bool>('hasWidgets');
     return installed ?? true;
-  } on MissingPluginException {
-    return true;
-  } on PlatformException catch (error) {
+  } catch (error) {
+    // Any failure means "assume installed": a probe must never be the reason a
+    // pinned widget stops updating.
     debugPrint('widget_instances: hasWidgets failed: $error');
     return true;
   }

@@ -771,7 +771,7 @@ Event 是复杂对象，Widget 不做内联创建。
 - 禁止用定时器不断 `addView` 或不断请求刷新；
 - 禁止每个 Widget 各自写快照；
 - 禁止原生写 SQLite 或写快照；
-- 禁止无变化时重复触发全量刷新（用 `RecordBus` 合并；当前 `homeWidgetAutoRefreshProvider` 的“最多一个 in-flight + 一次 trailing”保留）；
+- 禁止无变化时重复触发全量刷新（用 `RecordBus` 合并；当前由 `WidgetRefreshScheduler` 执行：400ms 防抖合并突发、文本输入持有焦点时不重建、兜底上限 4s、同一时刻最多一个 in-flight，运行中到达的请求合并成一次补跑）；
 - 禁止依赖“每 30 分钟一定准时”来做产品承诺；`updatePeriodMillis=1800000` 只是兜底，不是刷新主路径。
 
 ### 12.4 时间判定
@@ -779,7 +779,7 @@ Event 是复杂对象，Widget 不做内联创建。
 - Snapshot 为 Event / Allocation 提供 `startEpochMs` / `endEpochMs`；
 - 原生渲染时按设备当前时间计算 Now / Later，而不是依赖快照生成时的分区；
 - Android 的周期刷新只是兜底：系统不保证精确边界，也不承诺每 30 分钟执行一次；
-- 数据变化、Widget 操作、日期/时间/时区广播会立即触发刷新；
+- 数据变化会触发刷新，但不保证在一次提交后立刻发生：快照重建经 400ms 防抖合并，且在文本输入持有焦点时推迟（上限 4s），避免与输入法抢 UI isolate；Widget 操作与日期/时间/时区广播仍立即重绘；
 - Now/Later 在两次刷新之间允许短暂滞后，不为此引入高频后台任务；
 - iOS/macOS 时间线在下一个事件边界与午夜各生成条目，边界准确；
 - 跨天：iOS `Timeline(entries: [now, nextMidnight], policy: .after(nextMidnight))`；Android 监听 `ACTION_DATE_CHANGED` / `ACTION_TIME_CHANGED` / `ACTION_TIMEZONE_CHANGED` 并重绘。

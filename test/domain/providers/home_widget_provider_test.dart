@@ -282,19 +282,17 @@ void main() {
       container.read(homeWidgetAutoRefreshProvider);
       final bus = container.read(recordBusProvider);
 
-      // 等到条件成立（全套件并行时事件循环会被挤），再多让几轮以捕捉"多余的一次"。
-      Future<void> waitUntil(bool Function() condition) async {
-        for (var i = 0; i < 200 && !condition(); i++) {
-          await pumpEventQueue(times: 5);
+      // The refresh is deliberately deferred (coalescing + IME hold-off), so
+      // poll for the flush instead of sleeping a fixed guess: on a loaded
+      // runner a fixed sleep can observe zero flushes. The trailing window is
+      // one full debounce, so an *extra* flush would still be caught.
+      Future<void> settleRefresh({int expectedGain = 1, int before = 0}) async {
+        final deadline = DateTime.now().add(const Duration(seconds: 3));
+        while (flushes - before < expectedGain &&
+            DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
         }
-        await pumpEventQueue(times: 50);
-      }
-
-      // The refresh is deliberately deferred (coalescing + IME hold-off), so a
-      // bus publish must be followed by time before the flush can be counted.
-      Future<void> settleRefresh() async {
         await Future<void>.delayed(const Duration(milliseconds: 600));
-        await waitUntil(() => false);
       }
 
       // 1. A raw drift write no longer drives a refresh: tableUpdates is gone.
@@ -308,7 +306,7 @@ void main() {
               status: const Value('NEEDS-ACTION'),
             ),
           );
-      await waitUntil(() => false);
+      await Future<void>.delayed(const Duration(milliseconds: 600));
       expect(
         flushes,
         beforeRawWrite,
@@ -322,13 +320,13 @@ void main() {
         RecordApplied(RecordType.todo, 2, previousReference: DateTime(2026)),
         RecordApplied(RecordType.event, 3, previousReference: null),
       ]);
-      await settleRefresh();
+      await settleRefresh(before: beforeBatchOfThree);
       expect(flushes - beforeBatchOfThree, 1, reason: '一次批 = 一次 refresh');
 
       // 3. Batch size is irrelevant: one change still flushes exactly once.
       final beforeBatchOfOne = flushes;
       bus.publish([RecordApplied(RecordType.todo, 1, previousReference: null)]);
-      await settleRefresh();
+      await settleRefresh(before: beforeBatchOfOne);
       expect(flushes - beforeBatchOfOne, 1, reason: '批次内容不影响刷新次数');
 
       // 4. A burst collapses: the refresh window absorbs every publish.
@@ -338,7 +336,7 @@ void main() {
           RecordApplied(RecordType.todo, i + 1, previousReference: null),
         ]);
       }
-      await settleRefresh();
+      await settleRefresh(before: beforeBurst);
       expect(
         flushes - beforeBurst,
         1,
@@ -347,7 +345,7 @@ void main() {
     },
   );
 
-  test('no widget instance: commands still drain, nothing renders', () async {
+  test('no widget instance: commands drain and the snapshot stays current', () async {
     hasWidgets = false;
     final todoId = await insertTodo();
     pendingCommands['cmd_1'] = jsonEncode({
@@ -366,11 +364,38 @@ void main() {
     )..where((t) => t.id.equals(todoId))).getSingle();
     expect(todo.status, 'COMPLETED', reason: '队列里的用户动作不能因为没实例就丢');
     expect(pendingCommands, isEmpty, reason: '命令必须被确认，否则永远重试');
-    expect(storedSnapshot(), isEmpty, reason: '零实例时重建快照是纯浪费');
+    // The blob must stay current: a widget pinned later reads it directly and
+    // has no way to ask Dart to rebuild.
+    expect(flushes, 1, reason: '零实例也要写出可渲染的快照');
     expect(
       methodCalls.map((call) => call.method),
       isNot(contains('updateWidget')),
-      reason: '没有实例就没有原生刷新',
+      reason: '没有实例时广播没有接收者，省掉三段主线程重建',
     );
+  });
+
+  test('a consumed legacy tap is cleared even with no instance', () async {
+    hasWidgets = false;
+    final todoId = await insertTodo();
+    store[HomeWidgetService.snapshotKey] = jsonEncode({
+      'version': 4,
+      'pendingTaps': [
+        {
+          'todoId': todoId,
+          'action': 'complete',
+          'at': '2026-09-24T05:00:00.000Z',
+        },
+      ],
+    });
+
+    await container.read(updateHomeWidgetProvider)();
+
+    final todo = await (testDb.select(
+      testDb.todos,
+    )..where((t) => t.id.equals(todoId))).getSingle();
+    expect(todo.status, 'COMPLETED', reason: '旧快照里的点击仍要执行');
+    final stored = jsonDecode(store[HomeWidgetService.snapshotKey]! as String)
+        as Map<String, dynamic>;
+    expect(stored.containsKey('pendingTaps'), isFalse, reason: '消费后必须清除');
   });
 }

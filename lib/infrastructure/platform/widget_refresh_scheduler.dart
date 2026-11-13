@@ -31,8 +31,6 @@ class WidgetRefreshScheduler {
   bool _running = false;
   bool _disposed = false;
 
-  bool get hasPendingWork => _requested;
-
   void request() {
     if (_disposed) return;
     _requested = true;
@@ -42,25 +40,34 @@ class WidgetRefreshScheduler {
   }
 
   void _onDebounceElapsed() {
-    if (_isEditing()) return;
+    if (_isEditing()) {
+      // Re-arm the cap: a run that finished while the field held focus cleared
+      // it, and without one a still-focused field would defer forever.
+      _maxTimer ??= Timer(maxDeferral, _run);
+      return;
+    }
     _run();
   }
 
   void _run() {
     if (_disposed) return;
     _debounceTimer?.cancel();
+    // A fired timer keeps its identity, so it must be dropped here; otherwise
+    // `??=` would treat a spent timer as the live cap.
     _maxTimer?.cancel();
     _maxTimer = null;
     if (!_requested) return;
     if (_running) {
-      _requested = true;
       _debounceTimer = Timer(debounce, _onDebounceElapsed);
+      _maxTimer = Timer(maxDeferral, _run);
       return;
     }
     _requested = false;
     _running = true;
     unawaited(
-      _onRun().catchError((Object e) {
+      // Future.sync so a callback that throws before its first await still
+      // lands in catchError instead of wedging _running.
+      Future.sync(_onRun).catchError((Object e) {
         // A failed snapshot must not wedge the scheduler.
       }).whenComplete(() {
         _running = false;

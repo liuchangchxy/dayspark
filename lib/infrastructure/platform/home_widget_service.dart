@@ -225,8 +225,13 @@ class HomeWidgetService {
 
       // Commands and legacy taps above are drained unconditionally: a tap
       // queued by a widget that has since been removed is still a user action.
-      // Rendering, however, has no consumer without an instance.
-      if (!await hasInstalledWidgets()) return;
+      // The snapshot itself is always rewritten too — a widget pinned after
+      // this build must read current data, and rewriting is also how a consumed
+      // legacy tap is cleared (a tap left in the stored blob would replay on
+      // every later flush). Only the native broadcast is gated: with no
+      // instance it has no recipient, and each one re-parses the blob and
+      // rebuilds RemoteViews on the launcher's main thread.
+      final installed = await hasInstalledWidgets();
 
       final calendarColors = {
         for (final row in await db.select(db.calendars).get())
@@ -268,7 +273,7 @@ class HomeWidgetService {
       );
 
       await HomeWidget.saveWidgetData(snapshotKey, jsonEncode(snapshot));
-      await refreshNativeWidgets();
+      if (installed) await refreshNativeWidgets();
     } catch (e) {
       debugPrint('home_widget: update error: $e');
     }

@@ -85,3 +85,34 @@ Measured after the fix, 15 rapid creations with a widget pinned:
 
 The fix removes the only write-triggered work measured to accumulate and to
 run inside the typing window; it does not prove the phone's lag was solely this.
+
+## Independent review findings applied
+
+An independent reviewer re-read the diff, ran the affected tests, and drove the
+scheduler's state machine with scripted timelines. Four defects it found were
+fixed in the same branch:
+
+1. **Consumed legacy taps were never cleared with zero instances.** The old
+   snapshot is the only place `pendingTaps` lives, and the early return skipped
+   the rewrite, so every later flush replayed the tap and republished on the
+   record bus — a 400 ms refresh loop for the life of the process. The snapshot
+   is now always rewritten; only the native broadcast is gated.
+2. **The max-deferral bound could be lost.** A request arriving during an
+   in-flight run had its cap consumed by the run it could not start, leaving it
+   with no deadline once the debounce met a focused field. The cap is now
+   re-armed on both paths (regression test:
+   `a run that outlives the cap cannot defer forever`).
+3. **A sync-throwing refresh wedged the scheduler** (`_running` stayed true).
+   `_onRun` now goes through `Future.sync`.
+4. **The `hasWidgets` probe could abort rendering** by rethrowing anything that
+   was not `MissingPluginException`/`PlatformException`; it now assumes
+   installed on any failure.
+
+Also covered by new tests: the probe returning false must not stop the snapshot
+from being written (a widget pinned later reads it directly), and a consumed
+legacy tap is cleared in the stored blob.
+
+The reviewer's remaining observations are recorded as follow-ups rather than
+silently dropped: `updateHomeWidgetProvider` and the scheduler can still call
+`updateWidget` concurrently (pre-existing; completion is idempotent via
+`alreadyApplied`), and `consumeWidgetCommands` has no mutual exclusion.
