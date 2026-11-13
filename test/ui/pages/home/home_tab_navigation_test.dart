@@ -18,11 +18,21 @@ import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/ui/shell/spark_top_bar.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
-Future<void> _loadFont(String family, String path) async {
-  final bytes = File(path).readAsBytesSync();
-  final loader = FontLoader(family)
-    ..addFont(Future.value(ByteData.view(Uint8List.fromList(bytes).buffer)));
-  await loader.load();
+// These tests assert on layout, so real glyph metrics help — but the faces live
+// in different places per host, and the Linux CI image has no CJK face at all.
+// Load whichever candidate exists and carry on without one; a missing system
+// font must not fail the whole file, which is what a bare Windows path did.
+Future<void> _loadFont(String family, List<String> candidates) async {
+  for (final path in candidates) {
+    final file = File(path);
+    if (!file.existsSync()) continue;
+    final loader = FontLoader(family)
+      ..addFont(
+        Future.value(ByteData.view(Uint8List.fromList(file.readAsBytesSync()).buffer)),
+      );
+    await loader.load();
+    return;
+  }
 }
 
 Widget _app(AppDatabase db, {List<Override> overrides = const []}) {
@@ -65,8 +75,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    await _loadFont('Microsoft YaHei', r'C:\Windows\Fonts\Deng.ttf');
-    await _loadFont('Segoe UI', r'C:\Windows\Fonts\segoeui.ttf');
+    await _loadFont('Microsoft YaHei', [
+      r'C:\Windows\Fonts\Deng.ttf',
+      '/System/Library/Fonts/PingFang.ttc',
+      '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+    ]);
+    await _loadFont('Segoe UI', [
+      r'C:\Windows\Fonts\segoeui.ttf',
+      '/System/Library/Fonts/Helvetica.ttc',
+      '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    ]);
   });
 
   late AppDatabase db;
