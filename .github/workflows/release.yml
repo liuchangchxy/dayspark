@@ -125,6 +125,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Same reason as ci.yml: the image's default JDK is newer than the
+      # Gradle wrapper this project pins, so the build gets its own JDK.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.47.3"
