@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/foundation.dart';
@@ -48,7 +49,6 @@ void main() async {
       debugPrint('home_widget: registerInteractivityCallback error: $e');
     }
   }
-  await AlarmService.init();
   // tz database + local location must be ready before any reminder can
   // schedule (initializeDatabase resets tz.local to UTC if run later).
   await NotificationService.ensureTimeZoneInitialized();
@@ -80,6 +80,12 @@ void main() async {
   runApp(
     UncontrolledProviderScope(container: container, child: const DaySparkApp()),
   );
+  // The plugin's restore pass is O(saved alarms) platform round-trips
+  // (0.64-0.80 s with 12). Schedulers await the same future, so starting it
+  // after the first frame removes the startup stall without dropping alarms.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(AlarmService.init());
+  });
 }
 
 class DaySparkApp extends ConsumerWidget {

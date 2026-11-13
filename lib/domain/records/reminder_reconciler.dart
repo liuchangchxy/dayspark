@@ -77,6 +77,15 @@ final class ReminderReconciler {
     await _reconcileAll(force: true);
   });
 
+  /// System alarms were switched back on: the native copies were cleared by
+  /// stopAll, but _applied still records them as handed to the OS. Forget those
+  /// entries and force a sweep so existing reminders re-arm immediately instead
+  /// of waiting for the next Todo/Reminder write.
+  Future<void> onAlarmEnabled() => _enqueue(() async {
+    _applied.removeWhere((_, handedToOs) => handedToOs != null);
+    await _reconcileAll(force: true);
+  });
+
   // 两个入口共用一条串行链：批与批、重算与批都不得交错重排同一个父，否则会拿
   // 半更新的 _applied/父状态去求差。catchError 保证一次意外异常不会堵死整条链。
   Future<void> _enqueue(Future<void> Function() action) {

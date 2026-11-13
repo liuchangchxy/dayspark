@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dayspark/domain/providers/alarm_provider.dart';
 import 'package:dayspark/infrastructure/platform/alarm_service.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -48,9 +51,11 @@ class NotificationsSection extends ConsumerWidget {
             subtitle: l.systemAlarmDesc,
             trailing: Switch(
               value: ref.watch(systemAlarmProvider),
-              onChanged: (v) async {
-                await AlarmService.setEnabled(v);
+              onChanged: (v) {
+                // Flip the visual state first: stopAll takes 190-335 ms with 12
+                // alarms and must not hold the switch hostage.
                 ref.read(systemAlarmProvider.notifier).state = v;
+                unawaited(ref.read(alarmToggleProvider)(v));
               },
             ),
           ),

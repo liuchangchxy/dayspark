@@ -7,12 +7,15 @@
 // 未覆盖（据实披露）：web 上"不显示"那一半 —— `kIsWeb` 是编译期常量，VM 测试里恒为
 // false，所以这里断言不到；那一半由 `platform_target.dart` 的同行守卫（静态）与
 // web 冒烟截图（端到端）负责，不由本文件负责。
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dayspark/domain/providers/alarm_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/notifications_section.dart';
 
@@ -20,6 +23,8 @@ Future<void> _pumpNotificationsSection(
   WidgetTester tester,
   TargetPlatform platform, {
   bool? exactAlarmsAllowed,
+  bool? initialAlarm,
+  AlarmToggle? alarmToggle,
 }) async {
   // binding 在测试体结束时就校验 debug 变量已复位（早于 tearDown），所以调用方
   // 必须在断言之后、测试体之内把它置回 null；这里的 addTearDown 只是断言失败时的兜底。
@@ -37,6 +42,12 @@ Future<void> _pumpNotificationsSection(
           NotificationsSection.canScheduleExactProvider.overrideWith(
             (ref) async => exactAlarmsAllowed,
           ),
+        if (initialAlarm != null)
+          NotificationsSection.systemAlarmProvider.overrideWith(
+            (ref) => initialAlarm,
+          ),
+        if (alarmToggle != null)
+          alarmToggleProvider.overrideWithValue(alarmToggle),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -82,6 +93,38 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
   }
+
+  testWidgets('android：切换 OFF 时开关先响应，不等后台 stopAll 完成', (tester) async {
+    final gate = Completer<void>();
+    bool? toggled;
+    await _pumpNotificationsSection(
+      tester,
+      TargetPlatform.android,
+      initialAlarm: true,
+      alarmToggle: (enabled) {
+        toggled = enabled;
+        // Deliberately never completes until after the assertions: the switch
+        // must not wait for native cleanup.
+        return gate.future;
+      },
+    );
+    expect(
+      tester.widget<Switch>(find.byType(Switch)).value,
+      isTrue,
+    );
+
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+
+    expect(toggled, isFalse);
+    expect(
+      tester.widget<Switch>(find.byType(Switch)).value,
+      isFalse,
+      reason: '视觉状态必须在后台 stopAll 完成前改变',
+    );
+    debugDefaultTargetPlatformOverride = null;
+    gate.complete();
+  });
 
   testWidgets('macOS：提供通知权限入口（该平台确实会发提醒）', (tester) async {
     await _pumpNotificationsSection(tester, TargetPlatform.macOS);
