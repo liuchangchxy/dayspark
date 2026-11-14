@@ -700,6 +700,22 @@
 
 ---
 
+### Phase P6 — Cloud-drive sync / 云盘同步（**BLOCKED on developer accounts**）
+
+> 目标：普通用户不依赖官方同步服务器，登录自己的云盘后多设备自动同步全部业务数据。六个一等 Provider（百度 / 夸克 / 115 / Google Drive / OneDrive / Dropbox）+ WebDAV + 自托管 Server，共用同一 Sync Core，只用官方 OAuth / 官方 API。
+>
+> **状态：未开工。** 卡点在账号侧，不在代码侧：除 WebDAV 外每个 Provider 都必须先注册应用并拿到 client ID，而「普通用户不得填写 Client ID」意味着 client ID 必须随包内置、由账号持有人注册并承担审核。「两真机 + 真实账号 E2E」同样无法在无账号环境完成。逐条官方证据与人工待办见 **`docs/cloud-sync-providers.md`**。
+
+| 项 | 结论 |
+|---|---|
+| 夸克网盘 | **不可用**：不存在面向第三方 App 的官方文件 API，`open.quark.cn` 是小程序平台，`pan.quark.cn/developer` 302 回消费端；唯一公开文档是第三方逆向整理 |
+| 百度网盘 | 需个人实名 + 应用上线审核（审核期 10 人上限，个人名下 1 个应用）；OAuth 无 PKCE，refresh_token 一次性 |
+| 115 | 需入驻审核 + 应用审核，各约 7 工作日 |
+| Google Drive / OneDrive / Dropbox | 技术面可用；Dropbox / OneDrive / WebDAV 有条件写（`rev` / `If-Match`），Google 无 `If-Match`，需文件内自带版本字段 |
+| 可先做（不依赖账号） | 把 `lww.dart` 规则提到 `dayspark_contracts` 共用；Provider 无关的「云文件同步核心」（outbox → 读远程状态 → 客户端合并 → 条件写 → 412 重试 → `SyncApplier`）；WebDAV 端到端验证；Provider 选择与「唯一活动同步源」迁移 |
+
+---
+
 ## 五、Engineering Recommendations / 工程师建议
 
 ### 1. DB migration before real users / 数据库迁移要在有用户之前做好

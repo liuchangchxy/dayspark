@@ -27,6 +27,11 @@
 - [x] 真机验收（API 35 Pixel Launcher，浅色 + 深色）：三类 Widget 小/中/大；月历边角点击命中正确日期；无裁切、无布局回归。证据见 `docs/qa/task2-widget-touch-2026-11-14.md`。
 - [ ] 未覆盖：该 launcher 不接受对 Calendar 组件的纵向缩放（句柄出现但拖拽无效，Todos/Action 同手势正常），故月历小/中尺寸由几何函数单测与 layout 档位覆盖，未在真机上拖到该尺寸实测。
 
+**用户反馈原文 / User feedback:** 「Task 3：六大云盘同步 / 目标：普通用户不依赖 DaySpark 官方同步服务器。登录自己的云盘后，多设备自动同步全部业务数据。一等 Provider：百度网盘、夸克网盘、115、Google Drive、OneDrive、Dropbox。继续保留：WebDAV、DaySpark 自托管 Server。一等 Provider 只能使用官方 OAuth / 官方 API。禁止：Cookie、抓包 Token、模拟网页客户端、AList/OpenList 非官方接口、需要用户周期性重新抓凭证的方案。如果夸克没有可正式用于第三方 App 的稳定官方文件 API，则记录官方证据并明确标记不可用，不得强行使用非官方方案。普通用户流程：设置 → 同步 → 选择 Provider → 登录授权 → 自动同步。普通 Provider 不得要求填写 API Key、Client ID、Token、Server 地址。WebDAV / 自托管除外。同步范围包括全部业务数据……同步必须满足：Local-first、离线正常使用、联网后自动同步、新设备可完整恢复、多设备并发结果确定、删除可同步、重复同步不产生重复数据、OAuth 自动刷新、真正授权失效才要求重新登录、支持手动立即同步、禁止整个 SQLite 文件互相覆盖。复用现有 outbox、tombstone、LWW、idempotency、record model、sync tests。六个 Provider 必须共用同一 Sync Core……最终验收至少包括：两个真实设备同一 Provider……六个 Provider 分别真实账号 E2E；不可正式接入者需有官方证据。WebDAV 不回归。自托管 Server 不回归。全部测试和 CI 通过。」
+
+- [x] 官方证据核查（逐条附 URL，见 `docs/cloud-sync-providers.md`）：**夸克判定 UNAVAILABLE**（`open.quark.cn` 是小程序平台、`pan.quark.cn/developer` 302 回消费端，无第三方文件 API）；百度 GATED（个人实名 + 应用上线审核，审核期 10 人上限、个人 1 个应用，OAuth 无 PKCE 且 refresh_token 一次性）；115 GATED（入驻 + 应用审核各约 7 工作日）；Google Drive / OneDrive / Dropbox 技术可用但需先注册应用拿 client ID；条件写只有 OneDrive（`If-Match`→412）、Dropbox（`rev`）、WebDAV 原生有。
+- [ ] **未实现，任务未完成**：卡点在账号侧而非代码侧——「普通用户不得填写 Client ID」要求 client ID 随包内置，必须由账号持有人注册并承担审核；「两真机 + 六 Provider 真实账号 E2E」在无账号环境无法执行。可先推进的不依赖账号部分已列入 `docs/ROADMAP.md` Phase P6 与 `docs/cloud-sync-providers.md` §5。
+
 
 **用户反馈原文 / User feedback:** 「在现有 Widget / Journey 与最终人工 / Agent GUI 验收之间，补回一个轻量、现役、可运行的真实 App 自动交互层，并把现有测试明确分成 fast / ui / full 三档。」
 

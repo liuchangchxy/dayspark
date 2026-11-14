@@ -2,7 +2,7 @@
 
 > **给 AI 的指令**：当用户说"看看从哪里开始 / 继续项目"时，先读完本文档，再按「优先队列」行动。本文档是**未做事项的唯一清单索引**；状态类信息一律引用专业文档，不在此重复（防漂移）。
 
-**最后更新：2026-10-07 · 当前版本以 `pubspec.yaml` 为准（全景见 `docs/ROADMAP.md`，发布记录见 https://github.com/liuchangchxy/dayspark/releases ）**
+**最后更新：2026-11-14 · 当前版本以 `pubspec.yaml` 为准（全景见 `docs/ROADMAP.md`，发布记录见 https://github.com/liuchangchxy/dayspark/releases ）**
 
 ---
 
@@ -24,6 +24,7 @@
 | 6 | **债务4：应用内限流** | DCR/登录限流目前只靠 DEPLOY.md 的 nginx，裸部署裸奔；加令牌桶中间件 | §4 |
 | 7 | **P5 主菜：后台同步 + 设备注册** | 同步目前前台协作式（App 关闭收不到远端变更）；devices 表/deviceId 半出生从未写入 | §4 + ROADMAP |
 | 8 | 用户决策项：TestFlight time-sensitive keep/remove（上架前）；~~v下一版 release notes 补 iOS15/macOS12 地板抬升~~ ✅ 2026-09-25（v0.25.0 release notes 已写明「最低系统要求 iOS 17+ / macOS 12+」） | 见 ROADMAP P4 follow-ups + docs/qa/p4-manual-qa.md | ROADMAP/QA |
+| 9 | **云盘同步 P6（六 Provider + WebDAV + 自托管 Server）** | **阻塞，非代码可解**：除 WebDAV 外每个 Provider 都需先注册应用拿 client ID（夸克无官方第三方文件 API → 判定不可用；百度需实名+审核；115 各约 7 工作日；Google/OneDrive/Dropbox 需 client ID，且「普通用户不得填 Client ID」要求内置）；两真机+真实账号 E2E 亦无法在本环境完成。可先做的不依赖账号部分见条目标注 | `docs/cloud-sync-providers.md` + ROADMAP Phase P6 |
 
 ## 3. 完整"说了但没做"清单（散落在会话、未进任何任务的全部条目）
 
