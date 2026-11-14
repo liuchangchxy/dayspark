@@ -88,6 +88,13 @@ flowchart LR
     - 日历是 Event 与 Todo 共用的分组/颜色空间，字段统一称“所属日历”；Calendar picker 即使只有一个日历也可打开，且始终提供“+ 新建日历”，新建后返回 picker 并选中新日历。Settings 中该目的地称“日历管理”。
     - Settings 按用户任务组织：通用 / 日历 / 同步 / 数据 / AI 助手 / 通知与提醒 / 关于。“账号”改为“同步”并解释为 DaySpark 自托管多设备同步；ICS 归“日历数据交换”，完整备份归“DaySpark 备份”，恢复语义保持“合并备份”；AI 助手不再嵌套在“高级功能”下。隐藏已完成属于待办页显示偏好，不放在全局 Settings。
     - 新中文安装的默认日历名为“个人”；不得静默重命名用户自行创建或修改过的日历。
+  - 规则 20（Core UX · A″，2026-11-14 冻结）：日期状态与创建继承。
+    - 日期状态：Today 恒等于系统真实今天，不来自任何可写日期 provider；`browseDate` 是唯一 browsable 日期，由待办「按日期」与日历共享。切 tab 不改 `browseDate`；日历点日期会改；Today 头部只读时钟；冷启动 `browseDate` = 今天；午夜只更新 Today；回前台不重置。删除 `actionDateProvider`；`TodosDayView` 不保存独立的 day。
+    - 继承原则：系统只写入用户已表达的精度，不补全未表达的信息。浏览某天 ≠ 截止某天，≠ 已选择执行时段；Today ≠ 默认截止今天，≠ 默认计划今天。
+    - 创建契约：Today 快速捕获写 `dueDate = null` 且不建 TaskAllocation，落点为未安排，Today 的未安排组立即可见；日页「安排到 `<browseDate>`」进入 composer 时不得预填时段，未选时段保存 = 纯捕获 → 未安排，用户选择 start/end 后才创建 TaskAllocation；`dueDate` 只由显式「截止」写入；只有日历具体时间槽可自动继承时间（Event / 安排待办 / 新建并安排）。
+    - 日投影：`DayProjection(date)` = 当日 Event + 有效 TaskAllocation + `dueDate == date` 的 Todo + 重复实例 + 完成状态。Today 额外显示 现在 / 接下来 / 已逾期，其他日期不显示。同一 Todo 当天既有 allocation 又有 dueDate 时 App 内只显示一条，allocation 为主、deadline 为次级元数据；去重属于 UI/投影规则，不改领域模型，Widget 去重不在范围内。
+    - 路由：`quick-add?date=` 的 date 仅为捕获上下文，不写 `dueDate`；`calendar?date=` 写 `browseDate`；`open/todos?view=today` 落到真实今天；待办按日期路由必须能携带日期。
+    - 日期选择：近日期走日期条 1 次；远日期 = 日期头 → 月/年选择器 → 日期（≤2 次）；跨年显示年份；日期条锚定 `browseDate`。
   - 规则 18（Phase 2 重复任务 Action Loop 闭环）：
     - Action 投影必须包含：今日 actionable recurring TaskInstances（DATE: LocalDate == civil date; DATE-TIME: resolved instant 在本地日窗口内）、最近 30 天 pending missed TaskInstances（按同一值类型规则早于今日边界）、Earlier missed 历史入口、今日 occurrence-bound TaskAllocations、今日完成的 TaskInstances（折叠展示在今日已完成区，携带 exact occurrenceId 供 reopen）、以及 unknownLegacy / unsupported 重复系列的紧凑确认卡片。
     - 每一个 TaskInstance 投影与交互操作必须携带稳定显式的 `(todoId, todoSyncId, occurrenceId)`，绝不根据 today、slot date、Todo id 或 dueDate 隐式推测 occurrence。
