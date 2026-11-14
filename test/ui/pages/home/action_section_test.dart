@@ -225,12 +225,23 @@ void main() {
     }
 
     // One obligation, one display: the allocation is the primary block and
-    // the deadline rides on it as secondary metadata. The due row — and the
-    // completion circle that came with it — is gone.
+    // the deadline rides on it as secondary metadata. The due row is gone, but
+    // the block keeps its own completion control (rule 17).
     expect(find.text('Write Paper'), findsOneWidget);
     expect(find.byKey(ValueKey('action-complete-$todoId')), findsNothing);
     expect(find.textContaining('Deadline: Oct 6 · 18:00'), findsOneWidget);
     expect(find.text('Due today'), findsNothing);
+    final check = find.byKey(ValueKey('timeline-complete-$todoId'));
+    expect(check, findsOneWidget);
+
+    await tester.tap(check);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final stored = await (db.select(
+      db.todos,
+    )..where((t) => t.id.equals(todoId))).getSingle();
+    expect(stored.status, 'COMPLETED');
     await _unmount(tester);
   });
 
@@ -358,9 +369,13 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // A planned Todo is a timeline block now, not a sheet row: the due row
-      // and its completion circle are gone, and the block opens the detail.
+      // A planned Todo is a timeline block now, not a sheet row: it opens the
+      // detail on tap and carries its own completion control.
       expect(find.byKey(ValueKey('action-complete-$todoId')), findsNothing);
+      expect(
+        find.byKey(ValueKey('timeline-complete-$todoId')),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Ship Feature'));
       await tester.pump();
       expect(opened?.id, todoId);

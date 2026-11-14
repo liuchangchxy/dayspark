@@ -65,6 +65,7 @@ class DateStrip extends ConsumerWidget {
                     final picked = await showMonthYearPicker(
                       context,
                       initial: ref.read(browseDateProvider),
+                      today: ref.read(clockNowProvider)(),
                     );
                     if (picked == null) return;
                     _selectDay(ref, picked);
@@ -250,6 +251,28 @@ class TodoBacklogHead extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
+              IconButton(
+                key: const ValueKey('todo-month-picker'),
+                tooltip: l.calendar,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  CupertinoIcons.calendar,
+                  size: 18,
+                  color: ds.ink2,
+                ),
+                onPressed: () async {
+                  final picked = await showMonthYearPicker(
+                    context,
+                    initial: ref.read(browseDateProvider),
+                    today: ref.read(clockNowProvider)(),
+                  );
+                  if (picked == null) return;
+                  ref.read(browseDateProvider.notifier).state = dayOf(picked);
+                  if (view is! TodosDayView) {
+                    onViewSelected(const TodosDayView());
+                  }
+                },
+              ),
               ...trailing,
             ],
           ),

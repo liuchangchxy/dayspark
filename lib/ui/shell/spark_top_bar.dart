@@ -178,6 +178,7 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
       initial: dayOf(
         widget.clock?.call() ?? ref.read(clockNowProvider)(),
       ),
+      today: widget.clock?.call() ?? ref.read(clockNowProvider)(),
     );
     if (picked == null || !mounted) return;
     ref.read(browseDateProvider.notifier).state = dayOf(picked);

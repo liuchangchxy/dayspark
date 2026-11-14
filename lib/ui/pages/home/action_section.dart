@@ -162,6 +162,13 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                           onEventTap: widget.onEventTap,
                           onAllocationTap: (item) =>
                               widget.onTodoTap?.call(item.todo),
+                          onAllocationToggle: (item, next) => ref.read(
+                            toggleTodoProvider,
+                          )(
+                            id: item.todo.id,
+                            occurrenceId: item.allocation.occurrenceId,
+                            isCompleted: next,
+                          ),
                         ),
                       ),
                     ),
@@ -275,6 +282,13 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                 allocations: data.allocations,
                 onEventTap: widget.onEventTap,
                 onAllocationTap: (item) => widget.onTodoTap?.call(item.todo),
+                onAllocationToggle: (item, next) => ref.read(
+                  toggleTodoProvider,
+                )(
+                  id: item.todo.id,
+                  occurrenceId: item.allocation.occurrenceId,
+                  isCompleted: next,
+                ),
               ),
             ),
           ),

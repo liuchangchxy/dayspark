@@ -99,7 +99,7 @@ class _HomePageState extends ConsumerState<HomePage>
     _initCurrentTab();
     _applyInitialTodoView();
     final initialDate = widget.initialDate;
-    if (initialDate != null) {
+    if (initialDate != null && !_initialViewIsToday) {
       Future.microtask(() {
         if (!mounted) return;
         ref.read(browseDateProvider.notifier).state = DateTime(
@@ -131,7 +131,9 @@ class _HomePageState extends ConsumerState<HomePage>
       });
     }
     final initialDate = widget.initialDate;
-    if (initialDate != null && initialDate != oldWidget.initialDate) {
+    if (initialDate != null &&
+        initialDate != oldWidget.initialDate &&
+        !_initialViewIsToday) {
       Future.microtask(() {
         if (!mounted) return;
         ref.read(browseDateProvider.notifier).state = DateTime(
@@ -166,6 +168,8 @@ class _HomePageState extends ConsumerState<HomePage>
       }
     });
   }
+
+  bool get _initialViewIsToday => widget.initialTodoView == 'today';
 
   void _applyInitialTodoView() {
     final raw = widget.initialTodoView;
@@ -451,9 +455,12 @@ class _HomePageState extends ConsumerState<HomePage>
                 key: const ValueKey('calendar-create'),
                 backgroundColor: context.ds.primary,
                 foregroundColor: context.ds.surface,
-                tooltip: l.eventLabel,
+                tooltip: l.newItem,
                 onPressed: _openCalendarCreate,
-                child: const Icon(CupertinoIcons.add, size: 22),
+                child: const Icon(
+                  CupertinoIcons.calendar_badge_plus,
+                  size: 22,
+                ),
               )
             : null,
         bottomNavigationBar: _MobileTabBar(
@@ -618,6 +625,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final picked = await showMonthYearPicker(
       context,
       initial: dayOf(_now()),
+      today: _now(),
     );
     if (picked == null || !mounted) return;
     ref.read(browseDateProvider.notifier).state = dayOf(picked);
@@ -883,9 +891,17 @@ class _HomePageState extends ConsumerState<HomePage>
   void _openCalendarCreate() {
     final now = _now();
     final browse = ref.read(browseDateProvider);
-    final start = isSameDay(browse, now)
-        ? DateTime(now.year, now.month, now.day, now.hour + 1)
-        : DateTime(browse.year, browse.month, browse.day, 9);
+    final nextHour = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+    ).add(const Duration(hours: 1));
+    final start = !isSameDay(browse, now)
+        ? DateTime(browse.year, browse.month, browse.day, 9)
+        : isSameDay(nextHour, now)
+        ? nextHour
+        : DateTime(now.year, now.month, now.day + 1, 9);
     _openCalendarSlot(
       DateTimeRange(start: start, end: start.add(const Duration(hours: 1))),
     );
@@ -1216,6 +1232,13 @@ class _HomePageState extends ConsumerState<HomePage>
               allocations: dayAllocations,
               onEventTap: _openEvent,
               onAllocationTap: (item) => _openTodo(item.todo),
+              onAllocationToggle: (item, next) => ref.read(
+                toggleTodoProvider,
+              )(
+                id: item.todo.id,
+                occurrenceId: item.allocation.occurrenceId,
+                isCompleted: next,
+              ),
             ),
           ),
         ),
@@ -1572,18 +1595,24 @@ class _HomePageState extends ConsumerState<HomePage>
       slivers.addAll(completedSlivers(completed));
     } else {
       final day = dayOf(ref.watch(browseDateProvider));
-      final async = ref.watch(projectedDayTodosProvider(day));
+      final today = ref.watch(clockDayProvider);
+      final async = ref.watch(dayProjectionProvider(day));
       if (async.isLoading && !async.hasValue) {
         return const Center(child: CircularProgressIndicator());
       }
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
+      final data = async.valueOrNull;
+      final projected = data == null
+          ? const <Todo>[]
+          : projectedDayTodos(data);
+      final seen = {for (final todo in projected) todo.id};
+      final carryOver = day == today && data != null
+          ? data.overdueTodos.where((todo) => !seen.contains(todo.id))
+          : const <Todo>[];
       final overdue = <Todo>[];
       final due = <Todo>[];
-      for (final todo
-          in (async.valueOrNull ?? const <Todo>[])
-              .where(active)
-              .where(visible)) {
+      for (final todo in [...projected, ...carryOver]
+          .where(active)
+          .where(visible)) {
         final when = todo.dueDate == null ? null : dayOf(todo.dueDate!);
         if (day == today && when != null && when.isBefore(today)) {
           overdue.add(todo);
@@ -1691,14 +1720,18 @@ class _HomePageState extends ConsumerState<HomePage>
 
   void _openNewEvent(BuildContext context) {
     final viewed = ref.read(browseDateProvider);
-    final now = DateTime.now();
-    final isToday =
-        viewed.year == now.year &&
-        viewed.month == now.month &&
-        viewed.day == now.day;
-    final start = isToday
-        ? DateTime(now.year, now.month, now.day, (now.hour + 1).clamp(0, 23))
-        : DateTime(viewed.year, viewed.month, viewed.day, 9);
+    final now = _now();
+    final nextHour = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+    ).add(const Duration(hours: 1));
+    final start = !isSameDay(viewed, now)
+        ? DateTime(viewed.year, viewed.month, viewed.day, 9)
+        : isSameDay(nextHour, now)
+        ? nextHour
+        : DateTime(now.year, now.month, now.day + 1, 9);
     context.push(
       '/event/new?start=${start.millisecondsSinceEpoch}'
       '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',

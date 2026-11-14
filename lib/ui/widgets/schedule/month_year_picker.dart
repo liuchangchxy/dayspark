@@ -14,18 +14,23 @@ import 'package:dayspark/ui/design/ds.dart';
 Future<DateTime?> showMonthYearPicker(
   BuildContext context, {
   required DateTime initial,
+  DateTime? today,
 }) {
   return showDialog<DateTime>(
     context: context,
     barrierColor: context.ds.scrim,
-    builder: (ctx) => _MonthYearPicker(initial: initial),
+    builder: (ctx) => _MonthYearPicker(
+      initial: initial,
+      today: today ?? DateTime.now(),
+    ),
   );
 }
 
 class _MonthYearPicker extends StatefulWidget {
-  const _MonthYearPicker({required this.initial});
+  const _MonthYearPicker({required this.initial, required this.today});
 
   final DateTime initial;
+  final DateTime today;
 
   @override
   State<_MonthYearPicker> createState() => _MonthYearPickerState();
@@ -33,7 +38,7 @@ class _MonthYearPicker extends StatefulWidget {
 
 class _MonthYearPickerState extends State<_MonthYearPicker> {
   late int _year = widget.initial.year;
-  int? _month;
+  late int? _month = widget.initial.month;
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +148,7 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
                     year: _year,
                     month: month,
                     selected: widget.initial,
+                    today: widget.today,
                     onSelected: (day) => Navigator.of(context).pop(day),
                   ),
                 ),
@@ -157,12 +163,13 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
               child: SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: () {
-                    final now = DateTime.now();
-                    Navigator.of(context).pop(
-                      DateTime(now.year, now.month, now.day),
-                    );
-                  },
+                  onPressed: () => Navigator.of(context).pop(
+                    DateTime(
+                      widget.today.year,
+                      widget.today.month,
+                      widget.today.day,
+                    ),
+                  ),
                   child: Text(l.today),
                 ),
               ),
@@ -254,12 +261,14 @@ class _DayGrid extends StatelessWidget {
     required this.year,
     required this.month,
     required this.selected,
+    required this.today,
     required this.onSelected,
   });
 
   final int year;
   final int month;
   final DateTime selected;
+  final DateTime today;
   final ValueChanged<DateTime> onSelected;
 
   @override
@@ -267,10 +276,10 @@ class _DayGrid extends StatelessWidget {
     final ds = context.ds;
     final locale = Localizations.localeOf(context).toLanguageTag();
     final first = DateTime(year, month);
-    final leading = first.weekday % 7;
+    final firstDay = MaterialLocalizations.of(context).firstDayOfWeekIndex;
+    final leading = (first.weekday - 1 - firstDay + 7) % 7;
     final days = DateTime(year, month + 1, 0).day;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = DateTime(this.today.year, this.today.month, this.today.day);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -282,7 +291,7 @@ class _DayGrid extends StatelessWidget {
                 child: Center(
                   child: Text(
                     DateFormat.E(locale).format(
-                      DateTime(2024, 1, 7 + i),
+                      DateTime(2024, 1, 7 + (firstDay + i) % 7),
                     ),
                     style: AppTypography.small.copyWith(color: ds.ink3),
                   ),

@@ -20,12 +20,7 @@ import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
 class QuickAddPage extends ConsumerStatefulWidget {
-  const QuickAddPage({super.key, this.contextDate});
-
-  /// The day the user was looking at when the widget opened this page. It is
-  /// context only: nothing is written from it, because a browsed date is not a
-  /// deadline.
-  final DateTime? contextDate;
+  const QuickAddPage({super.key});
 
   @override
   ConsumerState<QuickAddPage> createState() => _QuickAddPageState();
