@@ -45,6 +45,10 @@ app.*.map.json
 /android/.gradle/
 /android/.kotlin/
 /android/local.properties
+# Production signing material never enters git. CI injects it from secrets.
+/android/app/key.properties
+/android/app/*.jks
+/android/app/*.keystore
 
 # iOS/macOS
 *.xcworkspace/xcuserdata/

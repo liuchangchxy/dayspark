@@ -6,7 +6,7 @@
 >
 > **维护**：新增门禁 → 加一行 + 补一次变异实证（怎么打坏的 + 红的原文）。改门禁的覆盖范围 → 更新本行。
 
-最后更新：2026-10-01 · 版本以 `pubspec.yaml` 为准
+最后更新：2026-11-14 · 版本以 `pubspec.yaml` 为准
 
 ---
 
@@ -48,6 +48,13 @@ python3 tool/guard_test_tampering.py
 | 17 | 服务端 / contracts / wrapper / CLI 各自的 `dart test` | 非 Flutter 侧的回归 | `server-test` job | ✅ 2026-10-01（默认端口 8787→8788 → `Expected: <8787> Actual: <8788>`） |
 > **分支保护依赖 / Branch-protection dependency**：`main` 的分支保护要求一条名为 `test` 的 required status check —— 就是上表第 4–14 条所在的那个 job 名。**job 名本身是门禁契约的一部分**：重命名 `test` 必须在同一次改动里同步更新分支保护，否则合并门会在没有任何门变红的情况下静默消失。
 > **Control Plane 已移除 / VCCP removed**（2026-11-12）：`.github/control-plane.yml`、`.github/vccp/`、`vccp-coordination-label-cleanup.yml` 及两份 VCCP 文档已从仓库删除。此前锁定 revision 见 git 历史。
+
+## 二点五、Android 签名门禁（`ci.yml` main push + `release.yml`）
+
+| # | 门禁 | 守什么 | 挂在哪 | 红过没 |
+|---|---|---|---|---|
+| 20 | `tool/check_apk_signer.sh` + `android/expected-signer.sha256` | release APK 的**签名身份**（证书 SHA-256 必须等于生产证书），而不只是「签名有效」 | `build-android`（main push）构建后、`release.yml` 上传前 | ✅ 2026-11-14（拿 debug.keystore 签的包喂进去 → `FAIL: wrong signing identity for com.dayspark.app.`；同一脚本喂 v0.26.0 正式包 → `OK: signed by the production DaySpark certificate`） |
+| 21 | `android/app/build.gradle.kts` fail-closed | 缺 `android/app/key.properties` 时拒绝产出 unsigned release | Gradle 配置期（请求 `assemble/bundle/packageRelease` 时） | ✅ 2026-11-14（本机无 key.properties 跑 `flutter build apk --release` → `BUILD FAILED` + `Production signing key is missing: android/app/key.properties not found…`；`flutter build apk --debug` 不受影响） |
 
 ## 三、发布门禁（`release.yml`，打 tag 触发）
 
