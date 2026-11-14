@@ -146,6 +146,8 @@ jobs:
           EOF
       - run: flutter pub get
       - run: flutter build apk --release
+      - name: Verify the APK carries the production signing identity
+        run: bash tool/check_apk_signer.sh build/app/outputs/flutter-apk/app-release.apk
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk

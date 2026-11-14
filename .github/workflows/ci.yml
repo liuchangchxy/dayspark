@@ -175,10 +175,7 @@ jobs:
         run: flutter build apk --release
       - name: Verify release APK signature (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
-          test -n "$APKSIGNER"
-          "$APKSIGNER" verify --verbose build/app/outputs/flutter-apk/app-release.apk
+        run: bash tool/check_apk_signer.sh build/app/outputs/flutter-apk/app-release.apk
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:

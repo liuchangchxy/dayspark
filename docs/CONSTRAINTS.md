@@ -652,6 +652,17 @@
 - **Why**: 挂起没有任何错误信息，只有 10 分钟后的 TimeoutException，根因离现场隔了两层 await；不知道这条的人会先去怀疑事务或 Riverpod
 - **Date**: 2026-10-25
 
+## Android 签名 / Android signing
+
+### `com.dayspark.app` 的 release 只认一把证书（2026-11-14）
+- **规则**：正式 APK 必须由生产 keystore 在 Gradle 构建阶段签名；证书 SHA-256 钉在 `android/expected-signer.sha256`，`tool/check_apk_signer.sh` 比对身份，`ci.yml`（main push）与 `release.yml` 都在构建后执行它
+- **fail-closed**：`android/app/build.gradle.kts` 在请求 `assembleRelease` / `bundleRelease` / `packageRelease` 而 `android/app/key.properties` 缺失时直接抛 `GradleException`，不再产出 unsigned release
+- **禁止事后补签**：不得用 `apksigner` 给已生成的 release APK 补签名（尤其是 debug.keystore）。`apksigner verify` 只证明「签名有效」，debug key 同样有效；身份不对的包在已装正式版的设备上必然 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，卸载重装会清空本地数据库
+- **密钥不进 Git**：`.gitignore` 忽略 `/android/app/key.properties`、`/android/app/*.jks`、`/android/app/*.keystore`；CI 从 Secrets 注入（`ANDROID_KEYSTORE` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS`）
+- **本地出正式包的前提**：本机必须有与 CI 同一把 keystore 的 `android/app/key.properties`。要它缺失时 agent 的正确动作是**停下并报告缺正式签名**，不是自己找一把 key 签上去
+- **Why**: 2026-11-14 出现过 unsigned release 被当成成品发出，补签 debug key 后又在真机签名冲突的连锁事故；根因是「缺 key 也照常出包」这条静默路径
+- **Date**: 2026-11-14
+
 ## Widgets / 小组件
 
 ### RemoteViews 只接受标注 `@RemoteView` 的类（2026-11-07）
