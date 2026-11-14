@@ -113,15 +113,26 @@ void main() {
     );
     await _settle(tester);
 
-    expect(refreshes, 1, reason: '冷启动快照走同一个刷新入口');
+    // 冷启动快照走同一个刷新入口。持久化语言是在首帧之后异步装载的，
+    // 那也是一次真实的 locale 变化，可能再触发一次——两次都是同一条路径。
+    expect(refreshes, inInclusiveRange(1, 2), reason: '冷启动刷新');
+
+    // 稳定态必须彻底静止。locale 的 state 若在 build 里被反复写入，
+    // 这里会变成每帧一次刷新。
+    final settled = refreshes;
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(refreshes, settled, reason: '空闲时不得持续刷新');
 
     // resumed 只在状态真的变化时才派发：先 inactive 再 resumed。
     final readsBeforeResume = reads.count;
+    final beforeResume = refreshes;
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await _settle(tester);
 
-    expect(refreshes, 2, reason: 'resumed → 一次组件刷新');
+    expect(refreshes, beforeResume + 1, reason: 'resumed → 一次组件刷新');
     expect(
       reads.count,
       greaterThan(readsBeforeResume),
@@ -131,6 +142,7 @@ void main() {
     // 推进到第一次午夜触发为止：定时器每次都用「真实现在 → 午夜」重算延迟
     // （DateTime.now() 不随测试假时钟前进），所以一次 25h 的大步 pump 会连发
     // 多次；按真实延迟精确推进时，下一次重排落在 2×延迟 之后，恰好只触发一次。
+    final beforeMidnight = refreshes;
     final nowBefore = DateTime.now();
     await tester.pump(
       DateTime(
@@ -141,7 +153,7 @@ void main() {
     );
     await _settle(tester);
 
-    expect(refreshes, 3, reason: '午夜定时 → 一次组件刷新');
+    expect(refreshes, beforeMidnight + 1, reason: '午夜定时 → 一次组件刷新');
 
     await _unmount(tester);
   });
