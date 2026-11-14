@@ -1,5 +1,7 @@
 package com.dayspark.app
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -25,8 +27,21 @@ class MainActivity : FlutterActivity() {
             result.error("INVALID_ARGUMENT", "commandId required", null)
           }
         }
+        "hasWidgets" -> result.success(hasWidgetInstances())
         else -> result.notImplemented()
       }
     }
+  }
+
+  // Rebuilding the snapshot for zero hosts is pure waste on the path that runs
+  // after every write, so the Dart side asks first.
+  private fun hasWidgetInstances(): Boolean {
+    val manager = AppWidgetManager.getInstance(this)
+    val providers = listOf(
+      TodoWidgetProvider::class.java,
+      TodayWidgetProvider::class.java,
+      CalendarWidgetProvider::class.java,
+    )
+    return providers.any { manager.getAppWidgetIds(ComponentName(this, it)).isNotEmpty() }
   }
 }

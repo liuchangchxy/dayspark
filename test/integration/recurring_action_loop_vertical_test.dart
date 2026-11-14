@@ -201,13 +201,21 @@ void main() {
 
       expect(find.text('Select occurrence'), findsOneWidget);
 
-      // Target the first occurrence list tile inside the dialog
+      // The picker's first page starts at the anchor day (today), ascending.
+      // The slot is +2h, so between 22:00 and midnight it lands on tomorrow:
+      // picking the first tile would schedule today's occurrence, while the
+      // Action surface shows and completes the instance for the slot's own
+      // day. Pick the occurrence matching the day the slot landed on, so the
+      // assertion below compares one instance instead of two clock days.
+      final occurrenceOffset = actionDay
+          .difference(DateTime(now.year, now.month, now.day))
+          .inDays;
       final occurrenceTile = find
           .descendant(
             of: find.byType(AlertDialog),
             matching: find.byType(ListTile),
           )
-          .first;
+          .at(occurrenceOffset);
       expect(occurrenceTile, findsOneWidget);
 
       await tester.tap(occurrenceTile);

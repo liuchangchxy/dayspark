@@ -240,7 +240,7 @@
 - **Date**: 2026-10-05
 
 ### 小组件刷新由领域事件总线驱动，不再挂 `tableUpdates`
-- `homeWidgetAutoRefreshProvider` 订阅 `RecordBus.of(db).changes`（**领域事件总线**，不再是 `db.tableUpdates`），合并去重后调 `HomeWidgetService.updateWidget`（同一时刻最多一个 in-flight，写入期间只补一次 trailing run）；闹钟侧由 `ReminderReconciler` 订阅同一条总线
+- `homeWidgetAutoRefreshProvider` 订阅 `RecordBus.of(db).changes`（**领域事件总线**，不再是 `db.tableUpdates`），经 `WidgetRefreshScheduler` 合并后调 `HomeWidgetService.updateWidget`：400ms 防抖、文本输入持有焦点时推迟、兜底上限 4s、同一时刻最多一个 in-flight，运行中到达的请求合并成一次补跑；快照**永远重写**（晚装的小组件直接读它，且旧快照 `pendingTaps` 只能靠重写清除），只有原生广播 `refreshNativeWidgets()` 受 `hasWidgets` 探针门控（零实例时无接收者）；闹钟侧由 `ReminderReconciler` 订阅同一条总线
 - 驱动源必须保持"写路径的副产物"：**禁止**改回 `tableUpdates`——`TableUpdate` 只有 `{table, kind}`、**无行 id**，结构上不可能驱动逐记录闹钟重排；**禁止**改为逐 provider 手动调刷新
 - 旧条目里"UI 绕过 provider 直写库，挂 provider 会漏"的理由**已过期**：v0.25.0 起 `events`/`todos`/`reminders` 的行写入收敛到 `lib/domain/records/writers/**`（守卫 G1 强制），UI 层零裸写。现行理由门槛更高：**唯一发点**（`RecordScope.run` 提交后发布）才是不可绕过的路径
 - 冷启动读不触发（总线只在写时发）；冷启动刷新保留在 `home_page` initState
