@@ -528,7 +528,7 @@ Review questions are now answered:
 - Backend value: exposed mainly through Today projection and planned execution.
 - Implementation handoff: split into bounded PRs; first PR is Shell + Create Semantics only.
 
-## 15. A″ core interaction model (confirmed 2026-11-14, UI rolled back 2026-11-15)
+## 16. A″ core interaction model (confirmed 2026-11-14, UI rolled back 2026-11-15)
 
 > **Status**: the product/domain model below is confirmed. The UI that first implemented it (PR #101) was rolled back on 2026-11-15 after real use rejected its presentation layer. This section is a **design target** for the next production UI, not a description of the current build.
 

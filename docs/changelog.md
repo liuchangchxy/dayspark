@@ -16,7 +16,7 @@
 **用户反馈原文 / User feedback:** 「完全是在瞎改，然后半成品。」
 
 - [x] 回滚 PR #101（squash `230bf93`）的全部实现改动：`main` 的 UI 恢复到 v0.31.0 已验收的 Direction C 状态。
-- [x] 保留 A″ 作为已确认的产品/领域结论（Today 读时钟、`browseDate` 唯一、`dueDate ≠ TaskAllocation ≠ Event time`、只继承已表达的精度），写入 SPEC 规则 20 与 `docs/CORE_UX_SPEC.md` §15，并标注“UI 待设计定稿后实施”。
+- [x] 保留 A″ 作为已确认的产品/领域结论（Today 读时钟、`browseDate` 唯一、`dueDate ≠ TaskAllocation ≠ Event time`、只继承已表达的精度），写入 SPEC 规则 20 与 `docs/CORE_UX_SPEC.md` §16，并标注“UI 待设计定稿后实施”。
 - [x] 版本号保持 `0.32.0+32`（build number 不回退），仅内容为回滚。
 - [x] 教训写入 `docs/CONSTRAINTS.md`：禁止从模型文档直接跳到生产代码；先完成生产级 UI 设计并经独立评审。
 
