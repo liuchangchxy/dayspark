@@ -4,6 +4,7 @@
 // AI prompt 用它声明回答语言。所以它自己的正确性要有测试钉住。
 import 'dart:ui' show Locale;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -44,6 +45,100 @@ void main() {
         resolved,
         TestWidgetsFlutterBinding.instance.platformDispatcher.locale,
       );
+    });
+  });
+
+  group('LocaleNotifier 不再重复写 state', () {
+    ProviderContainer containerWith(Map<String, Object> prefs) {
+      SharedPreferences.setMockInitialValues(prefs);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('只创建容器就会装载持久化语言，不依赖调用方手动 load', () async {
+      final container = containerWith({appLocalePrefKey: 'zh'});
+
+      container.read(localeProvider);
+      await pumpEventQueue();
+
+      expect(container.read(localeProvider), const Locale('zh'));
+    });
+
+    test('固定中文：重复 load 只通知一次，之后不再通知', () async {
+      final container = containerWith({appLocalePrefKey: 'zh'});
+      var notifications = 0;
+      container.listen<Locale?>(localeProvider, (_, __) => notifications++);
+
+      final notifier = container.read(localeProvider.notifier);
+      await notifier.load();
+      await notifier.load();
+      await notifier.load();
+
+      expect(container.read(localeProvider), const Locale('zh'));
+      expect(notifications, 1);
+    });
+
+    test('固定英文：重复 load 只通知一次', () async {
+      final container = containerWith({appLocalePrefKey: 'en'});
+      var notifications = 0;
+      container.listen<Locale?>(localeProvider, (_, __) => notifications++);
+
+      final notifier = container.read(localeProvider.notifier);
+      await notifier.load();
+      await notifier.load();
+
+      expect(container.read(localeProvider), const Locale('en'));
+      expect(notifications, 1);
+    });
+
+    test('跟随系统：没有持久化值时 load 不写 state、不通知', () async {
+      final container = containerWith({});
+      var notifications = 0;
+      container.listen<Locale?>(localeProvider, (_, __) => notifications++);
+
+      final notifier = container.read(localeProvider.notifier);
+      await notifier.load();
+      await notifier.load();
+
+      expect(container.read(localeProvider), isNull);
+      expect(notifications, 0);
+    });
+
+    test('中文 → 英文 → 跟随系统：每次真实切换都生效且只通知一次', () async {
+      final container = containerWith({appLocalePrefKey: 'zh'});
+      var notifications = 0;
+      container.listen<Locale?>(localeProvider, (_, __) => notifications++);
+
+      final notifier = container.read(localeProvider.notifier);
+      await notifier.load();
+      expect(container.read(localeProvider), const Locale('zh'));
+      expect(notifications, 1);
+
+      await notifier.setLocale(const Locale('en'));
+      expect(container.read(localeProvider), const Locale('en'));
+      expect(notifications, 2);
+
+      await notifier.setLocale(null);
+      expect(container.read(localeProvider), isNull);
+      expect(notifications, 3);
+
+      await notifier.load();
+      expect(container.read(localeProvider), isNull);
+      expect(notifications, 3);
+    });
+
+    test('把同一个 Locale 值再赋一次不通知', () async {
+      final container = containerWith({appLocalePrefKey: 'zh'});
+      var notifications = 0;
+      container.listen<Locale?>(localeProvider, (_, __) => notifications++);
+
+      final notifier = container.read(localeProvider.notifier);
+      await notifier.load();
+      notifier.state = const Locale('zh');
+      notifier.state = const Locale('zh');
+
+      expect(notifications, 1);
     });
   });
 }
