@@ -106,8 +106,6 @@ class DaySparkApp extends ConsumerWidget {
     // it is logged in, so the account's device list is populated even for
     // installs that signed in before this feature existed.
     ref.watch(deviceRegistrationProvider);
-    ref.watch(localeProvider);
-    ref.read(localeProvider.notifier).load();
     final themeMode = ref.watch(themeModeProvider);
     final accent = ref.watch(themeColorProvider);
     final locale = ref.watch(localeProvider);
