@@ -3670,6 +3670,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other'**
   String get other;
+
+  /// No description provided for @savedAppearsIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Appears in: {target}'**
+  String savedAppearsIn(String target);
+
+  /// No description provided for @arrangeToDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule for {date}'**
+  String arrangeToDay(String date);
+
+  /// No description provided for @todayUnplanned.
+  ///
+  /// In en, this message translates to:
+  /// **'Unplanned · {count}'**
+  String todayUnplanned(Object count);
+
+  /// No description provided for @viewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get viewAll;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

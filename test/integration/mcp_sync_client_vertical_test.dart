@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/task_instance_writer.dart';
@@ -125,7 +126,8 @@ Future<ActionProjectionData> _getActionProjection(AppDatabase db, DateTime date)
   final container = ProviderContainer(
     overrides: [
       databaseProvider.overrideWithValue(db),
-      actionDateProvider.overrideWith((ref) => date),
+      // Today is derived from the clock; pin it to the day under test.
+      clockNowProvider.overrideWithValue(() => date),
     ],
   );
   try {
@@ -258,8 +260,8 @@ void main() {
     expect(projectedItems.first.allocation.startAt, alloc.startAt);
     expect(projectedItems.first.allocation.endAt, alloc.endAt);
 
-    // Verify Action projection Provider
-    final actionData = await _getActionProjection(a.db, DateTime.utc(2026, 10, 21));
+    // Verify Action projection Provider (the projection's day is civil/local).
+    final actionData = await _getActionProjection(a.db, DateTime(2026, 10, 21));
     expect(actionData.allocations, hasLength(1));
     expect(actionData.allocations.first.todo.summary, 'Prepare Launch Brief');
     expect(actionData.allocations.first.allocation.id, alloc.id);
@@ -381,10 +383,15 @@ void main() {
     expect(projectedItems.first.todo.summary, 'Daily Sync');
     expect(projectedItems.first.allocation.occurrenceId, canonicalOccId);
 
-    // Verify Action projection Provider
+    // Verify Action projection Provider on the allocation's local day.
+    final localFutureStart = futureStart.toLocal();
     final actionData = await _getActionProjection(
       a.db,
-      DateTime.utc(futureStart.year, futureStart.month, futureStart.day),
+      DateTime(
+        localFutureStart.year,
+        localFutureStart.month,
+        localFutureStart.day,
+      ),
     );
     expect(actionData.allocations, hasLength(1));
     expect(actionData.allocations.first.todo.summary, 'Daily Sync');

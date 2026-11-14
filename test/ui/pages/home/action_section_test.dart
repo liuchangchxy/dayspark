@@ -5,13 +5,15 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
-import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/action_section.dart';
+import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
@@ -70,7 +72,7 @@ void main() {
         child: const ActionSection(),
         overrides: [
           databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
+          clockNowProvider.overrideWithValue(() => fixedDate),
         ],
       ),
     );
@@ -81,9 +83,9 @@ void main() {
     }
 
     expect(find.text('Nothing needs you right now'), findsOneWidget);
-    // Action is a read surface: it offers no inbox shortcut and no counters
-    // for things that belong to other destinations.
-    expect(find.text('Inbox'), findsNothing);
+    // Today stays a read surface; the unplanned shortcut only appears when
+    // something is actually sitting in 未安排.
+    expect(find.text('Unplanned'), findsNothing);
     expect(find.textContaining('unplanned'), findsNothing);
 
     await _unmount(tester);
@@ -155,7 +157,7 @@ void main() {
           child: ActionSection(date: fixedDate),
           overrides: [
             databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => fixedDate),
+            clockNowProvider.overrideWithValue(() => fixedDate),
           ],
         ),
       );
@@ -170,9 +172,10 @@ void main() {
       expect(find.text('Write Spec'), findsOneWidget);
 
       // Todos live in the bottom sheet as rows: a due-today task carries its
-      // due label, and an overdue task is marked overdue instead.
-      expect(find.text('Submit Invoice'), findsOneWidget);
-      expect(find.text('Fix Bug'), findsOneWidget);
+      // due label, and an overdue task is marked overdue instead. Both are
+      // also previewed in to-day's unplanned group, so assert presence.
+      expect(find.text('Submit Invoice'), findsWidgets);
+      expect(find.text('Fix Bug'), findsWidgets);
       expect(find.text('Overdue'), findsOneWidget);
 
       // The old rhythm strip, inspector and section counters are gone.
@@ -213,7 +216,7 @@ void main() {
         child: ActionSection(date: fixedDate),
         overrides: [
           databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
+          clockNowProvider.overrideWithValue(() => fixedDate),
         ],
       ),
     );
@@ -221,25 +224,24 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
-    // One obligation, one row: the plan is a timeline block, and the deadline
-    // rides on that row's own text rather than becoming a second row.
-    expect(find.text('Write Paper'), findsNWidgets(2));
-    expect(find.byKey(ValueKey('action-complete-$todoId')), findsOneWidget);
-    final row = find
-        .ancestor(
-          of: find.byKey(ValueKey('action-complete-$todoId')),
-          matching: find.byType(Row),
-        )
-        .first;
-    expect(
-      find.descendant(of: row, matching: find.text('Write Paper')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: row, matching: find.text('18:00')),
-      findsOneWidget,
-    );
+    // One obligation, one display: the allocation is the primary block and
+    // the deadline rides on it as secondary metadata. The due row is gone, but
+    // the block keeps its own completion control (rule 17).
+    expect(find.text('Write Paper'), findsOneWidget);
+    expect(find.byKey(ValueKey('action-complete-$todoId')), findsNothing);
+    expect(find.textContaining('Deadline: Oct 6 · 18:00'), findsOneWidget);
     expect(find.text('Due today'), findsNothing);
+    final check = find.byKey(ValueKey('timeline-complete-$todoId'));
+    expect(check, findsOneWidget);
+
+    await tester.tap(check);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final stored = await (db.select(
+      db.todos,
+    )..where((t) => t.id.equals(todoId))).getSingle();
+    expect(stored.status, 'COMPLETED');
     await _unmount(tester);
   });
 
@@ -265,7 +267,7 @@ void main() {
         child: ActionSection(onTodoTap: (todo) => opened = todo),
         overrides: [
           databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
+          clockNowProvider.overrideWithValue(() => fixedDate),
         ],
       ),
     );
@@ -298,7 +300,7 @@ void main() {
         child: const ActionSection(),
         overrides: [
           databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
+          clockNowProvider.overrideWithValue(() => fixedDate),
         ],
       ),
     );
@@ -317,13 +319,13 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(ActionSection)),
     );
-    expect(container.read(actionDateProvider), fixedDate);
+    expect(container.read(clockDayProvider), fixedDate);
     expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
   testWidgets(
-    'checking allocation checkbox completes ordinary todo without mutating dueDate',
+    'completing a planned todo through its block leaves dueDate untouched',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -350,13 +352,14 @@ void main() {
       );
       container.dispose();
 
+      Todo? opened;
       await tester.pumpWidget(
         _wrapWithApp(
-          child: const ActionSection(),
+          child: ActionSection(onTodoTap: (todo) => opened = todo),
           overrides: [
             databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith(
-              (ref) => DateTime(now.year, now.month, now.day),
+            clockNowProvider.overrideWithValue(
+              () => DateTime(now.year, now.month, now.day),
             ),
           ],
         ),
@@ -366,8 +369,33 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // The sheet row's completion circle completes the todo.
-      final checks = find.byKey(ValueKey('action-complete-$todoId'));
+      // A planned Todo is a timeline block now, not a sheet row: it opens the
+      // detail on tap and carries its own completion control.
+      expect(find.byKey(ValueKey('action-complete-$todoId')), findsNothing);
+      expect(
+        find.byKey(ValueKey('timeline-complete-$todoId')),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Ship Feature'));
+      await tester.pump();
+      expect(opened?.id, todoId);
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: TodoDetailPane(todo: opened!),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            clockNowProvider.overrideWithValue(
+              () => DateTime(now.year, now.month, now.day),
+            ),
+          ],
+        ),
+      );
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      final checks = find.byType(DsCheck);
       expect(checks, findsOneWidget);
       await tester.tap(checks);
       for (var i = 0; i < 15; i++) {
@@ -424,7 +452,7 @@ void main() {
           child: const ActionSection(),
           overrides: [
             databaseProvider.overrideWithValue(db),
-            actionDateProvider.overrideWith((ref) => todayDate),
+            clockNowProvider.overrideWithValue(() => todayDate),
           ],
         ),
       );
@@ -433,7 +461,9 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      expect(find.text('Daily Yoga'), findsOneWidget);
+      // The instance is a sheet row and the series master is previewed in
+      // today's unplanned group, so the title can appear more than once.
+      expect(find.text('Daily Yoga'), findsWidgets);
       expect(find.text('1 still open today'), findsOneWidget);
 
       // Find and tap the completion circle for Daily Yoga
@@ -461,8 +491,10 @@ void main() {
               .getSingle();
       expect(state.status, 'completed');
 
-      // Verify UI no longer offers the completed instance as open today
-      expect(find.text('Daily Yoga'), findsNothing);
+      // Verify UI no longer offers the completed instance as open today: the
+      // actionable row is gone even though the series master can still be
+      // previewed in the unplanned group.
+      expect(find.byKey(ValueKey('action-complete-$seriesId')), findsNothing);
       expect(find.text('0 still open today'), findsOneWidget);
 
       await _unmount(tester);
@@ -479,7 +511,7 @@ void main() {
         child: const ActionSection(),
         overrides: [
           databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => fixedDate),
+          clockNowProvider.overrideWithValue(() => fixedDate),
         ],
       ),
     );

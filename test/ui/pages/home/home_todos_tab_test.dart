@@ -226,4 +226,35 @@ void main() {
     expect(find.text('Completed'), findsNothing);
     await _unmount(tester);
   });
+
+  testWidgets('by-date today keeps an overdue todo that has no plan', (
+    tester,
+  ) async {
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Test'));
+    final now = DateTime.now();
+    final yesterday = DateTime(now.year, now.month, now.day - 1);
+    await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calId,
+            summary: 'Old invoice',
+            dueDate: Value(yesterday),
+          ),
+        );
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    // No allocation, so it is not part of the day projection as "due today";
+    // the out-of-date list still has to carry it as overdue.
+    expect(find.text('Old invoice'), findsOneWidget);
+    expect(find.text('Overdue'), findsWidgets);
+    await _unmount(tester);
+  });
 }

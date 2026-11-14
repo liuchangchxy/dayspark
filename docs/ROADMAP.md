@@ -2,20 +2,30 @@
 
 > 2026-10-06 update: recurring per-instance completion is implemented on `fix/recurring-task-instance-completion`; PR #2 tracks delivery and current Hosted CI evidence. The Todo UI remains a series row with an occurrence selector.
 
-> Last updated / 最后更新: v0.31.0+31 | 2026-11-10 | OpenDesign v030-v2 presentation rewrite: the prototype is the target product, not a reference — design tokens (bg #f3f3ef, surface #fdfdfb, ink #1b1b18, primary #2d4f7c), a `lib/ui/design/ds.dart` component library, and every page (Today, Calendar, Todos, details, forms, Search, Settings, Trash, calendar and tag management) rebuilt on it; phone single-day calendar view with a shared day strip; 236px desktop rail with a detail pane; Android production widgets on the new palette with 18dp rounded surfaces. Previous: v0.30.0+30 | 2026-11-07 | Core UX: primary navigation is 今天 / 日历 / 待办; 今天 folds one obligation into one row and links to 未安排; 待办 keeps its day navigation and quick capture; creation is explicit per context; the calendar picker always opens and can create a calendar in place; Settings is regrouped as 通用 / 日历 / 数据 / 同步 / AI / 通知与提醒 / 关于. Previous: v0.29.0+29 | 2026-10-23 | One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox become Todo views), Action answers only "what now/today", Todo asks only deadline and execution time, create and edit collapse into one form page per object with a read-only detail surface, and the desktop rail persists across the whole app through `ShellRoute`. Earlier: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: Apple Calendar-style warm/clear language — iOS system palette, 6-step type scale, iOS radii, layered elevation, five locked accent presets (`DESIGN.md` rewritten)
+> Last updated / 最后更新: v0.32.0+32 | 2026-11-15 | A2 core interaction model (A″): Today is derived from the clock and can never be relabeled by browsing; `browseDate` is the single date shared by Todo's by-date list and the Calendar; every creation path writes only the precision the user expressed (Today capture writes no deadline and no allocation, the day composer pre-fills no time, only a concrete calendar slot inherits one); the day projection dedupes a task that is both due and planned; a month/year picker and bottom capture rows replace the top-right-only entry. Previous: v0.31.0+31 | 2026-11-10 | OpenDesign v030-v2 presentation rewrite: the prototype is the target product, not a reference — design tokens (bg #f3f3ef, surface #fdfdfb, ink #1b1b18, primary #2d4f7c), a `lib/ui/design/ds.dart` component library, and every page (Today, Calendar, Todos, details, forms, Search, Settings, Trash, calendar and tag management) rebuilt on it; phone single-day calendar view with a shared day strip; 236px desktop rail with a detail pane; Android production widgets on the new palette with 18dp rounded surfaces. Previous: v0.30.0+30 | 2026-11-07 | Core UX: primary navigation is 今天 / 日历 / 待办; 今天 folds one obligation into one row and links to 未安排; 待办 keeps its day navigation and quick capture; creation is explicit per context; the calendar picker always opens and can create a calendar in place; Settings is regrouped as 通用 / 日历 / 数据 / 同步 / AI / 通知与提醒 / 关于. Previous: v0.29.0+29 | 2026-10-23 | One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox become Todo views), Action answers only "what now/today", Todo asks only deadline and execution time, create and edit collapse into one form page per object with a read-only detail surface, and the desktop rail persists across the whole app through `ShellRoute`. Earlier: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: Apple Calendar-style warm/clear language — iOS system palette, 6-step type scale, iOS radii, layered elevation, five locked accent presets (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.31.0+31** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.32.0+32** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
-- 最新变化：**OpenDesign v030-v2 表现层重写（v0.31.0）** — 以 `design/opendesign/full-product-v030-v2/` 原型为目标产品重写全部页面：新设计令牌 + `ds.dart` 组件库、今天 / 日历 / 待办 / 详情 / 表单 / 搜索 / 设置 / 回收站 / 日历与标签管理全部重排，手机单日日历视图与共享日期条，桌面 236px 侧栏 + 主区 + 详情面，Android 生产小组件改为新色板与 18dp 圆角底
-- 上一版：**Core UX 重构（v0.30.0）** — 主界面统一为今天 / 日历 / 待办；今天合并行并保留未安排入口；新建动作按上下文显式区分待办与日程；设置重组
+- 最新变化：**A″ 核心交互模型（v0.32.0）** — 今天恒等于真实今天（读时钟，不可被浏览改写）；`browseDate` 成为待办按日期与日历共享的唯一浏览日期；所有创建入口只写入用户已表达的精度（今天捕获不写截止、不建计划执行，日页 composer 不预填时段，只有日历具体时间槽继承时间）；日投影对"既截止又计划"的任务去重；新增月/年日期选择器，手机端 Today / 未安排 / 全部改为底部捕获行
+- 上一版：**OpenDesign 表现层重写（v0.31.0）** — 以原型为目标产品重写全部页面：设计令牌 + `ds.dart` 组件库、手机单日日历视图与共享日期条、桌面 236px 侧栏 + 详情面、Android 生产小组件新色板
+- 更早：**Core UX 重构（v0.30.0）** — 主界面统一为今天 / 日历 / 待办；今天合并行并保留未安排入口；新建动作按上下文显式区分待办与日程；设置重组
 - 更早：**视觉重设计（v0.26.0）** — Apple 日历式温和清晰：iOS 系统色板、6 级字阶、iOS 圆角与分层阴影、锁死的 5 套预设主题色（`DESIGN.md` 重写）
 - 更早：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
 - 待完成：iOS TestFlight provisioning（time-sensitive capability keep/remove 决策）、2027 lunar 调休数据、Windows 通知恢复（stub 上游未修）、日期格式跟随系统 locale、集成测试；同步遗留项见 **Phase P2.5**（MCP 工具面随其实体同步扩展）；Web 缺口见 Pending **#9（ICS 导出不可用）/#10（通知静默未初始化）**
 
 ---
+
+## A″ Core Interaction Model / 核心交互模型 (2026-11-14 冻结, v0.32.0+32)
+
+- **今天 / Today**：唯一来源是时钟（`clockDayProvider`）。不存在可写的 "today" 日期；浏览别的日期只改 `browseDate`，绝不改变今天的标签与内容。跨午夜由定时器刷新时钟投影。
+- **浏览日期 / browseDate**：`browseDateProvider` 是待办「按日期」与日历共享的唯一浏览日期；`TodosDayView` 只表示"按日期"这一视图，不再携带日期。
+- **精度继承 / Precision inheritance**：创建只写入用户已表达的精度。今天捕获 = 纯捕获（`dueDate` 为空、不建 TaskAllocation，出现在今天的未安排组）；待办按日期入口只提供上下文，不写截止；「安排到这一天」打开 composer 且不预填时段，保存时用户没选时间就仍为纯捕获；只有日历上的具体时间槽继承精确起止。
+- **日投影 / Day projection**：`dayProjectionProvider(date)` 汇总事件、生效中的计划执行、当日截止待办、重复实例与已完成；同一天既截止又计划的任务只显示一条（计划优先，其次截止）；逾期只出现在今天。
+- **路由 / Routes**：`quick-add?date=` 仅作上下文；`calendar?date=` 写 `browseDate`；`open/todos?view=today` 落到真实今天；`view=date` 写 `browseDate`。
+- **日期选择 / Date selection**：`DateStrip` 的步进 + 月/年选择器（近处 1 个动作，远处 ≤2，跨年显示年份）。
 
 ## Action Loop Foundation / 行动闭环基础 (Phase 1, 2026-10-06)
 
@@ -745,4 +755,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.31.0+31 |
+| Version / 版本 | v0.32.0+32 |

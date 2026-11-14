@@ -25,11 +25,11 @@ import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 /// "quick" means when the user is mid-scan.
 Future<void> showTodoQuickCreateSheet(
   BuildContext context, {
-  DateTime? dueDate,
+  DateTime? contextDate,
 }) {
   final messenger = ScaffoldMessenger.of(context);
   final desktop = isWorkspaceLayout(context);
-  final form = _QuickCreateForm(initialDueDate: dueDate);
+  final form = _QuickCreateForm(contextDate: contextDate);
 
   if (desktop) {
     return showDsSheet<void>(
@@ -119,9 +119,11 @@ Future<void> showTodoQuickCreateSheet(
 }
 
 class _QuickCreateForm extends ConsumerStatefulWidget {
-  const _QuickCreateForm({this.initialDueDate});
+  const _QuickCreateForm({this.contextDate});
 
-  final DateTime? initialDueDate;
+  /// The browsed day a create started from. It only seeds the plan picker's
+  /// opening date; nothing is written from it until the user picks a time.
+  final DateTime? contextDate;
 
   @override
   ConsumerState<_QuickCreateForm> createState() => _QuickCreateFormState();
@@ -130,7 +132,7 @@ class _QuickCreateForm extends ConsumerStatefulWidget {
 class _QuickCreateFormState extends ConsumerState<_QuickCreateForm> {
   final _title = TextEditingController();
   final _notes = TextEditingController();
-  late DateTime? _due = widget.initialDueDate;
+  DateTime? _due;
   DateTime? _planStart;
   DateTime? _planEnd;
   Duration? _reminderOffset;
@@ -192,7 +194,11 @@ class _QuickCreateFormState extends ConsumerState<_QuickCreateForm> {
   Future<void> _pickPlan() async {
     final start = await pickDateTime(
       context,
-      initial: _planStart ?? _due ?? DateTime.now(),
+      initial:
+          _planStart ??
+          _due ??
+          widget.contextDate?.add(const Duration(hours: 9)) ??
+          DateTime.now(),
     );
     if (start == null || !mounted) return;
     final l = AppLocalizations.of(context)!;
@@ -335,6 +341,19 @@ class _QuickCreateFormState extends ConsumerState<_QuickCreateForm> {
     }
   }
 
+  String _landingLabel(AppLocalizations l) {
+    final plan = _planStart;
+    if (plan != null) {
+      final end = _planEnd ?? plan;
+      return '${DateFormatters.formatShortDate(plan)} · '
+          '${l.plannedExecution} ${DateFormatters.formatTime(plan)}'
+          '–${DateFormatters.formatTime(end)}';
+    }
+    final due = _due;
+    if (due != null) return formatDeadline(context, due);
+    return l.inbox;
+  }
+
   void _openFullForm() {
     final due = _due;
     final plan = _planStart;
@@ -412,6 +431,13 @@ class _QuickCreateFormState extends ConsumerState<_QuickCreateForm> {
               onTap: _pickReminder,
             ),
           ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.s2),
+          child: Text(
+            l.savedAppearsIn(_landingLabel(l)),
+            style: AppTypography.small.copyWith(color: ds.ink3),
+          ),
         ),
         if (_more) ...[
           const SizedBox(height: AppSpacing.s4),

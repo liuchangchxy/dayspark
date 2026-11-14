@@ -216,13 +216,13 @@ void main() {
     AppRouter.router.go(quickAddLocation);
     await settle(tester);
 
-    final page = tester.widget<QuickAddPage>(find.byType(QuickAddPage));
-    expect(page.dueDate, isNull);
+    expect(find.byType(QuickAddPage), findsOneWidget);
 
+    // A widget date is capture context only; the page renders the same either
+    // way and never turns it into a deadline.
     AppRouter.router.go('$quickAddLocation?date=2026-11-07');
     await settle(tester);
-    final dated = tester.widget<QuickAddPage>(find.byType(QuickAddPage));
-    expect(dated.dueDate, DateTime(2026, 11, 7));
+    expect(find.byType(QuickAddPage), findsOneWidget);
 
     await teardownTree(tester);
   });

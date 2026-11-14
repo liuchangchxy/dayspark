@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
@@ -73,11 +74,6 @@ class ActionProjectionData {
       recurrenceExpansionErrors.isEmpty;
 }
 
-final actionDateProvider = StateProvider<DateTime>((ref) {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day);
-});
-
 final actionDueTodayTodosProvider = StreamProvider.autoDispose
     .family<List<Todo>, DateTime>((ref, date) {
       final db = ref.watch(databaseProvider);
@@ -129,9 +125,8 @@ final actionTaskInstanceStatesProvider =
       return db.select(db.taskInstanceStates).watch();
     });
 
-final actionProjectionProvider =
-    Provider.autoDispose<AsyncValue<ActionProjectionData>>((ref) {
-      final date = ref.watch(actionDateProvider);
+final dayProjectionProvider = Provider.autoDispose
+    .family<AsyncValue<ActionProjectionData>, DateTime>((ref, date) {
       final startOfDay = date.isUtc
           ? DateTime.utc(date.year, date.month, date.day)
           : DateTime(date.year, date.month, date.day);
@@ -149,6 +144,11 @@ final actionProjectionProvider =
       );
       final dueTodayAsync = ref.watch(actionDueTodayTodosProvider(startOfDay));
       final overdueAsync = ref.watch(actionOverdueTodosProvider(startOfDay));
+      final today = ref.watch(clockDayProvider);
+      final overdueForDay =
+          isSameDay(date, today)
+              ? (overdueAsync.valueOrNull ?? const <Todo>[])
+              : const <Todo>[];
       final unplannedAsync = ref.watch(unplannedTodosProvider);
       final completedAsync = ref.watch(
         actionCompletedTodayTodosProvider(startOfDay),
@@ -200,7 +200,7 @@ final actionProjectionProvider =
           eventCandidates: eventsAsync.valueOrNull ?? const [],
           allocations: allocationsAsync.valueOrNull ?? const [],
           dueTodayTodos: dueTodayAsync.valueOrNull ?? const [],
-          overdueTodos: overdueAsync.valueOrNull ?? const [],
+          overdueTodos: overdueForDay,
           unplannedCount: (unplannedAsync.valueOrNull ?? const []).length,
           completedTodayTodos: completedAsync.valueOrNull ?? const [],
           recurringTodos: recurringTodosAsync.valueOrNull ?? const [],
@@ -209,3 +209,35 @@ final actionProjectionProvider =
         ),
       );
     });
+
+final actionProjectionProvider =
+    Provider.autoDispose<AsyncValue<ActionProjectionData>>((ref) {
+      final today = ref.watch(clockDayProvider);
+      return ref.watch(dayProjectionProvider(today));
+    });
+
+/// The day's tasks, allocation-first, one row per Todo.
+///
+/// A Todo that is both due that day and planned that day is one row: the
+/// allocation is the primary fact and the deadline is metadata. The dedupe is
+/// a projection rule, not a schema change.
+List<Todo> projectedDayTodos(ActionProjectionData data) {
+  final out = <Todo>[];
+  final seen = <int>{};
+  for (final item in data.allocations) {
+    if (seen.add(item.todo.id)) out.add(item.todo);
+  }
+  for (final todo in data.dueTodayTodos) {
+    if (seen.add(todo.id)) out.add(todo);
+  }
+  for (final instance in data.todayTaskInstances) {
+    if (seen.add(instance.todo.id)) out.add(instance.todo);
+  }
+  return out;
+}
+
+final projectedDayTodosProvider =
+    Provider.autoDispose.family<AsyncValue<List<Todo>>, DateTime>(
+      (ref, date) =>
+          ref.watch(dayProjectionProvider(date)).whenData(projectedDayTodos),
+    );

@@ -67,7 +67,9 @@ void main() {
         .insert(CalendarsCompanion.insert(name: 'Test'));
   }
 
-  testWidgets('saves today task and closes', (tester) async {
+  testWidgets('widget date is context only and is not saved as a deadline', (
+    tester,
+  ) async {
     await seedCalendar();
     AppRouter.router.go('/');
     await tester.pumpWidget(buildApp());
@@ -85,7 +87,8 @@ void main() {
     final rows = await testDb.select(testDb.todos).get();
     expect(rows.length, 1);
     expect(rows.single.summary, 'Buy milk');
-    expect(rows.single.dueDate, DateTime(2026, 11, 7));
+    // A browsed day is not a deadline: only text that names a date writes one.
+    expect(rows.single.dueDate, isNull);
     expect(rows.single.status, 'NEEDS-ACTION');
     expect(rows.single.priority, 0);
 

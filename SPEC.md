@@ -94,6 +94,14 @@ flowchart LR
     - 日历空白槽安排待办支持选择重复任务，但必须通过共享 selector 显式选取具体 occurrenceId 后创建 TaskAllocation，不创建 Event，不修改 `dueDate`。
     - 完成与取消完成必须经由现有领域写入器（`TaskInstanceWriter`）以精确 `occurrenceId` 执行，不得标记父系列为 COMPLETED，不影响兄弟实例，仅使该 occurrence 的未来 active TaskAllocation 失效。
 
+  - 规则 20（Core UX · A″，2026-11-14 冻结）：日期状态与创建继承。
+    - 日期状态：Today 恒等于系统真实今天，不来自任何可写日期 provider；`browseDate` 是唯一 browsable 日期，由待办「按日期」与日历共享。切 tab 不改 `browseDate`；日历点日期会改；Today 头部只读时钟；冷启动 `browseDate` = 今天；午夜只更新 Today；回前台不重置。删除 `actionDateProvider`；`TodosDayView` 不保存独立的 day。
+    - 继承原则：系统只写入用户已表达的精度，不补全未表达的信息。浏览某天 ≠ 截止某天，≠ 已选择执行时段；Today ≠ 默认截止今天，≠ 默认计划今天。
+    - 创建契约：Today 快速捕获写 `dueDate = null` 且不建 TaskAllocation，落点为未安排，Today 的未安排组立即可见；日页「安排到 `<browseDate>`」进入 composer 时不得预填时段，未选时段保存 = 纯捕获 → 未安排，用户选择 start/end 后才创建 TaskAllocation；`dueDate` 只由显式「截止」写入；只有日历具体时间槽可自动继承时间（Event / 安排待办 / 新建并安排）。
+    - 未安排组：Today 面板的未安排组只预览无 `dueDate` 的捕获项（最多 3 条），数量仍按规则 16 的「当前无有效 TaskAllocation」口径统计；带 `dueDate` 的未安排项已经有自己的日期页，不进入 Today 预览。完整未安排视图的定义不变。
+    - 日投影：`DayProjection(date)` = 当日 Event + 有效 TaskAllocation + `dueDate == date` 的 Todo + 重复实例 + 完成状态。Today 额外显示 现在 / 接下来 / 已逾期，其他日期不显示。同一 Todo 当天既有 allocation 又有 dueDate 时 App 内只显示一条，allocation 为主、deadline 为次级元数据；去重属于 UI/投影规则，不改领域模型，Widget 去重不在范围内。
+    - 路由：`quick-add?date=` 的 date 仅为捕获上下文，不写 `dueDate`；`calendar?date=` 写 `browseDate`；`open/todos?view=today` 落到真实今天；待办按日期路由必须能携带日期。
+    - 日期选择：近日期走日期条 1 次；远日期 = 日期头 → 月/年选择器 → 日期（≤2 次）；跨年显示年份；日期条锚定 `browseDate`。
 #### TaskAllocation 生命周期状态
 
 TaskAllocation 的领域状态为单一字段：

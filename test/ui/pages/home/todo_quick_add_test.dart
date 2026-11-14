@@ -84,18 +84,20 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
+    // The by-date surface captures through "arrange to <day>" now; the inline
+    // quick-add field belongs to Unplanned / All.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('todos-view-switch')),
+        matching: find.text('Unplanned'),
+      ),
+    );
+    await _settle(tester);
+
     final field = find.byKey(const ValueKey('todo-quick-add'));
     expect(field, findsOneWidget);
-    // The day view supplies a deadline, so it is stated before anything is
-    // written instead of being attached silently.
-    expect(find.byType(DsChip), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(DsChip),
-        matching: find.textContaining('Deadline:'),
-      ),
-      findsOneWidget,
-    );
+    // Inline capture writes no dueDate, so there is no deadline chip to state.
+    expect(find.textContaining('Deadline:'), findsNothing);
 
     for (var i = 0; i < 5; i++) {
       await tester.enterText(field, 'Quick $i');
@@ -106,11 +108,10 @@ void main() {
     final rows = await db.select(db.todos).get();
     expect(rows, hasLength(5));
     expect(rows.map((row) => row.summary), containsAll(['Quick 0', 'Quick 4']));
-    final today = DateTime.now();
     expect(
       rows.first.dueDate,
-      DateTime(today.year, today.month, today.day),
-      reason: 'a task added in a day view lands on that day',
+      isNull,
+      reason: 'the browsed day is context, never a deadline',
     );
 
     // Still on the list, with the new rows visible and the field empty and
@@ -126,7 +127,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('quick create shows and edits the inherited deadline', (
+  testWidgets('quick create from a day context does not inherit a deadline', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 1400);
@@ -141,33 +142,17 @@ void main() {
 
     final title = find.byKey(const ValueKey('todo-quick-create-title'));
     expect(title, findsOneWidget);
-    final chip = find.ancestor(
-      of: find.descendant(
-        of: find.byType(BottomSheet),
-        matching: find.textContaining('Deadline:'),
-      ),
-      matching: find.byType(DsChip),
-    );
-    expect(chip, findsOneWidget);
-    expect(
-      find.descendant(of: chip, matching: find.textContaining('Deadline:')),
-      findsOneWidget,
-    );
+    // The browsed day seeds the plan picker only; it is not written as a
+    // deadline, so the sheet opens with no deadline chip.
+    expect(find.textContaining('Deadline:'), findsNothing);
 
-    await tester.tap(chip);
-    await _settle(tester);
-    expect(find.byType(DatePickerDialog), findsOneWidget);
-    await tester.tap(find.text('Cancel'));
-    await _settle(tester);
-
-    await tester.enterText(title, 'Visible deadline');
+    await tester.enterText(title, 'No inherited deadline');
     await tester.tap(find.widgetWithText(DsButton, 'Save'));
     await _settle(tester);
 
     final row = (await db.select(db.todos).get()).single;
-    expect(row.summary, 'Visible deadline');
-    final now = DateTime.now();
-    expect(row.dueDate, DateTime(now.year, now.month, now.day));
+    expect(row.summary, 'No inherited deadline');
+    expect(row.dueDate, isNull);
     await _unmount(tester);
   });
 }

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
@@ -43,6 +44,7 @@ void main() {
   late AppDatabase db;
   late ProviderContainer container;
   late int calendarId;
+  late DateTime clockNow;
 
   setUpAll(tzdata.initializeTimeZones);
 
@@ -56,8 +58,12 @@ void main() {
             color: const Value('#2196F3'),
           ),
         );
+    clockNow = DateTime.now();
     container = ProviderContainer(
-      overrides: [databaseProvider.overrideWithValue(db)],
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        clockNowProvider.overrideWithValue(() => clockNow),
+      ],
     );
   });
 
@@ -96,7 +102,10 @@ void main() {
         slotStart.month,
         slotStart.day,
       );
-      container.read(actionDateProvider.notifier).state = actionDay;
+      // Today is derived from the pinned clock; the slot's own day is the
+      // Action day under test.
+      clockNow = slotStart;
+      container.read(clockDayProvider.notifier).refresh();
 
       // -------------------------------------------------------------
       // 1. TaskSeries: Create recurring Todo series

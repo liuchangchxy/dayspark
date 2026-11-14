@@ -5,10 +5,26 @@
 
 **TL;DR / 快速了解**
 - 本文件记录所有技术约束，按领域分组（Calendar / Database / UI / Security / Platform）
-- 核心约束：kalender 钉 0.17.x、App Group 家族名 `group.com.dayspark.app` 双写、adhoc 下 macOS 禁 keychain-access-groups、iOS entitlements 三配置接线、小组件 v2 快照 10 键（含 monthDots）、**派生态失效只有一条缝（单写入口 `RecordScope.run` + 提交后发布）**、**`dart:io Platform.*` 全仓唯一读点 = `lib/core/utils/platform_target.dart`（`kIsWeb` 短路在前；缺守卫会白屏）**、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
+- 核心约束：kalender 钉 0.17.x、App Group 家族名 `group.com.dayspark.app` 双写、adhoc 下 macOS 禁 keychain-access-groups、iOS entitlements 三配置接线、小组件 v2 快照 10 键（含 monthDots）、**派生态失效只有一条缝（单写入口 `RecordScope.run` + 提交后发布）**、**`dart:io Platform.*` 全仓唯一读点 = `lib/core/utils/platform_target.dart`（`kIsWeb` 短路在前；缺守卫会白屏）**、**今天只读时钟 + `browseDate` 唯一 + 创建只写已表达的精度**、版本号必须动态读取、Linux 构建必须 Ubuntu 22.04
 - 修改日历/DB/Provider/通知/小组件/Apple 签名相关代码前**必须先读**对应章节
 
 ---
+
+## Date Model / 日期模型
+
+### 今天只读时钟，浏览日期只有一个（2026-11-14）
+- 今天 = `clockDayProvider`（读 `clockNowProvider` 的时钟，午夜由 home shell 调 `refresh()` 刷新投影）；**禁止**新增任何可写的 "today" provider，也禁止用浏览日期改写今天
+- `browseDateProvider` 是待办「按日期」与日历共享的唯一浏览日期；`TodosDayView` 只是视图标记，**不带日期**
+- 任何创建/编辑入口只能写入用户已表达的精度：今天捕获与待办按日期入口不写 `dueDate`、不建 `TaskAllocation`；「安排到这一天」打开 composer 不预填时段（用户没选时间 = 纯捕获）；只有日历具体时间槽继承时间
+- **Why**: 2026-11 之前 `actionDateProvider` 兼任"今天"与"浏览日期"，导致 Today 标签随全局 viewedDate 漂移、浏览某天就把待办截止写在那天（两条用户反馈原文见 `docs/changelog.md` v0.32.0+32）。`TaskAllocation` 的起止是 NOT NULL，日期级"计划执行"只能靠编造 09:00 时段，因此**禁止**为继承日期建 allocation
+- **Date**: 2026-11-14
+
+### 日投影必须去重，逾期只属于今天（2026-11-14）
+- `dayProjectionProvider(date)` 合并事件 / 生效中的 allocation / 当日截止待办 / 重复实例 / 已完成；同一天既截止又计划的任务只出现一次（allocation 优先，其次 deadline）
+- 逾期列表只在 `date == clockDayProvider` 时非空；其他日期即使有更早的截止也返回空
+- 去重后的那一条必须保留直接完成入口：Today 的 allocation 时间轴块自带 Checkbox（`timeline-complete-<todoId>`），不得退化成"只能点开详情再完成"（规则 17）
+- **Why**: 同一条待办既写截止又排了时段时，两处都会列出它，用户会以为有两条任务；把逾期带到别的日期会让"浏览 11-20"显示 11-10 的欠账；去重若顺手删掉截止行的 Checkbox，等于用"只显示一条"换走了规则 17 的直接完成
+- **Date**: 2026-11-14
 
 ## Calendar / 日历
 

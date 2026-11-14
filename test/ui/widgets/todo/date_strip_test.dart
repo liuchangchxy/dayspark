@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/widgets/schedule/day_strip.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
@@ -62,7 +63,7 @@ void main() {
 
     final view = container.read(todosViewProvider);
     expect(view, isA<TodosDayView>());
-    expect((view as TodosDayView).day, today);
+    expect(container.read(browseDateProvider), today);
     expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
   });
 
@@ -80,12 +81,12 @@ void main() {
 
     final view = container.read(todosViewProvider);
     expect(view, isA<TodosDayView>());
-    expect((view as TodosDayView).day, today);
+    expect(container.read(browseDateProvider), today);
     expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
   });
 
   testWidgets('date view still browses other dates', (tester) async {
-    container.read(todosViewProvider.notifier).state = TodosDayView(today);
+    container.read(todosViewProvider.notifier).state = const TodosDayView();
     await tester.pumpWidget(_harness(container, desktop: false));
     await tester.pump();
 
@@ -93,8 +94,8 @@ void main() {
     await tester.tap(find.byKey(ValueKey(DayStrip.dayKey(target))));
     await tester.pump();
 
-    final view = container.read(todosViewProvider) as TodosDayView;
-    expect(view.day.isAtSameMomentAs(target), isTrue);
+    // The viewed day lives in browseDateProvider now, not in the view object.
+    expect(container.read(browseDateProvider).isAtSameMomentAs(target), isTrue);
   });
 
   testWidgets('desktop toolbar offers the same Today entry from All', (
@@ -111,7 +112,7 @@ void main() {
 
     final view = container.read(todosViewProvider);
     expect(view, isA<TodosDayView>());
-    expect((view as TodosDayView).day, today);
+    expect(container.read(browseDateProvider), today);
     expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
   });
 }

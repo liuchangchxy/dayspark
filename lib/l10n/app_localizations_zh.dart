@@ -1925,4 +1925,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get other => '其他';
+
+  @override
+  String savedAppearsIn(String target) {
+    return '保存后出现在：$target';
+  }
+
+  @override
+  String arrangeToDay(String date) {
+    return '安排到 $date';
+  }
+
+  @override
+  String todayUnplanned(Object count) {
+    return '未安排 · $count';
+  }
+
+  @override
+  String get viewAll => '全部';
 }

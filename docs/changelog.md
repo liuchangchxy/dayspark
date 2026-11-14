@@ -3,8 +3,8 @@
 **TL;DR / 快速了解**
 - 2026-10-06：重复 Todo 架构回正：实例完成状态按 `(series syncId, occurrenceId)` 稀疏存储；完成/撤销只影响选定 occurrence；新 schema v14 不推断旧 `COMPLETED` series 的实例；同步、Busy Time 与 MCP 同步接入。PR #2 已建立；本轮 hard-delete 生命周期、MCP occurrence 查询与 missed-obligation 语义修正由 PR 更新承载。
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.31.0+31** — 按 OpenDesign v030-v2 重写表现层：设计令牌（bg `#f3f3ef` / surface `#fdfdfb` / ink `#1b1b18` / primary `#2d4f7c`）、`lib/ui/design/ds.dart` 组件库、今天 / 日历 / 待办 / 详情 / 表单 / 搜索 / 设置 / 回收站 / 日历与标签管理全部重排，手机单日日历视图与共享日期条，桌面 236px 侧栏 + 主区 + 详情面，Android 生产小组件改为新色板与 18dp 圆角底 / Presentation rebuilt from the OpenDesign v030-v2 prototypes: new token set, a `ds.dart` component library, every page (Today, Calendar, Todos, details, forms, Search, Settings, Trash, calendar and tag management) relaid out, a phone single-day calendar view with a shared day strip, a 236px desktop rail with a detail pane, and Android production widgets on the new palette with 18dp rounded surfaces
-- 上一版本 / Previous: **v0.30.0+30** — 全局 UI/UX 骨架统一：顶层只剩 Action / Calendar / Todo（Today/Inbox 成为 Todo 内部视图），Action 只回答"现在/今天该做什么"，Todo 只问截止时间与执行时间且执行时间新建时即可安排，新建与编辑合并为同一个表单页，桌面侧栏通过 `ShellRoute` 全站常驻 / One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox are Todo views), Action answers only "what now/today", Todo asks only deadline and execution time, create and edit are one form, and the desktop rail persists across the whole app through `ShellRoute`
+- 最新版本 / Latest: **v0.32.0+32** — A″ 核心交互模型：今天恒等于真实今天（读时钟，不再有可写日期），`browseDate` 成为待办按日期与日历共享的唯一浏览日期；创建只写入用户已表达的精度——今天捕获不写截止、不建计划执行，日页「安排到这一天」不预填时段，只有日历具体时间槽继承时间；日投影去重，同一天既截止又计划只显示一条；新增月/年日期选择器与底部捕获行 / A2 core interaction model: Today is derived from the clock, browseDate is the single browsed date shared by Todo and Calendar; creation writes only expressed precision (capture leaves dueDate and allocation empty, the day composer pre-fills no time, only a concrete calendar slot inherits one); the day projection dedupes a task that is both due and planned; a month/year picker and bottom capture rows replace the top-right-only entry
+- 上一版本 / Previous: **v0.31.0+31** — 按 OpenDesign v030-v2 重写表现层：设计令牌（bg `#f3f3ef` / surface `#fdfdfb` / ink `#1b1b18` / primary `#2d4f7c`）、`lib/ui/design/ds.dart` 组件库、今天 / 日历 / 待办 / 详情 / 表单 / 搜索 / 设置 / 回收站 / 日历与标签管理全部重排，手机单日日历视图与共享日期条，桌面 236px 侧栏 + 主区 + 详情面，Android 生产小组件改为新色板与 18dp 圆角底 / Presentation rebuilt from the OpenDesign v030-v2 prototypes: new token set, a `ds.dart` component library, every page (Today, Calendar, Todos, details, forms, Search, Settings, Trash, calendar and tag management) relaid out, a phone single-day calendar view with a shared day strip, a 236px desktop rail with a detail pane, and Android production widgets on the new palette with 18dp rounded surfaces
 - 更早 / Earlier: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
 - 最新流程改进 / Pipeline: **门禁总账 + 变异实证（一条没红过的门禁视为不存在）+ 出口清单 + 流程文档五件** — 2026-10-01
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
@@ -42,6 +42,16 @@
 
 - [x] Todo 详情面板复用提醒选择与保存路径，支持查看、添加、修改和删除。
 - [x] Event 详情面板显示当前日历并支持切换，保存后随实时数据更新。
+
+## v0.32.0+32 — A″ Core Interaction Model / 核心交互模型
+
+**用户反馈原文 / User feedback:** 「Today 的 tab 会随着全局 viewedDate 显示别的日期」「浏览某一天就自动把 Todo 截止在那一天」
+
+- [x] 冻结 SPEC 规则 20 与 `docs/CORE_UX_SPEC.md` §15：Today = 真实今天，`browseDate` 唯一；继承用户已表达的精度，不补全未表达的信息。
+- [x] 删除 `actionDateProvider` 与 `TodosDayView.day`；午夜改为刷新时钟投影，不写浏览日期。
+- [x] 清剿所有把上下文日期写成 `dueDate` 的入口（Today 捕获、待办按日期、quick-add 深链、快捷新建）。
+- [x] 「安排到这一天」进入 composer 不预填时段；日历时间槽仍继承精确时间；Today 增加未安排组。
+- [x] 日投影去重；新增月/年日期选择器；手机端 Today / 未安排 / 全部使用底部捕获行，日历使用右下创建键。
 
 ## v0.31.0+31 — OpenDesign v030-v2 Presentation / 按设计重写表现层
 

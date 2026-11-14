@@ -250,16 +250,9 @@ abstract final class AppRouter {
         path: '/quick-add',
         name: 'quickAdd',
         pageBuilder: (context, state) {
-          final date = DateTime.tryParse(
-            state.uri.queryParameters['date'] ?? '',
-          );
-          return _overlayPage(
-            QuickAddPage(
-              dueDate: date == null
-                  ? null
-                  : DateTime(date.year, date.month, date.day),
-            ),
-          );
+          // `?date=` is capture context only and never becomes a deadline, so
+          // the minimal capture page deliberately ignores it.
+          return _overlayPage(const QuickAddPage());
         },
       ),
       ShellRoute(

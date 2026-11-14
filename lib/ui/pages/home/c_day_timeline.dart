@@ -7,6 +7,8 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
 /// Direction C's day timeline: the day drawn to scale, not listed.
 ///
@@ -24,6 +26,7 @@ class CDayTimeline extends StatelessWidget {
     required this.allocations,
     this.onEventTap,
     this.onAllocationTap,
+    this.onAllocationToggle,
   });
 
   final DateTime day;
@@ -32,6 +35,8 @@ class CDayTimeline extends StatelessWidget {
   final List<TaskAllocationCalendarItem> allocations;
   final void Function(CalendaEventAdapter event)? onEventTap;
   final void Function(TaskAllocationCalendarItem item)? onAllocationTap;
+  final void Function(TaskAllocationCalendarItem item, bool next)?
+  onAllocationToggle;
 
   static const int baseStartHour = 7;
   static const int baseEndHour = 22;
@@ -42,7 +47,7 @@ class CDayTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final ds = context.ds;
     final l = AppLocalizations.of(context)!;
-    final blocks = _collect(l, ds.work);
+    final blocks = _collect(context, l, ds.work);
     final (startHour, endHour) = _window(blocks, now);
 
     final dayStart = DateTime(day.year, day.month, day.day, startHour);
@@ -169,6 +174,13 @@ class CDayTimeline extends StatelessWidget {
                           : block.allocation != null
                           ? () => onAllocationTap?.call(block.allocation!)
                           : null,
+                      onToggle: block.allocation == null ||
+                              onAllocationToggle == null
+                          ? null
+                          : (next) => onAllocationToggle!(
+                              block.allocation!,
+                              next,
+                            ),
                     ),
                   Positioned(
                     right: gutterWidth,
@@ -238,7 +250,11 @@ class CDayTimeline extends StatelessWidget {
     flush();
   }
 
-  List<_BlockData> _collect(AppLocalizations l, Color workColor) {
+  List<_BlockData> _collect(
+    BuildContext context,
+    AppLocalizations l,
+    Color workColor,
+  ) {
     final out = <_BlockData>[];
     for (final event in events) {
       if (event.isAllDay) continue;
@@ -258,12 +274,16 @@ class CDayTimeline extends StatelessWidget {
     for (final item in allocations) {
       final start = item.allocation.startAt.toLocal();
       final end = item.allocation.endAt.toLocal();
+      final due = item.todo.dueDate?.toLocal();
       out.add(
         _BlockData(
           start: start,
           end: end,
           title: item.todo.summary,
-          meta: _span(l, start, end),
+          meta: due == null
+              ? _span(l, start, end)
+              : '${_span(l, start, end)} · '
+                    '${l.deadlinePrefix(formatDeadline(context, due))}',
           tag: null,
           color: workColor,
           done: item.allocation.state == 'completed',
@@ -460,6 +480,7 @@ class _Block extends StatelessWidget {
     required this.block,
     required this.now,
     this.onTap,
+    this.onToggle,
   });
 
   final double top;
@@ -469,6 +490,7 @@ class _Block extends StatelessWidget {
   final _BlockData block;
   final DateTime now;
   final VoidCallback? onTap;
+  final ValueChanged<bool>? onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -540,7 +562,12 @@ class _Block extends StatelessWidget {
                 ),
                 if (showTitle)
                   Padding(
-                    padding: EdgeInsets.fromLTRB(12, textTop, 8, 2),
+                    padding: EdgeInsets.fromLTRB(
+                      12,
+                      textTop,
+                      onToggle != null ? 34 : 8,
+                      2,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -591,6 +618,22 @@ class _Block extends StatelessWidget {
                             ),
                           ),
                       ],
+                    ),
+                  ),
+                if (onToggle != null)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: DsCheck(
+                      key: ValueKey(
+                        'timeline-complete-${block.allocation!.todo.id}',
+                      ),
+                      checked: block.done,
+                      compact: true,
+                      size: 16,
+                      label: block.title,
+                      onChanged: onToggle,
                     ),
                   ),
               ],
