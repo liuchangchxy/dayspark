@@ -102,7 +102,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
-  testWidgets('flow: quick add writes a todo into the real list', (
+  testWidgets('flow: quick add writes an undated todo into the real list', (
     tester,
   ) async {
     await seedCalendar();
@@ -110,7 +110,9 @@ void main() {
 
     await launch(tester);
     await openTasks(tester);
-    await showView(tester, 'By date');
+    // Inline capture belongs to Unplanned / All now; the by-date surface
+    // captures through "arrange to <browseDate>".
+    await showView(tester, 'Unplanned');
 
     final field = find.byKey(const ValueKey('todo-quick-add'));
     expect(field, findsOneWidget);
@@ -121,14 +123,12 @@ void main() {
     await settle(tester);
 
     final rows = await db.select(db.todos).get();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
     expect(rows, hasLength(1));
     expect(rows.single.summary, 'Book the flights');
     expect(
       rows.single.dueDate,
-      today,
-      reason: 'the day view is the landing date for a quick add',
+      isNull,
+      reason: 'a browsed day is capture context, never a deadline',
     );
     expect(find.text('Book the flights'), findsOneWidget);
 

@@ -255,7 +255,7 @@ abstract final class AppRouter {
           );
           return _overlayPage(
             QuickAddPage(
-              dueDate: date == null
+              contextDate: date == null
                   ? null
                   : DateTime(date.year, date.month, date.day),
             ),

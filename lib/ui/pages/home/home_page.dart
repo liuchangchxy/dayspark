@@ -18,7 +18,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
-import 'package:dayspark/domain/providers/calendar_view_provider.dart';
+import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -41,6 +41,7 @@ import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
+import 'package:dayspark/ui/widgets/schedule/month_year_picker.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark/ui/widgets/todo/date_strip.dart';
@@ -80,7 +81,10 @@ class _HomePageState extends ConsumerState<HomePage>
   Timer? _dayCheckTimer;
   DateTime? _lastCheckedDay;
 
-  DateTime _now() => (widget.clock ?? DateTime.now)();
+  DateTime _now() {
+    final clock = widget.clock;
+    return clock != null ? clock() : ref.read(clockNowProvider)();
+  }
 
   static DateTimeRange _calendarRange() {
     return DateTimeRange(
@@ -98,7 +102,7 @@ class _HomePageState extends ConsumerState<HomePage>
     if (initialDate != null) {
       Future.microtask(() {
         if (!mounted) return;
-        ref.read(viewedDateProvider.notifier).state = DateTime(
+        ref.read(browseDateProvider.notifier).state = DateTime(
           initialDate.year,
           initialDate.month,
           initialDate.day,
@@ -130,7 +134,7 @@ class _HomePageState extends ConsumerState<HomePage>
     if (initialDate != null && initialDate != oldWidget.initialDate) {
       Future.microtask(() {
         if (!mounted) return;
-        ref.read(viewedDateProvider.notifier).state = DateTime(
+        ref.read(browseDateProvider.notifier).state = DateTime(
           initialDate.year,
           initialDate.month,
           initialDate.day,
@@ -169,12 +173,23 @@ class _HomePageState extends ConsumerState<HomePage>
     final view = switch (raw) {
       'inbox' => const TodosInboxView(),
       'all' => const TodosAllView(),
-      'today' => TodosDayView(DateTime.now()),
+      'today' || 'date' || 'bydate' => const TodosDayView(),
       _ => null,
     };
     if (view == null) return;
     Future.microtask(() {
-      if (mounted) ref.read(todosViewProvider.notifier).state = view;
+      if (!mounted) return;
+      if (view is TodosDayView) {
+        if (raw == 'today') {
+          ref.read(browseDateProvider.notifier).state = dayOf(_now());
+        } else {
+          final date = widget.initialDate;
+          ref.read(browseDateProvider.notifier).state = dayOf(
+            date ?? _now(),
+          );
+        }
+      }
+      ref.read(todosViewProvider.notifier).state = view;
     });
   }
 
@@ -244,7 +259,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final today = DateTime(current.year, current.month, current.day);
     if (today != _lastCheckedDay) {
       _lastCheckedDay = today;
-      ref.read(actionDateProvider.notifier).state = today;
+      ref.read(clockDayProvider.notifier).refresh();
     }
   }
 
@@ -252,9 +267,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final now = _now();
     final today = DateTime(now.year, now.month, now.day);
     _lastCheckedDay = today;
-    if (ref.read(actionDateProvider) != today) {
-      ref.read(actionDateProvider.notifier).state = today;
-    }
+    ref.read(clockDayProvider.notifier).refresh();
     _scheduleNextMidnightCheck();
   }
 
@@ -433,6 +446,16 @@ class _HomePageState extends ConsumerState<HomePage>
         backgroundColor: context.ds.bg,
         appBar: _mobileTopBar(context, l, tab),
         body: body,
+        floatingActionButton: isCalendarTab
+            ? FloatingActionButton(
+                key: const ValueKey('calendar-create'),
+                backgroundColor: context.ds.primary,
+                foregroundColor: context.ds.surface,
+                tooltip: l.eventLabel,
+                onPressed: _openCalendarCreate,
+                child: const Icon(CupertinoIcons.add, size: 22),
+              )
+            : null,
         bottomNavigationBar: _MobileTabBar(
           current: _currentTab,
           onSelected: (index) => index == 3 ? _openAssistant() : _setTab(index),
@@ -465,7 +488,7 @@ class _HomePageState extends ConsumerState<HomePage>
         ? l.allTasks
         : l.todos;
     final subtitle = isAction
-        ? _fallbackCalendarContext()
+        ? _clockContext()
         : isCalendar
         ? (_calendarSubtitle ?? _fallbackCalendarContext())
         : null;
@@ -503,13 +526,17 @@ class _HomePageState extends ConsumerState<HomePage>
                     ),
                   ),
                   if (subtitle != null)
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.small.copyWith(
-                        color: ds.ink3,
-                        fontSize: 11,
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: isAction ? _pickDayFromHeader : null,
+                      child: Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.small.copyWith(
+                          color: ds.ink3,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                 ],
@@ -566,7 +593,10 @@ class _HomePageState extends ConsumerState<HomePage>
                   final v = ref.read(todosViewProvider);
                   showTodoQuickCreateSheet(
                     context,
-                    dueDate: v is TodosDayView ? v.day : null,
+                    contextDate:
+                        v is TodosDayView
+                            ? ref.read(browseDateProvider)
+                            : null,
                   );
                 }
               },
@@ -577,8 +607,26 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
+  String _clockContext() {
+    final now = _now();
+    final locale = Localizations.localeOf(context).toString();
+    return '${DateFormat.MMMd(locale).format(now)} · '
+        '${DateFormat.E(locale).format(now)}';
+  }
+
+  Future<void> _pickDayFromHeader() async {
+    final picked = await showMonthYearPicker(
+      context,
+      initial: dayOf(_now()),
+    );
+    if (picked == null || !mounted) return;
+    ref.read(browseDateProvider.notifier).state = dayOf(picked);
+    ref.read(todosViewProvider.notifier).state = const TodosDayView();
+    _setTab(2);
+  }
+
   String _fallbackCalendarContext() {
-    final viewed = ref.watch(viewedDateProvider);
+    final viewed = ref.watch(browseDateProvider);
     final locale = Localizations.localeOf(context).toString();
     return '${DateFormat.MMMd(locale).format(viewed)} · '
         '${DateFormat.E(locale).format(viewed)}';
@@ -676,7 +724,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final allocationsAsync = ref.watch(
       taskAllocationsInDateRangeProvider(rangeKey),
     );
-    final viewed = ref.watch(viewedDateProvider);
+    final viewed = ref.watch(browseDateProvider);
     final deadlineTodos = (ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
         .where(
           (todo) =>
@@ -749,59 +797,7 @@ class _HomePageState extends ConsumerState<HomePage>
                 _openTodo(todo);
               }
             },
-            onTimeSlotTapped: (range) {
-              CalendarSlotSheet.show(
-                context: context,
-                range: range,
-                onCreateEvent: () {
-                  context.push(
-                    '/event/new?start=${range.start.millisecondsSinceEpoch}'
-                    '&end=${range.end.millisecondsSinceEpoch}',
-                  );
-                },
-                loadSchedulableTodos: () =>
-                    ref.read(databaseProvider).todosDao.getSchedulableTodos(),
-                onCreateTodoHere: () => context.push(
-                  '/todo/new?start=${range.start.millisecondsSinceEpoch}'
-                  '&end=${range.end.millisecondsSinceEpoch}',
-                ),
-                onScheduleTodo: (todo, [occurrenceId]) async {
-                  try {
-                    await ref.read(createTaskAllocationProvider)(
-                      todoId: todo.id,
-                      startAt: range.start,
-                      endAt: range.end,
-                      occurrenceId: occurrenceId,
-                    );
-                    ref.invalidate(
-                      taskAllocationsInDateRangeProvider(rangeKey),
-                    );
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            AppLocalizations.of(
-                              context,
-                            )!.scheduledTodoSuccess(todo.summary),
-                          ),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    debugPrint('calendar: schedule todo failed: $e');
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            AppLocalizations.of(context)!.schedulingFailed,
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                },
-              );
-            },
+            onTimeSlotTapped: _openCalendarSlot,
             onEventChanged: (event) async {
               await ref.read(updateEventProvider)(
                 event.drifId,
@@ -823,6 +819,75 @@ class _HomePageState extends ConsumerState<HomePage>
           );
         },
       ),
+    );
+  }
+
+
+  void _openCalendarSlot(DateTimeRange range) {
+    CalendarSlotSheet.show(
+      context: context,
+      range: range,
+      onCreateEvent: () {
+        context.push(
+          '/event/new?start=${range.start.millisecondsSinceEpoch}'
+          '&end=${range.end.millisecondsSinceEpoch}',
+        );
+      },
+      loadSchedulableTodos: () =>
+          ref.read(databaseProvider).todosDao.getSchedulableTodos(),
+      onCreateTodoHere: () => context.push(
+        '/todo/new?start=${range.start.millisecondsSinceEpoch}'
+        '&end=${range.end.millisecondsSinceEpoch}',
+      ),
+      onScheduleTodo: (todo, [occurrenceId]) async {
+        try {
+          await ref.read(createTaskAllocationProvider)(
+            todoId: todo.id,
+            startAt: range.start,
+            endAt: range.end,
+            occurrenceId: occurrenceId,
+          );
+          ref.invalidate(
+            taskAllocationsInDateRangeProvider(
+              '${DateTime(range.start.year, range.start.month, range.start.day).millisecondsSinceEpoch}-'
+              '${DateTime(range.start.year, range.start.month, range.start.day + 1).millisecondsSinceEpoch}',
+            ),
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.scheduledTodoSuccess(todo.summary),
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('calendar: schedule todo failed: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  AppLocalizations.of(context)!.schedulingFailed,
+                ),
+              ),
+            );
+          }
+        }
+      },
+    );
+  }
+
+  void _openCalendarCreate() {
+    final now = _now();
+    final browse = ref.read(browseDateProvider);
+    final start = isSameDay(browse, now)
+        ? DateTime(now.year, now.month, now.day, now.hour + 1)
+        : DateTime(browse.year, browse.month, browse.day, 9);
+    _openCalendarSlot(
+      DateTimeRange(start: start, end: start.add(const Duration(hours: 1))),
     );
   }
 
@@ -864,7 +929,7 @@ class _HomePageState extends ConsumerState<HomePage>
         ref.watch(unplannedTodosProvider).valueOrNull ?? const <Todo>[],
       TodosAllView() =>
         ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[],
-      TodosDayView(:final day) => _dayTodos(day).cast<Todo>(),
+      TodosDayView() => _dayTodos(ref.watch(browseDateProvider)).cast<Todo>(),
     };
     return todos
         .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
@@ -880,19 +945,9 @@ class _HomePageState extends ConsumerState<HomePage>
         .length;
   }
 
-  List<Todo> _dayTodos(DateTime day) {
-    final all = ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[];
-    final target = DateTime(day.year, day.month, day.day);
-    return all.where((todo) {
-      if (todo.dueDate == null) return false;
-      final due = DateTime(
-        todo.dueDate!.year,
-        todo.dueDate!.month,
-        todo.dueDate!.day,
-      );
-      return due == target;
-    }).toList();
-  }
+  List<Todo> _dayTodos(DateTime day) =>
+      ref.watch(projectedDayTodosProvider(dayOf(day))).valueOrNull ??
+      const <Todo>[];
 
   (int, int) _backlogCounts(TodosView view) {
     final tagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
@@ -907,16 +962,10 @@ class _HomePageState extends ConsumerState<HomePage>
     final all = ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[];
     final Iterable<Todo> base;
     if (view is TodosDayView) {
-      final day = DateTime(view.day.year, view.day.month, view.day.day);
-      base = all.where((t) {
-        if (t.dueDate == null) return false;
-        final due = DateTime(
-          t.dueDate!.year,
-          t.dueDate!.month,
-          t.dueDate!.day,
-        );
-        return due == day || (day == today && due.isBefore(today));
-      });
+      final day = dayOf(ref.watch(browseDateProvider));
+      base =
+          ref.watch(projectedDayTodosProvider(day)).valueOrNull ??
+          const <Todo>[];
     } else if (view is TodosInboxView) {
       base =
           ref.watch(unplannedTodosProvider).valueOrNull ?? const <Todo>[];
@@ -933,11 +982,47 @@ class _HomePageState extends ConsumerState<HomePage>
     return (pending.length, overdue);
   }
 
+  Widget _arrangeToDayBar(BuildContext context, AppLocalizations l) {
+    final browse = ref.watch(browseDateProvider);
+    final locale = Localizations.localeOf(context).toString();
+    final label = l.arrangeToDay(
+      '${DateFormat.MMMd(locale).format(browse)} '
+      '${DateFormat.E(locale).format(browse)}',
+    );
+    return Container(
+      decoration: BoxDecoration(
+        color: context.ds.surface,
+        border: Border(top: BorderSide(color: context.ds.line)),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s4,
+        vertical: AppSpacing.s2,
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          child: DsButton(
+            key: const ValueKey('arrange-to-day'),
+            label: label,
+            tone: DsButtonTone.secondary,
+            icon: CupertinoIcons.calendar_badge_plus,
+            onPressed: () => showTodoQuickCreateSheet(
+              context,
+              contextDate: browse,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTodoArea(
     WorkspaceSelection? selection,
     double width,
     bool desktop,
   ) {
+    final l = AppLocalizations.of(context)!;
     final view = ref.watch(todosViewProvider);
     final filters = _filterButton(context);
     final dueDays = <DateTime>{
@@ -983,9 +1068,17 @@ class _HomePageState extends ConsumerState<HomePage>
                 ref.read(todosViewProvider.notifier).state = next,
             trailing: [filters],
           ),
-        if (!twoColumn)
-          TodoQuickAdd(dueDate: view is TodosDayView ? view.day : null),
         Expanded(child: _buildTodoList(view, selection)),
+        if (!twoColumn)
+          view is TodosDayView
+              ? _arrangeToDayBar(context, l)
+              : Container(
+                  decoration: BoxDecoration(
+                    color: context.ds.surface,
+                    border: Border(top: BorderSide(color: context.ds.line)),
+                  ),
+                  child: const TodoQuickAdd(),
+                ),
       ],
     );
 
@@ -1160,7 +1253,8 @@ class _HomePageState extends ConsumerState<HomePage>
       compact: true,
       onPressed: () => showTodoQuickCreateSheet(
         context,
-        dueDate: view is TodosDayView ? view.day : null,
+        contextDate:
+            view is TodosDayView ? ref.read(browseDateProvider) : null,
       ),
     );
   }
@@ -1477,8 +1571,8 @@ class _HomePageState extends ConsumerState<HomePage>
       }
       slivers.addAll(completedSlivers(completed));
     } else {
-      final day = (view as TodosDayView).day;
-      final async = ref.watch(allTodosProvider);
+      final day = dayOf(ref.watch(browseDateProvider));
+      final async = ref.watch(projectedDayTodosProvider(day));
       if (async.isLoading && !async.hasValue) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -1490,15 +1584,10 @@ class _HomePageState extends ConsumerState<HomePage>
           in (async.valueOrNull ?? const <Todo>[])
               .where(active)
               .where(visible)) {
-        if (todo.dueDate == null) continue;
-        final when = DateTime(
-          todo.dueDate!.year,
-          todo.dueDate!.month,
-          todo.dueDate!.day,
-        );
-        if (day == today && when.isBefore(today)) {
+        final when = todo.dueDate == null ? null : dayOf(todo.dueDate!);
+        if (day == today && when != null && when.isBefore(today)) {
           overdue.add(todo);
-        } else if (when == DateTime(day.year, day.month, day.day)) {
+        } else {
           due.add(todo);
         }
       }
@@ -1591,7 +1680,8 @@ class _HomePageState extends ConsumerState<HomePage>
         icon: CupertinoIcons.add,
         onPressed: () => showTodoQuickCreateSheet(
           context,
-          dueDate: view is TodosDayView ? view.day : null,
+          contextDate:
+              view is TodosDayView ? ref.read(browseDateProvider) : null,
         ),
       ),
     );
@@ -1600,7 +1690,7 @@ class _HomePageState extends ConsumerState<HomePage>
   // ---------------------------------------------------------------- create
 
   void _openNewEvent(BuildContext context) {
-    final viewed = ref.read(viewedDateProvider);
+    final viewed = ref.read(browseDateProvider);
     final now = DateTime.now();
     final isToday =
         viewed.year == now.year &&

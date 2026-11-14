@@ -10,10 +10,12 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/c_day_timeline.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark/ui/widgets/todo/todo_quick_add.dart';
 import 'package:dayspark/ui/widgets/todo/todo_quick_create_sheet.dart';
 
 /// Today answers one question: what does the day actually look like.
@@ -80,9 +82,35 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
         final now = widget.now ?? DateTime.now();
         final day = widget.date ?? now;
         final model = _Model.build(data, day, now, l);
+        final unplanned =
+            ref.watch(unplannedTodosProvider).valueOrNull ?? const <Todo>[];
+        // The Today panel previews captured work with no date and no plan;
+        // a dated Todo already has a home on its own day.
+        final preview = unplanned
+            .where((todo) => todo.dueDate == null)
+            .take(3)
+            .toList();
         return desktop
-            ? _desktop(context, l, data, model, day, now)
-            : _mobile(context, l, data, model, day, now);
+            ? _desktop(
+                context,
+                l,
+                data,
+                model,
+                day,
+                now,
+                preview,
+                data.unplannedCount,
+              )
+            : _mobile(
+                context,
+                l,
+                data,
+                model,
+                day,
+                now,
+                preview,
+                data.unplannedCount,
+              );
       },
     );
   }
@@ -94,6 +122,8 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     _Model model,
     DateTime day,
     DateTime now,
+    List<Todo> unplanned,
+    int unplannedCount,
   ) {
     final ds = context.ds;
     final panelWidth = widget.detail != null ? 388.0 : 356.0;
@@ -154,9 +184,11 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
                               onToggle: _complete,
                               onAdd: () => showTodoQuickCreateSheet(
                                 context,
-                                dueDate: day,
+                                contextDate: day,
                               ),
                               onShowAll: widget.onNavigateToUnplanned,
+                              unplanned: unplanned,
+                              unplannedCount: unplannedCount,
                               nextGap: _nextGap(model, now),
                             ),
                       ),
@@ -178,6 +210,8 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
     _Model model,
     DateTime day,
     DateTime now,
+    List<Todo> unplanned,
+    int unplannedCount,
   ) {
     final ds = context.ds;
     // An empty day still drew the whole 07:00-22:00 grid, which is most of a
@@ -197,6 +231,9 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
         model: model,
         onTap: widget.onTodoTap,
         onToggle: _complete,
+        unplanned: unplanned,
+        unplannedCount: unplannedCount,
+        onShowAll: widget.onNavigateToUnplanned,
       ),
     );
     return Column(
@@ -242,6 +279,13 @@ class _ActionSectionState extends ConsumerState<ActionSection> {
             ),
           ),
         if (emptyDay) Expanded(child: sheet) else sheet,
+        Container(
+          decoration: BoxDecoration(
+            color: ds.surface,
+            border: Border(top: BorderSide(color: ds.line)),
+          ),
+          child: SafeArea(top: false, child: const TodoQuickAdd()),
+        ),
       ],
     );
   }
@@ -472,6 +516,8 @@ class _TodayPanel extends StatelessWidget {
     required this.onToggle,
     required this.onAdd,
     required this.onShowAll,
+    required this.unplanned,
+    required this.unplannedCount,
     required this.nextGap,
   });
 
@@ -481,6 +527,8 @@ class _TodayPanel extends StatelessWidget {
   final Future<void> Function(Todo todo, {String? occurrenceId}) onToggle;
   final VoidCallback onAdd;
   final VoidCallback? onShowAll;
+  final List<Todo> unplanned;
+  final int unplannedCount;
   final _GapInfo? nextGap;
 
   @override
@@ -555,6 +603,33 @@ class _TodayPanel extends StatelessWidget {
           label: l.quickAddTodo,
           onTap: onAdd,
         ),
+        if (unplannedCount > 0) ...[
+          const SizedBox(height: AppSpacing.s4),
+          Row(
+            children: [
+              Text(
+                l.todayUnplanned(unplannedCount),
+                style: AppTypography.small.copyWith(color: ds.ink3),
+              ),
+              const Spacer(),
+              if (onShowAll != null)
+                TextButton(
+                  onPressed: onShowAll,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(44, 32),
+                    foregroundColor: ds.primary,
+                    textStyle: AppTypography.small,
+                  ),
+                  child: Text(l.viewAll),
+                ),
+            ],
+          ),
+          for (final todo in unplanned)
+            _UnplannedRow(
+              todo: todo,
+              onTap: () => onTodoTap?.call(todo),
+            ),
+        ],
         const SizedBox(height: AppSpacing.s5),
         Container(height: 1, color: ds.lineSoft),
         const SizedBox(height: AppSpacing.s3),
@@ -603,6 +678,46 @@ class _TodayPanel extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _UnplannedRow extends StatelessWidget {
+  const _UnplannedRow({required this.todo, required this.onTap});
+
+  final Todo todo;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 40,
+        child: Row(
+          children: [
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                color: ds.ink3,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.s2 + 2),
+            Expanded(
+              child: Text(
+                todo.summary,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.small.copyWith(color: ds.ink2),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -781,12 +896,18 @@ class _MobileSheet extends StatelessWidget {
     required this.model,
     required this.onTap,
     required this.onToggle,
+    required this.unplanned,
+    required this.unplannedCount,
+    required this.onShowAll,
   });
 
   final AppLocalizations l;
   final _Model model;
   final void Function(Todo todo)? onTap;
   final Future<void> Function(Todo todo, {String? occurrenceId}) onToggle;
+  final List<Todo> unplanned;
+  final int unplannedCount;
+  final VoidCallback? onShowAll;
 
   @override
   Widget build(BuildContext context) {
@@ -861,6 +982,37 @@ class _MobileSheet extends StatelessWidget {
               style: AppTypography.small.copyWith(color: ds.ink3),
             ),
           ),
+        if (unplannedCount > 0) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s4,
+              AppSpacing.s2,
+              AppSpacing.s4,
+              0,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  l.todayUnplanned(unplannedCount),
+                  style: AppTypography.small.copyWith(color: ds.ink3),
+                ),
+                const Spacer(),
+                if (onShowAll != null)
+                  TextButton(
+                    onPressed: onShowAll,
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 32),
+                      foregroundColor: ds.primary,
+                      textStyle: AppTypography.small,
+                    ),
+                    child: Text(l.viewAll),
+                  ),
+              ],
+            ),
+          ),
+          for (final todo in unplanned)
+            _UnplannedRow(todo: todo, onTap: () => onTap?.call(todo)),
+        ],
         // The header counts every open item, so the list has to be able to
         // show them: stopping at three told the reader "4 left" and then hid
         // the fourth with no way to reach it.
@@ -991,6 +1143,9 @@ class _Model {
     }
 
     final rows = <_PanelRowData>[];
+    final allocatedTodoIds = {
+      for (final item in dayAllocations) item.todo.id,
+    };
     final today = DateTime(now.year, now.month, now.day);
     String dueLabelFor(Todo todo) {
       final due = todo.dueDate?.toLocal();
@@ -1009,6 +1164,7 @@ class _Model {
     }
 
     for (final todo in data.overdueTodos) {
+      if (allocatedTodoIds.contains(todo.id)) continue;
       final due = todo.dueDate?.toLocal();
       final days = due == null
           ? 0
@@ -1023,6 +1179,7 @@ class _Model {
       );
     }
     for (final todo in data.dueTodayTodos) {
+      if (allocatedTodoIds.contains(todo.id)) continue;
       if (rows.any((r) => r.todo.id == todo.id)) continue;
       rows.add(
         _PanelRowData(todo: todo, overdue: false, dueLabel: dueLabelFor(todo)),

@@ -572,6 +572,8 @@ Today additionally shows **Now / Upcoming / Overdue**. Those three never appear 
 
 A Todo that is both due that date and planned that date appears **once** in the App: the allocation is the primary row, the deadline is secondary metadata. This is a UI/projection rule; the domain keeps both fields. Widget dedupe is out of scope.
 
+Today's **未安排** group previews only captured items with no `dueDate` (up to three). Its count keeps the allocation-based definition from §3.2; a dated unplanned item already has a home on its own date and does not appear in Today.
+
 ### 15.3 Routes and deep links
 
 - Today: always the real today.
