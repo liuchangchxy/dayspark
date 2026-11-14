@@ -9,7 +9,6 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../db.dart';
 import '../sync/idempotency.dart';
-import '../sync/lww.dart';
 
 // Shared per-op write path for every internal mutation: the HTTP push route
 // and the MCP/AI writer both land here so there is exactly one implementation

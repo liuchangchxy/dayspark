@@ -31,6 +31,7 @@
 
 - [x] 官方证据核查（逐条附 URL，见 `docs/cloud-sync-providers.md`）：**夸克判定 UNAVAILABLE**（`open.quark.cn` 是小程序平台、`pan.quark.cn/developer` 302 回消费端，无第三方文件 API）；百度 GATED（个人实名 + 应用上线审核，审核期 10 人上限、个人 1 个应用，OAuth 无 PKCE 且 refresh_token 一次性）；115 GATED（入驻 + 应用审核各约 7 工作日）；Google Drive / OneDrive / Dropbox 技术可用但需先注册应用拿 client ID；条件写只有 OneDrive（`If-Match`→412）、Dropbox（`rev`）、WebDAV 原生有。
 - [ ] **未实现，任务未完成**：卡点在账号侧而非代码侧——「普通用户不得填写 Client ID」要求 client ID 随包内置，必须由账号持有人注册并承担审核；「两真机 + 六 Provider 真实账号 E2E」在无账号环境无法执行。可先推进的不依赖账号部分已列入 `docs/ROADMAP.md` Phase P6 与 `docs/cloud-sync-providers.md` §5。
+- [x] 不依赖账号的部分已落地：`lww.dart` 规则提到 `dayspark_contracts`（服务端改为再导出）；Provider 无关的云文件同步核心（单文档 `dayspark.cloud.v1`、字段级 LWW + tombstone 仲裁、条件写、412 重读重合并、经 `SyncApplier` 落库、首轮/换源全量登记）；WebDAV 后端（`If-Match` / `If-None-Match`，无 ETag 即拒绝）；设置页「同步来源」选择与换源迁移；自托管与云盘互斥（同一时刻只有一个活动同步源）。测试 `test/domain/sync/cloud/` 28 例。
 
 
 **用户反馈原文 / User feedback:** 「在现有 Widget / Journey 与最终人工 / Agent GUI 验收之间，补回一个轻量、现役、可运行的真实 App 自动交互层，并把现有测试明确分成 fast / ui / full 三档。」

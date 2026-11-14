@@ -100,7 +100,7 @@ Flutter + Dart | Drift (SQLite) | Riverpod | go_router | kalender | lunar (solar
 | Routing | `lib/core/router/app_router.dart` | go_router 扁平路由 |
 | Theme | `lib/core/theme/` | `AppTheme.light(seedColor:)` / `AppTheme.dark(seedColor:)` |
 | l10n | `lib/l10n/app_en.arb` + `app_zh.arb` | 中英双语同步，改后 `flutter gen-l10n` |
-| Sync engine | `lib/domain/sync/` | outbox + applier + SyncEngine + SSE（P2） |
+| Sync engine | `lib/domain/sync/` | outbox + applier + SyncEngine + SSE（P2）；`cloud/` = 云盘同步核心（单文档合并 + 条件写，Provider 只实现 `CloudSyncBackend`） |
 | Records seam | `lib/domain/records/` | 单写入口 `RecordScope.run`（写入即登记、提交后发布）+ `writers/` 是记录行的唯一写点 + 消费端（重排器 / 组件刷新）；守卫 `test/architecture/record_seam_guard_test.dart` |
 | Server | `server/` | Dart shelf 同步后端（auth/JWT、push/pull/SSE、drift/SQLite、Docker）+ MCP 端点（`POST /mcp` 18 工具 + 3 资源）与 OAuth 2.1 授权服务器 |
 | Contracts | `packages/dayspark_contracts/` | 客户端/服务端共享协议 DTO（SSOT） |

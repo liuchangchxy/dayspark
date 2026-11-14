@@ -520,6 +520,13 @@
 - Linux 的 `shareXFiles()` 与旧 Windows 会抛 `UnimplementedError`：UI 捕获后提示「附件已保存」。此时文件确实在应用文档目录的 `attachments/` 下（native 侧 `localFiles=true` 本来就落盘），只是没有系统分享面板可弹
 - **Date**: 2026-10-21
 
+### 云盘同步是「单文档 + 条件写」，禁止整库覆盖（2026-11-14）
+- 云盘路径只有一份 `dayspark.cloud.v1` 文档，客户端本地合并后再写回；**合并规则必须用 `dayspark_contracts` 里的 `mergeFields` / `decideTombstoneVsUpsert`**，禁止在云盘侧另写一套（服务端 `lww.dart` 现在就是再导出，两处只有一份实现）。
+- 写时间 = `max(墙钟, 文档 mergedAt + 1s)`（`nextCloudWriteTime`）。云盘没有服务端授时，等价物是「这次成功写入的时间」；不加下界的话，412 重读后重合并可能拿到与 tombstone 同秒的时间，仲裁结果就取决于 opId 而非因果顺序。
+- 条件写是硬要求：`If-Match: <ETag>`，文档不存在时用 `If-None-Match: *`。服务端不暴露 ETag 就**报错停止**，不要退化成盲写——盲写等于两台设备互相覆盖，正是任务明令禁止的「整个 SQLite 文件互相覆盖」的等价物。
+- 同一时刻只能有一个活动同步源（`CloudSyncSource`）。切换来源要清 cursor / snapshots / ETag（`CloudSourceSwitch`），且首轮必须**全量登记包括已有 syncId 的行**——只登记 `syncId IS NULL` 会让换目标后一条数据都发不出去。
+- **Date**: 2026-11-14
+
 ## MCP / AI 接口
 
 ### MCP 协议壳不要换官方 SDK（2026-09-24 实测）

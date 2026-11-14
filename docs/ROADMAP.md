@@ -704,7 +704,7 @@
 
 > 目标：普通用户不依赖官方同步服务器，登录自己的云盘后多设备自动同步全部业务数据。六个一等 Provider（百度 / 夸克 / 115 / Google Drive / OneDrive / Dropbox）+ WebDAV + 自托管 Server，共用同一 Sync Core，只用官方 OAuth / 官方 API。
 >
-> **状态：未开工。** 卡点在账号侧，不在代码侧：除 WebDAV 外每个 Provider 都必须先注册应用并拿到 client ID，而「普通用户不得填写 Client ID」意味着 client ID 必须随包内置、由账号持有人注册并承担审核。「两真机 + 真实账号 E2E」同样无法在无账号环境完成。逐条官方证据与人工待办见 **`docs/cloud-sync-providers.md`**。
+> **状态：Provider 无关的核心已落地（2026-11-14），六个托管云盘的接入仍 BLOCKED。** 已交付：共享 LWW 规则（`dayspark_contracts`）、单文档云同步核心（读→合并→条件写→412 重试→`SyncApplier`）、WebDAV 后端、设置页「同步来源」选择与换源迁移、单一活动同步源约束；测试见 `test/domain/sync/cloud/`。托管云盘的卡点在账号侧，不在代码侧：除 WebDAV 外每个 Provider 都必须先注册应用并拿到 client ID，而「普通用户不得填写 Client ID」意味着 client ID 必须随包内置、由账号持有人注册并承担审核。「两真机 + 真实账号 E2E」同样无法在无账号环境完成。逐条官方证据与人工待办见 **`docs/cloud-sync-providers.md`**。
 
 | 项 | 结论 |
 |---|---|
@@ -712,7 +712,8 @@
 | 百度网盘 | 需个人实名 + 应用上线审核（审核期 10 人上限，个人名下 1 个应用）；OAuth 无 PKCE，refresh_token 一次性 |
 | 115 | 需入驻审核 + 应用审核，各约 7 工作日 |
 | Google Drive / OneDrive / Dropbox | 技术面可用；Dropbox / OneDrive / WebDAV 有条件写（`rev` / `If-Match`），Google 无 `If-Match`，需文件内自带版本字段 |
-| 可先做（不依赖账号） | 把 `lww.dart` 规则提到 `dayspark_contracts` 共用；Provider 无关的「云文件同步核心」（outbox → 读远程状态 → 客户端合并 → 条件写 → 412 重试 → `SyncApplier`）；WebDAV 端到端验证；Provider 选择与「唯一活动同步源」迁移 |
+| 已可端到端验证 | WebDAV：`WebDavBackend` + 本地 DAV 假服务器测试（占位/越权写/无 ETag 拒绝） |
+| 下一步（仍需账号） | 六个 Provider 的 OAuth 适配器（PKCE + 自定义 scheme 回调）；服务端专属业务规则在云盘路径的等价实现；两真机真实账号 E2E |
 
 ---
 

@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/attachments_provider.dart';
 import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/sync/foreground_sync_poller.dart';
+import 'package:dayspark/domain/sync/cloud/cloud_sync_settings.dart';
 import 'package:dayspark/domain/sync/sse_listener.dart';
 import 'package:dayspark/domain/sync/sync_api_client.dart';
 import 'package:dayspark/domain/sync/sync_config.dart';
@@ -47,6 +48,11 @@ final syncTokenStoreProvider = Provider<SyncTokenStore>((ref) {
 final syncEngineProvider = Provider<SyncEngine?>((ref) {
   final settings = ref.watch(syncSettingsProvider).valueOrNull;
   if (settings == null || settings.baseUrl == null) return null;
+  // Exactly one transport per device: a chosen cloud-drive source owns the
+  // data, and two transports pushing the same rows would each see the other's
+  // writes as remote truth.
+  final source = PrefsCloudSyncSourceStore(settings.prefs).read();
+  if (source != null && source != CloudSyncSource.daysparkServer) return null;
   final db = ref.watch(databaseProvider);
   final tokens = ref.watch(syncTokenStoreProvider);
   final client = AuthSyncApiClient(

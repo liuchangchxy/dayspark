@@ -1098,6 +1098,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncNow => '立即同步';
 
   @override
+  String get syncSource => '同步来源';
+
+  @override
+  String get syncSourceServer => 'DaySpark 服务器';
+
+  @override
+  String get syncSourceWebDav => 'WebDAV';
+
+  @override
+  String get syncSourceUnset => '未配置';
+
+  @override
+  String get webDavAddress => 'WebDAV 地址';
+
+  @override
+  String get webDavDocumentPath => '文件路径';
+
+  @override
+  String get webDavUsername => '用户名（可留空）';
+
+  @override
+  String get webDavHelp => '数据以单个文档存放在你自己的网盘里，只有在文档与上次读取一致时才会写入。';
+
+  @override
+  String get cloudSyncUnavailable => '百度、夸克、115、Google Drive、OneDrive、Dropbox 需要先在对应平台注册应用才能选择。';
+
+  @override
   String get syncTooltip => '同步';
 
   @override

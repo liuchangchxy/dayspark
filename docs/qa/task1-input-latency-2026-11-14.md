@@ -137,3 +137,42 @@ The reviewer's remaining observations are recorded as follow-ups rather than
 silently dropped: `updateHomeWidgetProvider` and the scheduler can still call
 `updateWidget` concurrently (pre-existing; completion is idempotent via
 `alreadyApplied`), and `consumeWidgetCommands` has no mutual exclusion.
+
+## Device run, 2026-11-14 (release APK, API 35 emulator)
+
+The earlier round could not reach a device at all. This run used the CI-built
+release APK (`0.31.0+31`, AOT, no `kernel_blob.bin`) on the `dayspark35` AVD
+(1080x2400, density 420, headless swiftshader), installed clean after
+uninstalling the older debug build.
+
+Method: open Tasks, focus the inline quick add, then 30 consecutive
+`input text` + `input keyevent 66` (Enter) pairs, timing each add on-device
+with `date +%s%N`.
+
+| Adds | Mean per-add wall time | Range |
+|---|---|---|
+| 2–10 | 283 ms | 262–359 ms |
+| 11–20 | 279 ms | 243–310 ms |
+| 21–30 | not timed (loop without timers) | — |
+
+All 30 rows landed, the field cleared after every submit, focus stayed in the
+field and the counter read 30 afterwards. No upward trend across the run.
+
+Limits of this evidence, stated plainly:
+
+- The add-to-clear round trip includes the `input` shell process (~200 ms on
+  this image), so the numbers bound app-side work rather than measure frames.
+- `dumpsys gfxinfo` is useless here: Flutter draws on its own surface, so the
+  HWUI counters read 0 frames. The engine's own `EGL_emulation app_time_stats`
+  sat at ~500 ms/frame for the whole session — that is the headless software
+  renderer, not the app, and it is also why this run cannot resolve
+  single-digit-millisecond jank.
+- Voice input was not exercised: this AVD has no working speech recogniser,
+  and there is no physical device attached to this machine.
+- Release builds do not expose a populated accessibility tree, so
+  `uiautomator dump` returned no text nodes and no UI-level assertion was
+  possible.
+
+So: continuous creation is confirmed working past 20 items on a real Android
+runtime with flat input cost, but the 20-by-voice-input acceptance and any
+fine-grained frame measurement remain open, and must be re-run on hardware.

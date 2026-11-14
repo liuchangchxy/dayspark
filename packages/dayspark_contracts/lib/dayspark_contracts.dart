@@ -1,6 +1,12 @@
 export 'src/attachment_api.dart' show AttachmentUploadResponse;
 export 'src/device_dto.dart' show DeviceDto, DeviceListResponse;
 export 'src/errors.dart';
+export 'src/lww.dart'
+    show
+        TombstoneUpsertDecision,
+        decideTombstoneVsUpsert,
+        mergeFields,
+        truncateToSecond;
 export 'src/record_dto.dart'
     show
         RecordType,
