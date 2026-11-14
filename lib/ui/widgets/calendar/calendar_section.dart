@@ -9,7 +9,6 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
-import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
@@ -64,7 +63,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   CalendarViewMode get _mode => ref.watch(calendarViewModeProvider);
 
   DateTime get _anchor {
-    final viewed = ref.watch(browseDateProvider);
+    final viewed = ref.watch(viewedDateProvider);
     return DateTime(viewed.year, viewed.month, viewed.day);
   }
 
@@ -75,7 +74,7 @@ class _CalendarSectionState extends ConsumerState<CalendarSection> {
   void _setAnchor(DateTime next) {
     final date = calDayOf(next);
     if (date == _anchor) return;
-    ref.read(browseDateProvider.notifier).state = date;
+    ref.read(viewedDateProvider.notifier).state = date;
     widget.onAnchorChanged?.call(date);
   }
 

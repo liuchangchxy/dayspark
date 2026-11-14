@@ -7,7 +7,9 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
 /// The always-present "just add it" line.
 ///
@@ -16,7 +18,9 @@ import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 /// mobile one is a hairline row, which is how the prototype keeps the list
 /// from looking like a stack of cards.
 class TodoQuickAdd extends ConsumerStatefulWidget {
-  const TodoQuickAdd({super.key});
+  const TodoQuickAdd({super.key, this.dueDate});
+
+  final DateTime? dueDate;
 
   @override
   ConsumerState<TodoQuickAdd> createState() => _TodoQuickAddState();
@@ -50,6 +54,7 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
         summary: text,
         priority: 0,
         status: 'NEEDS-ACTION',
+        dueDate: widget.dueDate,
       );
     } on Object catch (error) {
       debugPrint('todo_quick_add: create failed: $error');
@@ -98,10 +103,29 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
       ],
     );
 
+    final dueChip = widget.dueDate == null
+        ? null
+        : DsChip(
+            compact: true,
+            label: l.deadlinePrefix(formatDeadline(context, widget.dueDate!)),
+            leading: Icon(CupertinoIcons.flag, size: 12, color: ds.warn),
+            warm: true,
+          );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (desktop) ...[
+          if (dueChip != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s5,
+                AppSpacing.s2,
+                AppSpacing.s5,
+                AppSpacing.s1,
+              ),
+              child: Align(alignment: Alignment.centerLeft, child: dueChip),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.s5,
@@ -128,6 +152,10 @@ class _TodoQuickAddState extends ConsumerState<TodoQuickAdd> {
             child: Row(
               children: [
                 Expanded(child: field),
+                if (dueChip != null) ...[
+                  const SizedBox(width: AppSpacing.s2),
+                  dueChip,
+                ],
               ],
             ),
           ),

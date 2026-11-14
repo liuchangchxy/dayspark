@@ -20,7 +20,9 @@ import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
 class QuickAddPage extends ConsumerStatefulWidget {
-  const QuickAddPage({super.key});
+  const QuickAddPage({super.key, this.dueDate});
+
+  final DateTime? dueDate;
 
   @override
   ConsumerState<QuickAddPage> createState() => _QuickAddPageState();
@@ -107,7 +109,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
       final start = _pickedStart ?? draft.start;
       final dueDate =
           start == null
-          ? draft.date
+          ? (draft.date ?? widget.dueDate)
           : DateTime(start.year, start.month, start.day);
       final summary = draft.title.isEmpty ? text : draft.title;
       final id = await ref.read(createTodoProvider)(
@@ -1010,7 +1012,10 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     DateTime? day,
     _QuickAddDraft draft,
   ) {
-    if (day == null) return l.noDueDate;
+    final fallback = widget.dueDate;
+    if (day == null) {
+      return fallback == null ? l.noDueDate : formatDeadline(context, fallback);
+    }
     final locale = Localizations.localeOf(context).toString();
     return '${DateFormat.MMMd(locale).format(day)} '
         '${DateFormat.E(locale).format(day)}';

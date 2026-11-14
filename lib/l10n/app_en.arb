@@ -982,19 +982,5 @@
     }
   },
   "calendarTags": "Calendar & tags",
-  "other": "Other",
-  "savedAppearsIn": "Appears in: {target}",
-  "@savedAppearsIn": {
-    "placeholders": {
-      "target": {"type": "String"}
-    }
-  },
-  "arrangeToDay": "Schedule for {date}",
-  "@arrangeToDay": {
-    "placeholders": {
-      "date": {"type": "String"}
-    }
-  },
-  "todayUnplanned": "Unplanned · {count}",
-  "viewAll": "All"
+  "other": "Other"
 }

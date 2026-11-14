@@ -754,19 +754,5 @@
   "filterCountLabel": "{count} 项筛选",
   "todoAllContext": "共 {count} 项未完成",
   "calendarTags": "日历与标签",
-  "other": "其他",
-  "savedAppearsIn": "保存后出现在：{target}",
-  "@savedAppearsIn": {
-    "placeholders": {
-      "target": {"type": "String"}
-    }
-  },
-  "arrangeToDay": "安排到 {date}",
-  "@arrangeToDay": {
-    "placeholders": {
-      "date": {"type": "String"}
-    }
-  },
-  "todayUnplanned": "未安排 · {count}",
-  "viewAll": "全部"
+  "other": "其他"
 }

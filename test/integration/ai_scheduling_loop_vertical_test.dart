@@ -6,7 +6,6 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/ai_scheduler_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
@@ -20,7 +19,6 @@ void main() {
   late AppDatabase db;
   late ProviderContainer container;
   late int calendarId;
-  late DateTime clockNow;
 
   setUpAll(tzdata.initializeTimeZones);
 
@@ -33,11 +31,9 @@ void main() {
             color: const Value('#2196F3'),
           ),
         );
-    clockNow = DateTime.now();
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
-        clockNowProvider.overrideWithValue(() => clockNow),
       ],
     );
   });
@@ -133,10 +129,7 @@ void main() {
     expect(mainTodo.dueDate!.toUtc(), due, reason: 'dueDate is zero-touch');
 
     // 6. Action and Calendar projections
-    // Action's day is derived from the pinned clock, so pin it to the target
-    // day instead of writing to a separate action-date provider.
-    clockNow = targetDay;
-    container.read(clockDayProvider.notifier).refresh();
+    container.read(actionDateProvider.notifier).state = targetDay;
     final rangeKey = '${rangeStart.millisecondsSinceEpoch}-${rangeEnd.millisecondsSinceEpoch}';
 
     final calSub = container.listen(taskAllocationsInDateRangeProvider(rangeKey), (_, __) {});
