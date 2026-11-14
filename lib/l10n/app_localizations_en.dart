@@ -1943,22 +1943,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get other => 'Other';
-
-  @override
-  String savedAppearsIn(String target) {
-    return 'Appears in: $target';
-  }
-
-  @override
-  String arrangeToDay(String date) {
-    return 'Schedule for $date';
-  }
-
-  @override
-  String todayUnplanned(Object count) {
-    return 'Unplanned · $count';
-  }
-
-  @override
-  String get viewAll => 'All';
 }

@@ -11,14 +11,12 @@ import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
-import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/sync_client_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
-import 'package:dayspark/ui/widgets/schedule/month_year_picker.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
 /// The Direction C desktop shell: one 56px bar, always present.
@@ -63,12 +61,10 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
     final ds = context.ds;
     final l = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).toLanguageTag();
+    final viewed = ref.watch(viewedDateProvider);
     final tab = ref.watch(workspaceTabProvider);
-    final browsing = tab != AppTab.action;
-    final clock = widget.clock;
-    final now = clock != null ? clock() : ref.read(clockNowProvider)();
-    final viewed = browsing ? ref.watch(browseDateProvider) : dayOf(now);
     final calendarMode = ref.watch(calendarViewModeProvider);
+    final now = (widget.clock ?? DateTime.now)();
     final isToday = _sameDay(viewed, now);
 
     final segment = tab == AppTab.action
@@ -109,9 +105,9 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                   locale: locale,
                   isToday: isToday,
                   compact: narrow,
-                  onPrevious: browsing ? () => _shift(viewed, -1) : null,
-                  onNext: browsing ? () => _shift(viewed, 1) : null,
-                  onToday: browsing ? () => _goToday(now) : _pickBrowsedDay,
+                  onPrevious: () => _shift(viewed, -1),
+                  onNext: () => _shift(viewed, 1),
+                  onToday: () => _goToday(now),
                 ),
               ),
               if (roomy && isToday) ...[
@@ -172,23 +168,8 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
     );
   }
 
-  Future<void> _pickBrowsedDay() async {
-    final picked = await showMonthYearPicker(
-      context,
-      initial: dayOf(
-        widget.clock?.call() ?? ref.read(clockNowProvider)(),
-      ),
-      today: widget.clock?.call() ?? ref.read(clockNowProvider)(),
-    );
-    if (picked == null || !mounted) return;
-    ref.read(browseDateProvider.notifier).state = dayOf(picked);
-    ref.read(todosViewProvider.notifier).state = const TodosDayView();
-    ref.read(workspaceTabProvider.notifier).setTab(AppTab.todos);
-    _goTab(2);
-  }
-
   void _shift(DateTime viewed, int days) {
-    ref.read(browseDateProvider.notifier).state = DateTime(
+    ref.read(viewedDateProvider.notifier).state = DateTime(
       viewed.year,
       viewed.month,
       viewed.day + days,
@@ -196,7 +177,7 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
   }
 
   void _goToday(DateTime now) {
-    ref.read(browseDateProvider.notifier).state = DateTime(
+    ref.read(viewedDateProvider.notifier).state = DateTime(
       now.year,
       now.month,
       now.day,
@@ -297,8 +278,8 @@ class _DateNav extends StatelessWidget {
     required this.date,
     required this.locale,
     required this.isToday,
-    this.onPrevious,
-    this.onNext,
+    required this.onPrevious,
+    required this.onNext,
     required this.onToday,
     this.compact = false,
   });
@@ -306,8 +287,8 @@ class _DateNav extends StatelessWidget {
   final DateTime date;
   final String locale;
   final bool isToday;
-  final VoidCallback? onPrevious;
-  final VoidCallback? onNext;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
   final VoidCallback onToday;
   final bool compact;
 
@@ -323,13 +304,7 @@ class _DateNav extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (onPrevious != null)
-          _StepButton(
-            icon: CupertinoIcons.chevron_back,
-            onPressed: onPrevious!,
-          )
-        else
-          const SizedBox(width: 28),
+        _StepButton(icon: CupertinoIcons.chevron_back, onPressed: onPrevious),
         Flexible(
           child: Tooltip(
             message: AppLocalizations.of(context)!.today,
@@ -354,13 +329,7 @@ class _DateNav extends StatelessWidget {
             ),
           ),
         ),
-        if (onNext != null)
-          _StepButton(
-            icon: CupertinoIcons.chevron_forward,
-            onPressed: onNext!,
-          )
-        else
-          const SizedBox(width: 28),
+        _StepButton(icon: CupertinoIcons.chevron_forward, onPressed: onNext),
       ],
     );
   }

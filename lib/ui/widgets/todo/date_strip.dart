@@ -1,21 +1,17 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
-import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/widgets/schedule/day_strip.dart';
-import 'package:dayspark/ui/widgets/schedule/month_year_picker.dart';
 
 /// The Todo destination's own controls: which list, which day, what to hide.
 ///
 /// The three views are peers in one segmented control, so switching from a day
 /// to everything never feels like changing destination.
-class DateStrip extends ConsumerWidget {
+class DateStrip extends StatelessWidget {
   const DateStrip({
     super.key,
     required this.view,
@@ -30,11 +26,11 @@ class DateStrip extends ConsumerWidget {
   final Set<DateTime> dueDays;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final day = view is TodosDayView ? ref.watch(browseDateProvider) : null;
+    final day = view is TodosDayView ? (view as TodosDayView).day : null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -53,27 +49,9 @@ class DateStrip extends ConsumerWidget {
               // the end. A second line for a lone filter icon read as a stray
               // control rather than part of the same bar.
               final trailingRow = <Widget>[
-                IconButton(
-                  tooltip: l.calendar,
-                  visualDensity: VisualDensity.compact,
-                  icon: Icon(
-                    CupertinoIcons.calendar,
-                    size: 18,
-                    color: context.ds.ink2,
-                  ),
-                  onPressed: () async {
-                    final picked = await showMonthYearPicker(
-                      context,
-                      initial: ref.read(browseDateProvider),
-                      today: ref.read(clockNowProvider)(),
-                    );
-                    if (picked == null) return;
-                    _selectDay(ref, picked);
-                  },
-                ),
                 if (day == null)
                   TextButton(
-                    onPressed: () => _selectDay(ref, today),
+                    onPressed: () => onViewSelected(TodosDayView(today)),
                     style: TextButton.styleFrom(
                       minimumSize: const Size(44, 36),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -101,10 +79,7 @@ class DateStrip extends ConsumerWidget {
         if (day != null)
           DayStrip(
             selected: day,
-            onPick: (next) {
-              ref.read(browseDateProvider.notifier).state = dayOf(next);
-              if (view is! TodosDayView) onViewSelected(const TodosDayView());
-            },
+            onPick: (next) => onViewSelected(TodosDayView(next)),
             hasItems: (date) => dueDays.any((due) => _sameDay(due, date)),
           ),
       ],
@@ -146,17 +121,12 @@ class DateStrip extends ConsumerWidget {
             break;
           case 'date':
             if (view is! TodosDayView) {
-              onViewSelected(const TodosDayView());
+              onViewSelected(TodosDayView(day ?? today));
             }
             break;
         }
       },
     );
-  }
-
-  void _selectDay(WidgetRef ref, DateTime day) {
-    ref.read(browseDateProvider.notifier).state = dayOf(day);
-    if (view is! TodosDayView) onViewSelected(const TodosDayView());
   }
 
   static bool _sameDay(DateTime a, DateTime b) =>
@@ -168,7 +138,7 @@ class DateStrip extends ConsumerWidget {
 ///
 /// This is the two-column layout's header. The view names carry the title, so
 /// the card needs no separate heading line above them.
-class TodoBacklogHead extends ConsumerWidget {
+class TodoBacklogHead extends StatelessWidget {
   const TodoBacklogHead({
     super.key,
     required this.view,
@@ -187,10 +157,12 @@ class TodoBacklogHead extends ConsumerWidget {
   final Set<DateTime> dueDays;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final ds = context.ds;
-    final day = view is TodosDayView ? ref.watch(browseDateProvider) : null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = view is TodosDayView ? (view as TodosDayView).day : null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -230,7 +202,7 @@ class TodoBacklogHead extends ConsumerWidget {
                       break;
                     case 'date':
                       if (view is! TodosDayView) {
-                        onViewSelected(const TodosDayView());
+                        onViewSelected(TodosDayView(day ?? today));
                       }
                       break;
                   }
@@ -251,28 +223,6 @@ class TodoBacklogHead extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              IconButton(
-                key: const ValueKey('todo-month-picker'),
-                tooltip: l.calendar,
-                visualDensity: VisualDensity.compact,
-                icon: Icon(
-                  CupertinoIcons.calendar,
-                  size: 18,
-                  color: ds.ink2,
-                ),
-                onPressed: () async {
-                  final picked = await showMonthYearPicker(
-                    context,
-                    initial: ref.read(browseDateProvider),
-                    today: ref.read(clockNowProvider)(),
-                  );
-                  if (picked == null) return;
-                  ref.read(browseDateProvider.notifier).state = dayOf(picked);
-                  if (view is! TodosDayView) {
-                    onViewSelected(const TodosDayView());
-                  }
-                },
-              ),
               ...trailing,
             ],
           ),
@@ -280,10 +230,7 @@ class TodoBacklogHead extends ConsumerWidget {
         if (day != null)
           DayStrip(
             selected: day,
-            onPick: (next) {
-              ref.read(browseDateProvider.notifier).state = dayOf(next);
-              if (view is! TodosDayView) onViewSelected(const TodosDayView());
-            },
+            onPick: (next) => onViewSelected(TodosDayView(next)),
             hasItems: (date) => dueDays.any((due) => _sameDay(due, date)),
           ),
       ],

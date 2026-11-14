@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -41,7 +40,6 @@ void main() {
   late AppDatabase db;
   late ProviderContainer container;
   late int calendarId;
-  late DateTime clockNow;
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -53,12 +51,8 @@ void main() {
             color: const Value('#2196F3'),
           ),
         );
-    clockNow = DateTime.now();
     container = ProviderContainer(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        clockNowProvider.overrideWithValue(() => clockNow),
-      ],
+      overrides: [databaseProvider.overrideWithValue(db)],
     );
   });
 
@@ -98,10 +92,7 @@ void main() {
         slotStart.month,
         slotStart.day,
       );
-      // Today is derived from the pinned clock; the slot's own day is the
-      // Action day under test.
-      clockNow = slotStart;
-      container.read(clockDayProvider.notifier).refresh();
+      container.read(actionDateProvider.notifier).state = actionDay;
 
       // -------------------------------------------------------------
       // 1. Todo Intent: Create ordinary Todo with specific future dueDate

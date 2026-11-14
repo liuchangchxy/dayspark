@@ -7,16 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 
 Widget _app({required AppDatabase db, required DateTime Function() clock}) {
   return ProviderScope(
-    overrides: [
-      databaseProvider.overrideWithValue(db),
-      clockNowProvider.overrideWithValue(clock),
-    ],
+    overrides: [databaseProvider.overrideWithValue(db)],
     child: MaterialApp(
       localizationsDelegates: const [
         ...AppLocalizations.localizationsDelegates,

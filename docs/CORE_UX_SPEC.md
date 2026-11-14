@@ -38,14 +38,7 @@ Bottom Navigation is fixed:
 
 Do not support tab reordering. Stable navigation is more valuable than customization here. “启动时打开” may remain.
 
-High-frequency creation lives at the bottom edge, inside thumb reach:
-
-- **今天**: a persistent capture row above the bottom navigation (pure capture: no deadline, no allocation).
-- **待办 · 未安排 / 全部**: the same persistent capture row attached to the list.
-- **待办 · 按日期**: the row is replaced by **安排到 `<browseDate>`**, which opens the composer with no time pre-filled.
-- **日历**: one create control at the bottom-right, above the navigation bar. The composer inherits the tapped slot only when a concrete slot was tapped.
-
-A capture row and a floating button never share a screen. The top-right create button remains only as the low-frequency full-create entry; it is never the only way to capture.
+The global create button stays in a stable top-right position. Do not add a FAB just to follow a convention.
 
 ### 1.3 Desktop
 
@@ -58,7 +51,7 @@ Under **待办**, secondary views are:
 - **未安排** — pending Todo items that currently have **no effective planned execution (TaskAllocation)**. `dueDate` is not the criterion.
 - **全部待办** — all pending Todo inventory.
 
-Todo keeps its date browser / date strip. The by-date view reads the shared **browseDate** (also used by Calendar); the strip moves that value, it does not hold its own. This is a filter/view inside Todo, not a second primary destination.
+Todo keeps its date browser / date strip, including the ability to view today's due items, other dates, and create into the selected due-date context. This is a filter/view inside Todo, not a second primary destination.
 
 Do not add a second sidebar destination named “今天”.
 
@@ -122,24 +115,13 @@ Do not use the same naked `+` icon while silently changing its meaning between p
 
 Quick creation may still use a shared component internally, but product semantics are contextual and explicit rather than forcibly identical.
 
-### 3.2 No silent fabrication — inherit only expressed precision
+### 3.2 No silent deadline fabrication
 
-> **The system writes only what the user expressed; it never completes missing precision.**
+A new Todo with no explicit deadline remains undated.
 
-| User expressed | System writes |
-|---|---|
-| plain capture (Today / Unplanned) | nothing → Unplanned |
-| browsing 11/15 | UI context only; no business field |
-| “deadline 11/15” | `dueDate = 11/15` |
-| “11/15 20:00–20:30” | `TaskAllocation = 11/15 20:00–20:30` |
-| tapping a Calendar time slot | that exact slot |
+Being on “今天” does not silently set its deadline to today.
 
-Consequences:
-
-- A new Todo with no explicit deadline remains undated; Today does not make it due today.
-- A by-date “安排到这一天” composer opens with **no** planned time pre-filled. Saving without picking a time is plain capture → Unplanned. A `TaskAllocation` is written only after the user picks start/end.
-- Only a concrete Calendar slot auto-inherits a time.
-- Any inherited deadline must be visible as an editable chip before saving.
+If a context inherits a deadline, it must be visible as an editable chip such as **截止：10 月 23 日** before saving. An explicit due-date view may inherit that date.
 
 ### 3.3 Platform presentation
 
@@ -155,7 +137,7 @@ Desktop:
 
 Keyboard entry is worth keeping on desktop. The product target is explicit, predictable creation semantics, not pixel-identical controls.
 
-Widget Quick Add remains the smallest subset of this model. Its `date` parameter is capture context only: it never writes `dueDate`. A widget add lands in Unplanned and says so.
+Widget Quick Add remains the smallest subset of this model. If Widget sets today as deadline, its landing copy must say **今天截止** rather than the ambiguous **今天**.
 
 ---
 
@@ -546,22 +528,16 @@ Review questions are now answered:
 - Backend value: exposed mainly through Today projection and planned execution.
 - Implementation handoff: split into bounded PRs; first PR is Shell + Create Semantics only.
 
----
+## 15. A″ core interaction model (confirmed 2026-11-14, UI rolled back 2026-11-15)
 
-## 15. A″ core interaction model (frozen 2026-11-14)
+> **Status**: the product/domain model below is confirmed. The UI that first implemented it (PR #101) was rolled back on 2026-11-15 after real use rejected its presentation layer. This section is a **design target** for the next production UI, not a description of the current build.
 
 ### 15.1 Date states
 
-```
-Today      = the real today, derived from the clock
-browseDate = the one browsed date, shared by Todo · 按日期 and Calendar
-```
-
-- Today has no stored date and cannot be browsed away. Switching to Todo or Calendar never changes it.
-- `browseDate` has exactly one source. The Todo strip, the date header, the month/year picker and Calendar day taps write it.
-- Cold start: Today = today, `browseDate` = today.
-- Midnight: Today rolls over; `browseDate` does not.
-- Returning to the foreground never resets `browseDate`.
+- **Today** is the real today, derived from the clock; it is never stored in a writable provider and never follows a browsed date.
+- **`browseDate`** is the single browsed date shared by Todo · 按日期 and the Calendar.
+- Switching tabs does not change `browseDate`; tapping a Calendar date does.
+- Cold start: `browseDate` = today. Midnight: only Today rolls over. Foreground return never resets `browseDate`.
 - Today's header reads the clock; browsing surfaces read `browseDate`.
 
 ### 15.2 Day projection
@@ -587,3 +563,4 @@ Today's **未安排** group previews only captured items with no `dueDate` (up t
 - Near dates: one tap on the strip.
 - Far dates: date header → month/year picker → day (≤2 actions, internal scrolling does not count).
 - The header always shows month and day; the year is shown when it differs from the current year, and always inside the picker.
+

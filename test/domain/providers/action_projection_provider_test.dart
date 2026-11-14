@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/providers/date_context_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
@@ -21,7 +20,6 @@ void main() {
   late AppDatabase db;
   late ProviderContainer container;
   late int calendarId;
-  late DateTime clockNow;
   final fixedToday = DateTime(2026, 10, 6);
 
   setUp(() async {
@@ -33,13 +31,10 @@ void main() {
           ),
         );
 
-    // Tests pin the injectable clock; "today" is derived from it instead of
-    // being stored in a provider of its own.
-    clockNow = fixedToday;
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
-        clockNowProvider.overrideWithValue(() => clockNow),
+        actionDateProvider.overrideWith((ref) => fixedToday),
       ],
     );
   });
@@ -254,12 +249,9 @@ void main() {
   });
 
   test('toggling todo completion moves it reactively to completedToday', () async {
-    // Completion stamps the real wall clock, so this test pins the clock to
-    // the real today instead of the fixture day.
     final today = DateTime.now();
     final todayMidnight = DateTime(today.year, today.month, today.day);
-    clockNow = todayMidnight;
-    container.read(clockDayProvider.notifier).refresh();
+    container.read(actionDateProvider.notifier).state = todayMidnight;
 
     final todoId = await db.into(db.todos).insert(
           TodosCompanion.insert(
@@ -382,8 +374,7 @@ void main() {
   test('Phase 2: completed today TaskInstance appears in completedTodayTaskInstances and reopens cleanly', () async {
     final today = DateTime.now();
     final todayMidnight = DateTime(today.year, today.month, today.day);
-    clockNow = todayMidnight;
-    container.read(clockDayProvider.notifier).refresh();
+    container.read(actionDateProvider.notifier).state = todayMidnight;
     final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     final occId = 'v2:DATE:$todayStr';
 
@@ -591,12 +582,10 @@ void main() {
   });
 
   test('Phase 2 regression: Action-day window timezone ownership preserves Tokyo series in UTC user day (Ruling E)', () async {
-    // The derived day is civil (local) midnight; the pinned instant still
-    // lands on 2026-10-06 in the test's civil day.
     final utcContainer = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
-        clockNowProvider.overrideWithValue(() => DateTime(2026, 10, 6)),
+        actionDateProvider.overrideWith((ref) => DateTime.utc(2026, 10, 6)),
       ],
     );
     addTearDown(utcContainer.dispose);
