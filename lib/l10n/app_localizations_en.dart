@@ -1110,6 +1110,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncNow => 'Sync now';
 
   @override
+  String get syncSource => 'Sync source';
+
+  @override
+  String get syncSourceServer => 'DaySpark server';
+
+  @override
+  String get syncSourceWebDav => 'WebDAV';
+
+  @override
+  String get syncSourceUnset => 'Not configured';
+
+  @override
+  String get webDavAddress => 'WebDAV address';
+
+  @override
+  String get webDavDocumentPath => 'Document path';
+
+  @override
+  String get webDavUsername => 'Username (optional)';
+
+  @override
+  String get webDavHelp => 'Stored as one document in your own drive, and only written when it has not changed since the last read.';
+
+  @override
+  String get cloudSyncUnavailable => 'Baidu, Quark, 115, Google Drive, OneDrive and Dropbox need an app registered with the provider before they can be selected.';
+
+  @override
   String get syncTooltip => 'Sync';
 
   @override

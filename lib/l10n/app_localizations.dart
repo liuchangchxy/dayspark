@@ -2141,6 +2141,60 @@ abstract class AppLocalizations {
   /// **'Sync now'**
   String get syncNow;
 
+  /// No description provided for @syncSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync source'**
+  String get syncSource;
+
+  /// No description provided for @syncSourceServer.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark server'**
+  String get syncSourceServer;
+
+  /// No description provided for @syncSourceWebDav.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV'**
+  String get syncSourceWebDav;
+
+  /// No description provided for @syncSourceUnset.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get syncSourceUnset;
+
+  /// No description provided for @webDavAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV address'**
+  String get webDavAddress;
+
+  /// No description provided for @webDavDocumentPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Document path'**
+  String get webDavDocumentPath;
+
+  /// No description provided for @webDavUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username (optional)'**
+  String get webDavUsername;
+
+  /// No description provided for @webDavHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored as one document in your own drive, and only written when it has not changed since the last read.'**
+  String get webDavHelp;
+
+  /// No description provided for @cloudSyncUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Baidu, Quark, 115, Google Drive, OneDrive and Dropbox need an app registered with the provider before they can be selected.'**
+  String get cloudSyncUnavailable;
+
   /// No description provided for @syncTooltip.
   ///
   /// In en, this message translates to:

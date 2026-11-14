@@ -99,10 +99,22 @@
 
 ## 5. 不依赖账号就能推进的部分 / Buildable without accounts
 
-- 把 `lww.dart` 的规则提到 `dayspark_contracts`，让服务端与客户端共用一份合并实现。
-- 一个 Provider 无关的「云文件同步核心」：本地 outbox → 读远程状态文件 → 客户端合并 → 条件写 → 412 重试 → 经 `SyncApplier` 落地；幂等靠现有 opId / tombstones。
-- WebDAV 作为第一个可端到端验证的后端（无需注册、条件写原生、可用本地 WebDAV 服务做两设备测试）。
-- 设置页的 Provider 选择与「唯一活动同步源」迁移逻辑（可先用 WebDAV + 自托管 Server 验证）。
-- OAuth 授权流程的抽象（PKCE + 自定义 scheme 回调）；每个 Provider 只差 client ID 与端点常量。
+**已实现（2026-11-14，`feat/cloud-sync-core-20261114`）**
+
+- [x] `lww.dart` 的规则已提到 `packages/dayspark_contracts/lib/src/lww.dart`，服务端 `server/lib/src/sync/lww.dart` 改为再导出 —— 服务端与客户端云盘传输共用同一份仲裁实现。
+- [x] Provider 无关的「云文件同步核心」：
+  - `lib/domain/sync/cloud/cloud_sync_state.dart`：单文档格式 `dayspark.cloud.v1`（`seq` / `mergedAt` / `records`），以及本地合并 `mergeCloudOps`（字段级 LWW、rev+1、tombstone vs upsert、同秒 opId 仲裁、类型不可变）。写时间 = `max(墙钟, 文档 mergedAt + 1s)`，保证 412 重读后的合并永远晚于它观察到的状态。
+  - `lib/domain/sync/cloud/cloud_sync_engine.dart`：读 → 合并 → 条件写 → 落库（经 `SyncApplier` 与 `RecordScope`），412 最多重试 3 次后交给退避重试；无本地变更时只读不写；首轮/换源时全量登记（含已有 syncId 的行），因为云盘没有服务端 capability 回填。
+  - `lib/domain/sync/cloud/cloud_sync_settings.dart`：单一活动同步源、`CloudSyncSource` 词汇表（八个 Provider 全在，`isWired` 目前只开自托管与 WebDAV）、换源时清 cursor / snapshots / ETag 的迁移入口。
+- [x] WebDAV 作为第一个可端到端验证的后端：`webdav_backend.dart`（GET / PUT + `If-Match` / `If-None-Match`、MKCOL、Basic auth；服务端不暴露 ETag 时明确报错而不是盲写）。
+- [x] 设置页入口：`设置 → 同步 → 同步来源 → 自托管 / WebDAV`，WebDAV 填地址/用户名/密码/路径，保存后自动起引擎，支持立即同步。
+- [x] 测试：`test/domain/sync/cloud/` 28 例（合并规则 10、引擎与双设备收敛 10、WebDAV 协议 8），全绿；`flutter test` 767 例全绿。
+
+**仍未做**
+
+- 六个云盘 Provider 的 OAuth 适配器与 PKCE 授权流程（每差一个已注册的 client ID）。
+- 服务端专属业务规则在云盘路径上的等价实现：`_mergeTodoPayload` 的 recurrence 冲突裁决、taskAllocation 的状态强制与校验（这些在服务端需要 DB 上下文；目前云盘路径只做字段级 LWW，双方都是本 App 时本地写入已跑过同一套 writer 规则）。
+- 两真机 + 真实账号 E2E（含 OAuth refresh、换 Provider 后全量迁移的真机验证）。
 
 这些做完后，每个云盘 Provider 的接入就退化为「注册应用 → 填 client ID → 跑同一套适配器 + 真实账号 E2E」，而不是从零设计。
+

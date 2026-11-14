@@ -18,6 +18,7 @@ import 'settings_sections/account_section.dart';
 import 'settings_sections/ai_section.dart';
 import 'settings_sections/appearance_section.dart';
 import 'settings_sections/calendar_settings_section.dart';
+import 'settings_sections/cloud_sync_section.dart';
 import 'settings_sections/import_export_section.dart';
 import 'settings_sections/notifications_section.dart';
 import 'settings_ui.dart';
@@ -97,6 +98,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   List<(String, Widget)> _sections(AppLocalizations l) => [
     (l.account, const AccountSection()),
+    (l.syncSource, const CloudSyncSection()),
     (l.appearance, const AppearanceSection()),
     (l.calendar, const CalendarSettingsSection()),
     if (hasNotificationSettings) (l.reminders, const NotificationsSection()),
