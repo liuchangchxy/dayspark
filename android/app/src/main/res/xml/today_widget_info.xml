@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 120dp, not 110: the smallest layout spends 16dp of padding plus a 48dp
+     header, and a touch target below 48dp is the defect this widget was fixed
+     for, so the declared minimum has to hold one full row plus its padding. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_today_description"
     android:initialLayout="@layout/widget_action_small"
-    android:minHeight="110dp"
+    android:minHeight="120dp"
     android:minWidth="110dp"
     android:previewLayout="@layout/widget_action_small"
     android:resizeMode="horizontal|vertical"

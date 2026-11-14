@@ -41,44 +41,59 @@ sizes, not the glyph sizes, so the hit area is the whole row/button.
 | todo row (`widget_todo_item` minHeight) | 44dp | 48dp |
 | todo checkbox | 44x44 | 48x48 |
 | Action `+ Task` / `+ Event` | 44dp tall, minWidth 44dp | 48dp tall, minWidth 48dp |
-| Action completed footer | 32dp (small/medium), 36dp (large) | 44dp |
+| Action completed footer | 32dp (small/medium), 36dp (large) | 48dp |
 | Todos mode chips Today/Inbox/All | 44dp | 48dp |
 | Calendar summary row | 44dp | 48dp |
-| Calendar day cell | fixed 27dp (medium) / 32dp (large) | 27 / 32 / 36 / 40 / 44dp, derived from the card height and snapped to the tier that exists (`widget_calendar_cell`, `_36`, `_40`, `_44`) |
-| Calendar summary rows | nominal 1 / 2 / 6 rows, clipped by the launcher | exactly the rows the measured height holds; a truncated list becomes "N more" inside the card |
+| Calendar day cell | fixed 27dp (medium) / 32dp (large) | 27 / 32 / 36 / 40 / 44dp, derived from the card height and snapped to the tier that exists (`widget_calendar_cell`, `_36`, `_40`, `_44`), plus a 24dp tier that exists only for the declared 250dp minimum |
+| Calendar summary rows | nominal 6 / 2 rows (large / medium), clipped by the launcher | exactly the rows the measured height holds; a truncated list becomes "N more" inside the card, including when there is room for a single row |
 
 The calendar cell tiers are new layouts; each is the same three-part cell
 (`calendar_cell` background + `calendar_day` + `calendar_dot`) with a larger box,
 a slightly larger day number and a bigger dot, so Direction C's look is kept and
 only the box grows.
 
-Two geometry bugs surfaced while measuring and are fixed in the same change:
+Why the day cell stops at 44dp: seven columns across a phone-width card leave
+~30–50dp per cell, so the 48dp floor is unreachable on one axis at every size
+that exists on a launcher. The fix that matters for "must not aim precisely" is
+that the *whole cell* is the target (measured below), so the finger aims at a
+34–44dp box instead of a 11sp glyph.
 
-- **Calendar summary was clipped.** The list always received its nominal 1/2/6
+Three geometry bugs surfaced while measuring and are fixed in the same change:
+
+- **Calendar summary was clipped.** The list always received its nominal 6 / 2
   rows regardless of height, so a 4x4 card drew rows the launcher then cut. It
   now receives `(height - chrome - cells) / 48` rows, and when the day has more
-  items than that, one of the visible rows becomes "N more".
-- **Action rows under-filled the card.** The budget subtracted a fixed 154dp
-  header allowance and a 68dp footer whether or not those were drawn. It now
-  subtracts `actionChromeDp(small, nonEmptySections)` and
-  `actionFooterDp(completedCount)` — the same 4x4 card that showed 2 rows shows
-  5, and the pixels agree.
+  items than that, one of the visible rows becomes "N more" — including the
+  one-row case, where that single row *is* the count (before, a day with 40 items
+  showed one row and no trace of the other 39).
+- **A six-week month could not fit the declared minimum.** 106dp of chrome plus
+  6 × 27dp is 268dp, so a 250dp card clipped the last week row. The grid falls
+  back to the 24dp tier when even the nominal cell cannot fit, landing on exactly
+  250dp.
+- **Action rows under-filled the card.** The budget subtracted a fixed header and
+  footer allowance (large 150 + 60, medium 120 + 40, small 60 + 0) whether or not
+  those were drawn. It now subtracts `actionChromeDp(small, nonEmptySections)`
+  and `actionFooterDp(completedCount)`. Measured: the same 340dp card now shows
+  five rows filling it, where the old formula gives `(340 - 150 - 60) / 48 = 2`
+  for that height.
+
 
 ## Measurements (real device)
 
-**Calendar, 4x4 (h≈457dp, large).** Day-cell pitch measured off two builds of the
-same card: 84px → 105px (**+25%**, 32dp → 40dp cells). `+25%` is the smallest
-gain the tiers allow here; a taller card reaches 44dp.
+**Calendar, 4x4 (logged height 480dp, large).** Day-cell pitch measured off two
+builds of the same card: 84px → 105px (**+25%**, 32dp → 40dp cells; 480dp with a
+six-week month gives `(480 - 127 - 96) / 6 = 42`, snapped down to 40). A taller
+card reaches 44dp.
 
 - Keys/edge taps land on the intended day: a tap 6px above a cell's centre line
   selected day 20, a tap on the row boundary selected day 27, and two taps 49px
   apart vertically inside day 19's cell both selected day 19 — the hit area is
   the cell, not the glyph.
 - The selected-day list shows exactly what the card can hold: `Nov 27 Fri` + one
-  item + "47 more", with no row cut off at the bottom edge (previously two rows
-  were emitted into a ~130dp area and the second was clipped).
+  item + "47 more", with no row cut off at the bottom edge (the list used to be
+  filled to its nominal 6 rows and the launcher cut whatever did not fit).
 
-**Todos, all three sizes.** Small 2x2 (row budget 2→3 after the header chrome),
+**Todos, all three sizes.** Small 2x2 (six rows in a card that holds six),
 medium 3x2 (name + 3 chips + 2 rows), large 3x4 (group headers + rows). No
 clipping at any size, and the extra height of the enlarged card is filled with
 rows instead of blank paper.
@@ -95,7 +110,7 @@ spacing. Restored to `night no` afterwards.
 
 ## Automated tests
 
-`WidgetSnapshotCodecTest` (Kotlin JVM, 20 tests) covers the geometry that the
+`WidgetSnapshotCodecTest` (Kotlin JVM, 21 tests) covers the geometry that the
 screens rely on:
 
 - `calendar cells grow with the card and stay finger sized` — 27/32 floor, tier
@@ -103,6 +118,8 @@ screens rely on:
 - `calendar summary rows follow the measured height instead of a nominal count`
   — including "a card that only fits the grid gets no clipped list row" (0).
 - `calendar day mode gives the list the grid's height`.
+- `calendar grid fits the declared minimum even for a six week month` — the
+  24dp tier and `chrome + cell * 6 <= height` at the 250dp the provider declares.
 - `calendar cell layouts exist for every height the grid can ask for` — every
   tier maps to a real layout resource.
 - `action card chrome counts only the sections it draws` — the chrome/footer
@@ -111,7 +128,10 @@ screens rely on:
 
 ## Not verified here
 
-- Calendar small/medium card on a real launcher (see the environment limit).
+- Calendar small/medium card on a real launcher (see the environment limit), and
+  the 24dp cell tier, which only engages at the declared 250dp minimum — that
+  card size was not reachable either, so the tier is covered by arithmetic in
+  `calendar grid fits the declared minimum...` only.
 - Launchers other than Pixel Launcher on API 35: the row heights are declared in
   the layouts, so they do not depend on the host, but the resize behaviour and
   the scaling of `AppWidgetHostView` do.
