@@ -442,10 +442,96 @@ class WidgetSnapshotCodecTest {
   }
 
   @Test
+  fun `calendar cells grow with the card and stay finger sized`() {
+    // Unknown height keeps the nominal cell of each size.
+    assertEquals(32, WidgetSupport.calendarCellHeightDp(0, 6, true))
+    assertEquals(27, WidgetSupport.calendarCellHeightDp(0, 6, false))
+    // 4x4 at the minimum height cannot give a cell more than its old size.
+    assertEquals(32, WidgetSupport.calendarCellHeightDp(360, 6, true))
+    assertEquals(27, WidgetSupport.calendarCellHeightDp(300, 6, false))
+    // Slack goes to the cells, snapped to a layout that exists.
+    assertEquals(36, WidgetSupport.calendarCellHeightDp(443, 6, true))
+    assertEquals(32, WidgetSupport.calendarCellHeightDp(400, 5, true))
+    assertEquals(40, WidgetSupport.calendarCellHeightDp(470, 6, true))
+    // Never past a comfortable target however tall the card is.
+    assertEquals(44, WidgetSupport.calendarCellHeightDp(560, 6, true))
+    assertEquals(44, WidgetSupport.calendarCellHeightDp(900, 5, true))
+  }
+
+  @Test
+  fun `calendar summary rows follow the measured height instead of a nominal count`() {
+    assertEquals(2, WidgetSupport.calendarSummaryRows(443, 36, 6, true))
+    assertEquals(3, WidgetSupport.calendarSummaryRows(560, 44, 6, true))
+    assertEquals(2, WidgetSupport.calendarSummaryRows(600, 44, 6, false))
+    assertEquals(6, WidgetSupport.calendarSummaryRows(900, 44, 6, true))
+    // A card that only fits the grid gets no clipped list row.
+    assertEquals(0, WidgetSupport.calendarSummaryRows(250, 27, 6, false))
+    // Unknown height keeps the old nominal behaviour.
+    assertEquals(2, WidgetSupport.calendarSummaryRows(0, 27, 6, true))
+    assertEquals(1, WidgetSupport.calendarSummaryRows(0, 27, 6, false))
+  }
+
+  @Test
+  fun `calendar day mode gives the list the grid's height`() {
+    assertEquals(2, WidgetSupport.calendarDayRows(0))
+    assertEquals(2, WidgetSupport.calendarDayRows(230))
+    assertEquals(4, WidgetSupport.calendarDayRows(340))
+    assertEquals(6, WidgetSupport.calendarDayRows(460))
+  }
+
+  @Test
+  fun `calendar grid fits the declared minimum even for a six week month`() {
+    // calendar_widget_info declares 250dp; 6 rows of the nominal 27dp plus the
+    // 106dp of chrome is 268. The tight tier is what stops the last week from
+    // being clipped there.
+    val chrome = WidgetSupport.calendarChromeDp(false)
+    assertEquals(106, chrome)
+    val cell = WidgetSupport.calendarCellHeightDp(250, 6, false)
+    assertEquals(24, cell)
+    assertTrue(chrome + cell * 6 <= 250)
+    assertEquals(R.layout.widget_calendar_cell_24, WidgetSupport.calendarCellLayout(cell))
+    // One dp more and the nominal cell returns, because it now fits.
+    assertEquals(27, WidgetSupport.calendarCellHeightDp(280, 6, false))
+    assertTrue(chrome + 27 * 6 <= 280)
+  }
+
+  @Test
+  fun `calendar cell layouts exist for every height the grid can ask for`() {
+    assertEquals(R.layout.widget_calendar_cell_24, WidgetSupport.calendarCellLayout(24))
+    assertEquals(R.layout.widget_calendar_cell_small, WidgetSupport.calendarCellLayout(27))
+    assertEquals(R.layout.widget_calendar_cell, WidgetSupport.calendarCellLayout(32))
+    assertEquals(R.layout.widget_calendar_cell_36, WidgetSupport.calendarCellLayout(36))
+    assertEquals(R.layout.widget_calendar_cell_40, WidgetSupport.calendarCellLayout(40))
+    assertEquals(R.layout.widget_calendar_cell_44, WidgetSupport.calendarCellLayout(44))
+  }
+
+  @Test
   fun `short medium widgets still reserve one row instead of overflowing`() {
     assertEquals(1, WidgetSupport.rowBudget(180, 96, 0, 44, 1, 6))
     assertEquals(1, WidgetSupport.rowBudget(180, 120, 40, 48, 1, 6))
     assertEquals(2, WidgetSupport.rowBudget(320, 150, 60, 48, 2, 14))
+  }
+
+  @Test
+  fun `action card chrome counts only the sections it draws`() {
+    assertEquals(64, WidgetSupport.actionChromeDp(true, 0))
+    assertEquals(96, WidgetSupport.actionChromeDp(false, 1))
+    assertEquals(168, WidgetSupport.actionChromeDp(false, 4))
+    assertEquals(0, WidgetSupport.actionFooterDp(0))
+    assertEquals(48, WidgetSupport.actionFooterDp(3))
+    // A 4x4 card with one section and no completed footer holds five rows; the
+    // old fixed allowance (150 + 60 for large) said two and left the card bare.
+    assertEquals(
+      5,
+      WidgetSupport.rowBudget(
+        340,
+        WidgetSupport.actionChromeDp(false, 1),
+        WidgetSupport.actionFooterDp(0),
+        48,
+        2,
+        14,
+      ),
+    )
   }
 
   @Test

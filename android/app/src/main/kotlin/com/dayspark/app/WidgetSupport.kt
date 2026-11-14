@@ -51,6 +51,84 @@ internal object WidgetSupport {
 
   fun calendarIsLarge(height: Int): Boolean = height >= 360
 
+  // Calendar geometry. The month grid used to be a fixed 27/32dp cell whatever
+  // the card height, so a taller widget wasted the extra space and a 4x4 card
+  // clipped the selected day's list instead of shrinking it. Both are derived
+  // from the real height now: cells take an equal share of what is left after
+  // the card's chrome and two list rows, and the list gets exactly the rows
+  // that still fit.
+  private const val CALENDAR_HEADER_DP = 48
+  private const val CALENDAR_WEEKDAYS_DP = 24
+  private const val CALENDAR_TITLE_DP = 18
+  private const val CALENDAR_LIST_ROW_DP = 48
+  private const val CALENDAR_CELL_MAX_DP = 44
+
+  // 24dp exists only for the case the declared minimum creates: a 250dp card
+  // with a six-week month cannot hold 6 * 27dp plus the chrome, and a clipped
+  // week row is worse than a small one.
+  private const val CALENDAR_CELL_TIGHT_DP = 24
+  private val CALENDAR_CELL_STEPS = intArrayOf(24, 27, 32, 36, 40, 44)
+
+  fun calendarChromeDp(large: Boolean): Int =
+    (if (large) 24 else 16) +
+      CALENDAR_HEADER_DP +
+      CALENDAR_WEEKDAYS_DP +
+      (if (large) 13 else 0) +
+      CALENDAR_TITLE_DP
+
+  fun calendarMinCellDp(large: Boolean): Int = if (large) 32 else 27
+
+  // Snapped to a layout that exists: the cell is a fixed-height RemoteViews
+  // layout, so a computed 34 would render at 36 and overflow the grid budget.
+  fun calendarCellHeightDp(height: Int, rows: Int, large: Boolean): Int {
+    val min = calendarMinCellDp(large)
+    if (height <= 0 || rows <= 0) return min
+    val chrome = calendarChromeDp(large)
+    if (chrome + min * rows > height) {
+      // Not even the nominal grid fits. Give the grid every dp the card has and
+      // let the day list take what is left (usually nothing).
+      val tight = (height - chrome) / rows
+      return CALENDAR_CELL_STEPS.lastOrNull { it <= tight && it >= CALENDAR_CELL_TIGHT_DP }
+        ?: CALENDAR_CELL_TIGHT_DP
+    }
+    val raw = (height - chrome - 2 * CALENDAR_LIST_ROW_DP) / rows
+    val clamped = raw.coerceIn(min, CALENDAR_CELL_MAX_DP)
+    return CALENDAR_CELL_STEPS.lastOrNull { it in min..clamped } ?: min
+  }
+
+  fun calendarSummaryRows(
+    height: Int,
+    cellDp: Int,
+    rows: Int,
+    large: Boolean,
+  ): Int {
+    val nominal = if (large) 2 else 1
+    if (height <= 0) return nominal
+    val remaining = height - calendarChromeDp(large) - cellDp * rows
+    return (remaining / CALENDAR_LIST_ROW_DP).coerceIn(0, if (large) 6 else 2)
+  }
+
+  // Day mode replaces the grid with the day bar, so the list owns the height.
+  // Only the compact (non-large) card has a day mode, so there is one geometry.
+  fun calendarDayRows(height: Int): Int {
+    if (height <= 0) return 2
+    val remaining = height -
+      16 -
+      CALENDAR_HEADER_DP -
+      CALENDAR_LIST_ROW_DP -
+      CALENDAR_TITLE_DP
+    return (remaining / CALENDAR_LIST_ROW_DP).coerceIn(1, 6)
+  }
+
+  fun calendarCellLayout(cellDp: Int): Int = when {
+    cellDp <= 24 -> R.layout.widget_calendar_cell_24
+    cellDp <= 27 -> R.layout.widget_calendar_cell_small
+    cellDp <= 32 -> R.layout.widget_calendar_cell
+    cellDp <= 36 -> R.layout.widget_calendar_cell_36
+    cellDp <= 40 -> R.layout.widget_calendar_cell_40
+    else -> R.layout.widget_calendar_cell_44
+  }
+
   fun render(
     context: Context,
     manager: AppWidgetManager,
@@ -250,6 +328,14 @@ internal object WidgetSupport {
   }
 
   fun isLocalToday(iso: String): Boolean = iso == isoDate(Date())
+
+  // Action card chrome: root padding, the 48dp date header and one 24dp header
+  // per section that will actually be drawn. The footer is 48dp and only there
+  // when the completed line is visible.
+  fun actionChromeDp(small: Boolean, sectionHeaders: Int): Int =
+    (if (small) 16 else 24) + 48 + sectionHeaders * 24
+
+  fun actionFooterDp(completedCount: Int): Int = if (completedCount > 0) 48 else 0
 
   fun rowBudget(
     height: Int,

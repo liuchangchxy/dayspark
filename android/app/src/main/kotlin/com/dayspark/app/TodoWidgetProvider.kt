@@ -154,10 +154,10 @@ class TodoWidgetProvider : AppWidgetProvider() {
       val budget = when (size) {
         // A narrow pin can still be five rows tall, and a fixed budget of two
         // left most of that card blank. The chrome is 16dp of padding plus the
-        // 44dp header, so the rows get whatever height is actually there.
-        WidgetSize.SMALL -> WidgetSupport.rowBudget(height, 60, 0, 44, 2, 6)
-        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 112, 0, 44, 1, 6)
-        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 112, 0, 44, 3, 12)
+        // 48dp header, so the rows get whatever height is actually there.
+        WidgetSize.SMALL -> WidgetSupport.rowBudget(height, 64, 0, 48, 2, 6)
+        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 120, 0, 48, 1, 6)
+        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 120, 0, 48, 3, 12)
       }.let {
         if (size == WidgetSize.LARGE && todayMode && overdueRows.isNotEmpty()) {
           (it - 1).coerceAtLeast(1)
