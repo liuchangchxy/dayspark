@@ -21,6 +21,9 @@ jobs:
         run: |
           tool/check_version_consistency.sh
           tool/check_version_consistency.sh --selftest
+
+      - name: APK signer parser selftest / 签名身份解析守卫
+        run: bash tool/check_apk_signer.sh --selftest
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.47.3"

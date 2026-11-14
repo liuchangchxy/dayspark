@@ -53,7 +53,7 @@ python3 tool/guard_test_tampering.py
 
 | # | 门禁 | 守什么 | 挂在哪 | 红过没 |
 |---|---|---|---|---|
-| 20 | `tool/check_apk_signer.sh` + `android/expected-signer.sha256` | release APK 的**签名身份**（证书 SHA-256 必须等于生产证书），而不只是「签名有效」 | `build-android`（main push）构建后、`release.yml` 上传前 | ✅ 2026-11-14（拿 debug.keystore 签的包喂进去 → `FAIL: wrong signing identity for com.dayspark.app.`；同一脚本喂 v0.26.0 正式包 → `OK: signed by the production DaySpark certificate`） |
+| 20 | `tool/check_apk_signer.sh`（含 `--selftest`）+ `android/expected-signer.sha256` | release APK 的**签名身份**（证书 SHA-256 必须等于生产证书），而不只是「签名有效」 | `test` job 跑 `--selftest`；`build-android`（main push）构建后与 `release.yml` 上传前跑身份校验 | ✅ 2026-11-14（① 拿 debug.keystore 签的包喂进去 → `FAIL: wrong signing identity for com.dayspark.app.`；② **真实 CI 红过一次**：run 43590618697 的 `Verify release APK signature` 因 `apksigner` 输出格式差异把指纹解析成 `certificateSHA-256digest` → 已改为取最后一个冒号后的值并加 `--selftest` 覆盖两种格式） |
 | 21 | `android/app/build.gradle.kts` fail-closed | 缺 `android/app/key.properties` 时拒绝产出 unsigned release | Gradle 配置期（请求 `assemble/bundle/packageRelease` 时） | ✅ 2026-11-14（本机无 key.properties 跑 `flutter build apk --release` → `BUILD FAILED` + `Production signing key is missing: android/app/key.properties not found…`；`flutter build apk --debug` 不受影响） |
 
 ## 三、发布门禁（`release.yml`，打 tag 触发）
