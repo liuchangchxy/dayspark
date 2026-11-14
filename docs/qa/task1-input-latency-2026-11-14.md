@@ -78,6 +78,27 @@ Measured after the fix, 15 rapid creations with a widget pinned:
 - snapshot rebuilds: **5 instead of 15** (~4.6 s apart, i.e. off the save path)
 - per rebuild: 59–65 ms total, 16–23 ms Dart build
 
+## On-device smoke (after the fix)
+
+Debug build installed over the emulator, calendar widget pinned, one task
+created through the inline "Add task" field with the keyboard focused:
+
+- the stored widget snapshot was regenerated at the moment of the write
+  (`generatedAt` 23:53:26Z) and its month block for the day went from 47 to
+  **48 items** — the write reaches the widget without being blocked by the
+  focus hold, because the 4 s cap fired;
+- no new snapshot was written while typing alone (typing publishes nothing).
+
+## Pre-existing test flake found by CI
+
+`test/integration/recurring_action_loop_vertical_test.dart` derived its slot as
+`now + 2h` and then tapped the picker's *first* occurrence tile. Between 22:00
+and midnight that slot lands on tomorrow, so the test scheduled today's
+occurrence while the Action surface completed tomorrow's. CI happened to run at
+23:53Z and caught it; the test now picks the occurrence for the slot's own day
+(`occurrenceOffset`), verified both at the current clock and with a simulated
+23:00 start.
+
 ## Not verified
 
 - Real-device behaviour with Gboard Chinese composing and voice dictation.
