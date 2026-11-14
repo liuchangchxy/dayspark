@@ -532,7 +532,7 @@ Review questions are now answered:
 
 > **Status**: the product/domain model below is confirmed. The UI that first implemented it (PR #101) was rolled back on 2026-11-15 after real use rejected its presentation layer. This section is a **design target** for the next production UI, not a description of the current build.
 
-### 15.1 Date states
+### 16.1 Date states
 
 - **Today** is the real today, derived from the clock; it is never stored in a writable provider and never follows a browsed date.
 - **`browseDate`** is the single browsed date shared by Todo · 按日期 and the Calendar.
@@ -540,7 +540,7 @@ Review questions are now answered:
 - Cold start: `browseDate` = today. Midnight: only Today rolls over. Foreground return never resets `browseDate`.
 - Today's header reads the clock; browsing surfaces read `browseDate`.
 
-### 15.2 Day projection
+### 16.2 Day projection
 
 `DayProjection(date)` = Events ∩ date + active TaskAllocations ∩ date + Todos due that date + recurring occurrences + completed state.
 
@@ -550,7 +550,7 @@ A Todo that is both due that date and planned that date appears **once** in the 
 
 Today's **未安排** group previews only captured items with no `dueDate` (up to three). Its count keeps the allocation-based definition from §3.2; a dated unplanned item already has a home on its own date and does not appear in Today.
 
-### 15.3 Routes and deep links
+### 16.3 Routes and deep links
 
 - Today: always the real today.
 - Todo · 按日期: carries `browseDate` (`view=date|bydate`, optional `date=`).
@@ -558,7 +558,7 @@ Today's **未安排** group previews only captured items with no `dueDate` (up t
 - `quick-add?date=`: the date is capture context only; it never writes `dueDate`.
 - Existing widget deep links keep working; `open/todos?view=today` lands on the real today.
 
-### 15.4 Date selection
+### 16.4 Date selection
 
 - Near dates: one tap on the strip.
 - Far dates: date header → month/year picker → day (≤2 actions, internal scrolling does not count).
