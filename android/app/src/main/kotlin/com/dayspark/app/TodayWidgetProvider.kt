@@ -152,13 +152,30 @@ class TodayWidgetProvider : AppWidgetProvider() {
         .filter { it.startEpochMs > nowMs }
         .sortedBy { it.startEpochMs }
 
+      val currentRows = current.map { timelineRow(context, it, pending, theme, ui?.allDay ?: "") }
+      val laterRows = later.map { timelineRow(context, it, pending, theme, ui?.allDay ?: "") }
+      val dueRows = block.dueToday.map { taskRow(context, it, pending, theme, error) }
+      val overdueRows = block.overdue.map { taskRow(context, it, pending, theme, error) }
+
       val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
+      val completedCount = block.counts.completedToday
+      // Chrome is what the card spends before the first row: padding, the 48dp
+      // header and a 24dp header per section that will actually be drawn. The
+      // old fixed allowance reserved three section headers and a 44dp footer
+      // whatever the card held, so a tall card cut off rows it had room for.
+      val sectionHeaders = if (size == WidgetSize.SMALL) {
+        0
+      } else {
+        listOf(currentRows, laterRows, dueRows, overdueRows).count { it.isNotEmpty() }
+      }
+      val chrome = WidgetSupport.actionChromeDp(size == WidgetSize.SMALL, sectionHeaders)
+      val footer = WidgetSupport.actionFooterDp(completedCount)
       val budget = when (size) {
         // Small is a single column here but the launcher can still give it
         // several rows; one fixed row left the rest of the card empty.
-        WidgetSize.SMALL -> WidgetSupport.rowBudget(height, 60, 0, 48, 1, 8)
-        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 120, 40, 48, 1, 6)
-        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 150, 60, 48, 2, 14)
+        WidgetSize.SMALL -> WidgetSupport.rowBudget(height, chrome, footer, 48, 1, 8)
+        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, chrome, footer, 48, 1, 6)
+        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, chrome, footer, 48, 2, 14)
       }
       var shown = 0
 
@@ -185,11 +202,6 @@ class TodayWidgetProvider : AppWidgetProvider() {
         }
         return true
       }
-
-      val currentRows = current.map { timelineRow(context, it, pending, theme, ui?.allDay ?: "") }
-      val laterRows = later.map { timelineRow(context, it, pending, theme, ui?.allDay ?: "") }
-      val dueRows = block.dueToday.map { taskRow(context, it, pending, theme, error) }
-      val overdueRows = block.overdue.map { taskRow(context, it, pending, theme, error) }
 
       if (stale) {
         // A snapshot from another day must never be rendered as today.
@@ -232,7 +244,6 @@ class TodayWidgetProvider : AppWidgetProvider() {
         }
       }
 
-      val completedCount = block.counts.completedToday
       if (!stale && completedCount > 0) {
         views.setViewVisibility(R.id.action_completed, View.VISIBLE)
         views.setTextViewText(

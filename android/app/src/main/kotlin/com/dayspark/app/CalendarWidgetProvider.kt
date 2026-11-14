@@ -189,11 +189,9 @@ class CalendarWidgetProvider : AppWidgetProvider() {
 
       val leading = firstWeekday - 1
       val total = leading + daysInMonth
-      val cellLayout = if (large) {
-        R.layout.widget_calendar_cell
-      } else {
-        R.layout.widget_calendar_cell_small
-      }
+      val weekRows = (total + 6) / 7
+      val cellDp = WidgetSupport.calendarCellHeightDp(height, weekRows, large)
+      val cellLayout = WidgetSupport.calendarCellLayout(cellDp)
       var row = 0
       while (row * 7 < total && row < 6) {
         val rowView = RemoteViews(context.packageName, R.layout.widget_calendar_row)
@@ -307,7 +305,13 @@ class CalendarWidgetProvider : AppWidgetProvider() {
 
       val selectedDay = Calendar.getInstance().apply { time = selectedDate }.get(Calendar.DAY_OF_MONTH)
       val dayMark = marks[selectedDay]
-      val maxRows = if (large) 6 else 2
+      // Exactly the rows the card can hold: the old nominal 2/6 rows were added
+      // regardless and the overflow was silently clipped by the launcher.
+      val maxRows = if (dayMode) {
+        WidgetSupport.calendarDayRows(height, large)
+      } else {
+        WidgetSupport.calendarSummaryRows(height, cellDp, weekRows, large)
+      }
       val showEmpty = dayMark == null || dayMark.items.isEmpty()
       if (!dayMode) {
         views.setTextViewText(
@@ -324,7 +328,11 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       }
 
       val openCalendar = WidgetSupport.openUri(context, calendarUri, appWidgetId + 803)
-      if (showEmpty) {
+      if (maxRows == 0) {
+        // A 4x4 pin at its minimum height fits the grid and nothing else; a
+        // half-visible row is worse than none.
+        views.setViewVisibility(R.id.calendar_empty, View.GONE)
+      } else if (showEmpty) {
         views.setViewVisibility(R.id.calendar_empty, View.VISIBLE)
         views.setTextViewText(
           R.id.calendar_empty,
@@ -338,7 +346,10 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       } else {
         views.setViewVisibility(R.id.calendar_empty, View.GONE)
         val items = dayMark!!.items
-        val emitted = minOf(items.size, maxRows)
+        // When the list is truncated one of the visible rows becomes "N more",
+        // so it still fits the height that was measured.
+        val itemRows = if (dayMark.itemCount > maxRows && maxRows >= 2) maxRows - 1 else maxRows
+        val emitted = minOf(items.size, itemRows)
         for (index in 0 until emitted) {
           views.addView(
             R.id.calendar_summary,
@@ -346,7 +357,7 @@ class CalendarWidgetProvider : AppWidgetProvider() {
           )
         }
         val hidden = dayMark.itemCount - emitted
-        if (hidden > 0) {
+        if (hidden > 0 && maxRows >= 2) {
           val more = RemoteViews(context.packageName, R.layout.widget_calendar_summary_row)
           more.setViewVisibility(R.id.calendar_summary_marker, View.GONE)
           more.setTextViewText(R.id.calendar_summary_time, "")

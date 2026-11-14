@@ -269,6 +269,12 @@
 - **Why**: 双通道（SP 队列勾选 + interactivity 导航）职责分离，防双写库
 - **Date**: 2026-09-24
 
+### 小组件几何按测量高度推导，禁止名义行数；hit target 是布局框不是图标
+- 原生三组件（Todos / Action / Calendar）的行数、日格高度、摘要行数一律由 `WidgetSupport.dimensionsOf` 得到的实际高度算出：行预算 = `(height - 实际绘制的 chrome - 页脚) / 行高`，日格 = 高度均分后按 `27/32/36/40/44` 档位吸附（每档必须有对应 layout），摘要行 = 剩余高度能放几行就是几行
+- 触控尺寸写在 layout 上（行/键 ≥48dp、勾选框 48×48dp），**不要**只放大字号或图标——RemoteViews 的点击区是 View 边界，缩字形不改命中区
+- **Why**: 名义数量（月历固定 1/2/6 行、Action 固定扣 154dp+68dp）会被 launcher 直接裁掉或留下空白；4×4 卡片实测出现过"摘要第二行被切"和"同尺寸卡片只画 2 行"两种回归
+- **Date**: 2026-11-14
+
 ## Apple Signing / Apple 签名
 
 ### adhoc/teamless 签名下 macOS entitlements 禁止出现 `keychain-access-groups`（整键必须缺失）

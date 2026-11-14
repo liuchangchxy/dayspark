@@ -19,6 +19,15 @@
 - [x] 修复：`WidgetRefreshScheduler` 合并突发提交（400ms 尾防抖）、文本焦点期间暂缓（上限 4s，小组件不会长期不更新）、单飞；零小组件实例时跳过渲染（命令与旧 pendingTaps 仍消费）。实测 15 次连续创建快照重建 15 → 5 次，且不再贴着保存时刻。证据见 `docs/qa/task1-input-latency-2026-11-14.md`。
 - [ ] 待真机：Gboard 中文 composing 与系统语音输入下的 20 条连建验收（本机无连接设备）。
 
+**用户反馈原文 / User feedback:** 「现役 Widget：Todos / Action / Calendar。当前问题：核心按钮实际触控区域太小，尤其 Widget 放大后仍难点击。目标不是单纯放大图标，而是提高真实 hit target，同时保持 Direction C 现有视觉设计。检查小 / 中 / 大尺寸。」
+
+- [x] 触控尺寸抬到 Material 下界：待办行 44→48dp、勾选框 44→48dp、`+ Task`/`+ Event` 44→48dp、模式 chip 44→48dp、月历摘要行 44→48dp、完成页脚 32/36→44dp。放大的是布局框不是图标字号，点击区域就是整行/整键。
+- [x] 月历日格改为按测量高度推导：27/32 固定 → 27/32/36/40/44 五档（新增 `widget_calendar_cell_36/40/44`），4×4 卡片实测格距 32→40dp（+25%），整格都是命中区。
+- [x] 顺带修两个几何 bug：月历摘要行按名义 1/2/6 行灌入被 launcher 裁掉 → 改为「高度容得下几行就给几行」，超出的显示 "N more"；Action 行预算固定扣 154dp 头部 + 68dp 页脚（不论是否绘制）→ 改为按实际绘制的分区头与页脚扣除，同一张 4×4 卡片可见行数 2→5。
+- [x] 真机验收（API 35 Pixel Launcher，浅色 + 深色）：三类 Widget 小/中/大；月历边角点击命中正确日期；无裁切、无布局回归。证据见 `docs/qa/task2-widget-touch-2026-11-14.md`。
+- [ ] 未覆盖：该 launcher 不接受对 Calendar 组件的纵向缩放（句柄出现但拖拽无效，Todos/Action 同手势正常），故月历小/中尺寸由几何函数单测与 layout 档位覆盖，未在真机上拖到该尺寸实测。
+
+
 **用户反馈原文 / User feedback:** 「在现有 Widget / Journey 与最终人工 / Agent GUI 验收之间，补回一个轻量、现役、可运行的真实 App 自动交互层，并把现有测试明确分成 fast / ui / full 三档。」
 
 - [x] 重写 `integration_test/app_test.dart`，覆盖待办快速添加、日期浏览和宽屏详情切换。
