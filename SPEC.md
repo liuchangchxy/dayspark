@@ -59,7 +59,7 @@ flowchart LR
 ### 3.1 核心功能 A：Todo、Event 与任务时间安排
 - **业务描述**：Todo 与 Event 是两个独立的一等领域记录；TaskAllocation 将一个 Todo 或某次重复 Todo occurrence 与一段执行时间关联。Calendar 可将这些记录投影到同一时间视图，具体页面导航不由领域模型规定。
 - **业务规则契约**：
-  - 规则 1：Todo 表达需要完成的事项，保留其现有状态、截止时间、重复及父子任务语义；Event 表达特定时间发生的事项，保留其现有时间区间、全天、地点及重复语义。两者可独立创建、编辑、查看及管理。Todo 列表行的完成控件只切换完成状态；标题/内容区域打开 Todo 编辑页，二者的点击区域必须彼此独立。
+  - 规则 1：Todo 表达需要完成的事项，保留其现有状态、截止时间、重复及父子任务语义；Event 表达特定时间发生的事项，保留其现有时间区间、全天、地点及重复语义。两者可独立创建、编辑、查看及管理。Event 详情的文本自动保存失败时保留输入并提示失败，同一内容可再次触发保存；只有成功写入才视为已保存。Todo 列表行的完成控件只切换完成状态；标题/内容区域打开 Todo 编辑页，二者的点击区域必须彼此独立。
   - 规则 2：`Todo.dueDate` 是截止时间，不是执行时段。新建普通 Todo 在用户未显式选择截止时间时 `dueDate` 必须为 null，不得默认填入今日。移除启动时将逾期 Todo 的 `dueDate` 批量篡改为今日的行为；逾期待办保持其真实原截止时间，若用户计划今日执行，应通过 TaskAllocation 安排。创建、改期、取消 TaskAllocation 或完成 Todo，均不得自动修改 Todo 的 `dueDate`；修改截止时间必须通过显式 deadline edit 操作。
   - 规则 3：一个 Todo 可关联零个或多个 TaskAllocation；重复 Todo 的每个 TaskAllocation 绑定一个 occurrence，不自动应用到整个重复系列。
   - 规则 4：TaskAllocation 表达为 Todo 预留的一段执行时间，具有独立身份和生命周期；可单独改期或取消。取消一个 Allocation 不删除或取消 Todo。日历空白时间槽点击提供“新建日程（Event）”与“安排待办（Schedule Todo）”双入口；选择安排待办可在当前时间区间内为已有的未完成普通 Todo 创建 TaskAllocation，而不创建 Event，且被安排 Todo 的 `dueDate` 保持完全不变。
@@ -83,6 +83,7 @@ flowchart LR
   - 规则 17：待办列表行的待办项必须保留直接可点击的完成 Checkbox。六件事（Six Things）从一级产品 UI 退休：Today、Todo 工具栏和 Settings 不再暴露该概念；如需兼容旧持久化偏好，只保留内部状态，不围绕它建立新的产品逻辑。序数编号（ordinal）和拖拽排序不得替换或阻碍完成 Checkbox 的直接交互。
   - 规则 19（Core UX，2026-11-07）：用户可见信息架构固定为“今天 / 日历 / 待办”，移动端底部导航与桌面侧栏不再提供第二个“今天”导航目的地；待办内部仍保留日期浏览、日期条与选中日期 Quick Add。
     - 创建语义必须显式：待办页 `+ 待办` 直接创建待办；日历页 `+ 日程` 直接创建日程；今天页使用中性 `新建` 并在待办/日程之间选择；日历时间槽保留“新建日程 / 安排待办”两个明确动作。任何上下文都不得静默写入选民看不到的 `dueDate`；若继承截止日期，保存前必须展示可编辑的“截止”chip。
+    - Quick Add 自然语言解析出的纯日期作为待办截止日期时，保存前须明确标注“截止”；输入或选择时刻时，普通保存须显示将创建日程，另存待办不把该时刻转为截止或提醒，并显示待办无截止。链接携带的上下文日期不写入截止。
     - Todo 时间模型固定为 **截止**（`dueDate`）、**重复开始**（`startDate`，只在重复设置内出现）、**计划执行**（`TaskAllocation`）。普通 Todo 不提供独立“开始日期”字段；用户界面不出现 `TaskAllocation` 字样。
     - Todo 完整表单、详情页与桌面详情面板使用同一术语与信息顺序：任务（标题/完成状态）→ 时间（截止/重复/计划执行）→ 提醒 → 整理（所属日历/优先级/标签）→ 内容（备注/子任务/附件）。详情必须能编辑子任务。
     - 日历是 Event 与 Todo 共用的分组/颜色空间，字段统一称“所属日历”；Calendar picker 即使只有一个日历也可打开，且始终提供“+ 新建日历”，新建后返回 picker 并选中新日历。Settings 中该目的地称“日历管理”。
@@ -98,6 +99,8 @@ flowchart LR
     - **状态**：以下为已确认的产品目标，不是当前实现的描述。2026-11-15 起 `main` 的 UI 已回滚到 v0.31.0（规则 16/19 的界面）；在覆盖全部生产状态的 UI 设计定稿前，不得再从本规则直接跳到生产代码。
     - 日期状态：Today 恒等于系统真实今天，不来自任何可写日期 provider；`browseDate` 是唯一 browsable 日期，由待办「按日期」与日历共享。切 tab 不改 `browseDate`；日历点日期会改；Today 头部只读时钟；冷启动 `browseDate` = 今天；午夜只更新 Today；回前台不重置。不得引入可写的 today。
     - 继承原则：系统只写入用户已表达的精度，不补全未表达的信息。浏览某天 ≠ 截止某天，≠ 已选择执行时段；Today ≠ 默认截止今天，≠ 默认计划今天。
+    - 快速创建保存为原子操作：待办及本次选择的安排、提醒全部成功才关闭；任何写入失败均回滚本次创建并保留表单输入，重试不得产生重复待办。
+    - 待办未安排及全部列表读取失败时显示错误与重试，不得伪装为空列表。
     - 创建契约：Today 快速捕获写 `dueDate = null` 且不建 TaskAllocation，落点为未安排，Today 的未安排组立即可见；日页「安排到 `<browseDate>`」进入 composer 时不得预填时段，未选时段保存 = 纯捕获 → 未安排，用户选择 start/end 后才创建 TaskAllocation；`dueDate` 只由显式「截止」写入；只有日历具体时间槽可自动继承时间（Event / 安排待办 / 新建并安排）。
     - 未安排组：Today 面板的未安排组只预览无 `dueDate` 的捕获项（最多 3 条），数量仍按规则 16 的「当前无有效 TaskAllocation」口径统计；带 `dueDate` 的未安排项已经有自己的日期页，不进入 Today 预览。完整未安排视图的定义不变。
     - 日投影：`DayProjection(date)` = 当日 Event + 有效 TaskAllocation + `dueDate == date` 的 Todo + 重复实例 + 完成状态。Today 额外显示 现在 / 接下来 / 已逾期，其他日期不显示。同一 Todo 当天既有 allocation 又有 dueDate 时 App 内只显示一条，allocation 为主、deadline 为次级元数据；去重属于 UI/投影规则，不改领域模型，Widget 去重不在范围内。
@@ -115,7 +118,27 @@ TaskAllocation 的领域状态为单一字段：
 
 这三种领域状态不等同于同步记录的 `deleted` tombstone。Allocation 仅在永久删除时使用 tombstone；Todo 软删除期间，Allocation 保持原领域状态，由父 Todo 的回收站状态决定是否投影。
 
-#### 3.1.1 重复 Todo 系列与 occurrence 契约
+#### 3.1.1 用户动作与领域写入对照（语义冻结 2026-11-15）
+
+用户界面只用 **待办 / 日程 / 截止 / 计划执行 / 提醒 / 日历** 六个词；`TaskAllocation`、`dueDate`、`occurrenceId` 不出现在文案里。每个用户动作对应唯一写入，不得借道别的字段：
+
+| 用户动作 | 领域写入 | 禁止发生 |
+|---|---|---|
+| 创建待办 | 新建 Todo；`dueDate` 只来自显式「截止」 | 因浏览日期、捕获上下文或输入时刻写 `dueDate`；不建 TaskAllocation |
+| 创建日程 | 新建 Event（起止、全天、地点、重复） | 不改任何 Todo |
+| 安排 | 新建 TaskAllocation（重复任务必须显式选 occurrence） | 不创建 Event；不改 `dueDate` |
+| 改期 | 只改该 Allocation 的 `startAt/endAt`，`occurrenceId` 不变 | 不改 Todo `dueDate`；不改 series 或 occurrence identity |
+| 取消安排 | Allocation → `cancelledByUser`，保留历史 | 不删除、不取消 Todo |
+| 完成 | 普通 Todo 写 `status/completedAt`；重复任务写精确 occurrence 实例状态 | 不把重复父系列标为完成；不改 `dueDate` |
+| 撤销完成 | 只清除同一 Todo 或同一 occurrence 的完成状态 | 不自动恢复已失效 Allocation |
+| 删除 | Todo / Event 软删进入回收站；Allocation 记录随父 Todo 保留 | 不物理删除可恢复内容 |
+| 恢复 | 从回收站恢复；原 `active` Allocation 恢复投影与 busy | 不改 `dueDate`、不重绑 occurrence |
+| 截止 | 只有显式 deadline edit 写 `dueDate` | 从时间槽、捕获、AI 解析或「安排」推断截止 |
+| 提醒 | 新建/删除 Reminder，绑定 parent 与 `triggerTime` | 改期或取消 Allocation 不得改 Reminder 参考时间 |
+
+同一待办同一天既有计划执行又有截止时，App 内只显示一条（计划执行为主、截止为次级 meta）；去重是 UI 投影规则，不写回领域。
+
+#### 3.1.2 重复 Todo 系列与 occurrence 契约
 
 - **领域真值**：正式重复 Todo 使用原子 `RecurrenceSpec`：`anchor { source: start|due, valueType: date|localDateTime, value: offset-free local value }`、IANA `timeZone`、规范化 `rrule`。只有 `startDate` 时 anchor 来源为 `start`；否则使用 `dueDate`；两者均无时不展开 occurrence，也不允许 occurrence-bound Allocation。`startDate` 决定 occurrence identity，`dueDate` 是相应 Todo 的 deadline。DATE-only 值始终是日历日期，不是午夜 instant。同时，Todo 的时间语义要求 `startDate` 不得晚于 `dueDate`；当两者均存在且 `startDate > dueDate` 时，领域写入口与创建/编辑界面必须显式拒绝并提示错误，禁止保存时间自相矛盾的 Todo。
 - **时区**：新重复 Todo 固化创建表单选定的 IANA 时区；设备时区只能作为新建表单默认值。旅行、服务器配置和客户端默认时区不得改变 series zone。非重复 Todo 不保存 recurrence timezone。

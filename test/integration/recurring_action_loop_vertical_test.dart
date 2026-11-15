@@ -12,6 +12,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
@@ -321,13 +322,14 @@ void main() {
             now: slotStart,
             onOpenTodo: (_) {},
             onOpenEvent: (_) {},
-            onToggleTodo: (todo, occurrenceId, completed) => container.read(
-              toggleTodoProvider,
-            )(
-              id: todo.id,
-              isCompleted: completed,
-              occurrenceId: occurrenceId,
-            ),
+            onToggleTodo: (todo, occurrenceId, completed) async {
+              await container.read(toggleTodoProvider)(
+                id: todo.id,
+                isCompleted: completed,
+                occurrenceId: occurrenceId,
+              );
+              return true;
+            },
             onOpenUnplanned: () {},
             onScheduleTodo: (_) {},
           ),
@@ -340,10 +342,16 @@ void main() {
       expect(find.text('Daily Sprint Standup'), findsWidgets);
 
       // The series' pending instance is a block on the day's timeline; its
-      // completion circle is the tick target.
-      final instanceCheck = find.byWidgetPredicate(
-        (widget) =>
-            widget is DsCheck && widget.label == 'Daily Sprint Standup',
+      // completion circle is the tick target. Today also lists missed
+      // instances from the last 30 days under their own head, so the same
+      // series title can appear twice; the timeline block is the one bound to
+      // today's occurrence.
+      final instanceCheck = find.descendant(
+        of: find.byType(A2TimelineItem),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is DsCheck && widget.label == 'Daily Sprint Standup',
+        ),
       );
       expect(instanceCheck, findsOneWidget);
       await tester.tap(instanceCheck);

@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DaySpark A″ · 已实现版 UX 缺口评审板（v0.33.0）</title>
+<style>
+/* ── 只引 DaySpark 自己的 Direction C tokens（与 shared.css :root 同值） ── */
+:root {
+  --bg: #fcfcfa;
+  --surface: #ffffff;
+  --surface-2: #f7f7f2;
+  --surface-3: #f0efe9;
+  --ink: #191a17;
+  --ink-2: #3f413a;
+  --ink-3: #6a6d64;
+  --faint: #85887d;
+  --line: #e8e7e1;
+  --line-soft: #f0efe9;
+  --primary: #c2410c;
+  --primary-soft: #fbeee7;
+  --primary-tint: #fdf4ef;
+  --on-primary: #ffffff;
+  --warm: #8a7b5f;
+  --warm-soft: #f8f5ee;
+  --warn: #7d5416;
+  --warn-soft: #f4ecdd;
+  --danger: #a8481e;
+  --danger-soft: #fbf1eb;
+  --success: #5e7a64;
+  --success-soft: #f1f5f1;
+  --work: #5f7183;
+  --work-tint: #eff1f3;
+  --cal-1: #5b7d96;
+  --cal-2: #7d9b6a;
+  --cal-3: #a08b5b;
+  --cal-4: #8a6f8e;
+  --done-ink: #a5a79d;
+  --font: "Segoe UI", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-15: 15px;
+  --fs-17: 17px; --fs-20: 20px; --fs-24: 24px;
+  --r-row: 6px; --r-ctrl: 8px; --r-card: 10px;
+  --shadow-1: 0 1px 2px rgba(20,20,16,.05);
+  --shadow-2: 0 18px 48px -22px rgba(20,20,16,.4);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.page { max-width: 1280px; margin: 0 auto; padding: 40px 24px 96px; }
+
+/* ── 头部 ── */
+.hd { margin-bottom: 8px; }
+.hd h1 { font-size: var(--fs-24); font-weight: 600; letter-spacing: -.01em; }
+.hd .sub {
+  margin-top: 10px; font-size: var(--fs-14); color: var(--ink-2); line-height: 1.7;
+  max-width: 860px;
+}
+.hd .sub b { color: var(--ink); font-weight: 600; }
+.hd .sub .lock {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  font-size: var(--fs-12); font-weight: 500; color: var(--warn);
+  background: var(--warn-soft); border-radius: var(--r-row); padding: 4px 10px;
+}
+.hd .sub .lock::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--warn); display: inline-block;
+}
+.meta-line {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px;
+}
+.meta-line .m {
+  font-size: var(--fs-11); font-weight: 500; color: var(--ink-3);
+  background: var(--surface); border: 1px solid var(--line-soft);
+  border-radius: var(--r-row); padding: 3px 9px; font-variant-numeric: tabular-nums;
+}
+.meta-line .m b { color: var(--ink); font-weight: 600; }
+
+/* ── 锚点导航 ── */
+.nav {
+  position: sticky; top: 0; z-index: 30;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
+  padding: 10px 0; margin-bottom: 32px;
+}
+.nav::-webkit-scrollbar { display: none; }
+.nav a {
+  flex: 0 0 auto; font-size: var(--fs-12); font-weight: 500; color: var(--ink-2);
+  text-decoration: none; background: var(--surface); border: 1px solid var(--line-soft);
+  border-radius: 999px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 6px;
+}
+.nav a .no { font-size: var(--fs-11); font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; }
+.nav a:hover { border-color: var(--primary); background: var(--primary-tint); color: var(--primary); }
+
+/* ── 区域块 ── */
+.area { margin-bottom: 56px; scroll-margin-top: 56px; }
+.area-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.area-head .no {
+  font-size: var(--fs-12); font-weight: 600; color: var(--primary);
+  background: var(--primary-soft); border-radius: 4px; padding: 2px 8px;
+  letter-spacing: .04em; font-variant-numeric: tabular-nums; flex: 0 0 auto;
+}
+.area-head h2 { font-size: var(--fs-20); font-weight: 600; }
+.area-intro { font-size: var(--fs-13); color: var(--ink-3); margin: 4px 0 18px; max-width: 860px; }
+
+/* 缺口卡片 */
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card);
+  padding: 18px 20px; margin-bottom: 14px;
+}
+.card h3 {
+  font-size: var(--fs-15); font-weight: 600; color: var(--ink); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card h3 .cid {
+  font-size: var(--fs-11); font-weight: 600; color: var(--primary);
+  font-variant-numeric: tabular-nums; letter-spacing: .04em; flex: 0 0 auto;
+}
+.card h3 .sev {
+  font-size: var(--fs-11); font-weight: 500; border-radius: 4px; padding: 1px 6px; flex: 0 0 auto;
+}
+.sev.p0 { background: var(--danger-soft); color: var(--danger); }
+.sev.p1 { background: var(--warn-soft); color: var(--warn); }
+.sev.p2 { background: var(--surface-2); color: var(--ink-3); }
+
+/* 三段式 */
+.seg { display: grid; grid-template-columns: 74px 1fr; gap: 4px 10px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.seg:first-of-type { border-top: 0; padding-top: 2px; }
+.seg .k {
+  font-size: var(--fs-11); font-weight: 600; letter-spacing: .04em;
+  padding-top: 2px; font-variant-numeric: tabular-nums;
+}
+.seg.assume .k { color: var(--ink-3); }
+.seg.need .k { color: var(--work); }
+.seg.decide .k { color: var(--primary); }
+.seg p { font-size: var(--fs-14); line-height: 1.65; color: var(--ink-2); }
+.seg p b { color: var(--ink); font-weight: 600; }
+.seg.decide p { color: var(--ink); }
+.seg .opt {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+}
+.seg .opt span {
+  font-size: var(--fs-12); color: var(--ink-2); background: var(--surface-2);
+  border: 1px solid var(--line-soft); border-radius: 4px; padding: 2px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.seg .opt span.rec { background: var(--primary-soft); color: var(--primary); border-color: transparent; font-weight: 600; }
+
+/* 状态矩阵（composer） */
+.matrix { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: var(--fs-13); }
+.matrix th, .matrix td {
+  border: 1px solid var(--line-soft); padding: 8px 10px; text-align: left;
+  vertical-align: top; line-height: 1.5; color: var(--ink-2);
+}
+.matrix th { background: var(--surface-2); font-weight: 600; color: var(--ink); font-size: var(--fs-12); }
+.matrix td.state { font-weight: 600; color: var(--ink); white-space: nowrap; font-size: var(--fs-12); }
+.matrix .btn {
+  font-weight: 600; color: var(--primary); background: var(--primary-soft);
+  border-radius: 4px; padding: 1px 6px; display: inline-block; font-size: var(--fs-12);
+}
+.matrix .note { font-size: var(--fs-12); color: var(--ink-3); }
+.matrix .flag { color: var(--danger); font-weight: 600; }
+.matrix .ok { color: var(--success); font-weight: 600; }
+
+/* 行解剖图（todos） */
+.anatomy {
+  display: flex; align-items: center; gap: 0; padding: 14px; background: var(--bg);
+  border: 1px solid var(--line-soft); border-radius: var(--r-card); margin-top: 4px;
+  overflow-x: auto;
+}
+.anatomy .cell {
+  flex: 1 1 0; min-width: 96px; text-align: center; position: relative;
+  padding: 6px 8px 14px;
+}
+.anatomy .cell + .cell { border-left: 1px dashed var(--line); }
+.anatomy .glyph { height: 22px; display: grid; place-items: center; margin-bottom: 6px; }
+.anatomy .glyph .ring { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--ink-3); }
+.anatomy .glyph .ring.on { background: var(--primary); border-color: var(--primary); position: relative; }
+.anatomy .glyph .ring.on::after {
+  content: "✓"; color: var(--on-primary); font-size: 12px; position: absolute; inset: 0; display: grid; place-items: center;
+}
+.anatomy .glyph .txt { width: 44px; height: 8px; border-radius: 2px; background: var(--surface-3); }
+.anatomy .glyph .txt.meta { width: 60px; height: 6px; background: var(--line); margin-top: 5px; }
+.anatomy .glyph .cal { width: 8px; height: 8px; border-radius: 2px; background: var(--cal-1); }
+.anatomy .lbl { font-size: var(--fs-11); font-weight: 600; color: var(--ink); }
+.anatomy .d { font-size: var(--fs-11); color: var(--ink-3); margin-top: 2px; line-height: 1.5; }
+.anatomy .cell .hot {
+  position: absolute; bottom: 2px; left: 8px; right: 8px; text-align: center;
+  font-size: 10px; color: var(--primary); font-weight: 500;
+}
+
+/* 完成态行示例 */
+.rowdemo {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 52px; padding: 8px 16px 8px 12px;
+  border: 1px solid var(--line-soft); border-radius: var(--r-card); background: var(--surface-2); margin-top: 4px;
+}
+.rowdemo .body { flex: 1; min-width: 0; }
+.rowdemo .title { font-size: var(--fs-15); color: var(--done-ink); text-decoration: line-through; }
+.rowdemo .meta { font-size: var(--fs-12); color: var(--ink-3); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.rowdemo .undo {
+  flex: 0 0 auto; font-size: var(--fs-12); font-weight: 500; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 4px;
+  padding: 3px 8px; align-self: center;
+}
+.rowdemo .undo.hot { color: var(--primary); border-color: transparent; background: var(--primary-soft); }
+
+/* 跨页流图 */
+.flow {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card);
+  padding: 20px; overflow-x: auto;
+}
+.flow-track {
+  display: flex; align-items: flex-start; gap: 0; min-width: 1180px;
+}
+.fstep {
+  flex: 0 0 176px; position: relative; padding: 12px 14px; background: var(--bg);
+  border: 1px solid var(--line-soft); border-radius: var(--r-card);
+}
+.fstep + .fstep::before {
+  content: "→"; position: absolute; left: -15px; top: 26px;
+  color: var(--ink-3); font-size: 15px; z-index: 1;
+}
+.fstep .n { font-size: var(--fs-11); font-weight: 600; color: var(--primary); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.fstep .t { font-size: var(--fs-13); font-weight: 600; margin-top: 3px; line-height: 1.4; }
+.fstep .d { font-size: var(--fs-11); color: var(--ink-3); margin-top: 4px; line-height: 1.55; }
+.fstep .risk {
+  margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;
+}
+.fstep .risk span {
+  font-size: 10px; font-weight: 600; letter-spacing: .02em;
+  border-radius: 4px; padding: 1px 6px; font-variant-numeric: tabular-nums;
+}
+.risk.lost { background: var(--danger-soft); color: var(--danger); }
+.risk.lost::before { content: "⚠ "; }
+.risk.track { background: var(--warn-soft); color: var(--warn); }
+.risk.track::before { content: "◉ "; }
+.flow-legend {
+  display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid var(--line-soft); font-size: var(--fs-12); color: var(--ink-3);
+}
+.flow-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.flow-legend .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* 风险清单 */
+.risklist { margin-top: 14px; }
+.risklist .ri {
+  display: grid; grid-template-columns: 44px 1fr; gap: 10px;
+  padding: 12px 0; border-top: 1px solid var(--line-soft);
+}
+.risklist .ri:first-child { border-top: 0; }
+.risklist .ri .n {
+  font-size: var(--fs-11); font-weight: 600; color: var(--primary);
+  background: var(--primary-soft); border-radius: 4px; padding: 2px 0; text-align: center;
+  align-self: start; font-variant-numeric: tabular-nums;
+}
+.risklist .ri .body { font-size: var(--fs-14); color: var(--ink-2); line-height: 1.65; }
+.risklist .ri .body b { color: var(--ink); font-weight: 600; }
+.risklist .ri .body .tag {
+  font-size: var(--fs-11); font-weight: 600; border-radius: 4px; padding: 1px 6px;
+  margin-right: 6px; vertical-align: 1px;
+}
+.tag.lost { background: var(--danger-soft); color: var(--danger); }
+.tag.track { background: var(--warn-soft); color: var(--warn); }
+
+/* 槽 sheet 层级示意 */
+.sheethier {
+  display: grid; gap: 8px; margin-top: 4px;
+}
+.sheethier .l {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid var(--line-soft); border-radius: var(--r-ctrl); background: var(--bg);
+}
+.sheethier .l .w {
+  font-size: var(--fs-11); font-weight: 600; letter-spacing: .04em; flex: 0 0 52px;
+  font-variant-numeric: tabular-nums;
+}
+.sheethier .l .w.hi { color: var(--primary); }
+.sheethier .l .w.mid { color: var(--work); }
+.sheethier .l .w.lo { color: var(--ink-3); }
+.sheethier .l .what { font-size: var(--fs-13); color: var(--ink); font-weight: 500; }
+.sheethier .l .why { font-size: var(--fs-12); color: var(--ink-3); }
+
+/* 空/错状态示意 */
+.statebox {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px;
+}
+.statebox .sb {
+  border: 1px solid var(--line-soft); border-radius: var(--r-ctrl); padding: 12px;
+  background: var(--bg);
+}
+.statebox .sb .h { font-size: var(--fs-12); font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.statebox .sb .copy { font-size: var(--fs-12); color: var(--ink-2); line-height: 1.55; }
+.statebox .sb .copy .q { color: var(--ink); font-weight: 500; }
+.statebox .sb.err { border-color: var(--danger); background: var(--danger-soft); }
+.statebox .sb.err .copy .q { color: var(--danger); }
+.statebox .sb .cta {
+  margin-top: 8px; font-size: var(--fs-12); font-weight: 600; color: var(--primary);
+}
+
+/* 脚注 */
+.foot {
+  margin-top: 40px; padding: 16px 18px; background: var(--surface);
+  border: 1px solid var(--line-soft); border-radius: var(--r-card);
+  font-size: var(--fs-12); color: var(--ink-3); line-height: 1.7;
+}
+.foot b { color: var(--ink-2); font-weight: 600; }
+
+/* ── 390px 可读 ── */
+@media (max-width: 720px) {
+  .page { padding: 28px 16px 72px; }
+  .hd h1 { font-size: var(--fs-20); }
+  .area-head h2 { font-size: var(--fs-17); }
+  .card { padding: 14px; }
+  .card h3 { font-size: var(--fs-14); flex-wrap: wrap; }
+  .seg { grid-template-columns: 1fr; gap: 2px; }
+  .seg .k { padding-top: 6px; }
+  .matrix { font-size: var(--fs-12); }
+  .matrix th, .matrix td { padding: 7px 8px; }
+  .statebox { grid-template-columns: 1fr; }
+  .sheethier .l { flex-wrap: wrap; }
+  .anatomy .cell { min-width: 84px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hd">
+    <h1>DaySpark A″ · 已实现版 UX 缺口评审板</h1>
+    <p class="sub">
+      评审对象是 <b>main 分支 Flutter（v0.33.0）</b>，不是新视觉方向。视觉语言冻结在 A″ 原型（Direction C「安静纸墨」）——本页只引 <b>shared.css 的既有 token</b>，不新增任何色板、字阶或布局语言。
+      本板收敛的是 <b>行为、状态、跨页流</b>：原型画得出来的是「正常态 + 一个空态」，而真实用户每天撞上的异常、边界与丢件风险，原型一笔未画。每条缺口给三段：<b>(a) 原型假设 → (b) 真实用户需要什么 → (c) 实现者必须拍板的决定</b>。
+    </p>
+    <div class="meta-line">
+      <span class="m">参考 <b>A″ 原型</b>（index / screens-* / desktop / design-notes）</span>
+      <span class="m">实现 <b>Flutter v0.33.0 · main</b></span>
+      <span class="m">评审日期 <b>2026-11-15</b></span>
+      <span class="m">缺口 <b>18 条</b> · P0 <b>5</b> · P1 <b>8</b> · P2 <b>5</b></span>
+    </div>
+    <span class="lock">视觉冻结：本页不提议任何重样式、新色、新字阶、新布局语言。所有「决定」只落在行为 / 状态 / 文案 / 数据流上。</span>
+  </header>
+
+  <nav class="nav" aria-label="区域导航">
+    <a href="#a1"><span class="no">01</span>今天页</a>
+    <a href="#a2"><span class="no">02</span>日历 · 槽 sheet</a>
+    <a href="#a3"><span class="no">03</span>待办行解剖</a>
+    <a href="#a4"><span class="no">04</span>Composer</a>
+    <a href="#a5"><span class="no">05</span>跨页流图</a>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════
+       01 · 今天页
+  ═══════════════════════════════════════════ -->
+  <section class="area" id="a1">
+    <div class="area-head"><span class="no">01</span><h2>今天页 · 四个时间节 + 未安排 shelf</h2></div>
+    <p class="area-intro">原型固定画 11/15 15:00 这一格：现在 1 节、接下来 2 节、今天截止 1、已逾期 2、未安排预览 1 行。四个节与 shelf 的「容量」从未被画过。以下按节逐条问边界。</p>
+
+    <div class="card">
+      <h3><span class="cid">T1</span>整日为空：四节同时缺失 <span class="sev p1">P1</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>画了 02 空态——但那是<b>次日 11/16 清晨</b>的独立场景（design-notes §16 保留项），主数据集永远是满的。空态文案「今天还没有安排」把「没事件」与「没待办」混成一句话。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>今天 0 事件但 <b>shelf 有 8 项未安排</b>，或 0 待办但<b>有一条 10 天前逾期房租</b>——这两种「半空」原型都没画。用户对「今天空」的读法取决于<b>剩下那一格是什么</b>。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>空态必须是<b>按节条件渲染</b>，不是整页二选一：「已逾期」节只在有逾期项时出现，「今天截止」节只在当天有到期项时出现，事件节（现在/接下来）按事件数出。整页全空时文案要能<b>指向剩下的那一格</b>。</p>
+        <div class="opt">
+          <span class="rec">四节独立判空，空态文案随剩余格变</span>
+          <span>整页空 = 「今天还没有安排」（维持原型）</span>
+          <span>仅逾期在 = 「还有 2 件逾期，处理完就清空」</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">T2</span>单节 40 项：「接下来」无限长 <span class="sev p0">P0</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>「接下来」画 2 块。design-notes 把 <b>3 行预览 + 「还有 N 项 · 展开全部」</b>只给了「未安排」组，时间轴四节默认永远放得下。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>真实的一天：「接下来」有 40 个 16:00 起的计划块，「已逾期」30 项。用户打开今天页要滑到屏幕外才看到现在该干什么。<b>「现在」是唯一的锚</b>，它必须永远在视口，而它下面的无限长节把锚稀释了。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>给时间轴四节一个<b>统一的节内折叠契约</b>（不是只给 shelf）：超过一屏的节（尤其「接下来」「已逾期」）收成「组头 + 前 N 块 + 还有 M 项 · 展开」，N 按剩余视口高度算（沿用 shelf 的 §18.3-7「组头必跟行」规则）。「现在」节永不折叠——它是今天页唯一的当下锚。</p>
+        <div class="opt">
+          <span class="rec">「接下来/已逾期」套 shelf 同款折叠契约，「现在」永不折</span>
+          <span>折叠后「今天截止」若被挤出视口，加顶部 1 行吸顶提示「还有 1 件今天 18:00 截止」</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">T3</span>同一 Todo 既截止又计划：完成语义冲突 <span class="sev p0">P0</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>画了合并（A″ 规则 4 / design-notes §14）：只画 allocation 块，截止作块内次级 meta「截止 18:00」，<b>不另起一行</b>。但块上只有一个复选框——勾选它到底完成了什么，原型没定义。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>「整理周会纪要」计划 16:00–17:00、截止 18:00。用户 17:30 勾掉 allocation。此刻<b>截止还在（18:00 没到）</b>。这条 Todo 算完成了吗？「今天截止」节里的它消失了，还是留着等 18:00？用户需要一句可预期的话。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>合并块的勾选<b>同时完成「该次执行」与「该截止」</b>——一条 Todo 只有一个完成事实，不允许「执行完成但截止仍挂」。勾选后：今天页「已逾期/今天截止」的计数 -1，块视觉降为 done-ink，meta 追加「已于 17:30 完成 · 原截止 18:00」。若用户想保留截止（比如只想先做、截止另算），那必须走 composer 显式拆字段，而不是靠勾选的副作用。</p>
+        <div class="opt">
+          <span class="rec">一勾双完，meta 记录「提前完成」时刻</span>
+          <span>反方案：勾选只完执行，截止留到 18:00 自动核销——被否：制造「完成了还挂着」的鬼状态</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">T4</span>重复项完成：同一次发生可撤销 <span class="sev p0">P0</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>原型全是单次待办，<b>没有任何重复项（recurring）</b>。勾选完成 = 该行变 done。重复实例的完成、撤销、对「下一次」的影响，原型一笔未画。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>「每周一 给房东转房租」周一完成了。用户 10 秒后反悔——这个反悔<b>必须落在同一周一这次发生上</b>，不能把整个重复序列取消，也不能误改「下次周一」。<b>撤销粒度 = 本次发生（occurrence），不是序列（series）</b>。这是整个评审板最高优先级的数据模型决定。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>重复项在数据层要<b>把「实例」物化</b>：每次发生是一个独立 completion 记录，撤销只回滚本实例，序列规则（每周/每日/自定义）不动。UI 层：勾选后 5s 撤销窗（inline undo，仿捕获行 toast 语言「已勾选 · 撤销」）；撤销窗关闭后，本实例永久完成，「下次」照常生成。完成态行必须能读出「这是重复项的第 N 次」，否则用户无法判断自己撤销的是哪一次。</p>
+        <div class="opt">
+          <span class="rec">occurrence 物化 + 5s 同实例 undo</span>
+          <span>撤销窗内重复项行保留 occurrence 序号（「第 12 周」）</span>
+          <span>被否：序列级撤销（太危险）、完成即删块（丢 occurrence 历史）</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">T5</span>DayProjection 加载失败：今天页降级 <span class="sev p1">P1</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>今天页永远显示完整投影（§16.2 的 Events + Allocations + 当天到期 Todos）。没有骨架、没有失败、没有重试。原型假设数据永远在场。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>冷启动 / 离线 / 同步失败时，今天页是<b>用户一天看的第一屏</b>。空白或白屏 = 「我的日程呢？」。失败时用户需要知道：是还没拿到数据，还是真的空，以及<b>怎么重试</b>。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>今天页三态：①<b>首载</b> = 骨架屏（四节占位，沿用行几何 52px，不画假数据）；②<b>失败</b> = 空态盒 + 一句「同步失败，显示的是本地最后已知」+「重试」链接按钮（primary 文字，非实心）；③<b>成功但空</b> = 现有 02 空态。失败态要标出<b>数据新鲜度</b>（「本地 · 上次同步 14:20」），否则用户会误以为是全量。</p>
+        <div class="opt">
+          <span class="rec">失败态 = 本地最后已知 + 新鲜度戳 + 重试</span>
+          <span>离线时隐藏「已逾期」节（依赖同步的判定），只保留本地待办</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       02 · 日历 · 槽 sheet
+  ═══════════════════════════════════════════ -->
+  <section class="area" id="a2">
+    <div class="area-head"><span class="no">02</span><h2>日历 · 24h 轴 / 截止 lane / 槽 sheet 三动作</h2></div>
+    <p class="area-intro">原型只画了月视图（手机），实现版跑的是<b>完整 24h 可滚日/周轴 + 截止 lane + 点槽弹 sheet</b>。原型 14 号屏的三动作（新建日程 / 安排待办 / 新建并安排）现在要接受信息层级拷问。</p>
+
+    <div class="card">
+      <h3><span class="cid">C1</span>槽 sheet 头部：真实时间范围该不该上头 <span class="sev p0">P0</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>14 号屏 sheet 头 = <b>「11月15日 · 周日 · 18:00–19:00」</b>，时间范围写死在头里。原型没问：当用户点的是<b>一个空槽</b>（比如 22:00）而非一个事件时，范围从哪来？</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>24h 轴上点<b>空白</b>弹 sheet 时，「范围」是<b>用户点的槽 + 默认时长</b>（默认 1h？30min？）。用户需要一眼看出「我这一戳对应的是几点到几点」，否则三个动作写进去的时间是猜的。<b>头部必须带真实起止，且标出「默认时长」是推断值</b>——这是可编辑的，不是事实。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>sheet 头改双行：主行 <b>「11月15日 · 周日」</b>（日期是事实），次行 <b>「18:00–19:00 · 默认时长，可改」</b>（范围是推断 + 可编辑控件入口）。点事件进 sheet 时次行改为「18:00–19:00 · 既有日程」（事实，不可改）。三个动作都引用<b>同一个已解析范围</b>，不允许各写各的。</p>
+        <div class="opt">
+          <span class="rec">日期作主行，范围作次行 + 「默认/可改」标签</span>
+          <span>默认时长 = 1h（30min 粒度），随 slot 上沿对齐 30min</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">C2</span>三动作视觉权重：是否要分级 <span class="sev p1">P1</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>三个 <b>srow 等重</b>（同 15px/600 标题 + 15px/400 说明），只有「安排待办」右侧带 chevron。视觉上一个都不比另一个重。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>三动作语义严格不同（写 Event / 写 allocation / 写 allocation+todo），但<b>频率严重不均</b>：「新建日程」是主路径，「安排待办」要二级 sheet 选项，「新建并安排」是组合捷径。等重 = 用户每次都要读三遍说明。<b>主路径要一眼可辨</b>。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>按<b>频率 × 不可逆性</b>分级，不是按语义重要性：①「新建日程」= 实心 primary 行（sheet 内唯一实心，与 composer 主按钮同语言）；②「新建并安排」= surface-2 描边行；③「安排待办」= 纯文字行 + 右侧 chevron（进二级 sheet，最重操作放最后）。权重递减 = 可逆性递增。</p>
+        <div class="opt">
+          <span class="rec">实心 → 描边 → 文字，按可逆性排</span>
+          <span>「安排待办」前加「未安排」项数徽标（0 时整行 disabled + 说明「未安排里没有待办」）</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">C3</span>候选待办列表：空 / 错状态文案 <span class="sev p1">P1</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>「安排待办」二级 sheet <b>只画了「有候选」</b>：列当天未安排项，带截止的排最前。没有空候选、没有加载失败、没有「全被安排了」的中间态。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>点槽想安排待办，但<b>未安排里一条都没有</b>（全排掉了），或同步失败读不到未安排列表。空 ≠ 错，文案必须分开，且<b>空态要给出下一步</b>（去新建）。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>二级 sheet 三态，文案固定如下（复用 .empty 空态盒语言）：</p>
+        <div class="statebox">
+          <div class="sb"><div class="h">空（未安排里没有待办）</div>
+            <div class="copy"><span class="q">「未安排里没有待办可安排」</span> + <span class="q">「先去记一条，或直接用上面「新建并安排」」</span></div>
+            <div class="cta">↑ 指向 sheet 内的「新建并安排」行</div>
+          </div>
+          <div class="sb err"><div class="h">错（读未安排列表失败）</div>
+            <div class="copy"><span class="q">「未安排列表没加载出来」</span> + <span class="q">「可新建日程，或重试后再安排待办」</span></div>
+            <div class="cta">重试 · 新建日程仍可用</div>
+          </div>
+        </div>
+        <p style="margin-top:10px">关键决定：<b>「安排待办」失败不连带禁掉「新建日程」</b>——两个动作的数据源独立，错误只隔离到「安排待办」一行。</p>
+        <div class="opt"><span class="rec">错误只隔离到失败动作，不整 sheet 报错</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">C4</span>24h 轴：原型 12:00–18:00 窗口 vs 全轴 <span class="sev p2">P2</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>周/日视图画 <b>12:00–18:00 六行窗口</b>（§16 修 F），超出滚动。实现是<b>完整 0:00–24:00 可滚轴</b>。两版的「现在线」位置、截止 lane 是否跟随滚动、凌晨时段空块，从未对账。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>24h 轴上，<b>现在线 + 截止 lane 必须 sticky 跟随滚动</b>，否则滚到凌晨 2:00 时用户失去「现在在哪」与「今天几点截止」两个锚。凌晨空时段要能<b>快速跳回现在</b>，而不是从 0:00 滑一小时。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>① 现在线 = 吸顶线（滚到视口顶时钉在顶，带时刻读数）；② 截止 lane 作<b>独立的 sticky 顶条</b>，不随时间格滚走；③ 加「回到现在」浮动键（仅当滚离现在 &gt; 1 屏时出现）。凌晨 0–6 点空轴用<b>低对比度折叠段</b>（一行「凌晨 · 无事」），不画 7 个空小时。</p>
+        <div class="opt">
+          <span class="rec">现在线 + 截止 lane 双 sticky，凌晨折叠段</span>
+          <span>「回到现在」键 = 24px 圆形，贴右下角，不与 FAB 同屏</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       03 · 待办行解剖
+  ═══════════════════════════════════════════ -->
+  <section class="area" id="a3">
+    <div class="area-head"><span class="no">03</span><h2>待办 · 行解剖（未安排 / 全部 / 按日期）</h2></div>
+    <p class="area-intro">行 = 复选框 + 标题 + meta + 日历点，min-h 52。原型画的是「行是什么样」，没画「行被点了会去哪」。「schedule」作为独立动作（区别于打开详情）是这里最大的未定义行为。</p>
+
+    <div class="card">
+      <h3><span class="cid">D1</span>行解剖：每个槽的命中行为 <span class="sev p1">P1</span></h3>
+      <div class="anatomy" aria-label="行解剖示意">
+        <div class="cell">
+          <div class="glyph"><span class="ring"></span></div>
+          <div class="lbl">复选框</div>
+          <div class="d">48 命中 / 20 圆环<br>点 = 完成（可撤销）</div>
+          <div class="hot">写完成态</div>
+        </div>
+        <div class="cell">
+          <div class="glyph"><span class="txt"></span><span class="txt meta" style="margin-top:0"></span></div>
+          <div class="lbl">标题 + meta</div>
+          <div class="d">点整行 = 打开<br>composer / 详情</div>
+          <div class="hot">读 + 改</div>
+        </div>
+        <div class="cell">
+          <div class="glyph"><span class="cal"></span></div>
+          <div class="lbl">日历归属点</div>
+          <div class="d">8px 方块<br>纯展示，不可点？</div>
+          <div class="hot">未定义</div>
+        </div>
+        <div class="cell" style="border-left:1px dashed var(--danger);background:var(--danger-soft)">
+          <div class="glyph" style="height:22px;display:grid;place-items:center">
+            <span style="font-size:11px;font-weight:600;color:var(--danger)">安排</span>
+          </div>
+          <div class="lbl">「安排」动作槽</div>
+          <div class="d">原型没有它<br>= 最大缺口</div>
+          <div class="hot" style="color:var(--danger)">缺失</div>
+        </div>
+      </div>
+      <div class="seg decide" style="border-top:1px solid var(--line-soft);padding-top:12px"><div class="k">要拍板的决定</div>
+        <p>行上现在有<b>两个热区</b>（复选框 = 完成，整行 = 打开），但「安排」没有自己的热区——它藏在整行 → composer 里。给「安排」一个<b>独立的行内入口</b>（行右缘「安排」ghost 字键，44 命中），与「打开详情」分流：右缘键 = 直接进 composer 安排模式；点标题 = 进只读详情。归属点<b>保持不可点</b>（它不是过滤器，避免把行变三热区）。</p>
+        <div class="opt"><span class="rec">行右缘「安排」键 + 标题点开详情，归属点只读</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">D2</span>「安排」作为独立动作：语义与去向 <span class="sev p0">P0</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>「安排」在原型里 = <b>点行进 composer</b>（design-notes §3「点行 = 进 composer 安排」）。它没有和「打开/查看详情」分开——整行既是查看又是安排的入口，语义混在一个手势上。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>一条未安排项，用户<b>只想给它排个时间</b>，不想进全字段 composer 改标题/截止/备注。把「安排」和「打开」绑死，意味着每个纯排期动作都要穿过一个 6 字段的表单。<b>安排必须是可直达的轻动作</b>。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>「安排」直达 <b>composer 的 schedule 模式</b>：标题只读锁定（这是既有待办，不是新建），只露「计划执行时段」+「（可选）截止」两行 + 主按钮。与 D1 的行右缘「安排」键配对。整行点 = 进<b>全字段详情</b>（查看/编辑），右缘键 = 进 <b>schedule 模式</b>（只排期）。一个字段两种进入深度，由入口决定，不由用户猜。</p>
+        <div class="opt">
+          <span class="rec">schedule 模式 = composer 锁标题的轻子集</span>
+          <span>schedule 模式主按钮文案 = 「安排到 11/17 14:00–15:00」（见 A4 状态矩阵）</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">D3</span>可撤销的完成态：已完成行长什么样 <span class="sev p0">P0</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>done 行 = 标题 strike-through + <b>ink-3 灰 meta「已完成」</b>（M15 第 3 行）。这是<b>终态</b>画法——做完就是做完，原型没给「刚做完、还能反悔」的中间态。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>配合 T4（重复项同实例撤销）+ D2（轻完成），勾选后<b>几秒内用户可能反悔</b>。终态画法把反悔的唯一路径藏进「再点一次复选框」，用户不知道还能撤销，也不知道<b>撤销的是哪一次发生</b>。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>完成行加一个 <b>5s 可撤销窗</b>，窗内行 = 终态视觉 + 行右缘一个 <b>「撤销」键</b>（primary，仿捕获行 toast 的 undo 语言）。窗关闭后「撤销」键消失，行回落纯 done。重复项完成时「撤销」键读作「撤销第 N 次」，把 occurrence 暴露出来。撤销窗内该行<b>保持原位不移走</b>（不滑到 done 区），避免布局跳动。</p>
+        <div class="rowdemo" aria-label="可撤销完成行示意">
+          <span class="cbx s on" style="margin:0" aria-hidden="true"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:12.4px;height:12.4px;opacity:1;stroke:var(--on-primary)"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+          <div class="body">
+            <div class="title">给房东转房租（第 12 次 · 每周一）</div>
+            <div class="meta">已完成 17:30 · 原截止 18:00</div>
+          </div>
+          <span class="undo hot">撤销</span>
+        </div>
+        <div class="opt"><span class="rec">done + 5s 撤销键，重复项暴露 occurrence 序号</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       04 · Composer
+  ═══════════════════════════════════════════ -->
+  <section class="area" id="a4">
+    <div class="area-head"><span class="no">04</span><h2>Composer · 一 sheet 两模式（创建 / 安排既有）</h2></div>
+    <p class="area-intro">原型 09/10/11 是<b>创建模式</b>（标题可填、按钮「保存到未安排 / 计划执行到 / 保存（截止）」）。实现版同一个 sheet 还要承担<b>安排既有待办</b>（D2 的 schedule 模式）。主按钮必须永远说出「会写下什么」。</p>
+
+    <div class="card">
+      <h3><span class="cid">P1</span>主按钮命名：创建 vs 安排既有，两套文案 <span class="sev p0">P0</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>主按钮只覆盖创建模式三态：<b>「保存到未安排」/「计划执行到 11/17」/「保存（截止 11/17 18:00）」</b>（design-notes §8 第 5 条）。按钮文案 = 结果的承诺。但<b>安排既有待办</b>时，待办已经存在，「保存」这个动词是错的——没有新东西可保存。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>schedule 模式的主按钮必须读作<b>「写到哪」而非「存一个新条」</b>。用户要确认的是「这条<b>既有</b>待办会被排到 11/17 14:00–15:00」，不是「创建一条」。动词错了 = 用户以为会新建一条重复的。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>主按钮动词<b>随模式切换</b>：创建模式用「保存…」；schedule 模式用「<b>安排</b>…」（「安排到 11/17 14:00–15:00」）。两者共享同一套「带出实际值」的命名规则，只换首动词。schedule 模式下标题区<b>只读展示既有标题</b>（非输入框），按钮区上方加一句「将更新「整理周会纪要」」，把「改的是这条」说死。</p>
+        <div class="opt"><span class="rec">动词随模式：保存 / 安排，值永远内嵌</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">P2</span>状态矩阵：nothing / due / slot / both / schedule <span class="sev p1">P1</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>画了创建模式的 3 个状态（未选 / 选时段 / 设截止）。<b>「截止+时段同时有」与「schedule 模式」未画</b>，按钮文案也没有覆盖到「both」。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>组合态里按钮最容易被写错：既设了截止又选了时段，按钮该说什么？schedule 模式里「只选时段不动截止」又该说什么？每个组合都要<b>唯一可预测的文案</b>，不能让用户去猜按钮会写什么。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>按钮文案 = <b>「动词 + 将写入的每个字段（带值）」</b>，多字段用「·」连接，谁设了谁出现。固定矩阵：</p>
+        <table class="matrix">
+          <thead><tr><th>状态（创建模式）</th><th>主按钮文案</th><th>校验</th></tr></thead>
+          <tbody>
+            <tr><td class="state">nothing（啥都没选）</td><td><span class="btn">保存到未安排</span></td><td class="note"><span class="ok">✓</span> 原型已有，纯捕获</td></tr>
+            <tr><td class="state">due only</td><td><span class="btn">保存（截止 11/17 18:00）</span></td><td class="note"><span class="ok">✓</span> 原型已有</td></tr>
+            <tr><td class="state">slot only</td><td><span class="btn">计划执行到 11/17 14:00–15:00</span></td><td class="note"><span class="ok">✓</span> 原型已有</td></tr>
+            <tr><td class="state">both</td><td><span class="btn">保存（计划 14:00–15:00 · 截止 18:00）</span></td><td class="flag">未画——必须补，且「计划」在前（主行语义）</td></tr>
+            <tr><td class="state">schedule · slot only</td><td><span class="btn">安排到 11/17 14:00–15:00</span></td><td class="flag">未画——动词换「安排」</td></tr>
+            <tr><td class="state">schedule · due+slot</td><td><span class="btn">安排（计划 14:00–15:00 · 截止 18:00）</span></td><td class="flag">未画——既有待办改截止也要说死</td></tr>
+          </tbody>
+        </table>
+        <p class="note" style="margin-top:10px">规则：<b>只列已变化的字段</b>（schedule 模式里没动的截止不重复进按钮）；多字段按「计划 → 截止」固定序；值一律 tabular 内嵌。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="cid">P3</span>两模式切换：同 sheet 内 create ⇄ schedule <span class="sev p2">P2</span></h3>
+      <div class="seg assume"><div class="k">原型假设</div><p>composer 是<b>一开一关</b>的 sheet，创建模式从「安排到这一天」/ 时间槽打开。没有「在已打开的 composer 里切换成 schedule 模式」的路径。</p></div>
+      <div class="seg need"><div class="k">真实需要</div><p>用户从「未安排」进 schedule 模式排了期，中途想<b>把这条拆成新的待办</b>或<b>改回创建</b>。两模式在同一个 sheet 里要可切换，且切换时<b>已填字段不丢</b>。</p></div>
+      <div class="seg decide"><div class="k">要拍板的决定</div>
+        <p>sheet 头加一个<b>模式切换段控</b>（创建 / 安排既有，仿 .sh-head 的 seg 语言）：切到「安排既有」时标题输入框变只读、主按钮动词变「安排」；切回「创建」时标题解锁、按钮变「保存」。<b>切换不清空已选时段与截止</b>。schedule 模式下若该待办已被排期，进入即预选其既有时段（不是空白），避免误改。</p>
+        <div class="opt"><span class="rec">seg 切模式，字段保留，schedule 入口预填既有时段</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       05 · 跨页流
+  ═══════════════════════════════════════════ -->
+  <section class="area" id="a5">
+    <div class="area-head"><span class="no">05</span><h2>跨页流 · 捕获→未安排→安排→日历→改排→完成→撤销</h2></div>
+    <p class="area-intro">一条任务穿过 5 个页面 / 4 个写操作。原型各屏是<b>分帧画的</b>，没把这条链画成一条。下面把整链画出来，<b>在每个用户会丢东西或迷失的位置标风险</b>：⚠ = 丢工作（不可逆 / 静默丢），◉ = 丢跟踪（东西还在但用户不知道它去哪了）。</p>
+
+    <div class="flow">
+      <div class="flow-track">
+        <div class="fstep">
+          <span class="n">① 捕获</span>
+          <div class="t">今天 · 捕获行回车</div>
+          <div class="d">「整理周会纪要」→ 进未安排（03 屏，toast + 刚加入）</div>
+          <div class="risk"><span class="track">◉ 焦点仍在输入框，用户没看到它进哪</span></div>
+        </div>
+        <div class="fstep">
+          <span class="n">② 归入未安排</span>
+          <div class="t">未安排 shelf +1</div>
+          <div class="d">今天未安排组 与 待办·未安排 同步（01/04）</div>
+          <div class="risk"><span class="track">◉ 两处数据，用户不知道哪是权威</span></div>
+        </div>
+        <div class="fstep">
+          <span class="n">③ 安排</span>
+          <div class="t">按日期 · 安排到这一天</div>
+          <div class="d">composer 选 14:00–15:00 = 写 allocation（06/09/10）</div>
+          <div class="risk"><span class="lost">⚠ 写 allocation 失败静默，待办留在未安排</span><span class="track">◉ 安排完不回跳到日历</span></div>
+        </div>
+        <div class="fstep">
+          <span class="n">④ 上日历</span>
+          <div class="t">11/17 时间轴出现</div>
+          <div class="d">work 计划块 + 可勾选，截止作次级（13/13b）</div>
+          <div class="risk"><span class="track">◉ 用户要手动翻到 11/17 才看见</span></div>
+        </div>
+        <div class="fstep">
+          <span class="n">⑤ 改排</span>
+          <div class="t">reschedule 到 11/18</div>
+          <div class="d">slot sheet「安排待办」/ composer 改时段</div>
+          <div class="risk"><span class="lost">⚠ 旧 allocation 未清，11/17 与 11/18 双挂</span></div>
+        </div>
+        <div class="fstep">
+          <span class="n">⑥ 完成</span>
+          <div class="t">11/18 勾选</div>
+          <div class="d">块降 done-ink，时间轴保留占位（§5 不删块）</div>
+          <div class="risk"><span class="track">◉ 完成发生在日历块，未安排/今天不联动</span></div>
+        </div>
+        <div class="fstep">
+          <span class="n">⑦ 撤销</span>
+          <div class="t">5s 窗内反悔</div>
+          <div class="d">同 occurrence undo（T4 / D3）</div>
+          <div class="risk"><span class="lost">⚠ 窗过后无 undo，完成不可逆</span><span class="track">◉ 重复项：撤的是第几次？</span></div>
+        </div>
+      </div>
+      <div class="flow-legend">
+        <span><i class="sw" style="background:var(--danger-soft)"></i> ⚠ 丢工作 · 不可逆 / 静默</span>
+        <span><i class="sw" style="background:var(--warn-soft)"></i> ◉ 丢跟踪 · 东西还在但迷失</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3><span class="cid">X1</span>七个风险点逐一定性</h3>
+      <div class="risklist">
+        <div class="ri"><div class="n">R1</div><div class="body"><span class="tag lost">丢工作</span><b>③ 写 allocation 静默失败</b>：composer 保存报网络错时，若只 toast「保存失败」不保留草稿，用户已填的标题+时段全丢。<b>决定</b>：失败不清空 composer，草稿留 sheet 内，按钮旁标「未写入」。</div></div>
+        <div class="ri"><div class="n">R2</div><div class="body"><span class="tag track">丢跟踪</span><b>③ 安排完不回跳</b>：在「按日期」排了 11/17，但用户停在 11/15 屏。<b>决定</b>：成功后 sheet 关，<b>browseDate 自动跳到被安排的日期</b>并弹「已安排到 11/17 · 查看」一行。</div></div>
+        <div class="ri"><div class="n">R3</div><div class="body"><span class="tag track">丢跟踪</span><b>④ 上日历要手动翻</b>：安排到的日期不在当前视图。<b>决定</b>：日历页收到「有新安排」后，月视图在目标日格上短暂 primary-tint 闪烁（1.2s，非持久），周/日视图自动定位。</div></div>
+        <div class="ri"><div class="n">R4</div><div class="body"><span class="tag lost">丢工作</span><b>⑤ reschedule 旧 allocation 未清</b>：改排到 11/18 若旧 11/17 的 allocation 没删，同一条待办双挂两日，勾选其一另一日仍显示未完成。<b>决定</b>：改排 = <b>原子替换</b>（删旧 + 写新同一事务），不允许产生两条 allocation。</div></div>
+        <div class="ri"><div class="n">R5</div><div class="body"><span class="tag track">丢跟踪</span><b>⑥ 完成不联动</b>：在日历块勾选后，「今天/未安排」的计数与 shelf 没更新。<b>决定</b>：完成是<b>单一事实源事件</b>，所有页（今天四节计数、未安排 shelf、按日期列表）订阅同一事件即时刷新，不靠用户切页重算。</div></div>
+        <div class="ri"><div class="n">R6</div><div class="body"><span class="tag lost">丢工作</span><b>⑦ 撤销窗过后不可逆</b>：5s 窗是唯一的反悔机会。<b>决定</b>：窗过后，<b>完成记录进「最近完成」可检索</b>（今天页加一隐藏节 / 待办·全部加「已完成」段），从那里可重新打开——完成不被物理删除，只移区。</div></div>
+        <div class="ri"><div class="n">R7</div><div class="body"><span class="tag track">丢跟踪</span><b>⑦ 重复项撤哪一次</b>：撤销粒度是 occurrence，但 UI 没暴露「第几次」。<b>决定</b>：重复项完成行<b>必带 occurrence 序号</b>（「第 12 周」），撤销键读作「撤销第 12 周」，与 T4 / D3 一致。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <b>用法</b>：本页是<b>实现者拍板清单</b>，不是视觉规范。18 条缺口各带 (a) 原型假设 / (b) 真实需要 / (c) 待拍板决定；「◉ 推荐」是本页给出的倾向，实现者可按数据模型否决，但<b>必须留痕</b>。
+    优先级口径：<b>P0</b> = 有数据不可逆或模型缺口（T3/T4、C1、D2/D3、P1、R4/R6）；<b>P1</b> = 状态缺失导致误读（T1/T5、C2/C3、D1、P2、R2/R5）；<b>P2</b> = 体验降级可延后（C4、P3、R1/R3/R7）。
+    所有颜色 / 字阶 / 圆角 / 间距均引自 <b>shared.css 的 Direction C token</b>，未新增视觉语言；本页新增的只有<b>行为、状态、文案、数据流</b>。
+  </footer>
+
+</div>
+</body>
+</html>

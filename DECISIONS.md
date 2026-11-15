@@ -378,7 +378,7 @@
 - **DST 补充裁定**：用户撤销 gap-skip，采用 RFC 5545 §3.3.5 + Verified Erratum 4271 的 gap-before-offset；fold 取第一次出现。Occurrence key 使用 RRULE 产生的 nominal local occurrence，不因 gap normalization 变成实际当地显示时间。实测 gap occurrence 为 nominal `02:30` identity + `07:30Z` instant / 当地 `03:30` 展示。
 - **运行 spike 结果**：以 `C:\src\flutter` 的 Flutter 3.47.3 / Dart 3.13.3 直接执行。RRULE vectors、DST prototype、DATE-only adapter、ICS parser 四类 fixture 与 converter tests、临时纯 Dart path package 在 client/server 两个依赖图的 vectors 均通过。timezone 两边 tzdata 都为 2025c，显式 zone 输出一致；0.11.1 相比 0.11.0 仅更改默认 `tz.local` 名称 `UTC`→`Etc/UTC`。最终门禁：`dart analyze .` 零 issue；全量 `flutter test` 414 项通过；`git diff --check` 通过。临时 client/server path dependency 已恢复，保留最小复现 spike harness。
 - **后续**：设计 spike 已完成；实现仍属于单独授权范围。下一阶段按 `docs/superpowers/plans/2026-10-04-recurring-todo.md` 执行，并在产品实现中保留 strict RRULE allowlist、ICS metadata wrapper、跨端向量与时区版本对齐。
-- **对应规范/报告**：`SPEC.md` §3.1.1；`docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`；下一阶段计划 `docs/superpowers/plans/2026-10-04-recurring-todo.md`。
+- **对应规范/报告**：`SPEC.md` §3.1.2；`docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`；下一阶段计划 `docs/superpowers/plans/2026-10-04-recurring-todo.md`。
 - **判错代价**：若接受本轮静态源码判断为运行证明，可能冻结一个实际 package 行为不兼容的 DST/ICS 协议，并导致不同设备产生不同 occurrence identity；因此必须保留可复现运行 spike 与全仓门禁作为本阶段完成条件；本轮均已通过。
 
 ### [2026-10-05] R1 建立共享 Recurrence Core
@@ -392,7 +392,7 @@
 - **触发背景**：R1 引擎已冻结，但 Todo 仍只有 `startDate`、`dueDate`、`rrule`，无法持久表达 DATE/DATE-TIME、anchor source 与系列 timezone，也无法安全并发同步。
 - **核心决策**：schema v12 以结构化列保存完整 RecurrenceSpec 与 revision；旧 `rrule` 行归为 `unknownLegacy`，不猜时区。wire 上将 spec、revision、legacy state 作为一个同步组；revision 高者胜，同 revision 以规范化完整 tuple 的字典序固定破平，tuple 相同再以 opId 破平；普通字段继续字段级 LWW。旧客户端缺少 recurrence group 时仍能同步普通 Todo，但不能用旧 projection 改写 active RecurrenceSpec。ICS 无权威 IANA wall-time 证据时保留 unknownLegacy；Todo MCP 当前不提供 recurrence 写参数。
 - **代价**：旧重复 Todo 在用户确认 timezone 与 anchor interpretation 前不可编辑 recurrence 字段或进入正式 occurrence 语义；同 revision 的并发编辑可能由固定字典序选中一端，用户需在之后再次编辑才能覆盖。R2 不含 occurrence UI、Calendar expansion、Allocation occurrence binding 或 recurring Todo MCP。
-- **对应 SPEC 章节**：SPEC.md §3.1.1、§3.2。
+- **对应 SPEC 章节**：SPEC.md §3.1.2、§3.2。
 - **影响范围**：Todo schema/writer、sync contracts/client/server、ICS legacy import、migration tests、architecture guard 与 recurrence implementation plan。
 
 ### [2026-10-05] R3 Occurrence projection 与 TaskAllocation 绑定
@@ -403,7 +403,7 @@
   - 未来 orphan 不进入正常 Calendar、但详情可发现且 active 继续占 busy → 判错代价：系列修改后旧安排仍占据空闲时间，需用户显式取消/重新安排。
   - unknownLegacy 显示安排入口但阻止选择并提示需确认，不在 R3 做确认向导 → 判错代价：legacy 用户需要到后续 R4 才能完成正式转换。
   - occurrence selector 默认 90 日、最多 100 项 → 判错代价：窗口外 occurrence 需要稍后再安排，且极密集规则会因显式上限失败而不是静默截断。
-- **对应 SPEC 章节**：SPEC.md §3.1.1、§3.1 规则 3/6/8/10/13/14。
+- **对应 SPEC 章节**：SPEC.md §3.1.2、§3.1 规则 3/6/8/10/13/14。
 - **实施与验证**：`docs/superpowers/plans/2026-10-04-recurring-todo.md`；package/root/contracts/server/wrapper/CLI 门禁均通过；root Flutter 436 tests、server 233 tests，另有真实双设备 TaskAllocation occurrenceId round-trip。
 
 ### [2026-10-05] R4 实施中的 ICS 与 legacy 确认策略（尚未最终验收）
@@ -466,7 +466,7 @@
   4. **Ruling D — 今日完成的实例归入折叠的今日已完成区（completed recurring instances belong in collapsed Completed today）**：今日完成的 TaskInstance 放入 Action 既有折叠的「今日已完成」区域；归属判定依据实例的 `completedAt`（今日），身份严格保持 `(todoSyncId, occurrenceId)`。从该区域取消完成（reopen）必须将精确 `occurrenceId` 传给现有 TaskInstanceWriter；不改变父系列状态，不影响兄弟实例。
   5. **Ruling E — 执行日投影语义（Action-day semantics）**：DATE 类型「今日」判定为 `LocalDate == Action civil date`；DATE-TIME 类型「今日」判定为该实例的 resolved instant 落在用户本地 Action-day 的 `[start, end)` 瞬时窗口内。`occurrenceId` 严格保持系列名义本地身份，Action 投影绝不重写 identity。「Missed」定义为按同一值类型规则严格早于该日边界的 pending 实例。异地时区系列若 DATE-TIME 落在本地执行日内属于预期行为。
   6. **共享 occurrence projection / selection seam**：将散落在待办行与详情页的有界展开、实例状态投影、分页历史、完成/跳过过滤抽取为统一只读缝；所有交互与投影入口共享同一身份与投影契约。
-- **对应 SPEC 章节**：SPEC.md §3.1（规则 16/18）与 §3.1.1。
+- **对应 SPEC 章节**：SPEC.md §3.1（规则 16/18）与 §3.1.2。
 - **影响范围**：`lib/domain/records/todo_occurrence.dart`、`lib/domain/providers/action_projection_provider.dart`、`lib/ui/pages/home/action_section.dart`、`lib/ui/widgets/calendar/calendar_slot_sheet.dart`、`lib/ui/widgets/todo/` 等。
 - **Rulings 裁定披露**：
   - 严格保持 obligation 语义，跨日不自动跳过/完成未完成实例 → 判错代价：遗漏任务会积压并需用户主动处理，但守护了待办作为承诺/责任的绝对严肃性。

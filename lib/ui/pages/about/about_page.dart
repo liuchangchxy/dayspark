@@ -23,7 +23,10 @@ class _AboutPageState extends State<AboutPage> {
 
   String _currentVersion = '';
   String _currentBuild = '';
+  bool _versionFailed = false;
   bool _checking = false;
+  bool _noReleases = false;
+  bool _bodyExpanded = false;
   Map<String, dynamic>? _latestRelease;
   String? _error;
 
@@ -34,12 +37,17 @@ class _AboutPageState extends State<AboutPage> {
   }
 
   Future<void> _loadVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() {
-        _currentVersion = info.version;
-        _currentBuild = info.buildNumber;
-      });
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _currentVersion = info.version;
+          _currentBuild = info.buildNumber;
+        });
+      }
+    } catch (error) {
+      debugPrint('about: version unavailable: $error');
+      if (mounted) setState(() => _versionFailed = true);
     }
   }
 
@@ -48,6 +56,8 @@ class _AboutPageState extends State<AboutPage> {
       _checking = true;
       _error = null;
       _latestRelease = null;
+      _noReleases = false;
+      _bodyExpanded = false;
     });
     try {
       final dio = Dio()..options.connectTimeout = const Duration(seconds: 10);
@@ -66,6 +76,9 @@ class _AboutPageState extends State<AboutPage> {
           _latestRelease = list.isNotEmpty
               ? list.first as Map<String, dynamic>
               : null;
+          // An empty list is an answer too. Without this the button simply
+          // stopped spinning and said nothing.
+          _noReleases = list.isEmpty;
           _checking = false;
         });
       }
@@ -122,6 +135,10 @@ class _AboutPageState extends State<AboutPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final ds = context.ds;
+    final releaseBody = _latestRelease?['body'] as String? ?? '';
+    final bodyLines = releaseBody.split('\n');
+    final canExpand = bodyLines.length > 8 || releaseBody.length > 600;
+    final hiddenLines = bodyLines.length > 8 ? bodyLines.length - 8 : 1;
 
     return WorkspacePage(
       title: l.about,
@@ -165,10 +182,15 @@ class _AboutPageState extends State<AboutPage> {
           ),
           const SizedBox(height: AppSpacing.s1),
           Text(
-            '${l.currentVersion}: v$_currentVersion'
-            '${_currentBuild.isEmpty ? '' : ' ($_currentBuild)'}',
+            _versionFailed
+                ? '${l.currentVersion}: ${l.error}'
+                : '${l.currentVersion}: v$_currentVersion'
+                      '${_currentBuild.isEmpty ? '' : ' ($_currentBuild)'}',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: ds.ink3),
+            style: TextStyle(
+              fontSize: 12,
+              color: _versionFailed ? ds.danger : ds.ink3,
+            ),
           ),
           const SizedBox(height: AppSpacing.s5),
           DsButton(
@@ -183,6 +205,14 @@ class _AboutPageState extends State<AboutPage> {
             Text(
               _error!,
               style: TextStyle(fontSize: 12, color: ds.danger),
+            ),
+          ],
+          if (_noReleases) ...[
+            const SizedBox(height: AppSpacing.s3),
+            Text(
+              l.noResults,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: ds.ink3),
             ),
           ],
           if (_latestRelease != null) ...[
@@ -221,16 +251,33 @@ class _AboutPageState extends State<AboutPage> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.s3),
-                    Text(
-                      _latestRelease!['body'] as String? ?? '',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.55,
-                        color: ds.ink2,
+                    if (releaseBody.isNotEmpty) ...[
+                      Text(
+                        releaseBody,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.55,
+                          color: ds.ink2,
+                        ),
+                        maxLines: _bodyExpanded ? null : 8,
+                        overflow: _bodyExpanded
+                            ? TextOverflow.visible
+                            : TextOverflow.ellipsis,
                       ),
-                      maxLines: 8,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      if (canExpand)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: DsButton(
+                            label: _bodyExpanded
+                                ? l.collapseLabel
+                                : l.expandRemaining(hiddenLines),
+                            tone: DsButtonTone.ghost,
+                            small: true,
+                            onPressed: () =>
+                                setState(() => _bodyExpanded = !_bodyExpanded),
+                          ),
+                        ),
+                    ],
                     const SizedBox(height: AppSpacing.s3),
                     Align(
                       alignment: Alignment.centerRight,

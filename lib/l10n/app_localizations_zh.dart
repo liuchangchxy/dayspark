@@ -286,6 +286,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiAssistant => 'AI 助手';
 
   @override
+  String get openAssistant => '打开助手';
+
+  @override
   String get apiKey => 'API 密钥';
 
   @override
@@ -1657,7 +1660,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get actionEarlierToday => '今日早前';
 
   @override
-  String get createTodoAndSchedule => '新建待办';
+  String get createTodoAndSchedule => '新建并安排';
 
   @override
   String calendarHasContents(int events, int todos) {
@@ -2073,6 +2076,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String daysAgo(int count) {
+    return '$count 天前';
+  }
+
+  @override
   String yearMonthTitle(String year, String month) {
     return '$year 年 $month';
   }
@@ -2156,4 +2164,26 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get nextDay => '后一天';
+
+  @override
+  String undoOccurrence(String label) {
+    return '撤销 · $label';
+  }
+
+  @override
+  String get backToNow => '回到现在';
+
+  @override
+  String dawnQuiet(String start, String end) {
+    return '$start–$end · 凌晨无事';
+  }
+
+  @override
+  String get slotRangeExistingEvent => '已有日程';
+
+  @override
+  String get slotRangeDefaultEditable => '默认，可改';
+
+  @override
+  String get slotEmptyCreateHint => '暂无可安排的待办，新建后会直接排到这个时段。';
 }

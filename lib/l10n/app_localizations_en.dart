@@ -298,6 +298,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiAssistant => 'AI Assistant';
 
   @override
+  String get openAssistant => 'Open assistant';
+
+  @override
   String get apiKey => 'API Key';
 
   @override
@@ -1675,7 +1678,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionEarlierToday => 'Earlier today';
 
   @override
-  String get createTodoAndSchedule => 'New Task';
+  String get createTodoAndSchedule => 'New & schedule';
 
   @override
   String calendarHasContents(int events, int todos) {
@@ -2091,6 +2094,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String daysAgo(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days ago',
+      one: '1 day ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String yearMonthTitle(String year, String month) {
     return '$year / $month';
   }
@@ -2174,4 +2188,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nextDay => 'Next day';
+
+  @override
+  String undoOccurrence(String label) {
+    return 'Undo · $label';
+  }
+
+  @override
+  String get backToNow => 'Back to now';
+
+  @override
+  String dawnQuiet(String start, String end) {
+    return '$start–$end · quiet hours, nothing scheduled';
+  }
+
+  @override
+  String get slotRangeExistingEvent => 'Existing event';
+
+  @override
+  String get slotRangeDefaultEditable => 'default, editable';
+
+  @override
+  String get slotEmptyCreateHint => 'Nothing to schedule yet — create one and it lands in this slot.';
 }

@@ -130,7 +130,7 @@ More complex imported rules may be read-only only if reliably expanded. If their
 
 ## 13. Required document changes
 
-- `SPEC.md` §3.1.1: formal RecurrenceSpec, zone, identity, legacy, series edit, RRULE, ICS, and sync rules.
+- `SPEC.md` §3.1.2: formal RecurrenceSpec, zone, identity, legacy, series edit, RRULE, ICS, and sync rules.
 - `DECISIONS.md`: record package results, timezone version delta, and remaining implementation boundary.
 - `docs/ROADMAP.md`: design spike runtime gates pass; implementation plan ready.
 - Next-stage plan: `docs/superpowers/plans/2026-10-04-recurring-todo.md`.

@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
@@ -9,11 +8,13 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart' show Calendar;
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_views.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
@@ -87,6 +88,71 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
   void _setMode(CalendarViewMode mode) {
     if (ref.read(calendarViewModeProvider) == mode) return;
     ref.read(calendarViewModeProvider.notifier).setViewMode(mode);
+  }
+
+  /// The three calendar views named in words, so the header does not have to
+  /// teach three different icons. Month / week / day are the only options.
+  Future<void> _openViewMenu() async {
+    final l = AppLocalizations.of(context)!;
+    final current = ref.read(calendarViewModeProvider);
+    final picked = await showDsSheet<CalendarViewMode>(
+      context: context,
+      title: l.calendar,
+      body: Builder(
+        builder: (sheetContext) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final entry in [
+              (CalendarViewMode.month, l.month),
+              (CalendarViewMode.week, l.week),
+              (CalendarViewMode.day, l.day),
+            ])
+              DsSettingRow(
+                label: entry.$2,
+                selected: entry.$1 == current,
+                trailing: entry.$1 == current
+                    ? Icon(
+                        CupertinoIcons.checkmark,
+                        size: 15,
+                        color: context.ds.primary,
+                      )
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(entry.$1),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    _setMode(picked);
+  }
+
+  bool _dayHasEntries(DateTime day) {
+    if (calAllDayEvents(day: day, events: widget.events).isNotEmpty) {
+      return true;
+    }
+    final blocks = calDayBlocks(
+      day: day,
+      events: widget.events,
+      allocations: [
+        for (final item in widget.allocations)
+          TaskAllocationCalendarAdapter.fromItem(item),
+      ],
+    );
+    if (blocks.isNotEmpty) return true;
+    return widget.deadlines.any((deadline) => calSameDay(deadline.due, day));
+  }
+
+  /// A month cell only says "something happens here". Selecting a day with
+  /// content therefore opens it, so the entry can actually be read; an empty
+  /// day keeps the plain browse-date behaviour.
+  void _selectDay(DateTime day) {
+    _setBrowse(day);
+    if (_dayHasEntries(day)) _setMode(CalendarViewMode.day);
+  }
+
+  void _createAt(DateTime day) {
+    widget.onCreateAtDay?.call(calDayOf(day));
   }
 
   TaskAllocationCalendarItem? _allocationById(int id) {
@@ -215,55 +281,28 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     List<DateTime> days,
   ) {
     final (title, subtitle) = _header(l, locale, mode, browse, now, weekStart);
-    // The design's head switches views with an icon rather than a segmented
-    // control. Month is entered by tapping a day, but week and day had no way
-    // back to each other once the month grid was left: each mode names the
-    // modes it can reach, and month keeps settings because the other two use
-    // their third slot for the way back to it.
+    // Two actions, not five. Five icon buttons plus the clock left the title
+    // about 100px on a 360dp phone and it ellipsised to "11月9日 …"; the mode
+    // trio also had to be re-learned per view. One view menu names all three
+    // modes in words, and create stays as its own button.
     final actions = <Widget>[
-      ...switch (mode) {
-        CalendarViewMode.month => [
-          A2IconAction(
-            icon: CupertinoIcons.calendar,
-            tooltip: l.week,
-            onPressed: () => _setMode(CalendarViewMode.week),
-          ),
-        ],
-        CalendarViewMode.week => [
-          A2IconAction(
-            icon: CupertinoIcons.rectangle,
-            tooltip: l.day,
-            onPressed: () => _setMode(CalendarViewMode.day),
-          ),
-          A2IconAction(
-            icon: CupertinoIcons.square_grid_2x2,
-            tooltip: l.month,
-            onPressed: () => _setMode(CalendarViewMode.month),
-          ),
-        ],
-        CalendarViewMode.day => [
-          A2IconAction(
-            icon: CupertinoIcons.calendar,
-            tooltip: l.week,
-            onPressed: () => _setMode(CalendarViewMode.week),
-          ),
-          A2IconAction(
-            icon: CupertinoIcons.square_grid_2x2,
-            tooltip: l.month,
-            onPressed: () => _setMode(CalendarViewMode.month),
-          ),
-        ],
-      },
       A2IconAction(
-        icon: CupertinoIcons.scope,
-        tooltip: l.calendarTodayHint,
-        onPressed: _goToToday,
+        key: const ValueKey('calendar-view-menu'),
+        icon: switch (mode) {
+          CalendarViewMode.month => CupertinoIcons.square_grid_2x2,
+          CalendarViewMode.week => CupertinoIcons.calendar,
+          CalendarViewMode.day => CupertinoIcons.rectangle,
+        },
+        tooltip: l.calendar,
+        onPressed: _openViewMenu,
       ),
-      if (mode == CalendarViewMode.month)
+      // Month already has the FAB as its one create entry; adding a second
+      // "+" here would put two identical buttons on one screen.
+      if (mode != CalendarViewMode.month)
         A2IconAction(
-          icon: CupertinoIcons.settings,
-          tooltip: l.settings,
-          onPressed: () => context.push('/settings'),
+          icon: CupertinoIcons.add,
+          tooltip: l.newEvent,
+          onPressed: () => _createAt(browse),
         ),
     ];
     final content = switch (mode) {
@@ -283,24 +322,48 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               events: widget.events,
               allocations: widget.allocations,
               deadlines: widget.deadlines,
-              onSelectDay: _setBrowse,
+              onSelectDay: _selectDay,
             ),
           ),
         ],
       ),
-      CalendarViewMode.week => _timeGrid(
-        days: days,
-        selected: browse,
-        now: now,
-        names: names,
-        dayMode: false,
+      CalendarViewMode.week => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          A2MonthStrip(
+            label: l.weekNumberLabel(_isoWeek(weekStart)),
+            onPrevious: () => _shift(-1),
+            onNext: () => _shift(1),
+          ),
+          Expanded(
+            child: _timeGrid(
+              days: days,
+              selected: browse,
+              now: now,
+              names: names,
+              dayMode: false,
+            ),
+          ),
+        ],
       ),
-      CalendarViewMode.day => _timeGrid(
-        days: [calDayOf(browse)],
-        selected: browse,
-        now: now,
-        names: names,
-        dayMode: true,
+      CalendarViewMode.day => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          A2MonthStrip(
+            label: calSameDay(browse, now) ? l.today : _yearMonth(l, browse),
+            onPrevious: () => _shift(-1),
+            onNext: () => _shift(1),
+          ),
+          Expanded(
+            child: _timeGrid(
+              days: [calDayOf(browse)],
+              selected: browse,
+              now: now,
+              names: names,
+              dayMode: true,
+            ),
+          ),
+        ],
       ),
     };
     return Column(
@@ -429,20 +492,23 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           ),
           const SizedBox(width: 12),
           _A2TodayButton(label: l.today, onPressed: _goToToday),
-          if (mode != CalendarViewMode.month) ...[
-            const SizedBox(width: 6),
-            _A2HeadIcon(
-              icon: CupertinoIcons.chevron_left,
-              tooltip: MaterialLocalizations.of(context).previousPageTooltip,
-              onPressed: () => _shift(-1),
-            ),
-            _A2HeadIcon(
-              icon: CupertinoIcons.chevron_right,
-              tooltip: MaterialLocalizations.of(context).nextPageTooltip,
-              onPressed: () => _shift(1),
-            ),
-          ],
+          const SizedBox(width: 6),
+          _A2HeadIcon(
+            icon: CupertinoIcons.chevron_left,
+            tooltip: l.previousPeriod,
+            onPressed: () => _shift(-1),
+          ),
+          _A2HeadIcon(
+            icon: CupertinoIcons.chevron_right,
+            tooltip: l.nextPeriod,
+            onPressed: () => _shift(1),
+          ),
           const Spacer(),
+          _A2CreateButton(
+            label: l.newEventAction,
+            onPressed: () => _createAt(browse),
+          ),
+          const SizedBox(width: 8),
           _A2ModeSegmented(mode: mode, onSelected: _setMode),
         ],
       ),
@@ -518,6 +584,47 @@ class _A2TodayButton extends StatelessWidget {
             label,
             maxLines: 1,
             style: _pageText(12, FontWeight.w500, ds.ink2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _A2CreateButton extends StatelessWidget {
+  const _A2CreateButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onPressed,
+            child: Container(
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: ds.surface,
+                border: Border.all(color: ds.line),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                label,
+                maxLines: 1,
+                style: _pageText(12, FontWeight.w500, ds.ink),
+              ),
+            ),
           ),
         ),
       ),

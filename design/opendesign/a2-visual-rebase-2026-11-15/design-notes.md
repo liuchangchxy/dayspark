@@ -77,7 +77,7 @@
 
 - FAB **48×48 / 8 圆角 / primary 实心**（Direction C 的 FilledButton 语言，不再是 Material 圆形 FAB），**只在日历月视图**渲染（周/日视图没有 FAB，创建走时间槽——与 §1 同一口径）；**right 16px，bottom 72px**，阴影只有一级 `0 1px 2px rgba(20,20,16,.05), 0 2px 8px rgba(20,20,16,.10)`。
 - 月视图 6 行等高铺满，FAB 悬在末行右下角上空（压住末行最后两格的空白，不遮任何数字与圆点）；周/日视图内容区在 FAB 上方留 120px 下 pad。
-- FAB 点击弹动作菜单（14 的 sheet 同源）；dock 上「日历」tab 选中时顶线 3px primary 标记。
+- FAB 点击**直接新建 Event**（SPEC 规则 19）：落在 browseDate 当天、默认 1 小时。**不弹动作菜单**——三动作菜单只属于「具体时间槽」场景（§14 的 slot sheet），全局 FAB 不再让用户二次选择。dock 上「日历」tab 选中时顶线 3px primary 标记。
 
 ## 8. Composer 字段层级
 

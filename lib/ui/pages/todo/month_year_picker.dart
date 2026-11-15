@@ -3,19 +3,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
 /// The 按日期 month / year sheet. Selecting a day writes the shared browse date
 /// and closes the sheet, so every surface that reads the date follows at once.
+///
+/// The design draws it as a phone sheet; a window has no bottom edge to slide
+/// from, so there it is the same grid in a centred card.
 Future<void> showMonthYearPicker(
   BuildContext context, {
   required DateTime initial,
-}) {
+}) async {
   final ds = context.ds;
-  return showModalBottomSheet<void>(
+  if (isWorkspaceLayout(context)) {
+    await showDialog<void>(
+      context: context,
+      barrierColor: ds.scrim,
+      builder: (_) => _MonthYearDialog(initial: initial),
+    );
+    return;
+  }
+  await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -29,10 +43,63 @@ Future<void> showMonthYearPicker(
   );
 }
 
-class _MonthYearPickerSheet extends ConsumerStatefulWidget {
-  const _MonthYearPickerSheet({required this.initial});
+/// The same grid as a centred card. It is a plain [Dialog] rather than
+/// [DsDialog] because the grid has to flex to the card's height; the close
+/// control is the dialog's own, matching every other desktop overlay.
+class _MonthYearDialog extends StatelessWidget {
+  const _MonthYearDialog({required this.initial});
 
   final DateTime initial;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(AppSpacing.s6),
+      child: Container(
+        width: 420,
+        constraints: const BoxConstraints(maxHeight: 620),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: ds.surface,
+          borderRadius: AppRadii.dialog,
+          border: Border.all(color: ds.line),
+          boxShadow: AppShadows.two(ds.brightness),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 4, 0),
+              child: Row(
+                children: [
+                  const Spacer(),
+                  DsIconButton(
+                    icon: CupertinoIcons.xmark,
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).closeButtonTooltip,
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: _MonthYearPickerSheet(initial: initial, sheet: false),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthYearPickerSheet extends ConsumerStatefulWidget {
+  const _MonthYearPickerSheet({required this.initial, this.sheet = true});
+
+  final DateTime initial;
+  final bool sheet;
 
   @override
   ConsumerState<_MonthYearPickerSheet> createState() =>
@@ -105,26 +172,32 @@ class _MonthYearPickerSheetState extends ConsumerState<_MonthYearPickerSheet> {
 
     return Material(
       color: ds.surface,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+      borderRadius: widget.sheet
+          ? const BorderRadius.vertical(top: Radius.circular(18))
+          : null,
       clipBehavior: Clip.antiAlias,
       child: Container(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: ds.line)),
-        ),
+        decoration: widget.sheet
+            ? BoxDecoration(
+                border: Border(top: BorderSide(color: ds.line)),
+              )
+            : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 8),
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: ds.surface3,
-                  borderRadius: BorderRadius.circular(2),
+            if (widget.sheet) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: ds.surface3,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
+            ],
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(

@@ -141,4 +141,50 @@ void main() {
     expect(find.text('Something went wrong. Please try again.'), findsNothing);
     await _unmount(tester);
   });
+
+  testWidgets('scheduling a recurring Todo from Detail asks which occurrence', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, series));
+    await _settle(tester);
+
+    await tester.tap(find.text('Schedule'));
+    await _settle(tester);
+    await tester.tap(find.byKey(const ValueKey('a2-composer-plan')));
+    await _settle(tester);
+    await tester.tap(find.text('14:00–15:00'));
+    await _settle(tester);
+    await tester.tap(find.byType(FilledButton));
+    await _settle(tester);
+
+    expect(
+      find.text('Select occurrence'),
+      findsOneWidget,
+      reason: 'a recurring series has no single occurrence to plan',
+    );
+
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(ListTile),
+          )
+          .first,
+    );
+    await _settle(tester);
+
+    final allocations = await db.select(db.taskAllocations).get();
+    expect(allocations, hasLength(1));
+    expect(
+      allocations.single.occurrenceId,
+      isNotNull,
+      reason: 'the schedule binds to the chosen occurrence',
+    );
+    expect(find.text('Something went wrong. Please try again.'), findsNothing);
+    await _unmount(tester);
+  });
 }

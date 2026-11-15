@@ -7,6 +7,7 @@ import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/ai_scheduler_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
@@ -126,6 +127,19 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
     if (!mounted) return;
     setState(() => _sending = false);
+    _scrollToBottom();
+  }
+
+  Future<void> _retry() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    await ref.read(aiChatProvider.notifier).retry();
+    if (!mounted) return;
+    setState(() => _sending = false);
+    _scrollToBottom();
+  }
+
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
@@ -137,7 +151,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final messages = ref.watch(aiChatProvider);
-    final isConfigured = ref.watch(isAiConfiguredProvider).value ?? false;
+    final configured = ref.watch(isAiConfiguredProvider);
+    final flags = ref.watch(featureFlagsProvider);
+    final enabled =
+        flags.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? false;
+    final loading = flags.isLoading || configured.isLoading;
 
     return WorkspacePage(
       title: l.aiAssistant,
@@ -153,8 +171,27 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
             tooltip: l.clearChat,
           ),
       ],
-      child: isConfigured
-          ? Column(
+      child: loading
+          ? const Center(child: CircularProgressIndicator())
+          : !enabled
+          ? DsEmpty(
+              icon: CupertinoIcons.chat_bubble_2,
+              title: l.aiNotConfigured,
+              message: l.aiNotConfiguredHint,
+            )
+          : configured.valueOrNull != true
+          ? DsEmpty(
+              icon: CupertinoIcons.chat_bubble_2,
+              title: l.aichatNoKeyTitle,
+              message: l.aichatNoKeyHint,
+              action: DsButton(
+                label: l.aichatSetupKey,
+                icon: CupertinoIcons.settings,
+                small: true,
+                onPressed: () => showAiConfigDialog(context, ref),
+              ),
+            )
+          : Column(
               children: [
                 Expanded(
                   child: messages.isEmpty
@@ -207,18 +244,51 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    SelectableText(
-                                      msg.content,
-                                      style: AppTypography.body.copyWith(
-                                        height: 1.6,
-                                        color: context.ds.ink,
+                                    if (msg.isError)
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            l.aiError,
+                                            style: AppTypography.body.copyWith(
+                                              height: 1.6,
+                                              color: context.ds.danger,
+                                            ),
+                                          ),
+                                          // Only the latest failure can be
+                                          // retried: it is the request whose
+                                          // user message is still last.
+                                          if (index == messages.length - 1) ...[
+                                            const SizedBox(
+                                              height: AppSpacing.sm,
+                                            ),
+                                            DsButton(
+                                              label: l.retry,
+                                              icon: CupertinoIcons.refresh,
+                                              tone: DsButtonTone.ghost,
+                                              small: true,
+                                              onPressed: _sending
+                                                  ? null
+                                                  : _retry,
+                                            ),
+                                          ],
+                                        ],
+                                      )
+                                    else
+                                      SelectableText(
+                                        msg.content,
+                                        style: AppTypography.body.copyWith(
+                                          height: 1.6,
+                                          color: context.ds.ink,
+                                        ),
                                       ),
-                                    ),
                                     // Answers are actions only while they are
                                     // the latest one: an old reply's buttons
                                     // would write rows the conversation has
                                     // already moved past.
                                     if (!isUser &&
+                                        !msg.isError &&
                                         index == messages.length - 1) ...[
                                       const SizedBox(height: AppSpacing.sm),
                                       Wrap(
@@ -362,17 +432,6 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                   ),
                 ),
               ],
-            )
-          : DsEmpty(
-              icon: CupertinoIcons.chat_bubble_2,
-              title: l.aichatNoKeyTitle,
-              message: l.aichatNoKeyHint,
-              action: DsButton(
-                label: l.aichatSetupKey,
-                icon: CupertinoIcons.settings,
-                small: true,
-                onPressed: () => showAiConfigDialog(context, ref),
-              ),
             ),
     );
   }

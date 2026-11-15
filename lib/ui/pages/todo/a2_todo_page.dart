@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,7 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
@@ -17,11 +20,14 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
+import 'a2_composer.dart';
 import 'month_year_picker.dart';
 
 /// 待办: unplanned, every task, or one browsed day. The three modes share the
@@ -46,7 +52,9 @@ class A2TodoPage extends ConsumerStatefulWidget {
   final DateTime now;
   final DayAgenda dayAgenda;
   final ValueChanged<Todo>? onOpenTodo;
-  final Future<void> Function(Todo todo, String? occurrenceId, bool completed)?
+  /// Returns whether the write actually happened; a dismissed occurrence
+  /// picker must not read as a completion.
+  final Future<bool> Function(Todo todo, String? occurrenceId, bool completed)?
   onToggleTodo;
   final Future<void> Function(String text)? onCapture;
   final ValueChanged<DateTime>? onPlanDay;
@@ -61,7 +69,22 @@ class A2TodoPage extends ConsumerStatefulWidget {
 }
 
 class _A2TodoPageState extends ConsumerState<A2TodoPage> {
+  static const Duration _undoWindow = Duration(seconds: 5);
+
   bool _captureFocused = false;
+
+  final Map<String, _UndoEntry> _undoEntries = {};
+  final Map<String, _UndoSlot> _lastSlots = {};
+  final Map<String, Timer> _undoTimers = {};
+  final Map<String, int> _undoGenerations = {};
+
+  @override
+  void dispose() {
+    for (final timer in _undoTimers.values) {
+      timer.cancel();
+    }
+    super.dispose();
+  }
 
   String get _locale => Localizations.localeOf(context).toString();
 
@@ -92,14 +115,145 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
   }
 
-  Future<void> _toggle(Todo todo, String? occurrenceId, bool completed) async {
+  Future<void> _toggle(
+    Todo todo,
+    String? occurrenceId,
+    bool completed, {
+    _UndoSlot? slot,
+  }) async {
+    await _setCompleted(todo, occurrenceId, completed, slot: slot);
+  }
+
+  /// Undo goes back through the same callback, occurrence id included, so a
+  /// recurring instance is reopened at the occurrence it was completed on.
+  /// A completion keeps the row in place for five seconds; that window is the
+  /// visible, unambiguous counterpart to the snackbar's undo.
+  Future<void> _setCompleted(
+    Todo todo,
+    String? occurrenceId,
+    bool completed, {
+    _UndoSlot? slot,
+  }) async {
     final callback = widget.onToggleTodo;
     if (callback == null) return;
     try {
-      await callback(todo, occurrenceId, completed);
+      final changed = await callback(todo, occurrenceId, completed);
+      if (!changed) return;
     } on Object catch (error) {
       if (mounted) showCompletionError(context, error);
+      return;
     }
+    if (!mounted) return;
+    _invalidateTodoLists();
+    final key = _undoKey(todo.id, occurrenceId);
+    if (completed) {
+      _openUndoWindow(key, todo, occurrenceId, slot);
+    } else {
+      _closeUndoWindow(key);
+    }
+    final l = AppLocalizations.of(context);
+    if (l == null) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger
+      ?..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(completed ? l.completed : l.openTask),
+          action: SnackBarAction(
+            label: l.undo,
+            onPressed: () => _setCompleted(todo, occurrenceId, !completed),
+          ),
+        ),
+      );
+  }
+
+  // R5: completion is one event, so every list that counts or shows todos is
+  // refreshed here instead of waiting for the user to switch tabs.
+  void _invalidateTodoLists() {
+    ref.invalidate(pendingTodosProvider);
+    ref.invalidate(inboxTodosProvider);
+    ref.invalidate(unplannedTodosProvider);
+    ref.invalidate(allTodosProvider);
+    ref.invalidate(completedTodosProvider);
+    ref.invalidate(allActiveTaskAllocationsProvider);
+    ref.invalidate(actionProjectionProvider);
+    ref.invalidate(actionDueTodayTodosProvider);
+    ref.invalidate(actionOverdueTodosProvider);
+    ref.invalidate(actionCompletedTodayTodosProvider);
+    ref.invalidate(actionActiveRecurringTodosProvider);
+    ref.invalidate(actionAllNotDeletedTodosProvider);
+    ref.invalidate(actionTaskInstanceStatesProvider);
+  }
+
+  String _undoKey(int todoId, String? occurrenceId) =>
+      '$todoId|${occurrenceId ?? ''}';
+
+  bool _inUndoWindow(int todoId, String? occurrenceId) =>
+      _undoEntries.containsKey(_undoKey(todoId, occurrenceId));
+
+  void _openUndoWindow(
+    String key,
+    Todo todo,
+    String? occurrenceId,
+    _UndoSlot? slot,
+  ) {
+    _undoTimers.remove(key)?.cancel();
+    final generation = (_undoGenerations[key] ?? 0) + 1;
+    _undoGenerations[key] = generation;
+    if (slot != null) _lastSlots[key] = slot;
+    final resolvedSlot = slot ?? _lastSlots[key];
+    _undoTimers[key] = Timer(_undoWindow, () {
+      if (!mounted || _undoGenerations[key] != generation) return;
+      _undoTimers.remove(key);
+      setState(() => _undoEntries.remove(key));
+    });
+    setState(() {
+      _undoEntries[key] = _UndoEntry(
+        todo: todo,
+        occurrenceId: occurrenceId,
+        slot: resolvedSlot,
+      );
+    });
+  }
+
+  void _closeUndoWindow(String key) {
+    _undoTimers.remove(key)?.cancel();
+    _undoGenerations[key] = (_undoGenerations[key] ?? 0) + 1;
+    if (!_undoEntries.containsKey(key)) return;
+    setState(() => _undoEntries.remove(key));
+  }
+
+  /// The occurrence's own label (the same string the occurrence picker shows),
+  /// so a recurring row's undo names the instance it is about to reopen.
+  String? _occurrenceLabel(String? occurrenceId) {
+    if (occurrenceId == null) return null;
+    try {
+      final nominal = OccurrenceId.parse(occurrenceId).nominal;
+      final canonical = nominal.canonical;
+      return nominal.valueType == RecurrenceValueType.date
+          ? canonical
+          : canonical.replaceFirst('T', '  ');
+    } on Object {
+      return null;
+    }
+  }
+
+  String _undoLabel(AppLocalizations l, String? occurrenceId) {
+    final label = _occurrenceLabel(occurrenceId);
+    return label == null ? l.undo : l.undoOccurrence(label);
+  }
+
+  void _schedule(Todo todo) {
+    final onSchedule = widget.onScheduleTodo;
+    if (onSchedule != null) {
+      onSchedule(todo);
+      return;
+    }
+    showA2Composer(
+      context,
+      contextDate: ref.read(viewedDateProvider),
+      todo: todo,
+    );
   }
 
   Future<void> _capture(String text) async {
@@ -134,8 +288,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
     final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
     final tagMap =
-        ref.watch(todoTagIdsMapProvider).valueOrNull ??
-        const <int, Set<int>>{};
+        ref.watch(todoTagIdsMapProvider).valueOrNull ?? const <int, Set<int>>{};
     final calendarFilter = ref.watch(todoCalendarFilterProvider);
     final tagFilter = ref.watch(todoTagFilterProvider);
     final priorityFilter = ref.watch(todoPriorityFilterProvider);
@@ -173,15 +326,27 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final selection = ref.watch(workspaceSelectionProvider);
 
     final head = _head(l, view, unplanned, allRows, desktop);
-    // The desktop bar already carries the date and its arrows; a second date
-    // strip inside the card read as two navigations for one value.
-    final strip = view is TodosDayView && !desktop
-        ? _dateStrip(l, viewed)
+    // By date needs one entry that reaches any month in two taps. The desktop
+    // bar outside this page prints a date but cannot open a picker, so the
+    // strip is the only honest entry on both platforms.
+    final strip = view is TodosDayView
+        ? _dateStrip(l, viewed, desktop: desktop)
         : null;
     final footer = _footer(l, view, viewed);
 
     final Widget body;
-    if (view is TodosInboxView) {
+    if (view is TodosInboxView && unplannedAsync.hasError) {
+      body = _loadError(l, () {
+        ref.invalidate(pendingTodosProvider);
+        ref.invalidate(allActiveTaskAllocationsProvider);
+      });
+    } else if (view is TodosAllView &&
+        (allAsync.hasError || allocationsAsync.hasError)) {
+      body = _loadError(l, () {
+        ref.invalidate(allTodosProvider);
+        ref.invalidate(allActiveTaskAllocationsProvider);
+      });
+    } else if (view is TodosInboxView) {
       body = _inboxBody(
         l,
         unplanned,
@@ -291,38 +456,81 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         onPressed: () => context.push('/settings'),
       ),
     ];
-    final content = desktop
-        ? _cardHead(title, subtitle, actions)
-        : A2DayHead(
-            title: title,
-            subtitle: subtitle,
-            clock: DateFormatters.formatTime(widget.now),
-            actions: actions,
-          );
-    return Stack(
-      children: [
-        content,
-        Positioned(
-          left: 0,
-          top: desktop ? 6 : 5,
-          width: 260,
-          height: 44,
-          child: Semantics(
-            button: true,
-            label: l.todosSwitchMode,
-            child: GestureDetector(
-              key: const ValueKey('todos-mode-switch'),
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _openModeSheet(l),
-              child: const SizedBox.expand(),
-            ),
+    // The switch used to be an invisible 260x44 hit zone over the title. A
+    // control you cannot see is a control you cannot learn, so the title now
+    // carries the chevron itself and the whole title block is the hit area.
+    final titleBlock = _titleBlock(l, title, subtitle);
+    return desktop
+        ? _cardHead(titleBlock, actions)
+        : _dayHead(titleBlock, actions);
+  }
+
+  Widget _titleBlock(AppLocalizations l, String title, String subtitle) {
+    final ds = context.ds;
+    return Semantics(
+      button: true,
+      label: l.todosSwitchMode,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          key: const ValueKey('todos-mode-switch'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _openModeSheet(l),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _type(
+                        20,
+                        FontWeight.w600,
+                        ds.ink,
+                        height: 1.3,
+                      ).copyWith(letterSpacing: 0.1),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(CupertinoIcons.chevron_down, size: 15, color: ds.ink3),
+                ],
+              ),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _type(11, FontWeight.w400, ds.ink3, height: 1.5),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
-  Widget _cardHead(String title, String subtitle, List<Widget> actions) {
+  Widget _dayHead(Widget titleBlock, List<Widget> actions) {
+    final ds = context.ds;
+    return Container(
+      height: kA2TopBarHeight,
+      padding: const EdgeInsets.only(left: 16, right: 4),
+      color: ds.bg,
+      child: Row(
+        children: [
+          Expanded(child: titleBlock),
+          A2Clock(label: DateFormatters.formatTime(widget.now)),
+          ...actions,
+        ],
+      ),
+    );
+  }
+
+  Widget _cardHead(Widget titleBlock, List<Widget> actions) {
     final ds = context.ds;
     return Container(
       height: 56,
@@ -332,31 +540,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _type(
-                    20,
-                    FontWeight.w600,
-                    ds.ink,
-                    height: 1.3,
-                  ).copyWith(letterSpacing: 0.1),
-                ),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _type(11, FontWeight.w400, ds.ink3, height: 1.5),
-                ),
-              ],
-            ),
-          ),
+          Expanded(child: titleBlock),
           A2Clock(label: DateFormatters.formatTime(widget.now)),
           ...actions,
         ],
@@ -367,6 +551,52 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   Future<void> _openModeSheet(AppLocalizations l) async {
     final ds = context.ds;
     final view = ref.read(todosViewProvider);
+    // A window has no bottom edge to slide from, so the same three rows open
+    // as the product's dialog instead of a phone sheet.
+    if (isWorkspaceLayout(context)) {
+      await showDialog<void>(
+        context: context,
+        barrierColor: ds.scrim,
+        builder: (dialogContext) => DsDialog(
+          title: l.todosSwitchMode,
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _modeRow(
+                icon: CupertinoIcons.tray,
+                label: l.inbox,
+                active: view is TodosInboxView,
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  _selectMode(const TodosInboxView());
+                },
+              ),
+              _modeRow(
+                icon: CupertinoIcons.list_bullet,
+                label: l.allTasks,
+                active: view is TodosAllView,
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  _selectMode(const TodosAllView());
+                },
+              ),
+              _modeRow(
+                icon: CupertinoIcons.calendar,
+                label: l.byDateTitle,
+                hint: l.pickDateHint,
+                active: view is TodosDayView,
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  _selectMode(const TodosDayView());
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -414,9 +644,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                 active: view is TodosDayView,
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  _selectMode(
-                    const TodosDayView(),
-                  );
+                  _selectMode(const TodosDayView());
                 },
               ),
               const SizedBox(height: 8),
@@ -472,7 +700,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
 
   // -------------------------------------------------------------- date strip
 
-  Widget _dateStrip(AppLocalizations l, DateTime viewed) {
+  Widget _dateStrip(
+    AppLocalizations l,
+    DateTime viewed, {
+    bool desktop = false,
+  }) {
     final ds = context.ds;
     final day = _dayOf(viewed);
     final today = _dayOf(widget.now);
@@ -480,65 +712,130 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final dateText =
         '${DateFormat.MMMd(_locale).format(day)} '
         '${DateFormat.E(_locale).format(day)}';
+    final delta = _daysBetween(day, today);
     final line1 = isToday ? l.today : dateText;
     final line2 = isToday
         ? '$dateText · ${day.year}'
-        : '${l.inDaysCount(_daysBetween(day, today).abs())} · ${day.year}';
+        // The sign is the point: browsing into the past must not read "In 5
+        // days". Only the relative label differs by direction; the year stays.
+        : delta > 0
+        ? '${l.inDaysCount(delta)} · ${day.year}'
+        : '${l.daysAgo(-delta)} · ${day.year}';
+
+    final chevron = Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: ds.primarySoft,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Center(
+        child: Icon(CupertinoIcons.chevron_down, size: 16, color: ds.primary),
+      ),
+    );
+    final text = Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          line1,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _type(17, FontWeight.w600, ds.ink, height: 1.4),
+        ),
+        Text(
+          line2,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _type(
+            12,
+            FontWeight.w400,
+            ds.ink3,
+          ).copyWith(fontFeatures: AppTypography.tabular),
+        ),
+      ],
+    );
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
+        key: const ValueKey('todos-date-strip'),
         behavior: HitTestBehavior.opaque,
         onTap: () => showMonthYearPicker(context, initial: day),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+          // 56 is the design's strip height; the inner controls stay at their
+          // drawn sizes and grow only their touch targets.
+          constraints: const BoxConstraints(minHeight: 56),
+          padding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
           decoration: BoxDecoration(
-            color: ds.bg,
+            // Inside the desktop card the strip stays on the card's surface;
+            // on the phone it sits on the page background as the design draws.
+            color: desktop ? ds.surface : ds.bg,
             border: Border(bottom: BorderSide(color: ds.lineSoft)),
           ),
           child: Row(
             children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      line1,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _type(17, FontWeight.w600, ds.ink, height: 1.4),
-                    ),
-                    Text(
-                      line2,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _type(
-                        12,
-                        FontWeight.w400,
-                        ds.ink3,
-                      ).copyWith(fontFeatures: AppTypography.tabular),
-                    ),
-                  ],
-                ),
-              ),
+              Expanded(child: text),
               const SizedBox(width: 12),
+              // "Today" is the second thing the design's strip does: tapping
+              // the chevron opens the picker, tapping the day jumps back.
+              if (!isToday)
+                _dateStripAction(
+                  label: l.today,
+                  tooltip: l.goToToday,
+                  onTap: () =>
+                      ref.read(viewedDateProvider.notifier).state = today,
+                ),
+              if (!isToday) const SizedBox(width: 8),
               Tooltip(
                 message: l.pickDateHint,
-                child: SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: Center(
-                    child: Icon(
-                      CupertinoIcons.chevron_down,
-                      size: 16,
-                      color: ds.ink3,
-                    ),
-                  ),
+                child: Semantics(
+                  button: true,
+                  label: l.pickDateHint,
+                  child: chevron,
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dateStripAction({
+    required String label,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    final ds = context.ds;
+    return Tooltip(
+      message: tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          key: const ValueKey('todos-date-strip-today'),
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          // The visible pill is 28 high; the touch target is the design's 48.
+          child: SizedBox(
+            height: 48,
+            child: Center(
+              child: Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ds.primarySoft,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: _type(13, FontWeight.w500, ds.primary),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -580,6 +877,16 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   Widget _loading() =>
       Center(child: CupertinoActivityIndicator(color: context.ds.ink3));
 
+  Widget _loadError(AppLocalizations l, VoidCallback retry) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(l.error),
+        TextButton(onPressed: retry, child: Text(l.retry)),
+      ],
+    ),
+  );
+
   Widget _inboxBody(
     AppLocalizations l,
     List<Todo> todos,
@@ -589,9 +896,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     bool loading,
   ) {
     if (loading) return _loading();
-    if (todos.isEmpty) {
-      return A2Empty(title: l.emptyUnplannedTitle, hint: l.emptyUnplannedHint);
-    }
     final withDue = <Todo>[
       for (final todo in todos)
         if (todo.dueDate != null) todo,
@@ -600,37 +904,61 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       for (final todo in todos)
         if (todo.dueDate == null) todo,
     ];
-    final schedule = widget.onScheduleTodo;
+    _pinInboxWindows(withDue, noDue);
+    if (withDue.isEmpty && noDue.isEmpty) {
+      return A2Empty(title: l.emptyUnplannedTitle, hint: l.emptyUnplannedHint);
+    }
+    final open = widget.onOpenTodo;
 
     return ListView(
       padding: EdgeInsets.zero,
       children: [
         if (withDue.isNotEmpty) ...[
           A2GroupHead(label: l.withDueUnplannedSection, count: withDue.length),
-          for (final todo in withDue)
+          for (var index = 0; index < withDue.length; index++)
             _todoRow(
-              todo,
-              meta: _inboxMeta(l, todo, names),
+              withDue[index],
+              meta: _inboxMeta(l, withDue[index], names),
               desktop: desktop,
-              selected: _isTodoSelected(selection, todo.id),
-              checked: todo.status == 'COMPLETED',
-              onTap: schedule == null ? null : () => schedule(todo),
+              selected: _isTodoSelected(selection, withDue[index].id),
+              checked: withDue[index].status == 'COMPLETED',
+              onTap: open == null ? null : () => open(withDue[index]),
+              slot: _UndoSlot(_UndoGroup.inboxWithDue, index),
             ),
         ],
         if (noDue.isNotEmpty) ...[
           A2GroupHead(label: l.noDueSection, count: noDue.length),
-          for (final todo in noDue)
+          for (var index = 0; index < noDue.length; index++)
             _todoRow(
-              todo,
-              meta: _inboxMeta(l, todo, names),
+              noDue[index],
+              meta: _inboxMeta(l, noDue[index], names),
               desktop: desktop,
-              selected: _isTodoSelected(selection, todo.id),
-              checked: todo.status == 'COMPLETED',
-              onTap: schedule == null ? null : () => schedule(todo),
+              selected: _isTodoSelected(selection, noDue[index].id),
+              checked: noDue[index].status == 'COMPLETED',
+              onTap: open == null ? null : () => open(noDue[index]),
+              slot: _UndoSlot(_UndoGroup.inboxNoDue, index),
             ),
         ],
       ],
     );
+  }
+
+  /// A completed row stays where it was for the undo window, even though the
+  /// pending list has already dropped it.
+  void _pinInboxWindows(List<Todo> withDue, List<Todo> noDue) {
+    for (final entry in _undoEntries.values.toList()) {
+      final slot = entry.slot;
+      if (slot == null) continue;
+      final isWithDue = slot.group == _UndoGroup.inboxWithDue;
+      if (!isWithDue && slot.group != _UndoGroup.inboxNoDue) continue;
+      withDue.removeWhere((todo) => todo.id == entry.todo.id);
+      noDue.removeWhere((todo) => todo.id == entry.todo.id);
+      final target = isWithDue ? withDue : noDue;
+      target.insert(
+        slot.index.clamp(0, target.length).toInt(),
+        entry.todo,
+      );
+    }
   }
 
   Widget _allBody(
@@ -643,9 +971,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     bool loading,
   ) {
     if (loading) return _loading();
-    if (todos.isEmpty) {
-      return A2Empty(title: l.allTasks, hint: l.emptyUnplannedHint);
-    }
     final today = _dayOf(widget.now);
     final dueToday = <Todo>[];
     final pastDue = <Todo>[];
@@ -674,19 +999,28 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       if (aDone != bDone) return aDone - bDone;
       return a.dueDate!.compareTo(b.dueDate!);
     }
+
     dueToday.sort(byDue);
     pastDue.sort(byDue);
     later.sort(byDue);
+    _pinAllWindows(dueToday, pastDue, later, noDue);
+    if (dueToday.isEmpty &&
+        pastDue.isEmpty &&
+        later.isEmpty &&
+        noDue.isEmpty) {
+      return A2Empty(title: l.allTasks, hint: l.noPendingTodos);
+    }
 
     final allocationByTodo = _earliestAllocations(allocations);
     final open = widget.onOpenTodo;
-    Widget row(Todo todo) => _todoRow(
+    Widget row(Todo todo, _UndoSlot slot) => _todoRow(
       todo,
       meta: _allMeta(l, todo, allocationByTodo[todo.id], names),
       desktop: desktop,
       selected: _isTodoSelected(selection, todo.id),
       checked: todo.status == 'COMPLETED',
       onTap: open == null ? null : () => open(todo),
+      slot: slot,
     );
 
     return ListView(
@@ -694,22 +1028,54 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       children: [
         if (dueToday.isNotEmpty) ...[
           A2GroupHead(label: l.allDueTodaySection, count: dueToday.length),
-          for (final todo in dueToday) row(todo),
+          for (var index = 0; index < dueToday.length; index++)
+            row(dueToday[index], _UndoSlot(_UndoGroup.allDueToday, index)),
         ],
         if (pastDue.isNotEmpty) ...[
           A2GroupHead(label: l.allPastDueSection, count: pastDue.length),
-          for (final todo in pastDue) row(todo),
+          for (var index = 0; index < pastDue.length; index++)
+            row(pastDue[index], _UndoSlot(_UndoGroup.allPastDue, index)),
         ],
         if (later.isNotEmpty) ...[
           A2GroupHead(label: l.allLaterSection, count: later.length),
-          for (final todo in later) row(todo),
+          for (var index = 0; index < later.length; index++)
+            row(later[index], _UndoSlot(_UndoGroup.allLater, index)),
         ],
         if (noDue.isNotEmpty) ...[
           A2GroupHead(label: l.allUnplannedNoDueSection, count: noDue.length),
-          for (final todo in noDue) row(todo),
+          for (var index = 0; index < noDue.length; index++)
+            row(noDue[index], _UndoSlot(_UndoGroup.allNoDue, index)),
         ],
       ],
     );
+  }
+
+  /// All's natural sort sinks finished work. During the undo window the row
+  /// must not move, so it is removed from wherever it landed and put back at
+  /// the slot it occupied when it was ticked.
+  void _pinAllWindows(
+    List<Todo> dueToday,
+    List<Todo> pastDue,
+    List<Todo> later,
+    List<Todo> noDue,
+  ) {
+    for (final entry in _undoEntries.values.toList()) {
+      final slot = entry.slot;
+      if (slot == null || !slot.group.isAllList) continue;
+      for (final list in <List<Todo>>[dueToday, pastDue, later, noDue]) {
+        list.removeWhere((todo) => todo.id == entry.todo.id);
+      }
+      final target = switch (slot.group) {
+        _UndoGroup.allDueToday => dueToday,
+        _UndoGroup.allPastDue => pastDue,
+        _UndoGroup.allLater => later,
+        _ => noDue,
+      };
+      target.insert(
+        slot.index.clamp(0, target.length).toInt(),
+        entry.todo,
+      );
+    }
   }
 
   Widget _dayBody(
@@ -748,27 +1114,37 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       children: [
         if (allocations.isNotEmpty) ...[
           A2GroupHead(label: l.datePlannedSection, count: allocations.length),
-          for (final item in allocations)
+          for (var index = 0; index < allocations.length; index++)
             _todoRow(
-              item.todo!,
-              meta: _dayAllocationMeta(l, item),
+              allocations[index].todo!,
+              meta: _dayAllocationMeta(l, allocations[index]),
               desktop: desktop,
-              selected: _isTodoSelected(selection, item.todoId),
-              checked: item.completed,
-              occurrenceId: item.allocation?.allocation.occurrenceId,
-              onTap: openTodo == null ? null : () => openTodo(item.todo!),
+              selected: _isTodoSelected(
+                selection,
+                allocations[index].todoId,
+              ),
+              checked: allocations[index].completed,
+              occurrenceId:
+                  allocations[index].allocation?.allocation.occurrenceId,
+              onTap: openTodo == null
+                  ? null
+                  : () => openTodo(allocations[index].todo!),
+              slot: _UndoSlot(_UndoGroup.dayPlanned, index),
             ),
         ],
         if (due.isNotEmpty) ...[
           A2GroupHead(label: l.dateDueSection, count: due.length),
-          for (final item in due)
+          for (var index = 0; index < due.length; index++)
             _todoRow(
-              item.todo!,
-              meta: _deadlineMeta(l, item),
+              due[index].todo!,
+              meta: _deadlineMeta(l, due[index]),
               desktop: desktop,
-              selected: _isTodoSelected(selection, item.todoId),
-              checked: item.completed,
-              onTap: openTodo == null ? null : () => openTodo(item.todo!),
+              selected: _isTodoSelected(selection, due[index].todoId),
+              checked: due[index].completed,
+              onTap: openTodo == null
+                  ? null
+                  : () => openTodo(due[index].todo!),
+              slot: _UndoSlot(_UndoGroup.dayDue, index),
             ),
         ],
         if (events.isNotEmpty) ...[
@@ -795,19 +1171,46 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     required bool checked,
     String? occurrenceId,
     VoidCallback? onTap,
+    _UndoSlot? slot,
   }) {
+    final l = AppLocalizations.of(context)!;
+    final inWindow = _inUndoWindow(todo.id, occurrenceId);
+    final onSchedule = widget.onScheduleTodo ?? _schedule;
     return _maybeHover(
       desktop: desktop,
       selected: selected,
       builder: (background) => A2Row(
         title: todo.summary,
-        checked: checked,
+        checked: checked || inWindow,
         selected: selected,
         background: background,
         meta: meta,
+        // The right edge carries the row's own verb: schedule while the task
+        // is at rest, undo while the completion window is open. The title
+        // stays the way into the full detail, so the two actions never share
+        // a gesture.
+        trailing: inWindow
+            ? _A2RowAction(
+                actionKey: ValueKey(
+                  'todo-undo-${todo.id}-${occurrenceId ?? 'series'}',
+                ),
+                label: _undoLabel(l, occurrenceId),
+                tooltip: _undoLabel(l, occurrenceId),
+                highlight: true,
+                onPressed: () => _setCompleted(todo, occurrenceId, false),
+              )
+            : _A2RowAction(
+                actionKey: ValueKey(
+                  'todo-schedule-${todo.id}-${occurrenceId ?? 'series'}',
+                ),
+                label: l.scheduleAction,
+                tooltip: l.scheduleAction,
+                onPressed: () => onSchedule(todo),
+              ),
         onToggle: widget.onToggleTodo == null
             ? null
-            : (value) => _toggle(todo, occurrenceId, value),
+            : (value) =>
+                  _toggle(todo, occurrenceId, value, slot: slot),
         onTap: onTap,
       ),
     );
@@ -1043,6 +1446,115 @@ class _HoverWrapState extends State<_HoverWrap> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: widget.builder(_hovered),
+    );
+  }
+}
+
+enum _UndoGroup {
+  inboxWithDue,
+  inboxNoDue,
+  allDueToday,
+  allPastDue,
+  allLater,
+  allNoDue,
+  dayPlanned,
+  dayDue;
+
+  bool get isAllList =>
+      this == allDueToday ||
+      this == allPastDue ||
+      this == allLater ||
+      this == allNoDue;
+}
+
+class _UndoSlot {
+  const _UndoSlot(this.group, this.index);
+
+  final _UndoGroup group;
+  final int index;
+}
+
+class _UndoEntry {
+  const _UndoEntry({
+    required this.todo,
+    required this.occurrenceId,
+    required this.slot,
+  });
+
+  final Todo todo;
+  final String? occurrenceId;
+  final _UndoSlot? slot;
+}
+
+/// A 44-high text action on the row's right edge. Ghost by default (schedule);
+/// the undo variant borrows the primary-soft pill the snackbar's undo uses.
+class _A2RowAction extends StatelessWidget {
+  const _A2RowAction({
+    required this.actionKey,
+    required this.label,
+    required this.tooltip,
+    required this.onPressed,
+    this.highlight = false,
+  });
+
+  final Key actionKey;
+  final String label;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: InkWell(
+            key: actionKey,
+            onTap: onPressed,
+            splashFactory: NoSplash.splashFactory,
+            overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+            borderRadius: BorderRadius.circular(4),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: 44,
+                minHeight: 44,
+                maxHeight: 44,
+                maxWidth: 160,
+              ),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: highlight
+                      ? BoxDecoration(
+                          color: ds.primarySoft,
+                          borderRadius: BorderRadius.circular(4),
+                        )
+                      : null,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: ds.primary,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

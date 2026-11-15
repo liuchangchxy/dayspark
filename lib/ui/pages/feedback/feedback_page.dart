@@ -26,10 +26,14 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
   /// The copied state belongs to the text that was copied. Editing afterwards
   /// means the clipboard no longer holds what is on screen, so the button
-  /// stops claiming it does.
+  /// stops claiming it does. Every change also refreshes whether there is
+  /// anything to copy at all.
   void _onChanged(String _) {
-    if (!_copied) return;
-    setState(() => _copied = false);
+    if (_copied) {
+      setState(() => _copied = false);
+    } else {
+      setState(() {});
+    }
   }
 
   Future<void> _copy() async {
@@ -94,7 +98,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
                 ? CupertinoIcons.checkmark_circle
                 : CupertinoIcons.doc_on_clipboard,
             expand: true,
-            onPressed: _copied ? null : _copy,
+            // Empty text has nothing to copy; copied text stays copyable so a
+            // second copy does not become a dead button.
+            onPressed: _controller.text.trim().isEmpty ? null : _copy,
           ),
           const SizedBox(height: AppSpacing.s2),
           DsButton(

@@ -15,6 +15,11 @@ class CalendarDeadline {
   final DateTime due;
 }
 
+/// A due instant at exactly midnight carries no clock: the form stores a
+/// date-only deadline that way, and printing `00:00` invents a time the user
+/// never set.
+bool calDeadlineHasTime(DateTime due) => due.hour != 0 || due.minute != 0;
+
 class CalendarDeadlineLane extends StatelessWidget {
   const CalendarDeadlineLane({
     super.key,
@@ -92,7 +97,9 @@ class CalendarDeadlineLane extends StatelessWidget {
                                     const SizedBox(width: 3),
                                     Expanded(
                                       child: Text(
-                                        '${DateFormat.Hm().format(item.due)} ${item.title}',
+                                        calDeadlineHasTime(item.due)
+                                            ? '${DateFormat.Hm().format(item.due)} ${item.title}'
+                                            : item.title,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: theme.textTheme.bodySmall

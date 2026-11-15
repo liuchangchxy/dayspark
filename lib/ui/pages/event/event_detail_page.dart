@@ -20,6 +20,8 @@ import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
+import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
@@ -79,6 +81,8 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   late String _savedTitle;
   late String _savedDescription;
   late String _savedLocation;
+  final Set<String> _savingText = {};
+  bool _deleting = false;
   bool _deletedNotified = false;
 
   @override
@@ -136,6 +140,13 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
           ),
         );
       }
+      if (liveAsync.hasError) {
+        return _loadFailure(
+          context,
+          l,
+          () => ref.invalidate(liveEventProvider(widget.event.drifId)),
+        );
+      }
       return const Center(child: CircularProgressIndicator());
     }
     _syncFromLive(live);
@@ -169,10 +180,6 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               .clamp(0.0, 1.0)
               .toDouble()
         : 0.0;
-    final canPickCalendar =
-        calendars != null &&
-        calendars.isNotEmpty &&
-        (calendars.length > 1 || currentCalendar == null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -197,7 +204,6 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                 currentCalendar,
                 validRange,
                 rowHeight,
-                canPickCalendar,
               ),
               DecoratedBox(
                 decoration: BoxDecoration(
@@ -226,6 +232,12 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                       ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 18),
+              RemindersSection(
+                parentType: 'event',
+                parentId: live.drifId,
+                anchorTime: live.seriesStart,
               ),
               const SizedBox(height: 18),
               _notes(context, l),
@@ -284,6 +296,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                   AppTypography.headline,
                   forceStrutHeight: true,
                 ),
+                maxLines: null,
                 textCapitalization: TextCapitalization.sentences,
                 onChanged: (value) {
                   _titleTimer?.cancel();
@@ -400,7 +413,6 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     Calendar? currentCalendar,
     bool validRange,
     double rowHeight,
-    bool canPickCalendar,
   ) {
     final ds = context.ds;
     return Column(
@@ -431,7 +443,10 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
           value: validRange
               ? (live.isAllDay
                     ? l.durationAllDay
-                    : formatExecutionLength(context, live.seriesEnd.difference(live.seriesStart)))
+                    : formatExecutionLength(
+                        context,
+                        live.seriesEnd.difference(live.seriesStart),
+                      ))
               : l.invalidTimeRange,
         ),
         _PaneFieldRow(
@@ -460,10 +475,8 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               : calendars.isEmpty
               ? l.noCalendar
               : (currentCalendar?.name ?? l.calendarUnavailable),
-          onTap: canPickCalendar
-              ? () => _pickCalendar(live, calendars!)
-              : null,
-          showChevron: canPickCalendar,
+          onTap: () => _pickCalendar(live),
+          showChevron: true,
         ),
         _PaneFieldRow(
           label: l.location,
@@ -506,10 +519,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l.notes,
-          style: AppTypography.overline.copyWith(color: ds.ink3),
-        ),
+        Text(l.notes, style: AppTypography.overline.copyWith(color: ds.ink3)),
         const SizedBox(height: 7),
         Container(
           width: double.infinity,
@@ -570,10 +580,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
-        Text(
-          l.tags,
-          style: AppTypography.overline.copyWith(color: ds.ink3),
-        ),
+        Text(l.tags, style: AppTypography.overline.copyWith(color: ds.ink3)),
         const SizedBox(height: 7),
         Wrap(
           spacing: AppSpacing.s2,
@@ -583,10 +590,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               DsChip(
                 label: tag.name,
                 solid: true,
-                leading: DsDot(
-                  color: ColorUtils.parseHex(tag.color),
-                  size: 7,
-                ),
+                leading: DsDot(color: ColorUtils.parseHex(tag.color), size: 7),
               ),
           ],
         ),
@@ -630,7 +634,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                 label: l.moveToTrash,
                 height: height,
                 danger: true,
-                onPressed: () => _delete(live),
+                onPressed: _deleting ? null : () => _delete(live),
               ),
             ],
           ),
@@ -642,21 +646,24 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   void _syncFromLive(CalendaEventAdapter live) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (!_titleFocus.hasFocus &&
+      if (!_savingText.contains('title') &&
+          !_titleFocus.hasFocus &&
           _title.text == _savedTitle &&
           _title.text != live.title) {
         _title.text = live.title;
         _savedTitle = live.title;
       }
       final description = live.description ?? '';
-      if (!_descriptionFocus.hasFocus &&
+      if (!_savingText.contains('description') &&
+          !_descriptionFocus.hasFocus &&
           _description.text == _savedDescription &&
           _description.text != description) {
         _description.text = description;
         _savedDescription = description;
       }
       final location = live.location ?? '';
-      if (!_locationFocus.hasFocus &&
+      if (!_savingText.contains('location') &&
+          !_locationFocus.hasFocus &&
           _location.text == _savedLocation &&
           _location.text != location) {
         _location.text = location;
@@ -683,9 +690,15 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       _title.text = _savedTitle;
       return;
     }
-    if (text == _savedTitle) return;
-    _savedTitle = text;
-    unawaited(_saveText(title: text));
+    if (text == _savedTitle || !_savingText.add('title')) return;
+    unawaited(
+      _saveText(title: text).then((saved) {
+        _savingText.remove('title');
+        if (!saved) return;
+        _savedTitle = text;
+        if (mounted && _title.text.trim() != text) _flushTitle();
+      }),
+    );
   }
 
   void _flushDescription() {
@@ -693,9 +706,15 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     _descriptionTimer?.cancel();
     _descriptionTimer = null;
     final text = _description.text.trim();
-    if (text == _savedDescription) return;
-    _savedDescription = text;
-    unawaited(_saveText(setDescription: true, description: text));
+    if (text == _savedDescription || !_savingText.add('description')) return;
+    unawaited(
+      _saveText(setDescription: true, description: text).then((saved) {
+        _savingText.remove('description');
+        if (!saved) return;
+        _savedDescription = text;
+        if (mounted && _description.text.trim() != text) _flushDescription();
+      }),
+    );
   }
 
   void _flushLocation() {
@@ -703,12 +722,18 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     _locationTimer?.cancel();
     _locationTimer = null;
     final text = _location.text.trim();
-    if (text == _savedLocation) return;
-    _savedLocation = text;
-    unawaited(_saveText(setLocation: true, location: text));
+    if (text == _savedLocation || !_savingText.add('location')) return;
+    unawaited(
+      _saveText(setLocation: true, location: text).then((saved) {
+        _savingText.remove('location');
+        if (!saved) return;
+        _savedLocation = text;
+        if (mounted && _location.text.trim() != text) _flushLocation();
+      }),
+    );
   }
 
-  Future<void> _saveText({
+  Future<bool> _saveText({
     String? title,
     bool setDescription = false,
     String? description,
@@ -729,54 +754,22 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
           updatedAt: Value(DateTime.now()),
         ),
       );
+      return true;
     } on Object catch (error) {
       debugPrint('event_detail: text update failed: $error');
       _showError();
+      return false;
     }
   }
 
-  Future<void> _pickCalendar(
-    CalendaEventAdapter live,
-    List<Calendar> calendars,
-  ) async {
-    final l = AppLocalizations.of(context)!;
-    final picked = await showDsSheet<int>(
-      context: context,
-      title: l.calendarField,
-      body: Builder(
-        builder: (sheetContext) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final calendar in calendars)
-              DsSettingRow(
-                label: calendar.name,
-                leading: DsDot(
-                  color: ColorUtils.parseHex(calendar.color),
-                  size: 8,
-                ),
-                trailing: calendar.id == live.calendarId
-                    ? Icon(
-                        CupertinoIcons.checkmark,
-                        size: 15,
-                        color: sheetContext.ds.primary,
-                      )
-                    : const SizedBox.shrink(),
-                selected: calendar.id == live.calendarId,
-                onTap: () => Navigator.of(sheetContext).pop(calendar.id),
-              ),
-          ],
-        ),
-      ),
+  Future<void> _pickCalendar(CalendaEventAdapter live) async {
+    final picked = await pickCalendar(
+      context,
+      ref,
+      selectedId: live.calendarId,
     );
     if (picked == null || !mounted || picked == live.calendarId) return;
     try {
-      final current = await ref.read(calendarsProvider.future);
-      if (!mounted) return;
-      if (!current.any((calendar) => calendar.id == picked)) {
-        _showMessage(AppLocalizations.of(context)!.calendarUnavailable);
-        return;
-      }
       await ref.read(updateEventProvider)(
         live.drifId,
         EventsCompanion(
@@ -867,6 +860,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   }
 
   Future<void> _delete(CalendaEventAdapter row) async {
+    if (_deleting) return;
     final l = AppLocalizations.of(context)!;
     // A recurring series has two very different deletes; asking which one is
     // the same question the todo side asks before completing an occurrence.
@@ -912,10 +906,19 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       if (scope == null || !mounted) return;
       occurrenceOnly = !scope;
       if (occurrenceOnly) {
-        await ref.read(excludeEventOccurrenceProvider)(
-          id: row.drifId,
-          occurrenceStart: widget.event.start,
-        );
+        setState(() => _deleting = true);
+        try {
+          await ref.read(excludeEventOccurrenceProvider)(
+            id: row.drifId,
+            occurrenceStart: widget.event.start,
+          );
+        } on Object catch (error) {
+          debugPrint('event_detail: delete occurrence failed: $error');
+          if (!mounted) return;
+          setState(() => _deleting = false);
+          _showError();
+          return;
+        }
         if (!mounted) return;
         _leaveAfterDelete();
         ScaffoldMessenger.of(
@@ -981,7 +984,16 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
 
     final id = row.drifId;
     final restore = ref.read(restoreEventProvider);
-    await ref.read(deleteEventProvider)(id);
+    setState(() => _deleting = true);
+    try {
+      await ref.read(deleteEventProvider)(id);
+    } on Object catch (error) {
+      debugPrint('event_detail: delete failed: $error');
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      _showError();
+      return;
+    }
     if (!mounted) return;
     _leaveAfterDelete();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -991,6 +1003,53 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         action: SnackBarAction(label: l.undo, onPressed: () => restore(id)),
       ),
     );
+  }
+
+  Widget _loadFailure(
+    BuildContext context,
+    AppLocalizations l,
+    VoidCallback retry,
+  ) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l.error,
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                color: context.semantic.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s3),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(onPressed: retry, child: Text(l.retry)),
+                const SizedBox(width: AppSpacing.s2),
+                TextButton(
+                  onPressed: _leaveFromFailure,
+                  child: Text(l.close),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _leaveFromFailure() {
+    if (widget.embedded) {
+      final close = widget.onClose;
+      if (close != null) {
+        close();
+        return;
+      }
+    }
+    _leaveToSource(context);
   }
 
   void _leaveAfterDelete() {
@@ -1097,11 +1156,7 @@ class _PaneFieldRow extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                height: 16 / 11,
-                color: ds.ink3,
-              ),
+              style: TextStyle(fontSize: 11, height: 16 / 11, color: ds.ink3),
             ),
           ),
           Expanded(

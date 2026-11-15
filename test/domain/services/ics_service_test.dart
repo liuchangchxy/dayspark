@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/services/ics_service.dart';
@@ -7,6 +8,8 @@ import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('IcsService', () {
     test('can be instantiated with mock db', () {
       // IcsService requires AppDatabase — just verify construction logic compiles
@@ -775,6 +778,90 @@ END:VCALENDAR''';
       expect(allTodos.length, 2, reason: 'Distinct UID should create new record even with identical summary/time');
 
       await db.close();
+    });
+  });
+
+  group('IcsService delivery', () {
+    test('web delivery hands the exact text to the downloader', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final calendarId = await db
+          .into(db.calendars)
+          .insert(CalendarsCompanion.insert(name: 'Export'));
+      await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Standup',
+              startDt: DateTime(2026, 11, 15, 9),
+              endDt: DateTime(2026, 11, 15, 10),
+            ),
+          );
+
+      final deliveries = <({String content, String filename})>[];
+      final service = IcsService(
+        db,
+        isWeb: true,
+        webDownloader: ({required content, required filename}) {
+          deliveries.add((content: content, filename: filename));
+        },
+      );
+
+      // Generation and delivery are separate: the text is the same one the
+      // native path would write, so a delivery test never re-tests the format.
+      final content = await service.exportCalendar();
+      final locator = await service.saveIcsToFile(content, 'export.ics');
+
+      expect(deliveries, hasLength(1));
+      expect(deliveries.single.content, content);
+      expect(deliveries.single.filename, 'export.ics');
+      expect(locator, 'export.ics');
+      expect(content, contains('SUMMARY:Standup'));
+    });
+
+    test('web delivery never reaches path_provider', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      // Record every call the native branch would make. A web delivery that
+      // touched path_provider would show up here as a hit.
+      const channel = MethodChannel('plugins.flutter.io/path_provider');
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call.method);
+            throw MissingPluginException('no path_provider on this platform');
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null),
+      );
+
+      final native = IcsService(db);
+      await expectLater(
+        native.saveIcsToFile('BEGIN:VCALENDAR\r\nEND:VCALENDAR', 'x.ics'),
+        throwsA(isA<MissingPluginException>()),
+        reason: 'the native branch is exactly what path_provider breaks',
+      );
+      expect(calls, ['getApplicationDocumentsDirectory']);
+
+      calls.clear();
+      var delivered = 0;
+      final web = IcsService(
+        db,
+        isWeb: true,
+        webDownloader: ({required content, required filename}) {
+          delivered++;
+        },
+      );
+      final locator = await web.saveIcsToFile(
+        'BEGIN:VCALENDAR\r\nEND:VCALENDAR',
+        'x.ics',
+      );
+      expect(delivered, 1);
+      expect(locator, 'x.ics');
+      expect(calls, isEmpty, reason: 'the web branch must not ask for a dir');
     });
   });
 }

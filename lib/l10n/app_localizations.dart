@@ -629,6 +629,12 @@ abstract class AppLocalizations {
   /// **'AI Assistant'**
   String get aiAssistant;
 
+  /// No description provided for @openAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Open assistant'**
+  String get openAssistant;
+
   /// No description provided for @apiKey.
   ///
   /// In en, this message translates to:
@@ -3170,7 +3176,7 @@ abstract class AppLocalizations {
   /// No description provided for @createTodoAndSchedule.
   ///
   /// In en, this message translates to:
-  /// **'New Task'**
+  /// **'New & schedule'**
   String get createTodoAndSchedule;
 
   /// No description provided for @calendarHasContents.
@@ -3923,6 +3929,12 @@ abstract class AppLocalizations {
   /// **'In {count} days'**
   String inDaysCount(int count);
 
+  /// No description provided for @daysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day ago} other{{count} days ago}}'**
+  String daysAgo(int count);
+
   /// No description provided for @yearMonthTitle.
   ///
   /// In en, this message translates to:
@@ -4072,6 +4084,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next day'**
   String get nextDay;
+
+  /// No description provided for @undoOccurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo · {label}'**
+  String undoOccurrence(String label);
+
+  /// No description provided for @backToNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to now'**
+  String get backToNow;
+
+  /// No description provided for @dawnQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'{start}–{end} · quiet hours, nothing scheduled'**
+  String dawnQuiet(String start, String end);
+
+  /// No description provided for @slotRangeExistingEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing event'**
+  String get slotRangeExistingEvent;
+
+  /// No description provided for @slotRangeDefaultEditable.
+  ///
+  /// In en, this message translates to:
+  /// **'default, editable'**
+  String get slotRangeDefaultEditable;
+
+  /// No description provided for @slotEmptyCreateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to schedule yet — create one and it lands in this slot.'**
+  String get slotEmptyCreateHint;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

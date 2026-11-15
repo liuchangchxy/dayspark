@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -38,6 +39,9 @@ Widget _app(AppDatabase db, {List<Override> overrides = const []}) =>
     ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
+        featureFlagsProvider.overrideWith(
+          (ref) async => FeatureFlags({FeatureFlag.aiAssistant: true}),
+        ),
         // Watches the config the way the real provider does, so the page finds
         // it resolved instead of reading a future that has not completed yet.
         isAiConfiguredProvider.overrideWith(
