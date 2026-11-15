@@ -318,7 +318,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               Positioned.fill(child: content),
               if (mode == CalendarViewMode.month)
                 A2Fab(
-                  tooltip: l.create,
+                  tooltip: l.newEvent,
                   onPressed: () => widget.onCreateAtDay?.call(browse),
                 ),
             ],

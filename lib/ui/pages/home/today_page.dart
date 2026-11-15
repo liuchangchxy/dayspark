@@ -72,8 +72,12 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   void _onViewportChanged(ScrollMetrics metrics) {
     final previous = _lastViewport;
     _lastViewport = metrics.viewportDimension;
-    if (previous == null || !_captureFocused) return;
-    if (metrics.viewportDimension >= previous) return;
+    if (!_captureFocused) return;
+    // A list that first appears while the capture row is focused already sits
+    // under the keyboard, so there is no shrink to notice: take its first
+    // metrics as the moment to bring the shelf up.
+    final shrank = previous != null && metrics.viewportDimension < previous;
+    if (!shrank && previous != null) return;
     if (metrics.extentAfter <= 0) return;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToShelf());
   }

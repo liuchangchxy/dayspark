@@ -296,6 +296,14 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     final title = _title.text.trim();
     navigator.pop();
     if (router == null) return;
+    // In scheduling mode the sheet is a view of one existing todo. Its "…"
+    // belongs to that todo; sending the sheet's copied fields to the create
+    // route made a second todo with the same title and deadline.
+    final existing = widget.todo;
+    if (_scheduling && existing != null) {
+      router.push('/todo/edit', extra: existing);
+      return;
+    }
     // Everything the sheet has already taken from the user travels with it:
     // dropping the picked block here made the full form silently forget a
     // slot the user had expressed.

@@ -53,11 +53,12 @@ TaskAllocationCalendarItem _allocation({
   todo: _todo(1, 1, '整理周会纪要并发群'),
 );
 
-Widget _app(Widget page, {required AppDatabase db}) => ProviderScope(
+Widget _app(Widget page, {required AppDatabase db, DateTime? browse}) =>
+    ProviderScope(
   overrides: [
     databaseProvider.overrideWithValue(db),
     calendarNowProvider.overrideWithValue(() => DateTime(2026, 11, 15, 15)),
-    viewedDateProvider.overrideWith((ref) => _day),
+    viewedDateProvider.overrideWith((ref) => browse ?? _day),
   ],
   child: MaterialApp(
     localizationsDelegates: const [
@@ -209,12 +210,13 @@ void main() {
     await tester.tap(find.byTooltip('Month'));
     await _settle(tester);
 
-    await tester.tap(find.byTooltip('Create'));
+    await tester.tap(find.byTooltip('New Event'));
     await _settle(tester);
 
     expect(days, hasLength(1));
     expect(days.single, DateTime(2026, 11, 15));
-    // A month cell has no time axis: nothing may arrive already scheduled.
+    // A month cell has no time axis: the "+" carries the day and no span, so
+    // no slot-bound action can be taken from it.
     expect(ranges, isEmpty);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -240,7 +242,42 @@ void main() {
     await tester.tap(find.byTooltip('Next page'));
     await _settle(tester);
 
-    expect(find.byKey(const ValueKey('month-day-2026-12-15')), findsOneWidget);
+    // Paging moves the month, not the day: the shared browse date keeps its
+    // day-of-month, so Todo · By date still points where the user was.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2CalendarPage)),
+    );
+    expect(container.read(viewedDateProvider), DateTime(2026, 12, 15));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('paging from a month-end clamps to the shorter month', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(
+      _app(page, db: db, browse: DateTime(2026, 1, 31)),
+    );
+    await _settle(tester);
+    await tester.tap(find.byTooltip('Month'));
+    await _settle(tester);
+
+    await tester.tap(find.byTooltip('Next page'));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2CalendarPage)),
+    );
+    expect(container.read(viewedDateProvider), DateTime(2026, 2, 28));
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
   });

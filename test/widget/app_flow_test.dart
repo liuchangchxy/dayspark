@@ -85,7 +85,7 @@ void main() {
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
 
-  testWidgets('the calendar month "+" opens a create flow with no slot', (
+  testWidgets('the calendar month "+" creates an event for the browsed day', (
     tester,
   ) async {
     await _pumpApp(tester);
@@ -100,16 +100,17 @@ void main() {
     await tester.tap(find.byType(A2Fab));
     await _settle(tester);
 
-    // A month cell carries no time axis, so nothing arrives already planned:
-    // the flow opens bare and the user picks a slot.
-    expect(find.byType(TodoFormPage), findsOneWidget);
-    expect(
-      GoRouter.of(
-        tester.element(find.byType(TodoFormPage)),
-      ).state.uri.toString(),
-      '/todo/new',
-    );
-    expect(find.text('New Event'), findsNothing);
+    // The calendar's create is an event (SPEC 规则 19): "+ 日程" opens event
+    // create in the browsed day's context, never a task and never an
+    // allocation.
+    expect(find.byType(EventFormPage), findsOneWidget);
+    final uri = GoRouter.of(
+      tester.element(find.byType(EventFormPage)),
+    ).state.uri;
+    expect(uri.path, '/event/new');
+    expect(uri.queryParameters['start'], isNotNull);
+    expect(uri.queryParameters['end'], isNotNull);
+    expect(find.byType(TodoFormPage), findsNothing);
   });
 
   testWidgets('event create has form fields', (tester) async {

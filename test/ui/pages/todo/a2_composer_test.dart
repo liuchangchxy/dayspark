@@ -1,9 +1,11 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -14,6 +16,7 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
+import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
 Widget _app(AppDatabase db, Widget child) {
   return ProviderScope(
@@ -227,6 +230,80 @@ void main() {
     expect(allocations, hasLength(1));
     expect(allocations.single.startAt.toLocal(), DateTime(2026, 10, 17, 16));
 
+    await _unmount(tester);
+  });
+
+  testWidgets('scheduling mode sends "…" to that todo, not a look-alike', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final todo = await _recurringTodo(db, calendarId);
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, __) => Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => showA2Composer(
+                  context,
+                  contextDate: _DayContext.value,
+                  todo: todo,
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/todo/new',
+          builder: (_, __) => const TodoFormPage(),
+        ),
+        GoRoute(
+          path: '/todo/edit',
+          builder: (_, state) => TodoFormPage(todo: state.extra as Todo?),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(db)],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    await tester.tap(find.text('open'));
+    await _settle(tester);
+    expect(find.byType(A2ComposerSheet), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(A2ComposerSheet),
+        matching: find.byIcon(CupertinoIcons.ellipsis),
+      ),
+    );
+    await _settle(tester);
+
+    // A copy of the existing task would carry the same title and deadline and
+    // be indistinguishable from it: the sheet must hand over the original.
+    expect(router.state.uri.path, '/todo/edit');
+    expect(find.byType(TodoFormPage), findsOneWidget);
+    expect(find.text(todo.summary), findsWidgets);
     await _unmount(tester);
   });
 

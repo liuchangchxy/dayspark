@@ -364,12 +364,17 @@ abstract final class AppRouter {
               final start = state.uri.queryParameters['start'];
               final end = state.uri.queryParameters['end'];
               final due = state.uri.queryParameters['due'];
-              DateTime? parse(String? value) => value == null
-                  ? null
-                  : DateTime.tryParse(value) ??
-                        DateTime.fromMillisecondsSinceEpoch(
-                          int.tryParse(value) ?? 0,
-                        );
+              // A malformed link yields nothing, not 1970: an empty field is
+              // honest, a fabricated date is not.
+              DateTime? parse(String? value) {
+                if (value == null) return null;
+                final iso = DateTime.tryParse(value);
+                if (iso != null) return iso;
+                final millis = int.tryParse(value);
+                return millis == null
+                    ? null
+                    : DateTime.fromMillisecondsSinceEpoch(millis);
+              }
               return _pageTransition(
                 TodoFormPage(
                   parentId: parentId,

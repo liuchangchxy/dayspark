@@ -552,7 +552,26 @@ class _HomePageState extends ConsumerState<HomePage>
         }
       },
       onTimeSlotTapped: (slot) => _openSlotSheet(slot, key),
-      onCreateAtDay: (_) => context.push('/todo/new'),
+      onCreateAtDay: (day) {
+        // Calendar creation is an event, not a task: the day is the context,
+        // and the form shows the time it starts with so nothing is silent.
+        final clock = DateTime.now();
+        final sameDay =
+            day.year == clock.year &&
+            day.month == clock.month &&
+            day.day == clock.day;
+        final start = DateTime(
+          day.year,
+          day.month,
+          day.day,
+          sameDay ? (clock.hour + 1).clamp(0, 23) : 9,
+        );
+        final end = start.add(const Duration(hours: 1));
+        context.push(
+          '/event/new?start=${start.millisecondsSinceEpoch}'
+          '&end=${end.millisecondsSinceEpoch}',
+        );
+      },
       onEventChanged: (event) async {
         await ref.read(updateEventProvider)(
           event.drifId,

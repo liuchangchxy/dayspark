@@ -67,6 +67,9 @@ Pods/
 # Generated OSS licenses (rebuild with: dart run flutter_oss_licenses:generate)
 lib/oss_licenses.dart
 
+# Golden-comparison scratch output (the failures/ dir is written on mismatch)
+tool/shots/failures/
+
 # Screenshots (personal / not for distribution)
 screenshots/
 web-shots-*/
