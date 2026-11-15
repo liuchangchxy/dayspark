@@ -555,7 +555,8 @@ class _HomePageState extends ConsumerState<HomePage>
       onCreateAtDay: (day) {
         // Calendar creation is an event, not a task: the day is the context,
         // and the form shows the time it starts with so nothing is silent.
-        final clock = DateTime.now();
+        // The clock is the calendar's own, not a second reading of the wall.
+        final clock = ref.read(calendarNowProvider)();
         final sameDay =
             day.year == clock.year &&
             day.month == clock.month &&

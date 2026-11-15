@@ -108,8 +108,19 @@ void main() {
       tester.element(find.byType(EventFormPage)),
     ).state.uri;
     expect(uri.path, '/event/new');
-    expect(uri.queryParameters['start'], isNotNull);
-    expect(uri.queryParameters['end'], isNotNull);
+    final start = DateTime.fromMillisecondsSinceEpoch(
+      int.parse(uri.queryParameters['start']!),
+    );
+    final end = DateTime.fromMillisecondsSinceEpoch(
+      int.parse(uri.queryParameters['end']!),
+    );
+    // It lands on the day the grid is showing, and it lasts an hour.
+    final today = DateTime.now();
+    expect(
+      [start.year, start.month, start.day],
+      [today.year, today.month, today.day],
+    );
+    expect(end.difference(start), const Duration(hours: 1));
     expect(find.byType(TodoFormPage), findsNothing);
   });
 
