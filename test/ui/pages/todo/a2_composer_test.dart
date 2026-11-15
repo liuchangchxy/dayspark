@@ -4,9 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 
@@ -41,11 +46,15 @@ Future<void> _unmount(WidgetTester tester) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(tzdata.initializeTimeZones);
+
   late AppDatabase db;
   var calendarId = 0;
   final day = DateTime(2026, 10, 17);
 
   setUp(() async {
+    // The recurrence resolver reads the device zone from preferences.
+    SharedPreferences.setMockInitialValues({});
     db = AppDatabase.forTesting(NativeDatabase.memory());
     calendarId = await db
         .into(db.calendars)
@@ -139,6 +148,41 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('a recurring todo asks which occurrence the slot is for', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final todo = await _recurringTodo(db, calendarId);
+
+    await tester.pumpWidget(
+      _app(db, A2ComposerSheet(contextDate: day, todo: todo)),
+    );
+    await _settle(tester);
+
+    await tester.tap(find.byKey(const ValueKey('a2-composer-plan')));
+    await tester.pump();
+    await tester.tap(find.text('14:00–15:00'));
+    await tester.pump();
+    await tester.tap(find.text('Plan for 10/17'));
+    await _settle(tester);
+
+    // The writer refuses an allocation without an occurrence, so the sheet
+    // asks for one and nothing is written until it is chosen.
+    expect(
+      find.text('Could not complete. Please try again.'),
+      findsNothing,
+    );
+    // The sheet is a dialog either way: a legacy rule is confirmed first,
+    // a zoned series goes straight to the occurrence list.
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(await db.select(db.taskAllocations).get(), isEmpty);
+
+    await _unmount(tester);
+  });
+
   testWidgets('scheduling an existing todo needs a slot and writes no deadline', (
     tester,
   ) async {
@@ -185,6 +229,33 @@ void main() {
 
     await _unmount(tester);
   });
+}
+
+/// Seeds a real recurring series (the writer fills every recurrence column;
+/// a bare rrule insert is "partial persistence" and cannot be projected).
+Future<Todo> _recurringTodo(AppDatabase db, int calendarId) async {
+  final spec = RecurrenceSpec.parse(
+    anchor: RecurrenceAnchor(
+      source: RecurrenceAnchorSource.start,
+      value: LocalDate(2026, 10, 1),
+    ),
+    timeZone: 'Asia/Shanghai',
+    rrule: 'FREQ=DAILY;COUNT=40',
+  );
+  final id = await RecordScope.run(
+    db,
+    (tx) => TodoWriter.create(
+      db,
+      tx,
+      TodosCompanion.insert(
+        calendarId: calendarId,
+        summary: 'Daily standup',
+        rrule: Value(spec.rule.canonical),
+      ),
+      recurrenceSpec: spec,
+    ),
+  );
+  return (db.select(db.todos)..where((row) => row.id.equals(id))).getSingle();
 }
 
 /// Const stand-in so the first case can be `const`.

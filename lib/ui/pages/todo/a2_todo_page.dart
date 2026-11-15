@@ -407,7 +407,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                 onTap: () {
                   Navigator.of(sheetContext).pop();
                   _selectMode(
-                    TodosDayView(_dayOf(ref.read(viewedDateProvider))),
+                    const TodosDayView(),
                   );
                 },
               ),

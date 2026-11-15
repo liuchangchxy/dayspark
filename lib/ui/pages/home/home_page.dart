@@ -44,6 +44,7 @@ import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
+import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 
 /// The three primary destinations and the chrome they share.
 ///
@@ -167,7 +168,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final view = switch (raw) {
       'inbox' || 'unplanned' => const TodosInboxView(),
       'all' => const TodosAllView(),
-      'today' || 'date' => TodosDayView(_now()),
+      'today' || 'date' => const TodosDayView(),
       _ => null,
     };
     if (view == null) return;
@@ -694,9 +695,14 @@ class _HomePageState extends ConsumerState<HomePage>
     String? occurrenceId,
     bool completed,
   ) async {
-    await ref.read(toggleTodoProvider)(
-      id: todo.id,
-      isCompleted: completed,
+    // The single completion entry point: a recurring series row has no one
+    // occurrence to tick, so this asks which one instead of calling the
+    // writer and surface its "requires an occurrenceId" StateError.
+    await toggleTodoCompletion(
+      context,
+      ref,
+      todo: todo,
+      completed: completed,
       occurrenceId: occurrenceId,
     );
   }

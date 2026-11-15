@@ -32,13 +32,11 @@ sealed class TodosView {
   const TodosView();
 }
 
-/// A single day's list. `date == null` is not a case here: that is [TodosInbox].
+/// A single day's list. The day itself is not carried here: Todo · By date
+/// and the Calendar share one browsed date (`viewedDateProvider`), and a copy
+/// inside the view was a second source that could disagree with the calendar.
 class TodosDayView extends TodosView {
-  const TodosDayView(this.date);
-
-  final DateTime date;
-
-  DateTime get day => DateTime(date.year, date.month, date.day);
+  const TodosDayView();
 }
 
 /// Undated todos.
@@ -52,8 +50,7 @@ class TodosAllView extends TodosView {
 }
 
 final todosViewProvider = StateProvider<TodosView>((ref) {
-  final now = DateTime.now();
-  return TodosDayView(DateTime(now.year, now.month, now.day));
+  return const TodosDayView();
 });
 
 /// The object currently shown in the desktop detail pane.

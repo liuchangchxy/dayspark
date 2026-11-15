@@ -7,7 +7,6 @@ import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
 /// The 按日期 month / year sheet. Selecting a day writes the shared browse date
 /// and closes the sheet, so every surface that reads the date follows at once.
@@ -62,8 +61,9 @@ class _MonthYearPickerSheetState extends ConsumerState<_MonthYearPickerSheet> {
 
   void _pick(DateTime day) {
     final picked = _dateOnly(day);
+    // One browsed date for the whole app: Todo · By date and the Calendar
+    // both read it. The view only says which list is open.
     ref.read(viewedDateProvider.notifier).state = picked;
-    ref.read(todosViewProvider.notifier).state = TodosDayView(picked);
     Navigator.of(context).pop();
   }
 

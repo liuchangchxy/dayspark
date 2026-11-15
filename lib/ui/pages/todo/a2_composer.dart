@@ -16,6 +16,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
 /// The A″ composer: one sheet that writes exactly what the user expressed.
@@ -303,10 +304,30 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     setState(() => _saving = true);
     try {
       if (_scheduling) {
+        final todo = widget.todo!;
+        // A recurring series has no single occurrence to plan: the writer
+        // refuses an allocation without one, so ask which instance this slot
+        // belongs to (the picker opens on the planned day).
+        String? occurrenceId;
+        if (todo.rrule != null && todo.rrule!.isNotEmpty) {
+          final picked = await TodoOccurrencePickerSheet.show(
+            context,
+            ref: ref,
+            todo: todo,
+            anchorDate: _start,
+          );
+          if (picked == null) {
+            if (mounted) setState(() => _saving = false);
+            return;
+          }
+          occurrenceId = picked.occurrenceId;
+        }
+        if (!mounted) return;
         await ref.read(createTaskAllocationProvider)(
-          todoId: widget.todo!.id,
+          todoId: todo.id,
           startAt: _start!,
           endAt: _end!,
+          occurrenceId: occurrenceId,
         );
         if (!mounted) return;
         Navigator.of(context).pop();

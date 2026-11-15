@@ -7,10 +7,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
@@ -88,6 +95,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    tzdata.initializeTimeZones();
     await _loadFont('Microsoft YaHei', [
       r'C:\Windows\Fonts\Deng.ttf',
       '/System/Library/Fonts/PingFang.ttc',
@@ -203,6 +211,121 @@ void main() {
     expect(_content(0), findsOneWidget);
     expect(tester.getTopLeft(_content(0)), origin);
     expect(tester.takeException(), isNull);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('ticking a recurring series row asks which occurrence', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await _phone(tester);
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDate(2026, 10, 1),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=40',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calId,
+          summary: 'Daily standup',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+    await tester.tap(find.text('Tasks').last);
+    await _settle(tester);
+    await tester.tap(find.text('By date'));
+    await _settle(tester);
+    await tester.tap(find.text('Unplanned').last);
+    await _settle(tester);
+
+    expect(find.text('Daily standup'), findsOneWidget);
+    await tester.tap(find.byType(DsCheck).first);
+    await _settle(tester);
+
+    // The writer refuses a series completion without an occurrence, so the
+    // page asks for one instead of surfacing an error.
+    expect(find.byType(Dialog), findsOneWidget);
+    final series = await (db.select(db.todos)
+          ..where((row) => row.id.equals(seriesId)))
+        .getSingle();
+    expect(series.status, 'NEEDS-ACTION');
+    expect(await db.select(db.taskInstanceStates).get(), isEmpty);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('calendar and Todo by date share one browsed day', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await _phone(tester);
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(HomePage)),
+      listen: false,
+    );
+    final now = DateTime.now();
+    // A day in the same month as the month grid opens on, but not today, so
+    // "today's page ignored it" is observable.
+    final target = DateTime(now.year, now.month, now.day == 10 ? 11 : 10);
+
+    await tester.tap(find.text('Calendar').last);
+    await _settle(tester);
+    await tester.tap(find.byTooltip('Month').first);
+    await _settle(tester);
+    await tester.tap(
+      find.byKey(
+        ValueKey('month-day-${target.year}-${target.month}-${target.day}'),
+      ),
+    );
+    await _settle(tester);
+    expect(container.read(viewedDateProvider).day, target.day);
+
+    // The date the calendar picked is the date Todo · By date opens on.
+    await tester.tap(find.text('Tasks').last);
+    await _settle(tester);
+    expect(container.read(viewedDateProvider).day, target.day);
+    expect(
+      find.textContaining(
+        DateFormat.MMMd(
+          Localizations.localeOf(tester.element(find.byType(HomePage)))
+              .toString(),
+        ).format(target),
+      ),
+      findsWidgets,
+    );
+
+    // Today answers to the clock, not to the browsed date.
+    await tester.tap(find.text('Today').last);
+    await _settle(tester);
+    expect(container.read(viewedDateProvider).day, target.day);
+    expect(
+      find.textContaining(
+        DateFormat.MMMMd(
+          Localizations.localeOf(tester.element(find.byType(HomePage)))
+              .toString(),
+        ).format(now),
+      ),
+      findsWidgets,
+    );
 
     await _unmount(tester);
   });
