@@ -972,6 +972,10 @@ class _DesktopBar extends ConsumerWidget {
       (l.todos, CupertinoIcons.checkmark_circle, AppTab.todos),
       (l.calendar, CupertinoIcons.calendar, AppTab.calendar),
     ];
+    // A wide face in a half-screen window cannot hold the wordmark, the date
+    // and three labelled destinations; below the design's own width the
+    // destinations keep their icons and drop their words.
+    final iconOnly = MediaQuery.sizeOf(context).width < 1180;
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1020,15 +1024,20 @@ class _DesktopBar extends ConsumerWidget {
             onTap: () => ref.read(viewedDateProvider.notifier).state =
                 browseDate.subtract(const Duration(days: 1)),
           ),
-          Text(
-            '${DateFormat.MMMMd(locale).format(browseDate)} · '
-            '${DateFormat.E(locale).format(browseDate)}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: ds.ink,
-              fontFeatures: AppTypography.tabular,
-              fontFamilyFallback: AppTypography.fallback,
+          Flexible(
+            child: Text(
+              '${DateFormat.MMMMd(locale).format(browseDate)} · '
+              '${DateFormat.E(locale).format(browseDate)}',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: ds.ink,
+                fontFeatures: AppTypography.tabular,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
             ),
           ),
           _NavStep(
@@ -1046,6 +1055,7 @@ class _DesktopBar extends ConsumerWidget {
                 _DesktopNavItem(
                   label: item.$1,
                   icon: item.$2,
+                  iconOnly: iconOnly,
                   selected: current == item.$3,
                   onTap: () => onSelect(switch (item.$3) {
                     AppTab.action => 0,
@@ -1108,34 +1118,36 @@ class _DesktopNavItem extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.iconOnly = false,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
     final color = selected ? ds.primary : ds.ink2;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Container(
-            height: 28,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: selected ? ds.primarySoft : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 14, color: selected ? ds.primary : ds.ink3),
+    final item = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: selected ? ds.primarySoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: selected ? ds.primary : ds.ink3),
+              if (!iconOnly) ...[
                 const SizedBox(width: 5),
                 Text(
                   label,
@@ -1147,11 +1159,17 @@ class _DesktopNavItem extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+            ],
           ),
         ),
       ),
     );
+    final padded = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 1),
+      child: item,
+    );
+    if (!iconOnly) return padded;
+    return Tooltip(message: label, child: padded);
   }
 }
 
