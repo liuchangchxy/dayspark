@@ -14,9 +14,9 @@
 | 套件 | 内容 | 结果 |
 |---|---|---|
 | `tests/smoke.js` | 启动、无横向溢出、按钮都有可读名字、9 条路由可达、零控制台错误（桌面 + 手机） | **11 / 11 通过** |
-| `tests/interactions.js` | 31 个端到端交互场景 | **31 / 31 通过** |
+| `tests/interactions.js` | 33 个端到端交互场景 | **33 / 33 通过** |
 | `tests/surfaces.js` | 14 个功能面场景 | **14 / 14 通过** |
-| 合计 | | **56 / 56 通过，0 失败，0 跳过** |
+| 合计 | | **58 / 58 通过，0 失败，0 跳过** |
 
 `skipped = 0`：没有任何场景被跳过或注释掉。唯一一条 `note` 是测试侧的说明（鼠标拖动不会触发触摸滑动手势，该路径由同套件里的 touch 场景覆盖），不是跳过。
 
@@ -56,34 +56,36 @@
 | 16 | month view drills into a day and week view shows the same events | 月视图点格下钻；周视图同一批事件 |
 | 17 | deadlines are listed in their own lane and never drawn as time blocks | 截止只进泳道，绝不进时间格 |
 | 18 | cancelling a scheduled block removes the block but keeps the to-do | 取消安排不删待办，可撤销 |
+| 19 | dragging an event block moves it and the toast undo puts it back | 拖动日程改期，时长不变，撤销真正复原 |
+| 20 | dragging one occurrence of a repeating event asks the scope, and undo reverses it | 拖重复实例先问「这一次/以后/整个系列」，选「这一次」= exdate + 单次副本，撤销合并回去 |
 
 ### D. 搜索、筛选、边界
 
 | # | 场景 | 证明的行为 |
 |---|---|---|
-| 19 | search finds a newly created item and opens its detail | 新建对象可被搜索到并打开 |
-| 20 | search and lists explain empty results instead of showing blank space | 空结果有解释与可行动作 |
-| 21 | the six-things cap hides extra rows and expands and collapses reversibly | 六件事上限可展开/收起且可逆 |
-| 22 | a very long title wraps without breaking the row or the page | 超长标题不撑破布局、无横向溢出 |
-| 23 | opening a record that does not exist shows an error state with a way back | 缺失记录 → 错误页 + 返回 |
-| 24 | tag filter narrows the list and clearing it restores every row | 标签筛选与清除 |
+| 21 | search finds a newly created item and opens its detail | 新建对象可被搜索到并打开 |
+| 22 | search and lists explain empty results instead of showing blank space | 空结果有解释与可行动作 |
+| 23 | the six-things cap hides extra rows and expands and collapses reversibly | 六件事上限可展开/收起且可逆 |
+| 24 | a very long title wraps without breaking the row or the page | 超长标题不撑破布局、无横向溢出 |
+| 25 | opening a record that does not exist shows an error state with a way back | 缺失记录 → 错误页 + 返回 |
+| 26 | tag filter narrows the list and clearing it restores every row | 标签筛选与清除 |
 
 ### E. 键盘、浮层、语言与主题
 
 | # | 场景 | 证明的行为 |
 |---|---|---|
-| 25 | Escape closes the top overlay first and only then leaves the page | Esc 分层：浮层 → 菜单 → 页面 → 返回 |
-| 26 | keyboard N opens a new to-do and / opens search | 全局快捷键 |
-| 27 | switching language and theme updates the shell immediately and persists across pages | 中英/明暗即时生效并跨页保持 |
-| 28 | an AI proposal does not change data until the user applies it | AI 提案未确认前不写库 |
+| 27 | Escape closes the top overlay first and only then leaves the page | Esc 分层：浮层 → 菜单 → 页面 → 返回 |
+| 28 | keyboard N opens a new to-do and / opens search | 全局快捷键 |
+| 29 | switching language and theme updates the shell immediately and persists across pages | 中英/明暗即时生效并跨页保持 |
+| 30 | an AI proposal does not change data until the user applies it | AI 提案未确认前不写库 |
 
 ### F. 手机
 
 | # | 场景 | 证明的行为 |
 |---|---|---|
-| 29 | mobile: bottom nav reaches every primary tab and a created item opens and returns | 底部 3 tab、新建、详情、返回全通 |
-| 30 | mobile: tapping a calendar slot can create an event without leaving the calendar | 手机时间格建日程 |
-| 31 | every route renders, and clicking its visible controls raises no errors | 12 条路由逐一点击全部可见控件，零控制台错误 |
+| 31 | mobile: bottom nav reaches every primary tab and a created item opens and returns | 底部 3 tab、新建、详情、返回全通 |
+| 32 | mobile: tapping a calendar slot can create an event without leaving the calendar | 手机时间格建日程 |
+| 33 | every route renders, and clicking its visible controls raises no errors | 12 条路由逐一点击全部可见控件，零控制台错误 |
 
 ### G. 功能面（`surfaces.js`）
 
@@ -143,3 +145,5 @@ node surfaces.js
 | 删除详情中的记录后仍停留在已删除详情 | 依赖 `isSplit()`（已废弃的双栏判定） | 删除后一律返回列表 |
 | 表单校验错误在长表单底部，用户看不到 | 错误框放在字段末尾 | 移到标题下方（`role=alert`） |
 | 页面切换后键盘焦点丢失 | 重绘替换了 DOM | 路由变化时把焦点移到页面标题 |
+| 重复日程「周会」从不在自己的起始日出现 | 种子数据把 `byday` 写死为周一，起始日却是「明天」 | 由起始日推导星期 |
+| 拖动日程后的「撤销」是假的 | `undo` 只重绘、没有反向操作 | 每个范围分支都捕获真实逆操作（恢复时间 / 删副本 + 还原 exdate / 还原 until） |

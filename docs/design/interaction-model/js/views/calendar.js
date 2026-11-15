@@ -536,34 +536,48 @@
   function moveEvent(e, start, end, opts) {
     const o = opts || {};
     const apply = (mode) => {
+      const series = S.eventById(e.id);
+      let undo = null;
       if (mode === 'this' && e.isOccurrence) {
-        // exception: exclude this anchor, create a one-off event
-        const series = S.eventById(e.id);
-        series.exdates = (series.exdates || []).concat([e.occurrenceAnchor]);
-        S.createEvent({
+        const anchor = e.occurrenceAnchor;
+        series.exdates = (series.exdates || []).concat([anchor]);
+        const copy = S.createEvent({
           summary: e.summary, calendarId: e.calendarId, startDt: start, endDt: end,
           isAllDay: e.isAllDay, description: e.description, location: e.location, tagIds: e.tagIds,
         });
         S.emit('event:update');
+        undo = () => {
+          series.exdates = series.exdates.filter((x) => x.getTime() !== anchor.getTime());
+          S.purgeEvent(copy.id);
+        };
       } else if (mode === 'future' && e.rrule) {
-        const series = S.eventById(e.id);
+        const prevUntil = series.rrule.until;
         series.rrule = Object.assign({}, series.rrule, { until: U.addDays(U.startOfDay(start), -1) });
-        S.createEvent({
+        const copy = S.createEvent({
           summary: e.summary, calendarId: e.calendarId, startDt: start, endDt: end,
           isAllDay: e.isAllDay, description: e.description, location: e.location, tagIds: e.tagIds,
           rrule: Object.assign({}, series.rrule, { until: null }),
         });
+        undo = () => {
+          series.rrule = Object.assign({}, series.rrule, { until: prevUntil });
+          S.purgeEvent(copy.id);
+        };
       } else {
-        const series = S.eventById(e.id);
+        const prevStart = series.startDt, prevEnd = series.endDt;
         const delta = start - (e.isOccurrence ? e.startDt : series.startDt);
         series.startDt = new Date(series.startDt.getTime() + delta);
         series.endDt = new Date(series.endDt.getTime() + delta);
         series.updatedAt = U.now();
         S.emit('event:update');
+        undo = () => {
+          series.startDt = prevStart;
+          series.endDt = prevEnd;
+          S.emit('event:update');
+        };
       }
       App.render();
       UI.toast(t('eventMovedToast', { t: U.fmtMonthDayTime(start) }), {
-        undo: () => { App.render(); },
+        undo: () => { if (undo) undo(); App.render(); },
       });
     };
     if (e.isOccurrence && e.rrule && !o.silent) {

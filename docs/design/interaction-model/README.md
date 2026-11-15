@@ -70,7 +70,7 @@ docs/design/interaction-model/
 │                           library(tags,calendars,trash,about,feedback) / settings / chat / misc
 ├── tests/
 │   ├── smoke.js            冒烟：启动、无横向溢出、按钮都有名字、路由可达、零控制台错误
-│   ├── interactions.js     31 个真实操作场景（浏览器点击/输入/拖拽）
+│   ├── interactions.js     33 个真实操作场景（浏览器点击/输入/拖拽）
 │   ├── surfaces.js         14 个功能面场景（标签/日历/回收站/账户/离线/手势…）
 │   └── debug/              调试与截图脚本（不参与门禁）
 ├── research/
@@ -93,7 +93,7 @@ docs/design/interaction-model/
 cd docs/design/interaction-model/tests
 npm install            # 只装 playwright-core
 node smoke.js          # 11 项冒烟
-node interactions.js   # 31 个交互场景
+node interactions.js   # 33 个交互场景
 node surfaces.js       # 14 个功能面场景
 ```
 

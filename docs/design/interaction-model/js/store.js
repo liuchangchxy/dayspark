@@ -168,7 +168,7 @@
     const allDayHoliday = mkEvent({ summary: '国庆假期', startDt: at(2), endDt: at(4, 23, 59), isAllDay: true, calendarId: 3 });
     const standupEvent = mkEvent({
       summary: '周会', startDt: at(1, 10), endDt: at(1, 11), calendarId: 2,
-      rrule: { freq: 'WEEKLY', interval: 1, byday: [1], until: null }, tagIds: [1],
+      rrule: { freq: 'WEEKLY', interval: 1, byday: [U.addDays(today, 1).getDay()], until: null }, tagIds: [1],
     });
     const deletedEvent = mkEvent({ summary: '已取消的访谈', startDt: at(-1, 15), endDt: at(-1, 16), deletedAt: U.addDays(today, -1), calendarId: 2 });
 

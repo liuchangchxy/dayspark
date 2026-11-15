@@ -970,6 +970,92 @@ scenario('mobile: tapping a calendar slot can create an event without leaving th
   await page.close();
 });
 
+/* ---------- Drag an event: moves, and undo puts it back ---------- */
+scenario('dragging an event block moves it and the toast undo puts it back', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'calendar');
+  await clickTestId(page, 'cal-view-day');
+  const before = await page.evaluate(() => {
+    const e = window.Store.state.events.find((x) => x.summary === '与设计师午餐');
+    return { id: e.id, s: e.startDt.getTime(), e: e.endDt.getTime() };
+  });
+  const box = await page.evaluate((id) => {
+    const r = document.querySelector(`[data-testid="event-block"][data-id="${id}"]`).getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + 6) };
+  }, before.id);
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x, box.y + 60, { steps: 8 });
+  await page.mouse.move(box.x, box.y + 100, { steps: 8 });
+  await page.mouse.up();
+  await settle(page, 320);
+  const after = await page.evaluate((id) => {
+    const e = window.Store.state.events.find((x) => x.id === id);
+    return { s: e.startDt.getTime(), e: e.endDt.getTime() };
+  }, before.id);
+  assert(after.s - before.s >= 60 * 60000, `dragging should move the event by at least an hour, moved ${(after.s - before.s) / 60000}min`);
+  assertEq(after.e - after.s, before.e - before.s, 'dragging must keep the duration');
+
+  assert(await exists(page, '#toast .undo'), 'moving an event must offer undo');
+  await page.click('#toast .undo');
+  await settle(page, 300);
+  const undone = await page.evaluate((id) => {
+    const e = window.Store.state.events.find((x) => x.id === id);
+    return { s: e.startDt.getTime(), e: e.endDt.getTime() };
+  }, before.id);
+  assertEq(undone, { s: before.s, e: before.e }, 'undo must restore the original time');
+  await noErrors(page);
+  await page.close();
+});
+
+/* ---------- Recurring event drag asks scope and can be undone ---------- */
+scenario('dragging one occurrence of a repeating event asks the scope, and undo reverses it', async (browser) => {
+  const page = await newPage(browser);
+  const seriesId = await page.evaluate(() => {
+    const e = window.Store.state.events.find((x) => x.rrule);
+    const d = new Date(e.startDt.getFullYear(), e.startDt.getMonth(), e.startDt.getDate());
+    window.Store.state.calendarAnchor = d;
+    window.Store.state.calendarFocusDay = d;
+    window.Store.state.calendarView = 'day';
+    return e.id;
+  });
+  await go(page, 'calendar');
+  const selector = `[data-testid="event-block"][data-id="${seriesId}"]`;
+  assert(await exists(page, selector), 'the repeating instance should appear on its own day');
+  const before = await page.evaluate(() => ({ n: window.Store.state.events.length }));
+
+  const box = await page.evaluate((sel) => {
+    const r = document.querySelector(sel).getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + 6) };
+  }, selector);
+  await page.mouse.move(box.x, box.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x, box.y + 60, { steps: 8 });
+  await page.mouse.up();
+  await settle(page, 320);
+  assert(await exists(page, '.sheet'), 'moving a repeating occurrence must ask which occurrences to change');
+  await page.evaluate(() => { document.querySelectorAll('.sheet .slot-sheet-option')[0].click(); });
+  await settle(page, 320);
+
+  const split = await page.evaluate(() => ({
+    n: window.Store.state.events.length,
+    exdates: window.Store.state.events.filter((e) => (e.exdates || []).length).length,
+  }));
+  assertEq(split.n, before.n + 1, 'choosing "this one" should add a one-off event');
+  assertEq(split.exdates, 1, 'the series should exclude the moved occurrence');
+
+  assert(await exists(page, '#toast .undo'), 'the split must be undoable');
+  await page.click('#toast .undo');
+  await settle(page, 320);
+  const restored = await page.evaluate(() => ({
+    n: window.Store.state.events.length,
+    exdates: window.Store.state.events.filter((e) => (e.exdates || []).length).length,
+  }));
+  assertEq(restored, { n: before.n, exdates: 0 }, 'undo must merge the split back into the series');
+  await noErrors(page);
+  await page.close();
+});
+
 /* ---------- Every visible control in every route responds ---------- */
 scenario('every route renders, and clicking its visible controls raises no errors', async (browser) => {
   const page = await newPage(browser);

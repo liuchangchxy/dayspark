@@ -116,8 +116,9 @@
 ### C2 拖动 / 改时长
 - **数据**：拖动 = 改 `startDt/endDt`（保持时长，可跨日）；改尺寸 = 只改 `endDt`；15 分钟吸附。
 - **界面**：块跟随移动，释放后落位；toast「已移到 …」带撤销。
-- **失败**：重复事件的单次拖动 → 先问「这一次 / 以后 / 整个系列」；选「这一次」= 加 exdate + 建一次性事件。
-- 证据：`interactions.js` 时间格创建 + 改期路径；重复作用域见 C4。
+- **撤销**：撤销是**真实逆操作**，不是重绘 —— 普通日程还原拖动前的 `startDt/endDt`；重复实例按所选范围分别还原（删副本 + 移除 exdate / 还原原系列 `until` / 平移回原位）。
+- **失败**：重复事件的单次拖动 → 先问「这一次 / 以后 / 整个系列」；选「这一次」= 加 exdate + 建一次性事件。取消 sheet 不写任何数据，块弹回原位。
+- 证据：`interactions.js`「dragging an event block moves it and the toast undo puts it back」「dragging one occurrence of a repeating event asks the scope, and undo reverses it」；重复作用域见 C4。
 
 ### C3 删除
 - **数据**：单次日程 = 软删；系列 = 软删；单次实例 = 加 exdate（系列保留）。

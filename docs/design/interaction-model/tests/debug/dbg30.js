@@ -1,0 +1,27 @@
+const path = require('path');
+const { chromium } = require('playwright-core');
+const CHROME = '/Users/chang/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+const URL = 'file://' + path.resolve(__dirname, '..', '..', 'index.html');
+(async () => {
+  const b = await chromium.launch({ executablePath: CHROME });
+  const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+  await p.goto(URL);
+  await p.waitForFunction(() => window.__READY__);
+  await p.evaluate(() => { window.Store.state.calendarView = 'day'; window.App.go('calendar'); });
+  await p.waitForTimeout(400);
+  const before = await p.evaluate(() => { const e = window.Store.state.events.find((x) => x.id === 1); return { s: e.startDt.getTime(), e: e.endDt.getTime() }; });
+  const box = await p.evaluate(() => { const r = document.querySelector('[data-testid="event-block"][data-id="1"]').getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + 6) }; });
+  await p.mouse.move(box.x, box.y);
+  await p.mouse.down();
+  await p.mouse.move(box.x, box.y + 60, { steps: 8 });
+  await p.mouse.move(box.x, box.y + 100, { steps: 8 });
+  await p.mouse.up();
+  await p.waitForTimeout(300);
+  const after = await p.evaluate(() => { const e = window.Store.state.events.find((x) => x.id === 1); return { s: e.startDt.getTime(), e: e.endDt.getTime() }; });
+  console.log('moved', after.s - before.s, 'min', (after.s - before.s) / 60000);
+  await p.evaluate(() => { const u = document.querySelector('#toast .undo'); u.click(); });
+  await p.waitForTimeout(300);
+  const undone = await p.evaluate(() => { const e = window.Store.state.events.find((x) => x.id === 1); return { s: e.startDt.getTime(), e: e.endDt.getTime() }; });
+  console.log('undo restores', undone.s === before.s && undone.e === before.e);
+  await b.close();
+})();
