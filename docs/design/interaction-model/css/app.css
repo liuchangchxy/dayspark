@@ -447,7 +447,7 @@ svg { display: block; }
 }
 .block:hover { filter: brightness(.98); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
 .block .bt { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.block .bm { font-size: 9px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; }
+.block .bm { font-size: 9px; color: var(--ink-3); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .block.short .bm { display: none; }
 .block.alloc { background: var(--surface); border: 1px dashed color-mix(in srgb, var(--violet) 55%, var(--line)); border-left: 2px solid var(--violet); color: var(--ink-2); }
 .block.alloc .bt::before { content: ""; display: inline-block; width: 5px; height: 5px; border: 1px solid var(--violet); margin-right: 4px; vertical-align: 1px; }

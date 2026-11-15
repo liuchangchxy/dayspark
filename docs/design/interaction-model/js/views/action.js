@@ -172,12 +172,16 @@
 
     if (U.isNarrow()) {
       const fab = U.el('button', { class: 'btn primary', 'data-testid': 'action-create' });
-      fab.innerHTML = ICON('plus', 14) + `<span>${U.esc(t('newTodo'))}</span>`;
+      fab.innerHTML = ICON('plus', 16);
       fab.style.position = 'fixed';
       fab.style.right = '16px';
       fab.style.bottom = '66px';
       fab.style.zIndex = '40';
+      fab.style.width = '48px';
+      fab.style.height = '48px';
+      fab.style.borderRadius = '50%';
       fab.style.boxShadow = 'var(--shadow-1)';
+      fab.setAttribute('aria-label', t('newTodo'));
       fab.addEventListener('click', () => App.openComposer('todo', { dueDate: day }));
       page.appendChild(fab);
     }
