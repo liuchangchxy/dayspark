@@ -1,0 +1,75 @@
+/* Inline SVG icon set. Geometry follows Cupertino-ish weights, 1.7px strokes. */
+(function () {
+  const P = {
+    bolt: '<path d="M10.6 2.2 4.3 11h4.2l-1 6.8 6.2-8.8h-4.2z"/>',
+    calendar: '<rect x="2.7" y="4" width="14.6" height="13.3" rx="2.4"/><path d="M2.7 8h14.6M6.6 2.4v3M13.4 2.4v3"/>',
+    checkSquare: '<rect x="3" y="3" width="14" height="14" rx="3.2"/><path d="m6.6 10.2 2.4 2.4 4.6-5"/>',
+    check: '<path d="m4.6 10.4 3.2 3.2 7.6-8"/>',
+    plus: '<path d="M10 4.2v11.6M4.2 10h11.6"/>',
+    search: '<circle cx="9" cy="9" r="5.4"/><path d="m13.2 13.2 3.4 3.4"/>',
+    sparkles: '<path d="M10 2.6l1.5 4.1 4.1 1.5-4.1 1.5L10 13.8 8.5 9.7 4.4 8.2l4.1-1.5z"/><path d="M15.4 13.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/>',
+    settings: '<circle cx="10" cy="10" r="2.6"/><path d="M10 2.4v2M10 15.6v2M2.4 10h2M15.6 10h2M4.6 4.6l1.4 1.4M14 14l1.4 1.4M15.4 4.6 14 6M6 14l-1.4 1.4"/>',
+    tag: '<path d="M3.2 9.3V3.6c0-.2.2-.4.4-.4h5.7c.2 0 .4.1.5.2l6.6 6.6c.2.2.2.6 0 .8l-5.3 5.3c-.2.2-.6.2-.8 0L3.4 9.8a.7.7 0 0 1-.2-.5z"/><circle cx="6.6" cy="6.6" r="1.1"/>',
+    trash: '<path d="M3.4 5.6h13.2M7.4 5.6V3.8c0-.3.2-.5.5-.5h4.2c.3 0 .5.2.5.5v1.8M5.3 5.6l.7 10c0 .4.4.7.8.7h6.4c.4 0 .8-.3.8-.7l.7-10"/>',
+    chevronRight: '<path d="m7.6 4.4 5.4 5.6-5.4 5.6"/>',
+    chevronLeft: '<path d="M12.4 4.4 7 10l5.4 5.6"/>',
+    chevronDown: '<path d="m4.4 7.6 5.6 5.4 5.6-5.4"/>',
+    chevronUp: '<path d="m4.4 12.4 5.6-5.4 5.6 5.4"/>',
+    chevronForward: '<path d="m7.6 4.4 5.4 5.6-5.4 5.6"/>',
+    x: '<path d="m5 5 10 10M15 5 5 15"/>',
+    clock: '<circle cx="10" cy="10" r="7.2"/><path d="M10 5.8V10l3 1.9"/>',
+    flag: '<path d="M5 17V3.6c2.6-1.2 5.2 1.2 7.8 0 1-.5 2-.6 3-.4v7.4c-1-.2-2-.1-3 .4-2.6 1.2-5.2-1.2-7.8 0"/>',
+    note: '<path d="M4.4 3.6h8l3.2 3.2v9.6H4.4z"/><path d="M12.2 3.8v3.2h3.2M7 10.4h6M7 13.4h4"/>',
+    bell: '<path d="M5.4 8.4a4.6 4.6 0 0 1 9.2 0c0 4 1.4 5.2 1.4 5.2H4s1.4-1.2 1.4-5.2z"/><path d="M8.4 16.2a1.8 1.8 0 0 0 3.2 0"/>',
+    repeat: '<path d="M4 8.2A4 4 0 0 1 8 4.4h8M16 11.8a4 4 0 0 1-4 3.8H4"/><path d="m13.2 1.8 2.8 2.6-2.8 2.6M6.8 18.2 4 15.6l2.8-2.6"/>',
+    link: '<path d="M8.4 11.6a3.2 3.2 0 0 0 4.5 0l2.4-2.4a3.2 3.2 0 0 0-4.5-4.5l-1.2 1.2"/><path d="M11.6 8.4a3.2 3.2 0 0 0-4.5 0l-2.4 2.4a3.2 3.2 0 0 0 4.5 4.5l1.2-1.2"/>',
+    folder: '<path d="M3 5.4h5l1.6 2h7.4v8.2H3z"/>',
+    user: '<circle cx="10" cy="7" r="3.2"/><path d="M4 16.4a6 6 0 0 1 12 0"/>',
+    logout: '<path d="M8 3.4H4.4v13.2H8M12.6 6.6 16 10l-3.4 3.4M16 10H8"/>',
+    refresh: '<path d="M16.4 10a6.4 6.4 0 1 1-2-4.6"/><path d="M16.6 3.2v3.6h-3.6"/>',
+    cloud: '<path d="M6.2 15.2a3.6 3.6 0 0 1-.2-7.2 4.6 4.6 0 0 1 8.9-.6 3.4 3.4 0 0 1-.5 7.8z"/>',
+    download: '<path d="M10 3.4v9M6.4 9.2 10 12.8l3.6-3.6M3.6 16.4h12.8"/>',
+    upload: '<path d="M10 12.6v-9M6.4 6.8 10 3.2l3.6 3.6M3.6 16.4h12.8"/>',
+    archive: '<rect x="3.2" y="4" width="13.6" height="3.4" rx="1"/><path d="M4.4 7.4v8.2h11.2V7.4M8 10.4h4"/>',
+    edit: '<path d="M13.2 3.6 16.4 6.8 7.2 16H4v-3.2z"/>',
+    grip: '<path d="M7 6.4h.01M13 6.4h.01M7 10h.01M13 10h.01M7 13.6h.01M13 13.6h.01"/>',
+    moon: '<path d="M16 11.6A6.6 6.6 0 0 1 8.4 4a6.6 6.6 0 1 0 7.6 7.6z"/>',
+    sun: '<circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v1.8M10 15.6v1.8M2.6 10h1.8M15.6 10h1.8M4.7 4.7l1.3 1.3M14 14l1.3 1.3M15.3 4.7 14 6M6 14l-1.3 1.3"/>',
+    globe: '<circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3a11 11 0 0 1 0 14 11 11 0 0 1 0-14z"/>',
+    key: '<circle cx="7.2" cy="12.8" r="3.2"/><path d="m9.6 10.4 6.4-6.4M13.4 4l2.4 2.4M15.4 6.8l1.4-1.4"/>',
+    info: '<circle cx="10" cy="10" r="7"/><path d="M10 9.2v5M10 6.4h.01"/>',
+    alert: '<path d="M10 3.2 18 16.8H2z"/><path d="M10 8.4v3.4M10 14h.01"/>',
+    inbox: '<path d="M3.2 11.4 5.6 4h8.8l2.4 7.4v4.2H3.2z"/><path d="M3.2 11.4h4l.8 1.6h4l.8-1.6h4"/>',
+    layers: '<path d="m10 3 7 3.8-7 3.8-7-3.8z"/><path d="m3.6 10.4 6.4 3.4 6.4-3.4M3.6 14.2l6.4 3.4 6.4-3.4"/>',
+    sliders: '<path d="M4 6h12M4 14h12"/><circle cx="7.6" cy="6" r="1.8"/><circle cx="12.4" cy="14" r="1.8"/>',
+    pin: '<path d="M10 17s5.2-5 5.2-8.6a5.2 5.2 0 1 0-10.4 0C4.8 12 10 17 10 17z"/><circle cx="10" cy="8.4" r="1.8"/>',
+    paperclip: '<path d="M14.6 9.4 9 15a3.2 3.2 0 0 1-4.5-4.5l6-6a2.2 2.2 0 0 1 3.1 3.1l-6 6a1.1 1.1 0 0 1-1.6-1.6l5.5-5.5"/>',
+    list: '<path d="M6.6 5.6h10M6.6 10h10M6.6 14.4h10M3.4 5.6h.01M3.4 10h.01M3.4 14.4h.01"/>',
+    square: '<rect x="4" y="4" width="12" height="12" rx="2"/>',
+    dotSquare: '<rect x="5.4" y="5.4" width="9.2" height="9.2" rx="1.4"/>',
+    arrowUp: '<path d="M10 16V4M5.4 8.6 10 4l4.6 4.6"/>',
+    arrowDown: '<path d="M10 4v12M5.4 11.4 10 16l4.6-4.6"/>',
+    send: '<path d="M3.2 10 16.8 3.6l-4.4 13-3-5.2z"/><path d="m9.4 11.4 3-3.4"/>',
+    external: '<path d="M11 3.6h5.4V9M16 4 9.2 10.8M14.4 12.4v4H3.6V5.6h4"/>',
+    star: '<path d="m10 3 2.2 4.4 4.8.7-3.5 3.4.8 4.8L10 14l-4.3 2.3.8-4.8L3 8.1l4.8-.7z"/>',
+    eye: '<path d="M2.4 10S5.2 5.2 10 5.2 17.6 10 17.6 10 14.8 14.8 10 14.8 2.4 10 2.4 10z"/><circle cx="10" cy="10" r="2.2"/>',
+    filter: '<path d="M3.2 5h13.6M5.6 10h8.8M8 15h4"/>',
+    move: '<path d="M10 3v14M3 10h14M7.4 5.6 10 3l2.6 2.6M7.4 14.4 10 17l2.6-2.6M5.6 7.4 3 10l2.6 2.6M14.4 7.4 17 10l-2.6 2.6"/>',
+    keyboard: '<rect x="2.4" y="5.4" width="15.2" height="9.2" rx="1.8"/><path d="M5.4 8.4h.01M8.2 8.4h.01M11 8.4h.01M13.8 8.4h.01M5.4 11.6h.01M14 11.6h.01M8 11.6h4"/>',
+    dot: '<circle cx="10" cy="10" r="3.4"/>',
+    squareCheck: '<rect x="3.4" y="3.4" width="13.2" height="13.2" rx="3"/><path d="m6.8 10 2.2 2.2 4.2-4.6"/>',
+    calendarPlus: '<rect x="2.7" y="4" width="14.6" height="13.3" rx="2.4"/><path d="M2.7 8h14.6M6.6 2.4v3M13.4 2.4v3M10 10.6v4.2M7.9 12.7h4.2"/>',
+    clockPlus: '<circle cx="9" cy="9" r="6.2"/><path d="M9 5.4V9l2.4 1.6M15.6 15.6v3.4M13.9 17.3h3.4"/>',
+    bellOff: '<path d="M5.4 8.4a4.6 4.6 0 0 1 7-4M14.6 9.6c0 3.4 1.4 4.4 1.4 4.4H6.8M8.4 16.2a1.8 1.8 0 0 0 3.2 0M3.2 3.2l13.6 13.6"/>',
+    copy: '<rect x="7" y="7" width="9.6" height="9.6" rx="2"/><path d="M13 7V5.4c0-1.2-1-2.2-2.2-2.2H5.4c-1.2 0-2.2 1-2.2 2.2v5.4c0 1.2 1 2.2 2.2 2.2H7"/>',
+  };
+
+  function svg(name, size) {
+    const body = P[name];
+    if (!body) return '';
+    const s = size || 16;
+    return `<svg width="${s}" height="${s}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+  }
+  window.ICON = svg;
+  window.ICON_NAMES = Object.keys(P);
+})();

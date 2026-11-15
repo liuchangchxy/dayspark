@@ -1,0 +1,24 @@
+const path = require('path');
+const { chromium } = require('playwright-core');
+const CHROME = '/Users/chang/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+const URL = 'file://' + path.resolve(__dirname, '..', '..', 'index.html');
+(async () => {
+  const b = await chromium.launch({ executablePath: CHROME });
+  const p = await b.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+  await p.goto(URL); await p.waitForFunction(() => window.__READY__);
+  await p.screenshot({ path: '/tmp/g0-action.png' });
+  await p.evaluate(() => App.go('calendar')); await p.waitForTimeout(200);
+  await p.screenshot({ path: '/tmp/g0-calendar.png' });
+  await p.evaluate(() => App.go('todos')); await p.waitForTimeout(200);
+  await p.screenshot({ path: '/tmp/g0-todos.png' });
+  await p.evaluate(() => { window.Store.navigate('detail', {type:'todo', id:1}); }); await p.waitForTimeout(200);
+  await p.screenshot({ path: '/tmp/g0-detail.png' });
+  await p.evaluate(() => App.openComposer('todo', {})); await p.waitForTimeout(200);
+  await p.screenshot({ path: '/tmp/g0-composer.png' });
+  const m = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  await m.goto(URL); await m.waitForFunction(() => window.__READY__);
+  await m.screenshot({ path: '/tmp/g0-m-action.png' });
+  await m.evaluate(() => App.go('todos')); await m.waitForTimeout(200);
+  await m.screenshot({ path: '/tmp/g0-m-todos.png' });
+  await b.close();
+})();

@@ -1,0 +1,20 @@
+const path = require('path');
+const { chromium } = require('playwright-core');
+const CHROME = '/Users/chang/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+const URL = 'file://' + path.resolve(__dirname, '..', '..', 'index.html');
+(async () => {
+  const b = await chromium.launch({ executablePath: CHROME });
+  const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+  p.on('pageerror', e => console.log('PAGEERROR', e.message));
+  p.on('console', m => { if (m.type()==='error') console.log('CONSOLE', m.text()); });
+  await p.goto(URL); await p.waitForFunction(() => window.__READY__);
+  await p.evaluate(() => App.go('todos')); await p.waitForTimeout(200);
+  console.log('todos-create count', await p.evaluate(() => document.querySelectorAll('[data-testid="todos-create"]').length));
+  console.log('btn box', await p.evaluate(() => { const n = document.querySelector('[data-testid="todos-create"]'); const r=n.getBoundingClientRect(); return [Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height), n.offsetParent!==null]; }));
+  await p.click('[data-testid="todos-create"]');
+  await p.waitForTimeout(300);
+  console.log('composer exists', await p.evaluate(() => !!document.querySelector('[data-testid="composer"]')));
+  console.log('route', await p.evaluate(() => JSON.stringify(window.Store.state.route)));
+  console.log('view html head', await p.evaluate(() => document.querySelector('#view').innerHTML.slice(0,300)));
+  await b.close();
+})();

@@ -1,0 +1,25 @@
+const path = require('path');
+const { chromium } = require('playwright-core');
+const CHROME = '/Users/chang/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+const URL = 'file://' + path.resolve(__dirname, '..', '..', 'index.html');
+(async () => {
+  const b = await chromium.launch({ executablePath: CHROME });
+  const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+  p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+  await p.goto(URL);
+  await p.waitForFunction(() => window.__READY__);
+  await p.evaluate(() => App.go('todos'));
+  await p.waitForTimeout(200);
+  console.log('view', await p.evaluate(() => JSON.stringify(window.Store.state.todosView, (k, v) => (v instanceof Date ? v.toISOString() : v))));
+  const days = await p.$$('.ws-day');
+  console.log('days', days.length);
+  await days[3].click();
+  await p.waitForTimeout(250);
+  console.log('view after', await p.evaluate(() => JSON.stringify(window.Store.state.todosView, (k, v) => (v instanceof Date ? v.toISOString() : v))));
+  console.log('subtitle', await p.evaluate(() => (document.querySelector('.page-sub') || {}).textContent));
+  await p.fill('[data-testid="todo-quick-add"]', 'QA测试');
+  await p.press('[data-testid="todo-quick-add"]', 'Enter');
+  await p.waitForTimeout(250);
+  console.log('created', await p.evaluate(() => JSON.stringify(window.Store.state.todos.filter((t) => t.summary === 'QA测试').map((t) => (t.dueDate ? t.dueDate.toISOString() : null)))));
+  await b.close();
+})();

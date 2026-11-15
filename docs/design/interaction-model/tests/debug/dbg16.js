@@ -1,0 +1,25 @@
+const path = require('path');
+const { chromium } = require('playwright-core');
+const CHROME = '/Users/chang/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+const URL = 'file://' + path.resolve(__dirname, '..', '..', 'index.html');
+(async () => {
+  const b = await chromium.launch({ executablePath: CHROME });
+  const p = await b.newPage({ viewport: { width: 390, height: 844 } });
+  p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+  await p.goto(URL);
+  await p.waitForFunction(() => window.__READY__);
+  await p.click('[data-testid="tab-todos"]');
+  await p.waitForTimeout(200);
+  console.log('create buttons', await p.evaluate(() => document.querySelectorAll('[data-testid="todos-create"]').length));
+  await p.click('[data-testid="todos-create"]');
+  await p.waitForTimeout(200);
+  console.log('composer', await p.evaluate(() => !!document.querySelector('[data-testid="composer"]')));
+  await p.fill('[data-testid="composer-title"]', '手机端创建的待办');
+  await p.click('[data-testid="composer-save"]');
+  await p.waitForTimeout(400);
+  console.log('route', await p.evaluate(() => JSON.stringify(window.Store.state.route)));
+  console.log('todos view', await p.evaluate(() => JSON.stringify(window.Store.state.todosView, (k, v) => (v instanceof Date ? v.toISOString() : v))));
+  console.log('created', await p.evaluate(() => JSON.stringify(window.Store.state.todos.filter((t) => t.summary === '手机端创建的待办').map((t) => ({ id: t.id, due: t.dueDate ? t.dueDate.toISOString() : null })))));
+  console.log('tiles', await p.evaluate(() => Array.from(document.querySelectorAll('[data-testid="todo-tile"]')).map((n) => n.dataset.id + ':' + n.textContent.slice(0, 14))));
+  await b.close();
+})();

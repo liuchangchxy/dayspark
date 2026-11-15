@@ -1,0 +1,20 @@
+const path = require('path');
+const { chromium } = require('playwright-core');
+const CHROME = '/Users/chang/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+const URL = 'file://' + path.resolve(__dirname, '..', '..', 'index.html');
+(async () => {
+  const b = await chromium.launch({ executablePath: CHROME });
+  const p = await b.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+  await p.goto(URL);
+  await p.waitForFunction(() => window.__READY__);
+  await p.evaluate(() => window.App.go('todos'));
+  await p.waitForTimeout(250);
+  await p.evaluate(() => {
+    const row = document.querySelector('[data-testid="todo-tile"] .todo-row');
+    row.click();
+  });
+  await p.waitForTimeout(400);
+  await p.screenshot({ path: '/tmp/g0-d-split.png' });
+  console.log(await p.evaluate(() => ({ split: window.U.isSplit(), route: window.Store.state.route.name, hasSplit: !!document.querySelector('.workspace-split') })));
+  await b.close();
+})();
