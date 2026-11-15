@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>solo</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+  html, body { background: transparent; }
+  body { margin: 0; }
+</style>
+</head>
+<body>
+<script>
+  const p = new URLSearchParams(location.search);
+  const src = p.get('src');
+  const sel = p.get('sel') || '.phone';
+  const i = Number(p.get('i') || 0);
+  fetch(src)
+    .then((r) => r.text())
+    .then((t) => {
+      const doc = new DOMParser().parseFromString(t, 'text/html');
+      const el = doc.querySelectorAll(sel)[i];
+      if (!el) {
+        document.body.textContent = 'missing ' + sel + ' #' + i;
+        return;
+      }
+      const clone = el.cloneNode(true);
+      if (sel === '.phone') clone.style.boxShadow = 'none';
+      document.body.appendChild(clone);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DaySpark A″ · 01–03 · 今天</title>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<div class="proto">
+  <div class="proto-head">
+    <h1>今天 · 时间轴 / 空 / 键盘态</h1>
+    <p>今天永远等于系统真实今天（本组假数据：2026-11-15 周日，15:00）。四节 现在 / 接下来 / 今天截止 / 已逾期 只在今天出现；底部捕获行是今天页唯一创建入口。未安排组只预览无截止的捕获项，最多 3 条（一屏放不下时收成折叠组头，见 design-notes §3）。</p>
+  </div>
+
+  <div class="flow-band">
+    <h2><span class="bno">01–03</span>今天：时间轴 → 捕获 → 连续提交</h2>
+    <p>同一天同一 Todo 既截止又计划时只显示一次：计划执行为主行，截止是次级元信息。</p>
+    <div class="boards">
+
+      <!-- ============ 01 今天·正常内容 ============ -->
+      <div class="board">
+        <div class="board-cap"><span class="no">01</span><span class="ttl">今天 · 正常内容</span></div>
+        <div class="phone">
+          <div class="screen">
+            <div class="statusbar">
+              <span class="tnum">15:00</span>
+              <span class="sicons">
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM2.5 6.4 4.2 8.1a4.7 4.7 0 0 1 7.6 0l1.7-1.7a7 7 0 0 0-11 0ZM0 3.9 1.7 5.6a10 10 0 0 1 12.7 0L15.2 3.9A12.3 12.3 0 0 0 0 3.9Z" opacity=".9"/></svg>
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/><rect x="22.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+              </span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head">
+                <div class="lhs">
+                  <span class="t1">今天</span>
+                  <span class="t2">2026年11月15日 · 周日</span>
+                </div>
+                <div class="rhs">
+                  <span class="clock tnum">15:00</span><button class="iconbtn" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+                  <button class="iconbtn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6a7.8 7.8 0 0 0-2.6 1.5l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4Z"/></svg></button>
+                </div>
+              </div>
+              <div class="scroll">
+                <div class="timeline">
+                  <div class="tl-sec now-sec"><i class="now-dot"></i>现在<span class="rule"></span>15:00</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum"><span class="t">14:30</span><span class="t2">45 分</span></div>
+                    <div class="tl-col">
+                      <div class="block event" style="border-left-color:var(--cal-2);background:var(--cal-2-tint)">
+                        <div class="bt">牙医复诊 · 明州口腔</div>
+                        <div class="bm"><span class="cal-tag"><i></i>个人 · 14:30–15:15</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-sec"><i class="now-dot" style="background:var(--ink-3)"></i>接下来<span class="rule"></span></div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum"><span class="t">16:00</span></div>
+                    <div class="tl-col">
+                      <div class="block alloc">
+                        <span class="cbx s" aria-label="完成 整理周会纪要"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">整理周会纪要并发群</div>
+                          <div class="bm">计划执行 16:00–17:00 <span class="meta-sub"><span class="sep">·</span>截止 18:00</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum"><span class="t">17:30</span><span class="t2">30 分</span></div>
+                    <div class="tl-col">
+                      <div class="block event" style="border-left-color:var(--cal-3);background:var(--cal-3-tint)">
+                        <div class="bt">钢琴课 · 小陈</div>
+                        <div class="bm"><span class="cal-tag"><i></i>学习 · 17:30–18:00</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-sec" style="color:var(--warn)"><i class="now-dot" style="background:var(--warn)"></i>今天截止<span class="rule"></span>1 项</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--warn)"><span class="t">18:00</span></div>
+                    <div class="tl-col">
+                      <div class="block due">
+                        <span class="cbx s" aria-label="完成 提交周报给林总"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">提交周报给林总（含下周排期与风险项）</div>
+                          <div class="bm">截止 18:00 <span class="meta-sub"><span class="sep">·</span>未安排执行时段</span> <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-sec danger-sec"><i class="now-dot"></i>已逾期<span class="rule"></span>2 项</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--danger)"><span class="t">10/26</span></div>
+                    <div class="tl-col">
+                      <div class="block due overdue">
+                        <span class="cbx s" aria-label="完成 给房东转房租"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">给房东转房租（¥3,800）</div>
+                          <div class="bm">截止 10:00 · 逾期 20 天 <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--danger)"><span class="t">昨天</span></div>
+                    <div class="tl-col">
+                      <div class="block due overdue">
+                        <span class="cbx s" aria-label="完成 续签宽带合同"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">续签宽带合同</div>
+                          <div class="bm">截止 昨天 18:00 · 逾期 1 天 <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                                    
+
+                  <div class="group-head" style="padding-right:16px">
+                    <span>未安排</span>
+                    <span style="display:flex;align-items:center;gap:10px"><span class="cnt tnum">8 项</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8" stroke-linecap="round" style="transform:rotate(180deg)"><path d="m6 9 6 6 6-6"/></svg></span>
+                  </div>
+                  <div class="row dense">
+                    <span class="cbx s" aria-label="完成 把车送去保养"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">把车送去保养</span><span class="meta">未安排<span class="sep">·</span>工作</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="capture">
+                <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+                <span class="ph">记一笔 · 回车直接进「未安排」</span>
+                <span class="hint">⏎ 进未安排</span>
+              </div>
+              <div class="dock">
+                <span class="tab on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></span>今天</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>日历</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>待办</span>
+              </div>
+            </div>
+            <div class="homebar-wrap"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>事件 = 归属色左条 + 10% 淡块（可点、不可勾选）；计划执行 = work 蓝灰左条 + 淡块 + 可勾选；纯截止 = warn 左条 + 白底 + 「去安排」。今天页不显示 browseDate，头部为只读时钟式日期头。</div>
+      </div>
+
+      <div class="board">
+        <div class="board-cap"><span class="no">02</span><span class="ttl">今天 · 空状态（次日 11/16 清晨，尚未安排）</span></div>
+        <div class="phone">
+          <div class="screen">
+            <div class="statusbar">
+              <span class="tnum">08:05</span>
+              <span class="sicons">
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM2.5 6.4 4.2 8.1a4.7 4.7 0 0 1 7.6 0l1.7-1.7a7 7 0 0 0-11 0ZM0 3.9 1.7 5.6a10 10 0 0 1 12.7 0L15.2 3.9A12.3 12.3 0 0 0 0 3.9Z" opacity=".9"/></svg>
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/><rect x="22.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+              </span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head">
+                <div class="lhs">
+                  <span class="t1">今天</span>
+                  <span class="t2">2026年11月16日 · 周一</span>
+                </div>
+                <div class="rhs">
+                  <span class="clock tnum">08:05</span><button class="iconbtn" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+                  <button class="iconbtn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6a7.8 7.8 0 0 0-2.6 1.5l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4Z"/></svg></button>
+                </div>
+              </div>
+              <div class="empty"><div class="box"><span class="eico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg></span>
+                <span class="t1">今天还没有安排</span>
+                <span class="t2">想好的事随时记下来，<br>回车直接进「未安排」</span></div></div>
+              <div class="capture">
+                <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+                <span class="ph">记一笔 · 回车直接进「未安排」</span>
+                <span class="hint">⏎ 进未安排</span>
+              </div>
+              <div class="dock">
+                <span class="tab on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></span>今天</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>日历</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>待办</span>
+              </div>
+            </div>
+            <div class="homebar-wrap"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>空状态不删捕获行——捕获入口永远在；空文案用「没有安排」而不是「没有待办」，保持 A″ 里事件与待办同屏的中性。</div>
+      </div>
+
+<div class="board">
+        <div class="board-cap"><span class="no">03</span><span class="ttl">键盘态 · 连续捕获（已加 2 条）</span></div>
+        <div class="phone">
+          <div class="screen">
+            <div class="statusbar">
+              <span class="tnum">15:00</span>
+              <span class="sicons">
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM2.5 6.4 4.2 8.1a4.7 4.7 0 0 1 7.6 0l1.7-1.7a7 7 0 0 0-11 0ZM0 3.9 1.7 5.6a10 10 0 0 1 12.7 0L15.2 3.9A12.3 12.3 0 0 0 0 3.9Z" opacity=".9"/></svg>
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/><rect x="22.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+              </span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head">
+                <div class="lhs">
+                  <span class="t1">今天</span>
+                  <span class="t2">2026年11月15日 · 周日</span>
+                </div>
+                <div class="rhs">
+                  <span class="clock tnum">15:00</span><button class="iconbtn" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+                  <button class="iconbtn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6a7.8 7.8 0 0 0-2.6 1.5l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4Z"/></svg></button>
+                </div>
+              </div>
+              <div class="scroll" style="padding-bottom:6px">
+                <div class="timeline" style="padding-top:2px;margin-top:-410px">
+                  <div class="tl-sec now-sec"><i class="now-dot"></i>现在<span class="rule"></span>15:00</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum"><span class="t">14:30</span></div>
+                    <div class="tl-col">
+                      <div class="block event" style="border-left-color:var(--cal-2);background:var(--cal-2-tint)">
+                        <div class="bt">牙医复诊 · 明州口腔</div>
+                        <div class="bm"><span class="cal-tag"><i></i>个人 · 14:30–15:15</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-sec"><i class="now-dot" style="background:var(--ink-3)"></i>接下来<span class="rule"></span></div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum"><span class="t">16:00</span></div>
+                    <div class="tl-col">
+                      <div class="block alloc">
+                        <span class="cbx s"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">整理周会纪要并发群</div>
+                          <div class="bm">计划执行 16:00–17:00 <span class="meta-sub"><span class="sep">·</span>截止 18:00</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                                    <div class="tl-sec" style="color:var(--warn)"><i class="now-dot" style="background:var(--warn)"></i>今天截止<span class="rule"></span>1 项</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--warn)"><span class="t">18:00</span></div>
+                    <div class="tl-col">
+                      <div class="block due">
+                        <span class="cbx s" aria-label="完成 提交周报给林总"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">提交周报给林总（含下周排期与风险项）</div>
+                          <div class="bm">截止 18:00 <span class="meta-sub"><span class="sep">·</span>未安排执行时段</span> <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-sec danger-sec"><i class="now-dot"></i>已逾期<span class="rule"></span>2 项</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--danger)"><span class="t">10/26</span></div>
+                    <div class="tl-col">
+                      <div class="block due overdue">
+                        <span class="cbx s"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">给房东转房租（¥3,800）</div>
+                          <div class="bm">截止 10:00 · 逾期 20 天 <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--danger)"><span class="t">昨天</span></div>
+                    <div class="tl-col">
+                      <div class="block due overdue">
+                        <span class="cbx s"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">续签宽带合同</div>
+                          <div class="bm">截止 昨天 18:00 · 逾期 1 天 <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+
+                  <div class="group-head" style="padding-right:16px">
+                    <span>未安排</span>
+                    <span style="display:flex;align-items:center;gap:10px"><span class="cnt tnum">10 项</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8" stroke-linecap="round" style="transform:rotate(180deg)"><path d="m6 9 6 6 6-6"/></svg></span>
+                  </div>
+                  <div class="row dense" style="background:var(--surface-2)">
+                    <span class="cbx s" aria-label="完成 订下周的会议室"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">订下周的会议室</span><span class="meta">刚加入<span class="sep">·</span>工作</span></div>
+                  </div>
+                  <div class="row dense" style="background:var(--surface-2)">
+                    <span class="cbx s" aria-label="完成 买打印纸"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">买打印纸</span><span class="meta">刚加入<span class="sep">·</span>工作</span></div>
+                  </div>
+                  <div class="row dense">
+                    <span class="cbx s" aria-label="完成 把车送去保养"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">把车送去保养</span><span class="meta">未安排<span class="sep">·</span>工作</span></div>
+                  </div>
+                  <div class="row dense">
+                    <span class="cbx s" style="visibility:hidden"></span>
+                    <div class="body"><span class="title" style="font-weight:400;color:var(--ink-3);font-size:13px">还有 7 项 · 展开全部</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="cap-toast" style="position:static;transform:none;margin:0 auto 8px;background:var(--ink);color:var(--bg);border-radius:8px;height:30px;display:flex;align-items:center;gap:6px;font-size:12px">✓ 已加入「未安排」· 继续输入</div>
+              <div class="capture active">
+                <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+                <span class="ph">记一笔 · 回车直接进「未安排」<span class="cursor"></span></span>
+                <span class="hint">加入</span>
+              </div>
+              <!-- 键盘替掉 dock -->
+              <div class="kbd">
+                <div class="kb-row"><span class="k">1</span><span class="k">2</span><span class="k">3</span><span class="k">4</span><span class="k">5</span><span class="k">6</span><span class="k">7</span><span class="k">8</span><span class="k">9</span><span class="k">0</span></div>
+                <div class="kb-row"><span class="k">q</span><span class="k">w</span><span class="k">e</span><span class="k">r</span><span class="k">t</span><span class="k">y</span><span class="k">u</span><span class="k">i</span><span class="k">o</span><span class="k">p</span></div>
+                <div class="kb-row"><span class="k wide">⌘</span><span class="k">a</span><span class="k">s</span><span class="k">d</span><span class="k">f</span><span class="k">g</span><span class="k">h</span><span class="k">j</span><span class="k">k</span><span class="k">l</span></div>
+                <div class="kb-row"><span class="k wide">⌥</span><span class="k wide">shift</span><span class="k">z</span><span class="k">x</span><span class="k">c</span><span class="k">v</span><span class="k">b</span><span class="k">n</span><span class="k">m</span><span class="k">,</span></div>
+                <div class="kb-foot"><span class="k space">空格</span><span class="k wide" style="flex:2;font-size:12px;color:var(--primary);font-weight:600">加入</span></div>
+              </div>
+            </div>
+            <div class="homebar-wrap"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>键盘打开时 dock 被键盘顶替（不是叠加）；捕获行吸在键盘顶边，最后一列表行（未安排组）仍在可视区。连续提交反馈用轻 toast + 新行「刚加入」标记，焦点不离开输入框。</div>
+      </div>
+
+      <!-- ============ M15 全部（高密度） ============ -->
+      <div class="board">
+        <div class="board-cap"><span class="no">M15</span><span class="ttl">待办 · 全部（高密度 / 长标题 / 截止 + 计划重叠）</span></div>
+        <div class="phone">
+          <div class="screen">
+            <div class="statusbar">
+              <span class="tnum">15:00</span>
+              <span class="sicons">
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM2.5 6.4 4.2 8.1a4.7 4.7 0 0 1 7.6 0l1.7-1.7a7 7 0 0 0-11 0ZM0 3.9 1.7 5.6a10 10 0 0 1 12.7 0L15.2 3.9A12.3 12.3 0 0 0 0 3.9Z" opacity=".9"/></svg>
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/><rect x="22.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+              </span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head">
+                <div class="lhs">
+                  <span class="t1">全部</span>
+                  <span class="t2">12 项 · 进行中 11</span>
+                </div>
+                <div class="rhs">
+                  <span class="clock tnum">15:00</span><button class="iconbtn" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+                  <button class="iconbtn" aria-label="筛选"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
+                  <button class="iconbtn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6a7.8 7.8 0 0 0-2.6 1.5l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4Z"/></svg></button>
+                </div>
+              </div>
+              <div class="scroll dense">
+                <div class="list-group">
+                  <div class="group-head"><span>今天截止</span><span class="cnt tnum">3</span></div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成 整理周会纪要"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">整理周会纪要并发群</span><span class="meta"><span class="primary">计划 16:00–17:00</span><span class="sep">·</span><span class="warm">截止 18:00</span></span></div>
+                  </div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title two">提交周报给林总（含下周排期与风险项）</span><span class="meta"><span class="warm">截止今天 18:00</span></span></div>
+                  </div>
+                  <div class="row done">
+                    <span class="cbx on" aria-label="已完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">交 10 月报销单</span><span class="meta">截止 12:00<span class="sep">·</span>已完成</span></div>
+                  </div>
+                  <div class="group-head"><span>已过截止</span><span class="cnt tnum">2</span></div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">给房东转房租（¥3,800）</span><span class="meta"><span class="primary">计划 11/17 09:00–10:00</span><span class="sep">·</span><span class="warm">截止 10/26 10:00</span></span></div>
+                  </div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">续签宽带合同</span><span class="meta"><span class="warm">截止 11/14 18:00</span><span class="sep">·</span><span class="primary">未安排执行时段</span></span></div>
+                  </div>
+                  <div class="group-head"><span>之后</span><span class="cnt tnum">3</span></div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title two">把客户发的《Q4 渠道合作框架协议（终稿 v3.2，含附件 A/B 条款修订说明）》归档</span><span class="meta"><span class="primary">计划 11/17 14:00–15:00</span><span class="sep">·</span><span class="warm">截止 11/17 15:00</span></span></div>
+                  </div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">给房东交水电费</span><span class="meta"><span class="warm">截止 11/17 20:00</span></span></div>
+                  </div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">预约 11 月体检</span><span class="meta"><span class="warm">截止 11/20 09:00</span><span class="sep">·</span>个人</span></div>
+                  </div>
+                  <div class="group-head"><span>未安排 · 无截止</span><span class="cnt tnum">4</span></div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">把车送去保养</span><span class="meta">未安排<span class="sep">·</span>工作</span></div>
+                  </div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">给妈妈回电话</span><span class="meta">未安排<span class="sep">·</span>家庭</span></div>
+                  </div>
+                  <div class="row">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">给阳台的绿植换盆</span><span class="meta">未安排<span class="sep">·</span>家庭</span></div>
+                  </div>
+                  <div class="row" style="border-bottom:0">
+                    <span class="cbx" aria-label="完成"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">整理衣柜换季衣物</span><span class="meta">未安排<span class="sep">·</span>家庭</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="capture">
+                <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+                <span class="ph">记一笔 · 回车直接进「未安排」</span>
+                <span class="hint">⏎ 进未安排</span>
+              </div>
+              <div class="dock">
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></span>今天</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>日历</span>
+                <span class="tab on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>待办</span>
+              </div>
+            </div>
+            <div class="homebar-wrap"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>长标题最多两行、可断词；同一 Todo 既截止又计划只出现一次（第三行：截止 11/17 15:00 · 计划 11/17 14:00–15:00）。分组：今天截止 → 已逾期 → 之后 → 未安排（无截止）；四组之和 = 表头 12 项（含 1 项已完成）。</div>
+      </div>
+
+      <!-- ============ 深色 · 今天 ============ -->
+      <div class="board">
+        <div class="board-cap"><span class="no">DARK</span><span class="ttl">深色 · 今天（与 01 同数据同结构）</span></div>
+        <div class="phone">
+          <div class="screen dark">
+            <div class="statusbar">
+              <span class="tnum">15:00</span>
+              <span class="sicons">
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM2.5 6.4 4.2 8.1a4.7 4.7 0 0 1 7.6 0l1.7-1.7a7 7 0 0 0-11 0ZM0 3.9 1.7 5.6a10 10 0 0 1 12.7 0L15.2 3.9A12.3 12.3 0 0 0 0 3.9Z" opacity=".9"/></svg>
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/><rect x="22.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+              </span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head">
+                <div class="lhs">
+                  <span class="t1">今天</span>
+                  <span class="t2">2026年11月15日 · 周日</span>
+                </div>
+                <div class="rhs">
+                  <span class="clock tnum">15:00</span><button class="iconbtn" aria-label="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+                  <button class="iconbtn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6a7.8 7.8 0 0 0-2.6 1.5l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4Z"/></svg></button>
+                </div>
+              </div>
+              <div class="scroll">
+                <div class="timeline">
+                  <div class="tl-sec now-sec"><i class="now-dot"></i>现在<span class="rule"></span>15:00</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum"><span class="t">14:30</span><span class="t2">45 分</span></div>
+                    <div class="tl-col">
+                      <div class="block event" style="border-left-color:var(--cal-2);background:var(--cal-2-tint)">
+                        <div class="bt">牙医复诊 · 明州口腔</div>
+                        <div class="bm"><span class="cal-tag"><i></i>个人 · 14:30–15:15</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-sec"><i class="now-dot" style="background:var(--ink-3)"></i>接下来<span class="rule"></span></div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum"><span class="t">16:00</span></div>
+                    <div class="tl-col">
+                      <div class="block alloc">
+                        <span class="cbx s" aria-label="完成 整理周会纪要"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">整理周会纪要并发群</div>
+                          <div class="bm">计划执行 16:00–17:00 <span class="meta-sub"><span class="sep">·</span>截止 18:00</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum"><span class="t">17:30</span><span class="t2">30 分</span></div>
+                    <div class="tl-col">
+                      <div class="block event" style="border-left-color:var(--cal-3);background:var(--cal-3-tint)">
+                        <div class="bt">钢琴课 · 小陈</div>
+                        <div class="bm"><span class="cal-tag"><i></i>学习 · 17:30–18:00</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-sec" style="color:var(--warn)"><i class="now-dot" style="background:var(--warn)"></i>今天截止<span class="rule"></span>1 项</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--warn)"><span class="t">18:00</span></div>
+                    <div class="tl-col">
+                      <div class="block due">
+                        <span class="cbx s" aria-label="完成 提交周报给林总"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">提交周报给林总（含下周排期与风险项）</div>
+                          <div class="bm">截止 18:00 <span class="meta-sub"><span class="sep">·</span>未安排执行时段</span> <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-sec danger-sec"><i class="now-dot"></i>已逾期<span class="rule"></span>2 项</div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--danger)"><span class="t">10/26</span></div>
+                    <div class="tl-col">
+                      <div class="block due overdue">
+                        <span class="cbx s" aria-label="完成 给房东转房租"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">给房东转房租（¥3,800）</div>
+                          <div class="bm">截止 10:00 · 逾期 20 天 <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-item">
+                    <div class="tl-time tnum" style="color:var(--danger)"><span class="t">昨天</span></div>
+                    <div class="tl-col">
+                      <div class="block due overdue">
+                        <span class="cbx s" aria-label="完成 续签宽带合同"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                        <div class="in">
+                          <div class="bt">续签宽带合同</div>
+                          <div class="bm">截止 昨天 18:00 · 逾期 1 天 <a class="chip" style="background:var(--warn-soft);color:var(--warn)">去安排</a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+
+                  <div class="group-head" style="padding-right:16px">
+                    <span>未安排</span>
+                    <span style="display:flex;align-items:center;gap:10px"><span class="cnt tnum">8 项</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="1.8" stroke-linecap="round" style="transform:rotate(180deg)"><path d="m6 9 6 6 6-6"/></svg></span>
+                  </div>
+                  <div class="row dense">
+                    <span class="cbx s" aria-label="完成 把车送去保养"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span></span>
+                    <div class="body"><span class="title">把车送去保养</span><span class="meta">未安排<span class="sep">·</span>工作</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="capture">
+                <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+                <span class="ph">记一笔 · 回车直接进「未安排」</span>
+                <span class="hint">⏎ 进未安排</span>
+              </div>
+              <div class="dock">
+                <span class="tab on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></span>今天</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>日历</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>待办</span>
+              </div>
+            </div>
+            <div class="homebar-wrap"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>深色只换 token：bg #131312 / surface #1c1c1a / primary #7ba3d4 / warm #cf8f72 / danger #d08a80。内容、行数、时刻与 01 完全一致，不另造一套数据。</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>
