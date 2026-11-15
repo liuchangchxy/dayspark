@@ -74,7 +74,7 @@ docs/design/interaction-model/
 │   ├── smoke.js            冒烟：启动、无横向溢出、按钮都有名字、路由可达、零控制台错误
 │   ├── interactions.js     35 个真实操作场景（浏览器点击/输入/拖拽）
 │   ├── surfaces.js         14 个功能面场景（标签/日历/回收站/账户/离线/手势…）
-│   ├── reviewer-findings.js 19 条独立 Reviewer 发现的逐条回归
+│   ├── reviewer-findings.js 20 条独立 Reviewer 发现的逐条回归
 │   └── debug/              调试与截图脚本（不参与门禁）
 ├── research/
 │   ├── APP_SURFACE.md      真实 Flutter 代码盘点（973 行，24 路由 / 31 区域 / 21 破坏性操作）
@@ -98,7 +98,7 @@ npm install            # 只装 playwright-core
 node smoke.js              # 11 项冒烟
 node interactions.js       # 35 个交互场景
 node surfaces.js           # 14 个功能面场景
-node reviewer-findings.js  # 19 条 Reviewer 发现回归
+node reviewer-findings.js  # 20 条 Reviewer 发现回归
 ```
 
 加 `--headed` 可以看着浏览器跑；`--filter=<子串>` 只跑名字匹配的场景。结果与时间戳见 `TEST_RESULTS.md`。

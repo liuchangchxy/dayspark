@@ -91,6 +91,44 @@ scenario('F1 deleting one occurrence of a recurring event keeps the series', asy
   await page.close();
 });
 
+/* F1b (P0 sibling) — the "future" scope trims the series and undoes cleanly */
+scenario('F1b deleting future occurrences trims the series and undo restores it', async (browser) => {
+  const page = await newPage(browser);
+  const setup = await page.evaluate(() => {
+    const e = window.Store.state.events.find((x) => x.rrule && !x.deletedAt);
+    const days = [];
+    for (let i = 0; i < 70; i++) {
+      const d = new Date(e.startDt.getTime() + i * 86400000);
+      const hits = window.Store.eventsOnDay(d).filter((x) => x.id === e.id);
+      if (hits.length) days.push({ d: d.getTime(), s: hits[0].startDt.getTime() });
+    }
+    return { id: e.id, days };
+  });
+  assert(setup.days.length >= 3, 'the seed series should have at least three occurrences');
+  const countOn = (ms) => page.evaluate((t) => window.Store.eventsOnDay(new Date(t)).length, ms);
+  const second = setup.days[1];
+  const third = setup.days[2];
+  await page.evaluate(([id, ms]) => window.App.go('detail', { type: 'event', id, occurrence: ms }), [setup.id, second.s]);
+  await settle(page, 300);
+  await page.evaluate(() => {
+    Array.from(document.querySelectorAll('#view button')).find((x) => /移到回收站|Move to Trash/.test(x.textContent)).click();
+  });
+  await settle(page, 220);
+  await page.evaluate(() => { Array.from(document.querySelectorAll('.modal button, .sheet button')).pop().click(); });
+  await settle(page, 240);
+  await page.evaluate(() => document.querySelector('.sheet [data-testid="scope-future"]').click());
+  await settle(page, 340);
+  assertEq(await countOn(second.d), 0, 'the chosen occurrence must be gone');
+  assertEq(await countOn(third.d), 0, 'later occurrences must be gone too');
+  assert(await exists(page, '#toast .undo'), 'a future-scope delete must be undoable');
+  await page.click('#toast .undo');
+  await settle(page, 340);
+  assertEq(await countOn(second.d), 1, 'undo must restore the trimmed occurrence');
+  assertEq(await countOn(third.d), 1, 'undo must restore the later occurrences');
+  assertNoErrors(page);
+  await page.close();
+});
+
 /* F2 (P1) — occurrence detail carries the occurrence time; Edit scopes the edit */
 scenario('F2 an occurrence detail shows its own time and editing asks for scope', async (browser) => {
   const page = await newPage(browser);

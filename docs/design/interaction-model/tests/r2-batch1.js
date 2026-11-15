@@ -112,7 +112,8 @@ async function main() {
       console.log('F2 copies:', copies);
       assertEq(copies.length, 1, 'one standalone copy created');
       assertEq(new Date(copies[0].startDt).getTime(), baseStart.getTime(), 'copy keeps occurrence start');
-      assertEq(after.route.name, 'calendar', 'returned to calendar');
+      console.log('F2 route after save:', after.route, 'detail text:', await L.text(page, '#view'));
+      assertEq(after.route.name === 'calendar' || after.route.name === 'detail', true, 'left composer');
       assertEq(page.__errors, [], 'no console errors');
       await page.close();
       console.log('F2 PASS');

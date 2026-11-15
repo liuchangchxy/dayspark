@@ -46,12 +46,12 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'index.html');
           if (n.offsetParent === null) return;
           const r = n.getBoundingClientRect();
           if (r.width === 0 || r.height === 0) return;
-          if (r.width < 24 || r.height < 24) bad.push(`${n.tagName}.${n.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+          if (r.width < 44 || r.height < 44) bad.push(`${n.tagName}.${n.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
         });
         return bad;
       });
-      if (small.length) fail(`mobile: ${small.length} targets under 24px: ${small.slice(0, 4).join(' | ')}`);
-      else ok('mobile: targets >= 24px');
+      if (small.length) fail(`mobile: ${small.length} targets under 44px: ${small.slice(0, 6).join(' | ')}`);
+      else ok('mobile: targets >= 44px');
     }
 
     // navigate every route
