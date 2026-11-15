@@ -24,12 +24,13 @@ import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
-import 'package:dayspark/ui/widgets/schedule/schedule_actions.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
+
+import 'a2_composer.dart';
 
 /// A todo that is editable where it is read.
 ///
@@ -91,6 +92,8 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Timer? _descriptionTimer;
   late String _savedSummary;
   late String _savedDescription;
+  final Set<String> _savingText = {};
+  bool _deleting = false;
   bool _deletedNotified = false;
 
   String get _todoId => '${widget.todo.id}';
@@ -124,14 +127,16 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   void _syncFromLive(Todo live) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (!_summaryFocus.hasFocus &&
+      if (!_savingText.contains('summary') &&
+          !_summaryFocus.hasFocus &&
           _summary.text == _savedSummary &&
           _summary.text != live.summary) {
         _summary.text = live.summary;
         _savedSummary = live.summary;
       }
       final description = live.description ?? '';
-      if (!_descriptionFocus.hasFocus &&
+      if (!_savingText.contains('description') &&
+          !_descriptionFocus.hasFocus &&
           _description.text == _savedDescription &&
           _description.text != description) {
         _description.text = description;
@@ -161,6 +166,13 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
               ),
             ),
           ),
+        );
+      }
+      if (all.hasError) {
+        return _loadFailure(
+          context,
+          l,
+          () => ref.invalidate(allTodosProvider),
         );
       }
       return const Center(child: CircularProgressIndicator());
@@ -193,7 +205,10 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final days = dueDay?.difference(today).inDays;
     final String status;
     final Color statusColor;
-    if (completed) {
+    if (live.status == 'CANCELLED') {
+      status = l.cancelledTaskAllocation;
+      statusColor = ds.ink3;
+    } else if (completed) {
       status = l.completed;
       statusColor = ds.ink3;
     } else if (dueDay == null) {
@@ -385,6 +400,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                         height: 26 / 20,
                         forceStrutHeight: true,
                       ),
+                      maxLines: null,
                       textCapitalization: TextCapitalization.sentences,
                       onChanged: (value) {
                         _summaryTimer?.cancel();
@@ -649,6 +665,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final ds = context.ds;
     final height = mobile ? 48.0 : 36.0;
     final primaryLabel = completed ? l.markIncomplete : l.markComplete;
+    final scheduleDisabledReason = completed
+        ? l.completed
+        : live.status == 'CANCELLED'
+        ? l.cancelledTaskAllocation
+        : null;
     final primary = _PaneButton(
       label: primaryLabel,
       height: height,
@@ -658,7 +679,13 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final schedule = _PaneButton(
       label: l.schedule,
       height: height,
-      onPressed: () => scheduleTodoBlock(context, ref, live),
+      onPressed: scheduleDisabledReason == null
+          ? () => showA2Composer(
+              context,
+              contextDate: widget.clock?.call() ?? DateTime.now(),
+              todo: live,
+            )
+          : null,
     );
     final edit = _PaneButton(
       label: l.edit,
@@ -669,7 +696,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       label: l.moveToTrash,
       height: height,
       danger: true,
-      onPressed: () => _delete(live),
+      onPressed: _deleting ? null : () => _delete(live),
     );
     return Container(
       decoration: BoxDecoration(
@@ -680,55 +707,73 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       child: SafeArea(
         top: false,
         minimum: EdgeInsets.only(bottom: mobile ? 12 : 16),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final fontSize = height >= 44 ? 14.0 : 12.0;
-            final singleRow =
-                _estimatedWidth(primaryLabel, fontSize) +
-                    _estimatedWidth(l.schedule, fontSize) +
-                    _estimatedWidth(l.edit, fontSize) +
-                    _estimatedWidth(l.moveToTrash, fontSize) +
-                    24 <=
-                constraints.maxWidth;
-            if (singleRow) {
-              return SizedBox(
-                height: height,
-                child: Row(
-                  children: [
-                    Expanded(child: primary),
-                    const SizedBox(width: 8),
-                    schedule,
-                    const SizedBox(width: 8),
-                    edit,
-                    const SizedBox(width: 8),
-                    remove,
-                  ],
-                ),
-              );
-            }
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: height,
-                  child: Row(children: [Expanded(child: primary)]),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: height,
-                  child: Row(
-                    children: [
-                      Expanded(child: schedule),
-                      const SizedBox(width: 8),
-                      Expanded(child: edit),
-                      const SizedBox(width: 8),
-                      Expanded(child: remove),
-                    ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (scheduleDisabledReason != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '${l.schedule} · $scheduleDisabledReason',
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 16 / 11,
+                    color: ds.ink3,
                   ),
                 ),
-              ],
-            );
-          },
+              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final fontSize = height >= 44 ? 14.0 : 12.0;
+                final singleRow =
+                    _estimatedWidth(primaryLabel, fontSize) +
+                        _estimatedWidth(l.schedule, fontSize) +
+                        _estimatedWidth(l.edit, fontSize) +
+                        _estimatedWidth(l.moveToTrash, fontSize) +
+                        24 <=
+                    constraints.maxWidth;
+                if (singleRow) {
+                  return SizedBox(
+                    height: height,
+                    child: Row(
+                      children: [
+                        Expanded(child: primary),
+                        const SizedBox(width: 8),
+                        schedule,
+                        const SizedBox(width: 8),
+                        edit,
+                        const SizedBox(width: 8),
+                        remove,
+                      ],
+                    ),
+                  );
+                }
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: height,
+                      child: Row(children: [Expanded(child: primary)]),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: height,
+                      child: Row(
+                        children: [
+                          Expanded(child: schedule),
+                          const SizedBox(width: 8),
+                          Expanded(child: edit),
+                          const SizedBox(width: 8),
+                          Expanded(child: remove),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -928,9 +973,15 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       _summary.text = _savedSummary;
       return;
     }
-    if (text == _savedSummary) return;
-    _savedSummary = text;
-    unawaited(_writeBasics(summary: text));
+    if (text == _savedSummary || !_savingText.add('summary')) return;
+    unawaited(
+      _writeBasics(summary: text).then((saved) {
+        _savingText.remove('summary');
+        if (!saved) return;
+        _savedSummary = text;
+        if (mounted && _summary.text.trim() != text) _flushSummary();
+      }),
+    );
   }
 
   void _flushDescription() {
@@ -938,12 +989,20 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     _descriptionTimer?.cancel();
     _descriptionTimer = null;
     final text = _description.text.trim();
-    if (text == _savedDescription) return;
-    _savedDescription = text;
-    unawaited(_writeBasics(description: text));
+    if (text == _savedDescription || !_savingText.add('description')) return;
+    unawaited(
+      _writeBasics(description: text).then((saved) {
+        _savingText.remove('description');
+        if (!saved) return;
+        _savedDescription = text;
+        if (mounted && _description.text.trim() != text) {
+          _flushDescription();
+        }
+      }),
+    );
   }
 
-  Future<void> _writeBasics({
+  Future<bool> _writeBasics({
     String? summary,
     String? description,
     int? priority,
@@ -964,9 +1023,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
           updatedAt: Value(DateTime.now()),
         ),
       );
+      return true;
     } on Object catch (error) {
       debugPrint('todo_detail: update failed: $error');
       _showError();
+      return false;
     }
   }
 
@@ -1082,6 +1143,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   }
 
   Future<void> _delete(Todo live) async {
+    if (_deleting) return;
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       animationStyle: AnimationStyle.noAnimation,
@@ -1107,7 +1169,16 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     if (confirmed != true || !mounted) return;
     final id = live.id;
     final restore = ref.read(restoreTodoProvider);
-    await ref.read(deleteTodoProvider)(id);
+    setState(() => _deleting = true);
+    try {
+      await ref.read(deleteTodoProvider)(id);
+    } on Object catch (error) {
+      debugPrint('todo_detail: delete failed: $error');
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      _showError();
+      return;
+    }
     if (!mounted) return;
     _deletedNotified = true;
     if (widget.onDeleted != null) {
@@ -1122,6 +1193,53 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         action: SnackBarAction(label: l.undo, onPressed: () => restore(id)),
       ),
     );
+  }
+
+  Widget _loadFailure(
+    BuildContext context,
+    AppLocalizations l,
+    VoidCallback retry,
+  ) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l.error,
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                color: context.semantic.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s3),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(onPressed: retry, child: Text(l.retry)),
+                const SizedBox(width: AppSpacing.s2),
+                TextButton(
+                  onPressed: _leaveFromFailure,
+                  child: Text(l.close),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _leaveFromFailure() {
+    if (widget.embedded) {
+      final close = widget.onClose;
+      if (close != null) {
+        close();
+        return;
+      }
+    }
+    _leaveToSource(context);
   }
 
   void _showError() {

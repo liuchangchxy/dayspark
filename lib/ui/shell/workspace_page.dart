@@ -136,7 +136,9 @@ class WorkspacePage extends StatelessWidget {
 void _leave(BuildContext context) {
   final router = GoRouter.maybeOf(context);
   if (router != null && router.canPop()) {
-    context.pop();
+    // Go through the Navigator so a dirty form's PopScope can veto the pop and
+    // ask first. go_router's own pop skips popDisposition.
+    Navigator.of(context).maybePop();
     return;
   }
   router?.go('/');

@@ -11,12 +11,15 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
 class QuickAddPage extends ConsumerStatefulWidget {
@@ -37,7 +40,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
   bool _saving = false;
   String? _error;
   int? _calendarId;
-  int? _reminderMinutes = 10;
+  int? _reminderMinutes;
   DateTime? _pickedStart;
   Duration? _pickedDuration;
 
@@ -109,27 +112,31 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
         });
         return;
       }
-      final start = _pickedStart ?? draft.start;
-      final dueDate =
-          start == null
-          ? draft.date
-          : DateTime(start.year, start.month, start.day);
       final summary = draft.title.isEmpty ? text : draft.title;
-      final id = await ref.read(createTodoProvider)(
-        calendarId: calendar.id,
-        summary: summary,
-        priority: 0,
-        status: 'NEEDS-ACTION',
-        dueDate: dueDate,
-      );
+      // A parsed time describes an Event, not a deadline. Saving the task
+      // alternative must not silently turn that time (or its date) into a due
+      // date; only a date-only capture becomes a deadline.
+      final timed = (_pickedStart ?? draft.start) != null;
+      final dueDate = timed ? null : draft.date;
       final reminder = _reminderMinutes;
-      if (start != null && reminder != null && reminder >= 0) {
-        await ref.read(createReminderProvider)(
-          parentType: 'todo',
-          parentId: id,
-          triggerTime: start.subtract(Duration(minutes: reminder)),
+      await RecordScope.run(ref.read(databaseProvider), (tx) async {
+        final id = await ref.read(createTodoProvider)(
+          calendarId: calendar.id,
+          summary: summary,
+          priority: 0,
+          status: 'NEEDS-ACTION',
+          dueDate: dueDate,
         );
-      }
+        // Reminders are written only when the user asked for one and there is
+        // a real anchor to count back from.
+        if (reminder != null && reminder >= 0 && dueDate != null) {
+          await ref.read(createReminderProvider)(
+            parentType: 'todo',
+            parentId: id,
+            triggerTime: dueDate.subtract(Duration(minutes: reminder)),
+          );
+        }
+      });
       if (!mounted) return;
       _close();
     } on Object catch (error) {
@@ -164,21 +171,23 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
       final start = _pickedStart ?? draft.start!;
       final duration = _pickedDuration ?? draft.duration;
       final summary = draft.title.isEmpty ? text : draft.title;
-      final id = await ref.read(createEventProvider)(
-        calendarId: calendar.id,
-        summary: summary,
-        startDt: start,
-        endDt: start.add(duration),
-        isAllDay: false,
-      );
       final reminder = _reminderMinutes;
-      if (reminder != null && reminder >= 0) {
-        await ref.read(createReminderProvider)(
-          parentType: 'event',
-          parentId: id,
-          triggerTime: start.subtract(Duration(minutes: reminder)),
+      await RecordScope.run(ref.read(databaseProvider), (tx) async {
+        final id = await ref.read(createEventProvider)(
+          calendarId: calendar.id,
+          summary: summary,
+          startDt: start,
+          endDt: start.add(duration),
+          isAllDay: false,
         );
-      }
+        if (reminder != null && reminder >= 0) {
+          await ref.read(createReminderProvider)(
+            parentType: 'event',
+            parentId: id,
+            triggerTime: start.subtract(Duration(minutes: reminder)),
+          );
+        }
+      });
       if (!mounted) return;
       _close();
     } on Object catch (error) {
@@ -205,44 +214,12 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
   }
 
   Future<void> _pickCalendar(List<Calendar> calendars) async {
-    final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
-    final current = _calendarId;
-    final picked = await showDsSheet<int>(
-      context: context,
-      title: l.calendar,
-      body: Builder(
-        builder: (sheetContext) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (calendars.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-                child: Text(
-                  l.noCalendar,
-                  style: AppTypography.body.copyWith(color: ds.ink3),
-                ),
-              ),
-            for (final calendar in calendars)
-              DsSettingRow(
-                label: calendar.name,
-                leading: DsDot(
-                  color: ColorUtils.parseHex(calendar.color),
-                  size: 8,
-                ),
-                selected: calendar.id == current,
-                trailing: calendar.id == current
-                    ? Icon(
-                        CupertinoIcons.checkmark,
-                        size: 15,
-                        color: ds.primary,
-                      )
-                    : null,
-                onTap: () => Navigator.of(sheetContext).pop(calendar.id),
-              ),
-          ],
-        ),
-      ),
+    // One picker for the whole app: it opens even with a single calendar and
+    // can create a new one without leaving the sheet.
+    final picked = await pickCalendar(
+      context,
+      ref,
+      selectedId: _calendarId,
     );
     if (picked == null || !mounted) return;
     setState(() => _calendarId = picked);
@@ -377,6 +354,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     }
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: backdrop,
       body: Stack(
         fit: StackFit.expand,
@@ -391,23 +369,28 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               child: ColoredBox(color: ds.scrim.withValues(alpha: 0.30)),
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              height: 420,
-              decoration: BoxDecoration(
-                color: ds.surface,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadii.xl),
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.9,
                 ),
-                border: Border.all(color: ds.line),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                decoration: BoxDecoration(
+                  color: ds.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AppRadii.xl),
+                  ),
+                  border: Border.all(color: ds.line),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: SafeArea(
+                  top: false,
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SizedBox(
@@ -423,49 +406,64 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                           ),
                         ),
                       ),
-                      _mobileHeader(context, l),
-                      _input(context, l, 15),
-                      if (_error != null) _errorText(l),
-                      if (hasText)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: _card(
-                            context,
-                            l,
-                            draft,
-                            start,
-                            duration,
-                            calendar,
-                            desktop: false,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _mobileHeader(context, l),
+                      ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _input(context, l, 15),
+                              if (_error != null) _errorText(l),
+                              if (hasText)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: _card(
+                                    context,
+                                    l,
+                                    draft,
+                                    start,
+                                    duration,
+                                    calendar,
+                                    desktop: false,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                      const Spacer(),
+                      ),
                       // Both destinations stay on the phone: without the
                       // todo button the same sentence could only be saved as
                       // an event, which is a different object entirely.
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DsButton(
-                              label: l.save,
-                              icon: CupertinoIcons.checkmark,
-                              expand: true,
-                              loading: _saving,
-                              onPressed: _saving ? null : _save,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: DsButton(
+                                label: l.save,
+                                icon: CupertinoIcons.checkmark,
+                                expand: true,
+                                loading: _saving,
+                                onPressed: _saving ? null : _save,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: DsButton(
-                              label: l.addTodoShort,
-                              tone: DsButtonTone.secondary,
-                              expand: true,
-                              onPressed: _saving
-                                  ? null
-                                  : () => _saveTodo(_draft()),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DsButton(
+                                label: l.quickAddTodo,
+                                tone: DsButtonTone.secondary,
+                                expand: true,
+                                onPressed: _saving
+                                    ? null
+                                    : () => _saveTodo(_draft()),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -646,7 +644,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               ),
               Flexible(
                 child: Text(
-                  _cardDate(context, l, day, draft),
+                  _dayLabel(context, day!),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.small.copyWith(
@@ -689,7 +687,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
           )
         else
           Text(
-            _cardDate(context, l, day, draft),
+            _taskDateLabel(context, l, day),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTypography.bodyStrong.copyWith(
@@ -698,6 +696,20 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               height: 1.3,
             ),
           ),
+        if (event) ...[
+          const SizedBox(height: 4),
+          // The primary button saves the event; the secondary one saves only
+          // the task, and that task inherits no deadline from the time above.
+          Text(
+            '${l.todos} · ${l.noDueDate}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.small.copyWith(
+              color: ds.ink3,
+              fontSize: 11,
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         Wrap(
           spacing: 6,
@@ -1009,21 +1021,21 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     );
   }
 
-  String _cardDate(
-    BuildContext context,
-    AppLocalizations l,
-    DateTime? day,
-    _QuickAddDraft draft,
-  ) {
-    final fallback = widget.contextDate;
-    if (day == null) {
-      return fallback == null ? l.noDueDate : l.planToDate(
-        formatDeadline(context, fallback),
-      );
-    }
+  String _dayLabel(BuildContext context, DateTime day) {
     final locale = Localizations.localeOf(context).toString();
     return '${DateFormat.MMMd(locale).format(day)} '
         '${DateFormat.E(locale).format(day)}';
+  }
+
+  String _taskDateLabel(
+    BuildContext context,
+    AppLocalizations l,
+    DateTime? day,
+  ) {
+    // The deep link's contextDate is where capture started, not a deadline;
+    // showing it as "Plan to" would claim an intent the user never expressed.
+    if (day == null) return l.noDueDate;
+    return '${l.dueDate}: ${_dayLabel(context, day)}';
   }
 
   String _durationLabel(AppLocalizations l, Duration duration) {

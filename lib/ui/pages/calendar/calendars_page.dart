@@ -351,13 +351,24 @@ class CalendarsPage extends ConsumerWidget {
         moveContentsTo: decision.move ? targetId : null,
         deleteContents: !decision.move,
       );
-    } catch (error) {
-      debugPrint('calendars: delete error: $error');
-      if (context.mounted) {
+      if (context.mounted && !decision.move && contents > 0) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l.cannotDeleteOnlyCalendar)));
+        ).showSnackBar(SnackBar(content: Text(l.moveToTrash)));
       }
+    } catch (error) {
+      debugPrint('calendars: delete error: $error');
+      if (!context.mounted) return;
+      // Only the provider's "last calendar" guard deserves its own message;
+      // anything else is an ordinary failed write, not an impossible delete.
+      final onlyCalendar =
+          error is StateError &&
+          error.message.toString().contains('only remaining calendar');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(onlyCalendar ? l.cannotDeleteOnlyCalendar : l.error),
+        ),
+      );
     }
   }
 }

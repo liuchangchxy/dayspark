@@ -10,6 +10,8 @@ import 'package:dayspark/ui/pages/settings/settings_sections/about_section.dart'
 import 'package:dayspark/ui/pages/settings/settings_sections/account_section.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/ai_section.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/appearance_section.dart';
+import 'package:dayspark/ui/pages/settings/settings_sections/calendar_settings_section.dart';
+import 'package:dayspark/ui/pages/settings/settings_sections/data_section.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/import_export_section.dart';
 
 Future<void> _pumpSettings(WidgetTester tester) async {
@@ -44,32 +46,87 @@ void main() {
     );
   });
 
-  testWidgets('orders sections account → general → calendar → data → ai → about', (
+  testWidgets(
+    'orders sections general → calendar → sync → data → ai → about',
+    (tester) async {
+      await _pumpSettings(tester);
+
+      expect(
+        _y(tester, find.byType(AppearanceSection)),
+        lessThan(_y(tester, find.text('Manage Calendars'))),
+      );
+      expect(
+        _y(tester, find.text('Manage Calendars')),
+        lessThan(_y(tester, find.byType(AccountSection))),
+      );
+      expect(
+        _y(tester, find.byType(AccountSection)),
+        lessThan(_y(tester, find.byType(ImportExportSection))),
+      );
+      expect(
+        _y(tester, find.byType(ImportExportSection)),
+        lessThan(_y(tester, find.byType(AiSection))),
+      );
+      expect(
+        _y(tester, find.byType(AiSection)),
+        lessThan(_y(tester, find.byType(AboutSection))),
+      );
+      expect(find.text('Six Things'), findsNothing);
+    },
+  );
+
+  testWidgets('language and start tab live in general, not AI or calendar', (
     tester,
   ) async {
     await _pumpSettings(tester);
 
     expect(
-      _y(tester, find.byType(AccountSection)),
-      lessThan(_y(tester, find.byType(AppearanceSection))),
+      find.descendant(
+        of: find.byType(AppearanceSection),
+        matching: find.text('Language'),
+      ),
+      findsOneWidget,
     );
     expect(
-      _y(tester, find.byType(AppearanceSection)),
-      lessThan(_y(tester, find.text('Manage Calendars'))),
+      find.descendant(
+        of: find.byType(AppearanceSection),
+        matching: find.text('Startup view'),
+      ),
+      findsOneWidget,
     );
     expect(
-      _y(tester, find.text('Manage Calendars')),
-      lessThan(_y(tester, find.byType(AiSection))),
+      find.descendant(
+        of: find.byType(AiSection),
+        matching: find.text('Language'),
+      ),
+      findsNothing,
     );
     expect(
-      _y(tester, find.byType(AiSection)),
-      lessThan(_y(tester, find.byType(ImportExportSection))),
+      find.descendant(
+        of: find.byType(CalendarSettingsSection),
+        matching: find.text('Startup view'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('tags and trash belong to the data group', (tester) async {
+    await _pumpSettings(tester);
+
+    expect(
+      find.descendant(
+        of: find.byType(DataSection),
+        matching: find.text('Tags'),
+      ),
+      findsOneWidget,
     );
     expect(
-      _y(tester, find.byType(ImportExportSection)),
-      lessThan(_y(tester, find.byType(AboutSection))),
+      find.descendant(
+        of: find.byType(DataSection),
+        matching: find.text('Trash'),
+      ),
+      findsOneWidget,
     );
-    expect(find.text('Six Things'), findsNothing);
   });
 
   testWidgets('calendar management has its own group', (tester) async {
@@ -77,5 +134,7 @@ void main() {
 
     expect(find.text('Manage Calendars'), findsOneWidget);
     expect(find.text('Hide completed'), findsNothing);
+    // No key is configured in this test, so the assistant entry stays hidden.
+    expect(find.text('Open assistant'), findsNothing);
   });
 }

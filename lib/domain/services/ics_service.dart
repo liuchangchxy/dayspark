@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../data/file_downloader.dart';
 import '../../data/local/database/app_database.dart';
 import '../records/record_scope.dart';
 import '../records/todo_recurrence.dart';
@@ -14,12 +15,23 @@ import '../records/writers/event_writer.dart';
 import '../records/writers/todo_writer.dart';
 import 'ical/ical_converter.dart';
 
+/// Delivers exported text to the browser instead of the file system. Injected
+/// so the web branch can be exercised where `kIsWeb` is false.
+typedef IcsWebDownloader = void Function({
+  required String content,
+  required String filename,
+});
+
 /// Import/export .ics files.
 class IcsService {
   final AppDatabase _db;
   final IcalConverter _converter = IcalConverter();
+  final bool _isWeb;
+  final IcsWebDownloader _webDownloader;
 
-  IcsService(this._db);
+  IcsService(this._db, {bool? isWeb, IcsWebDownloader? webDownloader})
+    : _isWeb = isWeb ?? kIsWeb,
+      _webDownloader = webDownloader ?? downloadFileWeb;
 
   /// Export all events from a calendar to a .ics file, or from all calendars when calendarId is null.
   Future<String> exportCalendar([int? calendarId]) async {
@@ -109,8 +121,16 @@ class IcsService {
     return cal.toString();
   }
 
-  /// Save .ics content to a file, returns the file path.
+  /// Saves .ics content and returns a locator for it.
+  ///
+  /// Web has no application-documents directory, so asking path_provider
+  /// there throws and the caller reported a failed export. On web the browser
+  /// download is the delivery, and the returned value is the filename.
   Future<String> saveIcsToFile(String content, String filename) async {
+    if (_isWeb) {
+      _webDownloader(content: content, filename: filename);
+      return filename;
+    }
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/$filename');
     await file.writeAsString(content);

@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/feature_flags_provider.dart';
-import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
@@ -22,7 +22,7 @@ class AiSection extends ConsumerWidget {
     final flagsAsync = ref.watch(featureFlagsProvider);
     final enabled =
         flagsAsync.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? true;
-    final locale = ref.watch(localeProvider);
+    final configured = ref.watch(isAiConfiguredProvider).valueOrNull ?? false;
     return SettingsRows(
       children: [
         SettingsRow(
@@ -61,16 +61,14 @@ class AiSection extends ConsumerWidget {
             chevron: SettingsChevron.right,
             onTap: () => showAiConfigDialog(context, ref),
           ),
-        SettingsRow(
-          label: l.language,
-          value: locale == null
-              ? l.languageSystem
-              : locale.languageCode == 'zh'
-              ? l.languageZh
-              : l.languageEn,
-          chevron: SettingsChevron.down,
-          onTap: () => _showLanguageDialog(context, ref),
-        ),
+        // The chat page was unreachable from anywhere in the app. The switch
+        // above is the feature's owner, so the entry follows it and the key.
+        if (enabled && configured)
+          SettingsRow(
+            label: l.openAssistant,
+            chevron: SettingsChevron.right,
+            onTap: () => context.push('/ai-chat'),
+          ),
       ],
     );
   }
@@ -85,28 +83,5 @@ class AiSection extends ConsumerWidget {
         .where((item) => item.baseUrl == config.baseUrl)
         .firstOrNull;
     return preset == null ? config.model : '${preset.name} · ${config.model}';
-  }
-
-  void _showLanguageDialog(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final current = ref.read(localeProvider);
-    final currentTag = current == null
-        ? 'system'
-        : current.languageCode == 'zh'
-        ? 'zh'
-        : 'en';
-    showSettingsChoice<String>(
-      context: context,
-      title: l.language,
-      current: currentTag,
-      options: [
-        ('system', l.languageSystem),
-        ('zh', l.languageZh),
-        ('en', l.languageEn),
-      ],
-      onSelected: (tag) => ref
-          .read(localeProvider.notifier)
-          .setLocale(tag == 'system' ? null : Locale(tag)),
-    );
   }
 }

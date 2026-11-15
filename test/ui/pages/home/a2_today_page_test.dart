@@ -5,15 +5,31 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 
-Widget _app({required List<Override> overrides}) {
+Widget _app({
+  required List<Override> overrides,
+  DateTime? now,
+  ValueChanged<Todo>? onOpenTodo,
+  ValueChanged<Todo>? onScheduleTodo,
+  VoidCallback? onOpenUnplanned,
+  Future<void> Function(Todo todo, String? occurrenceId, bool completed)?
+  onToggleTodo,
+}) {
   return ProviderScope(
     overrides: overrides,
     child: MaterialApp(
@@ -27,12 +43,12 @@ Widget _app({required List<Override> overrides}) {
       locale: const Locale('en'),
       home: Scaffold(
         body: A2TodayPage(
-          now: DateTime(2026, 10, 6, 15),
-          onOpenTodo: (_) {},
+          now: now ?? DateTime(2026, 10, 6, 15),
+          onOpenTodo: onOpenTodo ?? (_) {},
           onOpenEvent: (_) {},
-          onToggleTodo: (_, __, ___) async {},
-          onOpenUnplanned: () {},
-          onScheduleTodo: (_) {},
+          onToggleTodo: onToggleTodo ?? (_, __, ___) async {},
+          onOpenUnplanned: onOpenUnplanned ?? () {},
+          onScheduleTodo: onScheduleTodo ?? (_) {},
         ),
       ),
     ),
@@ -50,8 +66,48 @@ Future<void> _unmount(WidgetTester tester) async {
   await tester.pump(Duration.zero);
 }
 
+Future<int> _createSeries(
+  AppDatabase db, {
+  required int calendarId,
+  required String summary,
+  required RecurrenceSpec spec,
+}) {
+  return RecordScope.run(
+    db,
+    (tx) => TodoWriter.create(
+      db,
+      tx,
+      TodosCompanion.insert(
+        calendarId: calendarId,
+        summary: summary,
+        rrule: Value(spec.rule.canonical),
+      ),
+      recurrenceSpec: spec,
+    ),
+  );
+}
+
+Future<void> _completeInDb(
+  AppDatabase db,
+  Todo todo,
+  String? occurrenceId,
+  bool completed,
+) {
+  return RecordScope.run(
+    db,
+    (tx) => TodoWriter.setCompletion(
+      db,
+      tx,
+      todo.id,
+      isCompleted: completed,
+      occurrenceId: occurrenceId,
+    ),
+  );
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(tzdata.initializeTimeZones);
 
   late AppDatabase db;
   late int calendarId;
@@ -257,4 +313,732 @@ void main() {
     expect(find.text('Upcoming'), findsOneWidget);
     await _unmount(tester);
   });
+
+  testWidgets('completed today stays folded, then undoes through the writer', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final id = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Finished report',
+            status: const Value('COMPLETED'),
+            completedAt: Value(DateTime(2026, 10, 6, 14)),
+          ),
+        );
+    final opened = <int>[];
+    final toggles = <(int, String?, bool)>[];
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+        onOpenTodo: (todo) => opened.add(todo.id),
+        onToggleTodo: (todo, occurrenceId, completed) async {
+          toggles.add((todo.id, occurrenceId, completed));
+        },
+      ),
+    );
+    await _settle(tester);
+
+    // Completed work is secondary, not an empty day and not a timeline block.
+    expect(find.text('Nothing scheduled today'), findsNothing);
+    expect(find.text('Completed Today'), findsOneWidget);
+    expect(find.text('Finished report'), findsNothing);
+
+    await tester.tap(find.text('Completed Today'));
+    await _settle(tester);
+    expect(find.text('Finished report'), findsOneWidget);
+
+    await tester.tap(find.text('Finished report'));
+    await _settle(tester);
+    expect(opened, [id]);
+
+    // The row is already checked; its check is the undo path.
+    final completedCheck = find.byWidgetPredicate(
+      (widget) =>
+          widget is DsCheck &&
+          widget.checked &&
+          widget.label == 'Finished report',
+    );
+    expect(completedCheck, findsOneWidget);
+    await tester.tap(completedCheck);
+    await _settle(tester);
+    expect(toggles, [(id, null, false)]);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('completed recurring instance keeps its occurrence id for undo', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDate(2026, 10, 6),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=3',
+    );
+    final seriesId = await _createSeries(
+      db,
+      calendarId: calendarId,
+      summary: 'Daily Review',
+      spec: spec,
+    );
+    final series = await (db.select(
+      db.todos,
+    )..where((t) => t.id.equals(seriesId))).getSingle();
+    const occurrenceId = 'v2:DATE:2026-10-06';
+    await db
+        .into(db.taskInstanceStates)
+        .insert(
+          TaskInstanceStatesCompanion.insert(
+            syncId: 'state-review',
+            todoSyncId: series.syncId!,
+            todoId: Value(seriesId),
+            occurrenceId: occurrenceId,
+            status: const Value('completed'),
+            completedAt: Value(DateTime(2026, 10, 6, 12)),
+          ),
+        );
+    final toggles = <(int, String?, bool)>[];
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+        onToggleTodo: (todo, occurrence, completed) async {
+          toggles.add((todo.id, occurrence, completed));
+        },
+      ),
+    );
+    await _settle(tester);
+
+    expect(find.text('Completed Today'), findsOneWidget);
+    // The recurring series also sits in the unplanned shelf as a parent row.
+    expect(find.text('Daily Review'), findsOneWidget);
+    await tester.tap(find.text('Completed Today'));
+    await _settle(tester);
+    expect(find.text('Daily Review'), findsNWidgets(2));
+
+    final completedCheck = find.byWidgetPredicate(
+      (widget) =>
+          widget is DsCheck && widget.checked && widget.label == 'Daily Review',
+    );
+    expect(completedCheck, findsOneWidget);
+    await tester.tap(completedCheck);
+    await _settle(tester);
+    expect(toggles, [(seriesId, occurrenceId, false)]);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('missed instances are bounded to three with a more entry', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDate(2026, 10, 1),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=7',
+    );
+    await _createSeries(
+      db,
+      calendarId: calendarId,
+      summary: 'Daily Plan',
+      spec: spec,
+    );
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+      ),
+    );
+    await _settle(tester);
+
+    // One today block, three of the five missed occurrences (10/1–10/5), and
+    // the series' own row in the unplanned shelf.
+    expect(find.text('Missed'), findsOneWidget);
+    expect(find.text('Daily Plan'), findsNWidgets(5));
+    expect(find.text('2 more · Show all'), findsOneWidget);
+
+    await tester.tap(find.text('2 more · Show all'));
+    await _settle(tester);
+    expect(find.text('Daily Plan'), findsNWidgets(7));
+
+    await _unmount(tester);
+  });
+
+  testWidgets('earlier missed series has an entry after the recent window', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDate(2026, 8, 1),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=100',
+    );
+    await _createSeries(
+      db,
+      calendarId: calendarId,
+      summary: 'Long Streak',
+      spec: spec,
+    );
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+      ),
+    );
+    await _settle(tester);
+
+    // 9/6–10/5 is the recent 30-day window (30 instances); everything before
+    // it belongs to the earlier-missed entry, not to the bounded preview.
+    expect(find.text('Missed'), findsOneWidget);
+    expect(find.text('Long Streak'), findsNWidgets(5));
+    expect(find.text('27 more · Show all'), findsOneWidget);
+    expect(find.text('Earlier missed…'), findsOneWidget);
+
+    await tester.tap(find.text('Earlier missed…'));
+    await _settle(tester);
+    expect(find.text('Long Streak'), findsNWidgets(6));
+
+    await _unmount(tester);
+  });
+
+  testWidgets('a timed recurring instance shows its clock time, not all day', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDateTime(2026, 10, 6, 12, 0, 0),
+      ),
+      timeZone: 'UTC',
+      rrule: 'FREQ=DAILY;COUNT=3',
+    );
+    final seriesId = await _createSeries(
+      db,
+      calendarId: calendarId,
+      summary: 'Timeboxed Review',
+      spec: spec,
+    );
+    final series = await (db.select(
+      db.todos,
+    )..where((t) => t.id.equals(seriesId))).getSingle();
+    final occurrence = expandTodoOccurrences(
+      series,
+      startInclusive: DateTime(2026, 10, 6),
+      endExclusive: DateTime(2026, 10, 7),
+      maxOccurrences: 10,
+    ).occurrences.single;
+    final expected = DateFormatters.formatTime(
+      occurrence.resolvedStartInstant!.toLocal(),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+      ),
+    );
+    await _settle(tester);
+
+    expect(find.text('Timeboxed Review'), findsNWidgets(2));
+    expect(find.text(expected), findsOneWidget);
+    expect(find.text('All day'), findsNothing);
+
+    await _unmount(tester);
+  });
+
+  testWidgets(
+    'desktop unplanned panel previews three and opens the full view',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      for (var i = 1; i <= 5; i++) {
+        await db
+            .into(db.todos)
+            .insert(
+              TodosCompanion.insert(calendarId: calendarId, summary: 'Task $i'),
+            );
+      }
+      var openedUnplanned = 0;
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenUnplanned: () => openedUnplanned++,
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('Task 1'), findsOneWidget);
+      expect(find.text('Task 2'), findsOneWidget);
+      expect(find.text('Task 3'), findsOneWidget);
+      expect(find.text('Task 4'), findsNothing);
+      expect(find.text('Task 5'), findsNothing);
+      expect(find.text('2 more · Show all'), findsOneWidget);
+
+      await tester.tap(find.text('2 more · Show all'));
+      await _settle(tester);
+      expect(openedUnplanned, 1);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets('a lone overdue item keeps its section and no empty box', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Old rent',
+            dueDate: Value(DateTime(2026, 10, 1, 10)),
+          ),
+        );
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+      ),
+    );
+    await _settle(tester);
+
+    // T1: the empty box is the whole page only. Overdue stands on its own.
+    expect(find.text('Nothing scheduled today'), findsNothing);
+    expect(find.text('Overdue'), findsOneWidget);
+    expect(find.text('Old rent'), findsOneWidget);
+    expect(find.text('Now'), findsNothing);
+    expect(find.text('Upcoming'), findsNothing);
+    expect(find.text('Due today'), findsNothing);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('upcoming collapses past three and expands', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    for (var i = 1; i <= 5; i++) {
+      await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Meeting $i',
+              startDt: DateTime(2026, 10, 6, 15 + i),
+              endDt: DateTime(2026, 10, 6, 15 + i, 30),
+              isAllDay: const Value(false),
+            ),
+          );
+    }
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+      ),
+    );
+    await _settle(tester);
+
+    // T2: the upcoming section uses the shelf's exact preview language.
+    expect(find.text('Upcoming'), findsOneWidget);
+    expect(find.text('Meeting 1'), findsOneWidget);
+    expect(find.text('Meeting 2'), findsOneWidget);
+    expect(find.text('Meeting 3'), findsOneWidget);
+    expect(find.text('Meeting 4'), findsNothing);
+    expect(find.text('Meeting 5'), findsNothing);
+    expect(find.text('2 more · Show all'), findsOneWidget);
+
+    await tester.tap(find.text('2 more · Show all'));
+    await _settle(tester);
+    expect(find.text('Meeting 4'), findsOneWidget);
+    expect(find.text('Meeting 5'), findsOneWidget);
+    expect(find.text('Show less'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('now never collapses past three blocks', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    for (var i = 1; i <= 4; i++) {
+      await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Running $i',
+              startDt: DateTime(2026, 10, 6, 14),
+              endDt: DateTime(2026, 10, 6, 16),
+              isAllDay: const Value(false),
+            ),
+          );
+    }
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+      ),
+    );
+    await _settle(tester);
+
+    expect(find.text('Now'), findsOneWidget);
+    for (var i = 1; i <= 4; i++) {
+      expect(find.text('Running $i'), findsOneWidget);
+    }
+    expect(find.textContaining('more · Show all'), findsNothing);
+    expect(find.text('Show less'), findsNothing);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('overdue collapses past three and expands', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    for (var i = 1; i <= 5; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Old $i',
+              dueDate: Value(DateTime(2026, 10, i, 10)),
+            ),
+          );
+    }
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+      ),
+    );
+    await _settle(tester);
+
+    expect(find.text('Overdue'), findsOneWidget);
+    expect(find.text('Old 1'), findsOneWidget);
+    expect(find.text('Old 2'), findsOneWidget);
+    expect(find.text('Old 3'), findsOneWidget);
+    expect(find.text('Old 4'), findsNothing);
+    expect(find.text('Old 5'), findsNothing);
+    expect(find.text('2 more · Show all'), findsOneWidget);
+
+    await tester.tap(find.text('2 more · Show all'));
+    await _settle(tester);
+    expect(find.text('Old 4'), findsOneWidget);
+    expect(find.text('Old 5'), findsOneWidget);
+    expect(find.text('Show less'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets(
+    'a merged allocation tick completes the todo and records the due',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final id = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Weekly notes',
+              dueDate: Value(DateTime(2026, 10, 6, 18)),
+            ),
+          );
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      await container.read(createTaskAllocationProvider)(
+        todoId: id,
+        startAt: DateTime(2026, 10, 6, 16),
+        endAt: DateTime(2026, 10, 6, 17),
+      );
+      container.dispose();
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onToggleTodo: (todo, occurrenceId, completed) =>
+              _completeInDb(db, todo, occurrenceId, completed),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('Weekly notes'), findsOneWidget);
+      final check = find.byWidgetPredicate(
+        (widget) => widget is DsCheck && widget.label == 'Weekly notes',
+      );
+      expect(check, findsOneWidget);
+      await tester.tap(check);
+      await _settle(tester);
+
+      // T3: one tick, one completion fact: the allocation and the deadline both
+      // close, and the block records that together with the deadline it closed.
+      final row = await (db.select(
+        db.todos,
+      )..where((table) => table.id.equals(id))).getSingle();
+      expect(row.status, 'COMPLETED');
+      expect(find.text('Weekly notes'), findsOneWidget);
+      expect(find.text('Undo'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(A2Block),
+          matching: find.text('Completed'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(A2Block),
+          matching: find.textContaining('Due 18:00'),
+        ),
+        findsOneWidget,
+      );
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'a completed deadline stays in place with undo for five seconds',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // The completion writer stamps the real clock, so this test runs on the
+      // real day for the record to land in Completed Today.
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Pay bill',
+              dueDate: Value(today),
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          now: now,
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => today),
+          ],
+          onToggleTodo: (todo, occurrenceId, completed) =>
+              _completeInDb(db, todo, occurrenceId, completed),
+        ),
+      );
+      await _settle(tester);
+
+      final check = find.byWidgetPredicate(
+        (widget) => widget is DsCheck && widget.label == 'Pay bill',
+      );
+      await tester.tap(check);
+      await _settle(tester);
+
+      // T4/D3: the projection has dropped the row, but it stays where it stood
+      // with an inline undo key; the completed fold does not duplicate it yet.
+      expect(find.text('Pay bill'), findsOneWidget);
+      expect(find.text('Undo'), findsOneWidget);
+      expect(find.text('Completed Today'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 5));
+      await _settle(tester);
+
+      // R6: after the window the record moves to the folded completed section.
+      expect(find.text('Undo'), findsNothing);
+      expect(find.text('Pay bill'), findsNothing);
+      expect(find.text('Completed Today'), findsOneWidget);
+      expect(find.text('Due today'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'an occurrence completion offers an undo bound to that occurrence',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDate(2026, 10, 6),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=3',
+      );
+      final seriesId = await _createSeries(
+        db,
+        calendarId: calendarId,
+        summary: 'Daily Review',
+        spec: spec,
+      );
+      final calls = <(int, String?, bool)>[];
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onToggleTodo: (todo, occurrenceId, completed) async {
+            calls.add((todo.id, occurrenceId, completed));
+          },
+        ),
+      );
+      await _settle(tester);
+
+      // The timeline block comes before the unplanned shelf's parent row.
+      final checks = find.byWidgetPredicate(
+        (widget) => widget is DsCheck && widget.label == 'Daily Review',
+      );
+      expect(checks, findsWidgets);
+      await tester.tap(checks.first);
+      await _settle(tester);
+
+      expect(calls, [(seriesId, 'v2:DATE:2026-10-06', true)]);
+      expect(find.text('Undo · 2026-10-06'), findsOneWidget);
+
+      await tester.tap(find.text('Undo · 2026-10-06'));
+      await _settle(tester);
+      expect(calls.last, (seriesId, 'v2:DATE:2026-10-06', false));
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'completing refreshes the unplanned count without leaving Today',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(calendarId: calendarId, summary: 'Task A'),
+          );
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(calendarId: calendarId, summary: 'Task B'),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onToggleTodo: (todo, occurrenceId, completed) =>
+              _completeInDb(db, todo, occurrenceId, completed),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('Nothing scheduled today'), findsNothing);
+      expect(find.text('2 items'), findsOneWidget);
+
+      final check = find.byWidgetPredicate(
+        (widget) => widget is DsCheck && widget.label == 'Task A',
+      );
+      await tester.tap(check);
+      await _settle(tester);
+
+      // R5: the projection was re-read in place, so the shelf count already
+      // reflects the completion while the row is still held for undo.
+      expect(find.text('1 items'), findsOneWidget);
+      expect(find.text('Task A'), findsOneWidget);
+      expect(find.text('Undo'), findsOneWidget);
+
+      // Any other interaction closes the window without waiting out the timer.
+      await tester.tap(find.text('Unplanned').first);
+      await _settle(tester);
+      expect(find.text('Undo'), findsNothing);
+      expect(find.text('Task A'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
 }

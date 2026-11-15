@@ -91,8 +91,12 @@ final aiConfigProvider = FutureProvider<AiConfig?>((ref) async {
 });
 
 /// Whether AI is configured.
+///
+/// Awaiting the config future is what makes "still loading" distinguishable
+/// from "no key": reading `.value` here reported an unconfigured assistant for
+/// as long as secure storage took to answer.
 final isAiConfiguredProvider = FutureProvider<bool>((ref) async {
-  final config = ref.watch(aiConfigProvider).value;
+  final config = await ref.watch(aiConfigProvider.future);
   return config != null;
 });
 
@@ -111,7 +115,11 @@ final saveAiConfigProvider =
           await storage.write(key: _keyAiApiKey, value: apiKey);
           await storage.write(key: _keyAiBaseUrl, value: baseUrl);
           await storage.write(key: _keyAiModel, value: model);
-        } catch (e) { debugPrint('ai: saveConfig error: $e'); }
+        } catch (e) {
+          debugPrint('ai: saveConfig error: $e');
+          ref.invalidate(aiConfigProvider);
+          rethrow;
+        }
         ref.invalidate(aiConfigProvider);
       };
     });
@@ -124,7 +132,11 @@ final deleteAiConfigProvider = Provider<Future<void> Function()>((ref) {
       await storage.delete(key: _keyAiApiKey);
       await storage.delete(key: _keyAiBaseUrl);
       await storage.delete(key: _keyAiModel);
-    } catch (e) { debugPrint('ai: deleteConfig error: $e'); }
+    } catch (e) {
+      debugPrint('ai: deleteConfig error: $e');
+      ref.invalidate(aiConfigProvider);
+      rethrow;
+    }
     ref.invalidate(aiConfigProvider);
   };
 });
@@ -206,7 +218,9 @@ final parseNaturalLanguageProvider = Provider<ParseNaturalLanguage>(
 class AiChatMessage {
   final String role;
   final String content;
-  AiChatMessage({required this.role, required this.content});
+  final bool isError;
+
+  AiChatMessage({required this.role, required this.content, this.isError = false});
 }
 
 /// Send a chat message to AI and get response.
@@ -248,23 +262,43 @@ class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
         userPrompt: message,
         cancelToken: _cancelToken,
       );
-
-      state = [
-        ...state.sublist(0, state.length - 1),
-        AiChatMessage(role: 'assistant', content: response),
-      ];
+      _replacePlaceholder(AiChatMessage(role: 'assistant', content: response));
     } on DioException catch (e) {
       if (CancelToken.isCancel(e)) return;
-      state = [
-        ...state.sublist(0, state.length - 1),
-        AiChatMessage(role: 'assistant', content: 'Error: $e'),
-      ];
+      debugPrint('ai: chat request failed: $e');
+      _failPlaceholder();
     } catch (e) {
-      state = [
-        ...state.sublist(0, state.length - 1),
-        AiChatMessage(role: 'assistant', content: 'Error: $e'),
-      ];
+      debugPrint('ai: chat error: $e');
+      _failPlaceholder();
     }
+  }
+
+  /// Retry the request behind the trailing error bubble by re-sending the last
+  /// user message. The raw exception never reaches the transcript; the error
+  /// marker is localized by the page that renders it.
+  Future<void> retry() async {
+    if (state.isEmpty) return;
+    var history = state;
+    if (history.last.isError) {
+      history = history.sublist(0, history.length - 1);
+    }
+    if (history.isEmpty || history.last.role != 'user') return;
+    final message = history.last.content;
+    state = history.sublist(0, history.length - 1);
+    await sendMessage(message);
+  }
+
+  void _replacePlaceholder(AiChatMessage message) {
+    if (!mounted || state.isEmpty) return;
+    state = [...state.sublist(0, state.length - 1), message];
+  }
+
+  void _failPlaceholder() {
+    if (!mounted || state.isEmpty) return;
+    state = [
+      ...state.sublist(0, state.length - 1),
+      AiChatMessage(role: 'assistant', content: '', isError: true),
+    ];
   }
 
   void clear() => state = [];

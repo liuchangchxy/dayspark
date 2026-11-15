@@ -71,6 +71,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
   List<String> _detectedModels = [];
   bool _detecting = false;
   bool _detectFailed = false;
+  String? _actionError;
 
   @override
   void initState() {
@@ -238,8 +239,15 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
             label: l.remove,
             tone: DsButtonTone.danger,
             onPressed: () async {
-              await ref.read(deleteAiConfigProvider)();
-              if (context.mounted) Navigator.of(context).pop();
+              try {
+                await ref.read(deleteAiConfigProvider)();
+                if (context.mounted) Navigator.of(context).pop();
+              } catch (error) {
+                debugPrint('ai_config: delete error: $error');
+                if (mounted) {
+                  setState(() => _actionError = l.actionFailedRetry);
+                }
+              }
             },
           ),
         const Spacer(),
@@ -260,12 +268,19 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
             final model = _modelController.text.trim();
             if (key.isEmpty) return;
 
-            await ref.read(saveAiConfigProvider)(
-              apiKey: key,
-              baseUrl: url.isEmpty ? 'https://api.openai.com/v1' : url,
-              model: model.isEmpty ? 'gpt-4o-mini' : model,
-            );
-            if (context.mounted) Navigator.of(context).pop();
+            try {
+              await ref.read(saveAiConfigProvider)(
+                apiKey: key,
+                baseUrl: url.isEmpty ? 'https://api.openai.com/v1' : url,
+                model: model.isEmpty ? 'gpt-4o-mini' : model,
+              );
+              if (context.mounted) Navigator.of(context).pop();
+            } catch (error) {
+              debugPrint('ai_config: save error: $error');
+              if (mounted) {
+                setState(() => _actionError = l.actionFailedRetry);
+              }
+            }
           },
         ),
       ],
@@ -342,6 +357,13 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
               controller: _modelController,
               hint: 'gpt-4o-mini',
             ),
+          if (_actionError != null) ...[
+            const SizedBox(height: AppSpacing.s2),
+            Text(
+              _actionError!,
+              style: AppTypography.caption.copyWith(color: ds.danger),
+            ),
+          ],
         ],
       ),
     );

@@ -116,6 +116,45 @@ void main() {
     await teardownTree(tester);
   });
 
+  testWidgets('parsed date is labelled as the task deadline', (tester) async {
+    await seedCalendar();
+    AppRouter.router.go('/');
+    await tester.pumpWidget(buildApp());
+    await settle(tester);
+    AppRouter.router.go('/quick-add');
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Buy milk 2026-11-07');
+    await settle(tester);
+    expect(find.textContaining('Due date:'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await settle(tester);
+    final todo = (await testDb.select(testDb.todos).get()).single;
+    expect(todo.dueDate, DateTime(2026, 11, 7));
+    await teardownTree(tester);
+  });
+
+  testWidgets('timed input previews event and undated task', (tester) async {
+    await seedCalendar();
+    AppRouter.router.go('/');
+    await tester.pumpWidget(buildApp());
+    await settle(tester);
+    AppRouter.router.go('/quick-add');
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Meeting 2026-11-07 10:00');
+    await settle(tester);
+    expect(find.text('Events'), findsOneWidget);
+    expect(find.text('Tasks · No due date'), findsOneWidget);
+    await tester.tap(find.text('Add task'));
+    await settle(tester);
+    final todo = (await testDb.select(testDb.todos).get()).single;
+    expect(todo.dueDate, isNull);
+    expect(await testDb.select(testDb.reminders).get(), isEmpty);
+    expect(await testDb.select(testDb.events).get(), isEmpty);
+    await teardownTree(tester);
+  });
+
   testWidgets('failure keeps the text and shows an error', (tester) async {
     AppRouter.router.go('/');
     await tester.pumpWidget(

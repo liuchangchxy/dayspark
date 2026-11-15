@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,7 +45,21 @@ import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
+import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+
+/// A todo belongs in the calendar deadline lane only when it is an ordinary
+/// (non-series) open todo with a due date.
+///
+/// Both recurrence columns count: `rrule` is the legacy projection and
+/// `recurrenceRule` the spec one, and the DAO's "ordinary" predicate tests
+/// both. Reading only `rrule` let a spec-only series leak in as a deadline.
+bool isCalendarDeadlineCandidate(Todo todo) =>
+    todo.rrule == null &&
+    todo.recurrenceRule == null &&
+    todo.dueDate != null &&
+    todo.status != 'COMPLETED' &&
+    todo.status != 'CANCELLED';
 
 /// The three primary destinations and the chrome they share.
 ///
@@ -72,6 +87,7 @@ class _HomePageState extends ConsumerState<HomePage>
     with WidgetsBindingObserver {
   bool _userChangedTab = false;
   bool _calendarTabWasActive = false;
+  bool _urlSyncScheduled = false;
   Timer? _dayCheckTimer;
   DateTime? _lastCheckedDay;
 
@@ -107,6 +123,7 @@ class _HomePageState extends ConsumerState<HomePage>
     WidgetsBinding.instance.addObserver(this);
     _listenForDefaultTabChanges();
     _listenForWidgetRefreshTriggers();
+    _listenForUrlStateChanges();
     Future.microtask(_runStartupSideEffects);
   }
 
@@ -194,6 +211,7 @@ class _HomePageState extends ConsumerState<HomePage>
     ref
         .read(workspaceTabProvider.notifier)
         .setTab(AppTab.values[index.clamp(0, 2)]);
+    _scheduleUrlSync();
   }
 
   Future<void> _runStartupSideEffects() async {
@@ -297,6 +315,53 @@ class _HomePageState extends ConsumerState<HomePage>
     });
   }
 
+  /// On the web the address bar is the shareable state: a reload or a pasted
+  /// link has to land on the tab and day the reader was looking at.
+  void _listenForUrlStateChanges() {
+    if (!kIsWeb) return;
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.listenManual(viewedDateProvider, (_, __) => _scheduleUrlSync());
+    });
+  }
+
+  void _scheduleUrlSync() {
+    if (!kIsWeb || _urlSyncScheduled) return;
+    _urlSyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _urlSyncScheduled = false;
+      if (!mounted) return;
+      _syncHomeUrl();
+    });
+  }
+
+  void _syncHomeUrl() {
+    final router = GoRouter.maybeOf(context);
+    if (router == null) return;
+    final current = router.routerDelegate.currentConfiguration.uri;
+    // A pushed page owns the address bar; the home state is only written while
+    // home is what is on screen.
+    if (current.path != '/') return;
+    final tab = ref.read(workspaceTabProvider);
+    final target = Uri(
+      path: '/',
+      queryParameters: {
+        'tab': '${_tabIndexFor(tab)}',
+        // Today is the clock's day: writing a browsable date there would
+        // promise a navigation the page does not offer.
+        if (tab != AppTab.action)
+          'date': DateFormat('yyyy-MM-dd').format(ref.read(viewedDateProvider)),
+      },
+    );
+    final same =
+        current.queryParameters.length == target.queryParameters.length &&
+        target.queryParameters.entries.every(
+          (entry) => current.queryParameters[entry.key] == entry.value,
+        );
+    if (same) return;
+    router.go(target.toString());
+  }
+
   Future<void> _checkVersionChangelog() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -384,7 +449,6 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget build(BuildContext context) {
     final tab = ref.watch(workspaceTabProvider);
     final desktop = isWorkspaceLayout(context);
-    final width = MediaQuery.sizeOf(context).width;
 
     if (tab == AppTab.calendar && !_calendarTabWasActive) {
       _calendarTabWasActive = true;
@@ -400,7 +464,7 @@ class _HomePageState extends ConsumerState<HomePage>
       key: ValueKey('workspace-content-$_currentTab'),
       child: switch (tab) {
         AppTab.action => _todayPage(),
-        AppTab.todos => _todoPage(width, desktop),
+        AppTab.todos => _todoPage(desktop),
         AppTab.calendar => _calendarPage(),
       },
     );
@@ -420,36 +484,71 @@ class _HomePageState extends ConsumerState<HomePage>
       );
       // Ctrl K is the habit the old rail taught and the bar keeps a search
       // entry for; both must reach the same page.
-      return CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyK, control: true):
-              _openSearch,
-          const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-              _openSearch,
-        },
-        child: Focus(
-          autofocus: true,
-          child: Scaffold(backgroundColor: context.ds.bg, body: body),
+      return _withSystemBack(
+        tab,
+        CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+                _openSearch,
+            const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+                _openSearch,
+          },
+          child: Focus(
+            autofocus: true,
+            onKeyEvent: _handleEscape,
+            child: Scaffold(backgroundColor: context.ds.bg, body: body),
+          ),
         ),
       );
     }
 
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return Scaffold(
-      backgroundColor: context.ds.bg,
-      resizeToAvoidBottomInset: true,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: SafeArea(bottom: false, child: page)),
-          if (!keyboardOpen)
-            _MobileDock(
-              current: tab,
-              onSelect: (index) => _setTab(index),
-            ),
-        ],
+    return _withSystemBack(
+      tab,
+      Scaffold(
+        backgroundColor: context.ds.bg,
+        resizeToAvoidBottomInset: true,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: SafeArea(bottom: false, child: page)),
+            if (!keyboardOpen)
+              _MobileDock(
+                current: tab,
+                onSelect: (index) => _setTab(index),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// Android's back button belongs to navigation, not to the process: on a
+  /// destination other than Today it returns to Today first.
+  Widget _withSystemBack(AppTab tab, Widget child) {
+    return PopScope(
+      canPop: tab == AppTab.action,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _setTab(0);
+      },
+      child: child,
+    );
+  }
+
+  /// Escape closes the detail pane. Pushed pages own their own Escape path,
+  /// and the pane is a selection rather than a route, so this is its only
+  /// keyboard exit.
+  KeyEventResult _handleEscape(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape) {
+      return KeyEventResult.ignored;
+    }
+    if (ref.read(workspaceSelectionProvider) == null) {
+      return KeyEventResult.ignored;
+    }
+    _clearSelection();
+    return KeyEventResult.handled;
   }
 
   Widget _todayPage() {
@@ -466,15 +565,13 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
-  Widget _todoPage(double width, bool desktop) {
+  Widget _todoPage(bool desktop) {
     final browseDate = ref.watch(viewedDateProvider);
     final selection = ref.watch(workspaceSelectionProvider);
     return A2TodoPage(
       now: _now(),
       dayAgenda: _dayAgenda(browseDate),
-      detail: desktop &&
-              width >= 1180 &&
-              selection is TodoSelection
+      detail: desktop && isMasterDetailLayout(context) && selection != null
           ? _buildDetailPane(selection)
           : null,
       onOpenTodo: _openTodo,
@@ -505,13 +602,7 @@ class _HomePageState extends ConsumerState<HomePage>
         calendar.id: ColorUtils.parseHex(calendar.color),
     };
     final deadlineTodos = (ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
-        .where(
-          (todo) =>
-              todo.rrule == null &&
-              todo.dueDate != null &&
-              todo.status != 'COMPLETED' &&
-              todo.status != 'CANCELLED',
-        )
+        .where(isCalendarDeadlineCandidate)
         .toList();
 
     // The grid draws what it has; a day with nothing to show is still a day,
@@ -607,9 +698,14 @@ class _HomePageState extends ConsumerState<HomePage>
       },
       loadSchedulableTodos: () =>
           ref.read(databaseProvider).todosDao.getSchedulableTodos(),
-      onCreateTodoHere: () => context.push(
-        '/todo/new?start=${range.start.millisecondsSinceEpoch}'
-        '&end=${range.end.millisecondsSinceEpoch}',
+      onCreateTodoHere: () => _openComposer(
+        contextDate: DateTime(
+          range.start.year,
+          range.start.month,
+          range.start.day,
+        ),
+        initialStart: range.start,
+        initialEnd: range.end,
       ),
       onScheduleTodo: (todo, [occurrenceId]) async {
         try {
@@ -703,13 +799,25 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  void _openComposer({DateTime? contextDate, Todo? todo}) {
+  void _openComposer({
+    DateTime? contextDate,
+    Todo? todo,
+    DateTime? initialStart,
+    DateTime? initialEnd,
+  }) {
     showA2Composer(
       context,
       contextDate: contextDate ?? ref.read(viewedDateProvider),
       todo: todo,
+      initialStart: initialStart,
+      initialEnd: initialEnd,
     );
   }
+
+  /// The occurrence each series was last completed on, so the Undo the list
+  /// offers can reopen that instance instead of asking which one again — the
+  /// page only knows the row it ticked, and that row is the series.
+  final Map<int, String> _completedOccurrenceByTodo = {};
 
   Future<void> _toggleTodo(
     Todo todo,
@@ -719,13 +827,27 @@ class _HomePageState extends ConsumerState<HomePage>
     // The single completion entry point: a recurring series row has no one
     // occurrence to tick, so this asks which one instead of calling the
     // writer and surface its "requires an occurrenceId" StateError.
-    await toggleTodoCompletion(
+    // A completed series reopens as a series, not as one occurrence: the
+    // remembered id only answers an undo of an instance completion.
+    final canReuseOccurrence =
+        !completed && occurrenceId == null && todo.status != 'COMPLETED';
+    final undoOccurrence = canReuseOccurrence
+        ? _completedOccurrenceByTodo[todo.id]
+        : null;
+    final result = await toggleTodoCompletion(
       context,
       ref,
       todo: todo,
       completed: completed,
-      occurrenceId: occurrenceId,
+      occurrenceId: occurrenceId ?? undoOccurrence,
     );
+    if (!result.changed) return;
+    final resolved = result.occurrenceId;
+    if (completed && resolved != null) {
+      _completedOccurrenceByTodo[todo.id] = resolved;
+    } else {
+      _completedOccurrenceByTodo.remove(todo.id);
+    }
   }
 
   Widget _buildDetailPane(WorkspaceSelection selection) {
@@ -760,11 +882,14 @@ class _HomePageState extends ConsumerState<HomePage>
     router.push('/search');
   }
 
+  /// Whether a tap can be answered in place. The pane only exists on the Todo
+  /// destination at the master-detail width; every other destination has to
+  /// navigate, or the tap is silently lost.
+  bool _rendersSelectionHere(AppTab tab) =>
+      tab == AppTab.todos && isMasterDetailLayout(context);
+
   void _openTodo(Todo todo) {
-    final width = MediaQuery.sizeOf(context).width;
-    final tab = ref.read(workspaceTabProvider);
-    final minPane = tab == AppTab.action ? 1180.0 : 900.0;
-    if (width >= minPane && isWorkspaceLayout(context)) {
+    if (_rendersSelectionHere(ref.read(workspaceTabProvider))) {
       ref.read(workspaceSelectionProvider.notifier).state = TodoSelection(todo);
       return;
     }
@@ -772,8 +897,7 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _openEvent(CalendaEventAdapter event) {
-    final width = MediaQuery.sizeOf(context).width;
-    if (width >= 1180 && isWorkspaceLayout(context)) {
+    if (_rendersSelectionHere(ref.read(workspaceTabProvider))) {
       ref.read(workspaceSelectionProvider.notifier).state = EventSelection(
         event,
       );
@@ -993,10 +1117,17 @@ class _DesktopBar extends ConsumerWidget {
       (l.todos, CupertinoIcons.checkmark_circle, AppTab.todos),
       (l.calendar, CupertinoIcons.calendar, AppTab.calendar),
     ];
+    // Today answers to the clock, so its date is a read-out rather than a
+    // browsable day: the arrows would move a date the page ignores.
+    final isTodayTab = current == AppTab.action;
+    final monthMode =
+        current == AppTab.calendar &&
+        ref.watch(calendarViewModeProvider) == CalendarViewMode.month;
+    final shownDate = isTodayTab ? now : browseDate;
     // A wide face in a half-screen window cannot hold the wordmark, the date
     // and three labelled destinations; below the design's own width the
     // destinations keep their icons and drop their words.
-    final iconOnly = MediaQuery.sizeOf(context).width < 1180;
+    final iconOnly = !isMasterDetailLayout(context);
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1039,16 +1170,16 @@ class _DesktopBar extends ConsumerWidget {
           const SizedBox(width: 12),
           Container(width: 1, height: 20, color: ds.line),
           const SizedBox(width: 8),
-          _NavStep(
-            icon: CupertinoIcons.chevron_left,
-            tooltip: l.previousDay,
-            onTap: () => ref.read(viewedDateProvider.notifier).state =
-                browseDate.subtract(const Duration(days: 1)),
-          ),
+          if (!isTodayTab)
+            _NavStep(
+              icon: CupertinoIcons.chevron_left,
+              tooltip: monthMode ? l.previousPeriod : l.previousDay,
+              onTap: () => _step(ref, browseDate, monthMode, -1),
+            ),
           Flexible(
             child: Text(
-              '${DateFormat.MMMMd(locale).format(browseDate)} · '
-              '${DateFormat.E(locale).format(browseDate)}',
+              '${DateFormat.MMMMd(locale).format(shownDate)} · '
+              '${DateFormat.E(locale).format(shownDate)}',
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.ellipsis,
@@ -1061,12 +1192,12 @@ class _DesktopBar extends ConsumerWidget {
               ),
             ),
           ),
-          _NavStep(
-            icon: CupertinoIcons.chevron_right,
-            tooltip: l.nextDay,
-            onTap: () => ref.read(viewedDateProvider.notifier).state =
-                browseDate.add(const Duration(days: 1)),
-          ),
+          if (!isTodayTab)
+            _NavStep(
+              icon: CupertinoIcons.chevron_right,
+              tooltip: monthMode ? l.nextPeriod : l.nextDay,
+              onTap: () => _step(ref, browseDate, monthMode, 1),
+            ),
           const SizedBox(width: 4),
           A2Clock(label: DateFormatters.formatTime(now)),
           const Spacer(),
@@ -1100,6 +1231,25 @@ class _DesktopBar extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// A day step barely moves the month grid, so on that surface the bar's
+  /// arrows page the month and keep the browsed day (clamped) — the same
+  /// contract the calendar page's own month header uses.
+  void _step(WidgetRef ref, DateTime from, bool monthMode, int direction) {
+    if (!monthMode) {
+      ref.read(viewedDateProvider.notifier).state = from.add(
+        Duration(days: direction),
+      );
+      return;
+    }
+    final first = DateTime(from.year, from.month + direction, 1);
+    final lastDay = DateTime(first.year, first.month + 1, 0).day;
+    ref.read(viewedDateProvider.notifier).state = DateTime(
+      first.year,
+      first.month,
+      from.day.clamp(1, lastDay),
     );
   }
 }

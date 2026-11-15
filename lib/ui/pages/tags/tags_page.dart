@@ -175,15 +175,25 @@ class TagsPage extends ConsumerWidget {
           ),
         ],
         // A delete that says which tag, and what happens to the records, is
-        // the difference between a mistake and a decision.
+        // the difference between a mistake and a decision. Tags apply to both
+        // events and tasks, so the body names both.
         child: Text(
-          l.tagDeleteBody(tag.name),
+          '${l.tagDeleteBody(tag.name)}\n${l.events} · ${l.todos}',
           style: AppTypography.body.copyWith(color: context.ds.ink2),
         ),
       ),
     );
     if (confirmed != true) return;
-    await ref.read(deleteTagProvider)(tag.id);
+    try {
+      await ref.read(deleteTagProvider)(tag.id);
+    } catch (error) {
+      debugPrint('tags: delete error: $error');
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.error)));
+      }
+    }
   }
 
   /// Create and edit are the same dialog: two different UIs for one field is

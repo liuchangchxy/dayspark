@@ -3,14 +3,42 @@
 **TL;DR / 快速了解**
 - 2026-10-06：重复 Todo 架构回正：实例完成状态按 `(series syncId, occurrenceId)` 稀疏存储；完成/撤销只影响选定 occurrence；新 schema v14 不推断旧 `COMPLETED` series 的实例；同步、Busy Time 与 MCP 同步接入。PR #2 已建立；本轮 hard-delete 生命周期、MCP occurrence 查询与 missed-obligation 语义修正由 PR 更新承载。
 - 本文件记录所有用户反馈及其修复，按版本倒序排列
-- 最新版本 / Latest: **v0.33.0+33** — A″ 最终实现：按 OpenDesign A″ 定稿（`design/opendesign/a2-visual-rebase-2026-11-15/`）在 Direction C 视觉语言上重建 今天 / 待办 / 日历 三页，Today 只读真实今天、待办按日期与日历共享唯一 `browseDate`、截止与计划执行严格分离、同日同条只出现一次；删除旧的日历/待办组件与 9 个对应测试，迁移 20 个测试，新增日历页测试与整页截图工具 / A2 final implementation: Today, Todos and Calendar rebuilt on the Direction C language from the final OpenDesign A″ prototype — Today reads only the real clock, Todo-by-date and Calendar share one browseDate, deadline and planned execution stay separate, and the same Todo appears once per day; the old calendar/todo widgets and their nine test files are gone, twenty tests migrated, plus new calendar-page tests and a whole-page screenshot harness
-- 上一版本 / Previous: **v0.32.0+32** — 回滚 A″ 半成品 UI：真实使用确认表现层不可接受，`main` 恢复到 v0.31.0 已验收的 Direction C 界面。A″ 的日期模型与创建契约保留为已确认结论，等待生产级 UI 设计定稿 / A2 UI rolled back to the accepted v0.31.0 Direction C layer; the A″ date model and creation contract were kept as confirmed conclusions pending a production-grade design
+- 最新版本 / Latest: **v0.34.0+34** — 全产品 UX 收敛收口：以 A″ 定稿为视觉参考、在真实 Flutter 中统一今天 / 待办 / 日历 / 时间槽 / composer / 详情 / 表单 / 设置的行为与状态；语义冻结为 SPEC §3.1.1「用户动作 × 唯一领域写入」12 行表；真机（MuMu）走查暴露并修掉日历头部挤压与月格溢出；三项产品裁定结案（FAB 直建 Event、捕获行底色 surface-2、补齐 6 个 l10n key） / Whole-product UX convergence: A2 stays the visual reference while the real Flutter app converges behavior and states across Today, Todos, Calendar, the slot sheet, the composer, details, forms and Settings; semantics are frozen as SPEC §3.1.1's twelve-row "user verb → single domain write" table; a real-device (MuMu) walkthrough exposed and fixed the calendar header squeeze and the month-cell overflow; three product rulings are closed (the FAB creates an Event directly, a captured row uses surface-2, and the six missing l10n keys are added)
+- 上一版本 / Previous: **v0.33.0+33** — A″ 最终实现：按 OpenDesign A″ 定稿（`design/opendesign/a2-visual-rebase-2026-11-15/`）在 Direction C 视觉语言上重建 今天 / 待办 / 日历 三页，Today 只读真实今天、待办按日期与日历共享唯一 `browseDate`、截止与计划执行严格分离、同日同条只出现一次；删除旧的日历/待办组件与 9 个对应测试，迁移 20 个测试，新增日历页测试与整页截图工具 / A2 final implementation: Today, Todos and Calendar rebuilt on the Direction C language from the final OpenDesign A″ prototype — Today reads only the real clock, Todo-by-date and Calendar share one browseDate, deadline and planned execution stay separate, and the same Todo appears once per day; the old calendar/todo widgets and their nine test files are gone, twenty tests migrated, plus new calendar-page tests and a whole-page screenshot harness
 - 更早 / Earlier: **v0.31.0+31** — 按 OpenDesign v030-v2 重写表现层：设计令牌（bg `#f3f3ef` / surface `#fdfdfb` / ink `#1b1b18` / primary `#2d4f7c`）、`lib/ui/design/ds.dart` 组件库、今天 / 日历 / 待办 / 详情 / 表单 / 搜索 / 设置 / 回收站 / 日历与标签管理全部重排，手机单日日历视图与共享日期条，桌面 236px 侧栏 + 主区 + 详情面，Android 生产小组件改为新色板与 18dp 圆角底 / Presentation rebuilt from the OpenDesign v030-v2 prototypes: new token set, a `ds.dart` component library, every page (Today, Calendar, Todos, details, forms, Search, Settings, Trash, calendar and tag management) relaid out, a phone single-day calendar view with a shared day strip, a 236px desktop rail with a detail pane, and Android production widgets on the new palette with 18dp rounded surfaces
 - 更早 / Earlier: **v0.25.0+25** — Debt 2 unified event seam: every in-process record write now publishes a post-commit domain event (record-applied/record-removed); remote reschedule re-arms local reminders, remote delete cancels queued notifications, event-trash restore re-arms (incl. after a local soft delete — reminder rows are now kept, symmetric with todos); three ad-hoc invalidation channels collapsed into one seam with a single-write-entry guard and an emptied ratchet baseline / 债务2 统一事件缝：进程内一切记录写入改为"写入即登记、提交后发布"的领域事件；远端改期重挂本机提醒、远端删除撤销已排队通知、事件回收站恢复重挂（含本地软删后再恢复：提醒行改为保留，与待办侧对称）；三条临时通道收敛为一条缝 + 单写入口守卫 + 棘轮基线收敛为空
 - 最新流程改进 / Pipeline: **门禁总账 + 变异实证（一条没红过的门禁视为不存在）+ 出口清单 + 流程文档五件** — 2026-10-01
 - 查看 `docs/ROADMAP.md` 获取功能全景，`docs/CONSTRAINTS.md` 获取技术约束
 
 ---
+
+## v0.34.0+34 — UX Convergence Close-out / UX 收敛收口
+
+**用户反馈原文 / User feedback:** 「全产品 Flutter UX 收敛」——以现有 OpenDesign 视觉原型为视觉参考、以真实 Flutter 实现为设计介质，先统一产品语义（待办 / 日程 / 计划执行 / 日历 / 提醒 / 截止 / 完成 + 10 个动词），再按完整用户任务单元收敛所有真实状态；大幅使用 subagent 并行，每个 subagent 必须真实调用 OpenDesign；在 Windows / Android（MuMu）/ Web 上增量验证并当场修；视觉方向冻结，不新增功能面。收口时追加三项裁定：「日历 FAB：按 SPEC，直接新建 Event」「新捕获行底色：用 surface-2」「6 个缺失 l10n key：现在补齐」。
+
+- [x] **语义冻结**：`SPEC.md` §3.1.1 新增 12 行「用户动作 → 唯一领域写入 → 禁止发生」对照表（创建 / 编辑 / 安排 / 改期 / 取消安排 / 完成 / 撤销完成 / 删除 / 恢复 / 截止 / 提醒 / 改排不改提醒）。
+- [x] **今天页**：捕获写裸 `Todo`（无截止、无计划）；捕获行整行可点、5 秒内原地保留并给行内「撤销 · 标签」；一勾双完时 meta 记录完成时刻与原截止；四节各自判空；「接下来 / 已逾期」>3 项折叠；投影失败给重试，有旧值时降级为「陈旧列表 + 重试条」；桌面未安排预览上限 3。
+- [x] **待办页**：右缘 ghost「安排」直达 schedule 模式，标题仍开详情；相对日期改为「N 天后 / N 天前」（日期条是导航，不是逾期风险信号）；视图切换改为可见标题块（去掉 260×44 的隐形热区）；撤销按写入时的 occurrence 精确回滚，不再二次询问。
+- [x] **日历**：24h 轴；现在线吸顶并读时间；「回到现在」浮动键；00:00–06:00 空段折叠；月格按可用高度折叠成 `+N`（真机溢出 15px 的修复）；全天泳道独立；`+N` 溢出标签统一。
+- [x] **时间槽 sheet**：双行头（日期是事实 / 次行是范围并标注默认时长或既有日程）；三动作分级 —— 新建日程（实心）→ 新建并安排（描边）→ 安排待办（文字 + 计数徽标，0 时禁用）；候选**空与错分离**，错误只隔离在「安排待办」一行并给行内重试，加载失败不再伪装成空。
+- [x] **Composer**：六态主按钮文案矩阵（无 / 仅截止 / 仅时段 / 两者 / 安排·时段 / 安排·截止+时段），动词按语境用「保存 / 安排」；安排模式隐藏提醒、日历、优先级与备注行；notes 行进完整表单；保存失败不关 sheet、不清草稿、可重试；成功后 `browseDate` 落到被安排的日期。
+- [x] **详情 / 表单**：自动保存只在成功后更新基线（失败可重试且保留输入）；读取失败给错误 + 重试而非永久转圈；删除加守卫；完成改为草稿态、随保存提交（重复任务给出 occurrence 选择）；重复待办 + 草稿计划被明确拦截并说明。
+- [x] **设置**：分组顺序统一为 通用 / 日历 / 同步 / 数据 / AI 助手 / 通知与提醒 / 关于，语言与启动视图收进「通用」，新增「数据」，AI 分组补「打开助手」（未配置或关闭时不给入口）。
+- [x] **真机发现并修复（单测与桌面构建都看不出来）**：手机日历头部 5 个图标把标题压成「11月9日 …」→ 改为 1 个视图菜单 + 1 个新建键；月视图格子 `RenderFlex overflowed by 15px` → 按可用高度折叠。
+- [x] **三项收口裁定**：日历 FAB 直接新建 Event（三动作菜单只属于具体时间槽），并同步删掉设计说明 §7 与 OpenDesign 项目内的冲突文字；新捕获行底色 `surface-2`（`primary-soft` 留给选中/强调）；补齐 `undoOccurrence` / `backToNow` / `dawnQuiet` / `slotRangeExistingEvent` / `slotRangeDefaultEditable` / `slotEmptyCreateHint` 六个 l10n key（中英双语），不再用既有 key 拼英文。
+- [x] **门禁**：`dart analyze .` 0 issue；全量 `flutter test` 全绿；`tool/check_version_consistency.sh`、`check_whitespace.py`、`scan_hardcoded_paths.py` 通过；MuMu（1080×2400 @480dpi）重走捕获 → 未安排 → 详情 → 安排 → 日历链路。
+- [x] **文档**：`docs/qa/ux-convergence-2026-11-15.md` 记录语义冻结、真机走查、按 OpenDesign 裁定落地的 15 项行为、裁定结案；`docs/CONSTRAINTS.md` 补日历头部入口、FAB 直建、捕获行底色三条约束。
+
+**溯源（原文 → todo → 代码）**
+
+| 原文 | todo | 代码 |
+|------|------|------|
+| 「先统一产品语义」 | 12 行动作×写入对照表 | `SPEC.md` §3.1.1 |
+| 「按完整用户任务单元收敛」 | 捕获→未安排→详情→安排→日历全链路 | `today_page.dart`、`a2_todo_page.dart`、`a2_composer.dart`、`a2_calendar_views.dart` |
+| 「收敛所有真实状态」 | 空 / 载入 / 错 / 禁用 / 保存失败 / 撤销 | `calendar_slot_sheet.dart`、`todo_detail_page.dart`、`event_detail_page.dart`、`quick_add_page.dart` |
+| 「FAB 按 SPEC 直接新建 Event」 | 删掉冲突设计文字并固化约束 | `a2_calendar_page.dart`、`design-notes.md` §7、`docs/CONSTRAINTS.md` |
+| 「新捕获行底色用 surface-2」 | 收回 `primary-soft` 的瞬时高亮用法 | `today_page.dart` `_unplannedRow` |
+| 「6 个缺失 l10n key 现在补齐」 | 中英双语补 key 并接入调用点 | `lib/l10n/app_{en,zh}.arb` |
 
 ## v0.33.0+33 — A″ Final Implementation / A″ 最终实现
 

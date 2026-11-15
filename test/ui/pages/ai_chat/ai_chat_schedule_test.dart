@@ -10,6 +10,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/ai_scheduler_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
@@ -35,6 +36,9 @@ Widget _app(AppDatabase db, {List<Override> overrides = const []}) =>
       overrides: [
         databaseProvider.overrideWithValue(db),
         isAiConfiguredProvider.overrideWith((ref) => Future.value(true)),
+        featureFlagsProvider.overrideWith(
+          (ref) async => FeatureFlags({FeatureFlag.aiAssistant: true}),
+        ),
         aiChatProvider.overrideWith(
           (ref) => FakeAiChatNotifier([
             AiChatMessage(

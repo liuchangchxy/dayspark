@@ -29,9 +29,11 @@ import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
+import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -69,6 +71,7 @@ class _TodoSnapshot {
     required this.deadline,
     required this.startDate,
     required this.rrule,
+    required this.completed,
     required this.tagIds,
     required this.executions,
     required this.reminders,
@@ -84,6 +87,7 @@ class _TodoSnapshot {
   final DateTime? deadline;
   final DateTime? startDate;
   final String? rrule;
+  final bool completed;
   final Set<int> tagIds;
   final List<DraftExecution> executions;
   final List<DraftReminder> reminders;
@@ -101,6 +105,7 @@ class _TodoSnapshot {
       other.deadline == deadline &&
       other.startDate == startDate &&
       other.rrule == rrule &&
+      other.completed == completed &&
       _setEquals(other.tagIds, tagIds) &&
       _listEquals(other.executions, executions) &&
       _listEquals(other.reminders, reminders) &&
@@ -117,6 +122,7 @@ class _TodoSnapshot {
     deadline,
     startDate,
     rrule,
+    completed,
     Object.hashAll(tagIds),
     Object.hashAll(executions),
     Object.hashAll(reminders),
@@ -186,7 +192,10 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
   String? _rrule;
   bool _completed = false;
   bool _saving = false;
+  bool _deleting = false;
   bool _aiLoading = false;
+  bool _loadingAssociations = false;
+  Object? _associationError;
   Set<int> _tagIds = {};
   List<DraftExecution> _executions = [];
   List<DraftReminder> _reminders = [];
@@ -221,7 +230,8 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       _startDate = todo.startDate;
       _rrule = todo.rrule;
       _completed = todo.status == 'COMPLETED';
-      _seedAssociations(todo.id);
+      _loadingAssociations = true;
+      _seedAssociations();
     } else {
       final start = widget.initialExecutionStart;
       final end = widget.initialExecutionEnd;
@@ -233,56 +243,92 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       if (summary != null && summary.isNotEmpty) {
         _summaryController.text = summary;
       }
-      Future.microtask(() async {
-        final calendars = await ref.read(calendarsProvider.future);
-        if (calendars.isNotEmpty && mounted) {
-          setState(() => _calendarId = calendars.first.id);
-        }
-        if (mounted) setState(() => _initial = _snapshot());
-      });
+      _loadingAssociations = true;
+      Future.microtask(_seedAssociations);
     }
   }
 
   /// The existing tags, reminders, attachments and subtasks are the baseline
   /// the draft is compared against. Reading them before the user can type is
   /// what stops a freshly opened form from looking dirty.
-  Future<void> _seedAssociations(int todoId) async {
-    final tags = await ref.read(todoTagsProvider(todoId).future);
-    final reminders = await ref.read(todoRemindersProvider(todoId).future);
-    final attachments = await ref.read(todoAttachmentsProvider(todoId).future);
-    final executions = await ref.read(
-      taskAllocationsForTodoProvider(todoId).future,
-    );
-    final subtasks = await ref.read(subtasksProvider(todoId).future);
-    if (!mounted) return;
+  ///
+  /// Until this finishes the form has no honest baseline, so Save is disabled
+  /// and leaving is treated as unsaved. A failed read must surface as an error
+  /// with a retry rather than as an empty, apparently untouched form.
+  Future<void> _seedAssociations() async {
+    try {
+      final todo = widget.todo;
+      if (todo != null) {
+        final todoId = todo.id;
+        final tags = await ref.read(todoTagsProvider(todoId).future);
+        final reminders = await ref.read(todoRemindersProvider(todoId).future);
+        final attachments = await ref.read(
+          todoAttachmentsProvider(todoId).future,
+        );
+        final executions = await ref.read(
+          taskAllocationsForTodoProvider(todoId).future,
+        );
+        final subtasks = await ref.read(subtasksProvider(todoId).future);
+        if (!mounted) return;
+        setState(() {
+          _tagIds = tags.map((tag) => tag.id).toSet();
+          _reminders = [
+            for (final row in reminders)
+              DraftReminder(id: row.id, triggerTime: row.triggerTime),
+          ];
+          _attachments = [
+            for (final row in attachments) DraftAttachment.fromRow(row),
+          ];
+          _executions = [
+            for (final row in executions.where((row) => row.state == 'active'))
+              DraftExecution(
+                id: row.id,
+                start: row.startAt,
+                end: row.endAt,
+                occurrenceId: row.occurrenceId,
+              ),
+          ];
+          _subtasks = [
+            for (final row in subtasks)
+              DraftSubtask(
+                id: row.id,
+                summary: row.summary,
+                isCompleted: row.status == 'COMPLETED',
+              ),
+          ];
+          _initial = _snapshot();
+          _loadingAssociations = false;
+          _associationError = null;
+        });
+        return;
+      }
+
+      final calendars = await ref.read(calendarsProvider.future);
+      if (!mounted) return;
+      setState(() {
+        if (calendars.isNotEmpty && _calendarId == null) {
+          _calendarId = calendars.first.id;
+        }
+        _initial = _snapshot();
+        _loadingAssociations = false;
+        _associationError = null;
+      });
+    } on Object catch (error) {
+      debugPrint('todo_form: association load failed: $error');
+      if (!mounted) return;
+      setState(() {
+        _loadingAssociations = false;
+        _associationError = error;
+      });
+    }
+  }
+
+  void _retryAssociations() {
     setState(() {
-      _tagIds = tags.map((tag) => tag.id).toSet();
-      _reminders = [
-        for (final row in reminders)
-          DraftReminder(id: row.id, triggerTime: row.triggerTime),
-      ];
-      _attachments = [
-        for (final row in attachments) DraftAttachment.fromRow(row),
-      ];
-      _executions = [
-        for (final row in executions.where((row) => row.state == 'active'))
-          DraftExecution(
-            id: row.id,
-            start: row.startAt,
-            end: row.endAt,
-            occurrenceId: row.occurrenceId,
-          ),
-      ];
-      _subtasks = [
-        for (final row in subtasks)
-          DraftSubtask(
-            id: row.id,
-            summary: row.summary,
-            isCompleted: row.status == 'COMPLETED',
-          ),
-      ];
-      _initial = _snapshot();
+      _loadingAssociations = true;
+      _associationError = null;
     });
+    Future.microtask(_seedAssociations);
   }
 
   _TodoSnapshot _snapshot() => _TodoSnapshot(
@@ -293,6 +339,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     deadline: _deadline,
     startDate: _startDate,
     rrule: _rrule,
+    completed: _completed,
     tagIds: {..._tagIds},
     executions: [..._executions],
     reminders: [..._reminders],
@@ -303,9 +350,14 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
 
   bool get _isDirty {
     final initial = _initial;
-    if (initial == null) return false;
+    // No baseline yet means the form has not read the data it would be
+    // discarding; leaving must not pretend there is nothing to lose.
+    if (initial == null) return true;
     return _snapshot() != initial;
   }
+
+  bool get _canSave =>
+      !_loadingAssociations && _initial != null && _associationError == null;
 
   @override
   void dispose() {
@@ -381,6 +433,32 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       return;
     }
 
+    // A newly created series has no occurrence to bind a draft block to; the
+    // writer would refuse it after the row exists. Say so before touching the
+    // database instead of turning it into a generic failure.
+    if (!_isEditing && _rrule != null && _executions.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l.save} · ${l.scheduleTodoDesc}')),
+      );
+      return;
+    }
+
+    final completionChanged =
+        _isEditing && _completed != (_initial?.completed ?? _completed);
+    String? occurrenceId;
+    if (completionChanged &&
+        _completed &&
+        widget.todo!.rrule != null &&
+        widget.todo!.status != 'COMPLETED') {
+      final selected = await TodoOccurrencePickerSheet.show(
+        context,
+        ref: ref,
+        todo: widget.todo!,
+      );
+      if (selected == null || !mounted) return;
+      occurrenceId = selected.occurrenceId;
+    }
+
     setState(() => _saving = true);
     try {
       final calendars = await ref.read(calendarsProvider.future);
@@ -428,6 +506,19 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         final int todoId;
         if (_isEditing) {
           todoId = widget.todo!.id;
+          // Completion is a draft until Save, and it joins the same
+          // transaction as the rest of the form. It runs before the row update
+          // so the writer sees the shape the user opened (a series needs an
+          // occurrence, an ordinary todo does not).
+          if (completionChanged) {
+            await toggleTodoCompletion(
+              context,
+              ref,
+              todo: widget.todo!,
+              completed: _completed,
+              occurrenceId: occurrenceId,
+            );
+          }
           await ref.read(updateTodoProvider)(
             todoId,
             TodosCompanion(
@@ -728,7 +819,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
                 size: 18,
                 compact: true,
                 tooltip: l.moveToTrash,
-                onPressed: _saving ? null : _delete,
+                onPressed: (_saving || _deleting) ? null : _delete,
               ),
             if (_aiLoading)
               const SizedBox(
@@ -751,7 +842,11 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
                 onPressed: _aiParse,
               ),
             const SizedBox(width: AppSpacing.s1),
-            PageSaveButton(label: l.save, saving: _saving, onPressed: _save),
+            PageSaveButton(
+              label: l.save,
+              saving: _saving,
+              onPressed: _canSave ? _save : null,
+            ),
           ],
           child: _form(context, l, desktop),
         ),
@@ -777,6 +872,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
           child: TextField(
             controller: _summaryController,
             autofocus: !_isEditing,
+            maxLines: null,
             textCapitalization: TextCapitalization.sentences,
             style: TextStyle(
               fontSize: 22,
@@ -802,6 +898,35 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             ),
           ),
         ),
+        if (_associationError != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s4,
+              0,
+              AppSpacing.s4,
+              AppSpacing.s2,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l.error,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: ds.danger,
+                    ),
+                  ),
+                ),
+                DsButton(
+                  label: l.retry,
+                  tone: DsButtonTone.ghost,
+                  small: true,
+                  onPressed: _retryAssociations,
+                ),
+              ],
+            ),
+          ),
         if (_isEditing)
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -881,12 +1006,15 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
             startDate: _startDate,
             needsDate: _anchorDate == null,
           ),
-          ExecutionScheduleSection(
-            todo: widget.todo,
-            draft: _executions,
-            onDraftChanged: (value) => setState(() => _executions = value),
-            deadline: _deadline,
-          ),
+          if (_isEditing || _rrule == null)
+            ExecutionScheduleSection(
+              todo: widget.todo,
+              draft: _executions,
+              onDraftChanged: (value) => setState(() => _executions = value),
+              deadline: _deadline,
+            )
+          else
+            _recurringCreateSchedule(context, l),
         ],
         // RemindersSection draws its own heading and add action; a second
         // label above it printed "提醒" twice, six pixels apart.
@@ -970,20 +1098,48 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     );
   }
 
-  Future<void> _toggleCompletion(bool completed) async {
-    final todo = widget.todo;
-    if (todo == null) return;
-    try {
-      await toggleTodoCompletion(
-        context,
-        ref,
-        todo: todo,
-        completed: completed,
-      );
-      if (mounted) setState(() => _completed = completed);
-    } on Object catch (error) {
-      if (mounted) showCompletionError(context, error);
-    }
+  /// A new series cannot own a draft block yet: the block has to name the
+  /// occurrence it belongs to, and the occurrence does not exist until the
+  /// todo is saved. Keep any slot the user already picked removable, and say
+  /// what to do instead of dropping it on Save.
+  Widget _recurringCreateSchedule(
+    BuildContext context,
+    AppLocalizations l,
+  ) {
+    final ds = context.ds;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_executions.isNotEmpty) ...[
+            SectionLabel(l.executionSchedule),
+            for (final item in _executions)
+              ScheduleRow(
+                label: l.executionRow,
+                value: formatExecutionRange(context, item.start, item.end),
+                clearTooltip: l.cancelSchedule,
+                onClear: () => setState(
+                  () => _executions = [..._executions]..remove(item),
+                ),
+              ),
+          ],
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.s1),
+            child: Text(
+              '${l.save} · ${l.scheduleTodoDesc}',
+              style: TextStyle(fontSize: 12, height: 1.5, color: ds.ink3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The checkbox edits the draft only. The writer runs once, on Save, so
+  /// abandoning the form cannot leave a completion behind.
+  void _toggleCompletion(bool completed) {
+    setState(() => _completed = completed);
   }
 
   Widget _buildLegacyNotice(BuildContext context, AppLocalizations l) {
@@ -1256,6 +1412,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       value.hour == 0 && value.minute == 0;
 
   Future<void> _delete() async {
+    if (_deleting) return;
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1289,7 +1446,18 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     if (confirmed != true || !mounted) return;
     final todoId = widget.todo!.id;
     final restore = ref.read(restoreTodoProvider);
-    await ref.read(deleteTodoProvider)(todoId);
+    setState(() => _deleting = true);
+    try {
+      await ref.read(deleteTodoProvider)(todoId);
+    } on Object catch (error) {
+      debugPrint('todo_form: delete error: $error');
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+      return;
+    }
     if (!mounted) return;
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(

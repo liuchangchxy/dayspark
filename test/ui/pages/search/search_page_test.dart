@@ -249,4 +249,78 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
     router.dispose();
   });
+
+  testWidgets('a failed new query shows an error and retry, not stale hits', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final todo = Todo(
+      id: 1,
+      calendarId: 1,
+      summary: 'Quarterly plan',
+      priority: 5,
+      status: 'NEEDS-ACTION',
+      recurrenceRevision: 0,
+      percentComplete: 0,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+      sortOrder: 0,
+      serverRev: 0,
+    );
+    final router = GoRouter(
+      initialLocation: '/search',
+      routes: [
+        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
+          inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+          searchResultsProvider(
+            'plan',
+          ).overrideWith((ref) async => SearchResults([], [todo])),
+          searchResultsProvider('broken').overrideWith(
+            (ref) async => throw Exception('search backend down'),
+          ),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'plan');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('Quarterly plan'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'broken');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.text('Quarterly plan'),
+      findsNothing,
+      reason: 'a failed query must not keep presenting the previous answer',
+    );
+    expect(find.text('Search failed. Please try again.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+
+    debugDefaultTargetPlatformOverride = null;
+    router.dispose();
+  });
 }

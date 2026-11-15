@@ -148,10 +148,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
     final resultsAsync = ref.watch(pagedSearchResultsProvider(queryState));
     final loading = resultsAsync.isLoading;
-    final results = resultsAsync.valueOrNull ?? _shown;
-    if (resultsAsync.hasValue && !identical(results, _shown)) {
+    final fresh = resultsAsync.valueOrNull;
+    // Keep the previous answer readable while the next query loads, but never
+    // hand it back as the answer to a query that failed.
+    final results = fresh ?? (resultsAsync.hasError ? null : _shown);
+    if (resultsAsync.hasValue && !identical(fresh, _shown)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _shown = resultsAsync.value);
+        if (mounted) setState(() => _shown = fresh);
       });
     }
 
@@ -173,6 +176,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             selected,
             hits,
             shrinkWrap: shrinkWrap,
+            loading: loading,
           );
 
     final shortcuts = <ShortcutActivator, VoidCallback>{
@@ -416,22 +420,41 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     AppLocalizations l,
     SearchQueryState q,
   ) {
+    final ds = context.ds;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l.searchFailed,
-            style: AppTypography.body.copyWith(color: context.ds.ink2),
-          ),
-          const SizedBox(height: AppSpacing.s2),
-          DsButton(
-            label: l.retry,
-            tone: DsButtonTone.secondary,
-            small: true,
-            onPressed: () => ref.invalidate(pagedSearchResultsProvider(q)),
-          ),
-        ],
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 460),
+        margin: const EdgeInsets.all(AppSpacing.s4),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: ds.surface,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          border: Border.all(color: ds.line),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              CupertinoIcons.exclamationmark_circle,
+              size: 16,
+              color: ds.danger,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                l.searchFailed,
+                style: AppTypography.caption.copyWith(color: ds.ink2),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.s2),
+            DsButton(
+              label: l.retry,
+              tone: DsButtonTone.secondary,
+              small: true,
+              onPressed: () => ref.invalidate(pagedSearchResultsProvider(q)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -445,6 +468,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     int selected,
     List<_SearchHit> hits, {
     required bool shrinkWrap,
+    required bool loading,
   }) {
     if (results == null) {
       return const Center(child: CircularProgressIndicator());
@@ -490,7 +514,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 _eventPage++;
                 _selected = 0;
               });
-            }, desktop),
+            }, desktop, loading),
         ],
         if (results.todos.isNotEmpty) ...[
           _groupHeader(
@@ -507,6 +531,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               selected == index++,
               desktop,
               horizontal,
+              () {
+                final all = _shown == null
+                    ? const <_SearchHit>[]
+                    : _hits(_shown!);
+                final at = all.indexWhere((hit) => identical(hit.todo, todo));
+                if (at >= 0 && at != _selected) {
+                  setState(() => _selected = at);
+                }
+              },
             ),
           if (results.hasMoreTodos)
             _loadMore(l, () {
@@ -514,7 +547,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 _todoPage++;
                 _selected = 0;
               });
-            }, desktop),
+            }, desktop, loading),
         ],
       ],
     );
@@ -630,12 +663,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     bool selected,
     bool desktop,
     double horizontal,
+    VoidCallback onHover,
   ) {
     return _SearchRowFrame(
       selected: selected,
       height: desktop ? 52 : 56,
       horizontal: 0,
       onTap: () => _openHit(_SearchHit.todo(todo)),
+      onHover: onHover,
       child: TodoListTile(
         summary: todo.summary,
         isCompleted: todo.status == 'COMPLETED',
@@ -649,7 +684,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _loadMore(AppLocalizations l, VoidCallback onTap, bool desktop) {
+  Widget _loadMore(
+    AppLocalizations l,
+    VoidCallback onTap,
+    bool desktop,
+    bool loading,
+  ) {
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: desktop ? 18 : AppSpacing.s4,
@@ -661,7 +701,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           label: l.loadMore,
           tone: DsButtonTone.ghost,
           small: true,
-          onPressed: onTap,
+          loading: loading,
+          onPressed: loading ? null : onTap,
         ),
       ),
     );

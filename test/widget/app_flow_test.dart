@@ -64,6 +64,15 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+/// The calendar header names the three views in one menu now, so a test
+/// switches views the way a reader does: open the menu, pick the label.
+Future<void> _switchCalendarView(WidgetTester tester, String label) async {
+  await tester.tap(find.byKey(const ValueKey('calendar-view-menu')));
+  await _settle(tester);
+  await tester.tap(find.text(label).last);
+  await _settle(tester);
+}
+
 Future<void> _openSettings(WidgetTester tester) async {
   await tester.tap(find.byIcon(CupertinoIcons.settings));
   await _settle(tester);
@@ -94,7 +103,7 @@ void main() {
     await _settle(tester);
 
     // The month grid is the one surface with a creation affordance.
-    await tester.tap(find.byTooltip('Month').first);
+    await _switchCalendarView(tester, 'Month');
     await _settle(tester);
 
     await tester.tap(find.byType(A2Fab));

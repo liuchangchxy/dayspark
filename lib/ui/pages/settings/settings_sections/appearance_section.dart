@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/domain/providers/default_tab_provider.dart';
+import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -18,6 +20,8 @@ class AppearanceSection extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final currentTheme = ref.watch(themeModeProvider);
     final currentAccent = ref.watch(themeColorProvider);
+    final locale = ref.watch(localeProvider);
+    final defaultTab = ref.watch(defaultTabProvider);
     final brightness = Theme.of(context).brightness;
     final ds = context.ds;
     final mobile = !isWorkspaceLayout(context);
@@ -37,6 +41,26 @@ class AppearanceSection extends ConsumerWidget {
 
     return SettingsRows(
       children: [
+        SettingsRow(
+          label: l.language,
+          value: locale == null
+              ? l.languageSystem
+              : locale.languageCode == 'zh'
+              ? l.languageZh
+              : l.languageEn,
+          chevron: SettingsChevron.down,
+          onTap: () => _showLanguageDialog(context, ref),
+        ),
+        SettingsRow(
+          label: l.defaultTab,
+          value: switch (defaultTab) {
+            AppTab.action => l.today,
+            AppTab.calendar => l.calendar,
+            AppTab.todos => l.todos,
+          },
+          chevron: SettingsChevron.down,
+          onTap: () => _showDefaultTabDialog(context, ref),
+        ),
         SettingsRow(
           label: l.theme,
           trailing: SizedBox(
@@ -79,6 +103,45 @@ class AppearanceSection extends ConsumerWidget {
         else
           SettingsRow(label: l.themeColor, trailing: swatches),
       ],
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final current = ref.read(localeProvider);
+    final currentTag = current == null
+        ? 'system'
+        : current.languageCode == 'zh'
+        ? 'zh'
+        : 'en';
+    showSettingsChoice<String>(
+      context: context,
+      title: l.language,
+      current: currentTag,
+      options: [
+        ('system', l.languageSystem),
+        ('zh', l.languageZh),
+        ('en', l.languageEn),
+      ],
+      onSelected: (tag) => ref
+          .read(localeProvider.notifier)
+          .setLocale(tag == 'system' ? null : Locale(tag)),
+    );
+  }
+
+  void _showDefaultTabDialog(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    showSettingsChoice<AppTab>(
+      context: context,
+      title: l.defaultTab,
+      current: ref.read(defaultTabProvider),
+      options: [
+        (AppTab.action, l.today),
+        (AppTab.calendar, l.calendar),
+        (AppTab.todos, l.todos),
+      ],
+      onSelected: (tab) =>
+          ref.read(defaultTabProvider.notifier).setDefaultTab(tab),
     );
   }
 }

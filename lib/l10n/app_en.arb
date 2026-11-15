@@ -114,6 +114,7 @@
   "aiConfig": "AI Configuration",
   "aiEnable": "Enabled",
   "aiAssistant": "AI Assistant",
+  "openAssistant": "Open assistant",
   "apiKey": "API Key",
   "baseUrl": "Base URL",
   "model": "Model",
@@ -830,7 +831,7 @@
   "remindCustom": "Custom time",
   "reminderNeedsAnchor": "Set a deadline or start time first, then reminders can be relative to it.",
   "actionEarlierToday": "Earlier today",
-  "createTodoAndSchedule": "New Task",
+  "createTodoAndSchedule": "New & schedule",
   "calendarHasContents": "This calendar holds {events} events and {todos} tasks.",
   "@calendarHasContents": {
     "placeholders": {
@@ -1035,6 +1036,8 @@
   "@planToDate": {"placeholders": {"date": {"type": "String"}}},
   "inDaysCount": "In {count} days",
   "@inDaysCount": {"placeholders": {"count": {"type": "int"}}},
+  "daysAgo": "{count, plural, =1{1 day ago} other{{count} days ago}}",
+  "@daysAgo": {"placeholders": {"count": {"type": "int"}}},
   "yearMonthTitle": "{year} / {month}",
   "@yearMonthTitle": {"placeholders": {"year": {"type": "String"}, "month": {"type": "String"}}},
   "yearLabel": "Year",
@@ -1064,5 +1067,13 @@
   "@eventCountLabel": {"placeholders": {"count": {"type": "int"}}},
   "composerOptional": "Optional",
   "previousDay": "Previous day",
-  "nextDay": "Next day"
+  "nextDay": "Next day",
+  "undoOccurrence": "Undo · {label}",
+  "@undoOccurrence": {"placeholders": {"label": {"type": "String"}}},
+  "backToNow": "Back to now",
+  "dawnQuiet": "{start}–{end} · quiet hours, nothing scheduled",
+  "@dawnQuiet": {"placeholders": {"start": {"type": "String"}, "end": {"type": "String"}}},
+  "slotRangeExistingEvent": "Existing event",
+  "slotRangeDefaultEditable": "default, editable",
+  "slotEmptyCreateHint": "Nothing to schedule yet — create one and it lands in this slot."
 }

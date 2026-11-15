@@ -92,6 +92,15 @@ Future<void> _settle(WidgetTester tester, [int frames = 15]) async {
   }
 }
 
+/// The calendar header names the three views in one menu now, so a test
+/// switches views the way a reader does: open the menu, pick the label.
+Future<void> _switchCalendarView(WidgetTester tester, String label) async {
+  await tester.tap(find.byKey(const ValueKey('calendar-view-menu')));
+  await _settle(tester);
+  await tester.tap(find.text(label).last);
+  await _settle(tester);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -290,7 +299,7 @@ void main() {
 
     await tester.tap(find.text('Calendar').last);
     await _settle(tester);
-    await tester.tap(find.byTooltip('Month').first);
+    await _switchCalendarView(tester, 'Month');
     await _settle(tester);
     await tester.tap(
       find.byKey(
@@ -602,5 +611,55 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'width $width');
       await _unmount(tester);
     }
+  });
+
+  test('a spec-only series is not a calendar deadline', () {
+    Todo todo({
+      String? rrule,
+      String? recurrenceRule,
+      DateTime? dueDate,
+      String status = 'NEEDS-ACTION',
+    }) => Todo(
+      id: 1,
+      calendarId: 1,
+      summary: 'Weekly report',
+      dueDate: dueDate,
+      priority: 0,
+      status: status,
+      rrule: rrule,
+      recurrenceRule: recurrenceRule,
+      recurrenceRevision: 0,
+      percentComplete: 0,
+      createdAt: DateTime(2026, 11, 15),
+      updatedAt: DateTime(2026, 11, 15),
+      sortOrder: 0,
+      serverRev: 0,
+    );
+    final due = DateTime(2026, 11, 15, 18);
+
+    // The DAO's ordinary predicate tests both columns; a spec-only series is
+    // still a series and must not appear as one deadline per series.
+    expect(isCalendarDeadlineCandidate(todo(dueDate: due)), isTrue);
+    expect(
+      isCalendarDeadlineCandidate(
+        todo(rrule: 'FREQ=WEEKLY', dueDate: due),
+      ),
+      isFalse,
+    );
+    expect(
+      isCalendarDeadlineCandidate(
+        todo(recurrenceRule: 'FREQ=WEEKLY', dueDate: due),
+      ),
+      isFalse,
+    );
+    expect(isCalendarDeadlineCandidate(todo()), isFalse);
+    expect(
+      isCalendarDeadlineCandidate(todo(dueDate: due, status: 'COMPLETED')),
+      isFalse,
+    );
+    expect(
+      isCalendarDeadlineCandidate(todo(dueDate: due, status: 'CANCELLED')),
+      isFalse,
+    );
   });
 }

@@ -296,16 +296,27 @@ class A2MetaLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A completed row can carry four marks (plan, done-at, original due,
+    // calendar). Fixed marks that refuse to shrink add up past the row and
+    // overflow it, so the whole line also clips: the prose gives way first,
+    // and anything still over is cut rather than painted outside the card.
     return SizedBox(
       height: 18,
-      child: Row(
-        children: [
-          for (final part in parts)
-            if (shrinks(part))
-              Flexible(fit: FlexFit.loose, child: part)
-            else
-              part,
-        ],
+      child: ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.centerLeft,
+          maxWidth: double.infinity,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final part in parts)
+                if (shrinks(part))
+                  Flexible(fit: FlexFit.loose, child: part)
+                else
+                  part,
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -875,14 +886,21 @@ class A2Block extends StatelessWidget {
           const SizedBox(height: 2),
           SizedBox(
             height: 16,
-            child: Row(
-              children: [
-                for (final part in meta)
-                  if (A2MetaLine.shrinks(part))
-                    Flexible(fit: FlexFit.loose, child: part)
-                  else
-                    part,
-              ],
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.centerLeft,
+                maxWidth: double.infinity,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final part in meta)
+                      if (A2MetaLine.shrinks(part))
+                        Flexible(fit: FlexFit.loose, child: part)
+                      else
+                        part,
+                  ],
+                ),
+              ),
             ),
           ),
         ],

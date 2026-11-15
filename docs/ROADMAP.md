@@ -2,14 +2,15 @@
 
 > 2026-10-06 update: recurring per-instance completion is implemented on `fix/recurring-task-instance-completion`; PR #2 tracks delivery and current Hosted CI evidence. The Todo UI remains a series row with an occurrence selector.
 
-> Last updated / 最后更新: v0.33.0+33 | 2026-11-15 | A2 final implementation: Today, Todos and Calendar rebuilt from the final OpenDesign A″ prototype on the Direction C visual language — Today reads only the real clock, Todo-by-date and Calendar share one browseDate, deadline and planned execution stay separate, and the same Todo appears once per day; eleven pages' worth of old calendar/todo widgets deleted, twenty tests migrated, a new calendar-page test file and a whole-page screenshot harness added; allocation UTC storage now localized at the calendar adapter. Previous: v0.32.0+32 | 2026-11-15 | A2 UI rollback: real use rejected the presentation layer, so the v0.31.0 Direction C UI is restored on main. The A2 date model and creation contract remain confirmed product/domain decisions (SPEC rule 20, CORE_UX_SPEC §16) and wait for a production-grade UI design before re-implementation. Previous: v0.31.0+31 | 2026-11-10 | OpenDesign v030-v2 presentation rewrite: the prototype is the target product, not a reference — design tokens (bg #f3f3ef, surface #fdfdfb, ink #1b1b18, primary #2d4f7c), a `lib/ui/design/ds.dart` component library, and every page (Today, Calendar, Todos, details, forms, Search, Settings, Trash, calendar and tag management) rebuilt on it; phone single-day calendar view with a shared day strip; 236px desktop rail with a detail pane; Android production widgets on the new palette with 18dp rounded surfaces. Previous: v0.30.0+30 | 2026-11-07 | Core UX: primary navigation is 今天 / 日历 / 待办; 今天 folds one obligation into one row and links to 未安排; 待办 keeps its day navigation and quick capture; creation is explicit per context; the calendar picker always opens and can create a calendar in place; Settings is regrouped as 通用 / 日历 / 数据 / 同步 / AI / 通知与提醒 / 关于. Previous: v0.29.0+29 | 2026-10-23 | One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox become Todo views), Action answers only "what now/today", Todo asks only deadline and execution time, create and edit collapse into one form page per object with a read-only detail surface, and the desktop rail persists across the whole app through `ShellRoute`. Earlier: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: Apple Calendar-style warm/clear language — iOS system palette, 6-step type scale, iOS radii, layered elevation, five locked accent presets (`DESIGN.md` rewritten)
+> Last updated / 最后更新: v0.34.0+34 | 2026-11-16 | UX convergence close-out: A2 stays the visual reference while the real Flutter app converges behavior and every real state across Today, Todos, Calendar, the slot sheet, composer, details, forms and Settings; semantics frozen as SPEC §3.1.1's twelve-row user-verb → single-write table; a MuMu device walkthrough fixed the calendar header squeeze and the month-cell overflow; three rulings closed (FAB creates an Event directly, captured rows use surface-2, six missing l10n keys added). Previous: v0.33.0+33 | 2026-11-15 | A2 final implementation: Today, Todos and Calendar rebuilt from the final OpenDesign A″ prototype on the Direction C visual language — Today reads only the real clock, Todo-by-date and Calendar share one browseDate, deadline and planned execution stay separate, and the same Todo appears once per day; eleven pages' worth of old calendar/todo widgets deleted, twenty tests migrated, a new calendar-page test file and a whole-page screenshot harness added; allocation UTC storage now localized at the calendar adapter. Previous: v0.32.0+32 | 2026-11-15 | A2 UI rollback: real use rejected the presentation layer, so the v0.31.0 Direction C UI is restored on main. The A2 date model and creation contract remain confirmed product/domain decisions (SPEC rule 20, CORE_UX_SPEC §16) and wait for a production-grade UI design before re-implementation. Previous: v0.31.0+31 | 2026-11-10 | OpenDesign v030-v2 presentation rewrite: the prototype is the target product, not a reference — design tokens (bg #f3f3ef, surface #fdfdfb, ink #1b1b18, primary #2d4f7c), a `lib/ui/design/ds.dart` component library, and every page (Today, Calendar, Todos, details, forms, Search, Settings, Trash, calendar and tag management) rebuilt on it; phone single-day calendar view with a shared day strip; 236px desktop rail with a detail pane; Android production widgets on the new palette with 18dp rounded surfaces. Previous: v0.30.0+30 | 2026-11-07 | Core UX: primary navigation is 今天 / 日历 / 待办; 今天 folds one obligation into one row and links to 未安排; 待办 keeps its day navigation and quick capture; creation is explicit per context; the calendar picker always opens and can create a calendar in place; Settings is regrouped as 通用 / 日历 / 数据 / 同步 / AI / 通知与提醒 / 关于. Previous: v0.29.0+29 | 2026-10-23 | One product across every page: top-level navigation is Action / Calendar / Todo (Today and Inbox become Todo views), Action answers only "what now/today", Todo asks only deadline and execution time, create and edit collapse into one form page per object with a read-only detail surface, and the desktop rail persists across the whole app through `ShellRoute`. Earlier: v0.27.0+28 | 2026-10-05 | Windows startup compatibility: `home_widget` calls are limited to Android/iOS; macOS/Windows/Linux/Web no-op. Earlier: v0.26.0+27 | 2026-09-30 | Visual redesign: Apple Calendar-style warm/clear language — iOS system palette, 6-step type scale, iOS radii, layered elevation, five locked accent presets (`DESIGN.md` rewritten)
 > This is the single living document for the project, replacing the archived REQUIREMENTS.md and PLAN.md.
 > 本文档是项目唯一的活文档，替代已归档的 REQUIREMENTS.md 和 PLAN.md。
 
 **TL;DR / 快速了解**
-- 当前版本 / Current: **v0.33.0+33** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
+- 当前版本 / Current: **v0.34.0+34** | 5 平台构建 (Android/Web/macOS/Linux/Windows) 全部成功
 - 核心功能：日历日程管理（kalender 视图）+ 待办清单 + AI 助手（BYO key 客户端 AI）+ 自托管跨设备同步 + 服务端 MCP/AI 读写
-- 最新变化：**A″ 最终实现（v0.33.0）** — 按 OpenDesign A″ 定稿在 Direction C 视觉语言上重建 今天 / 待办 / 日历：Today 恒等于真实今天、待办按日期与日历共享唯一 browseDate、截止 / 计划执行 / 日程三者不互相顶替、同日同条只出现一次；旧的日历与待办组件及其测试删除，20 个测试迁移，新增日历页测试与整页截图工具
+- 最新变化：**全产品 UX 收敛收口（v0.34.0）** — 以 A″ 为视觉参考、在真实 Flutter 中统一今天 / 待办 / 日历 / 时间槽 / composer / 详情 / 表单 / 设置的行为与全部真实状态；语义冻结为 SPEC §3.1.1 的 12 行「用户动作 → 唯一领域写入」表；MuMu 真机走查修掉日历头部挤压与月格溢出；三项裁定结案（FAB 直建 Event、捕获行底色 surface-2、补 6 个 l10n key）
+- 上一版：**A″ 最终实现（v0.33.0）** — 按 OpenDesign A″ 定稿在 Direction C 视觉语言上重建 今天 / 待办 / 日历：Today 恒等于真实今天、待办按日期与日历共享唯一 browseDate、截止 / 计划执行 / 日程三者不互相顶替、同日同条只出现一次；旧的日历与待办组件及其测试删除，20 个测试迁移，新增日历页测试与整页截图工具
 - 上一版：**OpenDesign 表现层重写（v0.31.0）** — 以原型为目标产品重写全部页面：设计令牌 + `ds.dart` 组件库、手机单日日历视图与共享日期条、桌面 236px 侧栏 + 详情面、Android 生产小组件新色板
 - 更早：**视觉重设计（v0.26.0）** — Apple 日历式温和清晰：iOS 系统色板、6 级字阶、iOS 圆角与分层阴影、锁死的 5 套预设主题色（`DESIGN.md` 重写）
 - 更早：**P4 平台补齐与待办体验落地（v0.24.0）** — Apple 资产统一、小组件 v2 三变体、六件事/隐藏已完成、节气调休标记、设置 IA 终态、time-sensitive 通知（设备门 caveat）、adhoc keychain 签名修复
@@ -26,6 +27,15 @@ v0.33.0 起，`main` 的 今天 / 待办 / 日历 三页就是 A″ 定稿（`de
 - 创建只写入用户已表达的精度：Today 捕获不写截止、不建计划；「安排到这一天」不预填时段；只有日历具体时间槽继承时间。
 - 同日既截止又计划的 Todo 只显示一次，allocation 为主、deadline 为次级。
 - 落地前必须先有覆盖全部生产状态的 UI 设计并通过独立评审；禁止把布局决定留给实现者临场发挥。
+
+## UX 收敛收口（v0.34.0）/ UX Convergence (v0.34.0)
+
+A″ 定稿仍是视觉参考；v0.34.0 收敛的是**行为、状态与跨页流程**，不改视觉语言、不扩功能面。完整记录见 `docs/qa/ux-convergence-2026-11-15.md`。
+
+- **语义**：`SPEC.md` §3.1.1 的 12 行表是唯一口径——每个用户动词对应一次领域写入，并列出"禁止发生"。
+- **已完成**：今天页捕获/撤销/分节判空/折叠/投影失败降级；待办页行内安排与精确撤销；日历 24h 轴、吸顶现在线、回到现在、凌晨折叠、月格按高折叠；时间槽 sheet 双行头 + 三动作分级 + 空/错分离；composer 六态文案 + 失败保草稿 + 成功落点；详情/表单读失败重试、删除守卫、草稿式完成；设置分组顺序统一。
+- **裁定（不再反复）**：日历 FAB 直接新建 Event（三动作菜单只属于具体时间槽）；新捕获行底色 `surface-2`（`primary-soft` 只给选中/强调）；6 个缺失 l10n key 已补齐。三条均写入 `docs/CONSTRAINTS.md`。
+- **真机修复**：手机日历头部 5 图标 → 1 视图菜单 + 1 新建键；月视图格子 `RenderFlex overflowed by 15px` → 按可用高度折叠。
 
 ## Action Loop Foundation / 行动闭环基础 (Phase 1, 2026-10-06)
 
@@ -49,7 +59,7 @@ v0.33.0 起，`main` 的 今天 / 待办 / 日历 三页就是 A″ 定稿（`de
 
 ## Recurring Todo / Occurrence Design Spike (2026-10-04)
 
-- **设计结论已落文档**：`SPEC.md` §3.1.1、`DECISIONS.md` 同日裁定；完整证据边界见 `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`。
+- **设计结论已落文档**：`SPEC.md` §3.1.2、`DECISIONS.md` 同日裁定；完整证据边界见 `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`。
 - **运行验收状态：PASS（spike vectors）**：SDK 从 `C:\src\flutter` 的绝对路径运行；RRULE、gap/fold、DATE-only、ICS parser/converter、client/server 临时 path package vectors 均已实测。`dart analyze .` 零 issue；全量 `flutter test` 414 项通过；`git diff --check` 通过。
 - **R1 Shared Recurrence Core：完成**：纯 Dart `packages/dayspark_recurrence` 已接入 client/server；两端统一 `timezone 0.11.1`。RRULE validator、DATE/DATE-TIME nominal occurrence、identity codec、显式 gap/fold resolver、有限窗口/结果/扫描上限均有同一份共享 golden fixtures；阶段 commit 见 Git 历史。
 - **R2 Recurrence Persistence + Atomic Sync + Legacy State：完成**：schema v12 结构化持久化 RecurrenceSpec；旧重复 Todo 迁为 `unknownLegacy` 且不猜时区；contracts、client outbox/apply、server revision 整组冲突及旧客户端保护已接通。
@@ -755,4 +765,4 @@ Suggest focusing on P0 #2 (DB migration) + P1 items. / 建议做 P0 #2（DB 迁�
 | i18n keys / i18n key | 264 |
 | Dependencies / 依赖包 | 25+ |
 | Built platforms / 已构建平台 | 5 (Web, macOS, Linux, Android, Windows) — all release builds passing |
-| Version / 版本 | v0.33.0+33 |
+| Version / 版本 | v0.34.0+34 |

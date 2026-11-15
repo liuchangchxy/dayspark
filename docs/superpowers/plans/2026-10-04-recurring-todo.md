@@ -1,7 +1,7 @@
 # Recurring Todo — Implementation Plan
 
 Status: **R1–R4 committed locally; R4 independent delta review PASS. Windows GUI smoke remains pending.**
-Contract: `SPEC.md` §3.1.1
+Contract: `SPEC.md` §3.1.2
 Source audit: `docs/superpowers/plans/2026-10-04-recurring-todo-design-spike.md`
 
 ## Objective and scope
@@ -46,7 +46,7 @@ R1 implementation and verification are recorded in `DECISIONS.md` and `docs/ROAD
 
 ## Phase 2 — Atomic sync contract and persistence
 
-R2 contract in this phase is `SPEC.md` §3.1.1. Persist `anchor_source`, `anchor_value_type`, `anchor_value`, `time_zone`, normalized `rrule`, `legacy_state`, and `recurrence_revision` as structured nullable columns on Todo. A complete `knownZoned` tuple is present together; `unknownLegacy` keeps tuple columns null and preserves old fields. Non-recurring rows have no recurrence state. Upgrade current client schema v11 to v12 additively and verify real v11→v12 close/reopen migration with Todo relations and TaskAllocation unchanged.
+R2 contract in this phase is `SPEC.md` §3.1.2. Persist `anchor_source`, `anchor_value_type`, `anchor_value`, `time_zone`, normalized `rrule`, `legacy_state`, and `recurrence_revision` as structured nullable columns on Todo. A complete `knownZoned` tuple is present together; `unknownLegacy` keeps tuple columns null and preserves old fields. Non-recurring rows have no recurrence state. Upgrade current client schema v11 to v12 additively and verify real v11→v12 close/reopen migration with Todo relations and TaskAllocation unchanged.
 
 Wire uses one nested `recurrenceSpec` object, `recurrenceRevision`, and `recurrenceLegacyState`. Ordinary Todo fields retain field-level LWW. Server validates and resolves the recurrence object atomically; equal revision ties use a deterministic whole-object winner. Legacy clients can omit new keys and read the compatibility projection, but cannot write legacy recurrence fields over an active new recurrence. Independent fields in that op remain eligible for LWW.
 

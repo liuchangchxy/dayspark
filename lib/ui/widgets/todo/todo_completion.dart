@@ -14,11 +14,12 @@ import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 /// detail page ended up throwing on every recurring todo while the list asked
 /// the user which occurrence. Resolution lives here so it cannot drift again.
 ///
-/// Returns true when the todo changed, false when the user dismissed the
-/// occurrence selector.
+/// Returns whether the todo changed and, for a recurring series, the
+/// occurrence the write landed on. Callers that show an Undo action can hand
+/// that id back on the inverse call instead of asking the user to pick again.
 /// [occurrenceId] is for callers that already know which occurrence they
 /// mean — a calendar allocation is bound to one — so the picker is skipped.
-Future<bool> toggleTodoCompletion(
+Future<({bool changed, String? occurrenceId})> toggleTodoCompletion(
   BuildContext context,
   WidgetRef ref, {
   required Todo todo,
@@ -31,20 +32,20 @@ Future<bool> toggleTodoCompletion(
       isCompleted: completed,
       occurrenceId: occurrenceId,
     );
-    return true;
+    return (changed: true, occurrenceId: occurrenceId);
   }
 
   final recurring = todo.rrule != null;
   if (!recurring) {
     await ref.read(toggleTodoProvider)(id: todo.id, isCompleted: completed);
-    return true;
+    return (changed: true, occurrenceId: null);
   }
 
   // A series that is already completed has no single occurrence to point at;
   // reopening it means reopening the parent row, exactly like the list.
   if (todo.status == 'COMPLETED') {
     await ref.read(toggleTodoProvider)(id: todo.id, isCompleted: false);
-    return true;
+    return (changed: true, occurrenceId: null);
   }
 
   final selected = await TodoOccurrencePickerSheet.show(
@@ -52,13 +53,15 @@ Future<bool> toggleTodoCompletion(
     ref: ref,
     todo: todo,
   );
-  if (selected == null || !context.mounted) return false;
+  if (selected == null || !context.mounted) {
+    return (changed: false, occurrenceId: null);
+  }
   await ref.read(toggleTodoProvider)(
     id: todo.id,
     isCompleted: completed,
     occurrenceId: selected.occurrenceId,
   );
-  return true;
+  return (changed: true, occurrenceId: selected.occurrenceId);
 }
 
 /// Reports a completion failure without leaking the raw exception.

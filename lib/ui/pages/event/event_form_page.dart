@@ -62,7 +62,10 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
   bool _isAllDay = false;
   late final bool _openedAsAllDay;
   bool _saving = false;
+  bool _deleting = false;
   bool _aiLoading = false;
+  bool _loadingAssociations = false;
+  Object? _associationError;
   String? _rrule;
   int? _calendarId;
   Set<int> _tagIds = {};
@@ -94,7 +97,8 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
       _openedAsAllDay = event.isAllDay;
       _rrule = event.rrule;
       _calendarId = event.calendarId;
-      _seedAssociations(event.drifId);
+      _loadingAssociations = true;
+      _seedAssociations();
     } else {
       _start = widget.initialStart!;
       _end = widget.initialEnd!;
@@ -103,24 +107,44 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
     }
   }
 
-  Future<void> _seedAssociations(int eventId) async {
-    final tags = await ref.read(eventTagsProvider(eventId).future);
-    final reminders = await ref.read(eventRemindersProvider(eventId).future);
-    final attachments = await ref.read(
-      eventAttachmentsProvider(eventId).future,
-    );
-    if (!mounted) return;
+  Future<void> _seedAssociations() async {
+    try {
+      final eventId = widget.event!.drifId;
+      final tags = await ref.read(eventTagsProvider(eventId).future);
+      final reminders = await ref.read(eventRemindersProvider(eventId).future);
+      final attachments = await ref.read(
+        eventAttachmentsProvider(eventId).future,
+      );
+      if (!mounted) return;
+      setState(() {
+        _tagIds = tags.map((tag) => tag.id).toSet();
+        _reminders = [
+          for (final row in reminders)
+            DraftReminder(id: row.id, triggerTime: row.triggerTime),
+        ];
+        _attachments = [
+          for (final row in attachments) DraftAttachment.fromRow(row),
+        ];
+        _initial = _snapshot();
+        _loadingAssociations = false;
+        _associationError = null;
+      });
+    } on Object catch (error) {
+      debugPrint('event_form: association load failed: $error');
+      if (!mounted) return;
+      setState(() {
+        _loadingAssociations = false;
+        _associationError = error;
+      });
+    }
+  }
+
+  void _retryAssociations() {
     setState(() {
-      _tagIds = tags.map((tag) => tag.id).toSet();
-      _reminders = [
-        for (final row in reminders)
-          DraftReminder(id: row.id, triggerTime: row.triggerTime),
-      ];
-      _attachments = [
-        for (final row in attachments) DraftAttachment.fromRow(row),
-      ];
-      _initial = _snapshot();
+      _loadingAssociations = true;
+      _associationError = null;
     });
+    Future.microtask(_seedAssociations);
   }
 
   _EventSnapshot _snapshot() => _EventSnapshot(
@@ -139,9 +163,17 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
 
   bool get _isDirty {
     final initial = _initial;
-    if (initial == null) return false;
+    // Without a baseline the form cannot know what leaving would discard;
+    // treating that as clean is how a failed read turned into silent data loss.
+    if (initial == null) return true;
     return _snapshot() != initial;
   }
+
+  bool get _canSave =>
+      !_loadingAssociations &&
+      _initial != null &&
+      _associationError == null &&
+      _validRange;
 
   @override
   void dispose() {
@@ -406,6 +438,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
   }
 
   Future<void> _delete() async {
+    if (_deleting) return;
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -441,7 +474,18 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
     if (confirmed != true || !mounted) return;
     final id = widget.event!.drifId;
     final restore = ref.read(restoreEventProvider);
-    await ref.read(deleteEventProvider)(id);
+    setState(() => _deleting = true);
+    try {
+      await ref.read(deleteEventProvider)(id);
+    } on Object catch (error) {
+      debugPrint('event_form: delete error: $error');
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+      return;
+    }
     if (!mounted) return;
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -615,7 +659,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                 size: 18,
                 compact: true,
                 tooltip: l.moveToTrash,
-                onPressed: _saving ? null : _delete,
+                onPressed: (_saving || _deleting) ? null : _delete,
               ),
             if (_aiLoading)
               const SizedBox(
@@ -642,13 +686,43 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
               label: l.save,
               saving: _saving,
               // A page cannot offer a Save that only fails afterwards: an end at
-              // or before the start disables it until the range makes sense.
-              onPressed: _validRange ? _save : null,
+              // or before the start disables it until the range makes sense, and
+              // a failed association read disables it until the data is known.
+              onPressed: _canSave ? _save : null,
             ),
           ],
           child: ListView(
             padding: const EdgeInsets.only(bottom: 96),
             children: [
+              if (_associationError != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.s4,
+                    AppSpacing.s2,
+                    AppSpacing.s4,
+                    0,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l.error,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.5,
+                            color: context.ds.danger,
+                          ),
+                        ),
+                      ),
+                      DsButton(
+                        label: l.retry,
+                        tone: DsButtonTone.ghost,
+                        small: true,
+                        onPressed: _retryAssociations,
+                      ),
+                    ],
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.s4,
@@ -659,6 +733,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
                 child: TextField(
                   controller: _titleController,
                   autofocus: !_isEditing,
+                  maxLines: null,
                   textCapitalization: TextCapitalization.sentences,
                   onChanged: (_) => setState(() {}),
                   style: AppTypography.headline.copyWith(
