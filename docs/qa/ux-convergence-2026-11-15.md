@@ -79,5 +79,6 @@
 
 ## 八、收口
 
-- 上述三项修完后重跑 `dart analyze .` / `flutter test` / 版本·空白·路径门禁，并在 MuMu 上重走捕获→未安排→详情→安排→日历，以及日历头部与时间槽 sheet。
-- 本轮以单个 PR 提交：OpenDesign `review-ux-gaps.html` 裁定、真机发现的两项布局修复、上述三项裁定。
+- 三项裁定与两条 P1 修完后重跑 `dart analyze .`（root + server）/ `flutter test`（824）/ 版本·空白·硬编码路径门禁；APK 重装后在 MuMu 上重走捕获 → 未安排 → 详情 → 安排 → 日历落位，以及日历头部、视图菜单与时间槽 sheet。
+- 本轮以单个 PR 提交：OpenDesign `review-ux-gaps.html` 裁定、真机发现的两项布局修复、三项最终裁定、独立审查的两条 P1 修复及其回归测试。
+- 结束状态：0 P0 / 0 P1；§七 的 P2/P3 已登记，不再在本轮扩散。
