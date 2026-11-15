@@ -17,6 +17,7 @@
     todosView: { kind: 'day', day: null },
     sixThings: false,
     overdueExpanded: false,
+    deadlineExpanded: false,
     hideCompleted: false,
     defaultTab: 'action',
     weekStartsOn: 1,
@@ -363,17 +364,19 @@
     const d = U.startOfDay(day || state.actionDate || now);
     const isToday = U.sameDay(d, now);
     const events = eventsOnDay(d);
-    const allocs = allocationsOnDay(d);
+    // A to-do completed before a scheduled slot ends makes that slot history, not
+    // current work: the same rule isAllocationLive applies to the calendar.
+    const allocs = allocationsOnDay(d).filter((a) => isAllocationLive(a));
     const live = liveTodos();
 
     const dueTodayTodos = live.filter((t) => {
-      if (t.recurrence) return false;
+      if (t.recurrence || t.parentId) return false;
       if (!isOpen(t) || !t.dueDate) return false;
       return U.sameDay(t.dueDate, d) && !(isToday && t.dueDate < now && !U.sameDay(t.dueDate, now));
     }).filter((t) => U.sameDay(t.dueDate, d));
 
     const overdueTodos = live.filter((t) => {
-      if (t.recurrence || !isOpen(t) || !t.dueDate) return false;
+      if (t.recurrence || t.parentId || !isOpen(t) || !t.dueDate) return false;
       const dueDay = U.startOfDay(t.dueDate);
       if (isToday) return dueDay < d;
       return dueDay < d;
@@ -383,7 +386,7 @@
     const todayTaskInstances = [];
     const missedTaskInstances = [];
     const completedTodayTaskInstances = [];
-    live.filter((t) => t.recurrence).forEach((t) => {
+    live.filter((t) => t.recurrence && !t.parentId).forEach((t) => {
       occurrencesInWindow(t, U.addDays(d, -30), d).forEach((occDay) => {
         const occId = occurrenceIdFor(t, occDay);
         const st = occurrenceState(t, occId);
@@ -508,6 +511,25 @@
     state.lastCreated = { type: 'event', id: e.id };
     emit('event:create');
     return e;
+  }
+
+  // Editing one occurrence of a series: exclude that anchor from the series and
+  // write a standalone event carrying the edits. Undo merges it back.
+  function splitEventOccurrence(id, anchorMs, patch) {
+    const series = eventById(id);
+    if (!series || !series.rrule) return null;
+    const anchor = U.startOfDay(new Date(anchorMs));
+    const occStart = new Date(anchorMs);
+    const occEnd = new Date(occStart.getTime() + (series.endDt - series.startDt));
+    series.exdates = (series.exdates || []).concat([anchor]);
+    const copy = createEvent(Object.assign({
+      summary: series.summary, calendarId: series.calendarId,
+      startDt: occStart, endDt: occEnd, isAllDay: series.isAllDay,
+      description: series.description, location: series.location, tagIds: (series.tagIds || []).slice(),
+      reminderOffsets: (series.reminderOffsets || []).slice(),
+    }, patch || {}));
+    emit('event:update');
+    return { series, copy };
   }
 
   function updateEvent(id, patch) {
@@ -761,7 +783,7 @@
     state, subscribe, emit, seed, occurrenceIdFor, occurrenceDateFromId, occurrencesInWindow, occurrenceState,
     isOccurrenceDone, matchesRule, liveTodos, liveEvents, todoById, eventById, tagById, calendarById,
     calendarColor, isOpen, isDone, subtasksOf, isAllocationLive, allocationsForTodo, allocationsOnDay,
-    eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos,
+    splitEventOccurrence, eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos,
     searchAll, createTodo, updateTodo, createEvent, updateEvent, createAllocation, rescheduleAllocation,
     cancelAllocation, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
     purgeEvent, emptyTrash, deletedTodos, deletedEvents, reorderTodos, createTag, updateTag, deleteTag,

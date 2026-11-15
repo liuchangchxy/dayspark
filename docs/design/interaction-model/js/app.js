@@ -17,6 +17,7 @@
   }
 
   function render() {
+    Registry.leaveGuard = null;
     S.applyTheme();
     document.documentElement.lang = S.state.lang === 'zh' ? 'zh-CN' : 'en';
     renderRail();
@@ -24,22 +25,48 @@
     const host = U.qs('#view');
     const route = S.state.route;
     const fn = Registry.getView(route.name) || Registry.getView('action');
+    // A re-render replaces the DOM, so keep keyboard focus (and the caret) on the
+    // same control. Without this, every emit-driven render blurs the capture and
+    // quick-add fields mid-typing.
+    const prev = document.activeElement;
+    const focusId = prev && prev.dataset ? prev.dataset.testid : null;
+    const caret = focusId && typeof prev.selectionStart === 'number'
+      ? { s: prev.selectionStart, e: prev.selectionEnd } : null;
     host.innerHTML = '';
     Registry.escapeHandler = null;
     const node = fn(route.params || {});
     host.appendChild(node);
     const routeKey = route.name + ':' + JSON.stringify(route.params || {});
-    if (routeKey !== lastRouteKey) {
-      lastRouteKey = routeKey;
+    const changedRoute = routeKey !== lastRouteKey;
+    lastRouteKey = routeKey;
+    if (focusId) {
+      const again = host.querySelector(`[data-testid="${focusId}"]`);
+      if (again && again.focus) {
+        again.focus({ preventScroll: true });
+        if (caret && typeof again.setSelectionRange === 'function') {
+          try { again.setSelectionRange(caret.s, caret.e); } catch (err) { /* not a text field */ }
+        }
+      }
+    } else if (changedRoute) {
       focusRoute(host);
     }
     if (S.state.highlight) {
-      const target = host.querySelector(`[data-testid="${S.state.highlight}"], [data-hl="${S.state.highlight}"]`);
+      // Emits schedule another render a frame later; keep the marker alive until
+      // its animation has run, otherwise the second render erases the class.
+      const spec = S.state.highlight;
+      const target = typeof spec === 'object'
+        ? host.querySelector(`[data-testid="${spec.testid}"][data-id="${spec.id}"]`)
+        : host.querySelector(`[data-testid="${spec}"], [data-hl="${spec}"]`);
       if (target) {
         target.classList.add('hl');
         target.scrollIntoView({ block: 'center' });
+        if (!S.state.highlightTimer) {
+          S.state.highlightTimer = setTimeout(() => {
+            S.state.highlight = null;
+            S.state.highlightTimer = null;
+          }, 1600);
+        }
       }
-      S.state.highlight = null;
     }
   }
 
@@ -131,16 +158,24 @@
     });
   }
 
+  function guarded(fn) {
+    const guard = Registry.leaveGuard;
+    if (!guard) { fn(); return; }
+    guard().then((ok) => { if (ok) { Registry.leaveGuard = null; fn(); } });
+  }
+
   function go(name, params) {
     UI.closeMenu();
-    if (name === 'action' || name === 'calendar' || name === 'todos') {
-      S.state.tab = name;
-      S.state.route = { name, params: params || {} };
-      S.state.selection = null;
-      S.emit('navigate');
-      return;
-    }
-    S.navigate(name, params || {});
+    guarded(() => {
+      if (name === 'action' || name === 'calendar' || name === 'todos') {
+        S.state.tab = name;
+        S.state.route = { name, params: params || {} };
+        S.state.selection = null;
+        S.emit('navigate');
+        return;
+      }
+      S.navigate(name, params || {});
+    });
   }
   function back() {
     UI.closeMenu();
@@ -158,6 +193,8 @@
       return;
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    // Shortcuts must not mutate the page behind an open sheet or dialog.
+    if (UI.hasOpenLayer()) return;
     if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openComposer('todo'); return; }
     if (e.key === '/') { e.preventDefault(); go('search'); return; }
     if (e.key === 't' || e.key === 'T') { e.preventDefault(); jumpToday(); return; }

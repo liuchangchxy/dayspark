@@ -63,6 +63,8 @@ docs/design/interaction-model/
 ├── css/app.css             全部样式与 D Final tokens
 ├── js/
 │   ├── store.js            唯一数据源：种子数据 + 全部写操作（纯函数式改 state）
+│   ├── event-ops.js        日程删除/编辑的唯一实现（重复范围只在这里问）
+│   ├── todo-ops.js         待办完成的唯一实现（重复任务按实例）
 │   ├── i18n.js             中英双语字典（切换即时生效）
 │   ├── ui.js               page/row/sheet/modal/menu/toast/空态/骨架等构件
 │   ├── util.js             日期格式化、断点判定
@@ -70,8 +72,9 @@ docs/design/interaction-model/
 │                           library(tags,calendars,trash,about,feedback) / settings / chat / misc
 ├── tests/
 │   ├── smoke.js            冒烟：启动、无横向溢出、按钮都有名字、路由可达、零控制台错误
-│   ├── interactions.js     34 个真实操作场景（浏览器点击/输入/拖拽）
+│   ├── interactions.js     35 个真实操作场景（浏览器点击/输入/拖拽）
 │   ├── surfaces.js         14 个功能面场景（标签/日历/回收站/账户/离线/手势…）
+│   ├── reviewer-findings.js 19 条独立 Reviewer 发现的逐条回归
 │   └── debug/              调试与截图脚本（不参与门禁）
 ├── research/
 │   ├── APP_SURFACE.md      真实 Flutter 代码盘点（973 行，24 路由 / 31 区域 / 21 破坏性操作）
@@ -92,9 +95,10 @@ docs/design/interaction-model/
 ```bash
 cd docs/design/interaction-model/tests
 npm install            # 只装 playwright-core
-node smoke.js          # 11 项冒烟
-node interactions.js   # 34 个交互场景
-node surfaces.js       # 14 个功能面场景
+node smoke.js              # 11 项冒烟
+node interactions.js       # 35 个交互场景
+node surfaces.js           # 14 个功能面场景
+node reviewer-findings.js  # 19 条 Reviewer 发现回归
 ```
 
 加 `--headed` 可以看着浏览器跑；`--filter=<子串>` 只跑名字匹配的场景。结果与时间戳见 `TEST_RESULTS.md`。

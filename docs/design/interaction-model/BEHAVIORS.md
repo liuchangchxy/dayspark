@@ -10,9 +10,9 @@
 
 ### A1 创建入口（唯一入口原则）
 - **数据**：`composer` 路由，`kind` 在打开时确定；新建待办默认无截止、第一个日历、优先级 0；新建日程默认「今天下一个整点 + 1 小时」。
-- **界面**：桌面从页头「新建待办/新建日程」；移动从右下 FAB；日历从时间格 sheet。保存后**回到打开它的地方**并高亮新行（`S.state.highlight`）。子任务例外：回父详情。
-- **失败**：标题为空 → 保存禁用 + 内联错误，不写库。脏表单关闭 → 先确认「放弃修改？」。
-- 证据：`interactions.js`「composer creates a todo…」「composer blocks saving an empty title…」「leaving a dirty composer…」
+- **界面**：桌面从页头「新建待办/新建日程」；移动从右下 FAB；日历从时间格 sheet。保存后**回到打开它的地方**并按 `{testid, id}` 高亮**那一行**（不是第一行）。子任务例外：回父详情。
+- **失败**：标题为空 → 保存禁用 + 内联错误，不写库。脏表单离开 → 先确认「放弃修改？」——**Esc、侧栏、底部导航、快捷键全部走同一问句**（`App.leaveGuard`），不允许静默丢弃草稿。
+- 证据：`interactions.js`「composer creates a todo…」「composer blocks saving an empty title…」「leaving a dirty composer…」；`reviewer-findings.js` F8 / F19
 
 ### A2 返回语义（唯一返回路径）
 - **数据**：`history` 栈；`back()` 弹一层。
@@ -22,9 +22,9 @@
 
 ### A3 页面切换清理
 - **数据**：`navigate/back` 一律关闭全部 sheet/modal/menu 与 toast。
-- **界面**：不残留遮罩、不残留可点击但看不见的层。
+- **界面**：不残留遮罩、不残留可点击但看不见的层。**有浮层时全局快捷键（N / / / T / ?）全部失效**，不会把底下的页面改掉。
 - **失败**：无。
-- 证据：`surfaces.js` 全套（切换页面后仍可点击）。
+- 证据：`surfaces.js` 全套（切换页面后仍可点击）；`reviewer-findings.js` F18。
 
 ### A4 今日 vs 浏览日
 - **数据**：`actionDate` 只由 Action/「回到今天」写；`todosView.day` 只由周条/日历下钻写。两者独立。
@@ -38,7 +38,7 @@
 
 ### B1 捕获（Action 捕获框）
 - **数据**：`createTodo({summary})` → 无 `dueDate`、无 `startDate`、`status=NEEDS-ACTION`、`parentId=null`、无重复。即「未安排」。
-- **界面**：输入框清空、保持焦点可连续输入；收件箱计数 +1；toast「已创建 …」带撤销。
+- **界面**：输入框清空、**焦点留在框内**（连续输入可直接建第二条）；收件箱计数 +1；toast「已创建 …」带撤销。
 - **失败**：空输入 Enter 无效。
 - 证据：`interactions.js`「action capture creates an unplanned todo…」
 
@@ -51,9 +51,10 @@
 ### B3 完成 / 取消完成
 - **数据**（非重复）：`status: NEEDS-ACTION → COMPLETED`，`completedAt = now`；**所有 `startAt >= completedAt` 的 active 安排 → `invalidatedByCompletion`**；早于完成时刻的安排保留为历史。取消完成：状态回退、`completedAt = null`，**不复活**已失效/已取消的安排。
 - **数据**（重复）：只写 `occurrenceStates[occId].completedAt`，**系列本身永远保持 NEEDS-ACTION**；同样使该实例未来的安排失效。
-- **界面**：行移到「已完成」区（Day 单区 / All·Inbox 按完成日分组）；Action 出现于「今天早些时候」；toast 带撤销（撤销 = 再调一次 `completeTodo`，即反操作）。
-- **失败**：重复待办未给 `occurrenceId` → 警告 toast，不写库。
-- 证据：「completing a todo moves it to the completed section…」「completing one occurrence of a recurring todo…」
+- **界面**：行移到「已完成」区（Day 单区 / All·Inbox 按完成日分组）；Action 出现于「今天早些时候」，**并立即离开「现在 / 稍后」**；日历不再把该安排画成当前工作（记录保留为历史）；toast 带撤销（撤销 = 再调一次 `completeTodo`，即反操作）。
+- **实现**：所有入口（列表勾选、详情按钮、Action 行）共用 `js/todo-ops.js` 的 `complete()`。
+- **失败**：重复待办且今天没有匹配实例 → 警告 toast，不写库；**绝不出现「没写库却报已完成」**。
+- 证据：「completing a todo moves it to the completed section…」「completing one occurrence of a recurring todo…」；`reviewer-findings.js` F3 / F11
 
 ### B4 删除 / 恢复 / 永久删除
 - **数据**：删除 = `deletedAt = now`（软删），父待办删除时子任务一并软删。恢复 = `deletedAt = null`（保留截止、标签、安排等全部字段）。永久删除 = 行移除 + 其安排一并移除。
@@ -64,18 +65,19 @@
 ### B5 安排执行时间（不改截止）
 - **数据**：新增 `TaskAllocation{todoId, startAt, endAt, state:active, occurrenceId?}`。**`dueDate` 不变，也不创建 Event**。
 - **界面**：待办行 meta 出现时间区间；详情「执行时间」事实出现；日历出现虚线安排块；toast 带撤销（撤销 = 取消该安排）。
-- **失败**：与已有安排/事件重叠 → 保存仍允许（手动排程不校验空闲），但 toast 警告「与 X 冲突」；重复待办必须先选实例，未选不写库。
-- 证据：「scheduling a todo from a slot creates an allocation…」「a scheduled todo shows its allocated time…」
+- **取消**：详情页每条生效安排都有「取消安排」（手机与桌面同一路径，不依赖右键菜单）；取消后块消失、进「历史安排」，可撤销。
+- **失败**：与已有安排/事件重叠 → 保存仍允许（手动排程不校验空闲），但 toast 追加「与 X 重叠」；重复待办**必须先选实例**（composer 的排程面板有实例下拉），未选不写库并说明原因。
+- 证据：「scheduling a todo from a slot creates an allocation…」「a scheduled todo shows its allocated time…」；`reviewer-findings.js` F4 / F6 / F14
 
 ### B6 改期 / 取消安排
 - **数据**：改期 = 改写 `startAt/endAt`；取消 = `state = cancelledByUser`（行保留，历史可见）。
-- **界面**：块移动位置；取消后块消失、详情「历史安排」出现该条；toast 撤销。
+- **界面**：块移动位置；取消后块消失、详情「历史安排」出现该条；toast 撤销。撤销**写回改动前的时间**（不是把已改的值再存一遍）。
 - **失败**：结束 ≤ 开始 → 内联错误，不写库。
-- 证据：「scheduling a todo… can be rescheduled」「cancelling a scheduled block removes the block but keeps the to-do」
+- 证据：「scheduling a todo… can be rescheduled」「cancelling a scheduled block removes the block but keeps the to-do」；`reviewer-findings.js` F7
 
 ### B7 详情只读 + 显式编辑
 - **数据**：详情不写任何字段；只有点「编辑」进 composer 才写。内联可改的仅：截止、优先级、标签、备注（点值即开编辑浮层，保存即写）。
-- **界面**：详情是事实清单（截止/执行/重复/优先级/标签/日历/提醒/父任务/实例/子任务/历史安排/备注/时间戳），底部「编辑」「移到回收站」。
+- **界面**：详情是事实清单（截止/执行/重复/优先级/标签/日历/提醒/父任务/实例/子任务/历史安排/备注/时间戳），底部「编辑」「移到回收站」。**截止/执行/优先级/标签的值本身可点**（`role=button` + Enter/Space），不只是旁边的铅笔。
 - **失败**：改完即 toast「已更新」；无撤销（可再改回）。
 - 证据：「todo detail is read-only until Edit…」
 
@@ -120,22 +122,25 @@
 - 证据：「creating an event from a calendar slot…」
 
 ### C2 拖动 / 改时长
-- **数据**：拖动 = 改 `startDt/endDt`（保持时长，可跨日）；改尺寸 = 只改 `endDt`；15 分钟吸附。
-- **界面**：块跟随移动，释放后落位；toast「已移到 …」带撤销。
+- **数据**：拖动 = 改 `startDt/endDt`（保持时长，可跨日）；改尺寸 = **只改 `endDt`**（起点不动）；15 分钟吸附。
+- **界面**：块跟随移动，释放后落位；拖动与改尺寸**都给 toast**（改尺寸不再静默）并带撤销。
 - **撤销**：撤销是**真实逆操作**，不是重绘 —— 普通日程还原拖动前的 `startDt/endDt`；重复实例按所选范围分别还原（删副本 + 移除 exdate / 还原原系列 `until` / 平移回原位）。
 - **失败**：重复事件的单次拖动 → 先问「这一次 / 以后 / 整个系列」；选「这一次」= 加 exdate + 建一次性事件。取消 sheet 不写任何数据，块弹回原位。
-- 证据：`interactions.js`「dragging an event block moves it and the toast undo puts it back」「dragging one occurrence of a repeating event asks the scope, and undo reverses it」；重复作用域见 C4。
+- 证据：`interactions.js`「dragging an event block moves it and the toast undo puts it back」「dragging one occurrence of a repeating event asks the scope, and undo reverses it」；`reviewer-findings.js` F7 / F15；重复作用域见 C4。
 
 ### C3 删除
-- **数据**：单次日程 = 软删；系列 = 软删；单次实例 = 加 exdate（系列保留）。
-- **界面**：块消失；toast 撤销（实例撤销 = 移除 exdate）。
-- **失败**：无。
-- 证据：`interactions.js` 删除路径 + 回收站恢复。
+- **数据**：单次日程 = 软删；**实例或系列 = 先问范围**：「这一次」→ 加 exdate，系列存活；「以后」→ 系列 `until = 前一天`；「整个系列」→ 软删。
+- **界面**：块消失；toast 撤销（实例撤销 = 移除 exdate / 还原 `until` / 恢复软删）。删除后**不停留在已删除记录上**——当前若是详情则返回上一页。
+- **实现**：块菜单、右键、详情页三处共用 `js/event-ops.js`，不存在第二套删除逻辑。
+- **失败**：取消确认 → 不写；取消范围 sheet → 不写。
+- 证据：`interactions.js` 删除路径 + 回收站恢复；`reviewer-findings.js` F1 / F10。
 
 ### C4 重复作用域
-- **数据**：「这一次」→ `exdates += anchor` 且新建一次性事件；「以后」→ 原系列 `until = 前一天`，另起新系列；「整个系列」→ 平移原系列。
-- **界面**：先弹作用域 sheet，选择后才写。
-- **失败**：取消 sheet → 不写。
+- **数据**（编辑）：「这一次」→ `exdates += anchor` + 新建一次性事件（`splitEventOccurrence`）；「整个系列」→ 改原系列。
+- **数据**（拖动）：「这一次」→ exdate + 一次性副本；「以后」→ 原系列 `until = 前一天`，另起新系列；「整个系列」→ 平移原系列。
+- **界面**：先弹作用域 sheet，选择后才写。实例详情显示**实例自己的开始时间**，不是系列基准日，也不是 00:00。
+- **失败**：取消 sheet → 不写，块弹回原位。
+- 证据：`interactions.js`「dragging one occurrence…」；`reviewer-findings.js` F2。
 
 ---
 
@@ -205,7 +210,16 @@
 
 ---
 
-## H. 跨页面一致性（同一事实只有一个来源）
+## H. 异常与缺失记录
+
+- **数据**：不写任何字段。
+- **界面**：打开不存在的 Todo **或 Event** → 同一张可恢复错误页（「出错了 / 你的数据没有被改动 / 返回」），不是白屏；回收站里被删的记录走同一路径。
+- **失败**：无（错误页本身就是失败态）。
+- 证据：`interactions.js`「opening a record that does not exist…」；`reviewer-findings.js` F17。
+
+---
+
+## I. 跨页面一致性（同一事实只有一个来源）
 
 | 事实 | 写入点 | 必须同步出现的界面 |
 |---|---|---|
@@ -213,7 +227,8 @@
 | 完成状态 | 行勾选、详情、批量、Action | 待办列表已完成区、Action 今天早些时候、rail 计数 |
 | 安排时段 | composer、时间格 sheet、详情、改期 | 待办行、详情执行时间、日历安排块、Action 此刻/稍后 |
 | 日程 | composer、拖动、改期 | 日历网格、Action、搜索、月视图 chip |
-| 删除 | 行菜单、详情、滑动、批量 | 列表、Action、日历、搜索、回收站 |
+| 删除 | 行菜单、详情、滑动、批量、`event-ops` | 列表、Action、日历、搜索、回收站 |
+| 重复实例的范围 | `event-ops`（删除/编辑）、`moveEvent`（拖动） | 详情、日历块、后续实例、回收站 |
 | 标签 | 标签页、composer、行菜单 | 待办行 chip、筛选结果、标签计数 |
 
 验证方式：每条写入场景的断言都跨 ≥2 个界面读取（见 `tests/interactions.js` 各场景末段的 `go(page, 'action')` 检查）。

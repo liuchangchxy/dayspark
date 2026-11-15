@@ -158,20 +158,7 @@
     });
   }
 
-  function toggle(todo) {
-    const wasDone = S.isDone(todo);
-    S.completeTodo(todo.id);
-    App.render();
-    if (!wasDone) {
-      UI.toast(t('completedToast', { t: todo.summary }), {
-        undo: () => { S.completeTodo(todo.id); App.render(); },
-      });
-    } else {
-      UI.toast(t('uncompletedToast', { t: todo.summary }), {
-        undo: () => { S.completeTodo(todo.id); App.render(); },
-      });
-    }
-  }
+  function toggle(todo) { window.TodoOps.complete(todo); }
 
   function openRowMenu(anchor, todo) {
     const items = [

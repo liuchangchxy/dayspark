@@ -89,6 +89,8 @@
             });
             S.state.highlight = 'inbox-entry';
             App.render();
+            const again = U.qs('[data-testid="action-capture"]');
+            if (again) again.focus();
           }
         });
         content.appendChild(cap);
@@ -110,9 +112,11 @@
         const sections = [];
 
         // Now
+        // "Now" answers what is still open. A to-do completed mid-slot is history
+        // even though its allocation record stays live for the record.
         const current = [
           ...proj.events.filter((e) => e.startDt <= now && e.endDt > now).map((e) => ({ kind: 'event', start: e.startDt, end: e.endDt, event: e })),
-          ...proj.allocations.filter((x) => x.allocation.startAt <= now && x.allocation.endAt > now).map((x) => ({ kind: 'alloc', start: x.allocation.startAt, end: x.allocation.endAt, item: x })),
+          ...proj.allocations.filter((x) => x.allocation.startAt <= now && x.allocation.endAt > now && !S.isDone(x.todo)).map((x) => ({ kind: 'alloc', start: x.allocation.startAt, end: x.allocation.endAt, item: x })),
         ].sort((a, b) => a.start - b.start);
 
         if (current.length) {
@@ -122,7 +126,7 @@
 
         const later = [
           ...proj.events.filter((e) => e.startDt > now).map((e) => ({ kind: 'event', start: e.startDt, end: e.endDt, event: e })),
-          ...proj.allocations.filter((x) => x.allocation.startAt > now).map((x) => ({ kind: 'alloc', start: x.allocation.startAt, end: x.allocation.endAt, item: x })),
+          ...proj.allocations.filter((x) => x.allocation.startAt > now && !S.isDone(x.todo)).map((x) => ({ kind: 'alloc', start: x.allocation.startAt, end: x.allocation.endAt, item: x })),
         ].sort((a, b) => a.start - b.start);
         if (later.length) {
           sections.push(UI.sectionHead(t('laterToday'), later.length, { right: { text: t('openCalendar'), icon: 'chevronForward', action: () => App.go('calendar') } }));
@@ -273,22 +277,7 @@
   }
 
   function toggle(todo, occurrenceId) {
-    const wasDone = todo.recurrence ? S.isOccurrenceDone(todo, occurrenceId) : S.isDone(todo);
-    const result = S.completeTodo(todo.id, { occurrenceId });
-    if (!result) {
-      UI.toast(S.state.lang === 'zh' ? '这个重复任务需要选择具体实例' : 'Pick an occurrence first', { warn: true });
-      return;
-    }
-    App.render();
-    if (!wasDone) {
-      UI.toast(t('completedToast', { t: todo.summary }), {
-        undo: () => { S.completeTodo(todo.id, { occurrenceId }); App.render(); },
-      });
-    } else {
-      UI.toast(t('uncompletedToast', { t: todo.summary }), {
-        undo: () => { S.completeTodo(todo.id, { occurrenceId }); App.render(); },
-      });
-    }
+    window.TodoOps.complete(todo, occurrenceId);
   }
 
   App.defineView('action', renderAction);

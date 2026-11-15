@@ -287,7 +287,8 @@ svg { display: block; }
 .row-leading { width: 18px; flex: none; display: grid; place-items: center; color: var(--ink-3); }
 .row-time { width: 46px; flex: none; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
 .row-chevron { color: var(--ink-3); opacity: .6; }
-.row.hl { animation: rowhl 1.4s ease-out; }
+.row.hl, .todo-tile.hl, [data-testid="todo-tile"].hl { animation: rowhl 1.4s ease-out; }
+[data-testid="todo-tile"].hl .todo-row { animation: rowhl 1.4s ease-out; }
 @keyframes rowhl { 0% { background: color-mix(in srgb, var(--accent) 22%, transparent); } 100% { background: transparent; } }
 .row-deadline { color: var(--amber); display: inline-flex; align-items: center; gap: 3px; }
 .row-deadline.over { color: var(--red); }
@@ -388,6 +389,7 @@ svg { display: block; }
 .deadline-lane .lane-rail::-webkit-scrollbar { display: none; }
 .deadline-lane .deadline-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 5px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--amber) 25%, var(--line)); font-size: 11px; color: var(--ink-2); white-space: nowrap; }
 .deadline-chip .date { font-family: var(--mono); font-size: 9.5px; color: var(--amber); }
+.deadline-lane .deadline-chip.more { color: var(--ink-2); font-weight: 600; background: transparent; border-style: dashed; }
 
 .month-wrap { border: 1px solid var(--line); border-radius: var(--radius-m); overflow: hidden; }
 .month-dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--surface-2); border-bottom: 1px solid var(--line); }
@@ -484,6 +486,9 @@ svg { display: block; }
 .fact .k { font-size: 10.5px; color: var(--ink-3); }
 .fact .v { font-size: 13px; color: var(--ink); word-break: break-word; }
 .fact .v.muted { color: var(--ink-3); }
+.alloc-live { display: flex; align-items: center; gap: 10px; justify-content: space-between; min-height: 24px; }
+.alloc-live .link-danger { flex: none; border: 0; background: none; padding: 2px 4px; font-size: 11.5px; color: var(--red); cursor: pointer; border-radius: 4px; }
+.alloc-live .link-danger:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
 .fact .act { flex: none; display: flex; gap: 2px; }
 .fact.amber .ico { color: var(--amber); }
 .fact.violet .ico { color: var(--violet); }

@@ -18,7 +18,7 @@
   function setView(v) { S.state.calendarView = v; App.render(); }
 
   function openEvent(e) {
-    S.navigate('detail', { type: 'event', id: e.id, occurrence: e.occurrenceAnchor ? e.occurrenceAnchor.getTime() : null });
+    S.navigate('detail', { type: 'event', id: e.id, occurrence: e.isOccurrence ? e.startDt.getTime() : null });
   }
   function openTodo(todo) {
     S.navigate('detail', { type: 'todo', id: todo.id });
@@ -180,14 +180,26 @@
       lane.appendChild(rail);
       return lane;
     }
-    items.slice(0, 8).forEach((todo) => {
+    const expanded = S.state.deadlineExpanded;
+    const visible = expanded ? items : items.slice(0, 8);
+    visible.forEach((todo) => {
       const chip = U.el('button', { class: 'deadline-chip' });
       const overdue = todo.dueDate < U.now();
       chip.innerHTML = `<span class="date" style="${overdue ? 'color:var(--red)' : ''}">${U.esc(U.fmtDeadline(todo.dueDate))}</span><span>${U.esc(todo.summary)}</span>`;
       chip.addEventListener('click', () => openTodo(todo));
       lane.appendChild(chip);
     });
-    if (items.length > 8) lane.appendChild(U.el('span', { class: 'tiny muted', text: '+' + (items.length - 8) }));
+    if (items.length > 8) {
+      const fold = U.el('button', {
+        class: 'deadline-chip more',
+        'data-testid': expanded ? 'deadline-less' : 'deadline-more',
+      });
+      fold.innerHTML = expanded
+        ? `<span>${U.esc(t('collapseList'))}</span>`
+        : `<span>${U.esc(t('moreItems', { n: items.length - 8 }))}</span>`;
+      fold.addEventListener('click', () => { S.state.deadlineExpanded = !expanded; App.render(); });
+      lane.appendChild(fold);
+    }
     return lane;
   }
 
@@ -522,8 +534,8 @@
       const s = U.addDays(newStart, shiftDays);
       const e2 = U.addDays(newEnd, shiftDays);
       if (wasMode === 'resize') {
-        if (ctx.kind === 'event') moveEvent(ctx.data, ctx.data.startDt, e2, { silent: true, from: ctx.data.startDt });
-        else moveAlloc(ctx.data, ctx.data.startAt, e2, { silent: true });
+        if (ctx.kind === 'event') moveEvent(ctx.data, ctx.data.startDt, e2, { silent: false, from: ctx.data.startDt, resized: true });
+        else moveAlloc(ctx.data, ctx.data.startAt, e2);
       } else {
         if (ctx.kind === 'event') moveEvent(ctx.data, s, e2, { from: ctx.data.startDt });
         else moveAlloc(ctx.data, s, e2);
@@ -564,9 +576,14 @@
         };
       } else {
         const prevStart = series.startDt, prevEnd = series.endDt;
-        const delta = start - (e.isOccurrence ? e.startDt : series.startDt);
-        series.startDt = new Date(series.startDt.getTime() + delta);
-        series.endDt = new Date(series.endDt.getTime() + delta);
+        if (o.resized) {
+          // Resize keeps the start and moves only the end.
+          series.endDt = end;
+        } else {
+          const delta = start - (e.isOccurrence ? e.startDt : series.startDt);
+          series.startDt = new Date(series.startDt.getTime() + delta);
+          series.endDt = new Date(series.endDt.getTime() + delta);
+        }
         series.updatedAt = U.now();
         S.emit('event:update');
         undo = () => {
@@ -581,7 +598,14 @@
       });
     };
     if (e.isOccurrence && e.rrule && !o.silent) {
-      scopeDialog((mode) => apply(mode));
+      window.EventOps.scopeSheet({
+        options: [
+          { mode: 'this', label: t('scopeThis'), desc: t('moveScopeThisDesc') },
+          { mode: 'future', label: t('scopeFuture'), desc: t('moveScopeFutureDesc') },
+          { mode: 'all', label: t('scopeAll'), desc: t('moveScopeAllDesc') },
+        ],
+        onPick: (mode) => apply(mode),
+      });
     } else if (e.isOccurrence && !o.silent) {
       apply('this');
     } else {
@@ -589,31 +613,13 @@
     }
   }
 
-  function scopeDialog(cb) {
-    UI.sheet({
-      title: t('repeatScopeTitle'),
-      subtitle: t('repeatScopeBody'),
-      body(host, close) {
-        [
-          { label: t('scopeThis'), desc: S.state.lang === 'zh' ? '只有这一次移动' : 'Only this occurrence moves' },
-          { label: t('scopeFuture'), desc: S.state.lang === 'zh' ? '这一次及以后都改' : 'This and all later occurrences' },
-          { label: t('scopeAll'), desc: S.state.lang === 'zh' ? '整个系列都改' : 'Every occurrence' },
-        ].forEach((opt) => {
-          const b = U.el('button', { class: 'slot-sheet-option' });
-          b.innerHTML = `<span class="ico">${ICON('repeat', 16)}</span><span><span class="t">${U.esc(opt.label)}</span><br><span class="s">${U.esc(opt.desc)}</span></span>`;
-          b.addEventListener('click', () => { close(null); cb(opt.label === t('scopeThis') ? 'this' : opt.label === t('scopeFuture') ? 'future' : 'all'); });
-          host.appendChild(b);
-        });
-      },
-    });
-  }
-
   function moveAlloc(a, start, end, opts) {
+    const prev = { start: a.startAt, end: a.endAt };
     S.rescheduleAllocation(a.id, start, end);
     App.render();
     if (!(opts && opts.silent)) {
       UI.toast(t('allocationMoved', { t: U.fmtMonthDayTime(start) }), {
-        undo: () => { S.rescheduleAllocation(a.id, a.startAt, a.endAt); App.render(); },
+        undo: () => { S.rescheduleAllocation(a.id, prev.start, prev.end); App.render(); },
       });
     }
   }
@@ -639,16 +645,7 @@
     });
   }
 
-  function deleteEventFlow(e) {
-    UI.confirm({ title: t('delete'), message: t('eventDeleteBody'), danger: true, confirmText: t('moveToTrash') }).then((ok) => {
-      if (!ok) return;
-      S.softDeleteEvent(e.id);
-      App.render();
-      UI.toast(t('deletedToast', { t: e.summary }), {
-        undo: () => { S.restoreEvent(e.id); App.render(); },
-      });
-    });
-  }
+  const deleteEventFlow = (e) => window.EventOps.deleteEvent(e);
 
   // ---------- slot sheet ----------
   function openSlotSheet(day, h1, h2) {

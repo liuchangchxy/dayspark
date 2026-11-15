@@ -6,9 +6,20 @@
   const UI = window.UI;
   const t = (k, v) => I18N.t(k, v);
 
-  function iconFact(icon, key, valueHtml, actNode, cls) {
+  function iconFact(icon, key, valueHtml, actNode, cls, onValue) {
     const f = U.el('div', { class: 'fact' + (cls ? ' ' + cls : '') });
     f.innerHTML = `<span class="ico">${ICON(icon, 15)}</span><span class="body"><span class="k">${U.esc(key)}</span><span class="v">${valueHtml}</span></span>`;
+    if (onValue) {
+      const v = f.querySelector('.v');
+      v.setAttribute('role', 'button');
+      v.setAttribute('tabindex', '0');
+      v.title = t('editInline');
+      v.style.cursor = 'pointer';
+      v.addEventListener('click', onValue);
+      v.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onValue(); }
+      });
+    }
     if (actNode) {
       const act = U.el('span', { class: 'act' });
       act.appendChild(actNode);
@@ -46,14 +57,7 @@
     const done = S.isDone(todo);
     const doneBtn = U.el('button', { class: 'btn ' + (done ? 'ghost' : 'primary'), 'data-testid': 'detail-complete' });
     doneBtn.innerHTML = ICON('check', 14) + `<span>${U.esc(done ? t('markIncomplete') : t('markComplete'))}</span>`;
-    doneBtn.addEventListener('click', () => {
-      const wasDone = S.isDone(todo);
-      S.completeTodo(todo.id);
-      App.render();
-      UI.toast(wasDone ? t('uncompletedToast', { t: todo.summary }) : t('completedToast', { t: todo.summary }), {
-        undo: () => { S.completeTodo(todo.id); App.render(); },
-      });
-    });
+    doneBtn.addEventListener('click', () => { window.TodoOps.complete(todo); });
     status.appendChild(doneBtn);
     if (todo.recurrence) status.appendChild(U.el('span', { class: 'chip violet', html: ICON('repeat', 10) + `<span>${U.esc(t('recurrence'))}</span>` }));
     if (todo.completedAt && done) status.appendChild(U.el('span', { class: 'tiny muted', text: t('completed') + ' · ' + U.fmtMonthDayTime(todo.completedAt) }));
@@ -70,16 +74,31 @@
       todo.dueDate ? U.esc(U.fmtDeadline(todo.dueDate)) : `<span class="muted">${U.esc(t('noDeadline'))}</span>`,
       dueAct,
       'amber',
+      () => editDeadline(todo),
     ));
 
     // scheduled allocations
     const allocs = S.allocationsForTodo(todo.id);
     const liveAllocs = allocs.filter(S.isAllocationLive);
-    const allocValue = liveAllocs.length
-      ? liveAllocs.map((a) => `<div>${U.esc(U.fmtMonthDayTime(a.startAt))} – ${U.esc(U.fmtTime(a.endAt))}</div>`).join('')
-      : `<span class="muted">${U.esc(t('noSchedule'))}</span>`;
+    const allocValue = liveAllocs.length ? '' : `<span class="muted">${U.esc(t('noSchedule'))}</span>`;
     const addAlloc = UI.iconButton('clockPlus', t('allocateNow'), () => scheduleSheet(todo), { sm: true, size: 13 });
-    facts.appendChild(iconFact('clock', t('scheduleExec'), allocValue, addAlloc, 'violet'));
+    addAlloc.dataset.testid = 'detail-schedule';
+    const allocFact = iconFact('clock', t('scheduleExec'), allocValue, addAlloc, 'violet', () => scheduleSheet(todo));
+    facts.appendChild(allocFact);
+    if (liveAllocs.length) {
+      const list = allocFact.querySelector('.v');
+      liveAllocs.forEach((a) => {
+        const line = U.el('div', { class: 'alloc-live' });
+        line.dataset.testid = 'live-allocation';
+        const label = U.el('span', { text: U.fmtMonthDayTime(a.startAt) + ' – ' + U.fmtTime(a.endAt) });
+        const cancel = U.el('button', { class: 'link-danger', text: t('cancelAllocation') });
+        cancel.dataset.testid = 'cancel-allocation';
+        cancel.addEventListener('click', () => cancelAllocationFlow(a, todo));
+        line.appendChild(label);
+        line.appendChild(cancel);
+        list.appendChild(line);
+      });
+    }
 
     // repeat
     if (todo.recurrence) {
@@ -90,7 +109,7 @@
     // priority
     const prioLabel = { 9: t('high'), 5: t('medium'), 1: t('low') }[todo.priority] || t('noPriority');
     facts.appendChild(iconFact('flag', t('priority'), U.esc(prioLabel),
-      UI.iconButton('edit', t('change'), () => prioritySheet(todo), { sm: true, size: 13 })));
+      UI.iconButton('edit', t('change'), () => prioritySheet(todo), { sm: true, size: 13 }), null, () => prioritySheet(todo)));
 
     // tags
     const tagsHtml = todo.tagIds.length
@@ -100,7 +119,7 @@
       }).join('')
       : `<span class="muted">${U.esc(t('none'))}</span>`;
     facts.appendChild(iconFact('tag', t('tags'), tagsHtml,
-      UI.iconButton('edit', t('change'), () => tagSheet(todo), { sm: true, size: 13 })));
+      UI.iconButton('edit', t('change'), () => tagSheet(todo), { sm: true, size: 13 }), null, () => tagSheet(todo)));
 
     // calendar
     const cal = S.calendarById(todo.calendarId);
@@ -238,6 +257,32 @@
     if (min < 60) return min + ' ' + t('minutesBefore');
     if (min < 1440) return (min / 60) + ' ' + t('hoursBefore');
     return (min / 1440) + ' ' + t('daysBefore');
+  }
+
+  function cancelAllocationFlow(a, todo) {
+    UI.confirm({
+      title: t('cancelAllocation'),
+      message: t('cancelAllocationBody'),
+      danger: true,
+      confirmText: t('cancelAllocation'),
+    }).then((ok) => {
+      if (!ok) return;
+      const prev = { start: a.startAt, end: a.endAt };
+      S.cancelAllocation(a.id);
+      App.render();
+      UI.toast(t('allocationCancelled'), {
+        undo: () => {
+          const cur = S.state.allocations.find((x) => x.id === a.id);
+          if (cur) {
+            cur.state = S.ALLOC.ACTIVE;
+            cur.startAt = prev.start;
+            cur.endAt = prev.end;
+            S.emit('allocation:restore');
+          }
+          App.render();
+        },
+      });
+    });
   }
 
   function deleteFlow(todo) {
@@ -378,7 +423,8 @@
           } else {
             S.createAllocation({ todoId: todo.id, startAt: st, endAt: en });
             App.render();
-            UI.toast(t('scheduleToast', { t: todo.summary }), {
+            const clash = conflictNote(st, en);
+            UI.toast(t('scheduleToast', { t: todo.summary }) + (clash ? ' · ' + clash : ''), {
               undo: () => {
                 const created = S.state.allocations[S.state.allocations.length - 1];
                 if (created) S.cancelAllocation(created.id);
@@ -391,6 +437,19 @@
         host.appendChild(box);
       },
     });
+  }
+
+  // Saving an overlapping slot is allowed (manual scheduling is the user's call)
+  // but never silent: the toast names what it overlaps.
+  function conflictNote(start, end) {
+    const hitAlloc = S.state.allocations.find((a) => S.isAllocationLive(a) && a.startAt < end && a.endAt > start);
+    if (hitAlloc) {
+      const other = S.todoById(hitAlloc.todoId);
+      return t('allocateConflict', { t: other ? other.summary : '' });
+    }
+    const hitEvent = S.liveEvents().find((e) => e.startDt < end && e.endDt > start);
+    if (hitEvent) return t('allocateConflict', { t: hitEvent.summary });
+    return null;
   }
 
   function pickOccurrence(todo, start, end) {
@@ -411,7 +470,8 @@
             close(null);
             S.createAllocation({ todoId: todo.id, startAt: start, endAt: end, occurrenceId: id });
             App.render();
-            UI.toast(t('scheduleToast', { t: todo.summary }));
+            const clash = conflictNote(start, end);
+            UI.toast(t('scheduleToast', { t: todo.summary }) + (clash ? ' · ' + clash : ''));
           });
           box.appendChild(b);
         });
@@ -423,10 +483,26 @@
   // ---------- event detail ----------
   function eventDetail(eventId, occurrenceMs) {
     const series = S.eventById(eventId);
+    if (!series || series.deletedAt) {
+      return UI.page({
+        title: t('errorTitle'),
+        onBack: () => App.back(),
+        build(content) {
+          content.appendChild(UI.emptyState('alert', t('errorTitle'), t('errorBody'), [
+            { label: t('back'), primary: true, action: () => App.back() },
+          ]));
+        },
+      });
+    }
     const occStart = occurrenceMs ? new Date(occurrenceMs) : (series ? series.startDt : U.now());
     const occEnd = series ? new Date(occStart.getTime() + (series.endDt - series.startDt)) : occStart;
     const isOcc = !!(series && series.rrule && occurrenceMs);
-    const e = isOcc ? Object.assign({}, series, { startDt: occStart, endDt: occEnd, occurrenceAnchor: U.startOfDay(occStart) }) : series;
+    const e = isOcc
+      ? Object.assign({}, series, {
+        startDt: occStart, endDt: occEnd,
+        occurrenceAnchor: U.startOfDay(occStart), isOccurrence: true,
+      })
+      : series;
 
     const root = U.el('div', { class: 'detail', 'data-testid': 'event-detail' });
     const narrow = U.isNarrow();
@@ -511,65 +587,8 @@
     return root;
   }
 
-  function editEvent(e) {
-    if (e.isOccurrence) {
-      UI.sheet({
-        title: t('repeatScopeTitle'),
-        subtitle: t('repeatScopeBody'),
-        body(host, close) {
-          [
-            { label: t('scopeThis'), desc: S.state.lang === 'zh' ? '只改这一次' : 'Change only this occurrence' },
-            { label: t('scopeAll'), desc: S.state.lang === 'zh' ? '改整个系列' : 'Change the whole series' },
-          ].forEach((opt, i) => {
-            const b = U.el('button', { class: 'slot-sheet-option' });
-            b.innerHTML = `<span class="ico">${ICON('repeat', 16)}</span><span><span class="t">${U.esc(opt.label)}</span><br><span class="s">${U.esc(opt.desc)}</span></span>`;
-            b.addEventListener('click', () => {
-              close(null);
-              if (i === 0) {
-                UI.toast(S.state.lang === 'zh' ? '单次编辑：只影响这一次' : 'Editing this occurrence only', { warn: true });
-                App.openComposer('event', { mode: 'edit', id: e.id });
-              } else {
-                App.openComposer('event', { mode: 'edit', id: e.id });
-              }
-            });
-            host.appendChild(b);
-          });
-        },
-      });
-      return;
-    }
-    App.openComposer('event', { mode: 'edit', id: e.id });
-  }
-
-  function deleteEvent(e) {
-    const message = e.isOccurrence
-      ? (S.state.lang === 'zh' ? '删除这一次重复日程？其他实例不受影响。' : 'Delete this occurrence? The rest of the series stays.')
-      : t('eventDeleteBody');
-    UI.confirm({ title: t('delete'), message, danger: true, confirmText: t('moveToTrash') }).then((ok) => {
-      if (!ok) return;
-      if (e.isOccurrence) {
-        const series = S.eventById(e.id);
-        series.exdates = (series.exdates || []).concat([e.occurrenceAnchor]);
-        S.emit('event:update');
-      } else {
-        S.softDeleteEvent(e.id);
-      }
-      if (U.isNarrow()) App.back();
-      App.render();
-      UI.toast(t('deletedToast', { t: e.summary }), {
-        undo: () => {
-          if (e.isOccurrence) {
-            const series = S.eventById(e.id);
-            series.exdates = series.exdates.filter((x) => !U.sameDay(x, e.occurrenceAnchor));
-            S.emit('event:update');
-          } else {
-            S.restoreEvent(e.id);
-          }
-          App.render();
-        },
-      });
-    });
-  }
+  const editEvent = (e) => window.EventOps.editEvent(e);
+  const deleteEvent = (e) => window.EventOps.deleteEvent(e);
 
   function renderDetail(params) {
     if (params.type === 'event') return eventDetail(params.id, params.occurrence);

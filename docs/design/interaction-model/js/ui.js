@@ -68,6 +68,7 @@
     return true;
   }
   function closeAll() { openLayers.slice().forEach((l) => l.close()); }
+  function hasOpenLayer() { return openLayers.length > 0; }
   function openLayer(build) {
     const host = U.qs('#overlay');
     const scrim = U.el('div', { class: build.kind === 'sheet' ? 'sheet-scrim' : 'modal-scrim' });
@@ -390,7 +391,7 @@
 
   window.UI = {
     page,
-    toast, hideToast, confirm, modal, sheet, menu, closeMenu, closeTop, closeAll, releaseAll,
+    toast, hideToast, confirm, modal, sheet, menu, closeMenu, closeTop, closeAll, hasOpenLayer, releaseAll,
     checkbox, priorityDot, tagChips, deadlineMeta, allocMeta, repeatMeta, ruleSummary, busyBar,
     skeletonRows, emptyState, sectionHead, announce, iconButton, keyHint, trap, release,
   };

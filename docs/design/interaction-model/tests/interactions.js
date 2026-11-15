@@ -830,6 +830,36 @@ scenario('deadlines are listed in their own lane and never drawn as time blocks'
   await page.close();
 });
 
+/* ---------- Deadline lane never silently hides the rest ---------- */
+scenario('a crowded deadline lane expands and collapses instead of showing "+n"', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => {
+    const base = new Date();
+    for (let i = 0; i < 12; i++) {
+      window.Store.createTodo({
+        summary: '截止测试 ' + (i + 1),
+        dueDate: new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 17),
+      });
+    }
+    window.Store.state.calendarView = 'week';
+    window.App.go('calendar');
+  });
+  await settle(page, 300);
+  const chips = () => count(page, '.deadline-lane .deadline-chip:not(.more)');
+  assertEq(await chips(), 8, 'the lane should show eight chips before expanding');
+  assert(await exists(page, '[data-testid="deadline-more"]'), 'a crowded lane must offer a way to see the rest');
+  await page.click('[data-testid="deadline-more"]');
+  await settle(page, 260);
+  assert(await chips() > 8, 'expanding must reveal the remaining deadlines');
+  assert(await exists(page, '[data-testid="deadline-less"]'), 'expanded lane should offer collapse');
+  await noOverflow(page);
+  await page.click('[data-testid="deadline-less"]');
+  await settle(page, 260);
+  assertEq(await chips(), 8, 'collapsing must return to eight chips');
+  await noErrors(page);
+  await page.close();
+});
+
 /* ---------- Cancelling an allocation keeps the todo ---------- */
 scenario('cancelling a scheduled block removes the block but keeps the to-do', async (browser) => {
   const page = await newPage(browser);

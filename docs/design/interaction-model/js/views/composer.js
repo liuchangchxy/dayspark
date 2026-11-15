@@ -12,6 +12,7 @@
     const now = U.now();
     const base = {
       kind: c.kind, mode: c.mode, id: c.id || null, parentId: c.parentId || null,
+      occurrence: c.occurrence || null,
       summary: c.summary || '', notes: '',
       dueDate: c.dueDate ? new Date(c.dueDate) : null,
       startDate: null,
@@ -19,6 +20,7 @@
       recurrence: null, reminderOffsets: [], attachments: [],
       startDt: c.startDt || null, endDt: c.endDt || null, isAllDay: false, location: '',
       scheduleStart: c.scheduleStart || null, scheduleEnd: c.scheduleEnd || null,
+      scheduleOccurrence: c.scheduleOccurrence || null,
       moreOpen: false, focus: c.focus || null,
     };
     if (c.mode === 'edit') {
@@ -33,14 +35,22 @@
           parentId: todo.parentId,
         });
         const allocs = S.allocationsForTodo(todo.id).filter(S.isAllocationLive);
-        if (allocs.length) { base.scheduleStart = allocs[0].startAt; base.scheduleEnd = allocs[0].endAt; base.scheduleAllocId = allocs[0].id; }
+        if (allocs.length) {
+          base.scheduleStart = allocs[0].startAt; base.scheduleEnd = allocs[0].endAt;
+          base.scheduleAllocId = allocs[0].id;
+          base.scheduleOccurrence = allocs[0].occurrenceId || null;
+        }
       } else {
-        const e = S.eventById(c.id);
-        if (!e) return base;
+        const series = S.eventById(c.id);
+        if (!series) return base;
+        // Editing one occurrence edits that occurrence, not the series base.
+        const occStart = c.occurrence ? new Date(c.occurrence) : series.startDt;
+        const occEnd = c.occurrence ? new Date(c.occurrence + (series.endDt - series.startDt)) : series.endDt;
         Object.assign(base, {
-          summary: e.summary, notes: e.description || '', startDt: e.startDt, endDt: e.endDt,
-          isAllDay: e.isAllDay, location: e.location || '', calendarId: e.calendarId,
-          recurrence: e.rrule, reminderOffsets: (e.reminderOffsets || []).slice(), tagIds: (e.tagIds || []).slice(),
+          summary: series.summary, notes: series.description || '', startDt: occStart, endDt: occEnd,
+          isAllDay: series.isAllDay, location: series.location || '', calendarId: series.calendarId,
+          recurrence: c.occurrence ? null : series.rrule,
+          reminderOffsets: (series.reminderOffsets || []).slice(), tagIds: (series.tagIds || []).slice(),
         });
       }
     } else {
@@ -63,16 +73,28 @@
 
     function markDirty() { dirty = true; }
 
+    function askDiscard() {
+      return UI.confirm({
+        title: t('discardTitle'), message: t('discardBody'),
+        confirmText: t('discard'), cancelText: t('keepEditing'), danger: true,
+      });
+    }
     function closeComposer(force) {
       if (dirty && !force) {
-        UI.confirm({
-          title: t('discardTitle'), message: t('discardBody'),
-          confirmText: t('discard'), cancelText: t('keepEditing'), danger: true,
-        }).then((ok) => { if (ok) leave(); });
+        askDiscard().then((ok) => { if (ok) leave(); });
         return;
       }
       leave();
     }
+    // Any navigation away from the composer (rail, bottom nav, shortcuts) goes
+    // through the same question as Esc, so a draft cannot be dropped silently.
+    App.leaveGuard = () => {
+      if (!dirty) return Promise.resolve(true);
+      return askDiscard().then((ok) => {
+        if (ok) S.state.composer = null;
+        return ok;
+      });
+    };
     function leave() {
       S.state.composer = null;
       App.back();
@@ -491,15 +513,45 @@
           row2.appendChild(start); row2.appendChild(durSel);
           box.appendChild(row2);
 
+          // A repeating to-do is scheduled per occurrence; ask which one here so the
+          // allocation is visible instead of orphaned.
+          let occSel = null;
+          if (draft.recurrence) {
+            const occRow = U.el('div', { class: 'field' });
+            occRow.innerHTML = `<label>${U.esc(t('occurrence'))}</label>`;
+            occSel = U.el('select', { class: 'select' });
+            occSel.dataset.testid = 'schedule-occurrence';
+            const from = U.addDays(U.startOfDay(U.now()), -1);
+            const to = U.addDays(U.startOfDay(U.now()), 60);
+            const stub = {
+              recurrence: draft.recurrence, dueDate: draft.dueDate,
+              startDate: draft.startDate, createdAt: U.now(), id: draft.id,
+            };
+            S.occurrencesInWindow(stub, from, to).slice(0, 30).forEach((d) => {
+              const id = S.occurrenceIdFor(stub, d);
+              occSel.appendChild(U.el('option', { value: id, text: U.fmtMonthDay(d) + ' · ' + U.fmtWeekdayLong(d) }));
+            });
+            if (!occSel.options.length) {
+              occSel.appendChild(U.el('option', { value: '', text: t('nothingHere') }));
+            }
+            if (draft.scheduleOccurrence) occSel.value = draft.scheduleOccurrence;
+            occRow.appendChild(occSel);
+            box.appendChild(occRow);
+          }
+
           const quick = U.el('div', { class: 'quick' });
           [
-            { label: t('thisWeek'), d: 0 },
+            { label: t('today'), d: 0 },
             { label: t('tomorrow'), d: 1 },
           ].forEach((q) => {
             const b = U.el('button', { class: 'chip-btn', text: q.label });
             b.addEventListener('click', () => {
               const d = U.addDays(today, q.d);
-              start.value = U.toInputDateTime(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0));
+              const now = U.now();
+              // "This week" must offer a time that is still ahead, never a past slot.
+              const h = q.d === 0 ? Math.max(9, now.getHours() + 1) : 9;
+              start.value = U.toInputDateTime(new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.min(23, h), 0));
+              upd();
             });
             quick.appendChild(b);
           });
@@ -531,6 +583,7 @@
             if (!s) return;
             draft.scheduleStart = s;
             draft.scheduleEnd = U.addMinutes(s, parseInt(durSel.value, 10));
+            if (occSel) draft.scheduleOccurrence = occSel.value || null;
             markDirty(); close(null); renderBody(); validate();
           });
           actions.appendChild(clear); actions.appendChild(apply);
@@ -662,12 +715,21 @@
         } else {
           todo = S.createTodo(payload);
         }
-        // schedule
+        // schedule: a repeating to-do is scheduled per occurrence, so a schedule
+        // without an occurrence would be invisible; refuse instead of writing one.
+        let scheduleBlocked = false;
         if (draft.scheduleStart && draft.scheduleEnd) {
-          if (draft.scheduleAllocId) {
+          if (todo.recurrence && !draft.scheduleOccurrence) {
+            scheduleBlocked = true;
+          } else if (draft.scheduleAllocId) {
+            const alloc = S.state.allocations.find((a) => a.id === draft.scheduleAllocId);
+            if (alloc && draft.scheduleOccurrence) alloc.occurrenceId = draft.scheduleOccurrence;
             S.rescheduleAllocation(draft.scheduleAllocId, draft.scheduleStart, draft.scheduleEnd);
           } else {
-            S.createAllocation({ todoId: todo.id, startAt: draft.scheduleStart, endAt: draft.scheduleEnd });
+            S.createAllocation({
+              todoId: todo.id, startAt: draft.scheduleStart, endAt: draft.scheduleEnd,
+              occurrenceId: draft.scheduleOccurrence || null,
+            });
           }
         } else if (draft.scheduleAllocId) {
           S.cancelAllocation(draft.scheduleAllocId);
@@ -680,13 +742,15 @@
         } else if (created) {
           const backTo = S.state.route.name === 'composer' ? (S.state.tab || 'action') : S.state.route.name;
           App.back();
-          S.state.highlight = created ? 'todo-tile' : null;
+          S.state.highlight = created ? { testid: 'todo-tile', id: todo.id } : null;
           App.render();
         } else {
           App.back();
           App.render();
         }
-        UI.toast(created ? t('createdToast', { t: todo.summary }) : t('updatedToast', { t: todo.summary }), {
+        const base = created ? t('createdToast', { t: todo.summary }) : t('updatedToast', { t: todo.summary });
+        UI.toast(scheduleBlocked ? base + ' · ' + t('recurrenceNeedsOccurrence') : base, {
+          warn: scheduleBlocked,
           undo: created ? () => { S.softDeleteTodo(todo.id); App.render(); } : null,
         });
       } else {
@@ -698,7 +762,10 @@
           reminderOffsets: draft.reminderOffsets.slice(),
         };
         let event;
-        if (isEdit) event = S.updateEvent(draft.id, payload);
+        if (isEdit && draft.occurrence) {
+          const split = S.splitEventOccurrence(draft.id, draft.occurrence, payload);
+          event = split ? split.copy : null;
+        } else if (isEdit) event = S.updateEvent(draft.id, payload);
         else event = S.createEvent(payload);
         dirty = false;
         S.state.composer = null;
