@@ -1542,6 +1542,10 @@ void main() {
     'structured recurrence round-trips through the RFC payload and expands',
     () async {
       final start = now().add(const Duration(days: 2));
+      // One instant for the whole case: a second call would let the wall clock
+      // cross a second boundary between the request and the expectation, and
+      // the canonical UNTIL would differ by exactly that second.
+      final until = now().add(const Duration(days: 30));
       final created = await _toolData(app, token, 'create_event', {
         'title': 'Weekly review',
         'start': iso(start),
@@ -1549,7 +1553,7 @@ void main() {
         'recurrence': {
           'freq': 'WEEKLY',
           'interval': 1,
-          'until': iso(now().add(const Duration(days: 30))),
+          'until': iso(until),
         },
       });
       final id = (created['event'] as Map)['event_id'] as String;
@@ -1563,7 +1567,7 @@ void main() {
       final parsed = parseRruleStructured({
         'freq': 'WEEKLY',
         'interval': 1,
-        'until': iso(now().add(const Duration(days: 30))),
+        'until': iso(until),
       }, 'recurrence');
       expect(
         parsed,
