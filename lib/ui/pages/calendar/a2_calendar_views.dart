@@ -1177,6 +1177,7 @@ class A2TimeGridView extends StatelessWidget {
               child: _A2TimeBlock(
                 title: item.title,
                 meta: meta,
+                compact: width < 52,
                 fill: item.isAllocation ? ds.workBg : ds.tint(accent),
                 edge: item.isAllocation ? ds.work : accent,
                 onTap: () => _openBlock(item, allocationItems),
@@ -1266,10 +1267,17 @@ class _A2TimeBlock extends StatefulWidget {
     required this.edge,
     required this.onTap,
     this.onReschedule,
+    this.compact = false,
   });
 
   final String title;
   final String? meta;
+
+  /// Two blocks side by side halve a 43px phone column. At that width every
+  /// pixel the inset takes is one the title cannot use, so a narrow block
+  /// trades its padding away. (Even then a 13px content box holds at most one
+  /// Latin glyph; the design has no rule for a half-width lane.)
+  final bool compact;
   final Color fill;
   final Color edge;
   final VoidCallback onTap;
@@ -1306,7 +1314,9 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
           SizedBox(width: 3, child: ColoredBox(color: widget.edge)),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 2, 2),
+              padding: widget.compact
+                  ? const EdgeInsets.fromLTRB(2, 2, 0, 2)
+                  : const EdgeInsets.fromLTRB(4, 2, 2, 2),
               child: LayoutBuilder(
                 builder: (context, constraints) => ClipRect(
                   child: OverflowBox(

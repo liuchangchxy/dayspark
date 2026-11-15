@@ -56,11 +56,35 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   bool _toastVisible = false;
   Timer? _toastTimer;
   bool _capturing = false;
+  bool _captureFocused = false;
+  double? _lastInset;
 
   DateTime get _today =>
       DateTime(widget.now.year, widget.now.month, widget.now.day);
 
   String get _locale => Localizations.localeOf(context).toString();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The keyboard arrives one or more frames after focus, and its inset
+    // shortens the list; the shelf has to be scrolled into view again once
+    // that happened, or the capture row covers the group it feeds.
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    if (inset == _lastInset) return;
+    _lastInset = inset;
+    if (inset <= 0 || !_captureFocused) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToShelf());
+  }
+
+  void _scrollToShelf() {
+    if (!mounted || !_scroll.hasClients) return;
+    _scroll.animateTo(
+      _scroll.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
+  }
 
   @override
   void dispose() {
@@ -214,7 +238,13 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         if (todo.dueDate == null) todo,
     ];
     final shown = _unplannedExpanded ? preview : preview.take(3).toList();
-    final more = preview.length - shown.length;
+    final inPreview = preview;
+    // What "Show less" can hide, and what the preview never carries: the
+    // Unplanned bucket also holds todos that already have a deadline, and the
+    // design keeps those out of the shelf. The head prints the bucket's real
+    // count, so the shelf must offer a way to reach the rest.
+    final expandable = inPreview.length - shown.length;
+    final beyondShelf = unplannedCount - inPreview.length;
     final empty = agenda.isEmpty && preview.isEmpty;
 
     final children = <Widget>[
@@ -227,20 +257,24 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             countLabel: l.groupCountItems(unplannedCount),
             topBorder: true,
             trailing: Icon(
-              CupertinoIcons.chevron_down,
+              _unplannedExpanded
+                  ? CupertinoIcons.chevron_up
+                  : CupertinoIcons.chevron_down,
               size: 14,
               color: ds.ink3,
             ),
-            onTap: preview.isEmpty
-                ? widget.onOpenUnplanned
-                : () => setState(
+            onTap: expandable > 0
+                ? () => setState(
                     () => _unplannedExpanded = !_unplannedExpanded,
-                  ),
+                  )
+                : widget.onOpenUnplanned,
           ),
           for (final todo in shown)
             _unplannedRow(l, todo, highlighted: todo.id == _recentId),
-          if (more > 0)
-            _moreRow(l, more),
+          if (expandable > 0)
+            _moreRow(l, expandable)
+          else if (beyondShelf > 0)
+            _showAllRow(l, beyondShelf),
         ],
       ],
       const SizedBox(height: 12),
@@ -252,7 +286,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         A2DayHead(
           title: l.today,
           subtitle:
-              '${DateFormat.MMMMd(_locale).format(widget.now)} · '
+              '${DateFormat.yMMMMd(_locale).format(widget.now)} · '
               '${DateFormat.E(_locale).format(widget.now)}',
           clock: DateFormatters.formatTime(widget.now),
           actions: [
@@ -308,13 +342,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           hint: l.captureHintEnter,
           onSubmit: _capture,
           onFocusChange: (focused) {
-            if (focused && _scroll.hasClients) {
-              _scroll.animateTo(
-                _scroll.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-              );
-            }
+            _captureFocused = focused;
+            if (focused) _scrollToShelf();
           },
         ),
       ],
@@ -331,14 +360,14 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     int unplannedCount,
   ) {
     final ds = context.ds;
-    final preview = <Todo>[
+    final noDue = <Todo>[
       for (final todo in unplanned)
         if (todo.dueDate == null) todo,
-    ].take(3).toList();
-    final more = <Todo>[
-      for (final todo in unplanned)
-        if (todo.dueDate == null) todo,
-    ].length - preview.length;
+    ];
+    // The panel scrolls, so it carries the whole shelf; only the bucket's
+    // deadline-bearing items need a way out.
+    final preview = noDue;
+    final beyondShelf = unplannedCount - noDue.length;
 
     return Center(
       child: ConstrainedBox(
@@ -410,8 +439,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                         ),
                       for (final todo in preview)
                         _unplannedRow(l, todo, compact: true),
-                      if (more > 0)
-                        _moreRow(l, more, paddingLeft: 16),
+                      if (beyondShelf > 0)
+                        _showAllRow(l, beyondShelf, paddingLeft: 16),
                     ],
                   ),
                 ),
@@ -777,6 +806,36 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       if (calendar.id == todo.calendarId) return calendar.name;
     }
     return null;
+  }
+
+  /// The bucket holds items the shelf never previews (they have a deadline);
+  /// this row is the only honest way to say so and to reach them.
+  Widget _showAllRow(
+    AppLocalizations l,
+    int count, {
+    double paddingLeft = 12,
+  }) {
+    final ds = context.ds;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onOpenUnplanned,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: EdgeInsets.fromLTRB(paddingLeft, 8, 16, 8),
+          alignment: Alignment.centerLeft,
+          child: Text(
+            l.expandRemaining(count),
+            style: TextStyle(
+              fontSize: 13,
+              color: ds.ink3,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _moreRow(AppLocalizations l, int more, {double paddingLeft = 12}) {

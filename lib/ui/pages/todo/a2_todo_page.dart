@@ -173,7 +173,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final selection = ref.watch(workspaceSelectionProvider);
 
     final head = _head(l, view, unplanned, allRows, desktop);
-    final strip = view is TodosDayView ? _dateStrip(l, viewed) : null;
+    // The desktop bar already carries the date and its arrows; a second date
+    // strip inside the card read as two navigations for one value.
+    final strip = view is TodosDayView && !desktop
+        ? _dateStrip(l, viewed)
+        : null;
     final footer = _footer(l, view, viewed);
 
     final Widget body;
@@ -658,7 +662,14 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         later.add(todo);
       }
     }
-    int byDue(Todo a, Todo b) => a.dueDate!.compareTo(b.dueDate!);
+    // Finished work sinks inside its group, as in the design: the first row a
+    // reader meets should be one they can act on.
+    int byDue(Todo a, Todo b) {
+      final aDone = a.status == 'COMPLETED' ? 1 : 0;
+      final bDone = b.status == 'COMPLETED' ? 1 : 0;
+      if (aDone != bDone) return aDone - bDone;
+      return a.dueDate!.compareTo(b.dueDate!);
+    }
     dueToday.sort(byDue);
     pastDue.sort(byDue);
     later.sort(byDue);
@@ -711,9 +722,17 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     ]..sort((a, b) => a.start!.compareTo(b.start!));
     final events = <DayItem>[...agenda.events]
       ..sort((a, b) => a.start!.compareTo(b.start!));
-    final due = <DayItem>[
+    final dueAll = <DayItem>[
       for (final item in agenda.dueTodos)
         if (item.todo == null || visible(item.todo!)) item,
+    ];
+    // Finished work sinks inside the group, exactly as in All; two passes keep
+    // the projection's own order inside each half (List.sort is not stable).
+    final due = <DayItem>[
+      for (final item in dueAll)
+        if (!item.completed) item,
+      for (final item in dueAll)
+        if (item.completed) item,
     ];
     if (allocations.isEmpty && due.isEmpty && events.isEmpty) {
       return A2Empty(title: l.emptyDateTitle, hint: l.emptyDateHint);

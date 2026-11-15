@@ -771,8 +771,16 @@ class A2Empty extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 22, color: ds.ink3),
-                const SizedBox(height: 10),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: ds.surface3,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 24, color: ds.ink3),
+                ),
+                const SizedBox(height: 12),
               ],
               Text(
                 title,
