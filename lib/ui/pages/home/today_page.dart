@@ -41,7 +41,9 @@ class A2TodayPage extends ConsumerStatefulWidget {
   final DateTime now;
   final ValueChanged<Todo> onOpenTodo;
   final ValueChanged<CalendaEventAdapter> onOpenEvent;
-  final Future<void> Function(Todo todo, String? occurrenceId, bool completed)
+  /// Returns whether the write actually happened: dismissing the occurrence
+  /// picker is not a completion, and the row must not claim one.
+  final Future<bool> Function(Todo todo, String? occurrenceId, bool completed)
   onToggleTodo;
   final VoidCallback onOpenUnplanned;
   final ValueChanged<Todo> onScheduleTodo;
@@ -255,7 +257,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     int index = 0,
   }) async {
     try {
-      await widget.onToggleTodo(todo, occurrenceId, completed);
+      final changed = await widget.onToggleTodo(todo, occurrenceId, completed);
+      if (!changed) return;
     } on Object catch (error) {
       if (mounted) showCompletionError(context, error);
       return;
@@ -310,6 +313,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         ),
         section: section,
         index: index,
+        completedAt: DateTime.now(),
         item: item,
         instance: instance,
       );
@@ -876,6 +880,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     // What already ended belongs to the day, not to "upcoming": a 09:00
     // meeting at 15:00 shown ahead of a 16:00 one reads as a lie about time.
     final ended = timed.where(_hasEnded).toList();
+    // "Earlier today" is its own section: ticking a row here must keep it here
+    // for the undo window, not clone it into Upcoming.
+    final endedItems = _injectRecentDayItems(ended, _RecentSection.ended);
     final widgets = <Widget>[];
 
     // "Now" is the page's only anchor: it is never folded.
@@ -1111,16 +1118,23 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       }
     }
 
-    if (ended.isNotEmpty) {
+    if (endedItems.isNotEmpty) {
       widgets.add(
         A2GroupHead(
           label: l.actionEarlierToday,
-          count: ended.length,
+          count: endedItems.length,
           topBorder: false,
         ),
       );
-      for (final item in ended) {
-        widgets.add(_timelineItem(item, timeColumn));
+      for (var i = 0; i < endedItems.length; i++) {
+        widgets.add(
+          _timelineItem(
+            endedItems[i],
+            timeColumn,
+            section: _RecentSection.ended,
+            index: i,
+          ),
+        );
       }
     }
 
@@ -1380,13 +1394,21 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           // the deadline it closed.
           if (done) {
             meta.add(const A2Sep());
-            meta.add(A2MetaText(l.completed, color: ds.ink3));
+            final completedAt = recent
+                ? _recent?.completedAt
+                : item.todo?.completedAt;
+            meta.add(
+              A2MetaText(_completedText(l, completedAt), color: ds.ink3),
+            );
           }
           meta.add(const A2Sep());
           meta.add(A2MetaText(_dueText(l, due), color: ds.ink3));
         } else if (done) {
+          final completedAt = recent
+              ? _recent?.completedAt
+              : item.todo?.completedAt;
           meta.add(const A2Sep());
-          meta.add(A2MetaText(l.completed, color: ds.ink3));
+          meta.add(A2MetaText(_completedText(l, completedAt), color: ds.ink3));
         }
       case DayItemKind.deadline:
         meta.add(
@@ -1477,6 +1499,14 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           ? () => _openEvent(item.event!)
           : () => _openTodo(item.todo!),
     );
+  }
+
+  /// T3's other half: when the row knows when it was completed, the meta says
+  /// so, because finishing before the deadline is the fact worth keeping.
+  String _completedText(AppLocalizations l, DateTime? completedAt) {
+    final at = completedAt?.toLocal();
+    if (at == null) return l.completed;
+    return '${l.completed} ${DateFormatters.formatTime(at)}';
   }
 
   String _dueText(
@@ -1760,7 +1790,15 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
 /// Which section a just-completed row belongs to, so it can be re-inserted
 /// where it stood instead of appearing somewhere it never lived.
-enum _RecentSection { now, upcoming, dueToday, overdue, missed, unplanned }
+enum _RecentSection {
+  now,
+  upcoming,
+  ended,
+  dueToday,
+  overdue,
+  missed,
+  unplanned,
+}
 
 class _RecentCompletion {
   const _RecentCompletion({
@@ -1769,6 +1807,7 @@ class _RecentCompletion {
     required this.label,
     required this.section,
     required this.index,
+    required this.completedAt,
     this.item,
     this.instance,
   });
@@ -1778,6 +1817,7 @@ class _RecentCompletion {
   final String label;
   final _RecentSection section;
   final int index;
+  final DateTime completedAt;
   final DayItem? item;
   final ProjectedTaskInstance? instance;
 }

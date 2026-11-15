@@ -819,7 +819,7 @@ class _HomePageState extends ConsumerState<HomePage>
   /// page only knows the row it ticked, and that row is the series.
   final Map<int, String> _completedOccurrenceByTodo = {};
 
-  Future<void> _toggleTodo(
+  Future<bool> _toggleTodo(
     Todo todo,
     String? occurrenceId,
     bool completed,
@@ -841,13 +841,14 @@ class _HomePageState extends ConsumerState<HomePage>
       completed: completed,
       occurrenceId: occurrenceId ?? undoOccurrence,
     );
-    if (!result.changed) return;
+    if (!result.changed) return false;
     final resolved = result.occurrenceId;
     if (completed && resolved != null) {
       _completedOccurrenceByTodo[todo.id] = resolved;
     } else {
       _completedOccurrenceByTodo.remove(todo.id);
     }
+    return true;
   }
 
   Widget _buildDetailPane(WorkspaceSelection selection) {

@@ -631,10 +631,15 @@ class _A2DesktopMonthCell extends StatelessWidget {
             // short cell overflowed the grid; the cell now shows only what fits
             // and folds the rest into +N, the same contract as a long day.
             builder: (context, constraints) {
-              final fits = ((constraints.maxHeight - 16) / 20).floor().clamp(
-                0,
-                visible.length,
-              );
+              // When something folds, one of the available rows belongs to the
+              // +N line itself, so the chips must not consume all of them.
+              final capacity = ((constraints.maxHeight - 16) / 20)
+                  .floor()
+                  .clamp(0, visible.length);
+              final overflows = capacity < visible.length;
+              final fits = overflows
+                  ? (capacity - 1).clamp(0, visible.length)
+                  : capacity;
               final shown = visible.take(fits).toList();
               final folded = hidden + (visible.length - shown.length);
               return Column(

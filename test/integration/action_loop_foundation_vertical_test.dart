@@ -284,7 +284,7 @@ void main() {
             now: slotStart,
             onOpenTodo: (todo) => opened = todo,
             onOpenEvent: (_) {},
-            onToggleTodo: (_, __, ___) async {},
+            onToggleTodo: (_, __, ___) async => true,
             onOpenUnplanned: () {},
             onScheduleTodo: (_) {},
           ),

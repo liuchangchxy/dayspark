@@ -27,7 +27,7 @@ Widget _app({
   ValueChanged<Todo>? onOpenTodo,
   ValueChanged<Todo>? onScheduleTodo,
   VoidCallback? onOpenUnplanned,
-  Future<void> Function(Todo todo, String? occurrenceId, bool completed)?
+  Future<bool> Function(Todo todo, String? occurrenceId, bool completed)?
   onToggleTodo,
 }) {
   return ProviderScope(
@@ -46,7 +46,7 @@ Widget _app({
           now: now ?? DateTime(2026, 10, 6, 15),
           onOpenTodo: onOpenTodo ?? (_) {},
           onOpenEvent: (_) {},
-          onToggleTodo: onToggleTodo ?? (_, __, ___) async {},
+          onToggleTodo: onToggleTodo ?? (_, __, ___) async => true,
           onOpenUnplanned: onOpenUnplanned ?? () {},
           onScheduleTodo: onScheduleTodo ?? (_) {},
         ),
@@ -87,13 +87,13 @@ Future<int> _createSeries(
   );
 }
 
-Future<void> _completeInDb(
+Future<bool> _completeInDb(
   AppDatabase db,
   Todo todo,
   String? occurrenceId,
   bool completed,
-) {
-  return RecordScope.run(
+) async {
+  await RecordScope.run(
     db,
     (tx) => TodoWriter.setCompletion(
       db,
@@ -103,6 +103,7 @@ Future<void> _completeInDb(
       occurrenceId: occurrenceId,
     ),
   );
+  return true;
 }
 
 void main() {
@@ -343,6 +344,7 @@ void main() {
         onOpenTodo: (todo) => opened.add(todo.id),
         onToggleTodo: (todo, occurrenceId, completed) async {
           toggles.add((todo.id, occurrenceId, completed));
+          return true;
         },
       ),
     );
@@ -423,6 +425,7 @@ void main() {
         ],
         onToggleTodo: (todo, occurrence, completed) async {
           toggles.add((todo.id, occurrence, completed));
+          return true;
         },
       ),
     );
@@ -853,10 +856,11 @@ void main() {
       expect(row.status, 'COMPLETED');
       expect(find.text('Weekly notes'), findsOneWidget);
       expect(find.text('Undo'), findsOneWidget);
+      // T3 also keeps the moment it was completed, not just the fact.
       expect(
         find.descendant(
           of: find.byType(A2Block),
-          matching: find.text('Completed'),
+          matching: find.textContaining('Completed '),
         ),
         findsOneWidget,
       );
@@ -963,6 +967,7 @@ void main() {
           ],
           onToggleTodo: (todo, occurrenceId, completed) async {
             calls.add((todo.id, occurrenceId, completed));
+            return true;
           },
         ),
       );
@@ -1041,4 +1046,64 @@ void main() {
       await _unmount(tester);
     },
   );
+
+  testWidgets('ticking an ended allocation keeps it in Earlier today only', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final id = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Morning review',
+          ),
+        );
+    final container = ProviderContainer(
+      overrides: [databaseProvider.overrideWithValue(db)],
+    );
+    await container.read(createTaskAllocationProvider)(
+      todoId: id,
+      startAt: DateTime(2026, 10, 6, 12),
+      endAt: DateTime(2026, 10, 6, 13),
+    );
+    container.dispose();
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+        ],
+        onToggleTodo: (todo, occurrenceId, completed) =>
+            _completeInDb(db, todo, occurrenceId, completed),
+      ),
+    );
+    await _settle(tester);
+
+    expect(find.text('Earlier today'), findsOneWidget);
+    final check = find.byWidgetPredicate(
+      (widget) => widget is DsCheck && widget.label == 'Morning review',
+    );
+    expect(check, findsOneWidget);
+
+    await tester.tap(check);
+    await _settle(tester);
+
+    // The row belongs to "Earlier today"; the undo window must keep it there
+    // instead of cloning it into Upcoming (which would also reuse the undo
+    // key twice and throw in debug builds).
+    expect(find.text('Morning review'), findsOneWidget);
+    expect(find.text('Upcoming'), findsNothing);
+    expect(find.text('Undo'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    expect(find.text('Undo'), findsNothing);
+
+    await _unmount(tester);
+  });
 }

@@ -129,6 +129,11 @@ final actionTaskInstanceStatesProvider =
       return db.select(db.taskInstanceStates).watch();
     });
 
+/// Last good projection per day range. It exists so a failed refresh can show
+/// the stale list with a retry strip (T5) instead of an empty error page.
+final _actionProjectionCacheProvider =
+    Provider<Map<String, ActionProjectionData>>((ref) => {});
+
 final actionProjectionProvider =
     Provider.autoDispose<AsyncValue<ActionProjectionData>>((ref) {
       final date = ref.watch(actionDateProvider);
@@ -191,21 +196,30 @@ final actionProjectionProvider =
             allTodosAsync.stackTrace ??
             instanceStatesAsync.stackTrace ??
             StackTrace.current;
-        return AsyncValue.error(firstError, st);
+        // T5: keep the last good projection for this day so the page can show
+        // a stale list with a retry strip instead of wiping the day. Only a
+        // first load with no previous value falls back to the error box.
+        final cached = ref.read(_actionProjectionCacheProvider)[rangeKey];
+        final failure = AsyncValue<ActionProjectionData>.error(firstError, st);
+        return cached == null
+            ? failure
+            : failure.copyWithPrevious(AsyncValue.data(cached));
       }
 
-      return AsyncValue.data(
-        ActionProjectionQuery.compute(
-          date: date,
-          eventCandidates: eventsAsync.valueOrNull ?? const [],
-          allocations: allocationsAsync.valueOrNull ?? const [],
-          dueTodayTodos: dueTodayAsync.valueOrNull ?? const [],
-          overdueTodos: overdueAsync.valueOrNull ?? const [],
-          unplannedCount: (unplannedAsync.valueOrNull ?? const []).length,
-          completedTodayTodos: completedAsync.valueOrNull ?? const [],
-          recurringTodos: recurringTodosAsync.valueOrNull ?? const [],
-          allTodos: allTodosAsync.valueOrNull ?? const [],
-          instanceStates: instanceStatesAsync.valueOrNull ?? const [],
-        ),
+      final projection = ActionProjectionQuery.compute(
+        date: date,
+        eventCandidates: eventsAsync.valueOrNull ?? const [],
+        allocations: allocationsAsync.valueOrNull ?? const [],
+        dueTodayTodos: dueTodayAsync.valueOrNull ?? const [],
+        overdueTodos: overdueAsync.valueOrNull ?? const [],
+        unplannedCount: (unplannedAsync.valueOrNull ?? const []).length,
+        completedTodayTodos: completedAsync.valueOrNull ?? const [],
+        recurringTodos: recurringTodosAsync.valueOrNull ?? const [],
+        allTodos: allTodosAsync.valueOrNull ?? const [],
+        instanceStates: instanceStatesAsync.valueOrNull ?? const [],
       );
+      final cache = ref.read(_actionProjectionCacheProvider);
+      if (cache.length >= 32) cache.clear();
+      cache[rangeKey] = projection;
+      return AsyncValue.data(projection);
     });

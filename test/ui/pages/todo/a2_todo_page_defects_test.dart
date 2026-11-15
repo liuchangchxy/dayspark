@@ -21,7 +21,7 @@ Widget _app({
   required List<Override> overrides,
   required DateTime now,
   ValueChanged<Todo>? onOpenTodo,
-  Future<void> Function(Todo todo, String? occurrenceId, bool completed)?
+  Future<bool> Function(Todo todo, String? occurrenceId, bool completed)?
   onToggleTodo,
   ValueChanged<Todo>? onScheduleTodo,
   DayAgenda? dayAgenda,
@@ -209,6 +209,7 @@ void main() {
         now: now,
         onToggleTodo: (todo, occurrenceId, completed) async {
           calls.add((occurrenceId, completed));
+          return true;
         },
       ),
     );
@@ -263,6 +264,7 @@ void main() {
               status: Value(completed ? 'COMPLETED' : 'NEEDS-ACTION'),
             ),
           );
+          return true;
         },
       ),
     );
@@ -323,6 +325,7 @@ void main() {
               status: Value(completed ? 'COMPLETED' : 'NEEDS-ACTION'),
             ),
           );
+          return true;
         },
       ),
     );
@@ -415,6 +418,7 @@ void main() {
         ),
         onToggleTodo: (todo, occurrenceId, completed) async {
           calls.add((occurrenceId, completed));
+          return true;
         },
       ),
     );
@@ -482,6 +486,47 @@ void main() {
     expect(find.text('All Tasks'), findsWidgets);
     expect(find.text('No pending tasks'), findsOneWidget);
     expect(find.text('Capture one — Enter puts it here'), findsNothing);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('a dismissed occurrence picker does not report a completion', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final id = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Skipped tick',
+            rrule: Value('FREQ=DAILY;COUNT=5'),
+          ),
+        );
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosInboxView()),
+        ],
+        now: now,
+        // The production callback returns false when the occurrence picker is
+        // dismissed, so no write happened and nothing may claim one.
+        onToggleTodo: (todo, occurrenceId, completed) async => false,
+      ),
+    );
+    await _settle(tester);
+
+    await tester.tap(find.byType(DsCheck).first);
+    await _settle(tester);
+
+    expect(find.text('Completed'), findsNothing);
+    expect(find.byKey(ValueKey('todo-undo-$id-series')), findsNothing);
+    expect(find.text('Skipped tick'), findsOneWidget);
 
     await _unmount(tester);
   });

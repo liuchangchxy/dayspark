@@ -322,13 +322,14 @@ void main() {
             now: slotStart,
             onOpenTodo: (_) {},
             onOpenEvent: (_) {},
-            onToggleTodo: (todo, occurrenceId, completed) => container.read(
-              toggleTodoProvider,
-            )(
-              id: todo.id,
-              isCompleted: completed,
-              occurrenceId: occurrenceId,
-            ),
+            onToggleTodo: (todo, occurrenceId, completed) async {
+              await container.read(toggleTodoProvider)(
+                id: todo.id,
+                isCompleted: completed,
+                occurrenceId: occurrenceId,
+              );
+              return true;
+            },
             onOpenUnplanned: () {},
             onScheduleTodo: (_) {},
           ),

@@ -17,7 +17,7 @@ Widget _app({
   required List<Override> overrides,
   required ValueChanged<Todo> onOpenTodo,
   required ValueChanged<Todo> onScheduleTodo,
-  required Future<void> Function(Todo todo, String? occurrenceId, bool completed)
+  required Future<bool> Function(Todo todo, String? occurrenceId, bool completed)
   onToggleTodo,
 }) {
   return ProviderScope(
@@ -104,7 +104,7 @@ void main() {
         ],
         onOpenTodo: (_) {},
         onScheduleTodo: (_) {},
-        onToggleTodo: (_, __, ___) async {},
+        onToggleTodo: (_, __, ___) async => true,
       ),
     );
     await _settle(tester);
@@ -144,7 +144,7 @@ void main() {
         ],
         onOpenTodo: (todo) => opened.add(todo.id),
         onScheduleTodo: (todo) => scheduled.add(todo.id),
-        onToggleTodo: (_, __, ___) async {},
+        onToggleTodo: (_, __, ___) async => true,
       ),
     );
     await _settle(tester);
@@ -189,6 +189,7 @@ void main() {
         onScheduleTodo: (_) {},
         onToggleTodo: (todo, occurrenceId, completed) async {
           calls.add(completed);
+          return true;
         },
       ),
     );
@@ -227,7 +228,7 @@ void main() {
         ],
         onOpenTodo: (_) {},
         onScheduleTodo: (_) {},
-        onToggleTodo: (_, __, ___) async {},
+        onToggleTodo: (_, __, ___) async => true,
       ),
     );
     await _settle(tester);
@@ -239,6 +240,62 @@ void main() {
     expect(attempts, 2);
     expect(find.text('Retry'), findsNothing);
     expect(find.text('Nothing scheduled today'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('a refresh failure keeps the stale list instead of wiping it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final shouldFail = StateProvider<bool>((ref) => false);
+    await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Keep me',
+            dueDate: Value(DateTime(2026, 10, 6, 18)),
+          ),
+        );
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          actionDateProvider.overrideWith((ref) => day),
+          shouldFail,
+          unplannedTodosProvider.overrideWith((ref) {
+            return ref.watch(shouldFail)
+                ? AsyncValue<List<Todo>>.error(
+                    StateError('offline'),
+                    StackTrace.current,
+                  )
+                : const AsyncValue<List<Todo>>.data(<Todo>[]);
+          }),
+        ],
+        onOpenTodo: (_) {},
+        onScheduleTodo: (_) {},
+        onToggleTodo: (_, __, ___) async => true,
+      ),
+    );
+    await _settle(tester);
+    expect(find.text('Keep me'), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2TodayPage)),
+    );
+    container.read(shouldFail.notifier).state = true;
+    await _settle(tester);
+
+    // T5: the last good projection is still on screen, with a retry strip on
+    // top of it, rather than the day being replaced by an error box.
+    expect(find.text('Keep me'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
 
     await _unmount(tester);
   });

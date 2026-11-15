@@ -52,7 +52,9 @@ class A2TodoPage extends ConsumerStatefulWidget {
   final DateTime now;
   final DayAgenda dayAgenda;
   final ValueChanged<Todo>? onOpenTodo;
-  final Future<void> Function(Todo todo, String? occurrenceId, bool completed)?
+  /// Returns whether the write actually happened; a dismissed occurrence
+  /// picker must not read as a completion.
+  final Future<bool> Function(Todo todo, String? occurrenceId, bool completed)?
   onToggleTodo;
   final Future<void> Function(String text)? onCapture;
   final ValueChanged<DateTime>? onPlanDay;
@@ -135,7 +137,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final callback = widget.onToggleTodo;
     if (callback == null) return;
     try {
-      await callback(todo, occurrenceId, completed);
+      final changed = await callback(todo, occurrenceId, completed);
+      if (!changed) return;
     } on Object catch (error) {
       if (mounted) showCompletionError(context, error);
       return;

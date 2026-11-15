@@ -761,19 +761,8 @@ body {
   box-shadow: var(--shadow-1);
 }
 .fab svg { width: 20px; height: 20px; stroke-width: 1.9; }
-/* FAB 弹出的动作菜单（三个明确动作） */
-.fab-menu {
-  position: absolute; right: 16px; bottom: 134px; z-index: 46;
-  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
-}
-.fab-menu .fmi {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--ink); color: var(--bg); font-size: var(--fs-13); font-weight: 500;
-  padding: 9px 14px; border-radius: 8px; white-space: nowrap;
-}
-.fab-menu .fmi svg { width: 15px; height: 15px; }
-.fab-menu .fmi .sub { font-size: var(--fs-11); color: rgba(252,252,250,.65); font-weight: 400; }
-.screen.dark .fab-menu .fmi { background: #ecece6; color: #131311; }
+/* 月视图 FAB 直接新建 Event（SPEC 规则 19）。没有动作菜单：
+   三动作菜单只属于具体时间槽，见下方 .slot-sheet。 */
 
 /* 时间槽 sheet（日历点槽后的三个动作） */
 .slot-mask { position: absolute; inset: 0; background: var(--scrim); z-index: 60; display: flex; flex-direction: column; justify-content: flex-end; }

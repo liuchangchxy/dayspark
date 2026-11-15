@@ -25,16 +25,16 @@
 |---|---|
 | T1 四节独立判空 | 今天页各节自判空，整页全空才显示空态盒 |
 | T2 时间节折叠 | 「接下来」「已逾期」>3 项折叠，「现在」永不折叠 |
-| T3 一勾双完 | 合并块勾选同时完成执行与截止，meta 记录完成时刻与原截止 |
+| T3 一勾双完 | 合并块勾选同时完成执行与截止，meta 记录「已完成 HH:mm」与原截止 |
 | T4/D3/R6/R7 可撤销完成 | 完成行原地保留 5 秒 + 行内「撤销」键；重复实例带 occurrence 标签 |
-| T5 投影失败 | 错误态 + 重试；有旧值时降级为「陈旧列表 + 重试条」 |
-| C1 槽 sheet 双行头 | 主行日期（事实）+ 次行范围（标注默认时长/既有日程） |
+| T5 投影失败 | 错误态 + 重试；有旧值时降级为「陈旧列表 + 重试条」（最后一次成功的投影按日期缓存，失败时随错误一起返回） |
+| C1 槽 sheet 双行头 | 主行日期（事实）+ 次行范围：空槽标「默认，可改」，既有块标「已有日程」（既有块分支随事件被点开时才会进入；当前点日历事件仍然打开事件详情，见 §七） |
 | C2 三动作分级 | 新建日程（实心）→ 新建并安排（描边）→ 安排待办（文字 + 计数徽标） |
 | C3 候选空/错分离 | 空态指向「新建并安排」；错误只隔离在「安排待办」一行 |
 | C4 24h 轴 | 现在线吸顶、「回到现在」浮动键、凌晨空段折叠 |
 | D1/D2 行右缘「安排」 | 行内 ghost 键直达 schedule 模式；标题仍开详情 |
 | P1/P2 主按钮动词 | 创建用「保存…」、安排用「安排…」；六态文案矩阵补全 both 与 schedule |
-| P3 模式切换 | sheet 内段控切换，已填字段保留，occurrence 清空 |
+| P3 模式切换 | sheet 内段控切换，已填字段保留，occurrence 清空（「进入 schedule 模式预选既有时段」未实现，见 §七） |
 | R1 失败保草稿 | 保存失败不关 sheet、不清输入、标「保存失败」、可重试不重复 |
 | R2 成功后落点 | browseDate 跳到被安排的日期 |
 | R4 改排原子 | 已确认 `reschedule` 是原地更新同一行，不会双挂 |
@@ -53,7 +53,31 @@
 | 新捕获行底色 | **`surface-2`**。`primary-soft` 保留给选中/强调 | `today_page.dart` `_unplannedRow` → `ds.surface2`；约束写进 `docs/CONSTRAINTS.md` |
 | 6 个缺失 l10n key | **补齐，不用已有 key 拼英文** | `undoOccurrence` / `backToNow` / `dawnQuiet` / `slotRangeExistingEvent` / `slotRangeDefaultEditable` / `slotEmptyCreateHint`，中英双语，`flutter gen-l10n` 后门禁全绿 |
 
-## 六、收口
+## 六、独立审查发现并已修的两条 P1（2026-11-16）
+
+1. **「今日早前」勾选会在「接下来」多渲染一份，并复用同一个 `GlobalKey`。**
+   根因：「今日早前」的 `_timelineItem` 没传 section，落到默认 `upcoming`，撤销窗口把自己的行插进了另一个分组。
+   修法：新增 `_RecentSection.ended`，该分组走 `_injectRecentDayItems(ended, ended)`，撤销只在本组原地保留。
+   回归测试：`a2_today_page_test.dart`「ticking an ended allocation keeps it in Earlier today only」（变异验证：还原旧代码即红）。
+
+2. **在重复任务的 occurrence 选择器上取消，被当成完成。**
+   根因：`toggleTodoCompletion` 返回 `changed:false`，但 `HomePage._toggleTodo` 的返回类型是 `Future<void>`，把信号丢了；两个页面见「没抛异常」就当成功。
+   修法：完成回调统一改为 `Future<bool>`，`false` 时两个页面都不动行、不弹「已完成」、不给撤销。
+   回归测试：`a2_todo_page_defects_test.dart`「a dismissed occurrence picker does not report a completion」（同样做了变异验证）。
+
+## 七、本轮未覆盖（P2/P3 待办，不在本 PR 范围）
+
+- **C3 候选集口径**：时间槽 sheet 的候选来自「未删除且未完成」的全部待办，不是「未安排的待办」；计数徽标与空态文案随之偏松（SPEC 3.1.1 允许多段计划，故不改写入，只改候选查询与计数口径）。
+- **P3 预选既有时段**：进入 schedule 模式时没有预选该待办已有的计划块。
+- **D3 按日期模式的撤销窗**：按日期页的计划行在被完成后由投影移除，行内撤销键随行消失（仅剩 snackbar）。
+- **C1 既有日程进入方式**：点日历事件仍打开事件详情，`slotRangeExistingEvent` 的既有块分支目前没有生产入口。
+- **月格折叠的完整断言**：折叠数学已补「+N 自己要占一行」，但没有针对短格子的组件测试。
+- **实时时钟**：`calendarNowProvider` 不是响应式的，吸顶现在线的时间标签只在页面重建时更新。
+- **`DayAgenda` 的日界**：用 `add(Duration(days:1))` 求次日边界，DST 切换日会偏一小时（既有问题，与本轮改动无关）。
+- **序列行撤销文案**：序列行拿到的 `occurrenceId` 为 null，撤销键显示通用「撤销」而非「撤销 · 第 N 次」。
+- **meta 行尾部裁切**：`A2MetaLine` / `A2Block` 的 meta 用 `OverflowBox` + `ClipRect` 避免溢出，代价是超宽时从右端裁切；完成时刻排在末尾，窄屏上会被裁掉（数据已写入，桌面/宽行可见）。要真正显示需要改 meta primitive 的换行或优先级。
+
+## 八、收口
 
 - 上述三项修完后重跑 `dart analyze .` / `flutter test` / 版本·空白·路径门禁，并在 MuMu 上重走捕获→未安排→详情→安排→日历，以及日历头部与时间槽 sheet。
 - 本轮以单个 PR 提交：OpenDesign `review-ux-gaps.html` 裁定、真机发现的两项布局修复、上述三项裁定。
