@@ -20,6 +20,9 @@
 | D8 | 月份视图无任何点击行为（G16） | 点格子下钻到该日 | 现状月视图是「死」的：能看到红点却打不开 | P1 |
 | D9 | 删除重复事件的单次实例**无撤销**（G14），而其它删除都有 | 实例删除也给撤销（移除 exdate） | 一致性问题：用户已学会「删除可撤销」，唯一例外会造成数据丢失 | P1 |
 | D10 | 取消安排块**无确认**、有撤销；删除待办**有确认**、有撤销 | 取消安排加确认（它会改变日历上的可见计划） | 现状同一类操作确认策略不一致 | P2 |
+| D11 | 删除重复日程的**单次实例**：`event_detail_page` 有「仅此次/整个系列」二选一，但只有**详情页**这一条路径；块菜单/表单路径仍整系列删 | 删除与编辑统一走一个作用域入口（`event-ops`），三个入口问同一句话 | 现状两条删除路径行为不同：从详情删是 exdate，从别处删是整系列。G2 必须收敛成一处 | P0 |
+| D12 | 实例详情的时间取 `widget.event.start`；编辑入口走 `/event/edit` 传整个 `CalendaEventAdapter`，composer 按系列基准日打开 | 实例详情显示实例自己的开始时间；编辑实例 = exdate + 一次性副本（`splitEventOccurrence`） | 现状编辑实例会改到系列基准日；且 `eventEdit` 路由**无任何调用者**（编辑入口缺失） | P1 |
+| D13 | `action_projection_query` 的 `dueTodayTodos` / `overdueTodos` / `recurringTodos` 三条查询**都没有 `parentId.isNull()`**（`lib/domain/services/action_projection_query.dart:324,340,380`） | Action 投影排除子任务 | 子任务带截止/重复时会出现在 Action 顶层，而待办页与收件箱查询都过滤了 `parentId` —— 两个界面同一事实不一致。这是**真实代码里已存在的 bug**，不只是原型差异 | P1 |
 
 ---
 
