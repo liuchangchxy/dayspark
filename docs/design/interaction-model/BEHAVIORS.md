@@ -103,6 +103,12 @@
 - **失败**：滑动不足阈值 → 回弹，不执行。
 - 证据：「mobile: swiping a row left deletes it with an undo path」
 
+### B12 逾期区上限（不静默截断）
+- **数据**：逾期区 = 逾期待办 + 遗漏的重复实例（近 30 天）。前 5 条遗漏实例直接显示，其余折叠。
+- **界面**：区头计数**始终是总数**（含被折叠的）；多出时出现「展开其余 n 项」→「收起」，可逆。绝不出现「有 12 条但只看到 5 条且无出口」。
+- **失败**：无。
+- 证据：「missed recurring instances beyond five are reachable from the overdue section」
+
 ---
 
 ## C. 日程（Event）

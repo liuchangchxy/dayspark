@@ -139,10 +139,24 @@
 
         const overdueRows = [];
         proj.overdueTodos.forEach((todo) => overdueRows.push(todoRow(todo, now)));
-        proj.missedTaskInstances.slice(0, 5).forEach((inst) => overdueRows.push(instanceRow(inst, true, day)));
+        const missedAll = proj.missedTaskInstances;
+        const missedShown = S.state.overdueExpanded ? missedAll : missedAll.slice(0, 5);
+        missedShown.forEach((inst) => overdueRows.push(instanceRow(inst, true, day)));
         if (overdueRows.length) {
-          sections.push(UI.sectionHead(t('overdue'), overdueRows.length, { tone: 'danger' }));
+          const hidden = missedAll.length - missedShown.length;
+          sections.push(UI.sectionHead(t('overdue'), overdueRows.length + hidden, { tone: 'danger' }));
           overdueRows.forEach((r) => sections.push(r));
+          if (hidden > 0) {
+            const fold = U.el('button', { class: 'row', 'data-testid': 'overdue-more', style: 'justify-content:center;color:var(--ink-2);font-size:12px;font-weight:600' });
+            fold.innerHTML = `<span>${U.esc(t('moreItems', { n: hidden }))}</span>${ICON('chevronDown', 14)}`;
+            fold.addEventListener('click', () => { S.state.overdueExpanded = true; App.render(); });
+            sections.push(fold);
+          } else if (missedAll.length > 5) {
+            const fold = U.el('button', { class: 'row', 'data-testid': 'overdue-less', style: 'justify-content:center;color:var(--ink-2);font-size:12px;font-weight:600' });
+            fold.innerHTML = `<span>${U.esc(t('collapseList'))}</span>${ICON('chevronUp', 14)}`;
+            fold.addEventListener('click', () => { S.state.overdueExpanded = false; App.render(); });
+            sections.push(fold);
+          }
         }
 
         const earlier = [

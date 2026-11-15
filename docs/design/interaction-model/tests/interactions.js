@@ -662,6 +662,34 @@ scenario('the six-things cap hides extra rows and expands and collapses reversib
   await page.close();
 });
 
+/* ---------- Overdue missed instances are never silently truncated ---------- */
+scenario('missed recurring instances beyond five are reachable from the overdue section', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 12);
+    window.Store.createTodo({
+      summary: '漏掉的重复任务',
+      recurrence: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' },
+      dueDate: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9),
+    });
+    window.App.go('action');
+  });
+  await settle(page, 300);
+  const collapsed = await count(page, '[data-testid="action-instance"]');
+  assert(await exists(page, '[data-testid="overdue-more"]'), 'a truncated overdue section must offer a way to see the rest');
+  await page.click('[data-testid="overdue-more"]');
+  await settle(page, 260);
+  const expanded = await count(page, '[data-testid="action-instance"]');
+  assert(expanded > collapsed, `expanding must reveal the hidden missed instances (${collapsed} -> ${expanded})`);
+  assert(await exists(page, '[data-testid="overdue-less"]'), 'expanded overdue should offer collapse');
+  await page.click('[data-testid="overdue-less"]');
+  await settle(page, 260);
+  assertEq(await count(page, '[data-testid="action-instance"]'), collapsed, 'collapsing must return to the capped list');
+  await noErrors(page);
+  await page.close();
+});
+
 /* ---------- Long title does not break layout ---------- */
 scenario('a very long title wraps without breaking the row or the page', async (browser) => {
   const page = await newPage(browser);

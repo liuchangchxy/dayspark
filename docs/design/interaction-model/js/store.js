@@ -16,6 +16,7 @@
     route: { name: 'action', params: {} },
     todosView: { kind: 'day', day: null },
     sixThings: false,
+    overdueExpanded: false,
     hideCompleted: false,
     defaultTab: 'action',
     weekStartsOn: 1,

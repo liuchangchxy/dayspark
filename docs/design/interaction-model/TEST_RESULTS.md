@@ -14,9 +14,9 @@
 | 套件 | 内容 | 结果 |
 |---|---|---|
 | `tests/smoke.js` | 启动、无横向溢出、按钮都有可读名字、9 条路由可达、零控制台错误（桌面 + 手机） | **11 / 11 通过** |
-| `tests/interactions.js` | 33 个端到端交互场景 | **33 / 33 通过** |
+| `tests/interactions.js` | 34 个端到端交互场景 | **34 / 34 通过** |
 | `tests/surfaces.js` | 14 个功能面场景 | **14 / 14 通过** |
-| 合计 | | **58 / 58 通过，0 失败，0 跳过** |
+| 合计 | | **59 / 59 通过，0 失败，0 跳过** |
 
 `skipped = 0`：没有任何场景被跳过或注释掉。唯一一条 `note` 是测试侧的说明（鼠标拖动不会触发触摸滑动手势，该路径由同套件里的 touch 场景覆盖），不是跳过。
 
@@ -43,49 +43,50 @@
 | 8 | todo detail is read-only until Edit, and an edit propagates to every surface | 详情只读；显式编辑；改动同步到列表/Action |
 | 9 | completing a todo moves it to the completed section and to Action earlier-today, and undo restores it | 完成 → 已完成区 + Action 早些时候；撤销复原 |
 | 10 | deleting a todo moves it to Trash and restore brings it back with its data | 软删 → 回收站 → 恢复保留截止等数据 |
-| 11 | adding a subtask from a parent detail keeps it out of the top-level lists | 子任务保存后回父详情，且不出现在顶层列表 |
 
 ### C. 日历、安排、事件
 
 | # | 场景 | 证明的行为 |
 |---|---|---|
-| 12 | creating an event from a calendar slot fills the grid and Action | 时间格 → 新建日程 → 格子与 Action 同时出现 |
-| 13 | scheduling a todo from a slot creates an allocation that can be rescheduled | 时间格 → 安排待办 → 改期 |
-| 14 | a scheduled todo shows its allocated time on the row and in its detail | 安排时段同时出现在行 meta 与详情 |
-| 15 | completing one occurrence of a recurring todo leaves the series and other days intact | 重复任务按实例完成，系列与其它日期不受影响 |
-| 16 | month view drills into a day and week view shows the same events | 月视图点格下钻；周视图同一批事件 |
-| 17 | deadlines are listed in their own lane and never drawn as time blocks | 截止只进泳道，绝不进时间格 |
-| 18 | cancelling a scheduled block removes the block but keeps the to-do | 取消安排不删待办，可撤销 |
-| 19 | dragging an event block moves it and the toast undo puts it back | 拖动日程改期，时长不变，撤销真正复原 |
-| 20 | dragging one occurrence of a repeating event asks the scope, and undo reverses it | 拖重复实例先问「这一次/以后/整个系列」，选「这一次」= exdate + 单次副本，撤销合并回去 |
+| 11 | creating an event from a calendar slot fills the grid and Action | 时间格 → 新建日程 → 格子与 Action 同时出现 |
+| 12 | scheduling a todo from a slot creates an allocation that can be rescheduled | 时间格 → 安排待办 → 改期 |
+| 13 | a scheduled todo shows its allocated time on the row and in its detail | 安排时段同时出现在行 meta 与详情 |
+| 14 | completing one occurrence of a recurring todo leaves the series and other days intact | 重复任务按实例完成，系列与其它日期不受影响 |
+| 24 | month view drills into a day and week view shows the same events | 月视图点格下钻；周视图同一批事件 |
+| 25 | deadlines are listed in their own lane and never drawn as time blocks | 截止只进泳道，绝不进时间格 |
+| 26 | cancelling a scheduled block removes the block but keeps the to-do | 取消安排不删待办，可撤销 |
+| 32 | dragging an event block moves it and the toast undo puts it back | 拖动日程改期，时长不变，撤销真正复原 |
+| 33 | dragging one occurrence of a repeating event asks the scope, and undo reverses it | 拖重复实例先问「这一次/以后/整个系列」，选「这一次」= exdate + 单次副本，撤销合并回去 |
 
 ### D. 搜索、筛选、边界
 
 | # | 场景 | 证明的行为 |
 |---|---|---|
-| 21 | search finds a newly created item and opens its detail | 新建对象可被搜索到并打开 |
-| 22 | search and lists explain empty results instead of showing blank space | 空结果有解释与可行动作 |
-| 23 | the six-things cap hides extra rows and expands and collapses reversibly | 六件事上限可展开/收起且可逆 |
-| 24 | a very long title wraps without breaking the row or the page | 超长标题不撑破布局、无横向溢出 |
-| 25 | opening a record that does not exist shows an error state with a way back | 缺失记录 → 错误页 + 返回 |
-| 26 | tag filter narrows the list and clearing it restores every row | 标签筛选与清除 |
+| 15 | search finds a newly created item and opens its detail | 新建对象可被搜索到并打开 |
+| 16 | search and lists explain empty results instead of showing blank space | 空结果有解释与可行动作 |
+| 17 | the six-things cap hides extra rows and expands and collapses reversibly | 六件事上限可展开/收起且可逆 |
+| 18 | missed recurring instances beyond five are reachable from the overdue section | 逾期区不静默截断：超出 5 条的遗漏实例可展开/收起 |
+| 19 | a very long title wraps without breaking the row or the page | 超长标题不撑破布局、无横向溢出 |
+| 20 | opening a record that does not exist shows an error state with a way back | 缺失记录 → 错误页 + 返回 |
+| 23 | tag filter narrows the list and clearing it restores every row | 标签筛选与清除 |
 
 ### E. 键盘、浮层、语言与主题
 
 | # | 场景 | 证明的行为 |
 |---|---|---|
-| 27 | Escape closes the top overlay first and only then leaves the page | Esc 分层：浮层 → 菜单 → 页面 → 返回 |
-| 28 | keyboard N opens a new to-do and / opens search | 全局快捷键 |
-| 29 | switching language and theme updates the shell immediately and persists across pages | 中英/明暗即时生效并跨页保持 |
-| 30 | an AI proposal does not change data until the user applies it | AI 提案未确认前不写库 |
+| 21 | Escape closes the top overlay first and only then leaves the page | Esc 分层：浮层 → 菜单 → 页面 → 返回 |
+| 22 | keyboard N opens a new to-do and / opens search | 全局快捷键 |
+| 27 | adding a subtask from a parent detail keeps it out of the top-level lists | 子任务保存后回父详情，且不出现在顶层列表 |
+| 28 | switching language and theme updates the shell immediately and persists across pages | 中英/明暗即时生效并跨页保持 |
+| 29 | an AI proposal does not change data until the user applies it | AI 提案未确认前不写库 |
 
 ### F. 手机
 
 | # | 场景 | 证明的行为 |
 |---|---|---|
-| 31 | mobile: bottom nav reaches every primary tab and a created item opens and returns | 底部 3 tab、新建、详情、返回全通 |
-| 32 | mobile: tapping a calendar slot can create an event without leaving the calendar | 手机时间格建日程 |
-| 33 | every route renders, and clicking its visible controls raises no errors | 12 条路由逐一点击全部可见控件，零控制台错误 |
+| 30 | mobile: bottom nav reaches every primary tab and a created item opens and returns | 底部 3 tab、新建、详情、返回全通 |
+| 31 | mobile: tapping a calendar slot can create an event without leaving the calendar | 手机时间格建日程 |
+| 34 | every route renders, and clicking its visible controls raises no errors | 12 条路由逐一点击全部可见控件，零控制台错误 |
 
 ### G. 功能面（`surfaces.js`）
 
