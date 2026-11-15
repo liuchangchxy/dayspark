@@ -258,7 +258,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             countLabel: l.groupCountItems(unplannedCount),
             topBorder: true,
             trailing: Icon(
-              _unplannedExpanded
+              // With nothing left to expand the tap leaves for the bucket's
+              // own view, so the chevron must not promise a disclosure.
+              _unplannedExpanded || expandable == 0
                   ? CupertinoIcons.chevron_up
                   : CupertinoIcons.chevron_down,
               size: 14,
@@ -346,10 +348,12 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         A2CaptureBar(
           fieldKey: const ValueKey('today-capture-field'),
           placeholder: l.capturePlaceholder,
-          hint: l.captureHintEnter,
+          hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
           onSubmit: _capture,
           onFocusChange: (focused) {
-            _captureFocused = focused;
+            if (_captureFocused != focused) {
+              setState(() => _captureFocused = focused);
+            }
             if (focused) _scrollToShelf();
           },
         ),
@@ -426,7 +430,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                         topBorder: false,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         trailing: Icon(
-                          CupertinoIcons.chevron_down,
+                          CupertinoIcons.chevron_up,
                           size: 14,
                           color: ds.ink3,
                         ),
@@ -447,7 +451,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                       for (final todo in preview)
                         _unplannedRow(l, todo, compact: true),
                       if (beyondShelf > 0)
-                        _showAllRow(l, beyondShelf, paddingLeft: 16),
+                        _showAllRow(l, beyondShelf),
                     ],
                   ),
                 ),
@@ -831,14 +835,23 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         child: Container(
           constraints: const BoxConstraints(minHeight: 44),
           padding: EdgeInsets.fromLTRB(paddingLeft, 8, 16, 8),
-          alignment: Alignment.centerLeft,
-          child: Text(
-            l.expandRemaining(count),
-            style: TextStyle(
-              fontSize: 13,
-              color: ds.ink3,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
+          child: Row(
+            children: [
+              // The design puts this label in the row's own title column, not
+              // at the page gutter: the ring slot and its gap are kept empty.
+              const SizedBox(width: kA2CheckSlot),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l.expandRemaining(count),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: ds.ink3,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -857,6 +870,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           padding: EdgeInsets.fromLTRB(paddingLeft, 8, 16, 8),
           child: Row(
             children: [
+              const SizedBox(width: kA2CheckSlot),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   _unplannedExpanded ? l.collapseLabel : l.expandRemaining(more),

@@ -17,6 +17,10 @@ import 'package:dayspark/ui/design/ds.dart';
 const double kA2TopBarHeight = 54;
 const double kA2GroupHeadHeight = 30;
 const double kA2RowMinHeight = 52;
+
+/// The width the ring occupies at the head of a row; text that has no ring
+/// still starts one slot and one gap in, so the column holds.
+const double kA2CheckSlot = 48;
 const double kA2CaptureHeight = 48;
 const double kA2DockHeight = 56;
 const double kA2TimeColumn = 52;
@@ -493,7 +497,7 @@ class A2Row extends StatelessWidget {
               label: title,
             )
           else
-            const SizedBox(width: 48, height: 48),
+            const SizedBox(width: kA2CheckSlot, height: kA2CheckSlot),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(

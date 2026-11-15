@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -327,6 +328,65 @@ void main() {
       findsWidgets,
     );
 
+    await _unmount(tester);
+  });
+
+  testWidgets('the shelf speaks in the row column and its chevron is honest', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await _phone(tester);
+
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final now = DateTime.now();
+    final due = DateTime(now.year, now.month, now.day, 18);
+    for (var i = 0; i < 3; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Free item $i',
+            ),
+          );
+    }
+    // Two more sit in the bucket but never in the shelf: they carry a
+    // deadline and already appear under Due today.
+    for (var i = 0; i < 2; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Due item $i',
+              dueDate: Value(due),
+            ),
+          );
+    }
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    // The "more" label belongs in the column the row titles start in.
+    final titleLeft = tester.getTopLeft(find.text('Free item 0')).dx;
+    final more = find.textContaining('more · ');
+    final moreLeft = tester.getTopLeft(more).dx;
+    expect((titleLeft - moreLeft).abs(), lessThanOrEqualTo(1));
+
+    // Nothing is left to expand, so the tap leaves for the bucket's view and
+    // the chevron must not promise a disclosure.
+    expect(find.byIcon(CupertinoIcons.chevron_down), findsNothing);
+    expect(find.byIcon(CupertinoIcons.chevron_up), findsOneWidget);
+
+    // The capture row says what Enter will do once it has focus.
+    expect(find.text('Add'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('today-capture-field')));
+    await _settle(tester);
+    expect(find.text('Add'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
