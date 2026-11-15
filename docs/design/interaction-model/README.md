@@ -79,6 +79,7 @@ docs/design/interaction-model/
 ├── COVERAGE.md             全产品页面/操作覆盖表（真实入口 → 原型路径 → 设计决定）
 ├── BEHAVIORS.md            关键操作行为定义（数据变 → 界面回 → 失败怎么办）
 ├── DIFF_VS_FLUTTER.md      与当前 Flutter 的实际差异清单（供 G2–G6）
+├── DECISIONS_FOR_USER.md   真正需要你拍板的产品分歧（含推荐）
 └── TEST_RESULTS.md         自动化真实操作测试及结果
 ```
 
