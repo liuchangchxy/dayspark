@@ -153,6 +153,7 @@ class TodoFormPage extends ConsumerStatefulWidget {
     this.initialDueDate,
     this.initialExecutionStart,
     this.initialExecutionEnd,
+    this.initialSummary,
   });
 
   final Todo? todo;
@@ -167,6 +168,9 @@ class TodoFormPage extends ConsumerStatefulWidget {
   /// already scheduled there, in one save instead of create-then-schedule.
   final DateTime? initialExecutionStart;
   final DateTime? initialExecutionEnd;
+
+  /// Text the user had already typed in the quick composer.
+  final String? initialSummary;
 
   @override
   ConsumerState<TodoFormPage> createState() => _TodoFormPageState();
@@ -225,6 +229,10 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         _executions = [DraftExecution(start: start, end: end)];
       }
       _deadline = widget.initialDueDate;
+      final summary = widget.initialSummary;
+      if (summary != null && summary.isNotEmpty) {
+        _summaryController.text = summary;
+      }
       Future.microtask(() async {
         final calendars = await ref.read(calendarsProvider.future);
         if (calendars.isNotEmpty && mounted) {

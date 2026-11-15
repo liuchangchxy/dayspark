@@ -552,6 +552,7 @@ class _HomePageState extends ConsumerState<HomePage>
         }
       },
       onTimeSlotTapped: (slot) => _openSlotSheet(slot, key),
+      onCreateAtDay: (_) => context.push('/todo/new'),
       onEventChanged: (event) async {
         await ref.read(updateEventProvider)(
           event.drifId,

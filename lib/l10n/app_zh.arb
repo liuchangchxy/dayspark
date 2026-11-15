@@ -743,6 +743,7 @@
   "allLabel": "全部",
   "unplannedViewEmptyTitle": "没有未安排的待办",
   "unplannedViewEmptyHint": "每个待办都已经有执行时间。想找没排期的，切到“全部待办”。",
+  "todosSwitchMode": "切换视图",
   "todosEmptyTitle": "这里还没有待办",
   "todosEmptyHint": "把要做的事写下来，先不用决定什么时候做。",
   "noPlannedExecution": "未安排",

@@ -329,7 +329,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('today-capture-field')));
     await _settle(tester, 6);
     tester.view.viewInsets = const FakeViewPadding(bottom: 260);
-    await _settle(tester, 8);
+    await _settle(tester, 14);
     await _shoot(tester, 'p-today-keyboard');
     tester.view.resetViewInsets();
     await tester.pump(const Duration(milliseconds: 40));

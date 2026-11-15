@@ -85,7 +85,9 @@ void main() {
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
 
-  testWidgets('the calendar month grid offers a create slot', (tester) async {
+  testWidgets('the calendar month "+" opens a create flow with no slot', (
+    tester,
+  ) async {
     await _pumpApp(tester);
 
     await tester.tap(find.text('Calendar').last);
@@ -98,8 +100,16 @@ void main() {
     await tester.tap(find.byType(A2Fab));
     await _settle(tester);
 
-    expect(find.text('New Event'), findsOneWidget);
-    expect(find.text('Schedule Task'), findsOneWidget);
+    // A month cell carries no time axis, so nothing arrives already planned:
+    // the flow opens bare and the user picks a slot.
+    expect(find.byType(TodoFormPage), findsOneWidget);
+    expect(
+      GoRouter.of(
+        tester.element(find.byType(TodoFormPage)),
+      ).state.uri.toString(),
+      '/todo/new',
+    );
+    expect(find.text('New Event'), findsNothing);
   });
 
   testWidgets('event create has form fields', (tester) async {

@@ -377,6 +377,7 @@ abstract final class AppRouter {
                   initialDueDate: parse(due),
                   initialExecutionStart: parse(start),
                   initialExecutionEnd: parse(end),
+                  initialSummary: state.uri.queryParameters['summary'],
                 ),
               );
             },

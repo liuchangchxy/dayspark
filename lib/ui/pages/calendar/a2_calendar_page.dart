@@ -30,6 +30,7 @@ class A2CalendarPage extends ConsumerStatefulWidget {
     this.onAllocationTapped,
     this.onDeadlineTapped,
     this.onTimeSlotTapped,
+    this.onCreateAtDay,
     this.onEventChanged,
     this.onAllocationChanged,
   });
@@ -41,6 +42,11 @@ class A2CalendarPage extends ConsumerStatefulWidget {
   final void Function(TaskAllocationCalendarItem item)? onAllocationTapped;
   final void Function(CalendarDeadline deadline)? onDeadlineTapped;
   final void Function(DateTimeRange range)? onTimeSlotTapped;
+
+  /// The month grid has no time axis, so its "+" carries a day and nothing
+  /// else: a time span invented there would become a planned slot the user
+  /// never picked.
+  final void Function(DateTime day)? onCreateAtDay;
   final Future<void> Function(CalendaEventAdapter event)? onEventChanged;
   final Future<void> Function(TaskAllocationCalendarItem item)?
   onAllocationChanged;
@@ -65,7 +71,12 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       case CalendarViewMode.week:
         _setBrowse(browse.add(Duration(days: 7 * direction)));
       case CalendarViewMode.month:
-        _setBrowse(DateTime(browse.year, browse.month + direction, 1));
+        // The month arrows page the calendar, not the browsed day: the shared
+        // date keeps its day-of-month (clamped) so Todo · By date still points
+        // at the day the user chose.
+        final lastDay = DateTime(browse.year, browse.month + direction + 1, 0);
+        final day = browse.day.clamp(1, lastDay.day);
+        _setBrowse(DateTime(lastDay.year, lastDay.month, day));
     }
   }
 
@@ -76,20 +87,6 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
   void _setMode(CalendarViewMode mode) {
     if (ref.read(calendarViewModeProvider) == mode) return;
     ref.read(calendarViewModeProvider.notifier).setViewMode(mode);
-  }
-
-  DateTimeRange _slotAt(DateTime now, DateTime day) {
-    final DateTime start;
-    if (calSameDay(day, now)) {
-      final hour = (now.hour + 1).clamp(0, 23);
-      start = DateTime(day.year, day.month, day.day, hour);
-    } else {
-      start = DateTime(day.year, day.month, day.day, 9);
-    }
-    return DateTimeRange(
-      start: start,
-      end: start.add(const Duration(hours: 1)),
-    );
   }
 
   TaskAllocationCalendarItem? _allocationById(int id) {
@@ -322,8 +319,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               if (mode == CalendarViewMode.month)
                 A2Fab(
                   tooltip: l.create,
-                  onPressed: () =>
-                      widget.onTimeSlotTapped?.call(_slotAt(now, browse)),
+                  onPressed: () => widget.onCreateAtDay?.call(browse),
                 ),
             ],
           ),

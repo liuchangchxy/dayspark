@@ -1905,6 +1905,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unplannedViewEmptyHint => 'Every task has a planned time. Switch to All Tasks to see everything.';
 
   @override
+  String get todosSwitchMode => 'Switch view';
+
+  @override
   String get todosEmptyTitle => 'No tasks here';
 
   @override

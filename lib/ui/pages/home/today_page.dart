@@ -57,23 +57,24 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Timer? _toastTimer;
   bool _capturing = false;
   bool _captureFocused = false;
-  double? _lastInset;
+  double? _lastViewport;
 
   DateTime get _today =>
       DateTime(widget.now.year, widget.now.month, widget.now.day);
 
   String get _locale => Localizations.localeOf(context).toString();
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // The keyboard arrives one or more frames after focus, and its inset
-    // shortens the list; the shelf has to be scrolled into view again once
-    // that happened, or the capture row covers the group it feeds.
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
-    if (inset == _lastInset) return;
-    _lastInset = inset;
-    if (inset <= 0 || !_captureFocused) return;
+  /// The keyboard arrives one or more frames after focus, and the Scaffold
+  /// reserves its space by shrinking the body rather than by leaving an inset
+  /// for this page to read. The shelf therefore follows the list's own
+  /// viewport: when it shrinks under a focused capture row, the group the row
+  /// feeds is scrolled back above it.
+  void _onViewportChanged(ScrollMetrics metrics) {
+    final previous = _lastViewport;
+    _lastViewport = metrics.viewportDimension;
+    if (previous == null || !_captureFocused) return;
+    if (metrics.viewportDimension >= previous) return;
+    if (metrics.extentAfter <= 0) return;
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToShelf());
   }
 
@@ -318,11 +319,17 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                           title: l.emptyTodayTitle,
                           hint: l.emptyTodayHint,
                         )
-                      : ListView(
-                          key: const ValueKey('a2-today-list'),
-                          controller: _scroll,
-                          padding: EdgeInsets.zero,
-                          children: children,
+                      : NotificationListener<ScrollMetricsNotification>(
+                          onNotification: (notification) {
+                            _onViewportChanged(notification.metrics);
+                            return false;
+                          },
+                          child: ListView(
+                            key: const ValueKey('a2-today-list'),
+                            controller: _scroll,
+                            padding: EdgeInsets.zero,
+                            children: children,
+                          ),
                         ),
                 ),
               ),

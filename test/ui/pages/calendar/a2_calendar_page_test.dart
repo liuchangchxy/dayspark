@@ -188,6 +188,63 @@ void main() {
     await tester.pump(Duration.zero);
   });
 
+  testWidgets('the month "+" hands over a day, never an invented span', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final days = <DateTime>[];
+    final ranges = <DateTimeRange>[];
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+      onCreateAtDay: days.add,
+      onTimeSlotTapped: ranges.add,
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.byTooltip('Month'));
+    await _settle(tester);
+
+    await tester.tap(find.byTooltip('Create'));
+    await _settle(tester);
+
+    expect(days, hasLength(1));
+    expect(days.single, DateTime(2026, 11, 15));
+    // A month cell has no time axis: nothing may arrive already scheduled.
+    expect(ranges, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('paging the month keeps the browsed day-of-month', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.byTooltip('Month'));
+    await _settle(tester);
+
+    await tester.tap(find.byTooltip('Next page'));
+    await _settle(tester);
+
+    expect(find.byKey(const ValueKey('month-day-2026-12-15')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
   testWidgets('the month grid marks the day an allocation falls on', (
     tester,
   ) async {

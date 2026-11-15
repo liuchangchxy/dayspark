@@ -3599,6 +3599,12 @@ abstract class AppLocalizations {
   /// **'Every task has a planned time. Switch to All Tasks to see everything.'**
   String get unplannedViewEmptyHint;
 
+  /// No description provided for @todosSwitchMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch view'**
+  String get todosSwitchMode;
+
   /// No description provided for @todosEmptyTitle.
   ///
   /// In en, this message translates to:

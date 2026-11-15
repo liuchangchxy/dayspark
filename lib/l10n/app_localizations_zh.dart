@@ -1887,6 +1887,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get unplannedViewEmptyHint => '每个待办都已经有执行时间。想找没排期的，切到“全部待办”。';
 
   @override
+  String get todosSwitchMode => '切换视图';
+
+  @override
   String get todosEmptyTitle => '这里还没有待办';
 
   @override

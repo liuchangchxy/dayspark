@@ -45,6 +45,26 @@ Future<void> showA2Composer(
   );
 }
 
+/// Everything the quick sheet has already taken from the user travels with it
+/// into the full form. The route is the only channel between the two, so it
+/// carries all of it.
+String composerCreateRoute({
+  DateTime? due,
+  DateTime? start,
+  DateTime? end,
+  String? summary,
+}) {
+  final text = summary?.trim() ?? '';
+  final query = <String, String>{
+    if (due != null) 'due': '${due.millisecondsSinceEpoch}',
+    if (start != null) 'start': '${start.millisecondsSinceEpoch}',
+    if (end != null) 'end': '${end.millisecondsSinceEpoch}',
+    if (text.isNotEmpty) 'summary': text,
+  };
+  if (query.isEmpty) return '/todo/new';
+  return '/todo/new?${Uri(queryParameters: query).query}';
+}
+
 class A2ComposerSheet extends ConsumerStatefulWidget {
   const A2ComposerSheet({
     super.key,
@@ -276,17 +296,17 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     final title = _title.text.trim();
     navigator.pop();
     if (router == null) return;
-    final due = _due?.millisecondsSinceEpoch;
-    final start = _start?.millisecondsSinceEpoch;
-    final end = _end?.millisecondsSinceEpoch;
+    // Everything the sheet has already taken from the user travels with it:
+    // dropping the picked block here made the full form silently forget a
+    // slot the user had expressed.
     router.push(
-      '/todo/new'
-      '${due == null ? '' : '?due=$due'}',
+      composerCreateRoute(
+        due: _due,
+        start: _start,
+        end: _end,
+        summary: title,
+      ),
     );
-    if (title.isEmpty) return;
-    if (start != null && end != null) {
-      debugPrint('composer: full form opened (${start.toString()}-$end)');
-    }
   }
 
   void _toast(String message) {

@@ -26,6 +26,7 @@
 - [x] **缺陷修复（本轮新发现）**：`TaskAllocation` 以 UTC 瞬时落库（`task_allocation_writer.dart` `_canonicalRange`），而日历页按墙上时钟比较/打印，导致块内时间显示成 UTC（16:00 显示 08:00）、当地 08:00 前的计划落到前一天列 —— 在 `task_allocation_calendar_adapter.dart` 统一 `toLocal()`；`A2GroupHead` 的 `Flexible` 标签与 `Spacer` 平分余量，把计数挤到行中 —— 改为 `Expanded`；分组头计数/浮动信息在同一行互相挤压导致的 meta 截断（"Due today 1…"）—— 文案只在有富余时省略；桌面月格 chip 补时间（"Dentist · Mingzhou 14:30"）。
 - [x] **测试**：全量 `flutter test --no-pub` 700 通过、`flutter analyze` 0 issue；新增 `test/ui/pages/calendar/a2_calendar_page_test.dart`（本地时区、日/月视图可达、长截止不越界）；迁移 20 个旧测试（今日页、待办三模式、导航、journey、widget 深链、架构门禁）。
 - [x] **独立 Visual Review 后的修复**：未安排组出现"N 项 · 展开全部"（此前头部计数 5、只列 3 条且不存在第 4 条，两条带截止的未安排项无路可达；chevron 也是空转）；键盘态等 inset 落地后重新滚到未安排组（此前捕获行盖住它自己的组）；已完成项在全部与按日期两个模式里都沉到组尾（此前排第一，且两处顺序不一致）；桌面待办去掉与顶栏重复的日期条；空状态补 56px 灰底圆与图标；今日头副标题补年份；半宽周视图块把内边距让给标题；1000px 宽的桌面壳在宽字体面下右侧溢出 77px —— 日期改 `Flexible` + 省略号，导航项在 1180px 以下只留图标（带 tooltip），断点测试补上"无溢出"断言。
+- [x] **第二轮独立 Review（Domain / Visual）后的修复**：手机月视图的 "+" 此前会自造 09:00–10:00 时段再交给创建流程（用户没选过的计划块）—— 改为只交出日期、不带时段；composer 的 "…" 此前丢掉已选的执行块与标题 —— 路由改为完整携带 `due/start/end/summary`，表单回填标题；键盘弹出后未安排组只露一行且 "更多" 落在捕获行之下 —— 改为跟随列表自身视口收缩滚动到组尾（Scaffold 已吃掉 viewInsets，原先读 MediaQuery 的路径从不触发）；月视图箭头翻页把共享日期拽到当月 1 号 —— 改为保留日号（月末夹取）；待办头部的模式切换热区补 `Semantics`；月·年选择器的"今天"改用 `calendarNowProvider`。
 - [x] **整页视觉对照**：新增 `tool/shots/a2_shots_test.dart`，以 390×844 与 1440×900 渲染 16 个整页状态（正常/空/键盘/密集、待办三模式、composer 三态、日历月/周/日、桌面三页），与定稿 HTML 逐页比对；对照截图在 `build/a2-shots/`，参考图在 `build/design-ref/`。
 - [ ] 真机键盘（Gboard 中文 composing / 语音输入）连建验收与截图验收记录，仍按 `docs/qa/` 既有先例待补。
 

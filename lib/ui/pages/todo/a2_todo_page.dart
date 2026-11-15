@@ -307,11 +307,15 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           top: desktop ? 6 : 5,
           width: 260,
           height: 44,
-          child: GestureDetector(
-            key: const ValueKey('todos-mode-switch'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _openModeSheet(l),
-            child: const SizedBox.expand(),
+          child: Semantics(
+            button: true,
+            label: l.todosSwitchMode,
+            child: GestureDetector(
+              key: const ValueKey('todos-mode-switch'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openModeSheet(l),
+              child: const SizedBox.expand(),
+            ),
           ),
         ),
       ],

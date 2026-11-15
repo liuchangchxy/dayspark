@@ -229,6 +229,34 @@ void main() {
 
     await _unmount(tester);
   });
+
+  test('the full form is handed everything the sheet already took', () {
+    final route = composerCreateRoute(
+      due: DateTime(2026, 10, 17, 18),
+      start: DateTime(2026, 10, 17, 16),
+      end: DateTime(2026, 10, 17, 17),
+      summary: 'Weekly review',
+    );
+    final uri = Uri.parse(route);
+    expect(uri.path, '/todo/new');
+    expect(
+      uri.queryParameters['due'],
+      '${DateTime(2026, 10, 17, 18).millisecondsSinceEpoch}',
+    );
+    expect(
+      uri.queryParameters['start'],
+      '${DateTime(2026, 10, 17, 16).millisecondsSinceEpoch}',
+    );
+    expect(
+      uri.queryParameters['end'],
+      '${DateTime(2026, 10, 17, 17).millisecondsSinceEpoch}',
+    );
+    expect(uri.queryParameters['summary'], 'Weekly review');
+
+    // A sheet with nothing but a title still opens the bare form.
+    expect(composerCreateRoute(), '/todo/new');
+    expect(composerCreateRoute(summary: '  '), '/todo/new');
+  });
 }
 
 /// Seeds a real recurring series (the writer fills every recurrence column;

@@ -161,7 +161,10 @@ class _MonthYearPickerSheetState extends ConsumerState<_MonthYearPickerSheet> {
               padding: EdgeInsets.fromLTRB(20, 8, 20, 12 + bottomInset),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: _linkButton(l.goToToday, () => _pick(DateTime.now())),
+                child: _linkButton(
+                  l.goToToday,
+                  () => _pick(ref.read(calendarNowProvider)()),
+                ),
               ),
             ),
           ],
@@ -317,7 +320,7 @@ class _MonthYearPickerSheetState extends ConsumerState<_MonthYearPickerSheet> {
   Widget _dayCell(DateTime day) {
     final ds = context.ds;
     final otherMonth = day.month != _visibleMonth.month;
-    final today = _sameDay(day, DateTime.now());
+    final today = _sameDay(day, ref.read(calendarNowProvider)());
     final selected = _sameDay(day, _selected);
     final background = today
         ? ds.primaryTint

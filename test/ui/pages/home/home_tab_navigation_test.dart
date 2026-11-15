@@ -330,6 +330,72 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('the keyboard brings the shelf above the capture row', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 667);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final now = DateTime.now();
+    final due = DateTime(now.year, now.month, now.day, 18);
+    for (var i = 0; i < 6; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Due item $i',
+              dueDate: Value(due),
+            ),
+          );
+    }
+    for (var i = 0; i < 5; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Free item $i',
+            ),
+          );
+    }
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byKey(const ValueKey('a2-today-list')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(scrollable.position.pixels, 0);
+
+    await tester.tap(find.byKey(const ValueKey('today-capture-field')));
+    await _settle(tester);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await _settle(tester, 14);
+
+    // The shelf is the group the capture row feeds: once the keyboard takes
+    // its space, the list follows to its end so all of it stays readable.
+    expect(scrollable.position.extentAfter, 0);
+    final more = find.textContaining('more · Show all');
+    expect(more, findsOneWidget);
+    final capture = tester.getRect(
+      find.byKey(const ValueKey('today-capture-field')),
+    );
+    expect(tester.getRect(more).bottom, lessThanOrEqualTo(capture.top));
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
   testWidgets('one left origin per list, on Today and on Tasks', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await _desktop(tester);

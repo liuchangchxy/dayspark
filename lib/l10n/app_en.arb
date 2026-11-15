@@ -957,6 +957,7 @@
   "allLabel": "All",
   "unplannedViewEmptyTitle": "No unplanned tasks",
   "unplannedViewEmptyHint": "Every task has a planned time. Switch to All Tasks to see everything.",
+  "todosSwitchMode": "Switch view",
   "todosEmptyTitle": "No tasks here",
   "todosEmptyHint": "Write down what you need to do, no need to decide when yet.",
   "noPlannedExecution": "Not scheduled",
