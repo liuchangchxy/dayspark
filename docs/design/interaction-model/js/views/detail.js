@@ -93,7 +93,12 @@
         const label = U.el('span', { text: U.fmtMonthDayTime(a.startAt) + ' – ' + U.fmtTime(a.endAt) });
         const cancel = U.el('button', { class: 'link-danger', text: t('cancelAllocation') });
         cancel.dataset.testid = 'cancel-allocation';
-        cancel.addEventListener('click', () => cancelAllocationFlow(a, todo));
+        cancel.addEventListener('click', (ev) => {
+          // The row's value is itself click-to-edit; without this the cancel
+          // tap also opens the scheduling sheet underneath the confirm.
+          ev.stopPropagation();
+          cancelAllocationFlow(a, todo);
+        });
         line.appendChild(label);
         line.appendChild(cancel);
         list.appendChild(line);
@@ -593,7 +598,9 @@
   function renderDetail(params) {
     if (params.type === 'event') return eventDetail(params.id, params.occurrence);
     const todo = S.todoById(params.id);
-    if (!todo) {
+    // A record in the Trash is not openable: showing a live-looking detail with
+    // working Edit and Complete would let the user write to a deleted row.
+    if (!todo || todo.deletedAt) {
       return UI.page({
         title: t('errorTitle'),
         onBack: () => App.back(),

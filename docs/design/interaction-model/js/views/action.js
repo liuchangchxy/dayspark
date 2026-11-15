@@ -26,6 +26,7 @@
   function row(opts) {
     const b = U.el('div', { class: 'row' + (opts.cls ? ' ' + opts.cls : ''), role: 'button', tabindex: '0' });
     if (opts.testid) b.dataset.testid = opts.testid;
+    if (opts.id !== undefined && opts.id !== null) b.dataset.id = String(opts.id);
     const time = U.el('span', { class: 'row-time', text: opts.time || '' });
     b.appendChild(time);
     const leading = U.el('span', { class: 'row-leading', html: opts.leading || '' });
@@ -49,6 +50,23 @@
     return b;
   }
 
+  function openCreateChooser() {
+    UI.sheet({
+      title: t('new'),
+      body(host, close) {
+        const mk = (icon, title, sub, action, testid) => {
+          const b = U.el('button', { class: 'slot-sheet-option' });
+          b.dataset.testid = testid;
+          b.innerHTML = `<span class="ico">${ICON(icon, 17)}</span><span><span class="t">${U.esc(title)}</span><br><span class="s">${U.esc(sub)}</span></span>`;
+          b.addEventListener('click', () => { close(null); action(); });
+          return b;
+        };
+        host.appendChild(mk('checkSquare', t('newTodo'), t('createTodoNoDeadline'), () => App.openComposer('todo', {}), 'create-todo'));
+        host.appendChild(mk('calendar', t('newEvent'), t('createEventToday'), () => App.openComposer('event', {}), 'create-event'));
+      },
+    });
+  }
+
   function renderAction() {
     const day = S.state.actionDate || U.startOfDay(U.now());
     const proj = S.actionProjection(day);
@@ -57,8 +75,8 @@
     const actions = [];
     if (!U.isNarrow()) {
       const addBtn = U.el('button', { class: 'btn primary', 'data-testid': 'action-create' });
-      addBtn.innerHTML = ICON('plus', 14) + `<span>${U.esc(t('newTodo'))}</span>`;
-      addBtn.addEventListener('click', () => App.openComposer('todo', { dueDate: day }));
+      addBtn.innerHTML = ICON('plus', 14) + `<span>${U.esc(t('new'))}</span>`;
+      addBtn.addEventListener('click', () => openCreateChooser());
       actions.push(addBtn);
     }
 
@@ -95,17 +113,6 @@
         });
         content.appendChild(cap);
         content.appendChild(U.el('div', { class: 'capture-hint', text: t('captureHint') }));
-
-        // Inbox entry sits directly under the capture box: it is the answer to
-        // "where did it go", so it must be visible without scrolling.
-        const inbox = U.el('button', { class: 'row', 'data-testid': 'inbox-entry' });
-        inbox.style.marginBottom = '4px';
-        inbox.innerHTML = `<span class="row-leading">${ICON('inbox', 15)}</span><span class="row-main"><span class="row-title" style="color:var(--ink-2)">${U.esc(t('inboxEntry', { n: proj.inboxCount }))}</span></span><span class="row-tail"><span class="row-chevron">${ICON('chevronForward', 13)}</span></span>`;
-        inbox.addEventListener('click', () => {
-          S.state.todosView = { kind: 'inbox', day: null };
-          App.go('todos');
-        });
-        content.appendChild(inbox);
 
         UI.busyBar(day, content);
 
@@ -176,10 +183,39 @@
           doneRows.forEach((r) => sections.push(r));
         }
 
-        // Inbox entry is always present: it is the answer to "where did it go".
-        if (!sections.length) {
+        // Unplanned is the fifth thing on the page, after the day's own agenda.
+        // Per CORE_UX_SPEC 16.2 the preview shows only captured items with no
+        // deadline (up to three): a dated item already has a home on its date.
+        // The row beneath keeps the allocation-based count, so it can be larger
+        // than what is previewed here.
+        const captured = S.inboxTodos().filter((x) => !x.dueDate);
+        // Capture happens on this page, so the thing just captured has to be
+        // visible where it landed. Without this a fourth unplanned item would be
+        // created and silently fall outside the three-row preview.
+        const justCreated = S.state.highlight && typeof S.state.highlight === 'object'
+          ? S.state.highlight.id : null;
+        if (justCreated !== null) {
+          const at = captured.findIndex((x) => x.id === justCreated);
+          if (at > 2) captured.unshift(captured.splice(at, 1)[0]);
+        }
+        const previewed = captured.slice(0, 3);
+        if (previewed.length) {
+          sections.push(UI.sectionHead(t('inbox'), null));
+          previewed.forEach((todo) => sections.push(todoRow(todo, now)));
+        }
+        const inbox = U.el('button', { class: 'row', 'data-testid': 'inbox-entry' });
+        inbox.innerHTML = `<span class="row-leading">${ICON('inbox', 15)}</span><span class="row-main"><span class="row-title" style="color:var(--ink-2)">${U.esc(t('inboxEntry', { n: proj.inboxCount }))}</span></span><span class="row-tail"><span class="row-chevron">${ICON('chevronForward', 13)}</span></span>`;
+        inbox.addEventListener('click', () => {
+          S.state.todosView = { kind: 'inbox', day: null };
+          App.go('todos');
+        });
+        sections.push(inbox);
+
+        // The empty state speaks for the whole day, so it only appears when there
+        // is genuinely nothing to show — an unplanned preview counts as something.
+        if (!sections.length && !previewed.length) {
           content.appendChild(UI.emptyState('bolt', t('actionNothingNow'), t('actionNothingNowHint'), [
-            { label: t('newTodo'), primary: true, action: () => App.openComposer('todo', { dueDate: day }) },
+            { label: t('new'), primary: true, action: () => openCreateChooser() },
             { label: t('openCalendar'), action: () => App.go('calendar') },
           ]));
           return;
@@ -199,8 +235,8 @@
       fab.style.height = '48px';
       fab.style.borderRadius = '50%';
       fab.style.boxShadow = 'var(--shadow-1)';
-      fab.setAttribute('aria-label', t('newTodo'));
-      fab.addEventListener('click', () => App.openComposer('todo', { dueDate: day }));
+      fab.setAttribute('aria-label', t('new'));
+      fab.addEventListener('click', () => openCreateChooser());
       page.appendChild(fab);
     }
     return page;
@@ -218,6 +254,7 @@
         done: past,
         onTap: () => openEvent(e),
         testid: 'action-event',
+        id: e.id,
       });
     }
     const item = entry.item;
@@ -236,6 +273,7 @@
       },
       onTap: () => openTodo(todo),
       testid: 'action-allocation',
+      id: todo.id,
     });
   }
 
@@ -244,7 +282,9 @@
     const clock = todo.dueDate ? U.fmtClockNoMidnight(todo.dueDate) : '';
     return row({
       time: clock || (todo.dueDate ? t('today') : ''),
-      leading: `<span style="color:${isOverdue ? 'var(--red)' : 'var(--amber)'}">${ICON('flag', 14)}</span>`,
+      leading: todo.dueDate
+        ? `<span style="color:${isOverdue ? 'var(--red)' : 'var(--amber)'}">${ICON('flag', 14)}</span>`
+        : `<span style="color:var(--ink-3)">${ICON('inbox', 14)}</span>`,
       title: todo.summary,
       meta: [
         todo.dueDate ? `<span class="${isOverdue ? 'row-deadline over' : 'row-deadline'}">${U.esc(t('deadlinePrefix', { d: U.fmtDeadline(todo.dueDate) }))}</span>` : '',
@@ -257,6 +297,7 @@
       onToggle: () => toggle(todo),
       onTap: () => openTodo(todo),
       testid: 'action-todo',
+      id: todo.id,
     });
   }
 
@@ -273,6 +314,7 @@
       onToggle: () => toggle(todo, inst.occurrenceId),
       onTap: () => openTodo(todo),
       testid: 'action-instance',
+      id: todo.id,
     });
   }
 

@@ -270,8 +270,30 @@ async function main() {
     // ---------------- F12 missed instances expansion ----------------
     {
       const page = await newPage(browser, DESKTOP);
-      await L.go(page, 'action');
+      await L.go(page, 'todos');
+      await page.click('[data-testid="todos-create"]');
       await settle(page, 300);
+      await page.fill('[data-testid="composer-title"]', '漏掉的每日事项');
+      await page.click('[data-testid="composer-deadline"]');
+      await settle(page, 250);
+      const past = await page.evaluate(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        return window.U.toInputDate(d);
+      });
+      await page.fill('[data-testid="deadline-date"]', past);
+      await page.click('[data-testid="deadline-apply"]');
+      await settle(page, 250);
+      await page.click('[data-testid="composer-more"]');
+      await settle(page, 200);
+      await page.click('[data-testid="composer-repeat"]');
+      await settle(page, 250);
+      await L.clickText(page, '.sheet .slot-sheet-option', '每天');
+      await settle(page, 250);
+      await page.click('[data-testid="composer-save"]');
+      await settle(page, 450);
+      await L.go(page, 'action');
+      await settle(page, 350);
       await shot(page, 'F12-01-overdue-collapsed');
       const data = await page.evaluate(() => {
         const proj = window.Store.actionProjection();
@@ -282,8 +304,9 @@ async function main() {
       const total = data.missed + data.overdue;
       const head = data.heads.find((h) => /逾期/.test(h));
       console.log('F12 overdue header:', head, 'expected total:', total);
+      assert(data.missed > 5, 'setup produced more than five missed instances');
       assert(head && head.includes('逾期') && head.includes(String(total)), 'header shows true total');
-      const collapsedRows = await L.count(page, '[data-testid="action-instance"]');
+      const collapsedRows = await L.count(page, '[data-testid="action-instance"].overdue');
       const moreLabel = await L.text(page, '[data-testid="overdue-more"]');
       console.log('F12 collapsed rows:', collapsedRows, 'more:', moreLabel);
       assertEq(collapsedRows, 5, 'only 5 missed instances shown initially');
@@ -291,14 +314,14 @@ async function main() {
       await page.click('[data-testid="overdue-more"]');
       await settle(page, 350);
       await shot(page, 'F12-02-overdue-expanded');
-      const expandedRows = await L.count(page, '[data-testid="action-instance"]');
+      const expandedRows = await L.count(page, '[data-testid="action-instance"].overdue');
       const lessLabel = await L.text(page, '[data-testid="overdue-less"]');
       console.log('F12 expanded rows:', expandedRows, 'less:', lessLabel);
       assertEq(expandedRows, data.missed, 'all missed instances shown after expand');
       assert(lessLabel && /收起/.test(lessLabel), 'collapse control present');
       await page.click('[data-testid="overdue-less"]');
       await settle(page, 300);
-      assertEq(await L.count(page, '[data-testid="action-instance"]'), 5, 'collapse returns to 5');
+      assertEq(await L.count(page, '[data-testid="action-instance"].overdue'), 5, 'collapse returns to 5');
       assertEq(page.__errors, [], 'no console errors');
       await page.close();
       console.log('F12 PASS');

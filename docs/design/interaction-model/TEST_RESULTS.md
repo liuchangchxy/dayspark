@@ -14,10 +14,11 @@
 | 套件 | 内容 | 结果 |
 |---|---|---|
 | `tests/smoke.js` | 启动、无横向溢出、按钮都有可读名字、**手机触摸目标 ≥44px**、9 条路由可达、零控制台错误（桌面 + 手机） | **11 / 11 通过** |
-| `tests/interactions.js` | 34 个端到端交互场景 | **34 / 34 通过** |
+| `tests/interactions.js` | 36 个端到端交互场景 | **36 / 36 通过** |
 | `tests/surfaces.js` | 14 个功能面场景 | **14 / 14 通过** |
-| `tests/reviewer-findings.js` | 19 条独立 Reviewer 发现 + 1 条「以后」范围，逐条按原始复现步骤回归 | **20 / 20 通过** |
-| 合计 | | **80 / 80 通过，0 失败，0 跳过** |
+| `tests/reviewer-findings.js` | 第一轮 19 条 Reviewer 发现 + 1 条「以后」范围，逐条按原始复现步骤回归 | **20 / 20 通过** |
+| `tests/reviewer-findings-r2.js` | 第二轮 20 条 Reviewer 发现（含 9 条 P1），逐条按原始复现步骤回归 | **20 / 20 通过** |
+| 合计 | | **101 / 101 通过，0 失败，0 跳过** |
 
 `skipped = 0`：没有任何场景被跳过或注释掉。唯一一条 `note` 是测试侧的说明（鼠标拖动不会触发触摸滑动手势，该路径由同套件里的 touch 场景覆盖），不是跳过。
 
@@ -29,7 +30,7 @@
 
 | # | 场景 | 证明的行为 |
 |---|---|---|
-| 1 | action capture creates an unplanned todo and inbox entry counts it | Action 捕获框 → 无截止待办 → 收件箱计数 +1 |
+| 1 | action capture creates an unplanned todo and inbox entry counts it | 今天页捕获框 → 无截止待办 →「未安排」计数 +1 |
 | 2 | todos quick add inherits the browsed day as deadline | 待办页快速添加继承所浏览日期的截止 |
 | 3 | browsing another day in Todos does not move the Action day | 浏览日与「今天」互相独立 |
 | 4 | composer creates a todo with a deadline that shows in Todos and Action | composer 建带截止待办 → 待办与 Action 同时出现 |
@@ -65,7 +66,7 @@
 |---|---|---|
 | 15 | search finds a newly created item and opens its detail | 新建对象可被搜索到并打开 |
 | 16 | search and lists explain empty results instead of showing blank space | 空结果有解释与可行动作 |
-| 17 | the six-things cap hides extra rows and expands and collapses reversibly | 六件事上限可展开/收起且可逆 |
+| 17 | the day list shows every row and offers no six-things cap | 今天列表不截断；六件事已按规范退役 |
 | 18 | missed recurring instances beyond five are reachable from the overdue section | 逾期区不静默截断：超出 5 条的遗漏实例可展开/收起 |
 | 19 | a very long title wraps without breaking the row or the page | 超长标题不撑破布局、无横向溢出 |
 | 20 | opening a record that does not exist shows an error state with a way back | 缺失记录 → 错误页 + 返回 |
@@ -116,7 +117,6 @@
 | F19 | P3 | 「高亮新行」永不可见且指向错误行 | 高亮按 `id` 定位新行，跨 emit 重绘保留到动画结束 |
 
 ### H. 功能面（`surfaces.js`）
-
 | # | 场景 | 证明的行为 |
 |---|---|---|
 | 1 | tags can be created, renamed and deleted with the delete warning | 标签增改删 + 删除警示 |
@@ -127,12 +127,39 @@
 | 6 | trash purge is permanent and emptying trash clears every deleted row | 永久删除 / 清空回收站 |
 | 7 | account sign-in validates input, signs in, syncs, and signs out | 账户校验/登录/同步/退出 |
 | 8 | offline mode blocks sync and is visible in the shell | 离线阻断同步并在外壳可见 |
-| 9 | hide-completed and six-things settings change the list and persist across navigation | 设置改变列表并跨页保持 |
+| 9 | hide-completed is driven from the Todo filter menu and persists | 隐藏已完成在待办页筛选菜单，跨页保持；设置里不再有第二处 |
 | 10 | feedback rejects an empty message, accepts text, and about reports the version | 反馈校验；关于页版本 |
 | 11 | the states bench shows loading, empty, error, permission and disabled states | 五类状态可查看 |
 | 12 | turning notifications off changes the permission row instead of leaving a stale claim | 关闭通知后权限行不再撒谎 |
 | 13 | mobile: swiping a row left deletes it with an undo path | 手机左滑删除 + 撤销 |
 | 14 | desktop: dragging by the grip handle changes the stored order | 桌面抓手拖动改 `sortOrder` |
+
+### I. 第二轮独立 Reviewer 发现回归（`reviewer-findings-r2.js`）
+
+第二个独立 Reviewer 按同一标准重新操作后给出 **FAIL** 与 20 条发现（9×P1、8×P2、3×P3）。这批发现集中在**同一条写操作存在第二个实现**这一类缺陷上——批量路径绕过单条路径、块菜单绕过作用域入口、软删与恢复不对称。逐条按原始复现步骤回归，全部修复后通过。
+
+| # | 严重度 | 发现 | 根因与修复 |
+|---|---|---|---|
+| R1 | P1 | 永久删除父任务后，子任务残留在回收站且永远无法恢复 | `purgeTodo` 用 `subtasksOf()`（只看**未删除**子任务），而软删父任务时子任务**已经**被删，于是整棵子树被漏掉。改为扫描全表 `parentId` 匹配并递归 |
+| R2 | P1 | 批量完成重复待办不写库，却报「已完成」 | 批量路径直接调 `S.completeTodo(id)`，绕过了 `TodoOps` 的实例解析。改为在批量路径内解析 `occurrenceId`；无实例则计入 `skipped` 并如实提示 |
+| R3 | P1 | 同一实例连续编辑两次 → 出现两份副本、两条 exdate | `splitEventOccurrence` 没有幂等性，`createEvent` 又丢弃未知字段导致 `splitFrom/splitAnchor` 从未持久化。两处都补上 |
+| R4 | P1 | 排程实例下拉里能选到**已完成**的实例，选中后产生看不见的安排 | 下拉未过滤已完成实例；且原型 stub 未传 `occurrenceStates`，`isOccurrenceDone` 恒为 false。改为禁用+保存时拦截+传真实状态 |
+| R5 | P1 | 从日历块菜单点「编辑」重复日程，不问作用域，直接改整个系列 | `blockMenu` 直接调 `App.openComposer`，绕过 `EventOps.editEvent`。改为委托 |
+| R6 | P1 | 打开已删除的待办，显示成正常详情可编辑 | `todoById` 会返回软删行，`renderDetail` 未校验 `deletedAt`。改为与已删除日程走同一错误页 |
+| R7 | P1 | 点「取消安排」同时弹出确认框和排程面板 | 按钮位于「点整块即编辑」的 `.v` 内，事件冒泡。补 `stopPropagation` |
+| R8 | P1 | 手机上滑动手势完全无效 | `pointercancel` 被当成提交、缺 `touch-action`/指针捕获。三处都修 |
+| R9 | P1 | 勾选重复待办的某次实例后，行仍留在未完成区 | 列表把重复系列当成"永远未完成"。`todosForDay` 增加 `doneInstances`，列表据此分区 |
+| R10 | P2 | 「只看这一次」编辑保存后停在旧系列上 | 保存后跳系列 id。改为跳副本 id |
+| R11 | P2 | 新建日程保存后网格里不高亮新块 | 高亮只匹配单一 testid，未覆盖跨界面形态。改为 `testids` 列表 |
+| R12 | P2 | 从今天页新建的待办在今天就看不到自己 | 未安排预览只有计数行。按 `CORE_UX_SPEC` §16.2 补最多 3 行预览，并保证新条目总是可见 |
+| R13 | P2 | 23:40 时快捷 chip 仍建议当天更早的时段 | 跨天判断缺失。改为 23 点后顺延到次日 |
+| R14 | P2 | AI 提案安排的不是用户点名的那条待办 | 匹配失败时静默回落到「第一条未完成」并照常给出提案。改为按名字匹配，匹配不到时**在回复文案里明说** |
+| R15 | P2 | 改了「启动时打开」却无效 | 启动页偏好从未被读取，也无任何持久化。补 `savePrefs/loadPrefs` 与 boot 读取 |
+| R16 | P2 | 种子里的全天事件 start/end 是 Invalid Date | `at(2)` 传入 `h=undefined` 进 `setHours`。补 `h \|\| 0` |
+| R17 | P2 | 设置里仍留着已退役的「六件事」「每周起始日」 | 未随规范清理。删除，并确认待办筛选菜单里没有第二处「隐藏已完成」 |
+| R18 | P3 | English 模式下 AI 供应商列表仍显示中文 | `providerCustom` 缺英文键。补齐 |
+| R19 | P3 | 拖动改时长后 toast 不说明改到了几点 | 只说「已调整」。改为报告新的结束时间 |
+| R20 | P3 | 浏览器后退会静默丢弃脏草稿 | 没有 `popstate` 处理。补：后退也走 `leaveGuard` 同一问句 |
 
 ---
 

@@ -266,9 +266,11 @@
     const restore = U.el('button', { class: 'btn ghost sm', text: t('restore') });
     restore.dataset.testid = 'trash-restore';
     restore.addEventListener('click', () => {
-      if (kind === 'todo') S.restoreTodo(item.id); else S.restoreEvent(item.id);
+      const ok = kind === 'todo' ? S.restoreTodo(item.id) : S.restoreEvent(item.id);
       App.render();
-      UI.toast(t('restoredToast', { t: item.summary }));
+      // restoreTodo refuses an orphaned subtask instead of clearing its flag.
+      if (ok) UI.toast(t('restoredToast', { t: item.summary }));
+      else UI.toast(t('restoreOrphaned'), { warn: true });
     });
     const purge = UI.iconButton('x', t('deleteForever'), () => {
       UI.confirm({

@@ -352,6 +352,7 @@
       'aria-label': label, title: label,
     });
     b.innerHTML = ICON(name, opts && opts.size ? opts.size : 17);
+    if (opts && opts.testid) b.dataset.testid = opts.testid;
     if (onClick) b.addEventListener('click', onClick);
     return b;
   }

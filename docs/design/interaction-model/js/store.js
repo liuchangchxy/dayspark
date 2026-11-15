@@ -15,7 +15,6 @@
     tab: 'action',
     route: { name: 'action', params: {} },
     todosView: { kind: 'day', day: null },
-    sixThings: false,
     overdueExpanded: false,
     deadlineExpanded: false,
     hideCompleted: false,
@@ -36,7 +35,7 @@
     selectedTagIds: [],
     searchQuery: '',
     account: { signedIn: false, email: null, server: null, lastSync: null, phase: 'idle', rejected: [] },
-    ai: { configured: true, provider: 'OpenAI', model: 'gpt-4o-mini', messages: [], pending: false },
+    ai: { enabled: true, configured: true, provider: 'OpenAI', model: 'gpt-4o-mini', messages: [], pending: false },
     notificationsEnabled: true,
     exactAlarm: true,
     offline: false,
@@ -76,7 +75,9 @@
     const now = U.now();
     const at = (dayOffset, h, m) => {
       const d = U.addDays(today, dayOffset);
-      d.setHours(h, m || 0, 0, 0);
+      // at(n) with no hour is a whole-day marker; setHours(undefined) would
+      // produce an Invalid Date instead of midnight.
+      d.setHours(h || 0, m || 0, 0, 0);
       return d;
     };
 
@@ -268,6 +269,17 @@
     return !!(s && s.completedAt);
   }
 
+  // A repeating to-do is never COMPLETED as a series, so "is this row done"
+  // has to ask about the occurrence that row stands for. Without this the list
+  // kept showing a ticked instance as open and ticking it again silently undid
+  // the completion.
+  function isOpenOn(todo, day) {
+    if (!isOpen(todo)) return false;
+    if (!todo.recurrence) return true;
+    if (!day || !matchesRule(todo, day)) return true;
+    return !isOccurrenceDone(todo, occurrenceIdFor(todo, day));
+  }
+
   // ---------- queries ----------
   function liveTodos() { return state.todos.filter((t) => !t.deletedAt); }
   function liveEvents() { return state.events.filter((e) => !e.deletedAt); }
@@ -401,7 +413,7 @@
 
     const completedTodayTodos = live.filter((t) => isDone(t) && t.completedAt && U.sameDay(t.completedAt, d));
 
-    const inboxCount = live.filter((t) => isOpen(t) && !t.dueDate && !t.parentId && !t.recurrence).length;
+    const inboxCount = inboxTodos().length;
 
     return {
       day: d, events, allocations: allocs.map((a) => ({ allocation: a, todo: todoById(a.todoId) })).filter((x) => x.todo),
@@ -425,18 +437,45 @@
     const pending = pendingTodos();
     const overdue = [];
     const dated = [];
+    const doneInstances = [];
     pending.forEach((t) => {
-      if (!t.dueDate || t.recurrence) return;
+      if (t.recurrence) {
+        // A repeating to-do appears on a day through its occurrence, and that
+        // occurrence's own completion state decides whether it is still open.
+        if (!matchesRule(t, d)) return;
+        const occ = occurrenceIdFor(t, d);
+        if (isOccurrenceDone(t, occ)) {
+          doneInstances.push({ todo: t, occurrenceId: occ });
+          return;
+        }
+        dated.push(t);
+        return;
+      }
+      if (!t.dueDate) return;
       const due = U.startOfDay(t.dueDate);
       if (due < today && U.sameDay(d, today)) overdue.push(t);
       else if (U.sameDay(due, d)) dated.push(t);
     });
     const done = completedTodos().filter((t) => t.completedAt && U.sameDay(t.completedAt, d));
-    return { overdue, dated: dated.sort((a, b) => a.sortOrder - b.sortOrder), done };
+    return {
+      overdue,
+      dated: dated.sort((a, b) => a.sortOrder - b.sortOrder),
+      done,
+      doneInstances,
+    };
+  }
+
+  function plannedTodoIds() {
+    const ids = new Set();
+    state.allocations.forEach((a) => { if (isAllocationLive(a)) ids.add(a.todoId); });
+    return ids;
   }
 
   function inboxTodos() {
-    return pendingTodos().filter((t) => !t.dueDate && !t.recurrence).sort((a, b) => a.sortOrder - b.sortOrder);
+    const planned = plannedTodoIds();
+    return pendingTodos()
+      .filter((t) => !planned.has(t.id))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   function schedulableTodos() {
@@ -506,6 +545,7 @@
       deletedAt: null, createdAt: now, updatedAt: now,
       rrule: input.rrule || null, exdates: [], reminderOffsets: input.reminderOffsets || [],
       tagIds: input.tagIds || [],
+      splitFrom: input.splitFrom || null, splitAnchor: input.splitAnchor || null,
     };
     state.events.push(e);
     state.lastCreated = { type: 'event', id: e.id };
@@ -521,15 +561,31 @@
     const anchor = U.startOfDay(new Date(anchorMs));
     const occStart = new Date(anchorMs);
     const occEnd = new Date(occStart.getTime() + (series.endDt - series.startDt));
-    series.exdates = (series.exdates || []).concat([anchor]);
-    const copy = createEvent(Object.assign({
-      summary: series.summary, calendarId: series.calendarId,
-      startDt: occStart, endDt: occEnd, isAllDay: series.isAllDay,
-      description: series.description, location: series.location, tagIds: (series.tagIds || []).slice(),
-      reminderOffsets: (series.reminderOffsets || []).slice(),
-    }, patch || {}));
+    series.exdates = series.exdates || [];
+    // Splitting the same occurrence twice must not mint a second copy or push
+    // the anchor twice: the second edit belongs to the copy the first one made.
+    const existing = state.events.find(
+      (e) => !e.deletedAt && e.splitFrom === series.id && e.splitAnchor === anchor.getTime(),
+    );
+    if (!series.exdates.some((d) => d.getTime() === anchor.getTime())) {
+      series.exdates.push(anchor);
+    }
+    let copy;
+    if (existing) {
+      Object.assign(existing, patch || {});
+      existing.updatedAt = U.now();
+      copy = existing;
+    } else {
+      copy = createEvent(Object.assign({
+        summary: series.summary, calendarId: series.calendarId,
+        startDt: occStart, endDt: occEnd, isAllDay: series.isAllDay,
+        description: series.description, location: series.location, tagIds: (series.tagIds || []).slice(),
+        reminderOffsets: (series.reminderOffsets || []).slice(),
+        splitFrom: series.id, splitAnchor: anchor.getTime(),
+      }, patch || {}));
+    }
     emit('event:update');
-    return { series, copy };
+    return { series, copy, updated: !!existing };
   }
 
   function updateEvent(id, patch) {
@@ -618,6 +674,9 @@
   function softDeleteTodo(id) {
     const t = todoById(id);
     if (!t) return null;
+    // Re-deleting an already trashed row would move its timestamp, breaking the
+    // stamp match that lets undo restore a parent together with its subtasks.
+    if (t.deletedAt) return t;
     t.deletedAt = U.now();
     subtasksOf(id).forEach((s) => { s.deletedAt = t.deletedAt; });
     touch(t);
@@ -637,8 +696,31 @@
   function restoreTodo(id) {
     const t = todoById(id);
     if (!t) return null;
+    if (t.parentId != null) {
+      const p = todoById(t.parentId);
+      // A subtask whose parent was purged has nowhere to live: restoring it would
+      // clear deletedAt while parentId still points at a removed row, so it would
+      // never appear in any list again. Refuse instead of reporting a false restore.
+      if (!p) return null;
+      // A subtask cascaded into Trash with its parent cannot come back alone: it
+      // would sit under a still-deleted parent and never be reachable. Bring the
+      // parent back instead, which restores the whole cascade.
+      if (p.deletedAt) {
+        if (p.deletedAt !== t.deletedAt) return null;
+        if (!restoreTodo(p.id)) return null;
+      }
+    }
+    const stamp = t.deletedAt;
     t.deletedAt = null;
     touch(t);
+    // Deleting a parent takes its subtasks with it, so undo has to bring them
+    // back too. Only children deleted at that same moment belong to this undo;
+    // ones the user deleted separately keep their own place in Trash.
+    if (stamp) {
+      state.todos
+        .filter((x) => x.parentId === id && x.deletedAt === stamp)
+        .forEach((s) => { s.deletedAt = null; touch(s); });
+    }
     emit('todo:restore');
     return t;
   }
@@ -655,6 +737,11 @@
   function purgeTodo(id) {
     const t = todoById(id);
     if (!t) return null;
+    // Purging a parent purges its subtasks too. Leaving them behind stranded
+    // rows in Trash that could never be restored (their parent is gone).
+    // subtasksOf only sees live rows, and a soft-deleted parent's children are
+    // already deleted, so this must scan the whole table.
+    state.todos.filter((x) => x.parentId === id).forEach((s) => { purgeTodo(s.id); });
     state.allocations = state.allocations.filter((a) => a.todoId !== id);
     state.todos = state.todos.filter((x) => x.id !== id);
     emit('todo:purge');
@@ -748,12 +835,34 @@
   function setLang(lang) {
     state.lang = lang;
     I18N.setLang(lang);
+    savePrefs();
     emit('lang');
   }
 
   function applyTheme() {
     document.documentElement.dataset.theme = state.theme;
     document.documentElement.dataset.accent = state.accent;
+  }
+
+  // Preferences that outlive a reload. "Opens on" is only meaningful if it
+  // survives one, so the few settings that are launch or shell choices persist;
+  // nothing else does, because the prototype's data is in memory only.
+  const PREFS_KEY = 'dayspark.g0.prefs';
+  const PREF_KEYS = ['lang', 'theme', 'accent', 'defaultTab', 'showLunar', 'hideCompleted', 'weekStartsOn', 'notificationsEnabled', 'exactAlarm'];
+  function savePrefs() {
+    try {
+      const out = {};
+      PREF_KEYS.forEach((k) => { out[k] = state[k]; });
+      localStorage.setItem(PREFS_KEY, JSON.stringify(out));
+    } catch (_) { /* storage may be blocked */ }
+  }
+  function loadPrefs() {
+    try {
+      const raw = localStorage.getItem(PREFS_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      PREF_KEYS.forEach((k) => { if (saved[k] !== undefined) state[k] = saved[k]; });
+    } catch (_) { /* ignore a corrupt or blocked store */ }
   }
 
   // ---------- undo ----------
@@ -781,13 +890,13 @@
 
   window.Store = {
     state, subscribe, emit, seed, occurrenceIdFor, occurrenceDateFromId, occurrencesInWindow, occurrenceState,
-    isOccurrenceDone, matchesRule, liveTodos, liveEvents, todoById, eventById, tagById, calendarById,
+    isOccurrenceDone, isOpenOn, matchesRule, liveTodos, liveEvents, todoById, eventById, tagById, calendarById,
     calendarColor, isOpen, isDone, subtasksOf, isAllocationLive, allocationsForTodo, allocationsOnDay,
-    splitEventOccurrence, eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos,
+    splitEventOccurrence, eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos, plannedTodoIds,
     searchAll, createTodo, updateTodo, createEvent, updateEvent, createAllocation, rescheduleAllocation,
     cancelAllocation, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
     purgeEvent, emptyTrash, deletedTodos, deletedEvents, reorderTodos, createTag, updateTag, deleteTag,
-    createCalendar, updateCalendar, deleteCalendar, setSetting, setLang, applyTheme, pushUndo, takeUndo,
+    createCalendar, updateCalendar, deleteCalendar, setSetting, setLang, applyTheme, savePrefs, loadPrefs, pushUndo, takeUndo,
     navigate, back, TODO_STATUS, ALLOC, PRIORITY,
   };
 })();

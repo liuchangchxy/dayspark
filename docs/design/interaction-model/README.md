@@ -41,11 +41,11 @@ python3 -m http.server 8810
 
 桌面 1440×900：
 
-1. **行动**页 → 顶部输入框打「买灯泡」→ Enter → 看下方「收件箱 · n 项未安排」计数 +1 → 点它进收件箱看到这条。
+1. **今天**页 → 顶部输入框打「买灯泡」→ Enter → 这条立刻出现在下方「未安排」预览里并高亮，计数 +1 → 点「未安排 · n 项」进列表看到全部。
 2. **待办**页 → 行内输入框打「写周报」→ Enter（今天视图，会继承今天的截止）→ 勾选完成 → toast 里点「撤销」。
 3. 任意行 → 右键（或行尾「更多」）→「安排执行时间」→ 选一个时段 → 切到**日历**周视图，看到虚线安排块；点它 → 进详情。
 4. **日历** → 点某天空白时段 → sheet 三选一 → 新建日程 → 保存后回到日历，块出现在格子里。
-5. 详情页 → 只读；点「编辑」才进 composer；改标题 → 保存 → 回详情；切到**待办**和**行动**，标题同步。
+5. 详情页 → 只读；点「编辑」才进 composer；改标题 → 保存 → 回详情；切到**待办**和**今天**，标题同步。
 6. 详情「移到回收站」→ 去**回收站**恢复 → 回到原列表。
 7. **设置** → 语言切 English、主题切深色 → 立刻生效；再切回来。
 
@@ -72,12 +72,13 @@ docs/design/interaction-model/
 │                           library(tags,calendars,trash,about,feedback) / settings / chat / misc
 ├── tests/
 │   ├── smoke.js            冒烟：启动、无横向溢出、按钮都有名字、路由可达、零控制台错误
-│   ├── interactions.js     35 个真实操作场景（浏览器点击/输入/拖拽）
+│   ├── interactions.js     36 个真实操作场景（浏览器点击/输入/拖拽）
 │   ├── surfaces.js         14 个功能面场景（标签/日历/回收站/账户/离线/手势…）
-│   ├── reviewer-findings.js 20 条独立 Reviewer 发现的逐条回归
+│   ├── reviewer-findings.js 20 条第一轮独立 Reviewer 发现的逐条回归
+│   ├── reviewer-findings-r2.js 20 条第二轮独立 Reviewer 发现的逐条回归
 │   └── debug/              调试与截图脚本（不参与门禁）
 ├── research/
-│   ├── APP_SURFACE.md      真实 Flutter 代码盘点（973 行，24 路由 / 31 区域 / 21 破坏性操作）
+│   ├── APP_SURFACE_V034.md 真实 Flutter 代码盘点（v0.34.0 基线，带 file:line 引用）
 │   └── DOMAIN_BEHAVIORS.md 领域语义取证（15 域、108 处代码引用、20 条不变量）
 ├── COVERAGE.md             全产品页面/操作覆盖表（真实入口 → 原型路径 → 设计决定）
 ├── BEHAVIORS.md            关键操作行为定义（数据变 → 界面回 → 失败怎么办）
@@ -96,9 +97,10 @@ docs/design/interaction-model/
 cd docs/design/interaction-model/tests
 npm install            # 只装 playwright-core
 node smoke.js              # 11 项冒烟
-node interactions.js       # 35 个交互场景
+node interactions.js       # 36 个交互场景
 node surfaces.js           # 14 个功能面场景
-node reviewer-findings.js  # 20 条 Reviewer 发现回归
+node reviewer-findings.js  # 20 条第一轮 Reviewer 发现回归
+node reviewer-findings-r2.js # 20 条第二轮 Reviewer 发现回归
 ```
 
 加 `--headed` 可以看着浏览器跑；`--filter=<子串>` 只跑名字匹配的场景。结果与时间戳见 `TEST_RESULTS.md`。
@@ -111,4 +113,13 @@ node reviewer-findings.js  # 20 条 Reviewer 发现回归
 
 **不是**：生产 App；不连后端、不发通知、不做真实文件上传/ICS 解析/真实同步（用模拟延迟与结果 toast 表达状态）；不含 widget 深链；不含 legacy 重复数据迁移。逐条理由见 `COVERAGE.md` §7。
 
-数据只存在内存中，刷新页面即恢复种子数据 —— 这是刻意设计，方便反复验收同一条路径。
+数据只存在内存中（语言/主题/启动页等**偏好**例外，存在 `localStorage`，刷新后保持）——记录数据本身刷新即恢复种子，这是刻意设计，方便反复验收同一条路径。
+
+---
+
+## 6. 已知的未决项
+
+| 项 | 状态 |
+|---|---|
+| 桌面 master-detail | **原型单列，与 `CORE_UX_SPEC.md` §4 冲突**，已交独立 Reviewer 裁定，见 `REVIEW_ROUND3.md` |
+| 设计工具的在线协作（OpenDesign / DesignSync） | 本轮**无法访问**（无可用凭据/连接），因此原型是用本地 HTML/CSS/JS 手工实现的。视觉基线直接取自仓库冻结的 `DESIGN.md`（D Final tokens），未走在线设计项目。这是环境限制，不是选择。 |

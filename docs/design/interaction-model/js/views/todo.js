@@ -224,6 +224,11 @@
       if (e.pointerType === 'mouse') return;
       if (e.target.closest('button') && !e.target.closest('.checkbox')) return;
       startX = e.clientX; startY = e.clientY; active = true; decided = false; horizontal = false; dx = 0;
+      // Keep the stream on this row: without capture the browser retargets to
+      // the scroller as soon as the finger crosses out of the row box.
+      if (rowNode.setPointerCapture) {
+        try { rowNode.setPointerCapture(e.pointerId); } catch (_) { /* synthetic pointer */ }
+      }
     });
     rowNode.addEventListener('pointermove', (e) => {
       if (!active) return;
@@ -239,16 +244,16 @@
       rowNode.style.transition = 'none';
       rowNode.style.transform = `translateX(${dx}px)`;
     });
-    const finish = () => {
+    const finish = (commit) => {
       if (!active) return;
       active = false;
       rowNode.style.transition = '';
-      if (dx <= -80) {
+      if (commit && dx <= -80) {
         rowNode.style.transform = 'translateX(-84px)';
         setTimeout(() => {
           deleteTodo(todo);
         }, 120);
-      } else if (dx >= 80) {
+      } else if (commit && dx >= 80) {
         rowNode.style.transform = '';
         toggle(todo);
       } else {
@@ -256,8 +261,10 @@
       }
       dx = 0;
     };
-    rowNode.addEventListener('pointerup', finish);
-    rowNode.addEventListener('pointercancel', finish);
+    rowNode.addEventListener('pointerup', () => finish(true));
+    // A pointercancel means the browser took the gesture (a scroll, a system
+    // gesture). Committing on it deleted rows the user never finished swiping.
+    rowNode.addEventListener('pointercancel', () => finish(false));
   }
 
   function quickAdd(contextLabel, onAdd) {
@@ -298,16 +305,33 @@
     done.disabled = multi.ids.size === 0;
     done.addEventListener('click', () => {
       const ids = Array.from(multi.ids);
+      // Route through TodoOps so a repeating row resolves its occurrence the
+      // same way the single-row tick does; calling completeTodo directly wrote
+      // nothing for a series and still reported success.
+      const written = [];
+      const skipped = [];
       ids.forEach((id) => {
         const todo = S.todoById(id);
-        if (todo && S.isOpen(todo)) S.completeTodo(id);
-      });
-      UI.toast(t('selectedCount', { n: ids.length }) + ' · ' + t('done'), {
-        undo: () => { ids.forEach((id) => S.completeTodo(id)); App.render(); },
+        if (!todo || !S.isOpen(todo)) return;
+        const occ = todo.recurrence ? window.TodoOps.todayOccurrenceId(todo) : null;
+        if (todo.recurrence && !occ) { skipped.push(todo.summary); return; }
+        const result = S.completeTodo(id, occ ? { occurrenceId: occ } : undefined);
+        if (result) written.push({ id, occ });
       });
       multi.ids.clear();
       multi.active = false;
       App.render();
+      if (!written.length) {
+        UI.toast(t('recurrenceNeedsOccurrence'), { warn: true });
+        return;
+      }
+      UI.toast(t('selectedCount', { n: written.length }) + ' · ' + t('done'), {
+        undo: () => {
+          written.forEach((w) => S.completeTodo(w.id, w.occ ? { occurrenceId: w.occ } : undefined));
+          App.render();
+        },
+      });
+      if (skipped.length) UI.toast(t('batchSkippedRecurring', { n: skipped.length }), { warn: true });
     });
     bar.appendChild(done);
     const del = U.el('button', { class: 'btn danger-ghost sm', text: t('deleteSelected') });
@@ -380,7 +404,17 @@
     }
     const tagsBtn = UI.iconButton('tag', t('navTags'), () => App.go('tags'));
     const trashBtn = UI.iconButton('trash', t('navTrash'), () => App.go('trash'));
-    actions.push(tagsBtn, trashBtn);
+    const filterBtn = UI.iconButton('filter', t('filterAndDisplay'), (ev) => {
+      ev.stopPropagation();
+      UI.menu(ev.currentTarget, [
+        {
+          icon: S.state.hideCompleted ? 'eye' : 'checkSquare',
+          text: S.state.hideCompleted ? t('showCompleted') : t('hideCompleted'),
+          action: () => { S.state.hideCompleted = !S.state.hideCompleted; S.savePrefs(); App.render(); },
+        },
+      ]);
+    }, { testid: 'todos-filter' });
+    actions.push(filterBtn, tagsBtn, trashBtn);
 
     const page = UI.page({
       title: t('pageTodos'),
@@ -393,7 +427,6 @@
           { label: t('allTasks'), on: v.kind === 'all', act: () => setView({ kind: 'all', day: null }) },
           { label: t('inbox'), on: v.kind === 'inbox', act: () => setView({ kind: 'inbox', day: null }) },
           { label: t('today'), on: v.kind === 'day' && U.sameDay(v.day, today), act: () => setView({ kind: 'day', day: today }) },
-          { label: t('sixThings'), on: S.state.sixThings, act: () => { S.state.sixThings = !S.state.sixThings; App.render(); } },
         ].forEach((c) => {
           const b = U.el('button', { class: 'chip-btn' + (c.on ? ' on' : ''), text: c.label, 'aria-pressed': c.on ? 'true' : 'false' });
           b.addEventListener('click', c.act);
@@ -482,8 +515,9 @@
     const overdue = groups.overdue.filter(tagMatches);
     const dated = groups.dated.filter(tagMatches);
     const done = groups.done.filter(tagMatches);
+    const doneInstances = (groups.doneInstances || []).filter((x) => tagMatches(x.todo));
 
-    if (!overdue.length && !dated.length && !done.length) {
+    if (!overdue.length && !dated.length && !done.length && !doneInstances.length) {
       list.appendChild(UI.emptyState('checkSquare', t('noPendingTodos'), t('noPendingHint'), [
         { label: t('newTodo'), primary: true, action: () => App.openComposer('todo', { dueDate: day }) },
       ]));
@@ -495,33 +529,40 @@
     }
     if (dated.length) {
       list.appendChild(UI.sectionHead(isToday ? t('today') : U.fmtMonthDay(day), dated.length, { tone: 'accent' }));
-      const capActive = S.state.sixThings && isToday && dated.length > 6;
-      const expanded = S.state.sixThingsExpanded;
-      const visible = capActive && !expanded ? dated.slice(0, 6) : dated;
-      visible.forEach((todo, i) => list.appendChild(todoTile(todo, { ordinal: capActive || S.state.sixThings ? i : null })));
-      if (capActive) {
-        const fold = U.el('button', { class: 'row', style: 'justify-content:center;color:var(--ink-2);font-size:12px;font-weight:600' });
-        fold.innerHTML = `<span>${U.esc(t('moreItems', { n: dated.length - 6 }))}</span>${ICON('chevronDown', 14)}`;
-        fold.addEventListener('click', () => { S.state.sixThingsExpanded = true; App.render(); });
-        list.appendChild(fold);
-      }
-      if (capActive && expanded) {
-        const fold = U.el('button', { class: 'row', style: 'justify-content:center;color:var(--ink-2);font-size:12px;font-weight:600' });
-        fold.innerHTML = `<span>${U.esc(t('collapseList'))}</span>${ICON('chevronUp', 14)}`;
-        fold.addEventListener('click', () => { S.state.sixThingsExpanded = false; App.render(); });
-        list.appendChild(fold);
-      }
+      dated.forEach((todo) => list.appendChild(todoTile(todo)));
     }
-    if (done.length && !S.state.hideCompleted) {
-      list.appendChild(UI.sectionHead(t('completedSection'), done.length));
+    if ((done.length || doneInstances.length) && !S.state.hideCompleted) {
+      list.appendChild(UI.sectionHead(t('completedSection'), done.length + doneInstances.length));
       done.forEach((todo) => list.appendChild(todoTile(todo, { done: true })));
+      // A ticked occurrence of a repeating to-do belongs here too: the series
+      // stays open, but this day's instance is finished.
+      doneInstances.forEach((x) => list.appendChild(todoTile(x.todo, { done: true })));
     }
   }
 
+  // In the inventory views a repeating row stands for the series, but the tick
+  // on that row is today's occurrence. Once today is ticked the row belongs in
+  // the completed group for today, not in the open list with an empty box.
+  function splitRecurring(rows) {
+    const today = U.startOfDay(U.now());
+    const open = [];
+    const doneToday = [];
+    rows.forEach((todo) => {
+      if (todo.recurrence && S.matchesRule(todo, today)) {
+        const occ = S.occurrenceIdFor(todo, today);
+        if (S.isOccurrenceDone(todo, occ)) { doneToday.push({ todo, day: today }); return; }
+      }
+      open.push(todo);
+    });
+    return { open, doneToday };
+  }
+
   function renderInbox(list) {
-    const items = S.inboxTodos().filter(tagMatches);
+    const split = splitRecurring(S.inboxTodos().filter(tagMatches));
+    const items = split.open;
     const done = S.completedTodos().filter((t) => !t.dueDate && !t.parentId).filter(tagMatches);
-    if (!items.length && (!done.length || S.state.hideCompleted)) {
+    const doneRows = done.length + split.doneToday.length;
+    if (!items.length && (!doneRows || S.state.hideCompleted)) {
       list.appendChild(UI.emptyState('inbox', t('noPendingTodos'), t('noPendingHint'), [
         { label: t('newTodo'), primary: true, action: () => App.openComposer('todo', {}) },
       ]));
@@ -531,16 +572,19 @@
       list.appendChild(UI.sectionHead(t('inbox'), items.length));
       items.forEach((todo) => list.appendChild(todoTile(todo)));
     }
-    if (done.length && !S.state.hideCompleted) {
-      list.appendChild(UI.sectionHead(t('completedSection'), done.length));
+    if (doneRows && !S.state.hideCompleted) {
+      list.appendChild(UI.sectionHead(t('completedSection'), doneRows));
       done.forEach((todo) => list.appendChild(todoTile(todo, { done: true })));
+      split.doneToday.forEach((x) => list.appendChild(todoTile(x.todo, { done: true })));
     }
   }
 
   function renderAll(list) {
-    const pending = S.pendingTodos().filter(tagMatches).sort((a, b) => a.sortOrder - b.sortOrder);
+    const split = splitRecurring(S.pendingTodos().filter(tagMatches));
+    const pending = split.open.sort((a, b) => a.sortOrder - b.sortOrder);
     const done = S.completedTodos().filter(tagMatches);
-    if (!pending.length && (!done.length || S.state.hideCompleted)) {
+    const doneCount = done.length + split.doneToday.length;
+    if (!pending.length && (!doneCount || S.state.hideCompleted)) {
       list.appendChild(UI.emptyState('checkSquare', t('noPendingTodos'), t('noPendingHint'), [
         { label: t('newTodo'), primary: true, action: () => App.openComposer('todo', {}) },
       ]));
@@ -550,14 +594,15 @@
       list.appendChild(UI.sectionHead(t('allTasks'), pending.length));
       pending.forEach((todo) => list.appendChild(todoTile(todo)));
     }
-    if (done.length && !S.state.hideCompleted) {
+    if ((done.length || split.doneToday.length) && !S.state.hideCompleted) {
       const groups = {};
-      done.forEach((todo) => {
-        const d = todo.completedAt ? U.startOfDay(todo.completedAt) : new Date(1970, 0, 1);
-        const key = d.getTime();
-        groups[key] = groups[key] || { day: d, items: [] };
+      const push = (day, todo) => {
+        const key = day.getTime();
+        groups[key] = groups[key] || { day, items: [] };
         groups[key].items.push(todo);
-      });
+      };
+      done.forEach((todo) => push(todo.completedAt ? U.startOfDay(todo.completedAt) : new Date(1970, 0, 1), todo));
+      split.doneToday.forEach((x) => push(x.day, x.todo));
       Object.values(groups).sort((a, b) => b.day - a.day).forEach((g) => {
         list.appendChild(UI.sectionHead(U.fmtRelativeDay(g.day), g.items.length));
         g.items.forEach((todo) => list.appendChild(todoTile(todo, { done: true })));

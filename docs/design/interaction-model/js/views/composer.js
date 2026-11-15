@@ -523,18 +523,33 @@
             occSel.dataset.testid = 'schedule-occurrence';
             const from = U.addDays(U.startOfDay(U.now()), -1);
             const to = U.addDays(U.startOfDay(U.now()), 60);
+            const realTodo = draft.id ? S.todoById(draft.id) : null;
             const stub = {
               recurrence: draft.recurrence, dueDate: draft.dueDate,
               startDate: draft.startDate, createdAt: U.now(), id: draft.id,
+              occurrenceStates: realTodo ? realTodo.occurrenceStates : {},
             };
             S.occurrencesInWindow(stub, from, to).slice(0, 30).forEach((d) => {
               const id = S.occurrenceIdFor(stub, d);
-              occSel.appendChild(U.el('option', { value: id, text: U.fmtMonthDay(d) + ' · ' + U.fmtWeekdayLong(d) }));
+              // A finished occurrence cannot take a new allocation: the write
+              // would be valid but permanently invisible, because completion
+              // invalidates every future block for that instance.
+              const done = S.isOccurrenceDone(stub, id);
+              const opt = U.el('option', {
+                value: id,
+                text: U.fmtMonthDay(d) + ' · ' + U.fmtWeekdayLong(d) + (done ? ' · ' + t('completed') : ''),
+              });
+              if (done) opt.disabled = true;
+              occSel.appendChild(opt);
             });
             if (!occSel.options.length) {
               occSel.appendChild(U.el('option', { value: '', text: t('nothingHere') }));
             }
             if (draft.scheduleOccurrence) occSel.value = draft.scheduleOccurrence;
+            if (!occSel.value || (occSel.selectedOptions[0] && occSel.selectedOptions[0].disabled)) {
+              const firstOpen = Array.from(occSel.options).find((o) => !o.disabled && o.value);
+              if (firstOpen) occSel.value = firstOpen.value;
+            }
             occRow.appendChild(occSel);
             box.appendChild(occRow);
           }
@@ -546,11 +561,17 @@
           ].forEach((q) => {
             const b = U.el('button', { class: 'chip-btn', text: q.label });
             b.addEventListener('click', () => {
-              const d = U.addDays(today, q.d);
               const now = U.now();
-              // "This week" must offer a time that is still ahead, never a past slot.
-              const h = q.d === 0 ? Math.max(9, now.getHours() + 1) : 9;
-              start.value = U.toInputDateTime(new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.min(23, h), 0));
+              // A quick chip must land on a slot that is still ahead. Late in
+              // the evening "today at 09:00" is in the past and "today at 23:00"
+              // is too, so the chip rolls to the next morning instead.
+              let day = U.addDays(today, q.d);
+              let h = q.d === 0 ? Math.max(9, now.getHours() + 1) : 9;
+              if (q.d === 0 && now.getHours() >= 23) {
+                day = U.addDays(today, 1);
+                h = 9;
+              }
+              start.value = U.toInputDateTime(new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.min(23, h), 0));
               upd();
             });
             quick.appendChild(b);
@@ -721,6 +742,10 @@
         if (draft.scheduleStart && draft.scheduleEnd) {
           if (todo.recurrence && !draft.scheduleOccurrence) {
             scheduleBlocked = true;
+          } else if (todo.recurrence && S.isOccurrenceDone(todo, draft.scheduleOccurrence)) {
+            // The picker disables finished occurrences; a stale draft must not
+            // slip one through and write a block nothing will ever draw.
+            scheduleBlocked = true;
           } else if (draft.scheduleAllocId) {
             const alloc = S.state.allocations.find((a) => a.id === draft.scheduleAllocId);
             if (alloc && draft.scheduleOccurrence) alloc.occurrenceId = draft.scheduleOccurrence;
@@ -742,7 +767,7 @@
         } else if (created) {
           const backTo = S.state.route.name === 'composer' ? (S.state.tab || 'action') : S.state.route.name;
           App.back();
-          S.state.highlight = created ? { testid: 'todo-tile', id: todo.id } : null;
+          S.state.highlight = created ? { testid: 'todo-tile', testids: ['todo-tile', 'action-todo'], id: todo.id } : null;
           App.render();
         } else {
           App.back();
@@ -762,14 +787,26 @@
           reminderOffsets: draft.reminderOffsets.slice(),
         };
         let event;
+        let splitCopy = null;
         if (isEdit && draft.occurrence) {
           const split = S.splitEventOccurrence(draft.id, draft.occurrence, payload);
           event = split ? split.copy : null;
+          splitCopy = split && !split.updated ? split.copy : null;
         } else if (isEdit) event = S.updateEvent(draft.id, payload);
         else event = S.createEvent(payload);
         dirty = false;
         S.state.composer = null;
-        App.back();
+        if (splitCopy) {
+          // The edited thing is now the one-off copy, not the series instance
+          // that was on screen when Edit was pressed; staying there would show
+          // a page whose data the save just replaced.
+          S.navigate('detail', { type: 'event', id: splitCopy.id }, { replace: true });
+        } else {
+          App.back();
+          // A new event lands in the calendar grid (or Today's timeline), so the
+          // row it just produced has to be marked the same way a to-do is.
+          S.state.highlight = !isEdit ? { testid: 'event-block', testids: ['event-block', 'action-event'], id: event.id } : null;
+        }
         App.render();
         UI.toast(isEdit ? t('updatedToast', { t: event.summary }) : t('createdToast', { t: event.summary }), {
           undo: !isEdit ? () => { S.softDeleteEvent(event.id); App.render(); } : null,

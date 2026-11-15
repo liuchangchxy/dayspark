@@ -58,7 +58,6 @@ async function state(page) {
       ai: window.Store.state.ai,
       offline: window.Store.state.offline,
       notificationsEnabled: window.Store.state.notificationsEnabled,
-      sixThings: window.Store.state.sixThings,
       hideCompleted: window.Store.state.hideCompleted,
     });
   });
@@ -375,30 +374,47 @@ scenario('offline mode blocks sync and is visible in the shell', async (browser)
 });
 
 /* ---------- Settings that change list behaviour ---------- */
-scenario('hide-completed and six-things settings change the list and persist across navigation', async (browser) => {
+scenario('hide-completed lives in the to-do filter menu and changes the list', async (browser) => {
   const page = await newPage(browser);
-  await go(page, 'settings');
-  await clickTestId(page, 'setting-hide-done');
-  await settle(page, 200);
-  assert((await state(page)).hideCompleted, 'hide-completed did not toggle');
   await go(page, 'todos');
   await page.evaluate(() => window.__todoHelpers.setView({ kind: 'all', day: null }));
   await settle(page, 220);
-  const hidden = await page.$$eval('[data-testid="todo-tile"]', (ns) => ns.length);
+  const shownBefore = await page.$$eval('[data-testid="todo-tile"]', (ns) => ns.length);
+  const doneBefore = await page.evaluate(() => Array.from(document.querySelectorAll('[data-testid="todo-tile"] .row-title.done')).length);
+  assert(doneBefore > 0, 'the all view should start with completed rows visible');
+
+  await clickTestId(page, 'todos-filter');
+  await settle(page, 160);
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.menu button')).find((x) => /隐藏已完成|Hide completed/.test(x.textContent));
+    b.click();
+  });
+  await settle(page, 220);
+  assert((await state(page)).hideCompleted, 'hide-completed did not toggle');
   const doneHidden = await page.evaluate(() => Array.from(document.querySelectorAll('[data-testid="todo-tile"] .row-title.done')).length);
   assertEq(doneHidden, 0, 'no completed rows may render while hide-completed is on');
+  const shownAfter = await page.$$eval('[data-testid="todo-tile"]', (ns) => ns.length);
+  assert(shownAfter < shownBefore, 'the list should shrink when completed rows hide');
 
+  // It is a Todo display preference, not a global setting: Settings must not
+  // carry a second control for the same flag.
   await go(page, 'settings');
-  await clickTestId(page, 'setting-hide-done');
-  await settle(page, 200);
-  assert(!(await state(page)).hideCompleted, 'hide-completed did not toggle back');
+  const inSettings = await page.evaluate(() => !!document.querySelector('[data-testid="setting-hide-done"]'));
+  assert(!inSettings, 'hide-completed must not also live in Settings');
+
   await go(page, 'todos');
   await page.evaluate(() => window.__todoHelpers.setView({ kind: 'all', day: null }));
   await settle(page, 220);
-  const shown = await page.$$eval('[data-testid="todo-tile"]', (ns) => ns.length);
+  await clickTestId(page, 'todos-filter');
+  await settle(page, 160);
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.menu button')).find((x) => /显示已完成|Show completed/.test(x.textContent));
+    b.click();
+  });
+  await settle(page, 220);
+  assert(!(await state(page)).hideCompleted, 'hide-completed did not toggle back');
   const doneShown = await page.evaluate(() => Array.from(document.querySelectorAll('[data-testid="todo-tile"] .row-title.done')).length);
   assert(doneShown > 0, 'completed rows should come back when hide-completed is off');
-  assert(shown > hidden, 'the list should grow when completed rows return');
   await noErrors(page);
   await page.close();
 });

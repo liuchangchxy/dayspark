@@ -54,9 +54,20 @@
       // Emits schedule another render a frame later; keep the marker alive until
       // its animation has run, otherwise the second render erases the class.
       const spec = S.state.highlight;
-      const target = typeof spec === 'object'
-        ? host.querySelector(`[data-testid="${spec.testid}"][data-id="${spec.id}"]`)
-        : host.querySelector(`[data-testid="${spec}"], [data-hl="${spec}"]`);
+      let target = null;
+      if (typeof spec === 'object') {
+        // The same record renders under different testids per surface (todo-tile
+        // in the lists, action-todo on Today, event-block in the calendar). The
+        // spec names every testid the record can appear as, so ids from two
+        // tables (a todo and an event can share a number) never collide.
+        const ids = spec.testids || [spec.testid];
+        for (const id of ids) {
+          target = host.querySelector(`[data-testid="${id}"][data-id="${spec.id}"]`);
+          if (target) break;
+        }
+      } else {
+        target = host.querySelector(`[data-testid="${spec}"], [data-hl="${spec}"]`);
+      }
       if (target) {
         target.classList.add('hl');
         target.scrollIntoView({ block: 'center' });
@@ -240,6 +251,7 @@
 
   function boot() {
     S.seed();
+    S.loadPrefs();
     I18N.setLang(S.state.lang);
     S.applyTheme();
     S.subscribe(() => render());
@@ -247,6 +259,29 @@
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.menu')) UI.closeMenu();
     });
+    // "Opens on" is a launch preference, so it is read here and nowhere else:
+    // changing it must not yank the user off the page they are on.
+    const start = S.state.defaultTab;
+    if (start && start !== 'action') S.state.route = { name: start, params: {} };
+    // The app has no real URL history (every route is in-memory), so the
+    // browser Back button would otherwise unload the page and silently discard
+    // a dirty draft. Take one entry of history for ourselves and route Back
+    // through the same guard every in-app exit uses.
+    if (window.history && history.pushState) {
+      try { history.pushState({ ds: true }, ''); } catch (_) { /* file:// may refuse */ }
+      window.addEventListener('popstate', () => {
+        const guard = Registry.leaveGuard;
+        if (guard) {
+          guard().then((ok) => {
+            if (ok) { Registry.leaveGuard = null; back(); }
+            try { history.pushState({ ds: true }, ''); } catch (_) {}
+          });
+        } else {
+          back();
+          try { history.pushState({ ds: true }, ''); } catch (_) {}
+        }
+      });
+    }
     setTimeout(() => {
       U.qs('#boot').hidden = true;
       U.qs('#app').hidden = false;

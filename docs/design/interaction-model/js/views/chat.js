@@ -13,11 +13,22 @@
     head.appendChild(UI.iconButton('chevronLeft', t('back'), () => App.back(), { cls: 'back-btn' }));
     const wrap = U.el('div', { class: 'page-title-wrap' });
     wrap.appendChild(U.el('h1', { class: 'page-title', text: t('pageChat') }));
-    wrap.appendChild(U.el('div', { class: 'page-sub', text: S.state.ai.configured ? t('aiConfigured', { m: S.state.ai.model }) : t('aiNotConfigured') }));
+    wrap.appendChild(U.el('div', { class: 'page-sub', text: !S.state.ai.enabled ? t('aiDisabled') : (S.state.ai.configured ? t('aiConfigured', { m: S.state.ai.model }) : t('aiNotConfigured')) }));
     head.appendChild(wrap);
     const cfg = UI.iconButton('settings', t('aiConfig'), () => App.go('settings', { section: 'advanced' }));
     head.appendChild(cfg);
     root.appendChild(head);
+
+    if (!S.state.ai.enabled) {
+      const empty = U.el('div', { class: 'page-scroll' });
+      const inner = U.el('div', { class: 'page-content narrow' });
+      inner.appendChild(UI.emptyState('sparkles', t('aiDisabled'), t('aiDisabledHint'), [
+        { label: t('aiEnable'), primary: true, action: () => { S.state.ai.enabled = true; App.render(); } },
+      ]));
+      empty.appendChild(inner);
+      root.appendChild(empty);
+      return root;
+    }
 
     if (!S.state.ai.configured) {
       const empty = U.el('div', { class: 'page-scroll' });
@@ -142,14 +153,25 @@
         : `Between 08:00 and 20:00 today you have ${Math.floor(busy / 60)}h ${busy % 60}m booked, leaving about ${h}h ${m}m free.` };
     }
     if (/安排|schedule|排到/.test(lower)) {
-      const target = S.liveTodos().find((x) => !x.recurrence && S.isOpen(x)) || S.liveTodos()[0];
+      // Act on the to-do the user named. Falling back to "the first open one"
+      // meant the proposal card could describe a different task than the one
+      // asked about, and applying it wrote to that other task.
+      const named = S.liveTodos().find((x) => {
+        const name = x.summary.toLowerCase();
+        return lower.includes(name) || lower.includes(x.summary);
+      });
+      const target = named || S.liveTodos().find((x) => !x.recurrence && S.isOpen(x)) || S.liveTodos()[0];
       if (!target) return { role: 'assistant', text: S.state.lang === 'zh' ? '目前没有可安排的待办。' : 'There is no open to-do to schedule.' };
-      const tomorrow = U.addDays(U.startOfDay(U.now()), 1);
-      const start = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 9, 0);
+      const wantsTomorrow = /明天|tomorrow/.test(lower);
+      const day = U.addDays(U.startOfDay(U.now()), wantsTomorrow ? 1 : 0);
+      const hour = /下午|afternoon/.test(lower) ? 14 : 9;
+      const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
       const end = U.addMinutes(start, 60);
       return {
         role: 'assistant',
-        text: S.state.lang === 'zh' ? '可以。我不会直接写入，先给你确认。' : 'I can. Nothing is written until you confirm.',
+        text: S.state.lang === 'zh'
+          ? (named ? '可以。我不会直接写入，先给你确认。' : '没在待办里找到你提到的名字，先按第一条未完成待办给方案；如果不对，请改名后再试。')
+          : (named ? 'I can. Nothing is written until you confirm.' : 'I could not match that name, so this targets the first open to-do; rename it and ask again if that is wrong.'),
         proposal: {
           label: t('aiProposalSchedule', { t: target.summary, when: U.fmtMonthDayTime(start) }),
           run: () => {

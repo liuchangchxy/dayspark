@@ -63,7 +63,7 @@
         const appearance = group(t('appearance'));
         appearance.appendChild(row({
           icon: 'sun', title: t('theme'),
-          trailing: segmented([['light', t('themeLight')], ['dark', t('themeDark')]], S.state.theme, (v) => { S.state.theme = v; S.applyTheme(); App.render(); }, 'theme'),
+          trailing: segmented([['light', t('themeLight')], ['dark', t('themeDark')]], S.state.theme, (v) => { S.state.theme = v; S.applyTheme(); S.savePrefs(); App.render(); }, 'theme'),
         }));
         const swatchRow = row({ icon: 'star', title: t('themeColor') });
         const sw = U.el('div', { class: 'swatches' });
@@ -71,7 +71,7 @@
           const b = U.el('button', { class: 'swatch' + (S.state.accent === key ? ' on' : ''), 'aria-label': key });
           b.dataset.testid = 'accent-' + key;
           b.style.background = color;
-          b.addEventListener('click', () => { S.state.accent = key; S.applyTheme(); App.render(); });
+          b.addEventListener('click', () => { S.state.accent = key; S.applyTheme(); S.savePrefs(); App.render(); });
           sw.appendChild(b);
         });
         swatchRow.appendChild(sw);
@@ -82,28 +82,26 @@
         }));
         appearance.appendChild(row({
           icon: 'bolt', title: t('defaultTab'),
-          trailing: segmented([['action', t('today')], ['calendar', t('calendar')], ['todos', t('todos')]], S.state.defaultTab, (v) => { S.state.defaultTab = v; App.render(); }, 'default-tab'),
+          trailing: segmented([['action', t('today')], ['calendar', t('calendar')], ['todos', t('todos')]], S.state.defaultTab, (v) => { S.state.defaultTab = v; S.savePrefs(); App.render(); }, 'default-tab'),
         }));
-        appearance.appendChild(switchRow(S.state.lang === 'zh' ? '显示农历' : 'Show lunar dates', S.state.lang === 'zh' ? '日期标题下显示农历日期。' : 'Show the lunar date under day headings.', S.state.showLunar, (v) => { S.state.showLunar = v; App.render(); }, 'setting-lunar'));
+        appearance.appendChild(switchRow(S.state.lang === 'zh' ? '显示农历' : 'Show lunar dates', S.state.lang === 'zh' ? '日期标题下显示农历日期。' : 'Show the lunar date under day headings.', S.state.showLunar, (v) => { S.state.showLunar = v; S.savePrefs(); App.render(); }, 'setting-lunar'));
         content.appendChild(anchorGroup(appearance, 'appearance'));
 
-        // To-dos
-        const todos = group(t('todos'));
-        todos.appendChild(switchRow(t('sixThings'), t('sixThingsDesc'), S.state.sixThings, (v) => { S.state.sixThings = v; App.render(); }, 'setting-six'));
-        todos.appendChild(switchRow(t('hideCompleted'), t('hideCompletedDesc'), S.state.hideCompleted, (v) => { S.state.hideCompleted = v; App.render(); }, 'setting-hide-done'));
-        todos.appendChild(row({
-          icon: 'calendar', title: S.state.lang === 'zh' ? '每周起始日' : 'Week starts on',
-          trailing: segmented([['1', S.state.lang === 'zh' ? '周一' : 'Mon'], ['0', S.state.lang === 'zh' ? '周日' : 'Sun']], String(S.state.weekStartsOn), (v) => { S.state.weekStartsOn = parseInt(v, 10); App.render(); }, 'week-start'),
-        }));
-        content.appendChild(anchorGroup(todos, 'todos'));
+        // Calendars
+        const cal = group(t('calendar'));
+        cal.appendChild(row({ icon: 'calendar', title: t('manageCalendars'), onClick: () => App.go('calendars') }));
+        content.appendChild(anchorGroup(cal, 'calendar'));
 
-        // Data
+        // Data, split by the job: exchange with other calendar apps vs. keep
+        // this install recoverable.
         const data = group(t('data'));
+        data.appendChild(U.el('div', { class: 'group-label', text: t('dataExchange') }));
         data.appendChild(row({
           icon: 'upload', title: t('importIcs'), subtitle: t('calendarData'),
           onClick: () => importFlow(),
         }));
         data.appendChild(row({ icon: 'download', title: t('exportAllCalendars'), onClick: () => exportFlow() }));
+        data.appendChild(U.el('div', { class: 'group-label', text: t('dataBackup') }));
         data.appendChild(row({ icon: 'archive', title: t('fullBackup'), subtitle: t('fullBackupDesc'), onClick: () => backupFlow() }));
         content.appendChild(anchorGroup(data, 'data'));
 
@@ -173,26 +171,29 @@
         }
         content.appendChild(anchorGroup(account, 'account'));
 
-        // Advanced / AI
-        const advanced = group(t('advanced'));
-        advanced.appendChild(row({
-          icon: 'sparkles', title: t('aiAssistant'), subtitle: t('aiConfig'),
-          value: S.state.ai.configured ? `<span class="chip green" style="height:18px">${U.esc(t('aiConfigured', { m: S.state.ai.model }))}</span>` : `<span class="chip amber" style="height:18px">${U.esc(t('aiNotConfigured'))}</span>`,
-          onClick: () => aiConfigSheet(),
-        }));
-        advanced.appendChild(row({ icon: 'sparkles', title: t('pageChat'), onClick: () => App.go('chat') }));
+        // AI: one top-level group. No Advanced > ExpansionTile > dialog nesting.
+        const advanced = group(t('aiAssistant'));
+        advanced.appendChild(switchRow(t('aiEnable'), t('aiEnableDesc'), S.state.ai.enabled, (v) => { S.state.ai.enabled = v; App.render(); }, 'setting-ai-enabled'));
+        if (S.state.ai.enabled) {
+          advanced.appendChild(row({
+            icon: 'sparkles', title: t('aiConfig'),
+            value: S.state.ai.configured ? `<span class="chip green" style="height:18px">${U.esc(t('aiConfigured', { m: S.state.ai.model }))}</span>` : `<span class="chip amber" style="height:18px">${U.esc(t('aiNotConfigured'))}</span>`,
+            onClick: () => aiConfigSheet(),
+          }));
+          advanced.appendChild(row({ icon: 'sparkles', title: t('pageChat'), onClick: () => App.go('chat') }));
+        }
         content.appendChild(anchorGroup(advanced, 'advanced'));
 
         // Notifications
         const notif = group(t('notifications'));
-        notif.appendChild(switchRow(t('systemAlarm'), t('systemAlarmDesc'), S.state.notificationsEnabled, (v) => { S.state.notificationsEnabled = v; App.render(); }, 'setting-alarm'));
+        notif.appendChild(switchRow(t('systemAlarm'), t('systemAlarmDesc'), S.state.notificationsEnabled, (v) => { S.state.notificationsEnabled = v; S.savePrefs(); App.render(); }, 'setting-alarm'));
         notif.appendChild(row({
           icon: 'bell', title: t('notificationPermission'),
           subtitle: S.state.notificationsEnabled ? t('notificationPermissionDesc') : t('permissionDenied'),
           value: S.state.notificationsEnabled ? `<span class="chip green" style="height:18px">${U.esc(S.state.lang === 'zh' ? '已允许' : 'Allowed')}</span>` : `<span class="chip red" style="height:18px">${U.esc(S.state.lang === 'zh' ? '未允许' : 'Denied')}</span>`,
           onClick: () => UI.toast(t('notificationPermissionAsked'), { warn: true }),
         }));
-        notif.appendChild(switchRow(t('exactAlarm'), t('exactAlarmDesc'), S.state.exactAlarm, (v) => { S.state.exactAlarm = v; App.render(); }, 'setting-exact'));
+        notif.appendChild(switchRow(t('exactAlarm'), t('exactAlarmDesc'), S.state.exactAlarm, (v) => { S.state.exactAlarm = v; S.savePrefs(); App.render(); }, 'setting-exact'));
         content.appendChild(anchorGroup(notif, 'notifications'));
 
         // About
@@ -316,7 +317,7 @@
       body(host, close) {
         const box = U.el('div', { class: 'picker' });
         const prov = U.el('select', { class: 'select' });
-        ['OpenAI', 'Anthropic', 'DeepSeek', 'Gemini', '自定义'].forEach((p) => prov.appendChild(U.el('option', { text: p })));
+        ['OpenAI', 'Anthropic', 'DeepSeek', 'Gemini', t('providerCustom')].forEach((p) => prov.appendChild(U.el('option', { text: p })));
         prov.value = S.state.ai.provider === 'OpenAI' ? 'OpenAI' : S.state.ai.provider;
         box.appendChild(rowLabeled(t('aiProvider'), prov));
         const base = U.el('input', { class: 'input', value: 'https://api.openai.com/v1' });

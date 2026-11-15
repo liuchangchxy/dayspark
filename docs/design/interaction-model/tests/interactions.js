@@ -99,8 +99,10 @@ async function noErrors(page) {
 /* ---------- Action: capture -> inbox ---------- */
 scenario('action capture creates an unplanned todo and inbox entry counts it', async (browser) => {
   const page = await newPage(browser);
-  const before = await state(page);
-  const inboxBefore = before.todos.filter((t) => !t.deletedAt && t.status === 'NEEDS-ACTION' && !t.dueDate && !t.parentId && !t.recurrence).length;
+  // Unplanned means "no effective planned execution", not "no deadline": a
+  // to-do with a deadline but no active allocation still belongs here.
+  const unplannedOn = () => page.evaluate(() => window.Store.inboxTodos().length);
+  const inboxBefore = await unplannedOn();
   assert((await textOf(page, '[data-testid="inbox-entry"]')).includes(String(inboxBefore)), 'inbox entry should show the current unplanned count');
 
   await page.fill('[data-testid="action-capture"]', '从捕获框新建的待办');
@@ -113,14 +115,46 @@ scenario('action capture creates an unplanned todo and inbox entry counts it', a
   assertEq(created.dueDate, null, 'captured todo must have no deadline');
   assertEq(created.status, 'NEEDS-ACTION', 'captured todo status');
   assert((await page.inputValue('[data-testid="action-capture"]')) === '', 'capture field must clear');
-  const inboxAfter = after.todos.filter((t) => !t.deletedAt && t.status === 'NEEDS-ACTION' && !t.dueDate && !t.parentId && !t.recurrence).length;
-  assert((await textOf(page, '[data-testid="inbox-entry"]')).includes(String(inboxAfter)), 'inbox count did not update');
+  assertEq(await unplannedOn(), inboxBefore + 1, 'the capture must join the unplanned bucket');
+  assert((await textOf(page, '[data-testid="inbox-entry"]')).includes(String(inboxBefore + 1)), 'inbox count did not update');
 
   await clickTestId(page, 'inbox-entry');
   assert((await state(page)).todosView.kind === 'inbox', 'inbox entry must open the inbox view');
   const rowText = await textOf(page, '[data-testid="todo-list"]');
   assert(rowText.includes('从捕获框新建的待办'), 'created todo is missing from the inbox list');
   await noOverflow(page);
+  await noErrors(page);
+  await page.close();
+});
+
+/* ---------- Unplanned excludes to-dos that already have a live allocation ---------- */
+scenario('a to-do leaves the unplanned bucket once it is scheduled and returns when cancelled', async (browser) => {
+  const page = await newPage(browser);
+  const target = await page.evaluate(() => {
+    const todo = window.Store.inboxTodos().find((t) => !t.recurrence);
+    return todo ? { id: todo.id, summary: todo.summary } : null;
+  });
+  assert(target, 'seed data should contain an unplanned to-do');
+  const before = await page.evaluate(() => window.Store.inboxTodos().length);
+
+  await page.evaluate((id) => {
+    const start = new Date();
+    start.setHours(start.getHours() + 3, 0, 0, 0);
+    window.Store.createAllocation({ todoId: id, startAt: start, endAt: new Date(start.getTime() + 3600000) });
+    window.App.render();
+  }, target.id);
+  await settle(page, 240);
+  const scheduled = await page.evaluate(() => window.Store.inboxTodos().length);
+  assertEq(scheduled, before - 1, 'a scheduled to-do must leave Unplanned even though its deadline is untouched');
+
+  await page.evaluate((id) => {
+    const alloc = window.Store.state.allocations.find((a) => a.todoId === id && window.Store.isAllocationLive(a));
+    window.Store.cancelAllocation(alloc.id);
+    window.App.render();
+  }, target.id);
+  await settle(page, 240);
+  const restored = await page.evaluate(() => window.Store.inboxTodos().length);
+  assertEq(restored, before, 'cancelling the allocation must return the to-do to Unplanned');
   await noErrors(page);
   await page.close();
 });
@@ -609,55 +643,48 @@ scenario('search and lists explain empty results instead of showing blank space'
   assert(empty && empty.length > 0, 'search should render an empty state with copy');
 
   await go(page, 'todos');
-  await page.evaluate(() => window.__todoHelpers.setView({ kind: 'day', day: window.U.addDays(window.U.startOfDay(window.U.now()), 40) }));
+  // Seed data carries repeating series, so a fixed offset is not reliably empty.
+  // Ask the data which day has nothing on it rather than assuming one.
+  await page.evaluate(() => {
+    const base = window.U.startOfDay(window.U.now());
+    let day = window.U.addDays(base, -30);
+    for (let i = 0; i < 800; i += 1) {
+      const d = window.U.addDays(base, -400 + i);
+      const r = window.Store.todosForDay(d);
+      if (!r.dated.length && !r.overdue.length && !r.done.length && !r.doneInstances.length) { day = d; break; }
+    }
+    window.__todoHelpers.setView({ kind: 'day', day });
+  });
   await settle(page, 200);
   assert(await exists(page, '.empty'), 'an empty day should render an empty state');
   await noErrors(page);
   await page.close();
 });
 
-/* ---------- Six things cap and its expand/collapse ---------- */
-scenario('the six-things cap hides extra rows and expands and collapses reversibly', async (browser) => {
+/* ---------- Six-things is retired: the day list never truncates ---------- */
+scenario('the day list shows every row and offers no six-things cap', async (browser) => {
   const page = await newPage(browser);
   await go(page, 'todos');
-  for (const title of ['补充一', '补充二', '补充三']) {
+  for (const title of ['补充一', '补充二', '补充三', '补充四', '补充五']) {
     await page.fill('[data-testid="todo-quick-add"]', title);
     await page.press('[data-testid="todo-quick-add"]', 'Enter');
     await settle(page, 160);
   }
-  await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('.chip-btn')).find((x) => x.textContent.trim() === '六件事');
-    b.click();
+  const chip = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.chip-btn')).some((x) => /六件事|Six things/.test(x.textContent)));
+  assert(!chip, 'the six-things chip must be gone from the to-do toolbar');
+  const state = await page.evaluate(() => {
+    const day = window.Store.todosForDay(new Date());
+    return {
+      total: day.dated.length + day.overdue.length + day.done.length,
+      shown: document.querySelectorAll('.todo-list [data-testid="todo-tile"]').length,
+    };
   });
-  await settle(page, 220);
-  const fold = await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('button')).find((x) => /展开其余|Show \d+ more/.test(x.textContent));
-    return b ? b.textContent : null;
-  });
-  assert(fold !== null, 'a fold control should appear when more than six items are due today');
-  const rows = await page.$$('[data-testid="todo-tile"]');
-  const dated = await page.$$eval('.todo-list [data-testid="todo-tile"]', (ns) => ns.length);
-  assert(dated <= 9, 'six-things should cap the visible list');
-
-  await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('button')).find((x) => /展开其余|Show \d+ more/.test(x.textContent));
-    if (b) b.click();
-  });
-  await settle(page, 220);
-  const expanded = await page.$$('[data-testid="todo-tile"]');
-  assert(expanded.length > rows.length, 'expanding must reveal the hidden rows');
-  const collapse = await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('button')).find((x) => /收起/.test(x.textContent));
-    return !!b;
-  });
-  assert(collapse, 'expanded state should offer a collapse control');
-  await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('button')).find((x) => /收起/.test(x.textContent));
-    b.click();
-  });
-  await settle(page, 220);
-  const collapsed = await page.$$('[data-testid="todo-tile"]');
-  assertEq(collapsed.length, rows.length, 'collapsing must return to the capped list');
+  assert(state.total > 6, `seed plus five captures should exceed six rows, got ${state.total}`);
+  assertEq(state.shown, state.total, 'every dated, overdue and completed row must be rendered, with no cap to fold');
+  const fold = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('button')).some((x) => /展开其余|Show \d+ more/.test(x.textContent)));
+  assert(!fold, 'no truncation control should exist');
   await noErrors(page);
   await page.close();
 });
@@ -936,7 +963,7 @@ scenario('switching language and theme updates the shell immediately and persist
   await settle(page, 220);
   assertEq(await page.evaluate(() => document.documentElement.lang), 'en', 'html lang after switching to English');
   const nav = await textOf(page, '#rail');
-  assert(nav.includes('Action') && nav.includes('Settings'), 'rail should be in English after the switch');
+  assert(nav.includes('Today') && nav.includes('Settings'), 'rail should be in English after the switch');
 
   await clickTestId(page, 'theme-dark');
   await settle(page, 180);

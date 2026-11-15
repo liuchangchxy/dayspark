@@ -153,7 +153,7 @@ async function main() {
       console.log('F5 all list has subtask?', /收集各组数据|写一页结论/.test(allText));
       assert(!/收集各组数据|写一页结论/.test(allText), 'Todos all has no subtasks');
       await shot(page, 'F5-01-todos-all');
-      await L.clickText(page, '.chip-btn', '收件箱');
+      await L.clickText(page, '.chip-btn', '未安排');
       await settle(page, 250);
       const inboxText = await L.text(page, '[data-testid="todo-list"]');
       console.log('F5 inbox includes subtasks?', /收集各组数据|写一页结论/.test(inboxText));

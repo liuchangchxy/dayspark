@@ -2,15 +2,15 @@
 
 每条操作写清三件事：**数据怎么变 → 界面怎么回 → 失败怎么办**。原型代码即实现，测试即证据（`tests/*.js` 的场景名对应下表编号）。
 
-领域语义遵循 `SPEC.md`：`dueDate` 是截止（不是执行时间）、`TaskAllocation` 是可移动的执行时段、`Event` 占据时间。三者永不互相冒充。
+术语与规则以 `docs/CORE_UX_SPEC.md`（v0.34.0 冻结）为准：**今天 / 未安排 / 全部待办 / 计划执行 / 截止**。领域语义遵循 `SPEC.md`：`dueDate` 是截止（不是执行时间）、`TaskAllocation` 是可移动的执行时段、`Event` 占据时间。三者永不互相冒充。
 
 ---
 
 ## A. 全局
 
 ### A1 创建入口（唯一入口原则）
-- **数据**：`composer` 路由，`kind` 在打开时确定；新建待办默认无截止、第一个日历、优先级 0；新建日程默认「今天下一个整点 + 1 小时」。
-- **界面**：桌面从页头「新建待办/新建日程」；移动从右下 FAB；日历从时间格 sheet。保存后**回到打开它的地方**并按 `{testid, id}` 高亮**那一行**（不是第一行）。子任务例外：回父详情。
+- **数据**：`composer` 路由，`kind` 在打开时确定；新建待办默认**无截止**、第一个日历、优先级 0；新建日程默认「今天下一个整点 + 1 小时」。
+- **界面**：桌面从页头「新建」；移动从右下 FAB；日历从时间格 sheet。**「新建」打开的是二选一 chooser（待办 / 日程），不是直接跳表单** —— 见 A5。保存后**回到打开它的地方**并按 `{testid, id}` 高亮**那一行**（不是第一行）。子任务例外：回父详情。
 - **失败**：标题为空 → 保存禁用 + 内联错误，不写库。脏表单离开 → 先确认「放弃修改？」——**Esc、侧栏、底部导航、快捷键全部走同一问句**（`App.leaveGuard`），不允许静默丢弃草稿。
 - 证据：`interactions.js`「composer creates a todo…」「composer blocks saving an empty title…」「leaving a dirty composer…」；`reviewer-findings.js` F8 / F19
 
@@ -27,23 +27,31 @@
 - 证据：`surfaces.js` 全套（切换页面后仍可点击）；`reviewer-findings.js` F18。
 
 ### A4 今日 vs 浏览日
-- **数据**：`actionDate` 只由 Action/「回到今天」写；`todosView.day` 只由周条/日历下钻写。两者独立。
-- **界面**：Action 永远显示今天，页头无日期切换；待办页周条可看任意日，页头副标题显示所看日期。
+- **数据**：`actionDate` 只由 今天/「回到今天」写；`todosView.day` 只由周条/日历下钻写。两者独立。
+- **界面**：今天永远显示今天，页头无日期切换；待办页周条可看任意日，页头副标题显示所看日期。
 - **失败**：无。
 - 证据：`interactions.js`「browsing another day in Todos does not move the Action day」
+
+### A5 今天页的创建（不得编造截止）
+- **数据**：`openCreateChooser()` 只负责选类型，**不写任何字段**。选「待办」→ composer 无 `dueDate`，保存后落到「未安排」；选「日程」→ composer 预填今天下一个整点。
+- **界面**：sheet 两个出口，各带一行说明（「无截止，落到「未安排」」/「今天下一个整点」）。
+- **失败**：没有第二条入口在背后偷偷写 `dueDate = 今天`——**在哪个页面打开都不等于给截止**。
+- 依据：`CORE_UX_SPEC.md` §3.1 / §3.2
+- 证据：`reviewer-findings-r2.js` R12；`interactions.js` 捕获链路
+
 
 ---
 
 ## B. 待办
 
-### B1 捕获（Action 捕获框）
+### B1 捕获（今天页捕获框）
 - **数据**：`createTodo({summary})` → 无 `dueDate`、无 `startDate`、`status=NEEDS-ACTION`、`parentId=null`、无重复。即「未安排」。
-- **界面**：输入框清空、**焦点留在框内**（连续输入可直接建第二条）；收件箱计数 +1；toast「已创建 …」带撤销。
+- **界面**：输入框清空、**焦点留在框内**（连续输入可直接建第二条）；「未安排」计数 +1，**刚建的那条出现在今天页的未安排预览里并高亮**（预览最多 3 行，新条目在超出时提到首位，否则用户看不到自己刚建的东西）；toast「已创建 …」带撤销。
 - **失败**：空输入 Enter 无效。
-- 证据：`interactions.js`「action capture creates an unplanned todo…」
+- 证据：`interactions.js`「action capture creates an unplanned todo…」；`reviewer-findings-r2.js` R12
 
 ### B2 快速添加（待办页）
-- **数据**：day 视图 → `dueDate = 该日 00:00`（日期型，不显示 00:00）；Inbox/All → `dueDate = null`。
+- **数据**：day 视图 → `dueDate = 该日 00:00`（日期型，不显示 00:00）；未安排/全部待办 → `dueDate = null`。
 - **界面**：新行出现在对应分区；输入框清空并保持焦点。
 - **失败**：空输入无效。
 - 证据：「todos quick add inherits the browsed day as deadline」
@@ -51,16 +59,16 @@
 ### B3 完成 / 取消完成
 - **数据**（非重复）：`status: NEEDS-ACTION → COMPLETED`，`completedAt = now`；**所有 `startAt >= completedAt` 的 active 安排 → `invalidatedByCompletion`**；早于完成时刻的安排保留为历史。取消完成：状态回退、`completedAt = null`，**不复活**已失效/已取消的安排。
 - **数据**（重复）：只写 `occurrenceStates[occId].completedAt`，**系列本身永远保持 NEEDS-ACTION**；同样使该实例未来的安排失效。
-- **界面**：行移到「已完成」区（Day 单区 / All·Inbox 按完成日分组）；Action 出现于「今天早些时候」，**并立即离开「现在 / 稍后」**；日历不再把该安排画成当前工作（记录保留为历史）；toast 带撤销（撤销 = 再调一次 `completeTodo`，即反操作）。
+- **界面**：行移到「已完成」区（Day 单区 / 全部待办·未安排按完成日分组）；今天页出现于「今天早些时候」，**并立即离开「现在 / 稍后」**；日历不再把该安排画成当前工作（记录保留为历史）；toast 带撤销（撤销 = 再调一次 `completeTodo`，即反操作）。
 - **实现**：所有入口（列表勾选、详情按钮、Action 行）共用 `js/todo-ops.js` 的 `complete()`。
 - **失败**：重复待办且今天没有匹配实例 → 警告 toast，不写库；**绝不出现「没写库却报已完成」**。
 - 证据：「completing a todo moves it to the completed section…」「completing one occurrence of a recurring todo…」；`reviewer-findings.js` F3 / F11
 
 ### B4 删除 / 恢复 / 永久删除
-- **数据**：删除 = `deletedAt = now`（软删），父待办删除时子任务一并软删。恢复 = `deletedAt = null`（保留截止、标签、安排等全部字段）。永久删除 = 行移除 + 其安排一并移除。
+- **数据**：删除 = `deletedAt = now`（软删），父子任务在同一时刻级联软删。恢复 = `deletedAt = null`（保留截止、标签、安排等全部字段），**恢复父任务会把同一时刻级联删除的子任务一并恢复**；单独删过的子任务保持自己的删除时刻，不随之复活。永久删除 = 整棵子树移除（含已软删的孙级）+ 其安排一并移除。
 - **界面**：行立即从列表消失；toast 撤销；回收站出现该行（含删除时间）；恢复后回到原列表；永久删除有二次确认且不可撤销。
-- **失败**：无（软删不会失败）。
-- 证据：「deleting a todo moves it to Trash…」「trash purge is permanent…」
+- **失败**：恢复一个**父任务已被永久删除**的孤儿子任务 → 拒绝并警告「父任务已不存在」，**不谎报恢复成功**。
+- 证据：「deleting a todo moves it to Trash…」「trash purge is permanent…」；`reviewer-findings-r2.js` R1
 
 ### B5 安排执行时间（不改截止）
 - **数据**：新增 `TaskAllocation{todoId, startAt, endAt, state:active, occurrenceId?}`。**`dueDate` 不变，也不创建 Event**。
@@ -82,7 +90,7 @@
 - 证据：「todo detail is read-only until Edit…」
 
 ### B8 子任务
-- **数据**：`parentId = 父 id`；子任务不出现在顶层列表、不计入收件箱、不计入六件事。
+- **数据**：`parentId = 父 id`；子任务不出现在顶层列表、不计入「未安排」、不计入今天页任何分区。
 - **界面**：父详情列出子任务，可勾选、可点进；保存后回父详情。
 - **失败**：标题为空不保存。
 - 证据：「adding a subtask from a parent detail…」
@@ -187,17 +195,18 @@
 |---|---|---|---|
 | 主题 / 主题色 | `theme`、`accent` | 立即全站生效并跨页保持 | 无 |
 | 语言 | `lang` | 立即全站切换（含 rail、页头、按钮） | 无 |
-| 默认页 | `defaultTab` | 下次启动生效（不打断当前） | 无 |
-| 六件事 | `sixThings` | 待办页 chip 同步高亮，今日列表折叠 | 无 |
-| 隐藏已完成 | `hideCompleted` | 所有待办视图的已完成区立即消失 | 无 |
-| 每周起始日 | `weekStartsOn` | 周条与日历周视图重排 | 无 |
+| 默认页 / 启动时打开 | `defaultTab` | 下次启动生效（不打断当前） | 无 |
+| 隐藏已完成 | `hideCompleted` | **在待办页的筛选菜单里**（不在设置里）；所有待办视图的已完成区立即消失 | 无 |
 | 通知开关 | `notificationsEnabled` | 权限行同步变「已允许/未允许」 | 无 |
 | 登录 | `account` 写入；校验 URL / 邮箱 / 密码长度 | 成功后出现同步行与设备行 | 任一不合法 → 字段错误，不写 |
 | 立即同步 | `lastSync = now` | 状态行更新时间 | 离线 → 警告 toast，**不写 lastSync** |
 | 退出登录 | `account` 清空 | 回到未登录表单 | 二次确认 |
+| AI 助手开关 | `ai.enabled` | 关掉后聊天页显示「AI 助手已关闭」空态，不再显示输入框 | 无 |
 | AI 配置 | `ai.provider/model/configured` | 设置与聊天页副标题同步 | 测试连接为模拟 |
 
-证据：`surfaces.js`「switching language and theme…」「hide-completed…」「account sign-in…」「offline mode blocks sync…」
+**退役项**（`CORE_UX_SPEC.md` §6 / §7 明确要求从主界面移除，原型已删）：**六件事**、**每周起始日**。旧的 `sixThings` 持久化偏好不参与任何新逻辑。
+
+证据：`surfaces.js`「switching language and theme…」「hide-completed…」「account sign-in…」「offline mode blocks sync…」；`reviewer-findings-r2.js` R17（设置里不得再出现六件事/每周起始日）
 
 ---
 
@@ -223,11 +232,11 @@
 
 | 事实 | 写入点 | 必须同步出现的界面 |
 |---|---|---|
-| 待办标题/截止 | composer、详情内联 | 待办列表、Action、日历泳道、搜索、子任务行 |
-| 完成状态 | 行勾选、详情、批量、Action | 待办列表已完成区、Action 今天早些时候、rail 计数 |
-| 安排时段 | composer、时间格 sheet、详情、改期 | 待办行、详情执行时间、日历安排块、Action 此刻/稍后 |
-| 日程 | composer、拖动、改期 | 日历网格、Action、搜索、月视图 chip |
-| 删除 | 行菜单、详情、滑动、批量、`event-ops` | 列表、Action、日历、搜索、回收站 |
+| 待办标题/截止 | composer、详情内联 | 待办列表、今天、日历泳道、搜索、子任务行 |
+| 完成状态 | 行勾选、详情、批量、今天 | 待办列表已完成区、今天早些时候、rail 计数 |
+| 安排时段 | composer、时间格 sheet、详情、改期 | 待办行、详情执行时间、日历安排块、今天此刻/稍后、未安排归属 |
+| 日程 | composer、拖动、改期 | 日历网格、今天、搜索、月视图 chip |
+| 删除 | 行菜单、详情、滑动、批量、`event-ops` | 列表、今天、日历、搜索、回收站 |
 | 重复实例的范围 | `event-ops`（删除/编辑）、`moveEvent`（拖动） | 详情、日历块、后续实例、回收站 |
 | 标签 | 标签页、composer、行菜单 | 待办行 chip、筛选结果、标签计数 |
 

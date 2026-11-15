@@ -431,7 +431,7 @@
     if (ctx.kind === 'event') {
       const e = ctx.data;
       items.push({ icon: 'eye', text: t('view'), action: () => openEvent(e) });
-      items.push({ icon: 'edit', text: t('edit'), action: () => App.openComposer('event', { mode: 'edit', id: e.id }) });
+      items.push({ icon: 'edit', text: t('edit'), action: () => window.EventOps.editEvent(e) });
       items.push({ icon: 'clockPlus', text: S.state.lang === 'zh' ? '改期…' : 'Reschedule…', action: () => rescheduleDialog(ctx) });
       items.push({ sep: true });
       items.push({ icon: 'trash', text: t('delete'), danger: true, action: () => deleteEventFlow(e) });
@@ -593,9 +593,14 @@
         };
       }
       App.render();
-      UI.toast(t('eventMovedToast', { t: U.fmtMonthDayTime(start) }), {
-        undo: () => { if (undo) undo(); App.render(); },
-      });
+      // A resize leaves the start alone, so a "moved to <start>" toast states a
+      // time that did not change; report the new end instead.
+      UI.toast(
+        o.resized
+          ? t('eventResizedToast', { t: U.fmtMonthDayTime(end) })
+          : t('eventMovedToast', { t: U.fmtMonthDayTime(start) }),
+        { undo: () => { if (undo) undo(); App.render(); } },
+      );
     };
     if (e.isOccurrence && e.rrule && !o.silent) {
       window.EventOps.scopeSheet({
