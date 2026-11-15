@@ -143,6 +143,8 @@ void main() {
       expect(todos.first.dueDate!.year, tomorrow.year);
       expect(todos.first.dueDate!.month, tomorrow.month);
       expect(todos.first.dueDate!.day, tomorrow.day);
+      // A deadline is not a plan: nothing may be allocated for it.
+      expect(await db.select(db.taskAllocations).get(), isEmpty);
 
       await _unmount(tester);
     },

@@ -1,22 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
-import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
-import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
@@ -33,26 +31,26 @@ import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
-import 'package:dayspark/ui/pages/event/event_detail_page.dart';
-import 'package:dayspark/ui/pages/home/action_section.dart';
-import 'package:dayspark/ui/pages/home/c_day_timeline.dart';
+import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
+import 'package:dayspark/ui/pages/home/day_agenda.dart';
+import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark/ui/pages/todo/a2_composer.dart';
+import 'package:dayspark/ui/pages/todo/a2_todo_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
+import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
-import 'package:dayspark/ui/widgets/calendar/calendar_section.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
-import 'package:dayspark/ui/widgets/todo/date_strip.dart';
-import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
-import 'package:dayspark/ui/widgets/todo/todo_quick_add.dart';
-import 'package:dayspark/ui/widgets/todo/todo_quick_create_sheet.dart';
+import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 
-/// The three primary destinations and their shared chrome.
+/// The three primary destinations and the chrome they share.
 ///
-/// Home owns navigation state; the sidebar (desktop) and the tab bar (mobile)
-/// are two presentations of the same three destinations, so neither platform
-/// gains a navigation concept the other lacks.
+/// Today is the clock's day and nothing else; the Todo dated view and the
+/// Calendar read one `viewedDateProvider` between them, so switching tabs can
+/// never move the browsed date.
 class HomePage extends ConsumerStatefulWidget {
   final int initialTab;
   final DateTime? initialDate;
@@ -74,9 +72,6 @@ class _HomePageState extends ConsumerState<HomePage>
     with WidgetsBindingObserver {
   bool _userChangedTab = false;
   bool _calendarTabWasActive = false;
-  // Subtitle pushed up from CalendarSection so it can sit in the chrome.
-  String? _calendarTitle;
-  String? _calendarSubtitle;
   Timer? _dayCheckTimer;
   DateTime? _lastCheckedDay;
 
@@ -88,6 +83,10 @@ class _HomePageState extends ConsumerState<HomePage>
       end: DateTime(2100, 12, 31),
     );
   }
+
+  static String _rangeKey(DateTimeRange range) =>
+      '${range.start.millisecondsSinceEpoch}-'
+      '${range.end.millisecondsSinceEpoch}';
 
   @override
   void initState() {
@@ -167,9 +166,9 @@ class _HomePageState extends ConsumerState<HomePage>
     final raw = widget.initialTodoView;
     if (raw == null || raw.isEmpty) return;
     final view = switch (raw) {
-      'inbox' => const TodosInboxView(),
+      'inbox' || 'unplanned' => const TodosInboxView(),
       'all' => const TodosAllView(),
-      'today' => TodosDayView(DateTime.now()),
+      'today' || 'date' => const TodosDayView(),
       _ => null,
     };
     if (view == null) return;
@@ -195,11 +194,6 @@ class _HomePageState extends ConsumerState<HomePage>
     ref
         .read(workspaceTabProvider.notifier)
         .setTab(AppTab.values[index.clamp(0, 2)]);
-  }
-
-  void _openAssistant() {
-    if (GoRouter.maybeOf(context) == null) return;
-    context.push('/ai-chat');
   }
 
   Future<void> _runStartupSideEffects() async {
@@ -239,6 +233,8 @@ class _HomePageState extends ConsumerState<HomePage>
     );
   }
 
+  /// Today is the clock, and the projection is pinned to it. This is the only
+  /// writer of the projection's date: navigation never touches it.
   void _syncActionDateIfDayChanged() {
     final current = _now();
     final today = DateTime(current.year, current.month, current.day);
@@ -261,8 +257,7 @@ class _HomePageState extends ConsumerState<HomePage>
   void _scheduleNextMidnightCheck() {
     final now = _now();
     final midnight = DateTime(now.year, now.month, now.day + 1);
-    final delay = midnight.difference(now);
-    _dayCheckTimer = Timer(delay, () {
+    _dayCheckTimer = Timer(midnight.difference(now), () {
       if (!mounted) return;
       _handleDayRollover();
     });
@@ -271,26 +266,19 @@ class _HomePageState extends ConsumerState<HomePage>
   void _handleDayRollover() {
     _refreshHomeWidget();
     _syncActionDateIfDayChanged();
-    // The page captured its clock when it was built, and the projection is
-    // not the only reader of it: relative labels and the timeline's now-line
-    // keep yesterday's instant until something rebuilds this widget.
     if (mounted) setState(() {});
     _scheduleNextMidnightCheck();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _handleResumed();
-    }
+    if (state == AppLifecycleState.resumed) _handleResumed();
   }
 
   void _handleResumed() {
     _syncActionDateIfDayChanged();
     _refreshHomeWidget();
     unawaited(ref.read(reminderReconcilerProvider).reconcileAll());
-    // Coming back from the background is the other way the clock can have
-    // moved under the page; the same rebuild applies.
     if (mounted) setState(() {});
     _dayCheckTimer?.cancel();
     _scheduleNextMidnightCheck();
@@ -394,194 +382,350 @@ class _HomePageState extends ConsumerState<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
+    final tab = ref.watch(workspaceTabProvider);
     final desktop = isWorkspaceLayout(context);
     final width = MediaQuery.sizeOf(context).width;
-    final tab = ref.watch(workspaceTabProvider);
-    final isActionTab = tab == AppTab.action;
-    final isCalendarTab = tab == AppTab.calendar;
-    final selection = ref.watch(workspaceSelectionProvider);
 
-    if (isCalendarTab && !_calendarTabWasActive) {
+    if (tab == AppTab.calendar && !_calendarTabWasActive) {
       _calendarTabWasActive = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final r = _calendarRange();
-        final k =
-            '${r.start.millisecondsSinceEpoch}-${r.end.millisecondsSinceEpoch}';
-        ref.invalidate(eventsInDateRangeProvider(k));
+        ref.invalidate(eventsInDateRangeProvider(_rangeKey(_calendarRange())));
       });
-    } else if (!isCalendarTab) {
+    } else if (tab != AppTab.calendar) {
       _calendarTabWasActive = false;
     }
 
-    final body = KeyedSubtree(
+    final page = KeyedSubtree(
       key: ValueKey('workspace-content-$_currentTab'),
-      child: isActionTab
-          ? _buildActionTab(
-              selection != null && desktop && width >= 1180
-                  ? _buildDetailPane(selection)
-                  : null,
-            )
-          : isCalendarTab
-          ? _buildCalendarArea(selection, width, desktop)
-          : _buildTodoArea(selection, width, desktop),
+      child: switch (tab) {
+        AppTab.action => _todayPage(),
+        AppTab.todos => _todoPage(width, desktop),
+        AppTab.calendar => _calendarPage(),
+      },
     );
 
-    if (!desktop) {
-      return Scaffold(
-        backgroundColor: context.ds.bg,
-        appBar: _mobileTopBar(context, l, tab),
-        body: body,
-        bottomNavigationBar: _MobileTabBar(
-          current: _currentTab,
-          onSelected: (index) => index == 3 ? _openAssistant() : _setTab(index),
+    if (desktop) {
+      final body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _DesktopBar(
+            current: tab,
+            now: _now(),
+            onSelect: (index) => _setTab(index),
+            onCapture: _openComposer,
+          ),
+          Expanded(child: page),
+        ],
+      );
+      // Ctrl K is the habit the old rail taught and the bar keeps a search
+      // entry for; both must reach the same page.
+      return CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+              _openSearch,
+          const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+              _openSearch,
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(backgroundColor: context.ds.bg, body: body),
         ),
       );
     }
 
-    return WorkspaceScaffold(
-      clock: widget.clock,
-      child: Scaffold(backgroundColor: context.ds.bg, body: body),
-    );
-  }
-
-  PreferredSizeWidget _mobileTopBar(
-    BuildContext context,
-    AppLocalizations l,
-    AppTab tab,
-  ) {
-    final ds = context.ds;
-    final view = ref.watch(todosViewProvider);
-    final isAction = tab == AppTab.action;
-    final isCalendar = tab == AppTab.calendar;
-    final title = isAction
-        ? l.today
-        : isCalendar
-        ? l.calendar
-        : view is TodosInboxView
-        ? l.inbox
-        : view is TodosAllView
-        ? l.allTasks
-        : l.todos;
-    final subtitle = isAction
-        ? _fallbackCalendarContext()
-        : isCalendar
-        ? (_calendarSubtitle ?? _fallbackCalendarContext())
-        : null;
-    final now = _now();
-    // Scaffold reserves the status bar on top of the preferred size, so the bar
-    // fills that slot instead of sitting at its top; without the inset the title
-    // rendered underneath the clock on a real phone.
-    final inset = MediaQuery.paddingOf(context).top;
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(54),
-      child: Container(
-        height: 54 + inset,
-        padding: EdgeInsets.only(
-          top: inset,
-          left: AppSpacing.s4,
-          right: 4,
-        ),
-        color: ds.bg,
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.headline.copyWith(
-                      color: ds.ink,
-                      fontSize: 20,
-                      height: 26 / 20,
-                      letterSpacing: 0.1,
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.small.copyWith(
-                        color: ds.ink3,
-                        fontSize: 11,
-                      ),
-                    ),
-                ],
-              ),
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    return Scaffold(
+      backgroundColor: context.ds.bg,
+      resizeToAvoidBottomInset: true,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: SafeArea(bottom: false, child: page)),
+          if (!keyboardOpen)
+            _MobileDock(
+              current: tab,
+              onSelect: (index) => _setTab(index),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: ds.primary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  DateFormatters.formatTime(now),
-                  style: AppTypography.small.copyWith(
-                    color: ds.primary,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: AppTypography.tabular,
-                    height: 1,
-                  ),
-                ),
-              ],
-            ),
-            _MobileBarAction(
-              icon: CupertinoIcons.search,
-              tooltip: l.search,
-              onPressed: () => context.push('/search'),
-            ),
-            _MobileBarAction(
-              icon: CupertinoIcons.settings,
-              tooltip: l.settings,
-              onPressed: () => context.push('/settings'),
-            ),
-            _MobileBarAction(
-              key: const ValueKey('workspace-create'),
-              icon: CupertinoIcons.add,
-              tooltip: isAction
-                  ? l.newItem
-                  : isCalendar
-                  ? l.eventLabel
-                  : l.newTodo,
-              boxed: true,
-              onPressed: () {
-                if (isAction) {
-                  _showCreateChooser(context);
-                } else if (isCalendar) {
-                  _openNewEvent(context);
-                } else {
-                  final v = ref.read(todosViewProvider);
-                  showTodoQuickCreateSheet(
-                    context,
-                    dueDate: v is TodosDayView ? v.day : null,
-                  );
-                }
-              },
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  String _fallbackCalendarContext() {
-    final viewed = ref.watch(viewedDateProvider);
-    final locale = Localizations.localeOf(context).toString();
-    return '${DateFormat.MMMd(locale).format(viewed)} · '
-        '${DateFormat.E(locale).format(viewed)}';
+  Widget _todayPage() {
+    return A2TodayPage(
+      now: _now(),
+      onOpenTodo: _openTodo,
+      onOpenEvent: _openEvent,
+      onToggleTodo: _toggleTodo,
+      onOpenUnplanned: () {
+        ref.read(todosViewProvider.notifier).state = const TodosInboxView();
+        _setTab(2);
+      },
+      onScheduleTodo: (todo) => _openComposer(todo: todo),
+    );
+  }
+
+  Widget _todoPage(double width, bool desktop) {
+    final browseDate = ref.watch(viewedDateProvider);
+    final selection = ref.watch(workspaceSelectionProvider);
+    return A2TodoPage(
+      now: _now(),
+      dayAgenda: _dayAgenda(browseDate),
+      detail: desktop &&
+              width >= 1180 &&
+              selection is TodoSelection
+          ? _buildDetailPane(selection)
+          : null,
+      onOpenTodo: _openTodo,
+      onToggleTodo: _toggleTodo,
+      onCapture: (text) => _captureOnTodoPage(text),
+      onPlanDay: (day) => _openComposer(contextDate: day),
+      onScheduleTodo: (todo) => _openComposer(todo: todo),
+      onOpenEvent: _openEvent,
+      onOpenUnplanned: () {
+        ref.read(todosViewProvider.notifier).state = const TodosInboxView();
+      },
+      trailingActions: [
+        _filterButton(context),
+      ],
+    );
+  }
+
+  Widget _calendarPage() {
+    final range = _calendarRange();
+    final key = _rangeKey(range);
+    final eventsAsync = ref.watch(eventsInDateRangeProvider(key));
+    final allocationsAsync = ref.watch(
+      taskAllocationsInDateRangeProvider(key),
+    );
+    final browseDate = ref.watch(viewedDateProvider);
+    final calendarColors = {
+      for (final calendar in ref.watch(calendarsProvider).valueOrNull ?? const [])
+        calendar.id: ColorUtils.parseHex(calendar.color),
+    };
+    final deadlineTodos = (ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
+        .where(
+          (todo) =>
+              todo.rrule == null &&
+              todo.dueDate != null &&
+              todo.status != 'COMPLETED' &&
+              todo.status != 'CANCELLED',
+        )
+        .toList();
+
+    // The grid draws what it has; a day with nothing to show is still a day,
+    // and the toolbar must never wait on a query to appear.
+    if (eventsAsync.hasError) {
+      debugPrint('calendar: events error: ${eventsAsync.error}');
+    }
+    if (allocationsAsync.hasError) {
+      debugPrint('calendar: allocations error: ${allocationsAsync.error}');
+    }
+    final adapters = expandRecurringEvents(
+      eventsAsync.valueOrNull ?? const <Event>[],
+      before: browseDate.subtract(const Duration(days: 60)),
+      after: browseDate.add(const Duration(days: 60)),
+      colorForCalendar: (id) => calendarColors[id],
+    );
+    return A2CalendarPage(
+      events: adapters,
+      allocations:
+          allocationsAsync.valueOrNull ??
+          const <TaskAllocationCalendarItem>[],
+      deadlines: [
+        for (final todo in deadlineTodos)
+          CalendarDeadline(
+            todoId: todo.id,
+            title: todo.summary,
+            due: todo.dueDate!,
+          ),
+      ],
+      onEventTapped: _openEvent,
+      onAllocationTapped: (item) => _openTodo(item.todo),
+      onDeadlineTapped: (deadline) {
+        for (final todo in deadlineTodos) {
+          if (todo.id == deadline.todoId) {
+            _openTodo(todo);
+            return;
+          }
+        }
+      },
+      onTimeSlotTapped: (slot) => _openSlotSheet(slot, key),
+      onCreateAtDay: (day) {
+        // Calendar creation is an event, not a task: the day is the context,
+        // and the form shows the time it starts with so nothing is silent.
+        // The clock is the calendar's own, not a second reading of the wall.
+        final clock = ref.read(calendarNowProvider)();
+        final sameDay =
+            day.year == clock.year &&
+            day.month == clock.month &&
+            day.day == clock.day;
+        final start = DateTime(
+          day.year,
+          day.month,
+          day.day,
+          sameDay ? (clock.hour + 1).clamp(0, 23) : 9,
+        );
+        final end = start.add(const Duration(hours: 1));
+        context.push(
+          '/event/new?start=${start.millisecondsSinceEpoch}'
+          '&end=${end.millisecondsSinceEpoch}',
+        );
+      },
+      onEventChanged: (event) async {
+        await ref.read(updateEventProvider)(
+          event.drifId,
+          event.toUpdateCompanion(),
+        );
+      },
+      onAllocationChanged: (allocation) async {
+        try {
+          await ref.read(rescheduleTaskAllocationProvider)(
+            id: allocation.allocation.id,
+            startAt: allocation.allocation.startAt.toLocal(),
+            endAt: allocation.allocation.endAt.toLocal(),
+          );
+        } catch (error) {
+          ref.invalidate(taskAllocationsInDateRangeProvider(key));
+          rethrow;
+        }
+      },
+    );
+  }
+
+  void _openSlotSheet(DateTimeRange range, String rangeKey) {
+    final l = AppLocalizations.of(context)!;
+    CalendarSlotSheet.show(
+      context: context,
+      range: range,
+      onCreateEvent: () {
+        context.push(
+          '/event/new?start=${range.start.millisecondsSinceEpoch}'
+          '&end=${range.end.millisecondsSinceEpoch}',
+        );
+      },
+      loadSchedulableTodos: () =>
+          ref.read(databaseProvider).todosDao.getSchedulableTodos(),
+      onCreateTodoHere: () => context.push(
+        '/todo/new?start=${range.start.millisecondsSinceEpoch}'
+        '&end=${range.end.millisecondsSinceEpoch}',
+      ),
+      onScheduleTodo: (todo, [occurrenceId]) async {
+        try {
+          await ref.read(createTaskAllocationProvider)(
+            todoId: todo.id,
+            startAt: range.start,
+            endAt: range.end,
+            occurrenceId: occurrenceId,
+          );
+          ref.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l.scheduledTodoSuccess(todo.summary))),
+            );
+          }
+        } catch (e) {
+          debugPrint('calendar: schedule todo failed: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l.schedulingFailed)),
+            );
+          }
+        }
+      },
+    );
+  }
+
+  DayAgenda _dayAgenda(DateTime browseDate) {
+    final range = _calendarRange();
+    final key = _rangeKey(range);
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    final names = {for (final c in calendars) c.id: c.name};
+    final colors = {
+      for (final c in calendars) c.id: ColorUtils.parseHex(c.color),
+    };
+    final events = ref.watch(eventsInDateRangeProvider(key)).valueOrNull ??
+        const <Event>[];
+    final allocations =
+        ref.watch(taskAllocationsInDateRangeProvider(key)).valueOrNull ??
+        const [];
+    final day = DateTime(browseDate.year, browseDate.month, browseDate.day);
+    final adapted = expandRecurringEvents(
+      events,
+      before: day.subtract(const Duration(days: 2)),
+      after: day.add(const Duration(days: 2)),
+      colorForCalendar: (id) => colors[id],
+    );
+    final due = [
+      for (final todo in ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
+        if (todo.dueDate != null &&
+            todo.dueDate!.year == day.year &&
+            todo.dueDate!.month == day.month &&
+            todo.dueDate!.day == day.day)
+          todo,
+    ];
+    return DayAgenda.build(
+      day: day,
+      events: adapted,
+      allocations: allocations,
+      dueTodos: due,
+      calendarNames: names,
+      calendarColors: colors,
+    );
+  }
+
+  Future<void> _captureOnTodoPage(String text) async {
+    final l = AppLocalizations.of(context)!;
+    final calendars = await ref.read(calendarsProvider.future);
+    if (calendars.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.noCalendar)),
+        );
+      }
+      return;
+    }
+    try {
+      await ref.read(createTodoProvider)(
+        calendarId: calendars.first.id,
+        summary: text,
+        priority: 0,
+        status: 'NEEDS-ACTION',
+      );
+    } catch (error) {
+      debugPrint('todo: capture failed: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.actionFailedRetry)),
+        );
+      }
+    }
+  }
+
+  void _openComposer({DateTime? contextDate, Todo? todo}) {
+    showA2Composer(
+      context,
+      contextDate: contextDate ?? ref.read(viewedDateProvider),
+      todo: todo,
+    );
+  }
+
+  Future<void> _toggleTodo(
+    Todo todo,
+    String? occurrenceId,
+    bool completed,
+  ) async {
+    // The single completion entry point: a recurring series row has no one
+    // occurrence to tick, so this asks which one instead of calling the
+    // writer and surface its "requires an occurrenceId" StateError.
+    await toggleTodoCompletion(
+      context,
+      ref,
+      todo: todo,
+      completed: completed,
+      occurrenceId: occurrenceId,
+    );
   }
 
   Widget _buildDetailPane(WorkspaceSelection selection) {
@@ -607,11 +751,20 @@ class _HomePageState extends ConsumerState<HomePage>
     ref.read(workspaceSelectionProvider.notifier).state = null;
   }
 
+  void _openSearch() {
+    final router = GoRouter.maybeOf(context);
+    if (router == null) return;
+    if (router.routerDelegate.currentConfiguration.uri.path == '/search') {
+      return;
+    }
+    router.push('/search');
+  }
+
   void _openTodo(Todo todo) {
     final width = MediaQuery.sizeOf(context).width;
     final tab = ref.read(workspaceTabProvider);
     final minPane = tab == AppTab.action ? 1180.0 : 900.0;
-    if (width >= minPane) {
+    if (width >= minPane && isWorkspaceLayout(context)) {
       ref.read(workspaceSelectionProvider.notifier).state = TodoSelection(todo);
       return;
     }
@@ -620,525 +773,13 @@ class _HomePageState extends ConsumerState<HomePage>
 
   void _openEvent(CalendaEventAdapter event) {
     final width = MediaQuery.sizeOf(context).width;
-    final tab = ref.read(workspaceTabProvider);
-    final minPane = tab == AppTab.calendar ? 1180.0 : 980.0;
-    if (width >= minPane) {
+    if (width >= 1180 && isWorkspaceLayout(context)) {
       ref.read(workspaceSelectionProvider.notifier).state = EventSelection(
         event,
       );
       return;
     }
     context.push('/event/detail', extra: event);
-  }
-
-  Widget _buildActionTab(Widget? detail) {
-    return ActionSection(
-      now: _now(),
-      onNavigateToCalendar: () => _setTab(1),
-      onNavigateToUnplanned: () {
-        ref.read(todosViewProvider.notifier).state = const TodosInboxView();
-        _setTab(2);
-      },
-      onEventTap: _openEvent,
-      onTodoTap: _openTodo,
-      detail: detail,
-    );
-  }
-
-  // ---------------------------------------------------------------- calendar
-
-  Widget _buildCalendarArea(
-    WorkspaceSelection? selection,
-    double width,
-    bool desktop,
-  ) {
-    final calendar = Padding(
-      padding: EdgeInsets.symmetric(horizontal: desktop ? 24 : 0),
-      child: _buildCalendarTab(),
-    );
-    if (!desktop || selection == null || width < 1180) return calendar;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: calendar),
-        Container(width: 1, color: context.ds.line),
-        SizedBox(width: 400, child: _buildDetailPane(selection)),
-      ],
-    );
-  }
-
-  Widget _buildCalendarTab() {
-    final l = AppLocalizations.of(context)!;
-    final range = _calendarRange();
-    final rangeKey =
-        '${range.start.millisecondsSinceEpoch}-${range.end.millisecondsSinceEpoch}';
-    final eventsAsync = ref.watch(eventsInDateRangeProvider(rangeKey));
-    final allocationsAsync = ref.watch(
-      taskAllocationsInDateRangeProvider(rangeKey),
-    );
-    final viewed = ref.watch(viewedDateProvider);
-    final deadlineTodos = (ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
-        .where(
-          (todo) =>
-              todo.rrule == null &&
-              todo.dueDate != null &&
-              todo.status != 'COMPLETED' &&
-              todo.status != 'CANCELLED',
-        )
-        .toList();
-
-    return eventsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(l.error)),
-      data: (events) => allocationsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(l.error)),
-        data: (allocationItems) {
-          final calendarColors = {
-            for (final calendar
-                in ref.watch(calendarsProvider).valueOrNull ?? const [])
-              calendar.id: ColorUtils.parseHex(calendar.color),
-          };
-          final adapters = expandRecurringEvents(
-            events,
-            before: viewed.subtract(const Duration(days: 45)),
-            after: viewed.add(const Duration(days: 45)),
-            colorForCalendar: (id) => calendarColors[id],
-          );
-          return CalendarSection(
-            events: adapters,
-            deadlines: deadlineTodos
-                .map(
-                  (todo) => CalendarDeadline(
-                    todoId: todo.id,
-                    title: todo.summary,
-                    due: todo.dueDate!,
-                  ),
-                )
-                .toList(),
-            onDeadlineTapped: (deadline) {
-              final todo = deadlineTodos.firstWhere(
-                (todo) => todo.id == deadline.todoId,
-              );
-              _openTodo(todo);
-            },
-            allocations: allocationItems
-                .map(TaskAllocationCalendarAdapter.fromItem)
-                .toList(),
-            hideHeader: true,
-            onHeaderChanged: (title, subtitle) {
-              if (title == _calendarTitle && subtitle == _calendarSubtitle) {
-                return;
-              }
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted) return;
-                setState(() {
-                  _calendarTitle = title;
-                  _calendarSubtitle = subtitle;
-                });
-              });
-            },
-            onEventTapped: _openEvent,
-            onTaskAllocationTapped: (allocation) async {
-              final db = ref.read(databaseProvider);
-              final todo =
-                  await (db.select(db.todos)
-                        ..where((row) => row.id.equals(allocation.todoId)))
-                      .getSingleOrNull();
-              if (mounted && todo != null) {
-                _openTodo(todo);
-              }
-            },
-            onTimeSlotTapped: (range) {
-              CalendarSlotSheet.show(
-                context: context,
-                range: range,
-                onCreateEvent: () {
-                  context.push(
-                    '/event/new?start=${range.start.millisecondsSinceEpoch}'
-                    '&end=${range.end.millisecondsSinceEpoch}',
-                  );
-                },
-                loadSchedulableTodos: () =>
-                    ref.read(databaseProvider).todosDao.getSchedulableTodos(),
-                onCreateTodoHere: () => context.push(
-                  '/todo/new?start=${range.start.millisecondsSinceEpoch}'
-                  '&end=${range.end.millisecondsSinceEpoch}',
-                ),
-                onScheduleTodo: (todo, [occurrenceId]) async {
-                  try {
-                    await ref.read(createTaskAllocationProvider)(
-                      todoId: todo.id,
-                      startAt: range.start,
-                      endAt: range.end,
-                      occurrenceId: occurrenceId,
-                    );
-                    ref.invalidate(
-                      taskAllocationsInDateRangeProvider(rangeKey),
-                    );
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            AppLocalizations.of(
-                              context,
-                            )!.scheduledTodoSuccess(todo.summary),
-                          ),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    debugPrint('calendar: schedule todo failed: $e');
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            AppLocalizations.of(context)!.schedulingFailed,
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                },
-              );
-            },
-            onEventChanged: (event) async {
-              await ref.read(updateEventProvider)(
-                event.drifId,
-                event.toUpdateCompanion(),
-              );
-            },
-            onTaskAllocationChanged: (allocation) async {
-              try {
-                await ref.read(rescheduleTaskAllocationProvider)(
-                  id: allocation.id,
-                  startAt: allocation.start,
-                  endAt: allocation.end,
-                );
-              } catch (error) {
-                ref.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
-                rethrow;
-              }
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------- todos
-
-  bool _matchesFilters(
-    Todo todo,
-    Map<int, Set<int>> tagMap,
-    int? calendarFilter,
-    Set<int> tagFilter,
-    int? priorityFilter,
-  ) {
-    if (calendarFilter != null && todo.calendarId != calendarFilter) {
-      return false;
-    }
-    if (priorityFilter != null && todo.priority != priorityFilter) {
-      return false;
-    }
-    if (tagFilter.isNotEmpty) {
-      final ids = tagMap[todo.id];
-      if (ids == null || !tagFilter.any(ids.contains)) return false;
-    }
-    return true;
-  }
-
-  bool get _todoPaneVisible {
-    final width = MediaQuery.sizeOf(context).width;
-    final tab = ref.read(workspaceTabProvider);
-    return width >= (tab == AppTab.action ? 980 : 900);
-  }
-
-  int _countVisibleTodos(TodosView view) {
-    final tagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
-    final calendarFilter = ref.watch(todoCalendarFilterProvider);
-    final tagFilter = ref.watch(todoTagFilterProvider);
-    final priorityFilter = ref.watch(todoPriorityFilterProvider);
-    final todos = switch (view) {
-      TodosInboxView() =>
-        ref.watch(unplannedTodosProvider).valueOrNull ?? const <Todo>[],
-      TodosAllView() =>
-        ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[],
-      TodosDayView(:final day) => _dayTodos(day).cast<Todo>(),
-    };
-    return todos
-        .where((t) => t.status != 'COMPLETED' && t.status != 'CANCELLED')
-        .where(
-          (t) => _matchesFilters(
-            t,
-            tagMap,
-            calendarFilter,
-            tagFilter,
-            priorityFilter,
-          ),
-        )
-        .length;
-  }
-
-  List<Todo> _dayTodos(DateTime day) {
-    final all = ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[];
-    final target = DateTime(day.year, day.month, day.day);
-    return all.where((todo) {
-      if (todo.dueDate == null) return false;
-      final due = DateTime(
-        todo.dueDate!.year,
-        todo.dueDate!.month,
-        todo.dueDate!.day,
-      );
-      return due == target;
-    }).toList();
-  }
-
-  (int, int) _backlogCounts(TodosView view) {
-    final tagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
-    final calendarFilter = ref.watch(todoCalendarFilterProvider);
-    final tagFilter = ref.watch(todoTagFilterProvider);
-    final priorityFilter = ref.watch(todoPriorityFilterProvider);
-    bool visible(Todo t) =>
-        _matchesFilters(t, tagMap, calendarFilter, tagFilter, priorityFilter);
-    bool active(Todo t) => t.status != 'COMPLETED' && t.status != 'CANCELLED';
-    final today = DateTime(_now().year, _now().month, _now().day);
-
-    final all = ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[];
-    final Iterable<Todo> base;
-    if (view is TodosDayView) {
-      final day = DateTime(view.day.year, view.day.month, view.day.day);
-      base = all.where((t) {
-        if (t.dueDate == null) return false;
-        final due = DateTime(
-          t.dueDate!.year,
-          t.dueDate!.month,
-          t.dueDate!.day,
-        );
-        return due == day || (day == today && due.isBefore(today));
-      });
-    } else if (view is TodosInboxView) {
-      base =
-          ref.watch(unplannedTodosProvider).valueOrNull ?? const <Todo>[];
-    } else {
-      base = all;
-    }
-    final pending = base.where(active).where(visible).toList();
-    var overdue = 0;
-    for (final todo in pending) {
-      final due = todo.dueDate;
-      if (due == null) continue;
-      if (DateTime(due.year, due.month, due.day).isBefore(today)) overdue++;
-    }
-    return (pending.length, overdue);
-  }
-
-  Widget _buildTodoArea(
-    WorkspaceSelection? selection,
-    double width,
-    bool desktop,
-  ) {
-    final view = ref.watch(todosViewProvider);
-    final filters = _filterButton(context);
-    final dueDays = <DateTime>{
-      for (final todo
-          in ref.watch(allTodosProvider).valueOrNull ?? const <Todo>[])
-        if (todo.dueDate != null)
-          DateTime(todo.dueDate!.year, todo.dueDate!.month, todo.dueDate!.day),
-    };
-    final twoColumn = desktop && width >= 900;
-    final (backlogCount, backlogOverdue) = twoColumn
-        ? _backlogCounts(view)
-        : (0, 0);
-    final listPane = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (twoColumn)
-          TodoBacklogHead(
-            view: view,
-            count: backlogCount,
-            overdue: backlogOverdue,
-            dueDays: dueDays,
-            onViewSelected: (next) =>
-                ref.read(todosViewProvider.notifier).state = next,
-            trailing: [
-              _createTodoButton(context),
-              const SizedBox(width: 2),
-              filters,
-            ],
-          )
-        else if (desktop)
-          TodoDesktopToolbar(
-            view: view,
-            dueDays: dueDays,
-            onViewSelected: (next) =>
-                ref.read(todosViewProvider.notifier).state = next,
-            trailing: [filters],
-          )
-        else
-          DateStrip(
-            view: view,
-            dueDays: dueDays,
-            onViewSelected: (next) =>
-                ref.read(todosViewProvider.notifier).state = next,
-            trailing: [filters],
-          ),
-        if (!twoColumn)
-          TodoQuickAdd(dueDate: view is TodosDayView ? view.day : null),
-        Expanded(child: _buildTodoList(view, selection)),
-      ],
-    );
-
-    if (!twoColumn) return listPane;
-
-    final ds = context.ds;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1240),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s5,
-            vertical: AppSpacing.s4,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: 610,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: ds.surface,
-                    border: Border.all(color: ds.line),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: listPane,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s5),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: ds.surface,
-                    border: Border.all(color: ds.line),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: selection is TodoSelection
-                      ? _buildDetailPane(selection)
-                      : _todoTimelinePane(context),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _todoTimelinePane(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
-    final now = _now();
-    final today = DateTime(now.year, now.month, now.day);
-    final data = ref.watch(actionProjectionProvider).valueOrNull;
-    final allEvents = data?.events ?? const <CalendaEventAdapter>[];
-    final dayEvents = <CalendaEventAdapter>[
-      for (final event in allEvents)
-        if (_sameDay(event.start, today) || _sameDay(event.end, today)) event,
-    ];
-    final dayAllocations = <TaskAllocationCalendarItem>[
-      for (final item in data?.allocations ?? const <TaskAllocationCalendarItem>[])
-        if (_sameDay(item.allocation.startAt.toLocal(), today) ||
-            _sameDay(item.allocation.endAt.toLocal(), today))
-          item,
-    ];
-
-    var planned = 0;
-    for (final event in dayEvents) {
-      if (event.isAllDay) continue;
-      planned += event.end.difference(event.start).inMinutes;
-    }
-    for (final item in dayAllocations) {
-      planned += item.allocation.endAt
-          .difference(item.allocation.startAt)
-          .inMinutes;
-    }
-    final free = (15 * 60 - planned).clamp(0, 15 * 60);
-    final locale = Localizations.localeOf(context).toLanguageTag();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s4,
-            AppSpacing.s3,
-            AppSpacing.s4,
-            AppSpacing.s2,
-          ),
-          child: Row(
-            children: [
-              Text(
-                l.today,
-                style: AppTypography.bodyStrong.copyWith(color: ds.ink),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '${DateFormat.MMMd(locale).format(today)} \u00b7 '
-                '${DateFormat.E(locale).format(today)}',
-                style: AppTypography.small.copyWith(color: ds.ink3),
-              ),
-              const Spacer(),
-              Text(
-                '${l.scheduledLabel} ${_minutesLabel(l, planned)}',
-                style: AppTypography.small.copyWith(
-                  color: ds.ink3,
-                  fontFeatures: AppTypography.tabular,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s3),
-              Text(
-                '${l.freeLabel} ${_minutesLabel(l, free)}',
-                style: AppTypography.small.copyWith(
-                  color: ds.ink2,
-                  fontFeatures: AppTypography.tabular,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s4,
-              0,
-              AppSpacing.s4,
-              AppSpacing.s3,
-            ),
-            child: CDayTimeline(
-              day: today,
-              now: now,
-              events: dayEvents,
-              allocations: dayAllocations,
-              onEventTap: _openEvent,
-              onAllocationTap: (item) => _openTodo(item.todo),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  static bool _sameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
-  String _minutesLabel(AppLocalizations l, int totalMinutes) {
-    final hours = totalMinutes ~/ 60;
-    final minutes = totalMinutes % 60;
-    if (hours == 0) return l.durationMinutes(minutes);
-    if (minutes == 0) return l.durationHours(hours);
-    return l.durationHoursMinutes(hours, minutes);
   }
 
   int get _filterCount {
@@ -1149,22 +790,6 @@ class _HomePageState extends ConsumerState<HomePage>
     return count;
   }
 
-  Widget _createTodoButton(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final view = ref.watch(todosViewProvider);
-    return DsIconButton(
-      key: const ValueKey('workspace-create-todo'),
-      icon: CupertinoIcons.add,
-      tooltip: l.addTodoShort,
-      size: 17,
-      compact: true,
-      onPressed: () => showTodoQuickCreateSheet(
-        context,
-        dueDate: view is TodosDayView ? view.day : null,
-      ),
-    );
-  }
-
   Widget _filterButton(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final ds = context.ds;
@@ -1172,17 +797,15 @@ class _HomePageState extends ConsumerState<HomePage>
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        DsIconButton(
+        A2IconAction(
           icon: CupertinoIcons.slider_horizontal_3,
           tooltip: l.filterAndDisplay,
-          size: 17,
-          compact: true,
           onPressed: () => _showFilterSheet(context),
         ),
         if (count > 0)
           Positioned(
-            right: 2,
-            top: 2,
+            right: 10,
+            top: 8,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               decoration: BoxDecoration(
@@ -1221,14 +844,14 @@ class _HomePageState extends ConsumerState<HomePage>
           final hideCompleted =
               r.watch(hideCompletedProvider).valueOrNull ?? false;
           return SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+            padding: const EdgeInsets.only(bottom: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DsGroupLabel(l.calendar),
                 Wrap(
-                  spacing: AppSpacing.s2,
-                  runSpacing: AppSpacing.s2,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     for (final calendar in calendars)
                       DsChip(
@@ -1249,11 +872,11 @@ class _HomePageState extends ConsumerState<HomePage>
                   ],
                 ),
                 if (tags.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.s4),
+                  const SizedBox(height: 16),
                   DsGroupLabel(l.tags),
                   Wrap(
-                    spacing: AppSpacing.s2,
-                    runSpacing: AppSpacing.s2,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       for (final tag in tags)
                         DsChip(
@@ -1276,11 +899,11 @@ class _HomePageState extends ConsumerState<HomePage>
                     ],
                   ),
                 ],
-                const SizedBox(height: AppSpacing.s4),
+                const SizedBox(height: 16),
                 DsGroupLabel(l.priority),
                 Wrap(
-                  spacing: AppSpacing.s2,
-                  runSpacing: AppSpacing.s2,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     DsChip(
                       label: l.priorityNone,
@@ -1303,7 +926,7 @@ class _HomePageState extends ConsumerState<HomePage>
                       ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.s3),
+                const SizedBox(height: 12),
                 Container(
                   decoration: BoxDecoration(
                     border: Border(top: BorderSide(color: ds.lineSoft)),
@@ -1342,322 +965,138 @@ class _HomePageState extends ConsumerState<HomePage>
       ],
     );
   }
+}
 
-  Widget _buildTodoList(TodosView view, WorkspaceSelection? selection) {
+/// 56-high desktop bar: brand, date navigation, the clock, the three
+/// destinations, capture and search. There is no sidebar in this product.
+class _DesktopBar extends ConsumerWidget {
+  const _DesktopBar({
+    required this.current,
+    required this.now,
+    required this.onSelect,
+    required this.onCapture,
+  });
+
+  final AppTab current;
+  final DateTime now;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onCapture;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
-    final tagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
-    final calendarFilter = ref.watch(todoCalendarFilterProvider);
-    final tagFilter = ref.watch(todoTagFilterProvider);
-    final priorityFilter = ref.watch(todoPriorityFilterProvider);
-    final selectedId = selection is TodoSelection ? selection.todo.id : null;
-
-    bool visible(Todo t) =>
-        _matchesFilters(t, tagMap, calendarFilter, tagFilter, priorityFilter);
-    bool active(Todo t) => t.status != 'COMPLETED' && t.status != 'CANCELLED';
-
-    Widget row(Todo todo, {bool completed = false, Widget? dragHandle}) {
-      return TodoListTile(
-        summary: todo.summary,
-        isCompleted: completed || todo.status == 'COMPLETED',
-        priority: todo.priority,
-        todoId: todo.id,
-        todo: todo,
-        dueDate: todo.dueDate,
-        startDate: todo.startDate,
-        selected: _todoPaneVisible && selectedId == todo.id,
-        dragHandle: dragHandle,
-        onTap: () => _openTodo(todo),
-        onToggle: (occurrenceId, next) => ref.read(toggleTodoProvider)(
-          id: todo.id,
-          isCompleted: next,
-          occurrenceId: occurrenceId,
-        ),
-      );
-    }
-
-    final pendingCount = _countVisibleTodos(view);
-
-    Widget reorderable(List<Todo> todos, String keyPrefix) {
-      final showHandle = _desktopDrag && isWorkspaceLayout(context);
-      return SliverReorderableList(
-        itemCount: todos.length,
-        onReorderItem: (oldIndex, newIndex) =>
-            _onReorderItem(todos, oldIndex, newIndex),
-        itemBuilder: (context, index) {
-          final todo = todos[index];
-          final key = ValueKey('$keyPrefix-${todo.id}');
-          final tile = Material(
-            type: MaterialType.transparency,
-            child: row(
-              todo,
-              dragHandle: showHandle ? _dragHandle(index) : null,
-            ),
-          );
-          if (showHandle) return KeyedSubtree(key: key, child: tile);
-          return ReorderableDelayedDragStartListener(
-            key: key,
-            index: index,
-            child: tile,
-          );
-        },
-      );
-    }
-
-    List<Widget> completedSlivers(List<Todo> completed) {
-      if (hideCompleted || completed.isEmpty) return const [];
-      return [
-        SliverToBoxAdapter(
-          child: DsGroupHead(l.completed, count: completed.length),
-        ),
-        SliverList(
-          delegate: SliverChildListDelegate([
-            for (final todo in completed) row(todo, completed: true),
-          ]),
-        ),
-      ];
-    }
-
-    List<Todo> completedFor(DateTime? day) {
-      final base = ref.watch(completedTodosProvider).valueOrNull ?? const [];
-      return base.where(visible).where((todo) {
-        if (day == null) return true;
-        final at = todo.completedAt;
-        if (at == null) return false;
-        return at.year == day.year &&
-            at.month == day.month &&
-            at.day == day.day;
-      }).toList();
-    }
-
-    final slivers = <Widget>[];
-
-    if (view is TodosAllView) {
-      final async = ref.watch(allTodosProvider);
-      if (async.isLoading && !async.hasValue) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      final pending = (async.valueOrNull ?? const <Todo>[])
-          .where(active)
-          .where(visible)
-          .toList();
-      final completed = completedFor(null);
-      if (pending.isEmpty && completed.isEmpty) {
-        return _todoEmpty(l, view);
-      }
-      if (pending.isNotEmpty) {
-        slivers.add(
-          SliverToBoxAdapter(
-            child: DsGroupHead(l.allTasks, count: pendingCount),
-          ),
-        );
-        slivers.add(reorderable(pending, 'all'));
-      }
-      slivers.addAll(completedSlivers(completed));
-    } else if (view is TodosInboxView) {
-      final async = ref.watch(unplannedTodosProvider);
-      if (async.isLoading && !async.hasValue) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      final pending = (async.valueOrNull ?? const <Todo>[])
-          .where(active)
-          .where(visible)
-          .toList();
-      final completed = completedFor(null);
-      if (pending.isEmpty && completed.isEmpty) {
-        return _todoEmpty(l, view);
-      }
-      if (pending.isNotEmpty) {
-        slivers.add(
-          SliverToBoxAdapter(
-            child: DsGroupHead(l.noPlannedExecution, count: pendingCount),
-          ),
-        );
-        slivers.add(reorderable(pending, 'inbox'));
-      }
-      slivers.addAll(completedSlivers(completed));
-    } else {
-      final day = (view as TodosDayView).day;
-      final async = ref.watch(allTodosProvider);
-      if (async.isLoading && !async.hasValue) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final overdue = <Todo>[];
-      final due = <Todo>[];
-      for (final todo
-          in (async.valueOrNull ?? const <Todo>[])
-              .where(active)
-              .where(visible)) {
-        if (todo.dueDate == null) continue;
-        final when = DateTime(
-          todo.dueDate!.year,
-          todo.dueDate!.month,
-          todo.dueDate!.day,
-        );
-        if (day == today && when.isBefore(today)) {
-          overdue.add(todo);
-        } else if (when == DateTime(day.year, day.month, day.day)) {
-          due.add(todo);
-        }
-      }
-      final completed = completedFor(day);
-      if (overdue.isEmpty && due.isEmpty && completed.isEmpty) {
-        return _todoEmpty(l, view);
-      }
-      if (overdue.isNotEmpty) {
-        slivers.add(
-          SliverToBoxAdapter(
-            child: DsGroupHead(
-              l.overdue,
-              count: overdue.length,
-              danger: true,
-            ),
-          ),
-        );
-        slivers.add(
-          SliverList(
-            delegate: SliverChildListDelegate([
-              for (final todo in overdue) row(todo),
-            ]),
-          ),
-        );
-      }
-      if (due.isNotEmpty) {
-        slivers.add(
-          SliverToBoxAdapter(
-            child: DsGroupHead(
-              l.dateLabel(day.month, day.day),
-              count: due.length,
-            ),
-          ),
-        );
-        slivers.add(reorderable(due, 'date'));
-      }
-      slivers.addAll(completedSlivers(completed));
-    }
-
-    if (pendingCount == 0 && slivers.isEmpty) {
-      return _todoEmpty(l, view);
-    }
-
-    slivers.add(
-      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.s6)),
-    );
-    return CustomScrollView(slivers: slivers);
-  }
-
-  bool get _desktopDrag =>
-      defaultTargetPlatform == TargetPlatform.linux ||
-      defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.windows;
-
-  Widget _dragHandle(int index) {
-    return ReorderableDragStartListener(
-      index: index,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.grab,
-        child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Icon(
-            CupertinoIcons.line_horizontal_3,
-            size: 16,
-            color: context.ds.ink3,
-          ),
-        ),
+    final ds = context.ds;
+    final browseDate = ref.watch(viewedDateProvider);
+    final locale = Localizations.localeOf(context).toString();
+    final items = [
+      (l.today, CupertinoIcons.house, AppTab.action),
+      (l.todos, CupertinoIcons.checkmark_circle, AppTab.todos),
+      (l.calendar, CupertinoIcons.calendar, AppTab.calendar),
+    ];
+    // A wide face in a half-screen window cannot hold the wordmark, the date
+    // and three labelled destinations; below the design's own width the
+    // destinations keep their icons and drop their words.
+    final iconOnly = MediaQuery.sizeOf(context).width < 1180;
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: ds.bg,
+        border: Border(bottom: BorderSide(color: ds.line)),
       ),
-    );
-  }
-
-  void _onReorderItem(List<Todo> todos, int oldIndex, int newIndex) {
-    final list = [...todos];
-    final item = list.removeAt(oldIndex);
-    list.insert(newIndex, item);
-    ref.read(reorderTodosProvider)(list.map((t) => t.id).toList());
-  }
-
-  Widget _todoEmpty(AppLocalizations l, TodosView view) {
-    final inbox = view is TodosInboxView;
-    return DsEmpty(
-      icon: CupertinoIcons.checkmark_rectangle,
-      title: inbox ? l.unplannedViewEmptyTitle : l.todosEmptyTitle,
-      message: inbox ? l.unplannedViewEmptyHint : l.todosEmptyHint,
-      action: DsButton(
-        label: l.newTodo,
-        tone: DsButtonTone.secondary,
-        small: true,
-        icon: CupertinoIcons.add,
-        onPressed: () => showTodoQuickCreateSheet(
-          context,
-          dueDate: view is TodosDayView ? view.day : null,
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------- create
-
-  void _openNewEvent(BuildContext context) {
-    final viewed = ref.read(viewedDateProvider);
-    final now = DateTime.now();
-    final isToday =
-        viewed.year == now.year &&
-        viewed.month == now.month &&
-        viewed.day == now.day;
-    final start = isToday
-        ? DateTime(now.year, now.month, now.day, (now.hour + 1).clamp(0, 23))
-        : DateTime(viewed.year, viewed.month, viewed.day, 9);
-    context.push(
-      '/event/new?start=${start.millisecondsSinceEpoch}'
-      '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
-    );
-  }
-
-  Future<void> _showCreateChooser(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final now = DateTime.now();
-    return showDsSheet<void>(
-      context: context,
-      title: l.newItem,
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          DsRow(
-            title: l.todos,
-            leading: Icon(
-              CupertinoIcons.checkmark_rectangle,
-              size: 18,
-              color: context.ds.ink2,
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ds.primary,
+              borderRadius: BorderRadius.circular(5),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
-            onTap: () {
-              Navigator.of(context, rootNavigator: true).pop();
-              showTodoQuickCreateSheet(context);
-            },
+            child: Text(
+              'D',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1,
+                color: ds.onPrimary,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
           ),
-          DsRow(
-            title: l.newEvent,
-            leading: Icon(
-              CupertinoIcons.calendar_badge_plus,
-              size: 18,
-              color: context.ds.ink2,
+          const SizedBox(width: 12),
+          Text(
+            'DaySpark',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+              color: ds.ink,
+              fontFamilyFallback: AppTypography.fallback,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
-            onTap: () {
-              Navigator.of(context, rootNavigator: true).pop();
-              final start = DateTime(
-                now.year,
-                now.month,
-                now.day,
-                (now.hour + 1).clamp(0, 23),
-              );
-              context.push(
-                '/event/new?start=${start.millisecondsSinceEpoch}'
-                '&end=${start.add(const Duration(hours: 1)).millisecondsSinceEpoch}',
-              );
-            },
+          ),
+          const SizedBox(width: 12),
+          Container(width: 1, height: 20, color: ds.line),
+          const SizedBox(width: 8),
+          _NavStep(
+            icon: CupertinoIcons.chevron_left,
+            tooltip: l.previousDay,
+            onTap: () => ref.read(viewedDateProvider.notifier).state =
+                browseDate.subtract(const Duration(days: 1)),
+          ),
+          Flexible(
+            child: Text(
+              '${DateFormat.MMMMd(locale).format(browseDate)} · '
+              '${DateFormat.E(locale).format(browseDate)}',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: ds.ink,
+                fontFeatures: AppTypography.tabular,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+          _NavStep(
+            icon: CupertinoIcons.chevron_right,
+            tooltip: l.nextDay,
+            onTap: () => ref.read(viewedDateProvider.notifier).state =
+                browseDate.add(const Duration(days: 1)),
+          ),
+          const SizedBox(width: 4),
+          A2Clock(label: DateFormatters.formatTime(now)),
+          const Spacer(),
+          Row(
+            children: [
+              for (final item in items)
+                _DesktopNavItem(
+                  label: item.$1,
+                  icon: item.$2,
+                  iconOnly: iconOnly,
+                  selected: current == item.$3,
+                  onTap: () => onSelect(switch (item.$3) {
+                    AppTab.action => 0,
+                    AppTab.calendar => 1,
+                    AppTab.todos => 2,
+                  }),
+                ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          _QuickCapture(buttonLabel: l.captureQuickAddLabel, onTap: onCapture),
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: IconButton(
+              onPressed: () => context.push('/search'),
+              tooltip: l.search,
+              icon: Icon(CupertinoIcons.search, size: 17, color: ds.ink2),
+            ),
           ),
         ],
       ),
@@ -1665,25 +1104,156 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 }
 
-class _MobileTabBar extends StatelessWidget {
-  const _MobileTabBar({required this.current, required this.onSelected});
+class _NavStep extends StatelessWidget {
+  const _NavStep({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
 
-  final int current;
-  final ValueChanged<int> onSelected;
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: Icon(icon, size: 14, color: ds.ink3),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopNavItem extends StatelessWidget {
+  const _DesktopNavItem({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.iconOnly = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool iconOnly;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final color = selected ? ds.primary : ds.ink2;
+    final item = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: selected ? ds.primarySoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: selected ? ds.primary : ds.ink3),
+              if (!iconOnly) ...[
+                const SizedBox(width: 5),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: color,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+    final padded = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 1),
+      child: item,
+    );
+    if (!iconOnly) return padded;
+    return Tooltip(message: label, child: padded);
+  }
+}
+
+class _QuickCapture extends StatelessWidget {
+  const _QuickCapture({required this.buttonLabel, required this.onTap});
+
+  final String buttonLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: ds.surface,
+            border: Border.all(color: ds.line),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Icon(CupertinoIcons.plus, size: 12, color: ds.primary),
+              const SizedBox(width: 5),
+              Text(
+                buttonLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: ds.ink,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 56-high phone dock: 21px glyph, 11/500 label, primary when selected, no
+/// badge. It is part of the body rather than `bottomNavigationBar` so the
+/// keyboard can replace it instead of stacking above it.
+class _MobileDock extends StatelessWidget {
+  const _MobileDock({required this.current, required this.onSelect});
+
+  final AppTab current;
+  final ValueChanged<int> onSelect;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final ds = context.ds;
-    // The bar's left-to-right order is its own; each item names the destination
-    // it opens so the two never drift apart. The last entry is not a tab: it
-    // opens the assistant over whatever you were doing, so it is drawn as an
-    // action on the end of the strip rather than a fourth destination.
     final items = [
-      (l.today, CupertinoIcons.square_on_square, 0),
-      (l.todos, CupertinoIcons.checkmark_circle, 2),
-      (l.calendar, CupertinoIcons.calendar, 1),
-      (l.aiAssistant, CupertinoIcons.sparkles, 3),
+      (l.today, CupertinoIcons.house, AppTab.action),
+      (l.calendar, CupertinoIcons.calendar, AppTab.calendar),
+      (l.todos, CupertinoIcons.checkmark_circle, AppTab.todos),
     ];
     return Container(
       key: const ValueKey('mobile-tab-bar'),
@@ -1697,22 +1267,19 @@ class _MobileTabBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              for (var i = 0; i < items.length; i++) ...[
-                if (items[i].$3 == 3)
-                  Container(width: 1, height: 24, color: ds.line),
+              for (final item in items)
                 Expanded(
-                  child: _MobileTabSlot(
-                    label: items[i].$1,
-                    icon: items[i].$2,
-                    // Three of these switch the workspace; the fourth opens the
-                    // assistant and returns you here. Only a switcher can be the
-                    // current page, so the action never draws a selected state.
-                    isAction: items[i].$3 == 3,
-                    selected: items[i].$3 != 3 && current == items[i].$3,
-                    onTap: () => onSelected(items[i].$3),
+                  child: _MobileDockSlot(
+                    label: item.$1,
+                    icon: item.$2,
+                    selected: current == item.$3,
+                    onTap: () => onSelect(switch (item.$3) {
+                      AppTab.action => 0,
+                      AppTab.calendar => 1,
+                      AppTab.todos => 2,
+                    }),
                   ),
                 ),
-              ],
             ],
           ),
         ),
@@ -1721,35 +1288,27 @@ class _MobileTabBar extends StatelessWidget {
   }
 }
 
-/// One slot of the phone bar: a workspace tab, or the assistant action at the end.
-class _MobileTabSlot extends StatelessWidget {
-  const _MobileTabSlot({
+class _MobileDockSlot extends StatelessWidget {
+  const _MobileDockSlot({
     required this.label,
     required this.icon,
     required this.selected,
-    required this.isAction,
     required this.onTap,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
-  final bool isAction;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    // A tab's inactive label is tertiary; the assistant is a live action, so it
-    // sits one step darker and reads as something to press rather than a place.
-    final tint = selected ? ds.primary : (isAction ? ds.ink2 : ds.ink3);
+    final tint = selected ? ds.primary : ds.ink3;
     return Semantics(
       button: true,
       selected: selected,
       label: label,
-      // InkWell rather than GestureDetector: a tab has to be reachable by
-      // keyboard on a narrow desktop window, and a bare GestureDetector cannot
-      // take focus or Enter.
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: InkWell(
@@ -1759,10 +1318,7 @@ class _MobileTabSlot extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(
-                height: 26,
-                child: Icon(icon, size: 21, color: tint),
-              ),
+              SizedBox(height: 26, child: Icon(icon, size: 21, color: tint)),
               Text(
                 label,
                 maxLines: 1,
@@ -1774,66 +1330,10 @@ class _MobileTabSlot extends StatelessWidget {
                   height: 1.2,
                   fontWeight: FontWeight.w500,
                   color: tint,
+                  fontFamilyFallback: AppTypography.fallback,
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A 48x48 touch target in the phone bar. [boxed] draws the create affordance
-/// as a bordered square so it reads as the primary action.
-class _MobileBarAction extends StatelessWidget {
-  const _MobileBarAction({
-    super.key,
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.boxed = false,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-  final bool boxed;
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    return Tooltip(
-      message: tooltip,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        // InkWell, not GestureDetector: these are the only controls on a phone
-        // bar and they have to answer Enter/Space on a narrow desktop window.
-        child: InkWell(
-          onTap: onPressed,
-          splashFactory: NoSplash.splashFactory,
-          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-          child: Semantics(
-            button: true,
-            label: tooltip,
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Center(
-                child: boxed
-                    ? Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: ds.surface,
-                          border: Border.all(color: ds.line),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Icon(icon, size: 15, color: ds.ink2),
-                      )
-                    : Icon(icon, size: 19, color: ds.ink3),
-              ),
-            ),
           ),
         ),
       ),

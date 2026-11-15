@@ -32,16 +32,6 @@ Future<void> _unmount(WidgetTester tester) async {
   await tester.pump(Duration.zero);
 }
 
-Finder _rowDueLabel(int todoId, String text) {
-  final row = find
-      .ancestor(
-        of: find.byKey(ValueKey('action-complete-$todoId')),
-        matching: find.byType(Row),
-      )
-      .first;
-  return find.descendant(of: row, matching: find.text(text));
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -75,7 +65,7 @@ void main() {
       var currentTime = DateTime(2026, 10, 6, 23, 59, 50);
 
       // Todo A is due on Day N (2026-10-06)
-      final dayNTodoId = await db
+      await db
           .into(db.todos)
           .insert(
             TodosCompanion.insert(
@@ -86,7 +76,7 @@ void main() {
           );
 
       // Todo B is due on Day N+1 (2026-10-07)
-      final dayNPlusOneTodoId = await db
+      await db
           .into(db.todos)
           .insert(
             TodosCompanion.insert(
@@ -101,34 +91,27 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // On Day N:
-      // - Task Due Day N appears in the sheet's open-today rows
-      // - Task Due Day N+1 does not appear in Action timeline/due/overdue
+      // On Day N: only Day N's task is today's; nothing is late yet.
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsNothing);
-      expect(_rowDueLabel(dayNTodoId, 'Today'), findsOneWidget);
-      expect(find.text('1 still open today'), findsOneWidget);
+      expect(find.text('Due today'), findsOneWidget);
       expect(find.text('Overdue'), findsNothing);
 
-      // 1. Rollover to Day N+1 via midnight timer
-      // Advance clock to Day N+1: 2026-10-07 00:00:05 (15 seconds elapsed)
+      // 1. Rollover to Day N+1 via the midnight timer.
       currentTime = DateTime(2026, 10, 7, 0, 0, 5);
       await tester.pump(const Duration(seconds: 15));
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // On Day N+1 without restart:
-      // - Task Due Day N is now overdue
-      // - Task Due Day N+1 is now open today
+      // On Day N+1 without restart: the old task is late, the new one is due.
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsOneWidget);
-      // The sheet's header counts what is still open today.
-      expect(find.text('2 still open today'), findsOneWidget);
-      expect(_rowDueLabel(dayNTodoId, 'Overdue'), findsOneWidget);
+      expect(find.text('Due today'), findsOneWidget);
+      expect(find.text('Overdue'), findsOneWidget);
+      expect(find.text('1 day late'), findsOneWidget);
 
-      // 2. Rollover to Day N+2 via app resume
-      // Advance clock to Day N+2: 2026-10-08 10:00:00
+      // 2. Rollover to Day N+2 via app resume.
       currentTime = DateTime(2026, 10, 8, 10, 0, 0);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -136,12 +119,12 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // On Day N+2 without restart:
-      // - Both tasks are now overdue
+      // On Day N+2 without restart: both are late, each on its own clock.
       expect(find.text('Task Due Day N'), findsOneWidget);
       expect(find.text('Task Due Day N+1'), findsOneWidget);
-      expect(_rowDueLabel(dayNTodoId, 'Overdue'), findsOneWidget);
-      expect(_rowDueLabel(dayNPlusOneTodoId, 'Overdue'), findsOneWidget);
+      expect(find.text('2 days late'), findsOneWidget);
+      expect(find.text('1 day late'), findsOneWidget);
+      expect(find.text('Due today'), findsNothing);
 
       await _unmount(tester);
     },

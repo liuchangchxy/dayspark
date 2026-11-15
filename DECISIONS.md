@@ -18,6 +18,27 @@
 
 ## 历史决策流
 
+### [2026-11-15] 视觉评审后的四处保留（不改代码）
+- **触发背景**：独立 Visual Review 逐页对照定稿后，除已修的 P1/P2 外留下四处"定稿本身没给答案"或"改了会丢功能"的差异。
+- **核心决策**：
+  1. **周视图重叠块保持半宽并排**：390px 下 43px 列一分为二后，内容盒 13px 装不下一个字形（最多挤进一个拉丁字母）。定稿只写「重叠时才半宽并排」，没有给半宽可读性方案；改成堆叠会违背该规则并遮住其中一条，故保留并在 `_A2TimeBlock.compact` 里把内边距让给标题。
+  2. **待办三种模式都保留筛选图标**：定稿只有「全部」头上有筛选；其余两模式去掉会让筛选（含隐藏已完成、日历/标签/优先级）在两处失效。功能可用优先于图标数量一致。
+  3. **截止日期沿用全应用统一的 Material 日期选择器**：定稿的 composer 没画日期选择态；换成自制 sheet 会连带改全表单页，超出本轮范围。
+  4. **桌面待办保留底部「计划这一天」条**：定稿把创建放在右侧详情面，但详情面只在有选中项时存在；去掉底条会让"给这一天安排"在桌面上失去入口。
+- **对应 SPEC 章节**：`docs/CORE_UX_SPEC.md` §16、SPEC 规则 20
+- **影响范围**：`lib/ui/pages/calendar/a2_calendar_views.dart`、`lib/ui/pages/todo/a2_todo_page.dart`、`lib/ui/widgets/schedule/schedule_pickers.dart`（未改）
+
+### [2026-11-15] A″ 定稿落地与四处范围裁定
+- **触发背景**：用户要求把已确认的 A″（`docs/CORE_UX_SPEC.md` §16 + OpenDesign 定稿）完整实现到生产代码，并按整页对照验收；定稿本身在三个地方没有给出可执行答案。
+- **核心决策**：
+  1. **版本定 0.33.0+33**（feature 改 x）：0.32.0 是"回滚"这一已发生的版本条目，不回退编号；本轮是同一特性的重新实现，另起 minor。
+  2. **手机日历三视图互相可达**：定稿只用头部图标表达"切日/切周"，没有月→周/日入口；按模式给图标（月：周/今天/设置；周：日/月/今天；日：周/月/今天），保留定稿的图标语言与数量上限。
+  3. **TaskAllocation 的 UTC 存储在日历适配层单点转本地**：写入侧为同步保留绝对瞬时，读取侧所有"墙上时钟"消费必须 `toLocal()`；不在写入侧改，避免动同步协议。
+  4. **英文文案服从版式**：`capturePlaceholder` 缩为 "Capture · Enter files it unplanned"、"All" 视图的无截止分组由 "Unplanned · no due date" 改为 "No deadline"（该桶里可能含已计划项，旧名与领域语义冲突）。
+  5. **今日"今天截止"行不重复「未安排执行时段」**：定稿该位在中文里成立，英文在 245px 的 meta 行会挤掉截止时间或 chip；保留「去安排」chip 表达同一动作。
+- **对应 SPEC 章节**：SPEC 规则 20、`docs/CORE_UX_SPEC.md` §16
+- **影响范围**：`lib/ui/pages/calendar/a2_calendar_page.dart`、`lib/domain/models/task_allocation_calendar_adapter.dart`、`lib/l10n/app_{en,zh}.arb`、`lib/ui/pages/home/today_page.dart`、`pubspec.yaml` 与版本标记文档
+
 ### [2026-11-09] 重写过期原生交互测试
 - **触发背景**：用户明确要求重写旧 `integration_test/app_test.dart`；其 FAB、旧导航和版本文案已不符合现行产品。
 - **核心决策**：移除过期断言，以快速添加、日期浏览和宽屏详情三条真实 App 流程替换；其他行为继续由现有 Widget / Journey 测试覆盖，不扩展本轮原生流程范围。

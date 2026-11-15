@@ -217,12 +217,12 @@ void main() {
     await settle(tester);
 
     final page = tester.widget<QuickAddPage>(find.byType(QuickAddPage));
-    expect(page.dueDate, isNull);
+    expect(page.contextDate, isNull);
 
     AppRouter.router.go('$quickAddLocation?date=2026-11-07');
     await settle(tester);
     final dated = tester.widget<QuickAddPage>(find.byType(QuickAddPage));
-    expect(dated.dueDate, DateTime(2026, 11, 7));
+    expect(dated.contextDate, DateTime(2026, 11, 7));
 
     await teardownTree(tester);
   });

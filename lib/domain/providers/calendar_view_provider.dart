@@ -4,6 +4,10 @@ import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
 const _keyCalendarViewMode = 'calendar_view_mode';
 
+/// The instant the calendar draws its now-line at. Widget tests pin it so a
+/// capture never depends on the machine's clock.
+final calendarNowProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
 // Date the calendar is currently showing (day view day / week-view week start
 // / displayed month anchor). Task 4's FAB must create events on this date
 // instead of DateTime.now().

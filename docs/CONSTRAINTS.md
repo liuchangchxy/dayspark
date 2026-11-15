@@ -59,6 +59,20 @@
 - **Why**: Flutter widget diffing 依赖 ==，漏字段会导致旧数据不被替换
 - **Date**: 2026-05-02
 
+## Calendar / 日历（A″ 实现，2026-11-15）
+
+### TaskAllocation 是 UTC 瞬时，Event/Todo 是本地墙上时间
+- 现象：日历周/日视图的块准时出现在 16:00，块内时间却写成 `08:00 – 09:00`；凌晨 08:00 前的计划还会落到前一天那一列。
+- 根因：`TaskAllocationWriter._canonicalRange` 有意把 `startAt`/`endAt` 归一化成 `isUtc: true` 的瞬时（跨设备同步需要绝对时刻），而 Drift 读回来仍标 UTC；Event 的 `startDt`/`endDt` 则按本地时间存读。日历页按**墙上时钟字段**（`year/month/day/hour`）比较和打印，UTC 值一进去就差一个时区偏移。
+- 对策：日历适配层单点转换 —— `TaskAllocationCalendarAdapter.fromItem` 里 `startAt.toLocal()` / `endAt.toLocal()`，下游 `calDayBlocks`、块内 meta、月格时间全部拿到本地时间。凡是新增消费 allocation 时间的 UI，先问一句"这是瞬时还是墙上时间"；比较字段必须 `toLocal()`，比较瞬时（`isBefore`/`difference`）可以直接比。
+- 守卫：`test/ui/pages/calendar/a2_calendar_page_test.dart`（UTC 存储 → 本地 07:00 的 allocation 必须仍属当天、块内打印本地时间）。
+- **Date**: 2026-11-15
+
+### 三视图必须彼此可达（手机）
+- 设计定稿的头部用图标而不是分段控件切换视图（周头「切日」、日头「切周」），但它没有给出月→周/日的入口；只照抄会留下"进入月视图后回不到周/日"的死角。
+- 对策：手机头部按模式给图标 —— 月：周图标 + 今天 + 设置；周：日图标 + 月图标 + 今天；日：周图标 + 月图标 + 今天。设置留在月视图（今日页与月视图都能进设置）。
+- **Date**: 2026-11-15
+
 ## Version / 版本号
 
 ### 版本号必须动态读取
@@ -157,6 +171,12 @@
 - `SizedBox(child: CircularProgressIndicator(color: Theme.of(context)...))` 不能加 const
 - **Why**: Theme.of(context) 是运行时值，const 构造函数要求编译期常量
 - **Date**: 2026-05-02
+
+### 行内富余量归标签，不归 `Spacer`（2026-11-15）
+- 现象：分组头的计数/浮动时间停在行中间（`A2GroupHead`），看起来像没对齐的错觉。
+- 根因：`Row` 里 `Flexible(label)` 与 `Spacer` 都是 flex:1，剩余宽度被二者平分；标签只要一半，Spacer 拿走另一半。
+- 对策：标签用 `Expanded`，不要 `Flexible` + `Spacer`；需要右侧控件时把计数与控件排在标签之后。同理，`A2MetaLine` / `A2Block` 的 meta 行只让**正文**参与收缩，分隔符、间距、chip 是固定标记，平分会把 "Due today 18:00" 截成 "Due today 1…"。
+- **Date**: 2026-11-15
 
 ## Architecture / 架构
 

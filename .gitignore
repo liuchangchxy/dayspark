@@ -67,6 +67,9 @@ Pods/
 # Generated OSS licenses (rebuild with: dart run flutter_oss_licenses:generate)
 lib/oss_licenses.dart
 
+# Golden-comparison scratch output (the failures/ dir is written on mismatch)
+tool/shots/failures/
+
 # Screenshots (personal / not for distribution)
 screenshots/
 web-shots-*/
@@ -105,3 +108,6 @@ design/opendesign/todo-mobile-v030/concept-a/
 design/opendesign/todo-mobile-v030/concept-b/
 design/opendesign/todo-mobile-v030/concept-c/
 design/opendesign/todo-mobile-v030/final/
+
+# Playwright CLI session artifacts
+.playwright-cli/

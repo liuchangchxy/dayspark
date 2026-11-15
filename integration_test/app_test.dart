@@ -11,10 +11,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/main.dart' show DaySparkApp;
-import 'package:dayspark/ui/shell/spark_top_bar.dart';
-import 'package:dayspark/ui/widgets/schedule/day_strip.dart';
-import 'package:dayspark/ui/widgets/todo/date_strip.dart';
-import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
+import 'package:dayspark/ui/design/a2.dart';
 
 /// Real-app flows: the shipped [DaySparkApp], router, providers and database
 /// run inside the native integration harness. Each test answers one question
@@ -75,9 +72,8 @@ void main() {
   }
 
   Future<void> openTasks(WidgetTester tester) async {
-    final railEntry = find.byKey(const ValueKey('nav-todos'));
-    if (railEntry.evaluate().isNotEmpty) {
-      await tester.tap(railEntry);
+    if (find.text('DaySpark').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Tasks').first);
       await settle(tester);
       return;
     }
@@ -90,10 +86,11 @@ void main() {
     await settle(tester);
   }
 
+  /// The Todo header title is the mode menu; the design draws no switcher.
   Future<void> showView(WidgetTester tester, String label) async {
-    final switcher = find.byKey(const ValueKey('todos-view-switch'));
-    expect(switcher, findsOneWidget);
-    await tester.tap(find.descendant(of: switcher, matching: find.text(label)));
+    await tester.tap(find.byKey(const ValueKey('todos-mode-switch')));
+    await settle(tester);
+    await tester.tap(find.text(label).last);
     await settle(tester);
   }
 
@@ -102,17 +99,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   }
 
-  testWidgets('flow: quick add writes a todo into the real list', (
-    tester,
-  ) async {
+  testWidgets('flow: capture on Today writes a bare todo', (tester) async {
     await seedCalendar();
     expect(await db.select(db.todos).get(), isEmpty);
 
     await launch(tester);
-    await openTasks(tester);
-    await showView(tester, 'By date');
 
-    final field = find.byKey(const ValueKey('todo-quick-add'));
+    final field = find.byKey(const ValueKey('today-capture-field'));
     expect(field, findsOneWidget);
     expect(find.text('Book the flights'), findsNothing);
 
@@ -121,21 +114,20 @@ void main() {
     await settle(tester);
 
     final rows = await db.select(db.todos).get();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
     expect(rows, hasLength(1));
     expect(rows.single.summary, 'Book the flights');
     expect(
       rows.single.dueDate,
-      today,
-      reason: 'the day view is the landing date for a quick add',
+      isNull,
+      reason: 'capture is not a deadline, and Today never invents one',
     );
-    expect(find.text('Book the flights'), findsOneWidget);
+    expect(await db.select(db.taskAllocations).get(), isEmpty);
+    expect(find.text('Book the flights'), findsWidgets);
 
     await unmount(tester);
   });
 
-  testWidgets('flow: date browsing switches the list to another day', (
+  testWidgets('flow: browsing a day moves the Todo list with it', (
     tester,
   ) async {
     final calendarId = await seedCalendar();
@@ -151,46 +143,40 @@ void main() {
 
     await launch(tester);
     await openTasks(tester);
-    await showView(tester, 'By date');
 
-    final weekStrip = find.byKey(const ValueKey('date-strip-week'));
-    expect(weekStrip, findsOneWidget);
+    expect(find.text('By date'), findsOneWidget);
     expect(find.text('Today task'), findsOneWidget);
     expect(find.text('Other day task'), findsNothing);
 
     await showView(tester, 'All Tasks');
-    expect(weekStrip, findsNothing, reason: 'All is not attached to a day');
     expect(find.text('Today task'), findsOneWidget);
     expect(find.text('Other day task'), findsOneWidget);
-
-    await tester.tap(
-      find.descendant(of: find.byType(DateStrip), matching: find.text('Today')),
+    expect(
+      find.byType(A2PlanBar),
+      findsNothing,
+      reason: 'All is not attached to a day',
     );
-    await settle(tester);
-    expect(weekStrip, findsOneWidget, reason: 'Today restores the day view');
-    expect(find.text('Today task'), findsOneWidget);
-    expect(find.text('Other day task'), findsNothing);
 
+    await showView(tester, 'By date');
+    expect(find.byType(A2PlanBar), findsOneWidget);
+
+    // The day strip opens the month picker; the pick writes the shared
+    // browse date, which is what the list reads.
+    await tester.tap(find.text('Today').first);
+    await settle(tester);
     await tester.tap(
-      find.descendant(of: weekStrip, matching: find.text('${otherDay.day}')),
+      find.byKey(
+        ValueKey('month-day-${otherDay.year}-${otherDay.month}-${otherDay.day}'),
+      ),
     );
     await settle(tester);
 
     expect(
       find.text('Other day task'),
       findsOneWidget,
-      reason: 'the list follows the selected day',
+      reason: 'the list follows the picked day',
     );
     expect(find.text('Today task'), findsNothing);
-
-    await tester.tap(find.byKey(ValueKey(DayStrip.dayKey(today))));
-    await settle(tester);
-    expect(
-      find.text('Today task'),
-      findsOneWidget,
-      reason: 'the strip still offers today after browsing away',
-    );
-    expect(find.text('Other day task'), findsNothing);
 
     await unmount(tester);
   });
@@ -205,20 +191,17 @@ void main() {
     final secondId = await seedTodo(calendarId, 'Second task', dueDate: today);
 
     await launch(tester, size: const Size(1440, 1000));
-
-    await tester.tap(find.byKey(const ValueKey('nav-todos')));
-    await settle(tester);
-    await showView(tester, 'By date');
+    await openTasks(tester);
 
     expect(
-      MediaQuery.sizeOf(tester.element(find.byType(SparkTopBar))).width,
+      MediaQuery.sizeOf(tester.element(find.text('DaySpark'))).width,
       1440,
       reason: 'the window really is as wide as the test asked for',
     );
     // The rows have no per-todo key of their own; the title is what the user
     // reads, so it is what the flow follows.
-    final firstRow = find.widgetWithText(TodoListTile, 'First task');
-    final secondRow = find.widgetWithText(TodoListTile, 'Second task');
+    final firstRow = find.widgetWithText(A2Row, 'First task');
+    final secondRow = find.widgetWithText(A2Row, 'Second task');
     expect(firstRow, findsOneWidget);
     expect(secondRow, findsOneWidget);
 

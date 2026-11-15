@@ -14,10 +14,10 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
 /// Journeys through the real router and a real database.
@@ -84,15 +84,22 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
+    // Every capture lands somewhere; the product always has a calendar.
+    await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+
     await start(tester);
 
-    await tester.tap(find.byKey(const ValueKey('workspace-create-todo')));
+    await tester.tap(find.text('Capture').first);
     await _settle(tester);
+    expect(find.byKey(const ValueKey('a2-composer-title')), findsOneWidget);
     await tester.enterText(
-      find.byKey(const ValueKey('todo-quick-create-title')),
+      find.byKey(const ValueKey('a2-composer-title')),
       'Book the flights',
     );
-    await tester.tap(find.widgetWithText(DsButton, 'Save'));
+    await tester.pump();
+    await tester.tap(find.text('Save to Unplanned'));
     await _settle(tester);
 
     final created = (await db.select(db.todos).get()).single;
@@ -227,6 +234,31 @@ void main() {
 
     final edited = (await db.select(db.events).get()).single;
     expect(edited.summary, 'Design review 2');
+    await _unmount(tester);
+  });
+
+  testWidgets('journey: the composer hand-off lands in a prefilled form', (
+    tester,
+  ) async {
+    await start(tester);
+
+    // The quick sheet forwards its own fields on this route; the form has to
+    // receive them, or the user loses what they had already typed and picked.
+    final start1 = DateTime(2026, 6, 1, 16);
+    final end = DateTime(2026, 6, 1, 17);
+    AppRouter.router.push(
+      '/todo/new?summary=${Uri.encodeQueryComponent('Weekly review')}'
+      '&start=${start1.millisecondsSinceEpoch}'
+      '&end=${end.millisecondsSinceEpoch}',
+    );
+    await _settle(tester);
+
+    expect(find.byType(TodoFormPage), findsOneWidget);
+    expect(
+      find.widgetWithText(TextField, 'Weekly review'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 }

@@ -1905,6 +1905,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unplannedViewEmptyHint => 'Every task has a planned time. Switch to All Tasks to see everything.';
 
   @override
+  String get todosSwitchMode => 'Switch view';
+
+  @override
   String get todosEmptyTitle => 'No tasks here';
 
   @override
@@ -1943,4 +1946,232 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get other => 'Other';
+
+  @override
+  String get capturePlaceholder => 'Capture · Enter files it unplanned';
+
+  @override
+  String get captureHintEnter => '⏎ Unplanned';
+
+  @override
+  String get captureHintSubmit => 'Add';
+
+  @override
+  String get captureAddedToast => 'Added to Unplanned · keep typing';
+
+  @override
+  String get justAddedLabel => 'Just added';
+
+  @override
+  String groupCountItems(int count) {
+    return '$count items';
+  }
+
+  @override
+  String expandRemaining(int count) {
+    return '$count more · Show all';
+  }
+
+  @override
+  String get collapseLabel => 'Show less';
+
+  @override
+  String get sectionNow => 'Now';
+
+  @override
+  String get sectionUpcoming => 'Upcoming';
+
+  @override
+  String get sectionDueToday => 'Due today';
+
+  @override
+  String get sectionOverdueLabel => 'Overdue';
+
+  @override
+  String get scheduleAction => 'Schedule';
+
+  @override
+  String get noExecutionSlot => 'No execution slot';
+
+  @override
+  String plannedRangeLabel(String range) {
+    return 'Planned $range';
+  }
+
+  @override
+  String plannedShortRangeLabel(String range) {
+    return 'Plan $range';
+  }
+
+  @override
+  String dueValueLabel(String value) {
+    return 'Due $value';
+  }
+
+  @override
+  String dueTodayTimeLabel(String time) {
+    return 'Due today $time';
+  }
+
+  @override
+  String get allDayLabel => 'All day';
+
+  @override
+  String get emptyTodayTitle => 'Nothing scheduled today';
+
+  @override
+  String get emptyTodayHint => 'Write it down anytime — Enter files it under Unplanned';
+
+  @override
+  String get emptyUnplannedTitle => 'Unplanned is empty';
+
+  @override
+  String get emptyUnplannedHint => 'Capture one — Enter puts it here';
+
+  @override
+  String get emptyDateTitle => 'Nothing on this day';
+
+  @override
+  String get emptyDateHint => 'Add one with “Plan this day” below';
+
+  @override
+  String get allDueTodaySection => 'Due today';
+
+  @override
+  String get allPastDueSection => 'Past due';
+
+  @override
+  String get allLaterSection => 'Later';
+
+  @override
+  String get allUnplannedNoDueSection => 'No deadline';
+
+  @override
+  String get withDueUnplannedSection => 'With a deadline · unplanned';
+
+  @override
+  String get noDueSection => 'No deadline';
+
+  @override
+  String get datePlannedSection => 'Planned';
+
+  @override
+  String get dateDueSection => 'Deadline';
+
+  @override
+  String get dateEventsSection => 'Events';
+
+  @override
+  String todoUnplannedContext(int count, int withDue) {
+    return '$count items · $withDue with a deadline';
+  }
+
+  @override
+  String todoAllSummary(int count, int active) {
+    return '$count items · $active active';
+  }
+
+  @override
+  String get byDateTitle => 'By date';
+
+  @override
+  String get byDateContext => 'Todos · shares its date with Calendar';
+
+  @override
+  String get planThisDay => 'Plan this day';
+
+  @override
+  String planToDate(String date) {
+    return 'Plan to $date';
+  }
+
+  @override
+  String inDaysCount(int count) {
+    return 'In $count days';
+  }
+
+  @override
+  String yearMonthTitle(String year, String month) {
+    return '$year / $month';
+  }
+
+  @override
+  String get yearLabel => 'Year';
+
+  @override
+  String get composerPlaceholder => 'What needs doing?';
+
+  @override
+  String get saveToUnplanned => 'Save to Unplanned';
+
+  @override
+  String savePlannedTo(String date) {
+    return 'Plan for $date';
+  }
+
+  @override
+  String saveWithDueDate(String date) {
+    return 'Save (due $date)';
+  }
+
+  @override
+  String get composerHintNoSlot => 'Saving without a slot files this under Unplanned.';
+
+  @override
+  String get composerHintAlloc => 'This is a planned execution, not a deadline. Set the deadline separately.';
+
+  @override
+  String get composerHintDue => 'A deadline is the latest finish; a planned execution is when you chose to do it.';
+
+  @override
+  String get composerNoSlot => 'No slot chosen';
+
+  @override
+  String get composerUnset => 'Not set';
+
+  @override
+  String get composerCustomSlot => 'Custom…';
+
+  @override
+  String get moreActions => 'More';
+
+  @override
+  String weekNumberLabel(int week) {
+    return 'Week $week';
+  }
+
+  @override
+  String get daySegmentLabel => 'Day';
+
+  @override
+  String get captureQuickAddLabel => 'Capture';
+
+  @override
+  String get calendarTodayHint => 'Go to today';
+
+  @override
+  String get unplannedGroupEmpty => 'Nothing unplanned';
+
+  @override
+  String get pickDateHint => 'Pick a date';
+
+  @override
+  String get moreItemsHint => 'More';
+
+  @override
+  String get startPlanning => 'Plan it';
+
+  @override
+  String eventCountLabel(int count) {
+    return '$count';
+  }
+
+  @override
+  String get composerOptional => 'Optional';
+
+  @override
+  String get previousDay => 'Previous day';
+
+  @override
+  String get nextDay => 'Next day';
 }

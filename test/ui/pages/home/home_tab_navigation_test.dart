@@ -2,20 +2,26 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
-import 'package:dayspark/ui/widgets/todo/date_strip.dart';
-import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
-import 'package:dayspark/ui/shell/spark_top_bar.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
 // These tests assert on layout, so real glyph metrics help — but the faces live
@@ -28,7 +34,9 @@ Future<void> _loadFont(String family, List<String> candidates) async {
     if (!file.existsSync()) continue;
     final loader = FontLoader(family)
       ..addFont(
-        Future.value(ByteData.view(Uint8List.fromList(file.readAsBytesSync()).buffer)),
+        Future.value(
+          ByteData.view(Uint8List.fromList(file.readAsBytesSync()).buffer),
+        ),
       );
     await loader.load();
     return;
@@ -66,15 +74,29 @@ Future<void> _phone(WidgetTester tester) async {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
+Future<void> _desktop(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(1440, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 Future<void> _unmount(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump(Duration.zero);
+}
+
+Future<void> _settle(WidgetTester tester, [int frames = 15]) async {
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    tzdata.initializeTimeZones();
     await _loadFont('Microsoft YaHei', [
       r'C:\Windows\Fonts\Deng.ttf',
       '/System/Library/Fonts/PingFang.ttc',
@@ -97,38 +119,33 @@ void main() {
     await db.close();
   });
 
-  testWidgets(
-    'bottom navigation bar displays 4 projections and defaults to Today',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await _phone(tester);
+  testWidgets('the dock shows three destinations and defaults to Today', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await _phone(tester);
 
-      await tester.pumpWidget(_app(db));
-      for (var i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
 
-      expect(find.byKey(const ValueKey('mobile-tab-bar')), findsOneWidget);
-      expect(_content(0), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile-tab-bar')), findsOneWidget);
+    expect(_content(0), findsOneWidget);
 
-      // Verify labels
-      expect(find.text('Today'), findsWidgets);
-      expect(find.text('Calendar'), findsWidgets);
-      expect(find.text('Tasks'), findsWidgets);
-      expect(find.text('AI Assistant'), findsWidgets);
+    expect(find.text('Today'), findsWidgets);
+    expect(find.text('Calendar'), findsWidgets);
+    expect(find.text('Tasks'), findsWidgets);
+    // The AI destination is gone from the dock; capture lives in the page.
+    expect(find.text('AI Assistant'), findsNothing);
 
-      await _unmount(tester);
-    },
-  );
+    await _unmount(tester);
+  });
 
   testWidgets('respects saved calendar preference on launch', (tester) async {
     SharedPreferences.setMockInitialValues({'default_tab': 'calendar'});
     await _phone(tester);
 
     await tester.pumpWidget(_app(db));
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await _settle(tester);
 
     expect(_content(1), findsOneWidget);
 
@@ -140,120 +157,323 @@ void main() {
     await _phone(tester);
 
     await tester.pumpWidget(_app(db));
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await _settle(tester);
 
     expect(_content(2), findsOneWidget);
 
     await _unmount(tester);
   });
 
-  testWidgets('switching tabs updates selected destination', (tester) async {
+  testWidgets('switching destinations moves the content', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await _phone(tester);
 
     await tester.pumpWidget(_app(db));
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await _settle(tester);
 
     expect(_content(0), findsOneWidget);
 
-    // Tap Calendar destination
+    // The dock is the last child of the body, so `.last` is its label.
     await tester.tap(find.text('Calendar').last);
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
+    await _settle(tester);
     expect(_content(1), findsOneWidget);
 
-    // Tap Todos destination
     await tester.tap(find.text('Tasks').last);
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-
+    await _settle(tester);
     expect(_content(2), findsOneWidget);
 
     await _unmount(tester);
   });
-  testWidgets('desktop bar switches destinations without moving the content', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1440, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+
+  testWidgets('the desktop bar switches destinations in place', (tester) async {
     SharedPreferences.setMockInitialValues({});
+    await _desktop(tester);
+
     await tester.pumpWidget(_app(db));
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    expect(find.byType(SparkTopBar), findsOneWidget);
+    await _settle(tester);
+
+    // The wordmark is the desktop bar's identity; the dock must not exist.
+    expect(find.text('DaySpark'), findsOneWidget);
     expect(find.byKey(const ValueKey('mobile-tab-bar')), findsNothing);
     final origin = tester.getTopLeft(_content(0));
 
-    Finder barItem(String label) => find
-        .descendant(of: find.byType(SparkTopBar), matching: find.text(label))
-        .first;
-
-    await tester.tap(barItem('Month'));
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    expect(_content(1), findsOneWidget);
-    expect(tester.getTopLeft(_content(1)), origin);
-
-    await tester.tap(barItem('Tasks'));
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await tester.tap(find.text('Tasks').first);
+    await _settle(tester, 10);
     expect(_content(2), findsOneWidget);
     expect(tester.getTopLeft(_content(2)), origin);
 
-    await tester.tap(barItem('Day'));
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await tester.tap(find.text('Calendar').first);
+    await _settle(tester, 10);
+    expect(_content(1), findsOneWidget);
+    expect(tester.getTopLeft(_content(1)), origin);
+
+    await tester.tap(find.text('Today').first);
+    await _settle(tester, 10);
     expect(_content(0), findsOneWidget);
+    expect(tester.getTopLeft(_content(0)), origin);
+    expect(tester.takeException(), isNull);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('ticking a recurring series row asks which occurrence', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await _phone(tester);
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final spec = RecurrenceSpec.parse(
+      anchor: RecurrenceAnchor(
+        source: RecurrenceAnchorSource.start,
+        value: LocalDate(2026, 10, 1),
+      ),
+      timeZone: 'Asia/Shanghai',
+      rrule: 'FREQ=DAILY;COUNT=40',
+    );
+    final seriesId = await RecordScope.run(
+      db,
+      (tx) => TodoWriter.create(
+        db,
+        tx,
+        TodosCompanion.insert(
+          calendarId: calId,
+          summary: 'Daily standup',
+          rrule: Value(spec.rule.canonical),
+        ),
+        recurrenceSpec: spec,
+      ),
+    );
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+    await tester.tap(find.text('Tasks').last);
+    await _settle(tester);
+    await tester.tap(find.text('By date'));
+    await _settle(tester);
+    await tester.tap(find.text('Unplanned').last);
+    await _settle(tester);
+
+    expect(find.text('Daily standup'), findsOneWidget);
+    await tester.tap(find.byType(DsCheck).first);
+    await _settle(tester);
+
+    // The writer refuses a series completion without an occurrence, so the
+    // page asks for one instead of surfacing an error.
+    expect(find.byType(Dialog), findsOneWidget);
+    final series = await (db.select(db.todos)
+          ..where((row) => row.id.equals(seriesId)))
+        .getSingle();
+    expect(series.status, 'NEEDS-ACTION');
+    expect(await db.select(db.taskInstanceStates).get(), isEmpty);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('calendar and Todo by date share one browsed day', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await _phone(tester);
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(HomePage)),
+      listen: false,
+    );
+    final now = DateTime.now();
+    // A day in the same month as the month grid opens on, but not today, so
+    // "today's page ignored it" is observable.
+    final target = DateTime(now.year, now.month, now.day == 10 ? 11 : 10);
+
+    await tester.tap(find.text('Calendar').last);
+    await _settle(tester);
+    await tester.tap(find.byTooltip('Month').first);
+    await _settle(tester);
+    await tester.tap(
+      find.byKey(
+        ValueKey('month-day-${target.year}-${target.month}-${target.day}'),
+      ),
+    );
+    await _settle(tester);
+    expect(container.read(viewedDateProvider).day, target.day);
+
+    // The date the calendar picked is the date Todo · By date opens on.
+    await tester.tap(find.text('Tasks').last);
+    await _settle(tester);
+    expect(container.read(viewedDateProvider).day, target.day);
+    expect(
+      find.textContaining(
+        DateFormat.MMMd(
+          Localizations.localeOf(tester.element(find.byType(HomePage)))
+              .toString(),
+        ).format(target),
+      ),
+      findsWidgets,
+    );
+
+    // Today answers to the clock, not to the browsed date.
+    await tester.tap(find.text('Today').last);
+    await _settle(tester);
+    expect(container.read(viewedDateProvider).day, target.day);
+    expect(
+      find.textContaining(
+        DateFormat.MMMMd(
+          Localizations.localeOf(tester.element(find.byType(HomePage)))
+              .toString(),
+        ).format(now),
+      ),
+      findsWidgets,
+    );
+
+    await _unmount(tester);
+  });
+
+  testWidgets('the shelf speaks in the row column and its chevron is honest', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await _phone(tester);
+
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final now = DateTime.now();
+    final due = DateTime(now.year, now.month, now.day, 18);
+    for (var i = 0; i < 3; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Free item $i',
+            ),
+          );
+    }
+    // Two more sit in the bucket but never in the shelf: they carry a
+    // deadline and already appear under Due today.
+    for (var i = 0; i < 2; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Due item $i',
+              dueDate: Value(due),
+            ),
+          );
+    }
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    // The "more" label belongs in the column the row titles start in.
+    final titleLeft = tester.getTopLeft(find.text('Free item 0')).dx;
+    final more = find.textContaining('more · ');
+    final moreLeft = tester.getTopLeft(more).dx;
+    expect((titleLeft - moreLeft).abs(), lessThanOrEqualTo(1));
+
+    // Nothing is left to expand, so the tap leaves for the bucket's view and
+    // the chevron must not promise a disclosure.
+    expect(find.byIcon(CupertinoIcons.chevron_down), findsNothing);
+    expect(find.byIcon(CupertinoIcons.chevron_up), findsOneWidget);
+
+    // The capture row says what Enter will do once it has focus.
+    expect(find.text('Add'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('today-capture-field')));
+    await _settle(tester);
+    expect(find.text('Add'), findsOneWidget);
+
     expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
-  testWidgets('desktop list rows keep one left origin per destination', (
+  testWidgets('the keyboard brings the shelf above the capture row', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1440, 900);
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 667);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+
+    final calId = await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+    final now = DateTime.now();
+    final due = DateTime(now.year, now.month, now.day, 18);
+    for (var i = 0; i < 6; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Due item $i',
+              dueDate: Value(due),
+            ),
+          );
+    }
+    for (var i = 0; i < 5; i++) {
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calId,
+              summary: 'Free item $i',
+            ),
+          );
+    }
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byKey(const ValueKey('a2-today-list')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(scrollable.position.pixels, 0);
+
+    await tester.tap(find.byKey(const ValueKey('today-capture-field')));
+    await _settle(tester);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await _settle(tester, 14);
+
+    // The shelf is the group the capture row feeds: once the keyboard takes
+    // its space, the list follows to its end so all of it stays readable.
+    expect(scrollable.position.extentAfter, 0);
+    final more = find.textContaining('more · Show all');
+    expect(more, findsOneWidget);
+    final capture = tester.getRect(
+      find.byKey(const ValueKey('today-capture-field')),
+    );
+    expect(tester.getRect(more).bottom, lessThanOrEqualTo(capture.top));
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
+  testWidgets('one left origin per list, on Today and on Tasks', (tester) async {
     SharedPreferences.setMockInitialValues({});
+    await _desktop(tester);
     final calId = await db
         .into(db.calendars)
         .insert(CalendarsCompanion.insert(name: 'Personal'));
     for (final title in ['Origin one', 'Origin two']) {
       await db
           .into(db.todos)
-          .insert(
-            TodosCompanion.insert(
-              calendarId: calId,
-              summary: title,
-              dueDate: Value(DateTime.now()),
-            ),
-          );
-    }
-    await tester.pumpWidget(_app(db));
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
+          .insert(TodosCompanion.insert(calendarId: calId, summary: title));
     }
 
-    void expectSingleOrigin(int tab) {
-      final rows = find.descendant(
-        of: _content(tab),
-        matching: find.byType(TodoListTile),
-      );
-      if (rows.evaluate().length < 2) return;
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    void expectSingleOrigin() {
+      final rows = find.byType(A2Row);
+      expect(rows.evaluate().length, 2);
       final lefts = <double>[
         for (var i = 0; i < rows.evaluate().length; i++)
           tester.getTopLeft(rows.at(i)).dx,
@@ -264,72 +484,62 @@ void main() {
       }
     }
 
-    expectSingleOrigin(0);
-    await tester.tap(
-      find
-          .descendant(of: find.byType(SparkTopBar), matching: find.text('Tasks'))
-          .first,
-    );
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    expectSingleOrigin(2);
-    await _unmount(tester);
-  });
+    // Today shelves the two unplanned todos.
+    expectSingleOrigin();
 
-  testWidgets('desktop todo keeps its day navigation in the toolbar', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1440, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
-    await tester.pumpWidget(_app(db));
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    expect(find.byType(TodoBacklogHead), findsOneWidget);
-    expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(TodoBacklogHead),
-        matching: find.text('All Tasks'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byType(TodoBacklogHead),
-        matching: find.text('Unplanned'),
-      ),
-      findsOneWidget,
-    );
-    await _unmount(tester);
-  });
+    await tester.tap(find.text('Tasks').first);
+    await _settle(tester, 10);
 
-  testWidgets('mobile todo keeps the touch week strip', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
-    await tester.pumpWidget(_app(db));
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    expect(find.byType(TodoDesktopToolbar), findsNothing);
-    expect(find.byKey(const ValueKey('date-strip-week')), findsOneWidget);
+    // Tasks opens on 按日期, which does not carry bare todos; switch to
+    // 未安排 through the header's mode sheet.
+    await tester.tap(find.text('By date'));
+    await _settle(tester, 10);
+    await tester.tap(find.text('Unplanned').last);
+    await _settle(tester, 10);
+
+    expectSingleOrigin();
     expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
-  testWidgets('changing destination closes the detail pane', (tester) async {
-    tester.view.physicalSize = const Size(1440, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('desktop todo shows the browsed day and its plan bar', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
+    await _desktop(tester);
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    expect(find.text('By date'), findsOneWidget);
+    expect(find.byType(A2PlanBar), findsOneWidget);
+    expect(find.text('Plan this day'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('the day strip opens the month and year picker', (tester) async {
+    SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
+    await _phone(tester);
+
+    await tester.pumpWidget(_app(db));
+    await _settle(tester);
+
+    expect(find.text('By date'), findsOneWidget);
+    // Browsing today: the strip's first line is the day itself.
+    await tester.tap(find.text('Today').first);
+    await _settle(tester, 10);
+
+    expect(find.text('Month'), findsOneWidget);
+    expect(find.text('Year'), findsOneWidget);
+    expect(find.text('Return to Today'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('changing destination closes the detail pane', (tester) async {
+    SharedPreferences.setMockInitialValues({'default_tab': 'todos'});
+    await _desktop(tester);
     final calId = await db
         .into(db.calendars)
         .insert(CalendarsCompanion.insert(name: 'Personal'));
@@ -343,34 +553,24 @@ void main() {
           ),
         );
     await tester.pumpWidget(_app(db));
-    for (var i = 0; i < 15; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await _settle(tester);
 
     await tester.tap(find.text('Pick up').first);
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await _settle(tester, 10);
     final container = ProviderScope.containerOf(
       tester.element(find.byType(HomePage)),
     );
     expect(container.read(workspaceSelectionProvider), isNotNull);
 
-    await tester.tap(
-      find
-          .descendant(of: find.byType(SparkTopBar), matching: find.text('Month'))
-          .first,
-    );
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await tester.tap(find.text('Calendar').first);
+    await _settle(tester, 10);
 
     expect(container.read(workspaceSelectionProvider), isNull);
     expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
-  testWidgets('the bar appears exactly at the workspace breakpoint', (
+  testWidgets('the chrome splits exactly at the workspace breakpoint', (
     tester,
   ) async {
     addTearDown(tester.view.resetPhysicalSize);
@@ -388,11 +588,9 @@ void main() {
       tester.view.physicalSize = Size(width, 900);
       tester.view.devicePixelRatio = 1;
       await tester.pumpWidget(_app(db));
-      for (var i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      await _settle(tester);
       expect(
-        find.byType(SparkTopBar),
+        find.text('DaySpark'),
         expectBar ? findsOneWidget : findsNothing,
         reason: 'width $width',
       );

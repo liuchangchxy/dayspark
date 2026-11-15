@@ -3599,6 +3599,12 @@ abstract class AppLocalizations {
   /// **'Every task has a planned time. Switch to All Tasks to see everything.'**
   String get unplannedViewEmptyHint;
 
+  /// No description provided for @todosSwitchMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch view'**
+  String get todosSwitchMode;
+
   /// No description provided for @todosEmptyTitle.
   ///
   /// In en, this message translates to:
@@ -3670,6 +3676,402 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other'**
   String get other;
+
+  /// No description provided for @capturePlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture · Enter files it unplanned'**
+  String get capturePlaceholder;
+
+  /// No description provided for @captureHintEnter.
+  ///
+  /// In en, this message translates to:
+  /// **'⏎ Unplanned'**
+  String get captureHintEnter;
+
+  /// No description provided for @captureHintSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get captureHintSubmit;
+
+  /// No description provided for @captureAddedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to Unplanned · keep typing'**
+  String get captureAddedToast;
+
+  /// No description provided for @justAddedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Just added'**
+  String get justAddedLabel;
+
+  /// No description provided for @groupCountItems.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String groupCountItems(int count);
+
+  /// No description provided for @expandRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more · Show all'**
+  String expandRemaining(int count);
+
+  /// No description provided for @collapseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get collapseLabel;
+
+  /// No description provided for @sectionNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get sectionNow;
+
+  /// No description provided for @sectionUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming'**
+  String get sectionUpcoming;
+
+  /// No description provided for @sectionDueToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Due today'**
+  String get sectionDueToday;
+
+  /// No description provided for @sectionOverdueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get sectionOverdueLabel;
+
+  /// No description provided for @scheduleAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get scheduleAction;
+
+  /// No description provided for @noExecutionSlot.
+  ///
+  /// In en, this message translates to:
+  /// **'No execution slot'**
+  String get noExecutionSlot;
+
+  /// No description provided for @plannedRangeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned {range}'**
+  String plannedRangeLabel(String range);
+
+  /// No description provided for @plannedShortRangeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan {range}'**
+  String plannedShortRangeLabel(String range);
+
+  /// No description provided for @dueValueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {value}'**
+  String dueValueLabel(String value);
+
+  /// No description provided for @dueTodayTimeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Due today {time}'**
+  String dueTodayTimeLabel(String time);
+
+  /// No description provided for @allDayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'All day'**
+  String get allDayLabel;
+
+  /// No description provided for @emptyTodayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled today'**
+  String get emptyTodayTitle;
+
+  /// No description provided for @emptyTodayHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write it down anytime — Enter files it under Unplanned'**
+  String get emptyTodayHint;
+
+  /// No description provided for @emptyUnplannedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unplanned is empty'**
+  String get emptyUnplannedTitle;
+
+  /// No description provided for @emptyUnplannedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture one — Enter puts it here'**
+  String get emptyUnplannedHint;
+
+  /// No description provided for @emptyDateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing on this day'**
+  String get emptyDateTitle;
+
+  /// No description provided for @emptyDateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add one with “Plan this day” below'**
+  String get emptyDateHint;
+
+  /// No description provided for @allDueTodaySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Due today'**
+  String get allDueTodaySection;
+
+  /// No description provided for @allPastDueSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Past due'**
+  String get allPastDueSection;
+
+  /// No description provided for @allLaterSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get allLaterSection;
+
+  /// No description provided for @allUnplannedNoDueSection.
+  ///
+  /// In en, this message translates to:
+  /// **'No deadline'**
+  String get allUnplannedNoDueSection;
+
+  /// No description provided for @withDueUnplannedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'With a deadline · unplanned'**
+  String get withDueUnplannedSection;
+
+  /// No description provided for @noDueSection.
+  ///
+  /// In en, this message translates to:
+  /// **'No deadline'**
+  String get noDueSection;
+
+  /// No description provided for @datePlannedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned'**
+  String get datePlannedSection;
+
+  /// No description provided for @dateDueSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline'**
+  String get dateDueSection;
+
+  /// No description provided for @dateEventsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Events'**
+  String get dateEventsSection;
+
+  /// No description provided for @todoUnplannedContext.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items · {withDue} with a deadline'**
+  String todoUnplannedContext(int count, int withDue);
+
+  /// No description provided for @todoAllSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items · {active} active'**
+  String todoAllSummary(int count, int active);
+
+  /// No description provided for @byDateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'By date'**
+  String get byDateTitle;
+
+  /// No description provided for @byDateContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Todos · shares its date with Calendar'**
+  String get byDateContext;
+
+  /// No description provided for @planThisDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan this day'**
+  String get planThisDay;
+
+  /// No description provided for @planToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan to {date}'**
+  String planToDate(String date);
+
+  /// No description provided for @inDaysCount.
+  ///
+  /// In en, this message translates to:
+  /// **'In {count} days'**
+  String inDaysCount(int count);
+
+  /// No description provided for @yearMonthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{year} / {month}'**
+  String yearMonthTitle(String year, String month);
+
+  /// No description provided for @yearLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get yearLabel;
+
+  /// No description provided for @composerPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'What needs doing?'**
+  String get composerPlaceholder;
+
+  /// No description provided for @saveToUnplanned.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Unplanned'**
+  String get saveToUnplanned;
+
+  /// No description provided for @savePlannedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan for {date}'**
+  String savePlannedTo(String date);
+
+  /// No description provided for @saveWithDueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Save (due {date})'**
+  String saveWithDueDate(String date);
+
+  /// No description provided for @composerHintNoSlot.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving without a slot files this under Unplanned.'**
+  String get composerHintNoSlot;
+
+  /// No description provided for @composerHintAlloc.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a planned execution, not a deadline. Set the deadline separately.'**
+  String get composerHintAlloc;
+
+  /// No description provided for @composerHintDue.
+  ///
+  /// In en, this message translates to:
+  /// **'A deadline is the latest finish; a planned execution is when you chose to do it.'**
+  String get composerHintDue;
+
+  /// No description provided for @composerNoSlot.
+  ///
+  /// In en, this message translates to:
+  /// **'No slot chosen'**
+  String get composerNoSlot;
+
+  /// No description provided for @composerUnset.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get composerUnset;
+
+  /// No description provided for @composerCustomSlot.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom…'**
+  String get composerCustomSlot;
+
+  /// No description provided for @moreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreActions;
+
+  /// No description provided for @weekNumberLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Week {week}'**
+  String weekNumberLabel(int week);
+
+  /// No description provided for @daySegmentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get daySegmentLabel;
+
+  /// No description provided for @captureQuickAddLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture'**
+  String get captureQuickAddLabel;
+
+  /// No description provided for @calendarTodayHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to today'**
+  String get calendarTodayHint;
+
+  /// No description provided for @unplannedGroupEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing unplanned'**
+  String get unplannedGroupEmpty;
+
+  /// No description provided for @pickDateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date'**
+  String get pickDateHint;
+
+  /// No description provided for @moreItemsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreItemsHint;
+
+  /// No description provided for @startPlanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan it'**
+  String get startPlanning;
+
+  /// No description provided for @eventCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}'**
+  String eventCountLabel(int count);
+
+  /// No description provided for @composerOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get composerOptional;
+
+  /// No description provided for @previousDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous day'**
+  String get previousDay;
+
+  /// No description provided for @nextDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Next day'**
+  String get nextDay;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

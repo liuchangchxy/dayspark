@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DaySpark A″ · 12–14 · 日历</title>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<div class="proto">
+  <div class="proto-head">
+    <h1>日历 · 月 / 周 / 日 / 时间槽</h1>
+    <p>日历页右下角 FAB 是此页唯一创建入口（与捕获行互斥）。点时间槽弹三个动作：新建日程 / 安排待办 / 新建并安排——动作语义不同，文案必须分开。三屏共用 browseDate = 11/15（今天）。</p>
+  </div>
+
+  <div class="flow-band">
+    <h2><span class="bno">12</span>日历 · 月</h2>
+    <p>月格用圆点表达「这天有事」：3.5px、最多 3 个 +「+N」，不区分类型（与 App 一致）；今天/选中格的点走 primary，其余 ink3。今天 = primary-tint 格 + 主色数字（11/15），选中 = surface-3 数字格；两者可同时出现在一格。</p>
+    <div class="boards">
+      <div class="board">
+        <div class="phone">
+          <div class="screen">
+            <div class="statusbar">
+              <span class="tnum">15:00</span>
+              <span class="sicons">
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM2.5 6.4 4.2 8.1a4.7 4.7 0 0 1 7.6 0l1.7-1.7a7 7 0 0 0-11 0ZM0 3.9 1.7 5.6a10 10 0 0 1 12.7 0L15.2 3.9A12.3 12.3 0 0 0 0 3.9Z" opacity=".9"/></svg>
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/><rect x="22.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+              </span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head">
+                <div class="lhs">
+                  <span class="t1">日历</span>
+                  <span class="t2">11月15日 · 周日 · 2026</span>
+                </div>
+                <div class="rhs"><span class="clock tnum">15:00</span>
+                  <button class="iconbtn" aria-label="今天"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+                  <button class="iconbtn" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.6a7.8 7.8 0 0 0-2.6 1.5l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 2.6 1.5l.4 2.6h4l.4-2.6a7.8 7.8 0 0 0 2.6-1.5l2.4 1 2-3.4Z"/></svg></button>
+                </div>
+              </div>
+              <div class="cal-view">
+                <div class="mini-strip">
+                  <span class="navbtn" aria-label="上一月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m14 6-6 6 6 6"/></svg></span>
+                  <span class="lbl tnum">2026 年 11 月</span>
+                  <span class="navbtn" aria-label="下一月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m10 6 6 6-6 6"/></svg></span>
+                </div>
+                <div class="month-grid">
+                  <div class="wdow"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+                  <div class="mrow">
+                    <div class="mday other"><span class="dn">26</span><span class="dots"><i class="d"></i></span></div>
+                    <div class="mday other"><span class="dn">27</span></div>
+                    <div class="mday other"><span class="dn">28</span></div>
+                    <div class="mday other"><span class="dn">29</span></div>
+                    <div class="mday other"><span class="dn">30</span></div>
+                    <div class="mday other"><span class="dn">31</span></div>
+                    <div class="mday"><span class="dn">1</span></div>
+                  </div>
+                  <div class="mrow">
+                    <div class="mday"><span class="dn">2</span></div>
+                    <div class="mday"><span class="dn">3</span></div>
+                    <div class="mday"><span class="dn">4</span></div>
+                    <div class="mday"><span class="dn">5</span></div>
+                    <div class="mday"><span class="dn">6</span></div>
+                    <div class="mday"><span class="dn">7</span></div>
+                    <div class="mday"><span class="dn">8</span></div>
+                  </div>
+                  <div class="mrow">
+                    <div class="mday"><span class="dn">9</span><span class="dots"><i class="e"></i></span></div>
+                    <div class="mday"><span class="dn">10</span></div>
+                    <div class="mday"><span class="dn">11</span></div>
+                    <div class="mday"><span class="dn">12</span></div>
+                    <div class="mday"><span class="dn">13</span><span class="dots"><i class="e"></i></span></div>
+                    <div class="mday"><span class="dn">14</span><span class="dots"><i class="d"></i></span></div>
+                    <div class="mday today"><span class="dn">15</span><span class="dots"><i class="e"></i><i class="a"></i><i class="d"></i></span></div>
+                  </div>
+                  <div class="mrow">
+                    <div class="mday"><span class="dn">16</span></div>
+                    <div class="mday"><span class="dn">17</span><span class="dots"><i class="e"></i><i class="a"></i><i class="d"></i></span></div>
+                    <div class="mday"><span class="dn">18</span></div>
+                    <div class="mday"><span class="dn">19</span></div>
+                    <div class="mday"><span class="dn">20</span><span class="dots"><i class="d"></i></span></div>
+                    <div class="mday"><span class="dn">21</span></div>
+                    <div class="mday"><span class="dn">22</span></div>
+                  </div>
+                  <div class="mrow">
+                    <div class="mday"><span class="dn">23</span></div>
+                    <div class="mday"><span class="dn">24</span></div>
+                    <div class="mday"><span class="dn">25</span></div>
+                    <div class="mday"><span class="dn">26</span></div>
+                    <div class="mday"><span class="dn">27</span></div>
+                    <div class="mday"><span class="dn">28</span></div>
+                    <div class="mday"><span class="dn">29</span></div>
+                  </div>
+                  <div class="mrow">
+                    <div class="mday"><span class="dn">30</span></div>
+                    <div class="mday other"><span class="dn">1</span></div>
+                    <div class="mday other"><span class="dn">2</span></div>
+                    <div class="mday other"><span class="dn">3</span></div>
+                    <div class="mday other"><span class="dn">4</span></div>
+                    <div class="mday other"><span class="dn">5</span></div>
+                    <div class="mday other"><span class="dn">6</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="dock">
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></span>今天</span>
+                <span class="tab on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>日历</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>待办</span>
+              </div>
+              <div class="fab" aria-label="创建"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+            </div>
+            <div class="homebar-wrap"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>月格宽 52 放不下可读文字，改为 3.5px 圆点 + 最多 3 个 +「+N」，<b>不区分类型</b>（Direction C 的月格就是「有没有事」，类型留给下方议程）。今天用 primary-tint 格 + primary 数字，选中用 surface-3 数字格。月格 6 行等高铺满；FAB 48×48 / 8 圆角 / 右下 72，压在末行右下角上空。日视图的块语言与周视图完全一致。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-band">
+    <h2><span class="bno">13</span>日历 · 周</h2>
+    <p>7 列 × 6 小时可视窗口（12:00–18:00，行高 88px，超出滚动）；块顶 = `((hh*60+mm) − 720)/60*88`。事件=归属色淡块+实色左条，计划执行=work 淡块+work 左条；41px 列宽只放得下 2–3 个汉字，所以**周视图块内只画标题**（位置本身就是时间），时长与全天细节看日视图；**截止不占时段**，单独进列头下的「截止」细条（暖褐 chip），因为它没有时长。今天列头用实心圆，当前时刻线只在本周含今天时出现。</p>
+    <div class="boards">
+      <div class="board">
+        <div class="phone">
+          <div class="screen">
+            <div class="statusbar">
+              <span class="tnum">15:00</span>
+              <span class="sicons">
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM2.5 6.4 4.2 8.1a4.7 4.7 0 0 1 7.6 0l1.7-1.7a7 7 0 0 0-11 0ZM0 3.9 1.7 5.6a10 10 0 0 1 12.7 0L15.2 3.9A12.3 12.3 0 0 0 0 3.9Z" opacity=".9"/></svg>
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/><rect x="22.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+              </span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head">
+                <div class="lhs">
+                  <span class="t1">11月9日 – 15日</span>
+                  <span class="t2">2026 年 11 月 · 第 46 周</span>
+                </div>
+                <div class="rhs"><span class="clock tnum">15:00</span>
+                  <button class="iconbtn" aria-label="切日视图"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 2v4M16 2v4M4 11h16"/></svg></button>
+                  <button class="iconbtn" aria-label="今天"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+                </div>
+              </div>
+              <div class="cal-view">
+                <div class="week-head">
+                  <span class="gutter"></span>
+                  <span class="wd"><span>一</span><span class="num tnum">9</span></span>
+                  <span class="wd"><span>二</span><span class="num tnum">10</span></span>
+                  <span class="wd"><span>三</span><span class="num tnum">11</span></span>
+                  <span class="wd"><span>四</span><span class="num tnum">12</span></span>
+                  <span class="wd"><span>五</span><span class="num tnum">13</span></span>
+                  <span class="wd"><span>六</span><span class="num tnum">14</span></span>
+                  <span class="wd today"><span>日</span><span class="num tnum">15</span></span>
+                </div>
+                <div class="deadline-lane">
+                  <span class="dl-lbl">截止</span>
+                  <span class="dl"></span>
+                  <span class="dl"></span>
+                  <span class="dl"></span>
+                  <span class="dl"></span>
+                  <span class="dl"></span>
+                  <span class="dl"><span class="dchip tnum">18:00</span></span>
+                  <span class="dl"><span class="dchip tnum">12:00</span><span class="dchip tnum">18:00</span></span>
+                </div>
+                <div class="week-cols">
+                  <div class="guttercol">
+                    <div class="ht tnum"><span>12:00</span></div>
+                    <div class="ht tnum"><span>13:00</span></div>
+                    <div class="ht tnum"><span>14:00</span></div>
+                    <div class="ht tnum"><span>15:00</span></div>
+                    <div class="ht tnum"><span>16:00</span></div>
+                    <div class="ht tnum"><span>17:00</span></div>
+                  </div>
+                  <div class="wcol">
+                    <div class="wblock event cal-1" style="top:264px;height:44px">评审</div>
+                  </div>
+                  <div class="wcol"></div>
+                  <div class="wcol"></div>
+                  <div class="wcol"></div>
+                  <div class="wcol">
+                    <div class="wblock event cal-3" style="top:176px;height:88px">读书会</div>
+                  </div>
+                  <div class="wcol"></div>
+                  <div class="wcol">
+                    <div class="wblock event cal-2" style="top:220px;height:66px">牙医</div>
+                    <div class="wblock alloc" style="top:352px;height:88px">纪要</div>
+                    <div class="wblock event cal-3" style="top:484px;height:44px">钢琴课</div>
+                    <div class="nowline" style="top:264px"></div>
+                  </div>
+                </div></div>
+              <div class="dock">
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></span>今天</span>
+                <span class="tab on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>日历</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>待办</span>
+              </div>
+
+            </div>
+            <div class="homebar-wrap"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>块宽 = 列宽 − 4，不缩进；同一列多块按真实时间上下排，重叠时才半宽并排（本屏无重叠）。块 = 6 圆角 + 1px line 边 + 3px 归属色左条，块内标题 12/600、meta 12/400，最多两行。当前时刻线 15:00 走 primary。FAB 48×48 / 8 圆角，不遮当前时刻附近的块。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-band">
+    <h2><span class="bno">13b</span>日历 · 日（单列）</h2>
+    <p>与周视图同一 12:00–18:00 栅格，只留一列；截止同样走顶部「截止」细条；点块展开地点/备注，其余规则不变。</p>
+    <div class="boards">
+      <div class="board">
+        <div class="phone">
+          <div class="screen">
+            <div class="statusbar">
+              <span class="tnum">15:00</span>
+              <span class="sicons">
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="7" rx="1"/><rect x="9" y="2.5" width="3" height="9.5" rx="1"/><rect x="13.5" y="0" width="3" height="12" rx="1"/></svg>
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 9.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM2.5 6.4 4.2 8.1a4.7 4.7 0 0 1 7.6 0l1.7-1.7a7 7 0 0 0-11 0ZM0 3.9 1.7 5.6a10 10 0 0 1 12.7 0L15.2 3.9A12.3 12.3 0 0 0 0 3.9Z" opacity=".9"/></svg>
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/><rect x="22.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".45"/></svg>
+              </span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head">
+                <div class="lhs">
+                  <span class="t1">11月15日 周日</span>
+                  <span class="t2">今天 · 2026 年 11 月</span>
+                </div>
+                <div class="rhs"><span class="clock tnum">15:00</span>
+                  <button class="iconbtn" aria-label="切周视图"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 2v4M16 2v4M4 11h16M10 11v9"/></svg></button>
+                  <button class="iconbtn" aria-label="今天"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+                </div>
+              </div>
+              <div class="cal-view">
+                <div class="week-head">
+                  <span class="gutter"></span>
+                  <span class="wd today" style="grid-column:2 / span 7;background:transparent;align-items:flex-start;justify-content:center;color:var(--ink);font-size:var(--fs-13);font-weight:600"><span>周日 · 11月15日</span><span class="num tnum" style="display:none">15</span></span>
+                </div>
+                <div class="deadline-lane single">
+                  <span class="dl-lbl">截止</span>
+                  <span class="dl"><span class="dchip">12:00 报销单 · 已完成</span><span class="dchip">18:00 提交周报</span></span>
+                </div>
+                <div class="week-cols">
+                  <div class="guttercol">
+                    <div class="ht tnum"><span>12:00</span></div>
+                    <div class="ht tnum"><span>13:00</span></div>
+                    <div class="ht tnum"><span>14:00</span></div>
+                    <div class="ht tnum"><span>15:00</span></div>
+                    <div class="ht tnum"><span>16:00</span></div>
+                    <div class="ht tnum"><span>17:00</span></div>
+                  </div>
+                  <div class="wcol" style="grid-column:2 / span 7">
+                    <div class="wblock event cal-2" style="top:220px;height:66px">牙医复诊 · 明州口腔<span class="b2 tnum">14:30–15:15 · 个人</span></div>
+                    <div class="wblock alloc" style="top:352px;height:88px">整理周会纪要并发群<span class="b2 tnum">16:00–17:00 · 截止 18:00</span></div>
+                    <div class="wblock event cal-3" style="top:484px;height:44px">钢琴课 · 小陈<span class="b2 tnum">17:30–18:00</span></div>
+                    <div class="nowline" style="top:264px"></div>
+                  </div>
+                </div></div>
+              <div class="dock">
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></span>今天</span>
+                <span class="tab on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>日历</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>待办</span>
+              </div>
+
+            </div>
+            <div class="homebar-wrap"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>日视图 = 周视图的单列版，列宽 = 整行；块内可放标题 + 时间 + 一行 meta（截止/日历），点击进入详情或展开地点/备注。FAB 与 dock 规则与周视图相同。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-band">
+    <h2><span class="bno">14</span>日历 · 时间槽三动作</h2>
+    <p>点日历空白槽（或长按事件）弹底部 sheet，三个动作语义严格分开：① 新建日程（写 Event time）② 安排待办（写 TaskAllocation）③ 新建并安排（一步写 allocation + 可附截止）。</p>
+    <div class="boards">
+      <div class="board">
+        <div class="phone">
+          <div class="screen">
+            <div class="statusbar" style="opacity:.55">
+              <span class="tnum">15:00</span>
+              <span class="sicons"><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="1" y="1" width="20" height="10" rx="3" stroke="currentColor" opacity=".45"/><rect x="3" y="3" width="14" height="6" rx="1.5" fill="currentColor"/></svg></span>
+            </div>
+            <div class="screen-body">
+              <div class="day-head" style="opacity:.55">
+                <div class="lhs"><span class="t1">11月15日 周日</span><span class="t2">今天 · 2026 年 11 月</span></div>
+              </div>
+              <div class="cal-view" style="opacity:.55">
+                <div class="week-head">
+                  <span class="gutter"></span>
+                  <span class="wd"><span>一</span><span class="num tnum">9</span></span>
+                  <span class="wd"><span>二</span><span class="num tnum">10</span></span>
+                  <span class="wd"><span>三</span><span class="num tnum">11</span></span>
+                  <span class="wd"><span>四</span><span class="num tnum">12</span></span>
+                  <span class="wd"><span>五</span><span class="num tnum">13</span></span>
+                  <span class="wd"><span>六</span><span class="num tnum">14</span></span>
+                  <span class="wd today"><span>日</span><span class="num tnum">15</span></span>
+                </div>
+                <div class="deadline-lane">
+                  <span class="dl-lbl">截止</span>
+                  <span class="dl"></span>
+                  <span class="dl"></span>
+                  <span class="dl"></span>
+                  <span class="dl"></span>
+                  <span class="dl"></span>
+                  <span class="dl"><span class="dchip tnum">18:00</span></span>
+                  <span class="dl"><span class="dchip tnum">12:00</span><span class="dchip tnum">18:00</span></span>
+                </div>
+                <div class="week-cols">
+                  <div class="guttercol">
+                    <div class="ht tnum"><span>12:00</span></div>
+                    <div class="ht tnum"><span>13:00</span></div>
+                    <div class="ht tnum"><span>14:00</span></div>
+                    <div class="ht tnum"><span>15:00</span></div>
+                    <div class="ht tnum"><span>16:00</span></div>
+                    <div class="ht tnum"><span>17:00</span></div>
+                  </div>
+                  <div class="wcol">
+                    <div class="wblock event cal-1" style="top:264px;height:44px">评审</div>
+                  </div>
+                  <div class="wcol"></div>
+                  <div class="wcol"></div>
+                  <div class="wcol"></div>
+                  <div class="wcol">
+                    <div class="wblock event cal-3" style="top:176px;height:88px">读书会</div>
+                  </div>
+                  <div class="wcol"></div>
+                  <div class="wcol">
+                    <div class="wblock event cal-2" style="top:220px;height:66px">牙医</div>
+                    <div class="wblock alloc" style="top:352px;height:88px">纪要</div>
+                    <div class="wblock event cal-3" style="top:484px;height:44px">钢琴课</div>
+                    <div class="nowline" style="top:264px"></div>
+                  </div>
+                </div></div>
+              </div>
+              <div class="slot-mask">
+                <div class="slot-sheet">
+                  <div class="grip"></div>
+                  <div class="sctx"><i class="dot"></i>11月15日 · 周日 · 18:00–19:00</div>
+                  <button class="srow a-event" type="button">
+                    <span class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>
+                    <span><span class="st">新建日程</span><span class="sd" style="display:block">日程时间就是 18:00–19:00</span></span>
+                  </button>
+                  <button class="srow a-todo" type="button">
+                    <span class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>
+                    <span><span class="st">安排待办</span><span class="sd" style="display:block">从「未安排」选一条，计划执行 18:00–19:00</span></span>
+                    <span class="scheck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></span>
+                  </button>
+                  <button class="srow a-both" type="button">
+                    <span class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+                    <span><span class="st">新建并安排</span><span class="sd" style="display:block">新待办 + 计划执行 18:00–19:00（可附截止）</span></span>
+                  </button>
+                </div>
+              </div>
+              <div class="dock" style="visibility:hidden">
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg></span>今天</span>
+                <span class="tab on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg></span>日历</span>
+                <span class="tab"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5 6.5 10 11 5.5M4 16.5 6.5 19 11 14.5"/><path d="M13.5 8.5H20M13.5 15.5H20"/></svg></span>待办</span>
+              </div>
+            </div>
+            <div class="homebar-wrap" style="visibility:hidden"><span class="homebar"></span></div>
+          </div>
+        </div>
+        <div class="board-note"><span class="tag">拍板</span>「安排待办」进二级 sheet：列出当天「未安排」项（带截止的排在最前），选一条 = 写 TaskAllocation 到该槽；「新建并安排」打开 composer 且<b>预填</b>该槽 start/end（这是唯一会预填时段的入口，区别于 09 的纯捕获路径）。三动作 icon 取 ink-2 线性图标（Direction C 的 ListTile 画法，不做彩色瓷砖）。</div>
+      </div>
+    </div>
+</div>
+</body>
+</html>
