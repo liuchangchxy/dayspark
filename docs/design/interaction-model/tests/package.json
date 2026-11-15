@@ -1,16 +1,17 @@
 {
-  "name": "tests",
+  "name": "dayspark-interaction-model-tests",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "Real-browser tests for the DaySpark interaction-model prototype",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node smoke.js && node interactions.js && node surfaces.js",
+    "smoke": "node smoke.js",
+    "interactions": "node interactions.js",
+    "surfaces": "node surfaces.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
-    "playwright-core": "^1.56.1"
+    "playwright-core": "1.56.1"
   }
 }
