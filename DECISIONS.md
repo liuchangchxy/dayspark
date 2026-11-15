@@ -18,6 +18,17 @@
 
 ## 历史决策流
 
+### [2026-11-15] A″ 定稿落地与四处范围裁定
+- **触发背景**：用户要求把已确认的 A″（`docs/CORE_UX_SPEC.md` §16 + OpenDesign 定稿）完整实现到生产代码，并按整页对照验收；定稿本身在三个地方没有给出可执行答案。
+- **核心决策**：
+  1. **版本定 0.33.0+33**（feature 改 x）：0.32.0 是"回滚"这一已发生的版本条目，不回退编号；本轮是同一特性的重新实现，另起 minor。
+  2. **手机日历三视图互相可达**：定稿只用头部图标表达"切日/切周"，没有月→周/日入口；按模式给图标（月：周/今天/设置；周：日/月/今天；日：周/月/今天），保留定稿的图标语言与数量上限。
+  3. **TaskAllocation 的 UTC 存储在日历适配层单点转本地**：写入侧为同步保留绝对瞬时，读取侧所有"墙上时钟"消费必须 `toLocal()`；不在写入侧改，避免动同步协议。
+  4. **英文文案服从版式**：`capturePlaceholder` 缩为 "Capture · Enter files it unplanned"、"All" 视图的无截止分组由 "Unplanned · no due date" 改为 "No deadline"（该桶里可能含已计划项，旧名与领域语义冲突）。
+  5. **今日"今天截止"行不重复「未安排执行时段」**：定稿该位在中文里成立，英文在 245px 的 meta 行会挤掉截止时间或 chip；保留「去安排」chip 表达同一动作。
+- **对应 SPEC 章节**：SPEC 规则 20、`docs/CORE_UX_SPEC.md` §16
+- **影响范围**：`lib/ui/pages/calendar/a2_calendar_page.dart`、`lib/domain/models/task_allocation_calendar_adapter.dart`、`lib/l10n/app_{en,zh}.arb`、`lib/ui/pages/home/today_page.dart`、`pubspec.yaml` 与版本标记文档
+
 ### [2026-11-09] 重写过期原生交互测试
 - **触发背景**：用户明确要求重写旧 `integration_test/app_test.dart`；其 FAB、旧导航和版本文案已不符合现行产品。
 - **核心决策**：移除过期断言，以快速添加、日期浏览和宽屏详情三条真实 App 流程替换；其他行为继续由现有 Widget / Journey 测试覆盖，不扩展本轮原生流程范围。

@@ -12,7 +12,8 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/pages/home/action_section.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/pages/home/today_page.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -314,7 +315,23 @@ void main() {
       // 5. Action projection UI execution: complete through Action UI
       // -------------------------------------------------------------
       await tester.pumpWidget(
-        _wrapWithScope(container: container, child: const ActionSection()),
+        _wrapWithScope(
+          container: container,
+          child: A2TodayPage(
+            now: slotStart,
+            onOpenTodo: (_) {},
+            onOpenEvent: (_) {},
+            onToggleTodo: (todo, occurrenceId, completed) => container.read(
+              toggleTodoProvider,
+            )(
+              id: todo.id,
+              isCompleted: completed,
+              occurrenceId: occurrenceId,
+            ),
+            onOpenUnplanned: () {},
+            onScheduleTodo: (_) {},
+          ),
+        ),
       );
       for (var i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 50));
@@ -322,9 +339,12 @@ void main() {
 
       expect(find.text('Daily Sprint Standup'), findsWidgets);
 
-      // The series' pending instance is a row in the mobile sheet; its
-      // completion circle is the Action surface's tick target.
-      final instanceCheck = find.byKey(ValueKey('action-complete-$seriesId'));
+      // The series' pending instance is a block on the day's timeline; its
+      // completion circle is the tick target.
+      final instanceCheck = find.byWidgetPredicate(
+        (widget) =>
+            widget is DsCheck && widget.label == 'Daily Sprint Standup',
+      );
       expect(instanceCheck, findsOneWidget);
       await tester.tap(instanceCheck);
       await tester.pumpAndSettle();

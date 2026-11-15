@@ -15,8 +15,13 @@ class TaskAllocationCalendarAdapter {
     id: item.allocation.id,
     todoId: item.todo.id,
     todoTitle: item.todo.summary,
-    start: item.allocation.startAt,
-    end: item.allocation.endAt,
+    // The writer stores allocation spans as UTC instants (events keep local
+    // wall time), and every calendar surface compares and prints wall-clock
+    // fields: without this the block was drawn in the right slot but labelled
+    // with the UTC hour, and any plan before 08:00 local fell on the day
+    // before.
+    start: item.allocation.startAt.toLocal(),
+    end: item.allocation.endAt.toLocal(),
   );
 
   final int id;

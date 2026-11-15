@@ -105,3 +105,6 @@ design/opendesign/todo-mobile-v030/concept-a/
 design/opendesign/todo-mobile-v030/concept-b/
 design/opendesign/todo-mobile-v030/concept-c/
 design/opendesign/todo-mobile-v030/final/
+
+# Playwright CLI session artifacts
+.playwright-cli/

@@ -1925,4 +1925,232 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get other => '其他';
+
+  @override
+  String get capturePlaceholder => '记一笔 · 回车直接进「未安排」';
+
+  @override
+  String get captureHintEnter => '⏎ 进未安排';
+
+  @override
+  String get captureHintSubmit => '加入';
+
+  @override
+  String get captureAddedToast => '已加入「未安排」· 继续输入';
+
+  @override
+  String get justAddedLabel => '刚加入';
+
+  @override
+  String groupCountItems(int count) {
+    return '$count 项';
+  }
+
+  @override
+  String expandRemaining(int count) {
+    return '还有 $count 项 · 展开全部';
+  }
+
+  @override
+  String get collapseLabel => '收起';
+
+  @override
+  String get sectionNow => '现在';
+
+  @override
+  String get sectionUpcoming => '接下来';
+
+  @override
+  String get sectionDueToday => '今天截止';
+
+  @override
+  String get sectionOverdueLabel => '已逾期';
+
+  @override
+  String get scheduleAction => '去安排';
+
+  @override
+  String get noExecutionSlot => '未安排执行时段';
+
+  @override
+  String plannedRangeLabel(String range) {
+    return '计划执行 $range';
+  }
+
+  @override
+  String plannedShortRangeLabel(String range) {
+    return '计划 $range';
+  }
+
+  @override
+  String dueValueLabel(String value) {
+    return '截止 $value';
+  }
+
+  @override
+  String dueTodayTimeLabel(String time) {
+    return '截止今天 $time';
+  }
+
+  @override
+  String get allDayLabel => '全天';
+
+  @override
+  String get emptyTodayTitle => '今天还没有安排';
+
+  @override
+  String get emptyTodayHint => '想好的事随时记下来，回车直接进「未安排」';
+
+  @override
+  String get emptyUnplannedTitle => '未安排里什么都没有';
+
+  @override
+  String get emptyUnplannedHint => '捕获一条，回车就进这里';
+
+  @override
+  String get emptyDateTitle => '这一天还没有安排';
+
+  @override
+  String get emptyDateHint => '用下面的「安排到这一天」加一条';
+
+  @override
+  String get allDueTodaySection => '今天截止';
+
+  @override
+  String get allPastDueSection => '已过截止';
+
+  @override
+  String get allLaterSection => '之后';
+
+  @override
+  String get allUnplannedNoDueSection => '无截止';
+
+  @override
+  String get withDueUnplannedSection => '带截止 · 未安排';
+
+  @override
+  String get noDueSection => '无截止';
+
+  @override
+  String get datePlannedSection => '计划执行';
+
+  @override
+  String get dateDueSection => '截止';
+
+  @override
+  String get dateEventsSection => '事件';
+
+  @override
+  String todoUnplannedContext(int count, int withDue) {
+    return '$count 项 · 含 $withDue 项带截止';
+  }
+
+  @override
+  String todoAllSummary(int count, int active) {
+    return '$count 项 · 进行中 $active';
+  }
+
+  @override
+  String get byDateTitle => '按日期';
+
+  @override
+  String get byDateContext => '待办 · 与日历共享浏览日期';
+
+  @override
+  String get planThisDay => '安排到这一天';
+
+  @override
+  String planToDate(String date) {
+    return '安排到 $date';
+  }
+
+  @override
+  String inDaysCount(int count) {
+    return '$count 天后';
+  }
+
+  @override
+  String yearMonthTitle(String year, String month) {
+    return '$year 年 $month';
+  }
+
+  @override
+  String get yearLabel => '年';
+
+  @override
+  String get composerPlaceholder => '要做什么？';
+
+  @override
+  String get saveToUnplanned => '保存到未安排';
+
+  @override
+  String savePlannedTo(String date) {
+    return '计划执行到 $date';
+  }
+
+  @override
+  String saveWithDueDate(String date) {
+    return '保存（截止 $date）';
+  }
+
+  @override
+  String get composerHintNoSlot => '不选时段直接保存，这条会进「未安排」。';
+
+  @override
+  String get composerHintAlloc => '这是「计划执行」，不是截止；需要截止请单独设置。';
+
+  @override
+  String get composerHintDue => '截止 = 最晚完成时间，过了算逾期；计划执行 = 你选定的执行时段。';
+
+  @override
+  String get composerNoSlot => '未选择时段';
+
+  @override
+  String get composerUnset => '未设置';
+
+  @override
+  String get composerCustomSlot => '自定…';
+
+  @override
+  String get moreActions => '更多';
+
+  @override
+  String weekNumberLabel(int week) {
+    return '第 $week 周';
+  }
+
+  @override
+  String get daySegmentLabel => '日';
+
+  @override
+  String get captureQuickAddLabel => '记一笔';
+
+  @override
+  String get calendarTodayHint => '回到今天';
+
+  @override
+  String get unplannedGroupEmpty => '没有未安排的待办';
+
+  @override
+  String get pickDateHint => '选择日期';
+
+  @override
+  String get moreItemsHint => '更多';
+
+  @override
+  String get startPlanning => '去安排';
+
+  @override
+  String eventCountLabel(int count) {
+    return '$count';
+  }
+
+  @override
+  String get composerOptional => '可选';
+
+  @override
+  String get previousDay => '前一天';
+
+  @override
+  String get nextDay => '后一天';
 }

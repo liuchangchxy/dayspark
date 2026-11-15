@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show OrderingTerm, Value;
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -136,9 +136,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('drag reorder moves a row and keeps every row visible', (
-    tester,
-  ) async {
+  testWidgets('deadline rows keep the stored order', (tester) async {
     await _seedTodayTodos(db, pendingCount: 8);
     tester.view.physicalSize = const Size(900, 1400);
     tester.view.devicePixelRatio = 1.0;
@@ -146,36 +144,17 @@ void main() {
 
     await tester.pumpWidget(_app(db));
     await _settle(tester);
-    expect(find.text('Task 0'), findsOneWidget);
 
-    // Long-press drag (ReorderableDelayedDragStartListener on touch
-    // platforms) moves Task 0 one slot down.
-    final dragDistance =
-        (tester.getCenter(find.text('Task 1')).dy -
-            tester.getCenter(find.text('Task 0')).dy) *
-        1.2;
-    final gesture = await tester.startGesture(
-      tester.getCenter(find.text('Task 0')),
-    );
-    await tester.pump(const Duration(milliseconds: 700));
-    for (var i = 0; i < 10; i++) {
-      await gesture.moveBy(Offset(0, dragDistance / 10));
-      await tester.pump(const Duration(milliseconds: 30));
+    // The list has no drag affordance in A″; order comes from `sortOrder`,
+    // and the day view must render it top to bottom without reshuffling.
+    var previousTop = double.negativeInfinity;
+    for (var i = 0; i < 8; i++) {
+      final row = find.text('Task $i');
+      expect(row, findsOneWidget);
+      final top = tester.getTopLeft(row).dy;
+      expect(top, greaterThan(previousTop), reason: 'Task $i stays in place');
+      previousTop = top;
     }
-    await tester.pump(const Duration(milliseconds: 300));
-    await gesture.up();
-    await _settle(tester);
-
-    final rows =
-        await (db.select(db.todos)..orderBy([
-              (t) => OrderingTerm.asc(t.sortOrder),
-            ]))
-            .get();
-    expect(rows.first.summary, 'Task 1');
-    expect(rows[1].summary, 'Task 0');
-    expect(rows[2].summary, 'Task 2');
-    expect(rows.last.summary, 'Task 7');
-    expect(find.text('Task 7'), findsOneWidget);
     await _unmount(tester);
   });
 

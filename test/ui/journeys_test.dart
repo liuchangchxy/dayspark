@@ -14,7 +14,6 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
@@ -84,15 +83,22 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
+    // Every capture lands somewhere; the product always has a calendar.
+    await db
+        .into(db.calendars)
+        .insert(CalendarsCompanion.insert(name: 'Personal'));
+
     await start(tester);
 
-    await tester.tap(find.byKey(const ValueKey('workspace-create-todo')));
+    await tester.tap(find.text('Capture').first);
     await _settle(tester);
+    expect(find.byKey(const ValueKey('a2-composer-title')), findsOneWidget);
     await tester.enterText(
-      find.byKey(const ValueKey('todo-quick-create-title')),
+      find.byKey(const ValueKey('a2-composer-title')),
       'Book the flights',
     );
-    await tester.tap(find.widgetWithText(DsButton, 'Save'));
+    await tester.pump();
+    await tester.tap(find.text('Save to Unplanned'));
     await _settle(tester);
 
     final created = (await db.select(db.todos).get()).single;

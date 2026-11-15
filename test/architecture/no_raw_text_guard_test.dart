@@ -22,8 +22,6 @@ const Map<String, String> _allowlist = {
   'lib/core/l10n/locale_aware_rrule_delegate.dart':
       'rrule_generator 的 RRuleTextDelegate 只收裸字符串（第三方接口限制），'
           '故中英两套在此内联并由 _isChinese 选取——见 docs/CONSTRAINTS.md',
-  'lib/ui/widgets/calendar/marked_month_day_header.dart':
-      '节气名是 lunar 包的返回值（数据键），值走 l10n 的 termXxx——查表输入不是文案',
   'lib/ui/pages/todo/quick_add_page.dart':
       '自然语言解析器的中文匹配式（“半个?小时”“分钟”“明天”“下午”等）是输入语法，'
           '不是界面文案；它们要匹配的就是用户敲进来的中文，不能也不该走字典',

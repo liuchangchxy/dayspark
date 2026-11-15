@@ -10,7 +10,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
-import 'package:dayspark/ui/pages/home/action_section.dart';
+import 'package:dayspark/ui/pages/home/today_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 
@@ -280,10 +280,13 @@ void main() {
       await tester.pumpWidget(
         _wrapWithScope(
           container: container,
-          child: ActionSection(
-            date: actionDay,
-            now: now,
-            onTodoTap: (todo) => opened = todo,
+          child: A2TodayPage(
+            now: slotStart,
+            onOpenTodo: (todo) => opened = todo,
+            onOpenEvent: (_) {},
+            onToggleTodo: (_, __, ___) async {},
+            onOpenUnplanned: () {},
+            onScheduleTodo: (_) {},
           ),
         ),
       );
@@ -291,9 +294,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      // The allocation is drawn as one titled block and counted in the head.
+      // The allocation is drawn as exactly one titled block on the timeline.
       expect(find.text('Ship Action Loop Foundation'), findsOneWidget);
-      expect(find.text('1 events'), findsOneWidget);
 
       // Tapping the block routes to the todo's detail, exactly as the page's
       // onTodoTap wiring does.

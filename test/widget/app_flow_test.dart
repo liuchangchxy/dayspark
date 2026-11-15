@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/pages/about/about_page.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
@@ -72,7 +73,10 @@ void main() {
   testWidgets('home page renders', (tester) async {
     await _pumpApp(tester);
 
-    expect(find.byKey(const ValueKey('workspace-create')), findsOneWidget);
+    // The dock carries the three destinations; there is no floating create
+    // button — capture is the row at the bottom of the page.
+    expect(find.byKey(const ValueKey('mobile-tab-bar')), findsOneWidget);
+    expect(find.byKey(const ValueKey('today-capture-field')), findsOneWidget);
     expect(find.text('Today'), findsWidgets);
     expect(find.text('Calendar'), findsWidgets);
     expect(find.text('Tasks'), findsWidgets);
@@ -81,48 +85,28 @@ void main() {
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
 
-  testWidgets('create entry on Today asks which object to create', (
-    tester,
-  ) async {
+  testWidgets('the calendar month grid offers a create slot', (tester) async {
     await _pumpApp(tester);
 
-    await tester.tap(find.byKey(const ValueKey('workspace-create')));
+    await tester.tap(find.text('Calendar').last);
     await _settle(tester);
 
-    expect(find.text('New'), findsWidgets);
-    expect(find.text('Tasks'), findsWidgets);
-    expect(find.text('New Event'), findsWidgets);
-
-    await tester.tap(find.text('Tasks').last);
-    await _settle(tester);
-    expect(
-      find.byKey(const ValueKey('todo-quick-create-title')),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('create entry opens event create on calendar tab', (
-    tester,
-  ) async {
-    await _pumpApp(tester);
-
-    await tester.tap(find.text('Calendar'));
+    // The month grid is the one surface with a creation affordance.
+    await tester.tap(find.byTooltip('Month').first);
     await _settle(tester);
 
-    await tester.tap(find.byKey(const ValueKey('workspace-create')));
+    await tester.tap(find.byType(A2Fab));
     await _settle(tester);
 
     expect(find.text('New Event'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+    expect(find.text('Schedule Task'), findsOneWidget);
   });
 
   testWidgets('event create has form fields', (tester) async {
     await _pumpApp(tester);
 
-    await tester.tap(find.text('Calendar'));
-    await _settle(tester);
-
-    await tester.tap(find.byKey(const ValueKey('workspace-create')));
+    final router = GoRouter.of(tester.element(find.byType(HomePage)));
+    router.go('/event/new');
     await _settle(tester);
 
     expect(find.text('Start'), findsOneWidget);
