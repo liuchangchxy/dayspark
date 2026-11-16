@@ -417,3 +417,23 @@ Close-out re-verification: D, E and the Integrator re-check the fixes above agai
 them; A, G and I stay PASS at `03cd553` because the diff that follows touches calendar, composer, store row
 delete and the menu only. F, B, C, H, J stay frozen at PASS.
 
+#### Round-7 delta re-verification
+
+| Commit | Domain | Verdict | Notes |
+|---|---|---|---|
+| `7b2946c` | D | PASS | the reveal P2 closed; portrait control row intact, landscape offsets preserved |
+| `6372f83` | D | PASS | menu closes only when its anchor moves; D-28 holds on desktop and phone; only the recorded fold P2 remains |
+| `6372f83` | E | PASS | type chrome, refused-slot label, preset rule shape, footer at 900/901/1100/1440, 118 checks, zero findings |
+| `6372f83` | Integrator | PASS | three P1s and the 900px overflow fixed; J1–J9 pass on phone and desktop; one P2 (detail label) |
+| `9118cb0` | Integrator | pending | the detail history label |
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| INT-R7-5 (P2) | The detail called a surviving started block 完成时失效, the label a genuinely invalidated block gets | the history row labelled by "not live", which covers both cases | the label names the state: 已开始 · 历史 / 完成时失效 / 已取消, through the dictionary | r12-88 | fixed |
+
+Ruling disclosed (E, not a finding): opening the Event composer and switching to 待办 keeps the full form
+rather than collapsing to Quick Create. D-12 says Quick Create is the *default* new-Todo form, and this form was
+opened as a scheduled Event; D-29 governs the four type labels, all of which are correct. No frozen rule is
+touched, so the behaviour stands.
+
+
