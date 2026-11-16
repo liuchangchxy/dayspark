@@ -511,6 +511,9 @@ scenario('mobile: swiping a row left deletes it with an undo path', async (brows
   }, target.id);
   assert(res, 'swipe dispatch failed');
   await settle(touchPage, 500);
+  assert(await exists(touchPage, '.modal.confirm'), 'a swipe delete must ask once (D-10)');
+  await touchPage.click('.modal.confirm .btn.danger');
+  await settle(touchPage, 300);
   const s2 = await state(touchPage);
   assert(s2.todos.find((t) => t.id === target.id).deletedAt, 'swiping left should delete the row');
   assert(await exists(touchPage, '#toast .undo'), 'swipe delete must offer undo');

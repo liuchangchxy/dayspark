@@ -126,7 +126,7 @@
         'aria-label': U.fmtMonthDay(d) + ' ' + U.fmtWeekdayLong(d),
       });
       const events = S.eventsOnDay(d);
-      const allocs = S.allocationsOnDay(d);
+      const allocs = S.allocationsOnDay(d, { history: true });
       // A recurring series owns one deadline per occurrence day, and a finished
       // occurrence is not an open deadline — the cell must agree with the lane.
       const due = [];
@@ -147,7 +147,7 @@
 
       const items = [];
       events.forEach((e) => items.push({ kind: 'evt', label: e.summary, color: S.calendarColor(e.calendarId), time: e.isAllDay ? '' : U.fmtTime(e.startDt), data: e }));
-      allocs.forEach((x) => items.push({ kind: 'alloc', label: S.todoById(x.todoId) ? S.todoById(x.todoId).summary : '', time: U.fmtTime(x.startAt), data: x }));
+      allocs.forEach((x) => items.push({ kind: 'alloc', label: S.todoById(x.todoId) ? S.todoById(x.todoId).summary : '', time: U.fmtTime(x.startAt), data: x, history: S.isAllocationHistory(x) }));
       due.forEach((x) => items.push({ kind: 'due', label: x.todo.summary, time: U.fmtClockNoMidnight(x.due), data: x.todo }));
 
       if (U.isNarrow()) {
@@ -179,7 +179,7 @@
 
       const max = 3;
       items.slice(0, max).forEach((it) => {
-        const chip = U.el('span', { class: 'month-event ' + it.kind });
+        const chip = U.el('span', { class: 'month-event ' + it.kind + (it.history ? ' history' : '') });
         if (it.color) chip.style.setProperty('--c', it.color);
         chip.innerHTML = `<span class="dot" style="background:${it.color || (it.kind === 'alloc' ? 'var(--violet)' : 'var(--amber)')}"></span><span style="overflow:hidden;text-overflow:ellipsis">${U.esc(it.time ? it.time + ' ' : '')}${U.esc(it.label)}</span>`;
         cell.appendChild(chip);
@@ -374,7 +374,7 @@
       const foldMin = dayStart() * 60;
       const events = S.eventsOnDay(d).filter((e) => !e.isAllDay)
         .filter((e) => S.state.dawnOpen || ((e.endDt - U.startOfDay(d)) / U.MS_MIN) > foldMin);
-      const allocs = S.allocationsOnDay(d)
+      const allocs = S.allocationsOnDay(d, { history: true })
         .filter((a) => S.state.dawnOpen || ((a.endAt - U.startOfDay(d)) / U.MS_MIN) > foldMin);
       const evItems = events.map((e) => ({ s: e.startDt, e: e.endDt, raw: e }));
       const allocItems = allocs.map((x) => ({ s: x.startAt, e: x.endAt, raw: x }));
@@ -534,9 +534,11 @@
 
   function allocBlock(a, day, pos, hh) {
     const todo = S.todoById(a.todoId);
+    const history = S.isAllocationHistory(a);
     const p = blockPosition(a.startAt, a.endAt, day, hh, pos);
-    const node = U.el('button', { class: 'block alloc', 'data-testid': 'alloc-block' });
+    const node = U.el('button', { class: 'block alloc' + (history ? ' history' : ''), 'data-testid': 'alloc-block' });
     node.dataset.id = String(a.id);
+    node.dataset.history = history ? '1' : '0';
     node.style.top = p.top + 'px';
     node.style.height = p.height + 'px';
     if (pos.cols > 1) {
@@ -548,13 +550,16 @@
     node.innerHTML = `<div class="bt">${U.esc(todo ? todo.summary : '')}</div><div class="bm">${U.esc(t('scheduled'))} · ${U.esc(U.fmtTimeRange(a.startAt, a.endAt))}</div>`;
     if (p.height < 34) node.classList.add('short');
     if (U.isNarrow() && p.height < 96) node.classList.add('no-resize');
-    const resize = U.el('div', { class: 'resize' });
-    node.appendChild(resize);
-    attachBlockDrag(node, resize, { kind: 'alloc', data: a, day, hh, top: p.top, height: p.height });
     node.addEventListener('click', (ev) => {
       if (node.dataset.moved === '1') { node.dataset.moved = '0'; return; }
       if (todo) openTodo(todo, day);
     });
+    // History is read-only on the grid: the block records what happened, and
+    // there is nothing to reschedule on an occurrence that is already complete.
+    if (history) return node;
+    const resize = U.el('div', { class: 'resize' });
+    node.appendChild(resize);
+    attachBlockDrag(node, resize, { kind: 'alloc', data: a, day, hh, top: p.top, height: p.height });
     node.addEventListener('contextmenu', (ev) => {
       ev.preventDefault();
       blockMenu(node, { kind: 'alloc', data: a, todo });

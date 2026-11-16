@@ -2339,6 +2339,225 @@ scenario('R12-86 the portrait calendar keeps its control row on first paint', as
   await page.__ctx.close();
 });
 
+/* G-R7-5 — the type switch rewrites its own chrome */
+scenario('R12-87 switching type rewrites the header, the segment and the hint', async (browser) => {
+  for (const narrow of [false, true]) {
+    const page = await newPage(browser, narrow ? MOBILE : DESKTOP, narrow);
+    await page.evaluate(() => window.App.openComposer('todo', { mode: 'create' }));
+    await settle(page, 300);
+    const before = await page.evaluate(() => ({
+      title: document.querySelector('.composer-head .title').textContent,
+      hint: document.querySelector('.type-hint').textContent,
+    }));
+    await clickTestId(page, 'composer-type-event');
+    await settle(page, 300);
+    const after = await page.evaluate(() => {
+      const seg = (k) => document.querySelector('[data-testid="composer-type-' + k + '"]');
+      return {
+        title: document.querySelector('.composer-head .title').textContent,
+        hint: document.querySelector('.type-hint').textContent,
+        todoOn: seg('todo').classList.contains('on'),
+        todoPressed: seg('todo').getAttribute('aria-pressed'),
+        eventOn: seg('event').classList.contains('on'),
+        eventPressed: seg('event').getAttribute('aria-pressed'),
+        kind: window.Store.state.composerDraft && window.Store.state.composerDraft.kind,
+        hasTime: !!document.querySelector('[data-testid="composer-start-date"]'),
+      };
+    });
+    assert(after.title !== before.title, 'the header must name the new type: ' + before.title + ' -> ' + after.title);
+    assert(after.hint !== before.hint, 'the hint must follow the type');
+    assert(after.eventOn && after.eventPressed === 'true', 'the chosen segment must be on');
+    assert(!after.todoOn && after.todoPressed === 'false', 'the old segment must be off');
+    assertEq(after.kind, 'event', 'the draft must be an event');
+    assert(after.hasTime, 'an event form must show its time field');
+    await clickTestId(page, 'composer-type-todo');
+    await settle(page, 300);
+    const back = await page.evaluate(() => ({
+      title: document.querySelector('.composer-head .title').textContent,
+      hint: document.querySelector('.type-hint').textContent,
+      todoOn: document.querySelector('[data-testid="composer-type-todo"]').classList.contains('on'),
+    }));
+    assertEq(back.title, before.title, 'switching back must restore the header');
+    assertEq(back.hint, before.hint, 'switching back must restore the hint');
+    assert(back.todoOn, 'switching back must select 待办');
+    assertNoErrors(page);
+    await page.__ctx.close();
+  }
+});
+
+/* I-R7-1 / D-11 — a started block stays on the calendar as history */
+scenario('R12-88 a completed occurrence keeps its started block as history', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await setClock(page, 10, 0);
+  const setup = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const todo = window.Store.createTodo({
+      summary: '历史记录块', dueDate: day,
+      recurrence: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' },
+    });
+    const occ = window.Store.occurrenceIdFor(todo, day);
+    const s = new Date(day); s.setHours(8, 0, 0, 0);
+    const a = window.Store.createAllocation({ todoId: todo.id, startAt: s, endAt: new Date(s.getTime() + 3600000), occurrenceId: occ });
+    return { id: todo.id, allocId: a.id, occ };
+  });
+  const countItems = () => page.evaluate(() => {
+    const cell = Array.from(document.querySelectorAll('.month-cell')).find((c) => c.classList.contains('today'));
+    const label = cell ? cell.getAttribute('aria-label') : '';
+    const n = label.split('·').pop();
+    return { label, count: parseInt(n, 10) };
+  });
+  await go(page, 'calendar');
+  await clickTestId(page, 'cal-view-month');
+  await settle(page, 450);
+  const before = await countItems();
+  const completed = await page.evaluate(({ id, occ }) => {
+    window.Store.completeTodo(id, { occurrenceId: occ });
+    return true;
+  }, setup);
+  assert(completed, 'the occurrence must complete');
+  await settle(page, 350);
+  const after = await countItems();
+  assert(after.count === before.count - 1, 'only the deadline leaves the cell; the started block stays: ' + before.label + ' -> ' + after.label);
+  const stored = await page.evaluate(({ id, allocId, occ }) => {
+    const a = window.Store.state.allocations.find((x) => x.id === allocId);
+    return {
+      state: a.state,
+      history: window.Store.isAllocationHistory(a),
+      live: window.Store.isAllocationLive(a),
+      done: !!window.Store.occurrenceState(window.Store.todoById(id), occ).completedAt,
+    };
+  }, setup);
+  assertEq(stored.state, 'active', 'the started block must stay active in the data');
+  assert(stored.done, 'the occurrence must be complete');
+  assert(stored.history && !stored.live, 'the block must be history, not current work: ' + JSON.stringify(stored));
+  await clickTestId(page, 'cal-view-day');
+  await settle(page, 450);
+  const grid = await page.evaluate((allocId) => {
+    const b = document.querySelector(`[data-testid="alloc-block"][data-id="${allocId}"]`);
+    if (!b) return null;
+    return {
+      history: b.dataset.history,
+      cls: b.className,
+      resize: !!b.querySelector('.resize'),
+      cursor: getComputedStyle(b).cursor,
+    };
+  }, setup.allocId);
+  assert(grid, 'the history block must be drawn on the calendar (D-11)');
+  assertEq(grid.history, '1', 'the block must be marked as history');
+  assert(/history/.test(grid.cls), 'the block must carry the history style');
+  assert(!grid.resize, 'a history block has no resize handle');
+  assertEq(grid.cursor, 'default', 'a history block is not draggable');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R7-1 — the label never promises a slot the save refuses */
+scenario('R12-89 a refused slot is not promised by the save label', async (browser) => {
+  const page = await newPage(browser, DESKTOP);
+  await page.evaluate(() => window.App.openComposer('todo', { mode: 'create' }));
+  await settle(page, 300);
+  await page.evaluate(() => {
+    const t = document.querySelector('[data-testid="composer-title"]');
+    t.value = '规则外时段';
+    t.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  if (!(await page.$('[data-testid="composer-repeat"]'))) await clickTestId(page, 'composer-more');
+  await clickTestId(page, 'composer-repeat');
+  await settle(page, 300);
+  await clickText(page, '[data-testid="repeat-option"]', '每周');
+  await settle(page, 300);
+  await clickTestId(page, 'composer-schedule');
+  await settle(page, 300);
+  await page.evaluate(() => {
+    const d = window.U.addDays(window.U.startOfDay(window.U.now()), 1);
+    d.setHours(9, 0);
+    const s = document.querySelector('[data-testid="schedule-start"]');
+    s.value = window.U.toInputDateTime(d);
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await clickTestId(page, 'schedule-apply');
+  await settle(page, 350);
+  const out = await page.evaluate(() => {
+    const btn = document.querySelector('[data-testid="composer-save"]');
+    const err = document.querySelector('.hint-box.error');
+    return { disabled: btn.disabled, label: btn.textContent, err: err && !err.hidden ? err.textContent : '' };
+  });
+  assert(out.disabled, 'a slot outside the rule must disable the save: ' + JSON.stringify(out));
+  assert(/发生日|occurrence/i.test(out.err), 'the refusal must name the reason: ' + out.err);
+  assert(!/执行|Scheduled/i.test(out.label), 'the label must not promise the refused slot: ' + out.label);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R7-2 — an Event rule carries the Event shape from every preset */
+scenario('R12-90 every event repeat preset writes an event-shaped rule', async (browser) => {
+  const page = await newPage(browser, DESKTOP);
+  await page.evaluate(() => window.App.openComposer('event', { mode: 'create' }));
+  await settle(page, 300);
+  await clickTestId(page, 'composer-repeat');
+  await settle(page, 300);
+  const labels = await page.$$eval('[data-testid="repeat-option"]', (els) => els.map((e) => e.textContent.trim()));
+  assert(labels.length >= 6, 'the repeat sheet must list every preset: ' + labels.length);
+  for (let i = 2; i < labels.length; i++) {
+    await page.$$eval('[data-testid="repeat-option"]', (els, k) => els[k].click(), i);
+    await settle(page, 250);
+    const rec = await page.evaluate(() => window.Store.state.composerDraft.recurrence);
+    assert(rec, 'preset ' + labels[i] + ' must write a rule');
+    assertEq(rec.anchor, 'start', 'an Event rule must anchor on its start (' + labels[i] + ')');
+    assertEq(rec.valueType, 'localDateTime', 'an Event rule is a local date-time (' + labels[i] + ')');
+    await clickTestId(page, 'composer-repeat');
+    await settle(page, 250);
+  }
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R7-1 — a menu follows its own anchor, not every scroller */
+scenario('R12-91 an unrelated scroll leaves the block menu alone', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const s = new Date(d); s.setHours(9, 0, 0, 0);
+    window.Store.createEvent({ summary: '菜单锚点', startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    for (let i = 0; i < 6; i++) {
+      window.Store.createTodo({ summary: '截止' + i, dueDate: d });
+    }
+    window.App.go('calendar', { view: 'day' });
+  });
+  await settle(page, 450);
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('菜单锚点'));
+    const r = b.getBoundingClientRect();
+    b.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 8, clientY: r.top + 8 }));
+  });
+  await settle(page, 250);
+  assert(await page.evaluate(() => !!document.querySelector('.menu')), 'the menu must open');
+  const moved = await page.evaluate(() => {
+    const rail = document.querySelector('.deadline-lane .lane-rail');
+    const block = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('菜单锚点'));
+    const before = block.getBoundingClientRect();
+    if (rail) rail.scrollLeft = 40;
+    const after = block.getBoundingClientRect();
+    return { scrolled: rail ? rail.scrollLeft : -1, dx: Math.round(after.left - before.left), dy: Math.round(after.top - before.top) };
+  });
+  await settle(page, 250);
+  const kept = await page.evaluate(() => !!document.querySelector('.menu'));
+  if (moved.dx === 0 && moved.dy === 0) {
+    assert(kept, 'a scroll that does not move the anchor must not close the menu: ' + JSON.stringify(moved));
+  }
+  const closed = await page.evaluate(() => {
+    const grid = document.querySelector('[data-testid="time-scroll"]');
+    grid.scrollTop += 120;
+    return true;
+  });
+  await settle(page, 250);
+  assert(closed, 'the grid scroll must run');
+  const gone = await page.evaluate(() => !document.querySelector('.menu'));
+  assert(gone, 'a scroll that moves the anchor must close the menu');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
 /* G-R6-2 / G-R6-3 — a merged rule's end date is a date everywhere */
 scenario('R12-77 a merged rule with an end date opens and edits', async (browser) => {
   const page = await newPage(browser);

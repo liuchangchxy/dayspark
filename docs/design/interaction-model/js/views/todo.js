@@ -283,11 +283,22 @@
     UI.menu(anchor, items);
   }
 
-  function deleteTodo(todo) {
-    S.softDeleteTodo(todo.id);
-    App.render();
-    UI.toast(t('deletedToast', { t: todo.summary }), {
-      undo: () => { S.restoreTodo(todo.id); App.render(); },
+  // D-10: a delete asks once and then offers undo. A row menu and a swipe are
+  // deliberate, but they are not the question — the same gate the detail and
+  // the batch bar use answers it here too.
+  function deleteTodo(todo, onCancel) {
+    UI.confirm({
+      title: t('moveToTrash'),
+      message: t('moveToTrashBody', { t: todo.summary }),
+      danger: true,
+      confirmText: t('moveToTrash'),
+    }).then((ok) => {
+      if (!ok) { if (onCancel) onCancel(); return; }
+      S.softDeleteTodo(todo.id);
+      App.render();
+      UI.toast(t('deletedToast', { t: todo.summary }), {
+        undo: () => { S.restoreTodo(todo.id); App.render(); },
+      });
     });
   }
 
@@ -354,7 +365,7 @@
       if (commit && dx <= -80) {
         rowNode.style.transform = 'translateX(-84px)';
         setTimeout(() => {
-          deleteTodo(todo);
+          deleteTodo(todo, () => { if (rowNode.isConnected) rowNode.style.transform = ''; });
         }, 120);
       } else if (commit && dx >= 80) {
         rowNode.style.transform = '';

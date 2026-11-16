@@ -467,6 +467,11 @@ svg { display: block; }
 .block.alloc { background: var(--surface); border: 1px dashed color-mix(in srgb, var(--violet) 55%, var(--line)); border-left: 2px solid var(--violet); color: var(--ink-2); }
 .block.alloc .bt::before { content: ""; display: inline-block; width: 5px; height: 5px; border: 1px solid var(--violet); margin-right: 4px; vertical-align: 1px; }
 .block.done { opacity: .55; text-decoration: line-through; }
+/* D-28: a block whose occurrence was completed after it had already started
+   stays on the grid as history — muted, no handle, nothing to reschedule. */
+.block.alloc.history { background: var(--surface-3); border: 1px dashed var(--line); border-left: 2px solid color-mix(in srgb, var(--violet) 30%, var(--line)); color: var(--ink-3); cursor: default; }
+.block.alloc.history .bm { color: var(--ink-3); opacity: .8; }
+.month-event.alloc.history { opacity: .55; }
 .block.dragging { opacity: .75; z-index: 20; box-shadow: var(--shadow-1); }
 .block { touch-action: none; }
 .block .resize { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; cursor: ns-resize; touch-action: none; }
@@ -598,6 +603,11 @@ svg { display: block; }
 .composer-body { flex: 1; min-height: 0; overflow: auto; padding: 16px max(20px, calc((100% - 820px) / 2)) 40px; }
 .composer-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px max(16px, calc((100% - 820px) / 2)); border-top: 1px solid var(--line); background: var(--surface); }
 .composer-foot .spacer { flex: 1; }
+/* The primary label is a sentence naming what the save writes. It wraps inside
+   its own button at every width, not only on a phone: a long calendar name at
+   a 900px window must not push the action off screen. */
+.composer-foot .btn.primary { flex: 0 1 auto; min-width: 0; max-width: 62vw; height: auto; min-height: 40px; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; padding: 8px 14px; text-align: center; }
+.composer-foot .btn:not(.primary) { flex: 0 0 auto; }
 .composer-title-input { width: 100%; border: 0; background: transparent; font-size: 20px; font-weight: 650; line-height: 1.35; padding: 4px 0 10px; resize: none; min-height: 40px; }
 .composer-title-input:focus { outline: none; }
 .composer-type { margin-bottom: 14px; }
@@ -893,11 +903,10 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .composer-foot .btn { min-width: 0; }
   /* Secondary footer actions keep their intrinsic width: only the primary
      label needs to shrink, and a ghost button's text must stay inside it. */
-  .composer-foot .btn:not(.primary) { flex: 0 0 auto; }
   /* The label is a sentence, and a sentence that needs four lines makes the
      button four lines tall: the footer grows with it instead of letting the
      text paint outside its own box and under the bottom nav. */
-  .composer-foot .btn.primary { flex: 0 1 auto; max-width: 62vw; height: auto; min-height: 48px; align-self: center; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; padding: 8px 14px; text-align: center; }
+  .composer-foot .btn.primary { min-height: 48px; align-self: center; }
   .btn.sm { padding: 0 12px; }
   .capture-plus { min-height: 48px; padding: 0 8px; }
   .link-btn { min-height: 48px; padding: 0 8px; margin: -14px 0; font-size: 11.5px; }

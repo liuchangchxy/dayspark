@@ -377,3 +377,43 @@ Round-6 scope: A, D, E, F, G, I; H, B, C, J stay frozen at PASS.
 
 Round 7 (close-out) scope: A, D, E, G, I re-verify their round-6 fixes and the rule amendments (D-26, D-27,
 D-22 amended); F is already PASS at `1762f5e`; B, C, H, J stay frozen at PASS.
+
+### Round 7 — close-out verification against `03cd553`
+
+A, D, E, G, I re-verified their round-6 fixes independently against an exported commit; the Integrator re-ran
+the cross-domain journeys. Every reviewer read OpenDesign first and drove the prototype with its own scripts.
+
+| Domain | Verdict | P0 | P1 | P2 | Notes |
+|---|---|---|---|---|---|
+| A shell | PASS | 0 | 0 | 0 | Escape/Back ladders, pane retirement, traps, shortcuts, phone parity |
+| D calendar | PASS | 0 | 0 | 2 | month clamp, menu-on-scroll, non-modal menus, fold, double-click, jitter all hold |
+| E composer | FAIL | 0 | 1 | 2 | the 4–5 line footer still escaped its button |
+| G tools | PASS | 0 | 0 | 1 | merge hydration, malformed rows, search clear, trash paths, calendar undo |
+| I data | PASS | 0 | 0 | 0 | nested-date merge, rule reconciliation, undo exactness (7 scripts, negative control) |
+| Integrator | FAIL | 0 | 3 | 2 | rotated grid collapse, history block, row delete without a question |
+
+#### Round-7 backlog
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| E-R6-4 (reopen) | A 4–5 line save label painted outside its button and under the nav; the footer never grew | the phone rule capped the button at a fixed height | the primary footer button is `height:auto` and wraps at every width; the footer grows with it | r12-83, r12-86 | fixed |
+| E-R7-1 | The repeat-start field showed today while the rule would anchor on the pending date | the rebuilt input ignored the pending `startDateInput`; 不重复 did not clear it | the input reads the pending anchor first; 不重复 clears it | r12-84 | fixed |
+| INT-R7-1 | A rotated phone (844×390) gave the time grid 0px: no block reachable | `height: min(720px, calc(100vh - 240px))` spent the whole box on the rows above the grid | short viewports scroll the page and keep a 320px grid; the page brings the grid into view | r12-85 | fixed |
+| INT-R7-1b | The reveal ran on a grid that already fitted, clipping 14px off the phone control row, and snapped the page on every re-render | the reveal was unconditional and ran inside the memo branch | it runs only on first paint of a grid taller than the page viewport | r12-86 | fixed |
+| INT-R7-2 (P1) | Completing an occurrence removed an already-started block from the calendar and the month cell while the data kept it active | the grid and the cell filtered on "live" only; history had no rendering | D-28: a started block is drawn as a history block (muted, no handle, no drag, no menu, opens the record); the month cell counts it | r12-88 | fixed |
+| INT-R7-3 (P1) | A row menu or swipe delete wrote immediately; no question, only an undo toast | the row path skipped the gate the detail and batch paths use | one `deleteTodo` asks once (D-10), then offers undo; a cancelled swipe snaps back | interactions, surfaces | fixed |
+| E-R7-2 | The header, the segment and the hint kept saying 待办 after the type switched to 日程 | the head/type row were built once and the switch rebuilt only the body | one `titleForType` + segment/hint update on every switch (D-29) | r12-87 | fixed |
+| E-R7-3 | A disabled save advertised a slot the rule could not reach | the label trusted a stale `scheduleOccurrence` | the label derives the occurrence from the slot and the rule on screen | r12-89 | fixed |
+| E-R7-4 | 每周/每月/每年 on an Event wrote a Todo-shaped rule (`anchor:'due'`, `date`) | the presets hard-coded the Todo shape | every preset uses the record's shape (D-29) | r12-90 | fixed |
+| D-R7-1 | An unrelated rail scroll dismissed a block menu whose anchor had not moved | the menu closed on any document scroll | it closes when its anchor moves, not when any scroller moves (D-26 as written) | r12-91 | fixed |
+| D-R7-2 (P2) | Toggling the fold keeps the raw offset, so the viewed clock shifts by the folded span | the memo stores pixels, not the clock | open — recorded, not fixed (P2) | r12-82 | open |
+| G-R7-1 (P2) | Merge's shape check stops at top-level types (rule shape, string dates in nested fields, object location) | the validator checks types, not shapes | open — recorded, not fixed (P2) | — | open |
+| G-R7-2 (P3) | The detail's recurring-schedule toast has no undo (plain schedule and calendar do) | the recurring path skips the toast inverse | open — recorded (P3) | — | open |
+| E-R7-5 (P2) | At exactly 900px a long calendar name overflowed the footer | the wrapping rule started at 899px | the primary footer button wraps at every width | r12-83 | fixed |
+| INT-R7-4 (P2) | Rotated week first paint shows an 11px sliver of the 09:00 block above the nav | the grid box is taller than the page viewport by design | recorded (P2): the grid scrolls internally; the day view is fine | — | accepted |
+| I-X1 (P3) | D-11's "on the calendar" wording vs BEHAVIORS B3's "not as current work" | two truth documents described the same moment differently | D-28 + BEHAVIORS B3 aligned: the block is drawn as history, not as current work | r12-88 | fixed |
+
+Close-out re-verification: D, E and the Integrator re-check the fixes above against the commit that carries
+them; A, G and I stay PASS at `03cd553` because the diff that follows touches calendar, composer, store row
+delete and the menu only. F, B, C, H, J stay frozen at PASS.
+

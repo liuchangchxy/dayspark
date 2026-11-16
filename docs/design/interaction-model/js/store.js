@@ -392,14 +392,27 @@
     return true;
   }
 
+  // A block that had already started when its occurrence was completed is not
+  // current work any more, but D-11 keeps it on the calendar as history: it
+  // stays ACTIVE in the data and is drawn muted, not as something to do.
+  function isAllocationHistory(a) {
+    if (a.state !== ALLOC.ACTIVE || a.deletedAt) return false;
+    const todo = todoById(a.todoId);
+    if (!todo || todo.deletedAt || !todo.recurrence || !a.occurrenceId) return false;
+    const st = occurrenceState(todo, a.occurrenceId);
+    if (!st || !st.completedAt) return false;
+    return a.startAt < new Date(st.completedAt).getTime();
+  }
+
   function allocationsForTodo(todoId) {
     return state.allocations.filter((a) => a.todoId === todoId).sort((x, y) => x.startAt - y.startAt);
   }
 
-  function allocationsOnDay(day) {
+  function allocationsOnDay(day, opts) {
     const from = U.startOfDay(day), to = U.endOfDay(day);
+    const withHistory = !!(opts && opts.history);
     return state.allocations
-      .filter((a) => isAllocationLive(a) && a.endAt > from && a.startAt <= to)
+      .filter((a) => (isAllocationLive(a) || (withHistory && isAllocationHistory(a))) && a.endAt > from && a.startAt <= to)
       .sort((a, b) => a.startAt - b.startAt);
   }
 
@@ -1267,7 +1280,7 @@
   window.Store = {
     state, subscribe, emit, seed, occurrenceIdFor, occurrenceDateFromId, occurrencesInWindow, occurrenceState,
     isOccurrenceDone, isOpenOn, matchesRule, liveTodos, liveEvents, todoById, eventById, tagById, calendarById,
-    calendarColor, isOpen, isDone, subtasksOf, isAllocationLive, allocationsForTodo, allocationsOnDay,
+    calendarColor, isOpen, isDone, subtasksOf, isAllocationLive, isAllocationHistory, allocationsForTodo, allocationsOnDay,
     splitEventOccurrence, splitEventFuture, eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos, plannedTodoIds,
     searchAll, createTodo, updateTodo, createEvent, updateEvent, createAllocation, rescheduleAllocation,
     cancelAllocation, deleteAllocation, conflictAt, reconcileAllocations, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,

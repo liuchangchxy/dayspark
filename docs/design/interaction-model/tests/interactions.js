@@ -436,6 +436,9 @@ scenario('deleting a todo moves it to Trash and restore brings it back with its 
     btn.click();
   });
   await settle(page, 220);
+  assert(await exists(page, '.modal.confirm'), 'a row delete must ask once (D-10)');
+  await page.click('.modal.confirm .btn.danger');
+  await settle(page, 220);
 
   const s1 = await state(page);
   assert(s1.todos.find((t) => t.id === target.id).deletedAt, 'todo was not soft-deleted');

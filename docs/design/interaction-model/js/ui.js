@@ -220,6 +220,13 @@
       const onScroll = (e) => {
         if (!menuNode) { document.removeEventListener('scroll', onScroll, true); return; }
         if (menuNode.contains(e.target) && e.target !== document) return;
+        // D-26: the menu closes when its anchor scrolls out of place, not when
+        // any scroller in the page moves. A rail scrolling beside a still block
+        // must leave its menu alone.
+        if (anchor.isConnected) {
+          const now = anchor.getBoundingClientRect();
+          if (Math.abs(now.left - r.left) < 1 && Math.abs(now.top - r.top) < 1) return;
+        }
         closeMenu();
         document.removeEventListener('scroll', onScroll, true);
       };

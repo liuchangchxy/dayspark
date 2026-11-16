@@ -182,10 +182,15 @@
     const close = UI.iconButton(narrow ? 'chevronLeft' : 'x', t('cancel'), () => closeComposer());
     close.dataset.testid = 'composer-close';
     head.appendChild(close);
-    head.appendChild(U.el('span', {
-      class: 'title',
-      text: isEdit ? (draft.kind === 'todo' ? t('composerEditTodo') : t('composerEditEvent')) : (draft.kind === 'todo' ? t('composerNewTodo') : t('composerNewEvent')),
-    }));
+    // The title, the segment and the hint are one statement about the type.
+    // The switch rewrites all three: a form that has become an Event under a
+    // 新建待办 header is a control whose label and effect disagree.
+    function titleForType() {
+      if (isEdit) return draft.kind === 'todo' ? t('composerEditTodo') : t('composerEditEvent');
+      return draft.kind === 'todo' ? t('composerNewTodo') : t('composerNewEvent');
+    }
+    const headTitle = U.el('span', { class: 'title', text: titleForType() });
+    head.appendChild(headTitle);
     const saveTop = U.el('button', { class: 'btn primary', text: t('save'), 'data-testid': 'composer-save' });
     saveTop.addEventListener('click', () => save(true));
     if (!narrow) head.appendChild(saveTop);
@@ -239,10 +244,12 @@
         `<span>${U.esc(draft.kind === 'todo' ? t('typeTodo') : t('typeEvent'))}</span>`;
       typeRow.appendChild(fact);
     } else {
+      const typeButtons = [];
       [['todo', t('typeTodo'), 'checkSquare'], ['event', t('typeEvent'), 'calendar']].forEach(([k, label, icon]) => {
         const b = U.el('button', { class: draft.kind === k ? 'on' : '', 'aria-pressed': draft.kind === k ? 'true' : 'false' });
         b.innerHTML = ICON(icon, 14) + `<span>${U.esc(label)}</span>`;
         b.dataset.testid = 'composer-type-' + k;
+        typeButtons.push([k, b]);
         b.addEventListener('click', () => {
           if (draft.kind === k) return;
           draft.kind = k;
@@ -267,12 +274,20 @@
           }
           live.renderBody();
           live.validate();
+          headTitle.textContent = titleForType();
+          typeButtons.forEach(([key, btn]) => {
+            btn.classList.toggle('on', draft.kind === key);
+            btn.setAttribute('aria-pressed', draft.kind === key ? 'true' : 'false');
+          });
+          typeHint.textContent = draft.kind === 'todo' ? t('typeHintTodo') : t('typeHintEvent');
+          titleInput.placeholder = draft.kind === 'todo' ? t('titlePlaceholderTodo') : t('titlePlaceholderEvent');
         });
         typeSeg.appendChild(b);
       });
       typeRow.appendChild(typeSeg);
     }
-    typeRow.appendChild(U.el('div', { class: 'type-hint', text: draft.kind === 'todo' ? t('typeHintTodo') : t('typeHintEvent') }));
+    const typeHint = U.el('div', { class: 'type-hint', text: draft.kind === 'todo' ? t('typeHintTodo') : t('typeHintEvent') });
+    typeRow.appendChild(typeHint);
     body.appendChild(typeRow);
 
     const formHost = U.el('div');
@@ -982,13 +997,20 @@
           function drawOptions() {
             list.innerHTML = '';
             const baseDay = draft.startDateInput || draft.dueDate || draft.startDt || U.now();
+            // A rule carries the shape of the record it belongs to: a Todo is
+            // anchored on its deadline (a date), an Event on its start (a
+            // local date-time). Every preset uses that shape, not just 每天.
+            const anchor = draft.kind === 'todo'
+              ? { anchor: 'due', valueType: 'date' }
+              : { anchor: 'start', valueType: 'localDateTime' };
+            const rec = (freq, interval, byday) => Object.assign({ freq, interval, byday, until: null, timeZone: 'Asia/Shanghai' }, anchor);
             const opts = [
               { label: t('never'), rec: null },
-              { label: t('daily'), rec: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: draft.kind === 'todo' ? 'due' : 'start', valueType: draft.kind === 'todo' ? 'date' : 'localDateTime' } },
-              { label: t('repeatWeekdays'), rec: { freq: 'WEEKLY', interval: 1, byday: [1, 2, 3, 4, 5], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
-              { label: t('weekly') + ' (' + U.fmtWeekdayLong(baseDay) + ')', rec: { freq: 'WEEKLY', interval: 1, byday: [baseDay.getDay()], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
-              { label: t('monthly'), rec: { freq: 'MONTHLY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
-              { label: t('yearly'), rec: { freq: 'YEARLY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
+              { label: t('daily'), rec: rec('DAILY', 1, []) },
+              { label: t('repeatWeekdays'), rec: rec('WEEKLY', 1, [1, 2, 3, 4, 5]) },
+              { label: t('weekly') + ' (' + U.fmtWeekdayLong(baseDay) + ')', rec: rec('WEEKLY', 1, [baseDay.getDay()]) },
+              { label: t('monthly'), rec: rec('MONTHLY', 1, []) },
+              { label: t('yearly'), rec: rec('YEARLY', 1, []) },
             ];
             opts.forEach((o) => {
               const b = U.el('button', { class: 'slot-sheet-option' });
@@ -1108,8 +1130,9 @@
     }
     function scheduleOccurrenceFor(start) {
       if (!draft.recurrence) return null;
-      if (draft.scheduleOccurrence) return draft.scheduleOccurrence;
       const probe = scheduleProbe();
+      // The label follows the slot: a stored occurrence id from an earlier slot
+      // must not make a disabled save promise a block it will refuse to write.
       if (!S.matchesRule(probe, start)) return false;
       return S.occurrenceIdFor(probe, start);
     }
