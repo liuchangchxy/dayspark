@@ -216,6 +216,9 @@ scenario('R8-5 real touch drag and reorder commit', async (browser) => {
   assertEq(moved, 11 * 60 + 30, 'a real touch drag must move the block');
 
   await go(page, 'todos');
+  // Manual order lives in the inventory list, not the date-grouped day view.
+  await page.evaluate(() => window.__todoHelpers.setView({ kind: 'all', day: null }));
+  await settle(page, 240);
   const order0 = await page.evaluate(() => window.Store.liveTodos().slice().sort((a, b) => a.sortOrder - b.sortOrder).map((t) => t.id).join(','));
   const grab = await page.evaluate(() => {
     const g = document.querySelector('.todo-row .grab').getBoundingClientRect();

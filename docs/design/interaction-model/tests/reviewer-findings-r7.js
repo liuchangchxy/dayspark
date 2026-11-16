@@ -198,7 +198,10 @@ scenario('R7-5 scroll belongs to the destination, not the window', async (browse
 scenario('R7-6 pointercancel aborts a Todo reorder', async (browser) => {
   const page = await newPage(browser, MOBILE);
   await go(page, 'todos');
-  const before = await page.evaluate(() => window.Store.liveTodos().map((x) => x.id).join(','));
+  // A manual order exists only in the inventory list; day views group by date.
+  await page.evaluate(() => window.__todoHelpers.setView({ kind: 'all', day: null }));
+  await settle(page, 240);
+  const before = await page.evaluate(() => window.Store.liveTodos().slice().sort((a, b) => a.sortOrder - b.sortOrder).map((x) => x.id).join(','));
   const box = await page.evaluate(() => {
     const row = document.querySelector('.todo-row');
     const grab = row.querySelector('.grab').getBoundingClientRect();
@@ -212,7 +215,7 @@ scenario('R7-6 pointercancel aborts a Todo reorder', async (browser) => {
   });
   await page.mouse.up();
   await settle(page, 300);
-  const after = await page.evaluate(() => window.Store.liveTodos().map((x) => x.id).join(','));
+  const after = await page.evaluate(() => window.Store.liveTodos().slice().sort((a, b) => a.sortOrder - b.sortOrder).map((x) => x.id).join(','));
   assertEq(after, before, 'a cancelled reorder must keep the order');
   assert(!(await exists(page, '.toast')), 'a cancelled reorder must not report success');
   assertNoErrors(page);

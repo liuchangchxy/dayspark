@@ -897,7 +897,9 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .deadline-chip { min-height: 48px; padding-top: 10px; padding-bottom: 10px; }
   .month-event { min-height: 22px; }
   .block.short, .timegrid .block { min-height: 48px; }
-  .block .resize { height: 48px; }
+  /* A 15-minute block is exactly 48px tall. A full-height strip would leave
+     no body to drag, so the strip is a quarter of the block and at least 16px. */
+  .block .resize { height: 16px; }
 }
 
 /* ---- quick add ---- */

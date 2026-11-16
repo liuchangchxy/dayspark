@@ -31,7 +31,8 @@
   function activeFilterCount() {
     return (S.state.filterCalendarId ? 1 : 0)
       + (S.state.filterPriority !== null && S.state.filterPriority !== undefined ? 1 : 0)
-      + S.state.selectedTagIds.length;
+      + S.state.selectedTagIds.length
+      + (S.state.hideCompleted ? 1 : 0);
   }
 
   function openTodo(todo, day) {
@@ -62,8 +63,12 @@
       });
       rowNode.appendChild(box);
     } else {
-      const grab = U.el('span', { class: 'grab' + (o.alwaysHandle ? ' always' : ''), html: ICON('grip', 15), title: t('dragHint') });
-      rowNode.appendChild(grab);
+      // The handle only exists where a manual order is real: the inventory
+      // list. A day/inbox row is grouped by date and cannot be reordered.
+      if (view().kind === 'all') {
+        const grab = U.el('span', { class: 'grab' + (o.alwaysHandle ? ' always' : ''), html: ICON('grip', 15), title: t('dragHint') });
+        rowNode.appendChild(grab);
+      }
       if (o.ordinal !== undefined && o.ordinal !== null) {
         rowNode.appendChild(U.el('span', { class: 'ordinal', text: String(o.ordinal + 1) }));
       }
@@ -136,7 +141,10 @@
       rowNode.classList.add('md-selected');
       wrap.classList.add('md-selected');
     }
-    if (!multi.active && !o.done) attachReorder(wrap, rowNode, todo);
+    // Manual order is only a real thing in the inventory list; the day and
+    // inbox views group by date, so a handle there would promise a persistence
+    // it cannot keep.
+    if (!multi.active && !o.done && view().kind === 'all') attachReorder(wrap, rowNode, todo);
     attachSwipe(wrap, rowNode, todo, o);
     wrap.appendChild(rowNode);
     return wrap;
@@ -795,6 +803,7 @@
           S.state.filterCalendarId = null;
           S.state.filterPriority = null;
           S.state.selectedTagIds = [];
+          S.state.hideCompleted = false;
           App.render();
         });
         tagBar.appendChild(clear);

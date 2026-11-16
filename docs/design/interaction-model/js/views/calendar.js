@@ -112,7 +112,7 @@
       });
       const events = S.eventsOnDay(d);
       const allocs = S.allocationsOnDay(d);
-      const due = S.liveTodos().filter((x) => S.isOpen(x) && x.dueDate && U.sameDay(x.dueDate, d) && !x.recurrence);
+      const due = S.liveTodos().filter((x) => S.isOpen(x) && x.dueDate && U.sameDay(x.dueDate, d));
       const head = U.el('div', { class: 'mhead' });
       head.innerHTML = `<span class="mday">${d.getDate()}</span>`;
       if (S.state.showLunar && d.getDate() === 1) head.innerHTML += `<span class="lunar">${U.esc(t('lunarSample'))}</span>`;
@@ -197,7 +197,7 @@
     lane.appendChild(U.el('span', { class: 'lane-label', html: ICON('flag', 12) + `<span>${U.esc(t('deadlineLane'))}</span>` }));
     const from = mode === 'month' ? U.startOfMonth(a) : U.startOfDay(a);
     const to = mode === 'month' ? U.endOfMonth(a) : U.endOfDay(U.addDays(a, mode === 'week' ? 6 : 0));
-    const items = S.liveTodos().filter((x) => S.isOpen(x) && x.dueDate && !x.recurrence && x.dueDate >= from && x.dueDate <= to)
+    const items = S.liveTodos().filter((x) => S.isOpen(x) && x.dueDate && x.dueDate >= from && x.dueDate <= to)
       .sort((x, y) => x.dueDate - y.dueDate);
     if (!items.length) {
       lane.appendChild(U.el('span', { class: 'tiny muted', text: S.state.lang === 'zh' ? '这段时间没有截止事项' : 'No deadlines in this range' }));
@@ -632,6 +632,7 @@
         const copy = S.createEvent({
           summary: e.summary, calendarId: e.calendarId, startDt: start, endDt: end,
           isAllDay: e.isAllDay, description: e.description, location: e.location, tagIds: e.tagIds,
+          reminderOffsets: (series.reminderOffsets || []).slice(),
         });
         S.emit('event:update');
         undo = () => {
@@ -640,14 +641,30 @@
         };
       } else if (mode === 'future' && e.rrule) {
         const prevUntil = series.rrule.until;
-        series.rrule = Object.assign({}, series.rrule, { until: U.addDays(U.startOfDay(start), -1) });
+        const prevExdates = (series.exdates || []).slice();
+        const anchorDay = U.startOfDay(e.startDt);
+        // The dragged instance belongs to the new series, not the old one: the
+        // old series must stop before it, and its anchor must be excluded, or
+        // it is drawn twice (once where it was dragged from).
+        series.exdates = prevExdates.concat([e.occurrenceAnchor || anchorDay]);
+        series.rrule = Object.assign({}, series.rrule, { until: U.addDays(anchorDay, -1) });
+        // The copy starts on the dragged instance's new day, so a weekday rule
+        // has to follow it; otherwise the new series keeps the old weekday and
+        // the moved instance never appears.
+        const newStartDay = U.startOfDay(start);
+        const movedRule = Object.assign({}, series.rrule, { until: null });
+        if (movedRule.freq === 'WEEKLY' && movedRule.byday && movedRule.byday.length) {
+          movedRule.byday = movedRule.byday.map((d, i) => (i === 0 ? newStartDay.getDay() : d));
+        }
         const copy = S.createEvent({
           summary: e.summary, calendarId: e.calendarId, startDt: start, endDt: end,
           isAllDay: e.isAllDay, description: e.description, location: e.location, tagIds: e.tagIds,
-          rrule: Object.assign({}, series.rrule, { until: null }),
+          reminderOffsets: (series.reminderOffsets || []).slice(),
+          rrule: movedRule,
         });
         undo = () => {
           series.rrule = Object.assign({}, series.rrule, { until: prevUntil });
+          series.exdates = prevExdates;
           S.purgeEvent(copy.id);
         };
       } else {

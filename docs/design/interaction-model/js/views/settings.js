@@ -293,9 +293,13 @@
           let active = sections.some((x) => x.key === S.state.settingsSection)
             ? S.state.settingsSection
             : sections[0].key;
-          if (section && sections.some((x) => x.key === section)) {
+          // The route's section is an entry point, not a pin: once the user
+          // picks another section, a re-render must not drag them back.
+          if (section && sections.some((x) => x.key === section)
+              && (!S.state.settingsRouteApplied || S.state.settingsRouteApplied !== section)) {
             active = section;
             S.state.settingsSection = section;
+            S.state.settingsRouteApplied = section;
           }
           function show(key) {
             active = key;

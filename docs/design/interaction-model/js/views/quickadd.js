@@ -71,7 +71,10 @@
             end: null,
           });
         }
-        return Object.assign({}, p, { kind: 'todo', dueDate: p.dueDate || null });
+        // A parsed clock time is still a real moment: turning it into a to-do
+        // makes it that day's deadline instead of throwing the date away.
+        const due = p.dueDate || (p.start ? new Date(p.start.getFullYear(), p.start.getMonth(), p.start.getDate(), 0, 0) : null);
+        return Object.assign({}, p, { kind: 'todo', dueDate: due });
       }
       return p;
     }

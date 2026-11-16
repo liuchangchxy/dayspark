@@ -361,6 +361,15 @@ scenario('todo detail is read-only until Edit, and an edit propagates to every s
 /* ---------- Complete / undo, and cross-surface agreement ---------- */
 scenario('completing a todo moves it to the completed section and to Action earlier-today, and undo restores it', async (browser) => {
   const page = await newPage(browser);
+  // Completion only invalidates slots that are still ahead. Pin the clock before
+  // the seeded 16:30 slot so the assertion does not depend on the wall clock.
+  await page.evaluate(() => {
+    const d = new Date();
+    d.setHours(9, 0, 0, 0);
+    window.U.setClockOffset(d.getTime() - Date.now());
+    window.App.render();
+  });
+  await settle(page, 220);
   await go(page, 'todos');
   const s0 = await state(page);
   const target = s0.todos.find((t) => t.summary === 'Q4 预算表');

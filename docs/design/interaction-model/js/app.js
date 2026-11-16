@@ -151,7 +151,10 @@
   // no pane.
   function openRecord(type, id, occurrence, day) {
     const dayMs = day ? U.startOfDay(day).getTime() : null;
-    if (!U.isNarrow() && U.isSplit() && S.state.tab === 'todos') {
+    // The pane exists only on the Todo destination itself. From a routed detail
+    // (Search, a calendar block, a child link) there is no list beside it, so
+    // storing a pane selection there would be a click that does nothing.
+    if (!U.isNarrow() && U.isSplit() && S.state.tab === 'todos' && S.state.route.name === 'todos') {
       S.selectPane(type, id, occurrence, dayMs);
       return;
     }

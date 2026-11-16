@@ -799,9 +799,13 @@
   function deletedEvents() { return state.events.filter((e) => e.deletedAt).sort((a, b) => b.deletedAt - a.deletedAt); }
 
   function reorderTodos(ids) {
+    // Renumber the given rows into the slots they already occupy. A reorder in
+    // a filtered/day view then cannot push rows the user cannot see.
+    const given = new Set(ids);
+    const slots = state.todos.filter((t) => given.has(t.id)).map((t) => t.sortOrder).sort((a, b) => a - b);
     ids.forEach((id, i) => {
       const t = todoById(id);
-      if (t) t.sortOrder = (i + 1) * 10;
+      if (t && slots[i] !== undefined) t.sortOrder = slots[i];
     });
     emit('todo:reorder');
   }

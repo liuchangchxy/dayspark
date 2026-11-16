@@ -861,6 +861,7 @@
           startDateInput.addEventListener('change', () => {
             const d = U.fromInputDate(startDateInput.value);
             if (!d) return;
+            draft.startDateInput = U.startOfDay(d);
             draft.startDate = U.startOfDay(d);
             markDirty();
           });
@@ -898,6 +899,13 @@
               anchor: draft.kind === 'todo' ? 'due' : 'start',
               valueType: draft.kind === 'todo' ? 'date' : 'localDateTime',
             };
+            // A series needs a start or it can never match a day. A custom rule
+            // gets the same anchor the presets set, honouring a chosen 重复开始.
+            if (draft.kind === 'todo' && !draft.dueDate && !draft.startDate) {
+              draft.startDate = draft.startDateInput
+                ? U.startOfDay(draft.startDateInput)
+                : U.startOfDay(U.now());
+            }
             markDirty(); close(null); live.renderBody(); live.validate();
           });
           custom.appendChild(applyCustom);

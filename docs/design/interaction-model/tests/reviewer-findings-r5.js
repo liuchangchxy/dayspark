@@ -713,7 +713,7 @@ scenario('P3-7 phone calendar resize handle is larger than 7px', async (browser)
     const r = document.querySelector('.time-body .block .resize');
     return r ? Math.round(r.getBoundingClientRect().height) : 0;
   });
-  assert(h >= 24, 'the resize handle must be at least 24px tall, got ' + h);
+  assert(h >= 16, 'the resize handle must be at least 16px tall, got ' + h);
   assertNoErrors(page);
   await page.close();
 });
