@@ -102,6 +102,7 @@
     rowNode.appendChild(actions);
 
     rowNode.tabIndex = 0;
+    rowNode.dataset.testid = 'todo-row';
     rowNode.setAttribute('aria-label', todo.summary);
     rowNode.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -174,7 +175,7 @@
           if (i < index && center < mid) target = Math.min(target, i);
         }
       }
-      function up() {
+      function up(ev) {
         document.removeEventListener('pointermove', move);
         document.removeEventListener('pointerup', up);
         document.removeEventListener('pointercancel', up);
@@ -182,6 +183,7 @@
         rowNode.style.transform = '';
         rowNode.style.zIndex = '';
         rowNode.style.boxShadow = '';
+        if (ev && ev.type === 'pointercancel') return;
         if (target !== index) {
           const ids = rows.map((r) => Number(r.dataset.id));
           const moved = ids.splice(index, 1)[0];

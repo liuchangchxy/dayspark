@@ -226,7 +226,7 @@
     }
 
     let title = rest.replace(/\s+/g, ' ').replace(/^[\s,，。.、;；:：-]+|[\s,，。.、;；:：-]+$/g, '').trim();
-    title = title.replace(/^(?:at|on|for)\s+/i, '').trim();
+    title = title.replace(/^(?:at|on|for)\s+/i, '').replace(/\s+(?:at|on|for)$/i, '').trim();
 
     if (sawTime) {
       const end = U.addMinutes(start, durationMin || 60);

@@ -131,6 +131,7 @@
         UI.busyBar(day, content);
 
         const sections = [];
+        let previewed = [];
 
         // Now
         // "Now" answers what is still open. A to-do completed mid-slot is history
@@ -204,23 +205,6 @@
           }
         }
 
-        const earlier = [
-          ...proj.events.filter((e) => e.endDt <= now).map((e) => ({ kind: 'event', start: e.startDt, end: e.endDt, event: e })),
-          ...proj.allocations.filter((x) => x.allocation.endAt <= now).map((x) => ({ kind: 'alloc', start: x.allocation.startAt, end: x.allocation.endAt, item: x })),
-        ].sort((a, b) => a.start - b.start);
-        if (earlier.length) {
-          sections.push(UI.sectionHead(t('actionEarlierToday'), earlier.length));
-          earlier.forEach((entry) => sections.push(entryRow(entry, false, now, true)));
-        }
-
-        const doneRows = [];
-        proj.completedTodayTodos.forEach((todo) => doneRows.push(todoRow(todo, now, true)));
-        proj.completedTodayTaskInstances.forEach((inst) => doneRows.push(instanceRow(inst, false, day, true)));
-        if (doneRows.length) {
-          sections.push(UI.sectionHead(t('todayCompleted'), doneRows.length));
-          doneRows.forEach((r) => sections.push(r));
-        }
-
         // Unplanned is the fifth thing on the page, after the day's own agenda.
         // Per CORE_UX_SPEC 16.2 the preview shows only captured items with no
         // deadline (up to three): a dated item already has a home on its date.
@@ -236,7 +220,7 @@
           const at = captured.findIndex((x) => x.id === justCreated);
           if (at > 2) captured.unshift(captured.splice(at, 1)[0]);
         }
-        const previewed = captured.slice(0, 3);
+        previewed = captured.slice(0, 3);
         if (previewed.length) {
           sections.push(UI.sectionHead(t('inbox'), null));
           previewed.forEach((todo) => sections.push(todoRow(todo, now)));
@@ -249,6 +233,23 @@
             App.go('todos');
           });
           sections.push(inbox);
+        }
+
+        const earlier = [
+          ...proj.events.filter((e) => e.endDt <= now).map((e) => ({ kind: 'event', start: e.startDt, end: e.endDt, event: e })),
+          ...proj.allocations.filter((x) => x.allocation.endAt <= now).map((x) => ({ kind: 'alloc', start: x.allocation.startAt, end: x.allocation.endAt, item: x })),
+        ].sort((a, b) => a.start - b.start);
+        if (earlier.length) {
+          sections.push(UI.sectionHead(t('actionEarlierToday'), earlier.length));
+          earlier.forEach((entry) => sections.push(entryRow(entry, false, now, true)));
+        }
+
+        const doneRows = [];
+        proj.completedTodayTodos.forEach((todo) => doneRows.push(todoRow(todo, now, true)));
+        proj.completedTodayTaskInstances.forEach((inst) => doneRows.push(instanceRow(inst, false, day, true)));
+        if (doneRows.length) {
+          sections.push(UI.sectionHead(t('todayCompleted'), doneRows.length));
+          doneRows.forEach((r) => sections.push(r));
         }
 
         // The empty state speaks for the whole day, so it only appears when there

@@ -7,6 +7,10 @@
   const Registry = window.App;
 
   let lastRouteKey = null;
+  // Scroll belongs to a destination, not to the window: leaving Todos for Today
+  // must not carry the list's offset onto Today, and coming back must restore
+  // the list where it was.
+  const scrollByRoute = new Map();
 
   function focusRoute(host) {
     if (host.querySelector('[data-testid="composer-title"]')) return;
@@ -61,19 +65,21 @@
     // quick-add fields mid-typing.
     const prev = document.activeElement;
     const focusId = prev && prev.dataset ? prev.dataset.testid : null;
+    const focusRec = prev && prev.dataset ? prev.dataset.id : null;
     const caret = focusId && typeof prev.selectionStart === 'number'
       ? { s: prev.selectionStart, e: prev.selectionEnd } : null;
-    const prevScroll = scrollSnapshot(host);
+    if (lastRouteKey) scrollByRoute.set(lastRouteKey, scrollSnapshot(host));
     host.innerHTML = '';
     Registry.escapeHandler = null;
     const node = fn(route.params || {});
     host.appendChild(node);
-    restoreScroll(host, prevScroll);
     const routeKey = route.name + ':' + JSON.stringify(route.params || {});
     const changedRoute = routeKey !== lastRouteKey;
+    restoreScroll(host, scrollByRoute.get(routeKey));
     lastRouteKey = routeKey;
     if (focusId) {
-      const again = host.querySelector(`[data-testid="${focusId}"]`);
+      const recSel = focusRec ? `[data-id="${focusRec}"]` : '';
+      const again = host.querySelector(`[data-testid="${focusId}"]${recSel}`);
       if (again && again.focus) {
         again.focus({ preventScroll: true });
         if (caret && typeof again.setSelectionRange === 'function') {
@@ -287,7 +293,14 @@
       if (document.querySelector('.menu')) { UI.closeMenu(); e.preventDefault(); return; }
       if (S.state.menu) { UI.closeMenu(); return; }
       if (Registry.escapeHandler) { e.preventDefault(); Registry.escapeHandler(); return; }
-      if (S.state.paneSelection && paneOpenHere()) { e.preventDefault(); S.clearPane(); return; }
+      if (S.state.paneSelection && paneOpenHere()) {
+        e.preventDefault();
+        const id = S.state.paneSelection.id;
+        S.clearPane();
+        const row = document.querySelector(`[data-testid="todo-row"][data-id="${id}"]`);
+        if (row) row.focus();
+        return;
+      }
       // Reaching here means nothing above claimed the key: no overlay, no menu,
       // and no page with an unsaved draft (the composer registers its own
       // handler). So Escape means "leave", even with the caret in a field —
@@ -361,7 +374,10 @@
     // "Opens on" is a launch preference, so it is read here and nowhere else:
     // changing it must not yank the user off the page they are on.
     const start = S.state.defaultTab;
-    if (start && start !== 'action') S.state.route = { name: start, params: {} };
+    if (start && start !== 'action') {
+      S.state.route = { name: start, params: {} };
+      if (start === 'action' || start === 'calendar' || start === 'todos') S.state.tab = start;
+    }
     // The app has no real URL history (every route is in-memory), so the
     // browser Back button would otherwise unload the page and silently discard
     // a dirty draft. Take one entry of history for ourselves and route Back

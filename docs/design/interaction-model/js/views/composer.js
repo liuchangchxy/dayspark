@@ -23,8 +23,8 @@
       startDate: null,
       priority: 0, tagIds: [], calendarId: S.state.calendars[0] ? S.state.calendars[0].id : 1,
       recurrence: null, reminderOffsets: [], attachments: [],
-      startDt: c.startDt || null, endDt: c.endDt || null, isAllDay: false, location: '',
-      scheduleStart: c.scheduleStart || null, scheduleEnd: c.scheduleEnd || null,
+      startDt: c.startDt ? new Date(c.startDt) : null, endDt: c.endDt ? new Date(c.endDt) : null, isAllDay: false, location: '',
+      scheduleStart: c.scheduleStart ? new Date(c.scheduleStart) : null, scheduleEnd: c.scheduleEnd ? new Date(c.scheduleEnd) : null,
       scheduleOccurrence: c.scheduleOccurrence || null,
       planDate: c.planDate ? U.startOfDay(new Date(c.planDate)) : null,
       moreOpen: false, focus: c.focus || null,
@@ -40,8 +40,8 @@
         const todo = S.todoById(c.id);
         if (!todo) return base;
         Object.assign(base, {
-          summary: todo.summary, notes: todo.description || '', dueDate: todo.dueDate,
-          startDate: todo.startDate, priority: todo.priority, tagIds: todo.tagIds.slice(),
+          summary: todo.summary, notes: todo.description || '', dueDate: todo.dueDate ? new Date(todo.dueDate) : null,
+          startDate: todo.startDate ? new Date(todo.startDate) : null, priority: todo.priority, tagIds: todo.tagIds.slice(),
           calendarId: todo.calendarId, recurrence: todo.recurrence,
           reminderOffsets: todo.reminderOffsets.slice(), attachments: todo.attachments.slice(),
           parentId: todo.parentId,
@@ -49,7 +49,7 @@
         });
         const allocs = S.allocationsForTodo(todo.id).filter(S.isAllocationLive);
         if (allocs.length) {
-          base.scheduleStart = allocs[0].startAt; base.scheduleEnd = allocs[0].endAt;
+          base.scheduleStart = new Date(allocs[0].startAt); base.scheduleEnd = new Date(allocs[0].endAt);
           base.scheduleAllocId = allocs[0].id;
           base.scheduleOccurrence = allocs[0].occurrenceId || null;
         }
@@ -57,8 +57,10 @@
         const series = S.eventById(c.id);
         if (!series) return base;
         // Editing one occurrence edits that occurrence, not the series base.
-        const occStart = c.occurrence ? new Date(c.occurrence) : series.startDt;
-        const occEnd = c.occurrence ? new Date(c.occurrence + (series.endDt - series.startDt)) : series.endDt;
+        const occStart = c.occurrence ? new Date(c.occurrence) : new Date(series.startDt);
+        const occEnd = c.occurrence
+          ? new Date(c.occurrence + (series.endDt - series.startDt))
+          : new Date(series.endDt);
         Object.assign(base, {
           summary: series.summary, notes: series.description || '', startDt: occStart, endDt: occEnd,
           isAllDay: series.isAllDay, location: series.location || '', calendarId: series.calendarId,
@@ -657,7 +659,13 @@
           start.dataset.testid = 'schedule-start';
           const durSel = U.el('select', { class: 'select' });
           [15, 30, 45, 60, 90, 120].forEach((m) => durSel.appendChild(U.el('option', { value: String(m), text: (m < 60 ? m + ' ' + (S.state.lang === 'zh' ? '分钟' : 'min') : (m / 60) + ' ' + (S.state.lang === 'zh' ? '小时' : 'h')) })));
-          durSel.value = String(draft.scheduleStart ? Math.max(15, U.minutesBetween(draft.scheduleStart, draft.scheduleEnd)) : 60);
+          const dur0 = draft.scheduleStart
+            ? Math.max(15, Math.round(U.minutesBetween(draft.scheduleStart, draft.scheduleEnd)))
+            : 60;
+          if (dur0 && !Array.from(durSel.options).some((o) => Number(o.value) === dur0)) {
+            durSel.appendChild(U.el('option', { value: String(dur0), text: dur0 + ' ' + (S.state.lang === 'zh' ? '分钟' : 'min') }));
+          }
+          durSel.value = String(dur0 || 60);
           row2.appendChild(start); row2.appendChild(durSel);
           box.appendChild(row2);
 
@@ -768,7 +776,7 @@
 
           function upd() {
             const s = U.fromInputDateTime(start.value);
-            const mins = parseInt(durSel.value, 10);
+            const mins = parseInt(durSel.value, 10) || 60;
             if (!s) return;
             preview.textContent = `${U.fmtMonthDay(s)} ${U.fmtTimeRange(s, U.addMinutes(s, mins))}`;
             const conflict = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < U.addMinutes(s, mins) && a.endAt > s && a.id !== draft.scheduleAllocId);
@@ -790,7 +798,7 @@
             const s = U.fromInputDateTime(start.value);
             if (!s) return;
             draft.scheduleStart = s;
-            draft.scheduleEnd = U.addMinutes(s, parseInt(durSel.value, 10));
+            draft.scheduleEnd = U.addMinutes(s, parseInt(durSel.value, 10) || 60);
             if (occSel) draft.scheduleOccurrence = occSel.value || null;
             markDirty(); close(null); live.renderBody(); live.validate();
           });
@@ -969,7 +977,11 @@
             parsed = ta.value.trim() ? window.QuickParse.parse(ta.value, U.now()) : null;
             if (!parsed) { apply.disabled = true; return; }
             apply.disabled = false;
-            out.appendChild(U.el('div', { class: 'quick-kind ' + (parsed.kind === 'event' ? 'event' : 'todo'), text: parsed.kind === 'event' ? t('quickAddEvent') : t('quickAddTodo') }));
+            const willSchedule = draft.kind === 'todo' && parsed.kind === 'event';
+            out.appendChild(U.el('div', {
+              class: 'quick-kind ' + (parsed.kind === 'event' ? 'event' : 'todo'),
+              text: willSchedule ? t('scheduleExec') : (parsed.kind === 'event' ? t('quickAddEvent') : t('quickAddTodo')),
+            }));
             out.appendChild(U.el('div', { class: 'quick-title', text: parsed.title }));
             const when = parsed.kind === 'event'
               ? U.fmtMonthDayTime(parsed.start) + ' · ' + U.fmtTimeRange(parsed.start, parsed.end)
@@ -1126,7 +1138,7 @@
         S.state.composer = null;
         S.state.composerDraft = null;
         if (draft.parentId && created) {
-          S.navigate('detail', { type: 'todo', id: draft.parentId });
+          S.navigate('detail', { type: 'todo', id: draft.parentId }, { replace: true });
         } else if (created) {
           const backTo = S.state.route.name === 'composer' ? (S.state.tab || 'action') : S.state.route.name;
           App.back();
@@ -1164,7 +1176,11 @@
         if (splitCopy) {
           // The edited thing is now the one-off copy, not the series instance
           // that was on screen when Edit was pressed; staying there would show
-          // a page whose data the save just replaced.
+          // a page whose data the save just replaced. The old detail was the
+          // entry Back would return to, so drop it as well.
+          if (S.state.history.length && S.state.history[S.state.history.length - 1].name === 'detail') {
+            S.state.history.pop();
+          }
           S.navigate('detail', { type: 'event', id: splitCopy.id }, { replace: true });
         } else {
           App.back();
@@ -1192,6 +1208,12 @@
     validate();
     App.escapeHandler = () => closeComposer();
     setTimeout(() => {
+      if (draft.focus === 'deadline') {
+        draft.focus = null;
+        if (!draft.summary) titleInput.focus();
+        deadlinePicker();
+        return;
+      }
       if (S.state.composer && S.state.composer.focus === 'title') titleInput.focus();
       else if (!draft.summary) titleInput.focus();
       autoGrow(titleInput);

@@ -128,15 +128,15 @@
           summary: title, startDt: start, endDt: p.end || U.addMinutes(start, 60),
           calendarId: S.state.calendars[0] ? S.state.calendars[0].id : 1,
         });
-        UI.toast(t('createdToast', { t: created.summary }), {
-          undo: () => { S.softDeleteEvent(created.id); App.render(); },
-        });
       } else {
         created = S.createTodo({ summary: title, dueDate: p.dueDate || null });
-        UI.toast(t('createdToast', { t: created.summary }), {
-          undo: () => { S.softDeleteTodo(created.id); App.render(); },
-        });
       }
+      const announce = () => UI.toast(t('createdToast', { t: created.summary }), {
+        undo: () => {
+          if (p.kind === 'event') S.softDeleteEvent(created.id); else S.softDeleteTodo(created.id);
+          App.render();
+        },
+      });
       S.state.quickAddText = '';
       S.state.highlight = p.kind === 'event'
         ? { testid: 'event-block', testids: ['event-block', 'action-event'], id: created.id }
@@ -146,10 +146,12 @@
         S.state.quickAddText = '';
         draw();
         input.focus();
+        announce();
         return;
       }
       App.back();
       App.render();
+      announce();
     }
 
     input.addEventListener('input', () => {

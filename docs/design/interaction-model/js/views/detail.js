@@ -83,7 +83,19 @@
     }
 
     const status = U.el('div', { class: 'detail-status' });
-    const done = S.isDone(todo);
+    // A recurring detail is about one occurrence, not the series. The series
+    // itself is never done, so the button has to read the occurrence's state.
+    let contextOcc = null;
+    if (todo.recurrence) {
+      const d = contextDay ? U.startOfDay(contextDay) : U.startOfDay(U.now());
+      if (S.matchesRule(todo, d)) contextOcc = S.occurrenceIdFor(todo, d);
+    }
+    const done = todo.recurrence
+      ? (contextOcc ? S.isOccurrenceDone(todo, contextOcc) : false)
+      : S.isDone(todo);
+    const doneAt = todo.recurrence && contextOcc
+      ? ((S.occurrenceState(todo, contextOcc) || {}).completedAt || null)
+      : todo.completedAt;
     // A trashed record is not a live obligation: completion and edits wait
     // until it is restored.
     if (!todo.deletedAt) {
@@ -93,21 +105,16 @@
         // Completion follows the day the record was opened from. A recurring
         // series has one open instance per day, so "today" is only correct
         // when the detail came from Today or an undated surface.
-        let occ = null;
-        if (todo.recurrence) {
-          const d = contextDay ? U.startOfDay(contextDay) : U.startOfDay(U.now());
-          if (!S.matchesRule(todo, d)) {
-            UI.toast(t('recurrenceNeedsOccurrence'), { warn: true });
-            return;
-          }
-          occ = S.occurrenceIdFor(todo, d);
+        if (todo.recurrence && !contextOcc) {
+          UI.toast(t('recurrenceNeedsOccurrence'), { warn: true });
+          return;
         }
-        window.TodoOps.complete(todo, occ);
+        window.TodoOps.complete(todo, contextOcc);
       });
       status.appendChild(doneBtn);
     }
     if (todo.recurrence) status.appendChild(U.el('span', { class: 'chip violet', html: ICON('repeat', 10) + `<span>${U.esc(t('recurrence'))}</span>` }));
-    if (todo.completedAt && done) status.appendChild(U.el('span', { class: 'tiny muted', text: t('completed') + ' · ' + U.fmtMonthDayTime(todo.completedAt) }));
+    if (doneAt && done) status.appendChild(U.el('span', { class: 'tiny muted', text: t('completed') + ' · ' + U.fmtMonthDayTime(doneAt) }));
     scroll.appendChild(status);
 
     const facts = U.el('div', { class: 'detail-facts' });
@@ -722,7 +729,9 @@
     const facts = U.el('div', { class: 'detail-facts' });
     scroll.appendChild(facts);
     const when = e.isAllDay
-      ? `${U.esc(U.fmtMonthDay(e.startDt))} – ${U.esc(U.fmtMonthDay(e.endDt))} · ${U.esc(t('allDay'))}`
+      ? (U.sameDay(e.startDt, e.endDt)
+        ? U.esc(U.fmtMonthDay(e.startDt)) + ' · ' + U.esc(t('allDay'))
+        : `${U.esc(U.fmtMonthDay(e.startDt))} – ${U.esc(U.fmtMonthDay(e.endDt))} · ${U.esc(t('allDay'))}`)
       : `${U.esc(U.fmtMonthDay(e.startDt))} ${U.esc(U.fmtTimeRange(e.startDt, e.endDt))}`;
     facts.appendChild(iconFact('calendar', t('schedule'), when, UI.iconButton('edit', t('change'), () => editEvent(e), { sm: true, size: 13 })));
     if (e.location) facts.appendChild(iconFact('pin', t('location'), U.esc(e.location)));

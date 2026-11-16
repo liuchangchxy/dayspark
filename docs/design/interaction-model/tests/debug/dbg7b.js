@@ -1,0 +1,11 @@
+const path=require('path');const {chromium}=require('playwright-core');
+const CHROME='/Users/chang/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+const URL='file://'+path.resolve('/Users/chang/Desktop/Code/dayspark-g0/docs/design/interaction-model','index.html');
+(async()=>{const b=await chromium.launch({executablePath:CHROME,headless:true});const p=await b.newPage({viewport:{width:1440,height:900}});p.on('pageerror',e=>console.log('ERR',e.message));await p.goto(URL);await p.waitForFunction(()=>window.__READY__);
+console.log(await p.evaluate(()=>{const s=window.Store.state.events.find(x=>x.summary==='周会');const day=window.U.addDays(window.U.startOfDay(window.U.now()),1);window.App.go('calendar');const occ=new Date(day.getFullYear(),day.getMonth(),day.getDate(),10,0).getTime();window.App.openRecord('event',s.id,occ);return {id:s.id,occ,day:day.toString()};}));
+await p.waitForTimeout(400);
+console.log('route',await p.evaluate(()=>JSON.stringify(window.Store.state.route)));
+console.log('page text',await p.evaluate(()=>document.querySelector('#view').textContent.slice(0,150)));
+console.log('detail-edit?',await p.evaluate(()=>!!document.querySelector('[data-testid="detail-edit"]')));
+console.log('ids',await p.evaluate(()=>Array.from(document.querySelectorAll('[data-testid]')).map(x=>x.dataset.testid).slice(-30).join(',')));
+await b.close();})();

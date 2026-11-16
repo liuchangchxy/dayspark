@@ -158,6 +158,9 @@
             account.appendChild(err);
           } else {
           account.appendChild(row({
+            icon: 'globe', title: t('serverUrl'), value: S.state.account.server || '',
+          }));
+          account.appendChild(row({
             icon: 'user', title: S.state.account.email,
             subtitle: S.state.offline ? t('offlineBanner') : t('syncPhaseIdle') + (S.state.account.lastSync ? ' · ' + t('lastSync', { t: U.fmtMonthDayTime(S.state.account.lastSync) }) : ''),
             value: '',

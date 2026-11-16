@@ -61,6 +61,18 @@
 - **失败**：识别不出日期 → 仍按无截止待办创建，并在预览里明说；空输入 → 保存禁用。
 - 证据：`reviewer-findings-r4.js` D18；`interactions.js` 创建链路
 
+### A14 编辑草稿不引用 store 对象
+- **数据**：composer 草稿里的所有 Date 都是副本；切全天/改时间只动草稿，取消后原记录不变。
+- **界面**：取消编辑不产生任何写入或副作用。
+- **失败**：无。
+- 证据：`reviewer-findings-r7.js` R7-2。
+
+### A15 每个目的地有自己的滚动位置
+- **数据**：滚动位置按路由 key 保存，离开时记录、回来时恢复；新目的地从顶部开始。
+- **界面**：长列表选中记录或从今天返回时不会被送回顶部。
+- **失败**：无。
+- 证据：`reviewer-findings-r7.js` R7-5。
+
 ### A12 页面上下文跨重绘保留
 - **数据**：设置分区写 `state.settingsSection`；滚动位置在每次渲染前按容器快照、渲染后恢复。
 - **界面**：切换 AI/登录/完成记录/拖动块都不把用户送回页面顶部或别的分区。
@@ -107,6 +119,12 @@
 - **界面**：新行出现在对应分区；输入框清空并保持焦点。
 - **失败**：空输入无效。
 - 证据：「todos quick add inherits the browsed day as deadline」
+
+### B15 取消的排序/拖动不提交
+- **数据**：`pointercancel`（被系统滚动/来电打断）只清理视觉，不改顺序、不写时间、不提示成功。
+- **界面**：排序抓手下一次点击仍正常。
+- **失败**：无。
+- 证据：`reviewer-findings-r7.js` R7-6；`reviewer-findings-r6.js` R6-5。
 
 ### B3 完成 / 取消完成
 - **数据**（非重复）：`status: NEEDS-ACTION → COMPLETED`，`completedAt = now`；**所有 `startAt >= completedAt` 的 active 安排 → `invalidatedByCompletion`**；早于完成时刻的安排保留为历史。
