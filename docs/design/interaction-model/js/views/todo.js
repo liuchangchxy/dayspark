@@ -79,8 +79,12 @@
     main.appendChild(U.el('div', { class: 'row-title' + (o.done ? ' done' : ''), text: todo.summary }));
     const meta = U.el('div', { class: 'row-meta' });
     const bits = [];
-    if (todo.dueDate) bits.push(UI.deadlineMeta(todo, U.now()));
-    bits.push(UI.allocMeta(todo));
+    // A repeating row stands for one occurrence: its deadline is that day, and
+    // its clock chip is that occurrence's block, not the series' first one.
+    const instanceDay = o.day && todo.recurrence && S.matchesRule(todo, o.day) ? U.startOfDay(o.day) : null;
+    const instanceOcc = instanceDay ? S.occurrenceIdFor(todo, instanceDay) : undefined;
+    if (todo.dueDate || instanceDay) bits.push(UI.deadlineMeta(todo, U.now(), instanceDay));
+    bits.push(UI.allocMeta(todo, instanceOcc));
     if (todo.recurrence) bits.push(UI.repeatMeta(todo));
     bits.push(UI.priorityDot(todo.priority));
     bits.push(UI.tagChips(todo.tagIds, 2));
@@ -718,6 +722,7 @@
       title: t('pageTodos'),
       subtitle: day ? subtitleNode : (v.kind === 'inbox' ? t('inbox') : t('allTasks')),
       actions,
+      mdScroll: !U.isNarrow() && U.isSplit(),
       build(content) {
         const panes = buildList(v, day, today);
         const split = !U.isNarrow() && U.isSplit();

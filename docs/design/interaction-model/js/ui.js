@@ -233,21 +233,23 @@
     }).join('') + (rest > 0 ? `<span class="chip outline" style="height:16px">+${rest}</span>` : '');
   }
 
-  function deadlineMeta(todo, now) {
-    if (!todo.dueDate) return '';
+  function deadlineMeta(todo, now, dueOverride) {
+    const due = dueOverride || todo.dueDate;
+    if (!due) return '';
     // 逾期 means the deadline's day has passed. A date-only deadline is due at
     // the start of its day, so comparing instants would call today overdue.
-    const overdue = S.isOpen(todo) && todo.dueDate
-      && U.startOfDay(todo.dueDate) < U.startOfDay(now || U.now());
+    // A repeating row overrides the date with the occurrence it stands for.
+    const overdue = S.isOpen(todo) && U.startOfDay(due) < U.startOfDay(now || U.now());
     // Say 截止. On a row that already shows a time block, a bare time reads as a
     // second schedule; the word is what distinguishes a deadline from an
     // execution slot.
-    const label = U.fmtDeadline(todo.dueDate);
+    const label = U.fmtDeadline(due);
     return `<span class="row-deadline${overdue ? ' over' : ''}">${ICON('flag', 11)}<span>${overdue ? t('overdue') + ' · ' : ''}${U.esc(t('deadlinePrefix', { d: label }))}</span></span>`;
   }
 
-  function allocMeta(todo) {
-    const allocs = S.allocationsForTodo(todo.id).filter(S.isAllocationLive);
+  function allocMeta(todo, occurrenceId) {
+    let allocs = S.allocationsForTodo(todo.id).filter(S.isAllocationLive);
+    if (occurrenceId !== undefined) allocs = allocs.filter((a) => a.occurrenceId === occurrenceId);
     if (!allocs.length) return '';
     const a = allocs[0];
     return `<span class="row-alloc">${ICON('clock', 11)}<span>${U.esc(U.fmtTimeRange(a.startAt, a.endAt))}</span></span>`;
@@ -395,6 +397,13 @@
     const content = U.el('div', { class: 'page-content' + (mobile ? ' tight' : '') + (opts.narrow ? ' narrow' : '') });
     if (opts.build) opts.build(content);
     scroll.appendChild(content);
+    if (opts.mdScroll) {
+      // The master-detail page owns the viewport: the list and the pane scroll
+      // independently, so a scrolled list can never push the pane head above
+      // the fold.
+      scroll.classList.add('md-scroll');
+      content.classList.add('md-content');
+    }
     root.appendChild(scroll);
     return root;
   }

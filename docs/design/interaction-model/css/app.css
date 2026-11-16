@@ -481,7 +481,10 @@ svg { display: block; }
    selection, not a route: closing it clears the selection and the list is
    exactly where it was. */
 .todos-masterdetail { flex: 1; min-height: 0; display: flex; min-width: 0; }
-.todos-masterdetail > .md-list { flex: 1 1 50%; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.todos-masterdetail > .md-list { flex: 1 1 50%; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: auto; overscroll-behavior: contain; }
+.page-scroll.md-scroll { overflow: hidden; }
+.page-content.md-content { padding-bottom: 0; height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.page-content.md-content > .todos-masterdetail { flex: 1; min-height: 0; }
 .todos-masterdetail > .md-detail {
   flex: 0 0 clamp(380px, 42%, 560px);
   min-width: 0; min-height: 0;

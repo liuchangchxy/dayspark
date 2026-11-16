@@ -369,6 +369,10 @@
       const months = (anchorDay.getFullYear() - base.getFullYear()) * 12 + (anchorDay.getMonth() - base.getMonth());
       return months % r.interval === 0 && anchorDay.getDate() === base.getDate();
     }
+    if (r.freq === 'YEARLY') {
+      const years = anchorDay.getFullYear() - base.getFullYear();
+      return years % r.interval === 0 && anchorDay.getMonth() === base.getMonth() && anchorDay.getDate() === base.getDate();
+    }
     return false;
   }
 
@@ -607,10 +611,23 @@
 
   function createAllocation(input) {
     const now = U.now();
+    let startAt = input.startAt;
+    let endAt = input.endAt;
+    // An occurrence is a claim about one day. A slot on another day is moved
+    // onto the occurrence's day at the same clock time, so a block can never
+    // be bound to an instance that does not own its date.
+    if (input.occurrenceId) {
+      const occDay = occurrenceDateFromId(input.occurrenceId);
+      if (occDay && !U.sameDay(occDay, startAt)) {
+        const delta = Math.round((U.startOfDay(occDay) - U.startOfDay(startAt)) / U.MS_DAY);
+        startAt = U.addDays(startAt, delta);
+        endAt = U.addDays(endAt, delta);
+      }
+    }
     const a = {
       id: Math.max(0, ...state.allocations.map((x) => x.id)) + 1,
       todoId: input.todoId, occurrenceId: input.occurrenceId || null,
-      startAt: input.startAt, endAt: input.endAt, state: ALLOC.ACTIVE,
+      startAt, endAt, state: ALLOC.ACTIVE,
       createdAt: now, updatedAt: now,
     };
     state.allocations.push(a);
@@ -621,6 +638,19 @@
   function rescheduleAllocation(id, startAt, endAt) {
     const a = state.allocations.find((x) => x.id === id);
     if (!a) return null;
+    const todo = todoById(a.todoId);
+    if (a.occurrenceId) {
+      const occDay = occurrenceDateFromId(a.occurrenceId);
+      if (!occDay || !U.sameDay(occDay, startAt)) {
+        // A cross-day move rebinds the block to the new day's occurrence; a
+        // day the series never reaches cannot own the block at all.
+        if (!todo || !todo.recurrence || !matchesRule(todo, startAt)) return null;
+        a.occurrenceId = occurrenceIdFor(todo, startAt);
+      }
+    } else if (todo && todo.recurrence) {
+      if (!matchesRule(todo, startAt)) return null;
+      a.occurrenceId = occurrenceIdFor(todo, startAt);
+    }
     a.startAt = startAt;
     a.endAt = endAt;
     a.updatedAt = U.now();

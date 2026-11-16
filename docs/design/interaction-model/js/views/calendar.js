@@ -609,12 +609,12 @@
         const e2 = U.addMinutes(end, resizedMin);
         if (e2 <= start) return;
         if (ctx.kind === 'event') moveEvent(ctx.data, start, e2, { silent: false, from: start, resized: true, onCancel: restoreVisual });
-        else moveAlloc(ctx.data, start, e2, { resized: true });
+        else moveAlloc(ctx.data, start, e2, { resized: true, onCancel: restoreVisual });
       } else {
         const s = U.addMinutes(start, movedMin);
         const e2 = U.addMinutes(end, movedMin);
         if (ctx.kind === 'event') moveEvent(ctx.data, s, e2, { from: start, onCancel: restoreVisual });
-        else moveAlloc(ctx.data, s, e2);
+        else moveAlloc(ctx.data, s, e2, { onCancel: restoreVisual });
       }
     }
     node.addEventListener('pointerup', up);
@@ -715,7 +715,14 @@
   function moveAlloc(a, start, end, opts) {
     const prev = { start: a.startAt, end: a.endAt };
     const o = opts || {};
-    S.rescheduleAllocation(a.id, start, end);
+    const moved = S.rescheduleAllocation(a.id, start, end);
+    if (!moved) {
+      // The drop was refused because the day cannot own this occurrence; put
+      // the block back where it was instead of leaving a moved ghost on screen.
+      if (o.onCancel) o.onCancel();
+      UI.toast(t('occurrenceMoveBlocked'), { warn: true });
+      return;
+    }
     App.render();
     if (!o.silent) {
       UI.toast(t(o.resized ? 'allocationResized' : 'allocationMoved', { t: U.fmtMonthDayTime(o.resized ? end : start) }), {

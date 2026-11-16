@@ -395,8 +395,13 @@
           b.dataset.testid = 'composer-allday-' + (val ? 'on' : 'off');
           b.addEventListener('click', () => {
             draft.isAllDay = val;
-            if (val) { draft.startDt.setHours(0, 0, 0, 0); draft.endDt = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), 23, 59); }
-            else { draft.startDt.setHours(9, 0, 0, 0); draft.endDt = U.addMinutes(draft.startDt, 60); }
+            if (val) {
+              // Keep the number of days already chosen, including a multi-day
+              // span, instead of resetting the end to the start day.
+              const spanDays = Math.max(0, Math.round((U.startOfDay(draft.endDt) - U.startOfDay(draft.startDt)) / U.MS_DAY));
+              draft.startDt.setHours(0, 0, 0, 0);
+              draft.endDt = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate() + spanDays, 23, 59);
+            } else { draft.startDt.setHours(9, 0, 0, 0); draft.endDt = U.addMinutes(draft.startDt, 60); }
             markDirty(); live.renderBody(); live.validate();
           });
           allday.appendChild(b);
@@ -420,9 +425,15 @@
           const d = U.fromInputDate(dateInput.value);
           if (!d) return;
           const dur = draft.endDt - draft.startDt;
+          // An all-day event may span several days. Changing its start moves
+          // the whole span; collapsing it to one day would silently rewrite the
+          // record the user is editing.
+          const spanDays = Math.max(0, Math.round((U.startOfDay(draft.endDt) - U.startOfDay(draft.startDt)) / U.MS_DAY));
           const sh = draft.startDt.getHours(), sm = draft.startDt.getMinutes();
           draft.startDt = new Date(d.getFullYear(), d.getMonth(), d.getDate(), draft.isAllDay ? 0 : sh, draft.isAllDay ? 0 : sm);
-          draft.endDt = draft.isAllDay ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59) : new Date(draft.startDt.getTime() + dur);
+          draft.endDt = draft.isAllDay
+            ? new Date(d.getFullYear(), d.getMonth(), d.getDate() + spanDays, 23, 59)
+            : new Date(draft.startDt.getTime() + dur);
           markDirty(); live.renderBody(); live.validate();
         });
         timeSec.appendChild(row(t('starts'), dateInput));
@@ -516,7 +527,11 @@
         addSub.innerHTML = ICON('plus', 12) + `<span>${U.esc(t('addSubtask'))}</span>`;
         addSub.addEventListener('click', () => {
           const parentId = draft.id;
-          leave(true);
+          // Adding a child is not a reason to lose the parent's edits: save the
+          // parent first (validation still applies), then open the child form.
+          if (dirty) { save(true, parentId); return; }
+          S.state.composer = null;
+          S.state.composerDraft = null;
           App.openComposer('todo', { parentId });
         });
         wrap.appendChild(addSub);
@@ -1074,7 +1089,7 @@
       saveErr.appendChild(retry);
     }
 
-    function save(closeAfter) {
+    function save(closeAfter, thenOpenSubtask) {
       const errs = live.validate();
       if (errs.length) {
         const first = root.querySelector('.invalid') || root.querySelector('.hint-box.error');
@@ -1156,6 +1171,12 @@
           App.back();
           S.state.highlight = created ? { testid: 'todo-tile', testids: ['todo-tile', 'action-todo'], id: todo.id } : null;
           App.render();
+        } else if (thenOpenSubtask) {
+          // The parent was written above; the child opens in a fresh form
+          // without taking the parent's edits down with it.
+          S.state.composer = { kind: 'todo', mode: 'create', parentId: thenOpenSubtask };
+          S.state.composerDraft = null;
+          S.navigate('composer', {});
         } else {
           App.back();
           App.render();

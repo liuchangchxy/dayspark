@@ -44,6 +44,14 @@ function assertNoErrors(page) {
 /* P1-1 — undo after completion must give the reservation back */
 scenario('P1-1 undo after completion restores the invalidated allocation', async (browser) => {
   const page = await newPage(browser);
+  // The seed's blocks sit at fixed clock hours (08:30 onward), so in the evening
+  // none of them is still in the future and this scenario would fail on the wall
+  // clock rather than on the behaviour. Pin the clock to 07:00 today.
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    d.setHours(7, 0, 0, 0);
+    window.U.setClockOffset(d.getTime() - Date.now());
+  });
   const target = await page.evaluate(() => {
     const now = window.U.now();
     const alloc = window.Store.state.allocations.find((a) =>

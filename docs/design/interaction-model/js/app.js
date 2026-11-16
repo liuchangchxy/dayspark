@@ -154,7 +154,12 @@
     // The pane exists only on the Todo destination itself. From a routed detail
     // (Search, a calendar block, a child link) there is no list beside it, so
     // storing a pane selection there would be a click that does nothing.
-    if (!U.isNarrow() && U.isSplit() && S.state.tab === 'todos' && S.state.route.name === 'todos') {
+    // A subtask is not a row in the list either: selecting it would leave the
+    // pane without a row and the next render would retire it, so children open
+    // as their own page instead.
+    const rec = type === 'todo' ? S.todoById(id) : S.eventById(id);
+    const isChild = !!(rec && rec.parentId);
+    if (!isChild && !U.isNarrow() && U.isSplit() && S.state.tab === 'todos' && S.state.route.name === 'todos') {
       S.selectPane(type, id, occurrence, dayMs);
       return;
     }

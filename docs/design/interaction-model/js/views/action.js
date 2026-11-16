@@ -295,7 +295,13 @@
       time: U.fmtTime(a.startAt),
       leading: `<span style="color:var(--violet)">${ICON('clock', 14)}</span>`,
       title: todo.summary,
-      meta: `<span>${U.esc(t('scheduledTime'))}</span>${UI.deadlineMeta(todo, now) ? '<span>·</span>' + UI.deadlineMeta(todo, now) : ''}`,
+      meta: (() => {
+        // An allocation row stands for one occurrence: its deadline is that
+        // day, not the series' first due date.
+        const due = todo.recurrence ? U.startOfDay(day) : undefined;
+        const d = UI.deadlineMeta(todo, now, due);
+        return `<span>${U.esc(t('scheduledTime'))}</span>${d ? '<span>·</span>' + d : ''}`;
+      })(),
       cls: (warm ? 'current' : '') + (past ? ' past' : ''),
       done: S.isDone(todo),
       onToggle: () => {
@@ -319,7 +325,7 @@
       title: todo.summary,
       meta: [
         todo.dueDate ? `<span class="${isOverdue ? 'row-deadline over' : 'row-deadline'}">${U.esc(t('deadlinePrefix', { d: U.fmtDeadline(todo.dueDate) }))}</span>` : '',
-        UI.allocMeta(todo),
+        UI.allocMeta(todo, todo.recurrence ? S.occurrenceIdFor(todo, U.startOfDay(now)) : undefined),
         UI.priorityDot(todo.priority),
         UI.tagChips(todo.tagIds, 2),
       ].filter(Boolean).join('<span>·</span>'),
