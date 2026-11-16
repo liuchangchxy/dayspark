@@ -35,14 +35,24 @@ class WidgetActionReceiver : BroadcastReceiver() {
     val todoId = intent.getIntExtra(WidgetSnapshot.EXTRA_TODO_ID, -1)
     if (todoId < 0) return
 
-    WidgetSnapshot.writeCommand(
+    val target = intent.getStringExtra(WidgetSnapshot.EXTRA_TARGET) ?: "todo"
+    val occurrenceId = intent.getStringExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID)
+    val cancelled = WidgetSnapshot.cancelPendingCommands(
       context = context,
-      target = intent.getStringExtra(WidgetSnapshot.EXTRA_TARGET) ?: "todo",
+      target = target,
       todoId = todoId,
-      todoSyncId = intent.getStringExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID),
-      occurrenceId = intent.getStringExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID),
-      sourceAllocationId = intent.getStringExtra(WidgetSnapshot.EXTRA_SOURCE_ALLOCATION_ID),
+      occurrenceId = occurrenceId,
     )
+    if (cancelled == 0) {
+      WidgetSnapshot.writeCommand(
+        context = context,
+        target = target,
+        todoId = todoId,
+        todoSyncId = intent.getStringExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID),
+        occurrenceId = occurrenceId,
+        sourceAllocationId = intent.getStringExtra(WidgetSnapshot.EXTRA_SOURCE_ALLOCATION_ID),
+      )
+    }
 
     refreshAllWidgets(context)
   }

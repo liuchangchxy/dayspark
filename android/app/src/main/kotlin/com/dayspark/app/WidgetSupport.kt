@@ -7,8 +7,11 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.RemoteViews
+import android.widget.TextView
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -16,8 +19,61 @@ import java.util.Locale
 
 internal enum class WidgetSize { SMALL, MEDIUM, LARGE }
 
+// A tap lands on the deepest view under the finger. A TextView without a click
+// handler lets the event bubble to the row, but the reverse — a child that
+// consumes the tap — silently kills that part of the row. Binding the row's open
+// action to every informational child makes the hit area explicit instead of
+// depending on launcher-inflated view behaviour, and leaves the checkbox as the
+// only different action.
+internal object WidgetRows {
+  val TODO_OPEN_IDS = intArrayOf(
+    R.id.todo_item,
+    R.id.todo_priority,
+    R.id.todo_title,
+    R.id.todo_meta,
+    R.id.todo_tags,
+    R.id.todo_tag_0,
+    R.id.todo_tag_1,
+    R.id.todo_tag_2,
+    R.id.todo_repeat,
+  )
+
+  val TIMELINE_OPEN_IDS = intArrayOf(
+    R.id.timeline_row,
+    R.id.timeline_marker,
+    R.id.timeline_title,
+    R.id.timeline_meta,
+  )
+
+  val CALENDAR_SUMMARY_OPEN_IDS = intArrayOf(
+    R.id.calendar_summary_row,
+    R.id.calendar_summary_marker,
+    R.id.calendar_summary_time,
+    R.id.calendar_summary_title,
+  )
+}
+
+// Rows are laid out by a weight-1 container: whatever is added past its height
+// is clipped, not scrolled. A budget that starts from a guessed row count
+// therefore drops the last row half-drawn. This budget is spent in dp as rows
+// and headers are actually emitted, so a container never receives more than it
+// can show.
+internal class RowBudget(totalDp: Int) {
+  var remainingDp: Int = totalDp.coerceAtLeast(0)
+    private set
+
+  fun take(dp: Int): Boolean {
+    if (dp <= 0) return true
+    if (remainingDp < dp) return false
+    remainingDp -= dp
+    return true
+  }
+}
+
 internal object WidgetSupport {
   private const val TAG = "DaySparkWidget"
+
+  const val SECTION_DP = 22
 
   fun dimensionsOf(manager: AppWidgetManager, appWidgetId: Int): Pair<Int, Int> {
     val options = manager.getAppWidgetOptions(appWidgetId)
@@ -329,25 +385,94 @@ internal object WidgetSupport {
 
   fun isLocalToday(iso: String): Boolean = iso == isoDate(Date())
 
-  // Action card chrome: root padding, the 48dp date header and one 24dp header
-  // per section that will actually be drawn. The footer is 48dp and only there
-  // when the completed line is visible.
-  fun actionChromeDp(small: Boolean, sectionHeaders: Int): Int =
-    (if (small) 16 else 24) + 48 + sectionHeaders * 24
+  // A todo row's minimum is 48dp, but its lines (and the tag dots) grow with
+  // the font scale, and how far they grow depends on the script: on a real
+  // device at fontScale 1.5 a Latin line is 57dp tall while Arabic is 70 and
+  // Tibetan 111. Any fixed sample therefore under-budgets some language, and an
+  // under-budgeted row is the clipping this widget exists to prevent. So the
+  // height is measured from the actual string the row will show, in the real
+  // layout, cached per text/configuration; 1dp absorbs px/dp rounding between
+  // this process and the launcher's inflation.
+  private const val MEASURE_WIDTH_DP = 360
+  private const val ROW_CACHE_LIMIT = 128
+  private const val MEASURE_FALLBACK = "M"
+  private val rowHeights = LinkedHashMap<String, Int>()
 
-  fun actionFooterDp(completedCount: Int): Int = if (completedCount > 0) 48 else 0
+  fun todoRowHeightDp(
+    context: Context,
+    hasMeta: Boolean,
+    hasTags: Boolean,
+    title: String,
+    meta: String = "",
+  ): Int = measuredRowHeightDp(
+    context = context,
+    layout = R.layout.widget_todo_item,
+    title = title,
+    meta = if (hasMeta) meta else null,
+    hasTags = hasTags,
+  )
 
-  fun rowBudget(
-    height: Int,
-    headerDp: Int,
-    footerDp: Int,
-    rowDp: Int,
-    min: Int,
-    max: Int,
+  fun timelineRowHeightDp(context: Context, title: String, meta: String): Int =
+    measuredRowHeightDp(
+      context = context,
+      layout = R.layout.widget_timeline_row,
+      title = title,
+      meta = meta,
+      hasTags = false,
+    )
+
+  private fun measuredRowHeightDp(
+    context: Context,
+    layout: Int,
+    title: String,
+    meta: String?,
+    hasTags: Boolean,
   ): Int {
-    if (height <= 0) return min
-    val available = height - headerDp - footerDp
-    return (available / rowDp).coerceIn(min, max)
+    val sample = title.ifBlank { MEASURE_FALLBACK }
+    val metaSample = meta?.ifBlank { MEASURE_FALLBACK }
+    val metrics = context.resources.displayMetrics
+    // Length-prefixed so a "|" in user text cannot make two different rows
+    // share a cache entry.
+    val key = "$layout|${metrics.density}|${context.resources.configuration.fontScale}|" +
+      "$hasTags|${sample.length}:$sample|${metaSample?.let { "${it.length}:$it" } ?: "-"}"
+    rowHeights[key]?.let { return it }
+    val timeline = layout == R.layout.widget_timeline_row
+    val titleId = if (timeline) R.id.timeline_title else R.id.todo_title
+    val metaId = if (timeline) R.id.timeline_meta else R.id.todo_meta
+    val row = LayoutInflater.from(context).inflate(layout, FrameLayout(context), false)
+    row.findViewById<TextView>(titleId)?.text = sample
+    row.findViewById<TextView>(metaId)?.apply {
+      text = metaSample ?: ""
+      visibility = if (metaSample != null) View.VISIBLE else View.GONE
+    }
+    if (!timeline) {
+      row.findViewById<View>(R.id.todo_tags)?.visibility = if (hasTags) View.VISIBLE else View.GONE
+      for (id in intArrayOf(R.id.todo_tag_0, R.id.todo_tag_1, R.id.todo_tag_2)) {
+        row.findViewById<View>(id)?.visibility = if (hasTags) View.VISIBLE else View.GONE
+      }
+    }
+    row.measure(
+      View.MeasureSpec.makeMeasureSpec(dpToPx(context, MEASURE_WIDTH_DP), View.MeasureSpec.EXACTLY),
+      View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+    )
+    val dp = kotlin.math.ceil(row.measuredHeight / metrics.density.toDouble()).toInt() + 1
+    // Titles are user data, so the cache is capped instead of growing with
+    // every edit; a cleared cache just costs one inflation per row.
+    if (rowHeights.size >= ROW_CACHE_LIMIT) rowHeights.clear()
+    rowHeights[key] = dp
+    return dp
+  }
+
+  fun dpToPx(context: Context, dp: Int): Int =
+    (dp * context.resources.displayMetrics.density).toInt()
+
+  fun bindOpen(
+    views: RemoteViews,
+    ids: IntArray,
+    pendingIntent: PendingIntent?,
+  ) {
+    if (pendingIntent == null) return
+    for (id in ids) views.setOnClickPendingIntent(id, pendingIntent)
   }
 
   fun formatWeekday(iso: String): String {

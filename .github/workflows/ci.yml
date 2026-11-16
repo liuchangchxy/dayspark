@@ -50,6 +50,18 @@ jobs:
       - run: flutter gen-l10n
       - run: flutter analyze
       - run: flutter test
+      # Gradle 8.14 refuses the runner image's JDK 25 (same reason build-android
+      # pins 17). The wrapper and local.properties are gitignored on purpose, so
+      # Flutter has to generate them before Gradle can run at all.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Provision the Android Gradle project / 生成 Gradle 工程
+        run: flutter build apk --debug --config-only
+      - name: Android widget touch and intent tests / 小组件触摸与意图测试
+        working-directory: android
+        run: ./gradlew :app:testDebugUnitTest --console=plain
 
   build-ios-simulator:
     needs: unit-test

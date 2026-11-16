@@ -6,7 +6,7 @@
 >
 > **维护**：新增门禁 → 加一行 + 补一次变异实证（怎么打坏的 + 红的原文）。改门禁的覆盖范围 → 更新本行。
 
-最后更新：2026-11-14 · 版本以 `pubspec.yaml` 为准
+最后更新：2026-11-16 · 版本以 `pubspec.yaml` 为准
 
 ---
 
@@ -46,6 +46,7 @@ python3 tool/guard_test_tampering.py
 | 15 | `tool/check_glibc_version.sh` | Linux 产物不超 GLIBC 2.35 基线 | 发布相关 job | ❌ **拿不到红色实证，且已实证它会静默放行**：`tool/check_glibc_version.sh /nonexistent/bundle` → `SKIP: readelf not found` + **退出码 0**。见 §四.2 |
 | 16 | `tool/web_smoke.dart` | Web 产物白屏即红（零依赖无头截图 + 着色比断言） | `build-web` job | ✅ v0.25.1（正身信号 + 抽掉守卫即判白屏） |
 | 17 | 服务端 / contracts / wrapper / CLI 各自的 `dart test` | 非 Flutter 侧的回归 | `server-test` job | ✅ 2026-10-01（默认端口 8787→8788 → `Expected: <8787> Actual: <8788>`） |
+| 22 | `android/` 的 `./gradlew :app:testDebugUnitTest`（Robolectric 4.14.1，47 tests / skipped=0） | 小组件每一行的真实触摸区域与 PendingIntent 身份、Checkbox 撤销命令、行高按每行**自身文本**在真实布局中测量（含 4x2、声明最小尺寸、112dp 边界、420dpi 下 7 种文字的 fontScale 1.5/2.0 行高） | `unit-test` job（`flutter test` 之后；先 `flutter build apk --debug --config-only` 生成被 gitignore 的 wrapper，并钉 JDK 17） | ✅ 2026-11-16（四次变异：① 关掉撤销分支 → `the second tap is an undo expected:<0> but was:<1>`；② 只绑行根 → `todo_title must carry the open action`；③ 预算无上限 → `child 3 must be measured`；④ 行高换回算术公式 → `scale=1.5 height=344dp: row 3 is 47px but a touch target needs 48px`；⑤ 行高改回固定样本 `M` → `zh scale=1.5 height=220dp: row 1 is 124px but a touch target needs 126px`；⑥ 三个无 id 兜底各自删除 → 对应测试红；⑦ 112dp 边界改回 `until 112` → `the 112dp boundary still shows one full row`） |
 > **分支保护依赖 / Branch-protection dependency**：`main` 的分支保护要求一条名为 `test` 的 required status check —— 就是上表第 4–14 条所在的那个 job 名。**job 名本身是门禁契约的一部分**：重命名 `test` 必须在同一次改动里同步更新分支保护，否则合并门会在没有任何门变红的情况下静默消失。
 > **Control Plane 已移除 / VCCP removed**（2026-11-12）：`.github/control-plane.yml`、`.github/vccp/`、`vccp-coordination-label-cleanup.yml` 及两份 VCCP 文档已从仓库删除。此前锁定 revision 见 git 历史。
 
@@ -67,7 +68,7 @@ python3 tool/guard_test_tampering.py
 
 ## 三点五、当前红灯
 
-无。`flutter test` 366 passed / 0 failed。
+无。`flutter test` 824 passed / 0 failed；Robolectric 47 passed / 0 failed / skipped=0。
 
 ### 已关的假红（2026-10-01）
 

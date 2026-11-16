@@ -400,6 +400,53 @@ data class WidgetSnapshot(val json: JSONObject) {
       return editor.remove("$COMMAND_PREFIX$commandId").commit()
     }
 
+    // A second tap on the same checkbox is an undo, not a second completion.
+    // Checking the queue first keeps a tap from stacking another complete
+    // command that would run after the app opened and re-apply the action the
+    // user just cancelled. Broadcast receivers run serially on the main thread,
+    // so read-then-remove is ordered with other taps.
+    fun cancelPendingCommands(
+      context: Context,
+      target: String,
+      todoId: Int,
+      occurrenceId: String?,
+    ): Int {
+      val prefs = prefs(context)
+      val editor = prefs.edit()
+      var removed = 0
+      for ((key, value) in prefs.all) {
+        if (!key.startsWith(COMMAND_PREFIX) || value !is String) continue
+        if (commandMatches(value, target, todoId, occurrenceId)) {
+          editor.remove(key)
+          removed++
+        }
+      }
+      if (removed > 0) editor.commit()
+      return removed
+    }
+
+    // Allocation is deliberately not part of the identity: the same recurring
+    // occurrence scheduled twice is still one completion, and leaving a
+    // duplicate would complete what the user just unchecked.
+    fun commandMatches(
+      raw: String,
+      target: String,
+      todoId: Int,
+      occurrenceId: String?,
+    ): Boolean {
+      val obj = try {
+        JSONObject(raw)
+      } catch (_: Exception) {
+        return false
+      }
+      if (obj.optString("action", "complete") != "complete") return false
+      if (obj.optString("target", "todo") != target) return false
+      if (obj.optInt("todoId", -1) != todoId) return false
+      if (target != "taskInstance") return true
+      val stored = obj.optString("occurrenceId", "")
+      return stored.isNotEmpty() && stored == occurrenceId
+    }
+
     fun readPendingTargets(context: Context): PendingTargets {
       val prefs = prefs(context)
       val todoIds = mutableSetOf<Int>()

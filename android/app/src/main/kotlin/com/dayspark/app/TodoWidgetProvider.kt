@@ -55,21 +55,25 @@ class TodoWidgetProvider : AppWidgetProvider() {
       manager: AppWidgetManager,
       appWidgetId: Int,
     ) {
+      val size = WidgetSupport.sizeOf(manager, appWidgetId)
+      val heightDp = WidgetSupport.dimensionsOf(manager, appWidgetId).second
       WidgetSupport.render(context, manager, appWidgetId) {
-        build(context, manager, appWidgetId)
+        build(context, appWidgetId, size, heightDp)
       }
     }
 
-    private fun build(
+    // Size and height are passed in rather than read from the manager so the
+    // layout and its row budget can be exercised at exact card sizes in tests.
+    internal fun build(
       context: Context,
-      manager: AppWidgetManager,
       appWidgetId: Int,
+      size: WidgetSize,
+      heightDp: Int,
     ): RemoteViews {
       val snapshot = WidgetSnapshot.read(context)
         ?: return WidgetSupport.fallback(context, appWidgetId)
       val ui = snapshot.ui()
       val theme = snapshot.theme()
-      val size = WidgetSupport.sizeOf(manager, appWidgetId)
       val layout = when (size) {
         WidgetSize.SMALL -> R.layout.widget_todos_small
         WidgetSize.MEDIUM -> R.layout.widget_todos_medium
@@ -77,6 +81,24 @@ class TodoWidgetProvider : AppWidgetProvider() {
       }
       val views = RemoteViews(context.packageName, layout)
       WidgetSupport.applyRoot(context, views, R.id.todos_root, theme)
+
+      // A 110dp pin is the declared minimum and still has to hold one 48dp row:
+      // the 8dp padding plus the 48dp header leaves 46dp. Tightening the padding
+      // in that band is the only way to honour both the minimum size and the
+      // minimum touch target; taller cards keep the normal breathing room.
+      // 112 is the last height where the normal padding leaves less than one
+      // measured row (it budgets 49dp): the band has to include it, otherwise
+      // 112 shows no row while 111 and 113 show one.
+      val tight = size == WidgetSize.SMALL && heightDp in 1 until 113
+      val paddingDp = when {
+        tight -> 4
+        size == WidgetSize.SMALL -> 8
+        else -> 12
+      }
+      if (tight) {
+        val edge = WidgetSupport.dpToPx(context, 4)
+        views.setViewPadding(R.id.todos_root, edge, edge, edge, edge)
+      }
 
       val state = WidgetStateStore.read(context, appWidgetId)
       val mode = state.todoMode
@@ -150,24 +172,22 @@ class TodoWidgetProvider : AppWidgetProvider() {
 
       views.removeAllViews(R.id.todos_rows)
       val pending = WidgetSnapshot.readPendingTargets(context)
-      val height = WidgetSupport.dimensionsOf(manager, appWidgetId).second
-      val budget = when (size) {
-        // A narrow pin can still be five rows tall, and a fixed budget of two
-        // left most of that card blank. The chrome is 16dp of padding plus the
-        // 48dp header, so the rows get whatever height is actually there.
-        WidgetSize.SMALL -> WidgetSupport.rowBudget(height, 64, 0, 48, 2, 6)
-        WidgetSize.MEDIUM -> WidgetSupport.rowBudget(height, 120, 0, 48, 1, 6)
-        WidgetSize.LARGE -> WidgetSupport.rowBudget(height, 120, 0, 48, 3, 12)
-      }.let {
-        if (size == WidgetSize.LARGE && todayMode && overdueRows.isNotEmpty()) {
-          (it - 1).coerceAtLeast(1)
-        } else {
-          it
-        }
-      }
-      var shown = 0
+      val effectiveHeight = if (heightDp > 0) heightDp else 220
+      val chipsDp = if (size == WidgetSize.SMALL) 0 else 48
+      val budget = RowBudget(effectiveHeight - paddingDp * 2 - 48 - chipsDp)
       var overdueShown = 0
       var todayShown = 0
+
+      fun rowHeight(item: WidgetSnapshot.TodoItemRow, overdue: Boolean): Int {
+        val meta = metaText(item, size, mode, overdue)
+        return WidgetSupport.todoRowHeightDp(
+          context,
+          meta.isNotEmpty(),
+          showsTags(item, size),
+          title = item.summary,
+          meta = meta,
+        )
+      }
 
       fun addHeader(text: String) {
         val header = RemoteViews(context.packageName, R.layout.widget_action_section)
@@ -176,7 +196,31 @@ class TodoWidgetProvider : AppWidgetProvider() {
         views.addView(R.id.todos_rows, header)
       }
 
-      if (snapshotStale) {
+      fun addItem(
+        item: WidgetSnapshot.TodoItemRow,
+        overdue: Boolean,
+        number: Int,
+      ): Boolean {
+        if (!budget.take(rowHeight(item, overdue))) return false
+        views.addView(
+          R.id.todos_rows,
+          itemRow(
+            context, item, pending, theme, size, mode,
+            overdue = overdue, error = error, warning = warning,
+            number = number, appWidgetId = appWidgetId,
+          ),
+        )
+        return true
+      }
+
+      val staleText = if (todayStale) {
+        ui?.openToUpdate ?: context.getString(R.string.widget_open_to_update)
+      } else {
+        ui?.stale ?: context.getString(R.string.widget_stale)
+      }
+      if (snapshotStale &&
+        budget.take(WidgetSupport.todoRowHeightDp(context, false, false, title = staleText))
+      ) {
         views.addView(
           R.id.todos_rows,
           staleRow(
@@ -188,69 +232,80 @@ class TodoWidgetProvider : AppWidgetProvider() {
             todayMessage = todayStale,
           ),
         )
-        shown++
       }
 
       if (!todayStale) {
         val showGroups = size == WidgetSize.LARGE && todayMode
+        // The Today label is only worth a line when it separates two groups;
+        // a plain today list needs no header of its own.
+        val showTodayHeader = showGroups && overdueRows.isNotEmpty()
         if (todayMode && overdueRows.isNotEmpty()) {
-          if (showGroups) addHeader(ui?.overdue ?: context.getString(R.string.widget_overdue))
-          for (item in overdueRows) {
-            if (shown >= budget) break
-            views.addView(
-              R.id.todos_rows,
-              itemRow(
-                context, item, pending, theme, size, mode,
-                overdue = true, error = error, warning = warning,
-                number = 0, appWidgetId = appWidgetId,
-              ),
-            )
-            shown++
-            overdueShown++
-          }
-          if (showGroups && shown < budget) {
-            addHeader(ui?.today ?: context.getString(R.string.widget_today))
+          val firstHeight = rowHeight(overdueRows.first(), true)
+          // A group header with no room for a row under it is a dead label and
+          // it also costs a row its space, so the two are taken together.
+          val headerFits = !showGroups ||
+            budget.remainingDp >= WidgetSupport.SECTION_DP + firstHeight
+          if (headerFits) {
+            if (showGroups) {
+              budget.take(WidgetSupport.SECTION_DP)
+              addHeader(ui?.overdue ?: context.getString(R.string.widget_overdue))
+            }
+            for (item in overdueRows) {
+              if (!addItem(item, overdue = true, number = 0)) break
+              overdueShown++
+            }
           }
         }
 
-        for (item in current.items) {
-          if (shown >= budget) break
-          todayShown++
-          views.addView(
-            R.id.todos_rows,
-            itemRow(
-              context, item, pending, theme, size, mode,
-              overdue = false, error = error, warning = warning,
-              number = todayShown, appWidgetId = appWidgetId,
-            ),
-          )
-          shown++
+        if (current.items.isNotEmpty()) {
+          val firstHeight = rowHeight(current.items.first(), false)
+          val headerNeeded = showTodayHeader
+          val headerFits = !headerNeeded ||
+            budget.remainingDp >= WidgetSupport.SECTION_DP + firstHeight
+          if (headerFits) {
+            if (headerNeeded) {
+              budget.take(WidgetSupport.SECTION_DP)
+              addHeader(ui?.today ?: context.getString(R.string.widget_today))
+            }
+            for (item in current.items) {
+              if (!addItem(item, overdue = false, number = todayShown + 1)) break
+              todayShown++
+            }
+          }
         }
       }
 
       val emitted = overdueShown + todayShown
       val more = total - emitted
-      if (!todayStale && more > 0 && shown < budget) {
+      val moreText = ui?.withCount(ui.moreCount, more)
+        ?: context.getString(R.string.widget_more_count, more)
+      if (!todayStale && more > 0 &&
+        budget.take(
+          WidgetSupport.todoRowHeightDp(context, hasMeta = false, hasTags = false, title = moreText),
+        )
+      ) {
         val moreRow = RemoteViews(context.packageName, R.layout.widget_todo_item)
         moreRow.setViewVisibility(R.id.todo_check, View.GONE)
         moreRow.setViewVisibility(R.id.todo_priority, View.GONE)
         moreRow.setViewVisibility(R.id.todo_repeat, View.GONE)
         moreRow.setViewVisibility(R.id.todo_meta, View.GONE)
         moreRow.setViewVisibility(R.id.todo_tags, View.GONE)
-        moreRow.setTextViewText(
-          R.id.todo_title,
-          ui?.withCount(ui.moreCount, more) ?: context.getString(R.string.widget_more_count, more),
-        )
+        moreRow.setTextViewText(R.id.todo_title, moreText)
         WidgetSupport.textColor(moreRow, R.id.todo_title, theme, "accent", accent)
-        moreRow.setOnClickPendingIntent(
-          R.id.todo_item,
+        WidgetSupport.bindOpen(
+          moreRow,
+          WidgetRows.TODO_OPEN_IDS,
           WidgetSupport.openUri(context, listUri, appWidgetId + 604),
         )
         views.addView(R.id.todos_rows, moreRow)
-        shown++
       }
 
-      val empty = !todayStale && emitted == 0
+      // "No tasks" is a statement about the data, not about how many rows
+      // happened to fit; a short card must not claim the list is empty.
+      val hasTasks = current.items.isNotEmpty() ||
+        overdueRows.isNotEmpty() ||
+        current.total > 0
+      val empty = !todayStale && !hasTasks
       views.setViewVisibility(R.id.todos_empty, if (empty) View.VISIBLE else View.GONE)
       if (empty) {
         val text = when {
@@ -321,14 +376,32 @@ class TodoWidgetProvider : AppWidgetProvider() {
         },
       )
       WidgetSupport.textColor(row, R.id.todo_title, theme, "textSecondary", secondary)
-      row.setOnClickPendingIntent(
-        R.id.todo_item,
+      WidgetSupport.bindOpen(
+        row,
+        WidgetRows.TODO_OPEN_IDS,
         WidgetSupport.openUri(context, WidgetSupport.todosUri("today"), appWidgetId + 605),
       )
       return row
     }
 
-    private fun itemRow(
+    private fun metaText(
+      item: WidgetSnapshot.TodoItemRow,
+      size: WidgetSize,
+      mode: String,
+      overdue: Boolean,
+    ): String = when {
+      mode == "inbox" -> ""
+      size == WidgetSize.SMALL -> ""
+      overdue -> item.dueDate?.let { WidgetSupport.formatDate(it) } ?: ""
+      mode == "all" || size == WidgetSize.LARGE ->
+        item.dueDate?.let { WidgetSupport.formatDate(it) } ?: ""
+      else -> ""
+    }
+
+    private fun showsTags(item: WidgetSnapshot.TodoItemRow, size: WidgetSize): Boolean =
+      size == WidgetSize.LARGE && item.tagColors.isNotEmpty()
+
+    internal fun itemRow(
       context: Context,
       item: WidgetSnapshot.TodoItemRow,
       pending: WidgetSnapshot.PendingTargets,
@@ -363,13 +436,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
         row.setViewVisibility(R.id.todo_priority, View.INVISIBLE)
       }
 
-      val meta = when {
-        mode == "inbox" -> ""
-        size == WidgetSize.SMALL -> ""
-        overdue -> item.dueDate?.let { WidgetSupport.formatDate(it) } ?: ""
-        mode == "all" || size == WidgetSize.LARGE -> item.dueDate?.let { WidgetSupport.formatDate(it) } ?: ""
-        else -> ""
-      }
+      val meta = metaText(item, size, mode, overdue)
       row.setTextViewText(R.id.todo_meta, meta)
       row.setViewVisibility(R.id.todo_meta, if (meta.isEmpty()) View.GONE else View.VISIBLE)
       WidgetSupport.textColor(
@@ -380,7 +447,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
         if (overdue) error else secondary,
       )
 
-      if (size == WidgetSize.LARGE && item.tagColors.isNotEmpty()) {
+      if (showsTags(item, size)) {
         row.setViewVisibility(R.id.todo_tags, View.VISIBLE)
         val ids = intArrayOf(R.id.todo_tag_0, R.id.todo_tag_1, R.id.todo_tag_2)
         for (index in ids.indices) {
@@ -428,13 +495,20 @@ class TodoWidgetProvider : AppWidgetProvider() {
       }
 
       if (item.todoId > 0) {
-        row.setOnClickPendingIntent(
-          R.id.todo_item,
+        WidgetSupport.bindOpen(
+          row,
+          WidgetRows.TODO_OPEN_IDS,
           WidgetSupport.openUri(
             context,
             WidgetSupport.todoUri(item.todoId),
             (item.todoId * 37 + appWidgetId + 700) and 0x7FFFFFFF,
           ),
+        )
+      } else {
+        WidgetSupport.bindOpen(
+          row,
+          WidgetRows.TODO_OPEN_IDS,
+          WidgetSupport.openUri(context, WidgetSupport.todosUri(mode), appWidgetId + 606),
         )
       }
       WidgetSupport.textColor(row, R.id.todo_title, theme, "textPrimary", primary)

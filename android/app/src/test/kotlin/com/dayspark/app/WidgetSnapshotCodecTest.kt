@@ -415,14 +415,6 @@ class WidgetSnapshotCodecTest {
   }
 
   @Test
-  fun `row budget grows with height and respects bounds`() {
-    assertEquals(3, WidgetSupport.rowBudget(80, 40, 48, 48, 3, 6))
-    assertEquals(6, WidgetSupport.rowBudget(600, 40, 48, 48, 3, 6))
-    assertEquals(4, WidgetSupport.rowBudget(300, 40, 48, 48, 3, 6))
-    assertEquals(4, WidgetSupport.rowBudget(0, 40, 48, 48, 4, 12))
-  }
-
-  @Test
   fun `nominal cell sizes map to the intended layout tier`() {
     assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(110, 110))
     assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(180, 180))
@@ -503,35 +495,6 @@ class WidgetSnapshotCodecTest {
     assertEquals(R.layout.widget_calendar_cell_36, WidgetSupport.calendarCellLayout(36))
     assertEquals(R.layout.widget_calendar_cell_40, WidgetSupport.calendarCellLayout(40))
     assertEquals(R.layout.widget_calendar_cell_44, WidgetSupport.calendarCellLayout(44))
-  }
-
-  @Test
-  fun `short medium widgets still reserve one row instead of overflowing`() {
-    assertEquals(1, WidgetSupport.rowBudget(180, 96, 0, 44, 1, 6))
-    assertEquals(1, WidgetSupport.rowBudget(180, 120, 40, 48, 1, 6))
-    assertEquals(2, WidgetSupport.rowBudget(320, 150, 60, 48, 2, 14))
-  }
-
-  @Test
-  fun `action card chrome counts only the sections it draws`() {
-    assertEquals(64, WidgetSupport.actionChromeDp(true, 0))
-    assertEquals(96, WidgetSupport.actionChromeDp(false, 1))
-    assertEquals(168, WidgetSupport.actionChromeDp(false, 4))
-    assertEquals(0, WidgetSupport.actionFooterDp(0))
-    assertEquals(48, WidgetSupport.actionFooterDp(3))
-    // A 4x4 card with one section and no completed footer holds five rows; the
-    // old fixed allowance (150 + 60 for large) said two and left the card bare.
-    assertEquals(
-      5,
-      WidgetSupport.rowBudget(
-        340,
-        WidgetSupport.actionChromeDp(false, 1),
-        WidgetSupport.actionFooterDp(0),
-        48,
-        2,
-        14,
-      ),
-    )
   }
 
   @Test

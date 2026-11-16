@@ -28,7 +28,25 @@ ASSERTION_KEYWORDS = (
     ".assertFalse(",
     ".assertEqual(",
     ".assertRaises(",
+    # Kotlin/JUnit call these bare, without a receiver, so the dot-prefixed
+    # forms above never match a deleted line in `*Test.kt`.
+    "assertEquals(",
+    "assertTrue(",
+    "assertFalse(",
+    "assertNotNull(",
+    "assertNull(",
 )
+
+# Android unit tests live in `android/app/src/test/kotlin/**/*Test.kt`, which
+# none of the naming patterns below (`tests/`, `_test.`, `.test.`) describe.
+TEST_PATH_MARKERS = ("test_", "_test.", ".spec.", ".test.", "tests/", "/src/test/")
+
+
+def is_test_file_path(path: str) -> bool:
+    lowered = path.lower()
+    if any(p in lowered for p in TEST_PATH_MARKERS):
+        return True
+    return lowered.endswith("test.kt")
 
 def run_git_diff() -> str:
     """获取暂存区与工作区的完整 diff"""
@@ -65,10 +83,7 @@ def check_tampering(diff_text: str) -> list[str]:
             parts = line.split()
             current_file = parts[-1].lstrip("b/")
             # 识别测试文件
-            is_test_file = any(
-                p in current_file.lower()
-                for p in ["test_", "_test.", ".spec.", ".test.", "tests/"]
-            )
+            is_test_file = is_test_file_path(current_file)
             continue
 
         if not is_test_file:
