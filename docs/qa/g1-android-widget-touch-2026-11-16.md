@@ -214,3 +214,72 @@ re-verified on this layout (`Read book`, `Finish report`, 1 → 0 commands).
 - Command consumption still happens when the Home page initialises (existing
   pipeline, unchanged). A cold start was used to prove it; a warm resume is not
   claimed as a consumption point.
+
+## Re-verification on the committed build (10:20–10:50)
+
+The device matrix above was captured before the last two changes (row height
+measured from each row's own text; 110–112dp tight padding; timeline event and
+calendar summary bindings; id-less row fallbacks). Those changes were re-tested
+on the branch's own commit `7f9d075`, built with `flutter build apk --debug` and
+installed with `adb install -r` on the same API 35 / 420dpi emulator.
+
+Widgets present: Todos 2x2 (SMALL) and Action/Today 4x2 (LARGE). Bounds below
+come from `uiautomator dump` of the launcher, not the XML.
+
+### Todos 2x2 (SMALL), rows container `[88,1315][498,1735]`
+
+Every row child is clickable: `todo_item`, `todo_check` (126px = 48dp),
+`todo_title`, `todo_meta` where shown, `todo_repeat` on the recurring row.
+
+| Tap | Observed |
+|---|---|
+| recurring row title `1. Morning run` | opened `Morning run`, 0 commands |
+| recurring row trailing blank (460,1430) | opened `Morning run`, 0 commands |
+| row 2 title (350,1504) | opened `Finish report`, 0 commands |
+| row 2 blank above title (250,1450) | opened `Finish report`, 0 commands |
+| row 2 trailing blank (470,1540) | opened `Finish report`, 0 commands |
+| row 3 title (350,1630) | opened `Read book`, 0 commands |
+| row 2 checkbox centre (151,1504) | 1 pending command; launcher kept focus (no page) |
+| same checkbox again | 0 commands (undo) |
+| row 3 checkbox left edge (90,1630) | 1 command |
+| row 3 checkbox right edge (213,1630) | 0 commands (undo) |
+
+No row tap added a command; no checkbox tap opened a page.
+
+### Completion and refresh
+
+1. Checkbox on `2. Finish report` → command queue 1.
+2. `am force-stop` then cold start → queue 0; DB row `4|Finish report` →
+   `COMPLETED`; widget count `3` → `2`, the row is gone and `Read book` is
+   renumbered to `2`.
+3. Action/Today simultaneously refreshed to only `Read book` plus `3 completed`.
+
+### Action/Today 4x2 (LARGE), rows area `[99,696][981,968]`
+
+One task row (`Read book`), section header and a 48dp footer all inside the
+card; no clipped row (footer bottom 1094 ≤ root bottom 1126).
+
+| Tap | Observed |
+|---|---|
+| row title (350,797) | opened `Read book`, 0 commands |
+| row meta `04:38` (350,840) | opened `Read book`, 0 commands |
+| row blank bottom (350,870) | opened `Read book`, 0 commands |
+| checkbox centre (162,817) | 1 command, launcher kept focus |
+| same checkbox again | 0 commands (undo) |
+| footer `3 completed` (350,1031) | opened the app (MainActivity), 0 commands |
+
+### Limits of this re-run
+
+- Without Tags widget changes the Todos card could not be widened past 2x2:
+  the launcher icons to its right block the resize handle, and the handle did
+  not accept synthetic drags this session. 4x4 is covered by the Robolectric
+  geometry tests at 344dp and by the 2026-11-14 session on the same layouts.
+- MEDIUM remains unreachable from the picker (unit-tested at 140dp).
+
+## CI on the pull request
+
+`CI` run 43791376341 on PR #105: **all eight jobs pass** — `unit-test` 8m43s
+(including `Provision the Android Gradle project` and `Android widget touch and
+intent tests`, the latter `BUILD SUCCESSFUL in 4m 52s`, 300 tasks executed),
+`server-test`, `build-android`, `build-ios-simulator`, `build-linux`,
+`build-macos`, `build-web`, `build-windows`, and the `test` gate.
