@@ -1121,3 +1121,16 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .search-box input { min-height: 48px; }
   .chat-input textarea { min-height: 48px; }
 }
+
+@media (max-width: 899px) {
+  .composer-title-input { min-height: 48px; }
+  .cal-picker { min-height: 48px; }
+  .chip-row .chip-btn { min-width: 48px; }
+}
+
+@media (max-width: 899px) {
+  .sheet .picker .input,
+  .sheet .picker .select,
+  .sheet .picker input,
+  .sheet .picker select { min-height: 48px; height: 48px; }
+}
