@@ -106,6 +106,9 @@
     rowNode.setAttribute('aria-label', todo.summary);
     rowNode.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
+      // The row holds real buttons (checkbox, More). Their own activation must
+      // not be replaced by "open the detail".
+      if (e.target !== rowNode) return;
       e.preventDefault();
       if (multi.active) {
         if (multi.ids.has(todo.id)) multi.ids.delete(todo.id); else multi.ids.add(todo.id);
@@ -432,6 +435,23 @@
     exit.addEventListener('click', () => { multi.active = false; multi.ids.clear(); App.render(); });
     bar.appendChild(exit);
     return bar;
+  }
+
+  // Closing the pane is not "losing your place": the row that owned it takes
+  // focus back, exactly as Escape does.
+  function closePaneToRow() {
+    const sel = S.state.paneSelection;
+    const id = sel ? sel.id : null;
+    S.clearPane();
+    if (id === null) return;
+    // The click that closed the pane also moves focus to the now-removed
+    // button; focusing after the current event finishes keeps it on the row.
+    const put = () => {
+      const row = document.querySelector(`[data-testid="todo-row"][data-id="${id}"]`);
+      if (row) row.focus();
+    };
+    put();
+    setTimeout(put, 0);
   }
 
   function visibleForPane() {
@@ -823,7 +843,7 @@
       const head = U.el('div', { class: 'detail-head', style: 'justify-content:flex-end' });
       const btn = U.el('button', { class: 'btn ghost sm md-close', 'data-testid': 'pane-close' });
       btn.innerHTML = ICON('x', 13) + `<span>${U.esc(t('close'))}</span>`;
-      btn.addEventListener('click', () => S.clearPane());
+      btn.addEventListener('click', () => closePaneToRow());
       head.appendChild(btn);
       host.appendChild(head);
       host.appendChild(UI.emptyState('alert', t('nothingHere'), t('errorBody')));
@@ -843,13 +863,13 @@
       head.querySelectorAll('.spacer').forEach((n) => n.remove());
       const btn = U.el('button', { class: 'btn ghost sm md-close', 'data-testid': 'pane-close' });
       btn.innerHTML = ICON('x', 13) + `<span>${U.esc(t('close'))}</span>`;
-      btn.addEventListener('click', () => S.clearPane());
+      btn.addEventListener('click', () => closePaneToRow());
       head.appendChild(btn);
     } else {
       const close = U.el('div', { class: 'detail-head', style: 'justify-content:flex-end' });
       const btn = U.el('button', { class: 'btn ghost sm md-close', 'data-testid': 'pane-close' });
       btn.innerHTML = ICON('x', 13) + `<span>${U.esc(t('close'))}</span>`;
-      btn.addEventListener('click', () => S.clearPane());
+      btn.addEventListener('click', () => closePaneToRow());
       close.appendChild(btn);
       host.appendChild(close);
     }
@@ -866,7 +886,8 @@
     const done = groups.done.filter(tagMatches);
     const doneInstances = (groups.doneInstances || []).filter((x) => tagMatches(x.todo));
 
-    if (!overdue.length && !dated.length && !done.length && !doneInstances.length) {
+    const shownDone = S.state.hideCompleted ? [] : done;
+    if (!overdue.length && !dated.length && !shownDone.length && !doneInstances.length) {
       list.appendChild(UI.emptyState('checkSquare', t('noPendingTodos'), t('noPendingHint'), [
         { label: t('newTodo'), primary: true, action: () => App.openComposer('todo', { dueDate: day }) },
       ]));

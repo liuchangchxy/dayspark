@@ -357,7 +357,12 @@
       { icon: 'edit', text: t('edit'), action: () => App.openComposer('todo', { mode: 'edit', id: todo.id }) },
       { icon: 'clockPlus', text: t('allocateNow'), action: () => scheduleSheet(todo) },
       { icon: 'list', text: t('addSubtask'), action: () => App.openComposer('todo', { parentId: todo.id }) },
-      { icon: 'copy', text: S.state.lang === 'zh' ? '复制标题' : 'Copy title', action: () => { navigator.clipboard && navigator.clipboard.writeText(todo.summary); UI.toast(S.state.lang === 'zh' ? '已复制' : 'Copied'); } },
+      { icon: 'copy', text: S.state.lang === 'zh' ? '复制标题' : 'Copy title', action: () => {
+        const done = () => UI.toast(S.state.lang === 'zh' ? '已复制' : 'Copied');
+        const fail = () => UI.toast(S.state.lang === 'zh' ? '复制失败' : 'Copy failed', { warn: true });
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(todo.summary).then(done, fail);
+        else fail();
+      } },
       { sep: true },
       { icon: 'trash', text: t('moveToTrash'), danger: true, action: () => deleteFlow(todo) },
     ];

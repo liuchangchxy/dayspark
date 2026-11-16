@@ -353,7 +353,7 @@ svg { display: block; }
    horizontal swipe before it reaches the threshold. */
 .todo-row { touch-action: pan-y; }
 .todo-row:hover { background: var(--surface-2); }
-.todo-row .grab { width: 20px; color: var(--ink-3); opacity: 0; cursor: grab; flex: none; }
+.todo-row .grab { width: 20px; color: var(--ink-3); opacity: 0; cursor: grab; flex: none; touch-action: none; }
 .todo-row:hover .grab, .todo-row .grab.always { opacity: .8; }
 .todo-row .ordinal { width: 20px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); flex: none; text-align: center; }
 .todo-row .main { flex: 1; min-width: 0; }
@@ -459,7 +459,8 @@ svg { display: block; }
 .block.alloc .bt::before { content: ""; display: inline-block; width: 5px; height: 5px; border: 1px solid var(--violet); margin-right: 4px; vertical-align: 1px; }
 .block.done { opacity: .55; text-decoration: line-through; }
 .block.dragging { opacity: .75; z-index: 20; box-shadow: var(--shadow-1); }
-.block .resize { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; cursor: ns-resize; }
+.block { touch-action: none; }
+.block .resize { position: absolute; left: 0; right: 0; bottom: 0; height: 7px; cursor: ns-resize; touch-action: none; }
 .block .resize:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 .overlap-2 { right: calc(50% + 1px) !important; }
 .overlap-2.alt { left: calc(50% + 1px) !important; right: 2px !important; }

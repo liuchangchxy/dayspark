@@ -235,7 +235,10 @@
 
   function deadlineMeta(todo, now) {
     if (!todo.dueDate) return '';
-    const overdue = S.isOpen(todo) && todo.dueDate < (now || U.now());
+    // 逾期 means the deadline's day has passed. A date-only deadline is due at
+    // the start of its day, so comparing instants would call today overdue.
+    const overdue = S.isOpen(todo) && todo.dueDate
+      && U.startOfDay(todo.dueDate) < U.startOfDay(now || U.now());
     // Say 截止. On a row that already shows a time block, a bare time reads as a
     // second schedule; the word is what distinguishes a deadline from an
     // execution slot.

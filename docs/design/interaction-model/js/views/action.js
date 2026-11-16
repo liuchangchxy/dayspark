@@ -24,7 +24,9 @@
     App.openRecord('todo', todo.id, null, day || U.startOfDay(U.now()));
   }
   function openEvent(event) {
-    App.openRecord('event', event.id, event.occurrenceAnchor ? event.occurrenceAnchor.getTime() : null);
+    // The detail needs the occurrence's real start; occurrenceAnchor is only the
+    // midnight key used to exclude the instance from the series.
+    App.openRecord('event', event.id, event.isOccurrence ? event.startDt.getTime() : null);
   }
 
   function row(opts) {
@@ -307,7 +309,7 @@
   }
 
   function todoRow(todo, now, past) {
-    const isOverdue = S.isOpen(todo) && todo.dueDate && todo.dueDate < now;
+    const isOverdue = S.isOpen(todo) && todo.dueDate && U.startOfDay(todo.dueDate) < U.startOfDay(now);
     const clock = todo.dueDate ? U.fmtClockNoMidnight(todo.dueDate) : '';
     return row({
       time: clock || (todo.dueDate && U.sameDay(todo.dueDate, now) ? t('today') : ''),

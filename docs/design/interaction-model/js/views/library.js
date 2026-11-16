@@ -357,6 +357,15 @@
   }
 
   // ---------- feedback ----------
+  // A clipboard write can be refused. Saying "copied" without looking is a
+  // false claim the user only discovers when the paste is empty.
+  function copyText(text, note) {
+    const done = () => UI.toast((S.state.lang === 'zh' ? '已复制' : 'Copied') + (note ? '。' + note : ''));
+    const fail = () => UI.toast(S.state.lang === 'zh' ? '复制失败，请手动选中文本' : 'Copy failed — select the text and copy manually', { warn: true });
+    if (!navigator.clipboard || !navigator.clipboard.writeText) { fail(); return; }
+    navigator.clipboard.writeText(text).then(done, fail);
+  }
+
   function renderFeedback() {
     const page = UI.page({
       title: t('pageFeedback'),
@@ -372,14 +381,12 @@
         const copy = U.el('button', { class: 'btn ghost lg', text: S.state.lang === 'zh' ? '复制' : 'Copy', 'data-testid': 'feedback-copy' });
         copy.addEventListener('click', () => {
           if (!ta.value.trim()) { ta.classList.add('invalid'); ta.focus(); return; }
-          if (navigator.clipboard) navigator.clipboard.writeText(ta.value);
-          UI.toast(S.state.lang === 'zh' ? '已复制' : 'Copied');
+          copyText(ta.value);
         });
         const send = U.el('button', { class: 'btn primary lg', text: S.state.lang === 'zh' ? '在 GitHub 提交' : 'Submit on GitHub', 'data-testid': 'feedback-submit' });
         send.addEventListener('click', () => {
           if (!ta.value.trim()) { ta.classList.add('invalid'); ta.focus(); return; }
-          if (navigator.clipboard) navigator.clipboard.writeText(ta.value);
-          UI.toast(S.state.lang === 'zh' ? '已复制。网页版会打开 GitHub 新建 issue。' : 'Copied. The web build opens a new GitHub issue.');
+          copyText(ta.value, S.state.lang === 'zh' ? '网页版会打开 GitHub 新建 issue。' : 'The web build opens a new GitHub issue.');
         });
         row.appendChild(copy); row.appendChild(send);
         content.appendChild(row);

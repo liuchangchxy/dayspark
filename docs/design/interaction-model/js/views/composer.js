@@ -1138,6 +1138,10 @@
         S.state.composer = null;
         S.state.composerDraft = null;
         if (draft.parentId && created) {
+          // Back must reach the list the parent came from, not the parent twice.
+          if (S.state.history.length && S.state.history[S.state.history.length - 1].name === 'detail') {
+            S.state.history.pop();
+          }
           S.navigate('detail', { type: 'todo', id: draft.parentId }, { replace: true });
         } else if (created) {
           const backTo = S.state.route.name === 'composer' ? (S.state.tab || 'action') : S.state.route.name;

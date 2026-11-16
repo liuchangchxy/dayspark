@@ -52,7 +52,7 @@
 
         function suggestions() {
           const box = U.el('div');
-          const items = S.inboxTodos().filter((x) => !x.dueDate).slice(0, 5);
+          const items = S.inboxTodos().filter((x) => !S.allocationsForTodo(x.id).some(S.isAllocationLive)).slice(0, 5);
           box.appendChild(UI.sectionHead(t('searchSuggestions'), items.length));
           if (!items.length) {
             box.appendChild(UI.emptyState('search', t('searchEmpty'), t('searchPlaceholder')));
@@ -94,7 +94,7 @@
             results.appendChild(UI.sectionHead(t('searchTodos'), todos.length));
             todos.slice(0, shownTodos).forEach((todo) => {
               const b = hitNode(
-                `<span class="t">${U.hl(todo.summary, query)}</span><span class="m">${U.esc(todo.dueDate ? t('deadlinePrefix', { d: U.fmtDeadline(todo.dueDate) }) : t('inbox'))}${todo.description ? ' · ' + U.hl(todo.description.slice(0, 60), query) : ''}</span>`,
+                `<span class="t">${U.hl(todo.summary, query)}</span><span class="m">${U.esc(todo.dueDate ? t('deadlinePrefix', { d: U.fmtDeadline(todo.dueDate) }) : (S.allocationsForTodo(todo.id).some(S.isAllocationLive) ? t('scheduled') : t('inbox')))}${todo.description ? ' · ' + U.hl(todo.description.slice(0, 60), query) : ''}</span>`,
                 'search-hit-todo',
                 () => S.navigate('detail', { type: 'todo', id: todo.id }),
               );

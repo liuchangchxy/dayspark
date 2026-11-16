@@ -209,7 +209,7 @@
       const rail = U.el('div', { class: 'lane-rail' });
       items.forEach((todo) => {
         const chip = U.el('button', { class: 'deadline-chip' });
-        const overdue = todo.dueDate < U.now();
+        const overdue = U.startOfDay(todo.dueDate) < U.startOfDay(U.now());
         chip.innerHTML = `<span class="date" style="${overdue ? 'color:var(--red)' : ''}">${U.esc(U.fmtDeadline(todo.dueDate))}</span><span>${U.esc(todo.summary)}</span>`;
         chip.addEventListener('click', () => openTodo(todo));
         rail.appendChild(chip);
@@ -221,7 +221,7 @@
     const visible = expanded ? items : items.slice(0, 8);
     visible.forEach((todo) => {
       const chip = U.el('button', { class: 'deadline-chip' });
-      const overdue = todo.dueDate < U.now();
+      const overdue = U.startOfDay(todo.dueDate) < U.startOfDay(U.now());
       chip.innerHTML = `<span class="date" style="${overdue ? 'color:var(--red)' : ''}">${U.esc(U.fmtDeadline(todo.dueDate))}</span><span>${U.esc(todo.summary)}</span>`;
       chip.addEventListener('click', () => openTodo(todo));
       lane.appendChild(chip);

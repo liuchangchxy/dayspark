@@ -110,7 +110,7 @@ node reviewer-findings.js  # 20 条第一轮 Reviewer 发现回归
 node reviewer-findings-r2.js # 20 条第二轮 Reviewer 发现回归
 node reviewer-findings-r3.js # 24 条第三轮 Reviewer 发现回归
 node reviewer-findings-r4.js # 16 条第四轮 Reviewer 发现回归
-npm test                   # 十套一起跑（201 项）
+npm test                   # 十一套一起跑（210 项）
 ```
 
 加 `--headed` 可以看着浏览器跑；`--filter=<子串>` 只跑名字匹配的场景。结果与时间戳见 `TEST_RESULTS.md`。
