@@ -297,8 +297,11 @@
       title: todo.summary,
       meta: (() => {
         // An allocation row stands for one occurrence: its deadline is that
-        // day, not the series' first due date.
-        const due = todo.recurrence ? U.startOfDay(day) : undefined;
+        // occurrence's, and a recurring to-do with no deadline has none. Reading
+        // the series anchor here used to invent 截止 今天 out of nothing.
+        const due = todo.recurrence
+          ? (todo.dueDate ? occurrenceDeadline(todo.dueDate, day) : undefined)
+          : undefined;
         const d = UI.deadlineMeta(todo, now, due);
         return `<span>${U.esc(t('scheduledTime'))}</span>${d ? '<span>·</span>' + d : ''}`;
       })(),
@@ -339,14 +342,26 @@
     });
   }
 
+  // The deadline an occurrence carries: the series' time of day applied to the
+  // occurrence's own day, and nothing at all for an undated series.
+  function occurrenceDeadline(due, day) {
+    const d = U.startOfDay(day);
+    const src = new Date(due);
+    if (src.getHours() === 0 && src.getMinutes() === 0) return d;
+    d.setHours(src.getHours(), src.getMinutes(), 0, 0);
+    return d;
+  }
+
   function instanceRow(inst, missed, day, past) {
     const todo = inst.todo;
     const done = S.isOccurrenceDone(todo, inst.occurrenceId);
+    const dueMeta = todo.dueDate ? UI.deadlineMeta(todo, day, occurrenceDeadline(todo.dueDate, inst.day)) : '';
     return row({
       time: missed ? U.fmtMonthDay(inst.day) : '',
       leading: `<span style="color:var(--violet)">${ICON('repeat', 14)}</span>`,
       title: todo.summary,
-      meta: `<span>${U.esc(missed ? t('missed') : t('recurringTask'))}</span><span>·</span><span>${U.esc(U.fmtRelativeDay(inst.day, day))}</span>${UI.priorityDot(todo.priority)}`,
+      meta: `<span>${U.esc(missed ? t('missed') : t('recurringTask'))}</span><span>·</span><span>${U.esc(U.fmtRelativeDay(inst.day, day))}</span>` +
+        (dueMeta ? '<span>·</span>' + dueMeta : '') + UI.priorityDot(todo.priority),
       cls: (missed ? 'overdue' : '') + (past ? ' past' : ''),
       done,
       undo: past ? inlineUndoFor(todo, inst.occurrenceId) : null,

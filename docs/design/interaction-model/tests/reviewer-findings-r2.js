@@ -197,7 +197,9 @@ scenario('R5 editing a recurring block from the calendar asks for the scope firs
   await settle(page, 260);
   assert(await exists(page, '.sheet'), 'the block menu must ask this / whole series before editing');
   const opts = await page.$$eval('.sheet .slot-sheet-option .t', (ns) => ns.map((n) => n.textContent.trim()));
-  assertEq(opts.length, 2, 'editing an occurrence offers this / whole series');
+  // OpenDesign D7: editing asks the same three scopes as deleting.
+  assertEq(opts.length, 3, 'editing an occurrence offers this / future / whole series');
+  assert(opts.some((t) => /以后/.test(t)), 'this-and-following must be offered on edit');
   const after = await page.evaluate(() => {
     const e = window.Store.state.events.find((x) => x.rrule && !x.deletedAt);
     return e.summary;
@@ -208,7 +210,7 @@ scenario('R5 editing a recurring block from the calendar asks for the scope firs
 });
 
 /* R6 (P1) — a deleted to-do is not openable */
-scenario('R6 opening a deleted to-do shows the error page, not a live detail', async (browser) => {
+scenario('R6 opening a deleted to-do shows its banner, not a live detail', async (browser) => {
   const page = await newPage(browser);
   const id = await page.evaluate(() => {
     const t = window.Store.state.todos.find((x) => x.deletedAt);
@@ -217,14 +219,17 @@ scenario('R6 opening a deleted to-do shows the error page, not a live detail', a
   assert(id !== null, 'seed data should contain a deleted to-do');
   await go(page, 'detail', { type: 'todo', id });
   const state = await page.evaluate(() => ({
-    detail: !!document.querySelector('[data-testid="todo-detail"]'),
-    error: !!document.querySelector('[data-testid="error-page"], .empty-state'),
-    text: document.body.textContent,
+    banner: !!document.querySelector('[data-testid="detail-deleted"]'),
+    restore: !!document.querySelector('[data-testid="detail-restore"]'),
+    bannerText: (document.querySelector('[data-testid="detail-deleted"]') || {}).textContent || '',
   }));
-  assert(!state.detail, 'a deleted to-do must not render a normal detail');
-  assert(/出错|Something went wrong|error/i.test(state.text), 'the error page must explain what happened');
+  // OpenDesign F6: a trashed record opens with its banner and a restore, and is
+  // not editable — that is the surface, not an error page.
+  assert(state.banner, 'a deleted to-do opens with the deleted banner');
+  assert(state.restore, 'restore must be offered');
+  assert(/回收站|trash/i.test(state.bannerText), 'the banner must say the record is in the trash');
   const editable = await page.evaluate(() => Array.from(document.querySelectorAll('button'))
-    .some((b) => /标记完成|Mark complete|移到回收站|Move to Trash/.test(b.textContent)));
+    .some((b) => /标记完成|Mark complete|移到回收站|Move to Trash|编辑|^Edit$/.test(b.textContent)));
   assert(!editable, 'no write action may be offered for a deleted record');
   assertNoErrors(page);
   await page.close();
@@ -360,6 +365,11 @@ scenario('R10 editing one occurrence lands on the new copy, not the stale series
 /* R11 (P2) — a new event is highlighted in the grid */
 scenario('R11 a new event is highlighted where it landed', async (browser) => {
   const page = await newPage(browser);
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now()); d.setHours(10, 0, 0, 0);
+    window.U.setClockOffset(d.getTime() - Date.now()); window.App.render();
+  });
+  await settle(page, 150);
   await go(page, 'calendar');
   await settle(page, 240);
   await page.evaluate(() => {

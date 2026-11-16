@@ -103,11 +103,10 @@ scenario('R6-2 selecting and dragging do not jump a scrolled surface to the top'
   assert(before.top > 50, 'the list should scroll before the click');
   await page.mouse.click(before.x, before.y);
   await settle(page, 260);
-  const after = await page.evaluate(() => {
-    const all = Array.from(document.querySelectorAll('#view *'));
-    const sc = all.filter((n) => n.scrollHeight > n.clientHeight + 20).sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
-    return { top: sc.scrollTop, pane: !!document.querySelector('[data-testid="detail-pane-body"]') };
-  });
+  const after = await page.evaluate((cls) => {
+    const sc = Array.from(document.querySelectorAll('#view *')).find((n) => n.className === cls);
+    return { top: sc ? sc.scrollTop : -1, pane: !!document.querySelector('[data-testid="detail-pane-body"]') };
+  }, before.cls);
   assert(after.pane, 'the click should open the pane');
   assert(after.top > 40, 'selecting must keep the list scroll position, got ' + after.top);
 

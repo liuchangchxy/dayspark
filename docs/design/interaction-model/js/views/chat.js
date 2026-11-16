@@ -88,6 +88,14 @@
     sendBtn.dataset.testid = 'chat-send';
     sendBtn.classList.add('active');
     box.appendChild(sendBtn);
+    // While a reply is pending the field is closed: leaving it editable either
+    // drops what the user types or silently queues a second question.
+    if (S.state.ai.pending) {
+      ta.disabled = true;
+      ta.placeholder = t('aiWaiting');
+      sendBtn.disabled = true;
+      sendBtn.classList.remove('active');
+    }
     wrapInput.appendChild(box);
     // The input is 24px tall by design; the padded container forwards taps.
     box.addEventListener('click', (e) => { if (e.target === box) ta.focus(); });

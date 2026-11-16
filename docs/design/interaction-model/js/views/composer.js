@@ -64,25 +64,40 @@
         Object.assign(base, {
           summary: series.summary, notes: series.description || '', startDt: occStart, endDt: occEnd,
           isAllDay: series.isAllDay, location: series.location || '', calendarId: series.calendarId,
-          recurrence: c.occurrence ? null : series.rrule,
+          recurrence: c.occurrence ? (c.scope === 'future' ? series.rrule : null) : series.rrule,
           reminderOffsets: (series.reminderOffsets || []).slice(), tagIds: (series.tagIds || []).slice(),
         });
       }
     } else {
       if (base.kind === 'event') {
-        base.startDt = base.startDt || new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
+        base.startDt = base.startDt || (() => {
+          const s = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
+          // The early hours are folded by default; landing a new event inside
+          // the fold would create it where the user cannot see it.
+          if (s.getHours() < 8) s.setHours(8, 0, 0, 0);
+          return s;
+        })();
         base.endDt = base.endDt || U.addMinutes(base.startDt, 60);
       }
       // "Plan this day" starts from a date, not from a deadline: it reserves a
       // slot on that day and leaves the deadline empty (no invented dueDate).
       if (base.planDate && base.kind === 'todo') {
         const planNow = U.now();
-        const planHour = U.sameDay(base.planDate, planNow)
-          ? Math.min(23, Math.max(9, planNow.getHours() + 1))
-          : 9;
-        base.scheduleStart = base.scheduleStart
-          || new Date(base.planDate.getFullYear(), base.planDate.getMonth(), base.planDate.getDate(), planHour, 0);
-        base.scheduleEnd = base.scheduleEnd || U.addMinutes(base.scheduleStart, 60);
+        const planToday = U.startOfDay(planNow);
+        const planDay = U.startOfDay(base.planDate);
+        // Planning never pre-fills a slot that has already passed: a past day
+        // gets no slot at all, and late evening on today has no future hour.
+        let planHour = null;
+        if (planDay < planToday) planHour = null;
+        else if (planDay.getTime() === planToday.getTime()) {
+          if (planNow.getHours() < 9) planHour = 9;
+          else if (planNow.getHours() < 23) planHour = planNow.getHours() + 1;
+        } else planHour = 9;
+        if (planHour !== null) {
+          base.scheduleStart = base.scheduleStart
+            || new Date(planDay.getFullYear(), planDay.getMonth(), planDay.getDate(), planHour, 0);
+          base.scheduleEnd = base.scheduleEnd || U.addMinutes(base.scheduleStart, 60);
+        }
       }
     }
     return base;
@@ -187,25 +202,36 @@
 
     const typeRow = U.el('div', { class: 'composer-type' });
     const typeSeg = U.el('div', { class: 'segmented lg' });
-    [['todo', t('typeTodo'), 'checkSquare'], ['event', t('typeEvent'), 'calendar']].forEach(([k, label, icon]) => {
-      const b = U.el('button', { class: draft.kind === k ? 'on' : '', 'aria-pressed': draft.kind === k ? 'true' : 'false' });
-      b.innerHTML = ICON(icon, 14) + `<span>${U.esc(label)}</span>`;
-      b.dataset.testid = 'composer-type-' + k;
-      b.addEventListener('click', () => {
-        if (draft.kind === k) return;
-        if (isEdit) return; // type is fixed once the record exists
-        draft.kind = k;
-        markDirty();
-        if (k === 'event' && !draft.startDt) {
-          const now = U.now();
-          draft.startDt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
-          draft.endDt = U.addMinutes(draft.startDt, 60);
-        }
-        live.renderBody();
+    if (isEdit) {
+      // The type is a fact once the record exists. Rendering enabled buttons
+      // that do nothing is a control that lies about what it can do.
+      const fact = U.el('div', { class: 'chip' });
+      fact.dataset.testid = 'composer-type-fact';
+      fact.innerHTML = (draft.kind === 'todo' ? ICON('checkSquare', 13) : ICON('calendar', 13)) +
+        `<span>${U.esc(draft.kind === 'todo' ? t('typeTodo') : t('typeEvent'))}</span>`;
+      typeRow.appendChild(fact);
+    } else {
+      [['todo', t('typeTodo'), 'checkSquare'], ['event', t('typeEvent'), 'calendar']].forEach(([k, label, icon]) => {
+        const b = U.el('button', { class: draft.kind === k ? 'on' : '', 'aria-pressed': draft.kind === k ? 'true' : 'false' });
+        b.innerHTML = ICON(icon, 14) + `<span>${U.esc(label)}</span>`;
+        b.dataset.testid = 'composer-type-' + k;
+        b.addEventListener('click', () => {
+          if (draft.kind === k) return;
+          draft.kind = k;
+          markDirty();
+          if (k === 'event' && !draft.startDt) {
+            const now = U.now();
+            const s = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
+            if (s.getHours() < 8) s.setHours(8, 0, 0, 0);
+            draft.startDt = s;
+            draft.endDt = U.addMinutes(draft.startDt, 60);
+          }
+          live.renderBody();
+        });
+        typeSeg.appendChild(b);
       });
-      typeSeg.appendChild(b);
-    });
-    typeRow.appendChild(typeSeg);
+      typeRow.appendChild(typeSeg);
+    }
     typeRow.appendChild(U.el('div', { class: 'type-hint', text: draft.kind === 'todo' ? t('typeHintTodo') : t('typeHintEvent') }));
     body.appendChild(typeRow);
 
@@ -438,6 +464,19 @@
         });
         timeSec.appendChild(row(t('starts'), dateInput));
 
+        const endDateInput = U.el('input', { class: 'input', type: 'date', value: U.toInputDate(draft.endDt), 'aria-label': t('ends') });
+        endDateInput.dataset.testid = 'composer-end-date';
+        endDateInput.addEventListener('change', () => {
+          const d = U.fromInputDate(endDateInput.value);
+          if (!d) return;
+          // The end date is real: an event may end on another day, and rebuilt
+          // on the start's date it could never describe 23:00 → 01:00.
+          draft.endDt = draft.isAllDay
+            ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59)
+            : new Date(d.getFullYear(), d.getMonth(), d.getDate(), draft.endDt.getHours(), draft.endDt.getMinutes());
+          markDirty(); live.validate();
+        });
+
         if (!draft.isAllDay) {
           const t1 = U.el('input', { class: 'input', type: 'time', value: U.fmtTime(draft.startDt), 'aria-label': t('starts') });
           const t2 = U.el('input', { class: 'input', type: 'time', value: U.fmtTime(draft.endDt), 'aria-label': t('ends') });
@@ -447,9 +486,10 @@
             const [h1, m1] = t1.value.split(':').map(Number);
             const [h2, m2] = t2.value.split(':').map(Number);
             if (isNaN(h1) || isNaN(h2)) return;
-            draft.startDt = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), h1, m1 || 0);
-            const end = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), h2, m2 || 0);
-            draft.endDt = end;
+            const s = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), h1, m1 || 0);
+            const e = new Date(draft.endDt.getFullYear(), draft.endDt.getMonth(), draft.endDt.getDate(), h2, m2 || 0);
+            draft.startDt = s;
+            draft.endDt = e;
             markDirty(); live.validate();
           };
           t1.addEventListener('change', applyTimes);
@@ -458,7 +498,10 @@
           timeRow.appendChild(t1);
           timeRow.appendChild(U.el('span', { class: 'muted', text: '–' }));
           timeRow.appendChild(t2);
-          timeSec.appendChild(row(t('schedule'), timeRow));
+          timeSec.appendChild(row(t('ends'), timeRow));
+          timeSec.appendChild(row(t('endDate'), endDateInput));
+        } else {
+          timeSec.appendChild(row(t('endDate'), endDateInput));
         }
 
         // ---------- 提醒 ----------
@@ -610,13 +653,27 @@
           const quick = U.el('div', { class: 'picker' });
           const now = U.now();
           const today = U.startOfDay(now);
-          const satOffset = 5 - ((today.getDay() + 6) % 7);
-          const saturday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + satOffset, 18, 0);
+          // Every chip writes a future instant, and its label says which one.
+          // Fixed 18:00 values used to write a past deadline after 18:00, and a
+          // "this week" Saturday could already be behind the clock.
+          const at = (dayOffset, h) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, h, 0);
+          let todayDue = at(0, 18);
+          if (todayDue <= now) {
+            if (now.getHours() >= 23) {
+              todayDue = at(1, 18);
+            } else {
+              todayDue = new Date(now.getTime());
+              todayDue.setMinutes(0, 0, 0);
+              todayDue.setHours(todayDue.getHours() + 1);
+            }
+          }
+          let saturday = at((6 - today.getDay() + 7) % 7, 18);
+          if (saturday <= now) saturday = at((6 - today.getDay() + 7) % 7 + 7, 18);
           const options = [
-            { label: t('today') + ' 18:00', value: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 0) },
-            { label: t('tomorrow'), value: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 18, 0) },
+            { label: t('today') + ' ' + U.fmtTime(todayDue), value: todayDue },
+            { label: t('tomorrow') + ' ' + U.fmtTime(at(1, 18)), value: at(1, 18) },
             { label: t('thisWeek') + ' ' + U.fmtWeekdayShort(saturday), value: saturday },
-            { label: t('nextWeek'), value: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7, 18, 0) },
+            { label: t('nextWeek'), value: at(7, 18) },
           ];
           const qRow = U.el('div', { class: 'quick' });
           options.forEach((o) => {
@@ -669,6 +726,20 @@
         subtitle: t('scheduleHint'),
         body(host, close) {
           const box = U.el('div', { class: 'picker' });
+          let occStub = null;
+          // The occurrence follows the planned day (E6): the select is a view of
+          // that derivation, not a second source of truth.
+          function syncOccurrence(occSel, value) {
+            if (!occSel || !occStub || !value) return;
+            const s = U.fromInputDateTime(value);
+            if (!s) return;
+            const day = U.startOfDay(s);
+            if (!S.matchesRule(occStub, day)) return;
+            const derived = S.occurrenceIdFor(occStub, day);
+            if (Array.from(occSel.options).some((o) => o.value === derived && !o.disabled)) {
+              occSel.value = derived;
+            }
+          }
           const row2 = U.el('div', { class: 'row2' });
           const start = U.el('input', { class: 'input', type: 'datetime-local', value: U.toInputDateTime(baseStart) });
           start.dataset.testid = 'schedule-start';
@@ -700,6 +771,7 @@
               startDate: draft.startDate, createdAt: U.now(), id: draft.id,
               occurrenceStates: realTodo ? realTodo.occurrenceStates : {},
             };
+            occStub = stub;
             S.occurrencesInWindow(stub, from, to).slice(0, 30).forEach((d) => {
               const id = S.occurrenceIdFor(stub, d);
               // A finished occurrence cannot take a new allocation: the write
@@ -793,6 +865,7 @@
             const s = U.fromInputDateTime(start.value);
             const mins = parseInt(durSel.value, 10) || 60;
             if (!s) return;
+            syncOccurrence(occSel, start.value);
             preview.textContent = `${U.fmtMonthDay(s)} ${U.fmtTimeRange(s, U.addMinutes(s, mins))}`;
             const conflict = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < U.addMinutes(s, mins) && a.endAt > s && a.id !== draft.scheduleAllocId);
             const evs = S.state.events.filter((e) => !e.deletedAt && e.startDt < U.addMinutes(s, mins) && e.endDt > s);
@@ -814,6 +887,7 @@
             if (!s) return;
             draft.scheduleStart = s;
             draft.scheduleEnd = U.addMinutes(s, parseInt(durSel.value, 10) || 60);
+            syncOccurrence(occSel, start.value);
             if (occSel) draft.scheduleOccurrence = occSel.value || null;
             markDirty(); close(null); live.renderBody(); live.validate();
           });
@@ -843,10 +917,12 @@
             const on = (o.rec === null && !draft.recurrence) || (o.rec && draft.recurrence && o.rec.freq === draft.recurrence.freq && o.label === t('repeatWeekdays') === (draft.recurrence.byday && draft.recurrence.byday.length === 5));
             b.innerHTML = `<span class="ico">${ICON(o.rec ? 'repeat' : 'x', 16)}</span><span><span class="t">${U.esc(o.label)}</span></span>${on ? '<span style="margin-left:auto;color:var(--accent)">' + ICON('check', 15) + '</span>' : ''}`;
             b.addEventListener('click', () => {
-              if (o.rec && draft.kind === 'todo' && !draft.dueDate && !draft.startDate) {
-                // The series needs a start, not a deadline. Writing dueDate here
-                // would manufacture an obligation the user never set.
-                draft.startDate = U.startOfDay(U.now());
+              // 重复开始 exists only inside recurrence: choosing a rule anchors
+              // the series, choosing 不重复 leaves no start date behind.
+              if (draft.kind === 'todo' && !draft.dueDate) {
+                draft.startDate = o.rec
+                  ? (draft.startDateInput || U.startOfDay(U.now()))
+                  : null;
               }
               draft.recurrence = o.rec;
               markDirty(); close(null); live.renderBody(); live.validate();
@@ -876,8 +952,9 @@
           startDateInput.addEventListener('change', () => {
             const d = U.fromInputDate(startDateInput.value);
             if (!d) return;
+            // Pending value only: dismissing the sheet must not write an anchor
+            // to a record whose rule the user never applied.
             draft.startDateInput = U.startOfDay(d);
-            draft.startDate = U.startOfDay(d);
             markDirty();
           });
           sctrl.appendChild(startDateInput);
@@ -916,7 +993,7 @@
             };
             // A series needs a start or it can never match a day. A custom rule
             // gets the same anchor the presets set, honouring a chosen 重复开始.
-            if (draft.kind === 'todo' && !draft.dueDate && !draft.startDate) {
+            if (draft.kind === 'todo' && !draft.dueDate) {
               draft.startDate = draft.startDateInput
                 ? U.startOfDay(draft.startDateInput)
                 : U.startOfDay(U.now());
@@ -1114,19 +1191,20 @@
           attachments: draft.attachments.slice(),
         };
         if (draft.parentId) payload.parentId = draft.parentId;
-        if (isEdit && !draft.recurrence) {
-          // Completion lives here too: the form says what state the record is
-          // in, so leaving it on "completed" must not be silently ignored.
-          payload.status = draft.statusDone ? S.TODO_STATUS.DONE : S.TODO_STATUS.OPEN;
-          if (draft.statusDone) payload.completedAt = S.todoById(draft.id).completedAt || U.now();
-          else payload.completedAt = null;
-          if (draft.statusDone) payload.percentComplete = 100;
-        }
+        const wasDone = isEdit && !draft.recurrence ? S.isDone(S.todoById(draft.id)) : false;
         let todo;
         if (isEdit) {
           todo = S.updateTodo(draft.id, payload);
         } else {
           todo = S.createTodo(payload);
+        }
+        // Status is not a second write path. The form may show the state, but
+        // the single completion routine owns status, completedAt and which
+        // allocations stop being current work; writing status here left a
+        // reopened record with an invalidated block nobody could restore.
+        if (isEdit && !draft.recurrence && !!draft.statusDone !== wasDone) {
+          S.completeTodo(todo.id);
+          todo = S.todoById(draft.id);
         }
         // schedule: a repeating to-do is scheduled per occurrence, so a schedule
         // without an occurrence would be invisible; refuse instead of writing one.
@@ -1169,7 +1247,24 @@
         } else if (created) {
           const backTo = S.state.route.name === 'composer' ? (S.state.tab || 'action') : S.state.route.name;
           App.back();
-          S.state.highlight = created ? { testid: 'todo-tile', testids: ['todo-tile', 'action-todo'], id: todo.id } : null;
+          // The row has to be where the user lands. A new record whose deadline
+          // was cleared (or moved to another day) does not belong to the dated
+          // list that opened the form, so that list is switched to the one that
+          // owns it instead of showing a list without the new row.
+          if (backTo === 'todos') {
+            const scheduled = draft.scheduleStart && !scheduleBlocked ? U.startOfDay(draft.scheduleStart) : null;
+            if (scheduled) {
+              S.state.todosView = { kind: 'day', day: scheduled };
+              S.state.browseDate = scheduled;
+            } else if (todo.dueDate) {
+              const d = U.startOfDay(todo.dueDate);
+              S.state.todosView = { kind: 'day', day: d };
+              S.state.browseDate = d;
+            } else {
+              S.state.todosView = { kind: 'inbox', day: null };
+            }
+          }
+          S.state.highlight = { testid: 'todo-tile', testids: ['todo-tile', 'action-todo', 'alloc-block'], id: todo.id };
           App.render();
         } else if (thenOpenSubtask) {
           // The parent was written above; the child opens in a fresh form
@@ -1196,7 +1291,11 @@
         };
         let event;
         let splitCopy = null;
-        if (isEdit && draft.occurrence) {
+        if (isEdit && draft.occurrence && c.scope === 'future') {
+          // The old series stops the day before; the record continues from this
+          // occurrence with the edited values.
+          event = S.splitEventFuture(draft.id, draft.occurrence, payload);
+        } else if (isEdit && draft.occurrence) {
           const split = S.splitEventOccurrence(draft.id, draft.occurrence, payload);
           event = split ? split.copy : null;
           splitCopy = split && !split.updated ? split.copy : null;

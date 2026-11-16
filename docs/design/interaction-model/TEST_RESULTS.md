@@ -5,7 +5,7 @@
 - 运行环境：macOS（darwin 27.2.0），Chromium 1243（`playwright-core` 1.56.1，本机缓存二进制）
 - 视口：桌面 1440×900，手机 390×844
 - 入口：`file://…/docs/design/interaction-model/index.html`
-- 最近一次完整运行：2026-11-16
+- 最近一次完整运行：2026-11-17（逐套件单独运行并取真实退出码；`npm test` 已包含 r11）
 
 ---
 
@@ -25,7 +25,8 @@
 | `tests/reviewer-findings-r7.js` | 第七轮 6 条 P1 + 8 条 P2 + 关键 P3，逐条按原始复现步骤回归（含 40 分钟时段、全天取消、默认启动页、单次拆分返回） | **14 / 14 通过** |
 | `tests/reviewer-findings-r8.js` | 第八轮 2 条 P1 + 4 条 P2 + 3 条 P3，逐条按原始复现步骤回归（含真实 CDP 触摸拖动/排序） | **9 / 9 通过** |
 | `tests/reviewer-findings-r9.js` | 第九轮 2 条 P1 + 6 条 P2 + 2 条 P3，逐条按原始复现步骤回归 | **9 / 9 通过** |
-| 合计 | | **219 / 219 通过，0 失败，0 跳过** |
+| `tests/reviewer-findings-r11.js` | G0 v2 第一轮 36 条 P1 根因回归（编号与 `REVIEW_ROUNDS_G0V2.md` backlog 一一对应） | **36 / 36 通过** |
+| 合计 | | **255 / 255 通过，0 失败，0 跳过** |
 
 `skipped = 0`：没有任何场景被跳过或注释掉。唯一一条 `note` 是测试侧的说明（鼠标拖动不会触发触摸滑动手势，该路径由同套件里的 touch 场景覆盖），不是跳过。
 

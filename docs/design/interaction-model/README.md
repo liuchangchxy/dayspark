@@ -133,4 +133,4 @@ npm test                   # 十二套一起跑（219 项）
 |---|---|
 | ~~桌面 master-detail~~ | **已按 `CORE_UX_SPEC.md` §4 实现**：≥1180 列表常驻 + 右侧详情窗格（选中而非路由）。见 `BEHAVIORS.md` A6 |
 | 平台集成（widget 深链 / Android 返回键 / Web URL / 通知持久化） | 明确不在交互原型内；通知操作以模拟卡定义行为。见 `COVERAGE.md` §8 |
-| 设计工具的在线协作（OpenDesign / DesignSync） | 本轮**无法访问**（无可用凭据/连接），因此原型是用本地 HTML/CSS/JS 手工实现的。视觉基线直接取自仓库冻结的 `DESIGN.md`（D Final tokens），未走在线设计项目。这是环境限制，不是选择。 |
+| 设计工具（OpenDesign） | **已可用并作为设计真理**（2026-11-16 复核：项目 `dayspark` 可读可写）。设计文档在该项目的 `design/` 下（`DECISIONS` / 域名契约 / `inventory.md` / `DESIGN.md`）；本目录原型是可执行载体。第一轮复查产生的五条裁定（短块缩放、日内排序、回收站记录、设置分区顺序、设备列表）已写回 `design/decisions.md` D-16…D-20。早先"无法访问、按本地 `DESIGN.md` 手写"的记录已过期。 |

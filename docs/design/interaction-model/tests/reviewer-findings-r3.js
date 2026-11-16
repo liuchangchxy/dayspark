@@ -84,6 +84,11 @@ scenario('P1-1 undo after completion restores the invalidated allocation', async
 /* P1-1b — the same for a recurring occurrence */
 scenario('P1-1b undo of a completed occurrence restores its block', async (browser) => {
   const page = await newPage(browser);
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now()); d.setHours(10, 0, 0, 0);
+    window.U.setClockOffset(d.getTime() - Date.now()); window.App.render();
+  });
+  await settle(page, 150);
   const target = await page.evaluate(() => {
     const today = window.U.startOfDay(window.U.now());
     const todo = window.Store.liveTodos().find((t) => t.recurrence && window.Store.matchesRule(t, today));

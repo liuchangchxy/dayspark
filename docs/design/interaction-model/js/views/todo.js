@@ -8,14 +8,26 @@
   const view = () => S.state.todosView;
   const multi = { active: false, ids: new Set() };
 
-  function setView(next) {
+  function setView(next, opts) {
     S.state.todosView = next;
     multi.active = false;
     multi.ids.clear();
     // Browsing a day here is the same act as tapping a calendar day, so both
-    // surfaces move together (CORE_UX_SPEC 16.1).
-    if (next.kind === 'day' && next.day) S.state.browseDate = U.startOfDay(next.day);
+    // surfaces move together (CORE_UX_SPEC 16.1). Switching *mode* is not
+    // browsing: the 今天 chip returns to the mode without moving browseDate.
+    if (next.kind === 'day' && next.day && !(opts && opts.keepBrowse)) {
+      S.state.browseDate = U.startOfDay(next.day);
+    }
     App.render();
+  }
+
+  // A series' deadline time applied to the occurrence's own day.
+  function occurrenceDeadline(due, day) {
+    const d = U.startOfDay(day);
+    const src = new Date(due);
+    if (src.getHours() === 0 && src.getMinutes() === 0) return d;
+    d.setHours(src.getHours(), src.getMinutes(), 0, 0);
+    return d;
   }
 
   function tagMatches(todo) {
@@ -83,7 +95,10 @@
     // its clock chip is that occurrence's block, not the series' first one.
     const instanceDay = o.day && todo.recurrence && S.matchesRule(todo, o.day) ? U.startOfDay(o.day) : null;
     const instanceOcc = instanceDay ? S.occurrenceIdFor(todo, instanceDay) : undefined;
-    if (todo.dueDate || instanceDay) bits.push(UI.deadlineMeta(todo, U.now(), instanceDay));
+    // Only a to-do that actually has a deadline shows one. A repeating to-do
+    // without a due date used to inherit the day it stood on, inventing 截止.
+    const instanceDue = instanceDay && todo.dueDate ? occurrenceDeadline(todo.dueDate, instanceDay) : undefined;
+    if (todo.dueDate) bits.push(UI.deadlineMeta(todo, U.now(), instanceDue));
     bits.push(UI.allocMeta(todo, instanceOcc));
     if (todo.recurrence) bits.push(UI.repeatMeta(todo));
     bits.push(UI.priorityDot(todo.priority));
@@ -758,7 +773,7 @@
     [
       { label: t('allTasks'), on: v.kind === 'all', act: () => setView({ kind: 'all', day: null }) },
       { label: t('inbox'), on: v.kind === 'inbox', act: () => setView({ kind: 'inbox', day: null }) },
-      { label: t('today'), on: v.kind === 'day' && U.sameDay(v.day, today), act: () => setView({ kind: 'day', day: today }) },
+      { label: t('today'), on: v.kind === 'day', act: () => setView({ kind: 'day', day: S.browseDate() }, { keepBrowse: true }) },
     ].forEach((c) => {
       const b = U.el('button', { class: 'chip-btn' + (c.on ? ' on' : ''), text: c.label, 'aria-pressed': c.on ? 'true' : 'false' });
       b.addEventListener('click', c.act);
@@ -891,29 +906,47 @@
     return host;
   }
 
+  // A day body is the day's projection, not just its deadlines: planned
+  // executions first, then deadline items, then the day's events (C2).
   function renderDay(list, day) {
     const groups = S.todosForDay(day);
     const today = U.startOfDay(U.now());
     const isToday = U.sameDay(day, today);
+    const planned = [];
+    const seen = new Set();
+    S.allocationsOnDay(day).forEach((a) => {
+      const td = S.todoById(a.todoId);
+      if (!td || seen.has(td.id) || !tagMatches(td)) return;
+      seen.add(td.id);
+      planned.push(td);
+    });
     const overdue = groups.overdue.filter(tagMatches);
-    const dated = groups.dated.filter(tagMatches);
+    const dated = groups.dated.filter(tagMatches).filter((t) => !seen.has(t.id));
     const done = groups.done.filter(tagMatches);
     const doneInstances = (groups.doneInstances || []).filter((x) => tagMatches(x.todo));
+    const events = S.eventsOnDay(day)
+      .filter((e) => !S.state.filterCalendarId || e.calendarId === S.state.filterCalendarId);
 
     const shownDone = S.state.hideCompleted ? [] : done;
-    if (!overdue.length && !dated.length && !shownDone.length && !doneInstances.length) {
+    if (!overdue.length && !dated.length && !shownDone.length && !doneInstances.length
+        && !planned.length && !events.length) {
       list.appendChild(UI.emptyState('checkSquare', t('noPendingTodos'), t('noPendingHint'), [
         { label: t('newTodo'), primary: true, action: () => App.openComposer('todo', { dueDate: day }) },
       ]));
       return;
     }
-    if (overdue.length) {
-      list.appendChild(UI.sectionHead(t('overdueSection'), overdue.length, { tone: 'danger' }));
-      overdue.forEach((todo) => list.appendChild(todoTile(todo, { day })));
+    if (planned.length) {
+      list.appendChild(UI.sectionHead(t('scheduleExec'), planned.length, { tone: 'accent' }));
+      planned.forEach((todo) => list.appendChild(todoTile(todo, { day })));
     }
-    if (dated.length) {
-      list.appendChild(UI.sectionHead(isToday ? t('today') : U.fmtMonthDay(day), dated.length, { tone: 'accent' }));
+    if (overdue.length || dated.length) {
+      list.appendChild(UI.sectionHead(isToday ? t('today') : U.fmtMonthDay(day), overdue.length + dated.length, { tone: 'accent' }));
+      overdue.forEach((todo) => list.appendChild(todoTile(todo, { day })));
       dated.forEach((todo) => list.appendChild(todoTile(todo, { day })));
+    }
+    if (events.length) {
+      list.appendChild(UI.sectionHead(t('eventsLabel'), events.length));
+      events.forEach((e) => list.appendChild(dayEventTile(e, day)));
     }
     if ((done.length || doneInstances.length) && !S.state.hideCompleted) {
       list.appendChild(UI.sectionHead(t('completedSection'), done.length + doneInstances.length));
@@ -922,6 +955,23 @@
       // stays open, but this day's instance is finished.
       doneInstances.forEach((x) => list.appendChild(todoTile(x.todo, { done: true, day })));
     }
+  }
+
+  function dayEventTile(e, day) {
+    const node = U.el('div', { class: 'row', role: 'button', tabindex: '0' });
+    node.dataset.testid = 'todo-event-row';
+    node.dataset.id = String(e.id);
+    const cal = S.calendarById(e.calendarId);
+    node.innerHTML = `<span class="row-time">${U.esc(e.isAllDay ? t('allDay') : U.fmtTime(e.startDt))}</span>` +
+      `<span class="row-leading" style="color:${cal ? cal.color : 'var(--accent)'}">${ICON('calendar', 14)}</span>` +
+      `<span class="row-main"><span class="row-title">${U.esc(e.summary)}</span>` +
+      `<span class="row-meta">${e.location ? `<span>${U.esc(e.location)}</span>` : ''}</span></span>`;
+    const open = () => App.openRecord('event', e.id, e.isOccurrence ? e.startDt.getTime() : null, day);
+    node.addEventListener('click', open);
+    node.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); }
+    });
+    return node;
   }
 
   // In the inventory views a repeating row stands for the series, but the tick
@@ -944,7 +994,10 @@
   function renderInbox(list) {
     const split = splitRecurring(S.inboxTodos().filter(tagMatches));
     const items = split.open;
-    const done = S.completedTodos().filter((t) => !t.dueDate && !t.parentId).filter(tagMatches);
+    // 未安排 membership is effective planned execution, never dueDate == null —
+    // the completed half obeys the same rule as the pending half (INV-146).
+    const plannedIds = S.plannedTodoIds();
+    const done = S.completedTodos().filter((t) => !t.parentId && !plannedIds.has(t.id)).filter(tagMatches);
     const doneRows = done.length + split.doneToday.length;
     if (!items.length && (!doneRows || S.state.hideCompleted)) {
       list.appendChild(UI.emptyState('inbox', t('noPendingTodos'), t('noPendingHint'), [
@@ -975,8 +1028,27 @@
       return;
     }
     if (pending.length) {
-      list.appendChild(UI.sectionHead(t('allTasks'), pending.length));
-      pending.forEach((todo) => list.appendChild(todoTile(todo)));
+      // Grouped by due relation, not one flat list: an overdue row in the middle
+      // of "all" hides exactly the thing the grouping is for (C2).
+      const todayStart = U.startOfDay(U.now());
+      const buckets = [
+        { label: t('today'), tone: 'accent', items: [] },
+        { label: t('overdueSection'), tone: 'danger', items: [] },
+        { label: t('dueLater'), tone: null, items: [] },
+        { label: t('noDeadline'), tone: null, items: [] },
+      ];
+      pending.forEach((todo) => {
+        if (!todo.dueDate) { buckets[3].items.push(todo); return; }
+        const due = U.startOfDay(todo.dueDate);
+        if (due < todayStart) buckets[1].items.push(todo);
+        else if (due.getTime() === todayStart.getTime()) buckets[0].items.push(todo);
+        else buckets[2].items.push(todo);
+      });
+      buckets.forEach((g) => {
+        if (!g.items.length) return;
+        list.appendChild(UI.sectionHead(g.label, g.items.length, g.tone ? { tone: g.tone } : undefined));
+        g.items.forEach((todo) => list.appendChild(todoTile(todo)));
+      });
     }
     if ((done.length || split.doneToday.length) && !S.state.hideCompleted) {
       const groups = {};

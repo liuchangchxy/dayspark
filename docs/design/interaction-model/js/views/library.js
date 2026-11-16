@@ -211,9 +211,10 @@
           App.render();
           UI.toast(S.state.lang === 'zh' ? '已移动并删除日历' : 'Moved and deleted');
         });
-        mk('trash', t('deleteCalendarAndContents'), S.state.lang === 'zh' ? '内容一并删除，无法从回收站恢复' : 'Contents are deleted with it', () => {
+        mk('trash', t('deleteCalendarAndContents'), S.state.lang === 'zh' ? '内容一并移到回收站，可单独恢复' : 'Contents move to Trash and can be restored', () => {
           S.deleteCalendar(cal.id, { move: false });
           App.render();
+          UI.toast(S.state.lang === 'zh' ? '已移到回收站并删除日历' : 'Moved to Trash and deleted the calendar');
         }, true);
       },
     });
@@ -386,7 +387,20 @@
         const send = U.el('button', { class: 'btn primary lg', text: S.state.lang === 'zh' ? '在 GitHub 提交' : 'Submit on GitHub', 'data-testid': 'feedback-submit' });
         send.addEventListener('click', () => {
           if (!ta.value.trim()) { ta.classList.add('invalid'); ta.focus(); return; }
-          copyText(ta.value, S.state.lang === 'zh' ? '网页版会打开 GitHub 新建 issue。' : 'The web build opens a new GitHub issue.');
+          // Open the real prefilled issue page. If the browser blocks it, copy
+          // the text and say so — never report an action that did not happen.
+          const url = 'https://github.com/liuchangchxy/dayspark/issues/new?title='
+            + encodeURIComponent(S.state.lang === 'zh' ? '反馈' : 'Feedback')
+            + '&body=' + encodeURIComponent(ta.value.trim());
+          let opened = null;
+          try { opened = window.open(url, '_blank', 'noopener'); } catch (err) { opened = null; }
+          if (opened) {
+            UI.toast(S.state.lang === 'zh' ? '已在新标签页打开 GitHub' : 'Opened GitHub in a new tab');
+          } else {
+            copyText(ta.value, S.state.lang === 'zh'
+              ? '浏览器拦截了新标签页，内容已复制。地址：' + url
+              : 'The browser blocked the tab; the text was copied. URL: ' + url);
+          }
         });
         row.appendChild(copy); row.appendChild(send);
         content.appendChild(row);

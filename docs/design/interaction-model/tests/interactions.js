@@ -266,7 +266,10 @@ scenario('composer type switch works on create and is locked on edit', async (br
   await clickTestId(page, 'detail-edit');
   assert(await exists(page, '[data-testid="composer"]'), 'edit composer did not open');
   const before = await state(page);
-  await clickTestId(page, 'composer-type-event');
+  // The type is a fact once the record exists (OpenDesign E14): the switch is
+  // not rendered at all, rather than rendered enabled and doing nothing.
+  assert(await exists(page, '[data-testid="composer-type-fact"]'), 'edit composer must show the type as a fact');
+  assert(!(await exists(page, '[data-testid="composer-type-event"]')), 'edit composer must not offer a type switch');
   const after = await state(page);
   assertEq(after.composer ? after.composer.kind : null, before.composer ? before.composer.kind : null, 'type must not change while editing');
   assert(await exists(page, '[data-testid="composer-deadline"]'), 'edit composer for a todo must keep the deadline field');
@@ -698,8 +701,12 @@ scenario('the day list shows every row and offers no six-things cap', async (bro
   assert(!chip, 'the six-things chip must be gone from the to-do toolbar');
   const state = await page.evaluate(() => {
     const day = window.Store.todosForDay(new Date());
+    // The dated body is the day projection: planned executions are rows too, so
+    // the expected set is the union of the due groups and the day's allocations.
+    const expected = new Set(day.overdue.concat(day.dated, day.done).map((t) => t.id));
+    window.Store.allocationsOnDay(new Date()).forEach((a) => expected.add(a.todoId));
     return {
-      total: day.dated.length + day.overdue.length + day.done.length,
+      total: expected.size,
       shown: document.querySelectorAll('.todo-list [data-testid="todo-tile"]').length,
     };
   });

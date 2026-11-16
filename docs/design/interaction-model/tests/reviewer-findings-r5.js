@@ -131,6 +131,11 @@ scenario('P1-2 detail complete writes the day it was opened for', async (browser
 /* P1-3 — phone touch targets and their effective hit areas */
 scenario('P1-3 phone controls keep a 48px effective hit area', async (browser) => {
   const page = await newPage(browser, MOBILE);
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now()); d.setHours(10, 0, 0, 0);
+    window.U.setClockOffset(d.getTime() - Date.now()); window.App.render();
+  });
+  await settle(page, 150);
   await go(page, 'tags');
   const tagProbe = await page.evaluate(() => {
     const row = document.querySelector('.list-row');

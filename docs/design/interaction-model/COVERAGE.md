@@ -328,3 +328,20 @@ rail、行菜单、多选、拖动排序、滑动、块改尺寸、今天节奏�
 ### 8.12 结论
 
 审计列出的 24 项缺失中，除平台集成（深链、Android 返回、Web URL、通知持久化）与 legacy 数据外，均已在原型中有可操作路径；61 项「部分」按上表补到行为可操作，形状差异保留为设计决定。**没有把未实现项标成通过。**
+
+---
+
+## 9. G0 v2 第一轮复查的裁定 → 契约 → 证据
+
+第一轮（10 域 + 集成）共 37 条 P1，按根因收敛为 9 个簇，修复后每条 P1 都有独立回归场景。四条产生新裁定的项：
+
+| 裁定 | 契约落点 | 原型实现 | 回归证据 |
+|---|---|---|---|
+| D-16 手机短块无 <48px 缩放条 | `BEHAVIORS.md` C2；`design/domains/D-calendar.md` | `js/views/calendar.js`（<96px 加 `no-resize`）、`css/app.css` | `reviewer-findings-r9.js` R9-6 |
+| D-17 日视图按承诺排序 | `BEHAVIORS.md` B16 | `js/views/todo.js` `renderDay()` | `reviewer-findings-r2.js` R11；`interactions.js` 日列表场景 |
+| D-18 回收站记录只读打开 | `BEHAVIORS.md` H；`design/domains/F-detail.md` F6 | `js/views/detail.js`（`detail-deleted` / `detail-restore`） | `reviewer-findings-r2.js` R6 |
+| D-19 设置分区与数据行 | `BEHAVIORS.md` F | `js/views/settings.js` | `reviewer-findings-r11.js` 设置相关场景 |
+
+其余的根因簇（唯一返回阶梯、唯一完成写点、occurrence 归属、撤销即逆操作、写点唯一化、失败不谎报）落在 `BEHAVIORS.md`
+A2 / B3 / B5 / C2 / H 与 `design/domains/`，逐条回归场景见 `tests/reviewer-findings-r11.js`（36 条，编号与
+`REVIEW_ROUNDS_G0V2.md` 的 backlog 一一对应）。

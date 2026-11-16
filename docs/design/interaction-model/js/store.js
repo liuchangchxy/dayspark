@@ -197,6 +197,85 @@
 
     state.todos.forEach((t) => { t.sortOrder = t.id * 10; });
     state.loading = {};
+    // Seed records are sample text, not user data: they are localized with the
+    // rest of the product. A user edit stops matching either variant and is
+    // never rewritten.
+    state.seedLocale = {
+      cal: state.calendars.map((c) => ({ id: c.id, zh: c.name, en: SEED_EN[c.name] || c.name })),
+      tag: state.tags.map((g) => ({ id: g.id, zh: g.name, en: SEED_EN[g.name] || g.name })),
+      todo: state.todos.map((t) => ({ id: t.id, zh: t.summary, en: SEED_EN[t.summary] || t.summary })),
+      event: state.events.map((e) => ({
+        id: e.id,
+        zh: e.summary,
+        en: SEED_EN[e.summary] || e.summary,
+        locZh: e.location || null,
+        locEn: e.location ? (SEED_EN[e.location] || e.location) : null,
+        descZh: e.description || null,
+        descEn: e.description ? (SEED_EN[e.description] || e.description) : null,
+      })),
+    };
+    localizeSeed();
+  }
+
+  const SEED_EN = {
+    '个人': 'Personal', '家庭': 'Family', '家': 'Home', '健康': 'Health', '学习': 'Study', '工作': 'Work',
+    '晨间回顾：今天最重要的一件事': 'Morning review: the one thing that matters today',
+    '写 v0.29 发布说明': 'Write the v0.29 release notes',
+    '回复客户邮件：北岸项目排期': 'Reply to the client: Northshore schedule',
+    '整理评审纪要': 'Tidy up the review notes',
+    '设计走查准备：把原型挂到内网': 'Design review prep: put the prototype on the intranet',
+    'Q4 预算表': 'Q4 budget sheet',
+    '预约牙医': 'Book the dentist',
+    '差旅报销': 'Travel expense claim',
+    '买牛奶和咖啡豆': 'Buy milk and coffee beans',
+    '读 20 页《设计中的设计》': 'Read 20 pages of Designing Design',
+    '每日站会记录': 'Daily standup notes',
+    '每周复盘': 'Weekly retro',
+    '查一下 NAS 备份策略': 'Check the NAS backup policy',
+    '给团队写一条同步说明': 'Write the team a sync note',
+    '换掉厨房的灯泡': 'Replace the kitchen bulb',
+    '提交上周的工时': 'Submit last week’s timesheet',
+    '回复设计评审的三条意见': 'Answer the three review comments',
+    '晨跑 5 公里': 'Morning run, 5 km',
+    '准备季度评审': 'Prepare the quarterly review',
+    '收集各组数据': 'Collect each team’s numbers',
+    '写一页结论': 'Write the one-page conclusion',
+    '旧版发布检查清单': 'Old release checklist',
+    '与设计师午餐': 'Lunch with the designer',
+    '客户电话 · 北岸': 'Client call · Northshore',
+    '设计走查': 'Design walkthrough',
+    '国庆假期': 'National Day holiday',
+    '周会': 'Weekly meeting',
+    '已取消的访谈': 'Cancelled interview',
+    '楼下小馆': 'Bistro downstairs',
+    '线上': 'Online',
+    '会议室 A': 'Meeting room A',
+    '带上 D Final 三张图与移动端截图。': 'Bring the three D Final frames and the mobile screenshots.',
+  };
+
+  function localizeSeed() {
+    const map = state.seedLocale;
+    if (!map) return;
+    const pick = (zh, en) => (state.lang === 'en' ? en : zh);
+    map.cal.forEach((p) => {
+      const r = state.calendars.find((x) => x.id === p.id);
+      if (r && (r.name === p.zh || r.name === p.en)) r.name = pick(p.zh, p.en);
+    });
+    map.tag.forEach((p) => {
+      const r = state.tags.find((x) => x.id === p.id);
+      if (r && (r.name === p.zh || r.name === p.en)) r.name = pick(p.zh, p.en);
+    });
+    map.todo.forEach((p) => {
+      const r = state.todos.find((x) => x.id === p.id);
+      if (r && (r.summary === p.zh || r.summary === p.en)) r.summary = pick(p.zh, p.en);
+    });
+    map.event.forEach((p) => {
+      const r = state.events.find((x) => x.id === p.id);
+      if (!r) return;
+      if (r.summary === p.zh || r.summary === p.en) r.summary = pick(p.zh, p.en);
+      if (p.locZh && (r.location === p.locZh || r.location === p.locEn)) r.location = pick(p.locZh, p.locEn);
+      if (p.descZh && (r.description === p.descZh || r.description === p.descEn)) r.description = pick(p.descZh, p.descEn);
+    });
   }
 
   // ---------- recurrence ----------
@@ -418,12 +497,20 @@
           if (st && st.completedAt) completedTodayTaskInstances.push({ todo: t, occurrenceId: occId, day: occDay, completedAt: st.completedAt });
           else todayTaskInstances.push({ todo: t, occurrenceId: occId, day: occDay });
         } else if (occDay < d && occDay >= missedFrom) {
-          if (!st || !st.completedAt) missedTaskInstances.push({ todo: t, occurrenceId: occId, day: occDay });
+          if (st && st.completedAt) {
+            // A missed instance completed today is work finished today: it
+            // belongs in 今天完成 with its own undo, not silently nowhere.
+            if (U.sameDay(st.completedAt, d)) {
+              completedTodayTaskInstances.push({ todo: t, occurrenceId: occId, day: occDay, completedAt: st.completedAt });
+            }
+          } else {
+            missedTaskInstances.push({ todo: t, occurrenceId: occId, day: occDay });
+          }
         }
       });
     });
 
-    const completedTodayTodos = live.filter((t) => isDone(t) && t.completedAt && U.sameDay(t.completedAt, d));
+    const completedTodayTodos = live.filter((t) => !t.parentId && isDone(t) && t.completedAt && U.sameDay(t.completedAt, d));
 
     const inboxCount = inboxTodos().length;
 
@@ -439,7 +526,9 @@
   }
 
   function completedTodos() {
-    return liveTodos().filter((t) => isDone(t));
+    // A subtask is part of its parent, never a row in a top-level list: the
+    // inventories, 未安排 and every Today section take parents only.
+    return liveTodos().filter((t) => isDone(t) && !t.parentId);
   }
 
   function todosForDay(day) {
@@ -598,6 +687,30 @@
     }
     emit('event:update');
     return { series, copy, updated: !!existing };
+  }
+
+  // "This and following": the old series stops the day before the chosen
+  // occurrence, and the record continues from that day with the edited values.
+  // Weekday is re-derived from the new day; the end date and reminders carry.
+  function splitEventFuture(id, occurrenceMs, patch) {
+    const e = eventById(id);
+    if (!e || !e.rrule) return null;
+    const occStart = new Date(occurrenceMs);
+    const duration = e.endDt - e.startDt;
+    const oldUntil = e.rrule.until || null;
+    e.rrule = Object.assign({}, e.rrule, { until: U.addDays(U.startOfDay(occStart), -1) });
+    Object.assign(e, patch || {});
+    e.startDt = occStart;
+    e.endDt = new Date(occStart.getTime() + duration);
+    if (!(patch && patch.rrule)) {
+      e.rrule = oldUntil ? Object.assign({}, e.rrule, { until: oldUntil }) : e.rrule;
+    }
+    if (e.rrule && e.rrule.freq === 'WEEKLY') {
+      e.rrule = Object.assign({}, e.rrule, { byday: [occStart.getDay()] });
+    }
+    e.updatedAt = U.now();
+    emit('event:update');
+    return e;
   }
 
   function updateEvent(id, patch) {
@@ -882,8 +995,11 @@
       state.todos.forEach((t) => { if (t.calendarId === id) t.calendarId = target.id; });
       state.events.forEach((e) => { if (e.calendarId === id) e.calendarId = target.id; });
     } else {
-      state.todos.filter((t) => t.calendarId === id).forEach((t) => purgeTodo(t.id));
-      state.events.filter((e) => e.calendarId === id).forEach((e) => purgeEvent(e.id));
+      // Deleting a calendar with its contents is a soft delete: the records
+      // move to 回收站 where they can be restored, as they can in the app.
+      // Permanent deletion exists only inside Trash (INV-148).
+      state.todos.filter((t) => t.calendarId === id).forEach((t) => softDeleteTodo(t.id));
+      state.events.filter((e) => e.calendarId === id).forEach((e) => softDeleteEvent(e.id));
     }
     state.calendars = state.calendars.filter((c) => c.id !== id);
     // A filter that names the deleted calendar would hide every remaining row
@@ -903,6 +1019,9 @@
     state.langPref = lang === 'system' ? 'system' : lang;
     state.lang = lang === 'system' ? (String(navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en') : lang;
     I18N.setLang(state.lang);
+    // Sample records are part of what the user reads: they follow the language
+    // switch with everything else.
+    localizeSeed();
     savePrefs();
     emit('lang');
   }
@@ -954,6 +1073,11 @@
   // ---------- history (in-app navigation) ----------
   function navigate(name, params, opts) {
     if (!opts || !opts.replace) state.history.push({ name: state.route.name, params: state.route.params });
+    // Public section keys are stable; the view's internal keys are not.
+    if (name === 'settings' && params && params.section) {
+      const alias = { sync: 'account', ai: 'advanced', general: 'appearance', notifications: 'notifications' };
+      state.settingsSection = alias[params.section] || params.section;
+    }
     // The pane belongs to the Todo list. Any other destination (including a
     // tool such as Search or Settings) retires it — except the composer, which
     // is where editing the selected record happens; cancelling must come back
@@ -966,7 +1090,15 @@
   }
   function back() {
     const prev = state.history.pop();
-    if (!prev) { state.route = { name: 'action', params: {} }; emit('navigate'); return; }
+    if (!prev) {
+      // 今天 is the root of the ladder: standing on it, Back has nothing to do.
+      if (state.route.name === 'action') return;
+      state.route = { name: 'action', params: {} };
+      state.tab = 'action';
+      if (window.UI) { window.UI.closeAll(); window.UI.closeMenu(); window.UI.hideToast(); }
+      emit('navigate');
+      return;
+    }
     state.route = prev;
     if (window.UI) { window.UI.closeAll(); window.UI.closeMenu(); window.UI.hideToast(); }
     emit('navigate');
@@ -1013,11 +1145,11 @@
     state, subscribe, emit, seed, occurrenceIdFor, occurrenceDateFromId, occurrencesInWindow, occurrenceState,
     isOccurrenceDone, isOpenOn, matchesRule, liveTodos, liveEvents, todoById, eventById, tagById, calendarById,
     calendarColor, isOpen, isDone, subtasksOf, isAllocationLive, allocationsForTodo, allocationsOnDay,
-    splitEventOccurrence, eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos, plannedTodoIds,
+    splitEventOccurrence, splitEventFuture, eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos, plannedTodoIds,
     searchAll, createTodo, updateTodo, createEvent, updateEvent, createAllocation, rescheduleAllocation,
     cancelAllocation, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
     purgeEvent, emptyTrash, deletedTodos, deletedEvents, reorderTodos, createTag, updateTag, deleteTag,
-    createCalendar, updateCalendar, deleteCalendar, setSetting, setLang, applyTheme, savePrefs, loadPrefs, pushUndo, takeUndo,
+    createCalendar, updateCalendar, deleteCalendar, setSetting, setLang, localizeSeed, applyTheme, savePrefs, loadPrefs, pushUndo, takeUndo,
     navigate, back, selectPane, clearPane, browseDate, setBrowseDate, TODO_STATUS, ALLOC, PRIORITY,
   };
 })();

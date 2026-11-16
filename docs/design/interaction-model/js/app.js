@@ -174,7 +174,7 @@
     const rail = U.qs('#rail');
     rail.innerHTML = '';
     const brand = U.el('div', { class: 'brand' });
-    brand.innerHTML = `<div class="brand-mark">灵</div><div><div class="brand-name">${U.esc(t('appName'))}<i></i></div><span class="brand-sub">${U.esc(t('brandSub'))}</span></div>`;
+    brand.innerHTML = `<div class="brand-mark">${U.esc(t('brandMark'))}</div><div><div class="brand-name">${U.esc(t('appName'))}<i></i></div><span class="brand-sub">${U.esc(t('brandSub'))}</span></div>`;
     brand.style.cursor = 'pointer';
     brand.addEventListener('click', () => go('action'));
     rail.appendChild(brand);
@@ -268,11 +268,31 @@
     guard().then((ok) => { if (ok) { Registry.leaveGuard = null; fn(); } });
   }
 
+  // One back ladder, shared by Esc, browser Back and every in-app exit:
+  // overlay → menu → the page's own escape handler → pane → history.
+  // A caller that gets `true` must not navigate.
+  function backLadder() {
+    if (UI.closeTop()) return true;
+    if (document.querySelector('.menu')) { UI.closeMenu(); return true; }
+    if (Registry.escapeHandler) { Registry.escapeHandler(); return true; }
+    if (S.state.paneSelection && paneOpenHere()) {
+      const id = S.state.paneSelection.id;
+      S.clearPane();
+      const row = document.querySelector(`[data-testid="todo-row"][data-id="${id}"]`);
+      if (row) row.focus();
+      return true;
+    }
+    return false;
+  }
+
   function go(name, params) {
     UI.closeMenu();
     guarded(() => {
       if (name !== 'todos' && name !== 'composer') S.state.paneSelection = null;
       if (name === 'action' || name === 'calendar' || name === 'todos') {
+        // A primary destination is a root, not a step: reaching it clears the
+        // stack instead of leaving tool pages behind it for Back to walk into.
+        S.state.history.length = 0;
         S.state.tab = name;
         S.state.route = { name, params: params || {} };
         S.state.selection = null;
@@ -295,20 +315,7 @@
     const el = document.activeElement;
     const typing = el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
     if (e.key === 'Escape') {
-      if (UI.closeTop()) { e.preventDefault(); return; }
-      // Menus are not modal layers, but Escape must still close one before it
-      // means "leave this page".
-      if (document.querySelector('.menu')) { UI.closeMenu(); e.preventDefault(); return; }
-      if (S.state.menu) { UI.closeMenu(); return; }
-      if (Registry.escapeHandler) { e.preventDefault(); Registry.escapeHandler(); return; }
-      if (S.state.paneSelection && paneOpenHere()) {
-        e.preventDefault();
-        const id = S.state.paneSelection.id;
-        S.clearPane();
-        const row = document.querySelector(`[data-testid="todo-row"][data-id="${id}"]`);
-        if (row) row.focus();
-        return;
-      }
+      if (backLadder()) { e.preventDefault(); return; }
       // Reaching here means nothing above claimed the key: no overlay, no menu,
       // and no page with an unsaved draft (the composer registers its own
       // handler). So Escape means "leave", even with the caret in a field —
@@ -317,9 +324,9 @@
       return;
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-    // Shortcuts must not mutate the page behind an open sheet or dialog.
-    if (UI.hasOpenLayer()) return;
-    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openComposer('todo'); return; }
+    // Shortcuts must not mutate the page behind an open sheet, dialog or menu.
+    if (UI.hasOpenLayer() || document.querySelector('.menu')) return;
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); guarded(() => openComposer('todo')); return; }
     if (e.key === 'q' || e.key === 'Q') { e.preventDefault(); go('quickadd'); return; }
     if (e.key === '/') { e.preventDefault(); go('search'); return; }
     if (e.key === 't' || e.key === 'T') { e.preventDefault(); jumpToday(); return; }
@@ -372,6 +379,8 @@
   function boot() {
     S.seed();
     S.loadPrefs();
+    // The seed was written before the saved language was known.
+    S.localizeSeed();
     I18N.setLang(S.state.lang);
     S.applyTheme();
     S.subscribe(() => render());
@@ -393,17 +402,18 @@
     if (window.history && history.pushState) {
       try { history.pushState({ ds: true }, ''); } catch (_) { /* file:// may refuse */ }
       window.addEventListener('popstate', () => {
+        // Browser Back follows the same ladder as Esc: an open overlay is the
+        // most recent thing the user did, so it closes first. Only when nothing
+        // above claims the step does the route move.
+        const run = () => { if (!backLadder()) back(); };
         const guard = Registry.leaveGuard;
-        if (guard) {
+        if (guard && !UI.hasOpenLayer() && !document.querySelector('.menu')) {
           guard().then((ok) => {
-            if (ok) { Registry.leaveGuard = null; back(); }
+            if (ok) { Registry.leaveGuard = null; run(); }
             try { history.pushState({ ds: true }, ''); } catch (_) {}
           });
         } else {
-          // Back closes the detail pane before it leaves the page: the pane is
-          // the most recent thing the user opened.
-          if (S.state.paneSelection && paneOpenHere()) { S.state.paneSelection = null; App.render(); }
-          else back();
+          run();
           try { history.pushState({ ds: true }, ''); } catch (_) {}
         }
       });

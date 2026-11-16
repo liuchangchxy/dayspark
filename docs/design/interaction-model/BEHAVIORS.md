@@ -224,6 +224,14 @@
 
 ---
 
+### B16 日视图的排序（裁定 D-17）
+- **界面**：待办页在 day 视图按「今天行动（该日的计划块）→ 该日截止 → 该日日程 → 该日已完成」四段渲染。每条记录在每段内只出现一次；同一记录可以既出现在行动区（因为它被排在那天）又出现在截止区（因为它那天截止）——这是两个不同事实，不是重复。
+- **数据**：只读投影，不写字段。排序逻辑只有 `js/views/todo.js` 一处，任何入口（导航、快速添加后落位、从日历回来）渲染结果一致。
+- **失败**：无。
+- 证据：`interactions.js`「the day list shows every row…」「completing a todo moves it…」；`reviewer-findings-r2.js` R11。
+
+---
+
 ## C. 日程（Event）
 
 ### C1 创建
@@ -235,9 +243,10 @@
 ### C2 拖动 / 改时长
 - **数据**：拖动 = 改 `startDt/endDt`（保持时长，可跨日）；改尺寸 = **只改 `endDt`**（起点不动）；15 分钟吸附。
 - **界面**：块跟随移动，释放后落位；拖动与改尺寸**都给 toast**（改尺寸不再静默）并带撤销。
+- **手机短块（裁定 D-16）**：块高 < 96px 时**不显示缩放条**——缩放条被压到 16px 会既违反 48px 触摸目标、又和拖动抢手势。这些块仍可拖动，改时长走块菜单「改期…」（同时给开始与结束）。≥96px 的块保留 48px 缩放条（拖动区仍占块高一半）。桌面端不受此限，任何高度的块都有缩放条。
 - **撤销**：撤销是**真实逆操作**，不是重绘 —— 普通日程还原拖动前的 `startDt/endDt`；重复实例按所选范围分别还原（删副本 + 移除 exdate / 还原原系列 `until` / 平移回原位）。
 - **失败**：重复事件的单次拖动 → 先问「这一次 / 以后 / 整个系列」；选「这一次」= 加 exdate + 建一次性事件。取消 sheet 不写任何数据，块弹回原位。
-- 证据：`interactions.js`「dragging an event block moves it and the toast undo puts it back」「dragging one occurrence of a repeating event asks the scope, and undo reverses it」；`reviewer-findings.js` F7 / F15；重复作用域见 C4。
+- 证据：`interactions.js`「dragging an event block moves it and the toast undo puts it back」「dragging one occurrence of a repeating event asks the scope, and undo reverses it」；`reviewer-findings-r9.js` R9-6（短块无 <48px 缩放条，改期仍可达）；重复作用域见 C4。
 
 ### C3 删除
 - **数据**：单次日程 = 软删；**实例或系列 = 先问范围**：「这一次」→ 加 exdate，系列存活；「以后」→ 系列 `until = 前一天`；「整个系列」→ 软删。
@@ -325,6 +334,13 @@
 | 退出登录 | `account` 清空 | 回到未登录表单 | 二次确认 |
 | AI 助手开关 | `ai.enabled` | 关掉后聊天页显示「AI 助手已关闭」空态，不再显示输入框 | 无 |
 | AI 配置 | `ai.provider/model/configured` | 设置与聊天页副标题同步 | 测试连接为模拟 |
+| 导出 .ics | 无写入 | 下载 `dayspark.ics` | 无 |
+| 导出全部日历 | 无写入 | 每个日历一个 `.ics` 文件（打包） | 无 |
+| 导出完整备份 | 无写入 | 下载含全部记录+偏好+回收站的 JSON | 无 |
+| 合并备份 | **按 id 合并**，不替换现有数据；冲突以较新 `updatedAt` 为准 | toast 报「新增 N / 更新 M / 跳过 K」 | 未选文件 → 「请先选择备份文件」，不打开空流程；文件非法 → 错误 toast，不写 |
+| 标签 | 无写入（只读计数） | 行尾显示标签数，点进行标签页 | 无 |
+| 回收站 | 无写入（只读计数） | 行尾显示回收站条数，点进回收站 | 无 |
+| 设备 | 无写入（只读同步设备） | 未登录 → 不显示；加载中 → 骨架行；本机标「本机」且**无移除**；其他设备可移除（无需确认）；只剩本机 → 保留本机行 + 「没有其他已连接的设备」+ 说明；失败 → 错误行 + 重试 | 加载失败不谎报空列表；不存在「一个设备都没有」的假空态 |
 
 设置分组顺序按 `CORE_UX_SPEC.md` §7：**通用 / 日历 / 同步 / 数据 / AI 助手 / 通知与提醒 / 关于**。数据再分「日历数据交换（.ics）」与「DaySpark 备份」；备份合并的措辞是**合并备份**（它合并，不替换）。同步分组必须自解释：说明这是通过你自己的 DaySpark 同步服务器、在多台设备间同步。
 
@@ -346,9 +362,10 @@
 ## H. 异常与缺失记录
 
 - **数据**：不写任何字段。
-- **界面**：打开不存在的 Todo **或 Event** → 同一张可恢复错误页（「出错了 / 你的数据没有被改动 / 返回」），不是白屏；回收站里被删的记录走同一路径。
+- **界面（回收站中的记录，裁定 D-18）**：打开**已软删**的 Todo 或 Event → 正常详情，只读，顶部横幅「此记录在回收站」+ 一个主操作「恢复」。恢复后横幅消失、编辑/安排/完成恢复可用。**不能**把可恢复的记录说成"不存在"。
+- **界面（真正不存在）**：id 查不到任何记录（含回收站）→ 同一张可恢复错误页（「出错了 / 你的数据没有被改动 / 返回」），不是白屏、不是空白详情。
 - **失败**：无（错误页本身就是失败态）。
-- 证据：`interactions.js`「opening a record that does not exist…」；`reviewer-findings.js` F17。
+- 证据：`interactions.js`「opening a record that does not exist…」；`reviewer-findings-r2.js` R5 / R6（回收站记录横幅 + 恢复）；`reviewer-findings.js` F17。
 
 ---
 

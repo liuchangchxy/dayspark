@@ -36,8 +36,31 @@
     return v;
   }
 
+  // A series' deadline time applied to the occurrence's own day.
+  function occurrenceDeadline(due, day) {
+    const d = U.startOfDay(day);
+    const src = new Date(due);
+    if (src.getHours() === 0 && src.getMinutes() === 0) return d;
+    d.setHours(src.getHours(), src.getMinutes(), 0, 0);
+    return d;
+  }
+
   function todoDetail(todo, contextDay) {
     const root = U.el('div', { class: 'detail', 'data-testid': 'todo-detail' });
+    // A record in the Trash still opens, but only its facts and a way back:
+    // the banner is the surface, not an error page, and nothing here writes.
+    const ro = !!todo.deletedAt;
+    const on = (fn) => (ro ? null : fn);
+    const editBtnFor = (label, fn, opts) => (ro ? null : UI.iconButton('edit', label, fn, opts));
+    // A detail opened for a day is about THAT occurrence. Reading the series'
+    // anchor here made the page disagree with the row that opened it, and made
+    // 取消安排 cancel a block belonging to another day.
+    const contextStart = contextDay ? U.startOfDay(contextDay) : U.startOfDay(U.now());
+    const contextOcc = todo.recurrence && S.matchesRule(todo, contextStart)
+      ? S.occurrenceIdFor(todo, contextStart) : null;
+    const dueForContext = todo.dueDate && todo.recurrence
+      ? occurrenceDeadline(todo.dueDate, contextStart)
+      : todo.dueDate;
     const narrow = U.isNarrow();
     // A routed detail is a page at every width, so it always offers a visible
     // way back. A pane does not: its route is still Todo.
@@ -85,11 +108,6 @@
     const status = U.el('div', { class: 'detail-status' });
     // A recurring detail is about one occurrence, not the series. The series
     // itself is never done, so the button has to read the occurrence's state.
-    let contextOcc = null;
-    if (todo.recurrence) {
-      const d = contextDay ? U.startOfDay(contextDay) : U.startOfDay(U.now());
-      if (S.matchesRule(todo, d)) contextOcc = S.occurrenceIdFor(todo, d);
-    }
     const done = todo.recurrence
       ? (contextOcc ? S.isOccurrenceDone(todo, contextOcc) : false)
       : S.isDone(todo);
@@ -125,23 +143,30 @@
     facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionTime') }));
 
     // deadline
-    const dueAct = UI.iconButton('edit', t('change'), () => editDeadline(todo), { sm: true, size: 13 });
+    const dueAct = editBtnFor(t('change'), () => editDeadline(todo), { sm: true, size: 13 });
     facts.appendChild(iconFact(
       'flag',
       t('deadline'),
-      todo.dueDate ? U.esc(U.fmtDeadline(todo.dueDate)) : `<span class="muted">${U.esc(t('noDeadline'))}</span>`,
+      dueForContext ? U.esc(U.fmtDeadline(dueForContext)) : `<span class="muted">${U.esc(t('noDeadline'))}</span>`,
       dueAct,
       'amber',
-      () => editDeadline(todo),
+      on(() => editDeadline(todo)),
     ));
 
     // scheduled allocations
-    const allocs = S.allocationsForTodo(todo.id);
+    const allocs = S.allocationsForTodo(todo.id)
+      .filter((a) => !todo.recurrence || a.occurrenceId === contextOcc);
     const liveAllocs = allocs.filter(S.isAllocationLive);
-    const allocValue = liveAllocs.length ? '' : `<span class="muted">${U.esc(t('noSchedule'))}</span>`;
-    const addAlloc = UI.iconButton('clockPlus', t('allocateNow'), () => scheduleSheet(todo), { sm: true, size: 13 });
-    addAlloc.dataset.testid = 'detail-schedule';
-    const allocFact = iconFact('clock', t('scheduleExec'), allocValue, addAlloc, 'violet', () => scheduleSheet(todo));
+    // Work that is already finished has nothing to reserve: offering the
+    // control would write a block the completion rule immediately invalidates,
+    // which looks like a successful action and produces nothing.
+    const scheduleClosed = ro || (!todo.recurrence && S.isDone(todo));
+    const allocValue = scheduleClosed && !ro && S.isDone(todo)
+      ? `<span class="muted">${U.esc(t('scheduleNeedsOpen'))}</span>`
+      : (liveAllocs.length ? '' : `<span class="muted">${U.esc(t('noSchedule'))}</span>`);
+    const addAlloc = scheduleClosed ? null : UI.iconButton('clockPlus', t('allocateNow'), () => scheduleSheet(todo), { sm: true, size: 13 });
+    if (addAlloc) addAlloc.dataset.testid = 'detail-schedule';
+    const allocFact = iconFact('clock', t('scheduleExec'), allocValue, addAlloc, 'violet', on(() => scheduleSheet(todo)));
     facts.appendChild(allocFact);
     if (liveAllocs.length) {
       const list = allocFact.querySelector('.v');
@@ -158,7 +183,7 @@
           cancelAllocationFlow(a, todo);
         });
         line.appendChild(label);
-        line.appendChild(cancel);
+        if (!ro) line.appendChild(cancel);
         list.appendChild(line);
       });
     }
@@ -166,7 +191,7 @@
     // repeat
     if (todo.recurrence) {
       facts.appendChild(iconFact('repeat', t('seriesRule'), U.esc(UI.ruleSummary(todo.recurrence)) + `<span class="tiny muted"> · ${U.esc(todo.recurrence.timeZone)}</span>`,
-        UI.iconButton('edit', t('edit'), () => App.openComposer('todo', { mode: 'edit', id: todo.id, focus: 'repeat' }), { sm: true, size: 13 })));
+        editBtnFor(t('edit'), () => App.openComposer('todo', { mode: 'edit', id: todo.id, focus: 'repeat' }), { sm: true, size: 13 })));
     }
 
     // reminders: part of 提醒, ahead of the organising fields.
@@ -175,8 +200,8 @@
       ? todo.reminderOffsets.map((m) => U.esc(reminderLabel(m))).join(' · ')
       : `<span class="muted">${U.esc(t('none'))}</span>`;
     const remFact = iconFact('bell', t('reminder'), remValue,
-      UI.iconButton('edit', t('reminderEdit'), () => reminderSheet(todo), { sm: true, size: 13, testid: 'detail-reminder-edit' }),
-      null, () => reminderSheet(todo));
+      ro ? null : UI.iconButton('edit', t('reminderEdit'), () => reminderSheet(todo), { sm: true, size: 13, testid: 'detail-reminder-edit' }),
+      null, on(() => reminderSheet(todo)));
     facts.appendChild(remFact);
 
     // 整理
@@ -185,7 +210,7 @@
     // priority
     const prioLabel = { 9: t('high'), 5: t('medium'), 1: t('low') }[todo.priority] || t('noPriority');
     facts.appendChild(iconFact('flag', t('priority'), U.esc(prioLabel),
-      UI.iconButton('edit', t('change'), () => prioritySheet(todo), { sm: true, size: 13 }), null, () => prioritySheet(todo)));
+      editBtnFor(t('change'), () => prioritySheet(todo), { sm: true, size: 13 }), null, on(() => prioritySheet(todo))));
 
     // tags
     const tagsHtml = todo.tagIds.length
@@ -195,20 +220,20 @@
       }).join('')
       : `<span class="muted">${U.esc(t('none'))}</span>`;
     facts.appendChild(iconFact('tag', t('tags'), tagsHtml,
-      UI.iconButton('edit', t('change'), () => tagSheet(todo), { sm: true, size: 13 }), null, () => tagSheet(todo)));
+      editBtnFor(t('change'), () => tagSheet(todo), { sm: true, size: 13 }), null, on(() => tagSheet(todo))));
 
     // calendar: the same picker the composer uses, so the fact is editable in
     // place rather than being the one dead row on the page.
     const cal = S.calendarById(todo.calendarId);
-    const calEdit = UI.iconButton('edit', t('change'), () => changeCalendar(todo), { sm: true, size: 13 });
-    calEdit.dataset.testid = 'detail-calendar-edit';
+    const calEdit = ro ? null : UI.iconButton('edit', t('change'), () => changeCalendar(todo), { sm: true, size: 13 });
+    if (calEdit) calEdit.dataset.testid = 'detail-calendar-edit';
     facts.appendChild(iconFact(
       'folder',
       t('ownCalendar'),
       `<span class="chip"><span class="dot" style="background:${cal ? cal.color : 'var(--accent)'}"></span>${U.esc(cal ? cal.name : '')}</span>`,
       calEdit,
       null,
-      () => changeCalendar(todo),
+      on(() => changeCalendar(todo)),
     ));
 
     // parent
@@ -262,7 +287,12 @@
       if (subs.length) {
         subs.forEach((sub) => {
           const row = U.el('div', { class: 'subtask' });
-          row.appendChild(UI.checkbox(S.isDone(sub), () => { S.completeTodo(sub.id); App.render(); }));
+          // A subtask may repeat, so its completion needs the same occurrence
+          // resolution every other completion entry gets.
+          row.appendChild(UI.checkbox(S.isDone(sub), () => {
+            if (ro) return;
+            window.TodoOps.complete(sub);
+          }));
           const title = U.el('button', { class: 'title', text: sub.summary, style: 'text-align:left' });
           if (S.isDone(sub)) title.style.textDecoration = 'line-through';
           title.addEventListener('click', () => App.openRecord('todo', sub.id));
@@ -273,10 +303,12 @@
       } else {
         sec.appendChild(U.el('div', { class: 'field-hint', text: t('noSubtasks') }));
       }
-      const addSub = U.el('button', { class: 'btn ghost sm', style: 'margin-top:8px' });
-      addSub.innerHTML = ICON('plus', 12) + `<span>${U.esc(t('addSubtask'))}</span>`;
-      addSub.addEventListener('click', () => App.openComposer('todo', { parentId: todo.id }));
-      sec.appendChild(addSub);
+      const addSub = ro ? null : U.el('button', { class: 'btn ghost sm', style: 'margin-top:8px' });
+      if (addSub) {
+        addSub.innerHTML = ICON('plus', 12) + `<span>${U.esc(t('addSubtask'))}</span>`;
+        addSub.addEventListener('click', () => App.openComposer('todo', { parentId: todo.id }));
+        sec.appendChild(addSub);
+      }
       scroll.appendChild(sec);
     }
 
@@ -597,6 +629,11 @@
   }
 
   function scheduleSheet(todo) {
+    if (todo.deletedAt) return;
+    if (!todo.recurrence && S.isDone(todo)) {
+      UI.toast(t('scheduleNeedsOpen'), { warn: true });
+      return;
+    }
     const now = U.now();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
     UI.sheet({
@@ -686,7 +723,7 @@
   // ---------- event detail ----------
   function eventDetail(eventId, occurrenceMs) {
     const series = S.eventById(eventId);
-    if (!series || series.deletedAt) {
+    if (!series) {
       return UI.page({
         title: t('errorTitle'),
         onBack: () => App.back(),
@@ -697,6 +734,9 @@
         },
       });
     }
+    // A trashed event opens read-only with its banner; only a missing record
+    // is an error page.
+    const roEvent = !!series.deletedAt;
     const occStart = occurrenceMs ? new Date(occurrenceMs) : (series ? series.startDt : U.now());
     const occEnd = series ? new Date(occStart.getTime() + (series.endDt - series.startDt)) : occStart;
     const isOcc = !!(series && series.rrule && occurrenceMs);
@@ -724,6 +764,19 @@
     root.appendChild(scroll);
     scroll.appendChild(U.el('h1', { class: 'detail-title', text: e.summary }));
 
+    if (roEvent) {
+      const bar = U.el('div', { class: 'deleted-banner', 'data-testid': 'detail-deleted' });
+      bar.appendChild(U.el('div', { class: 'msg', html: `<strong>${U.esc(t('recordDeleted'))}</strong><span>${U.esc(t('recordDeletedHint'))}</span>` }));
+      const restore = U.el('button', { class: 'btn primary sm', text: t('restore'), 'data-testid': 'detail-restore' });
+      restore.addEventListener('click', () => {
+        S.restoreEvent(e.id);
+        App.render();
+        UI.toast(t('restoredToast', { t: e.summary }));
+      });
+      bar.appendChild(restore);
+      scroll.appendChild(bar);
+    }
+
     const status = U.el('div', { class: 'detail-status' });
     const cal = S.calendarById(e.calendarId);
     status.innerHTML = `<span class="chip"><span class="dot" style="background:${cal ? cal.color : 'var(--accent)'}"></span>${U.esc(cal ? cal.name : '')}</span>` +
@@ -738,12 +791,12 @@
         ? U.esc(U.fmtMonthDay(e.startDt)) + ' · ' + U.esc(t('allDay'))
         : `${U.esc(U.fmtMonthDay(e.startDt))} – ${U.esc(U.fmtMonthDay(e.endDt))} · ${U.esc(t('allDay'))}`)
       : `${U.esc(U.fmtMonthDay(e.startDt))} ${U.esc(U.fmtTimeRange(e.startDt, e.endDt))}`;
-    facts.appendChild(iconFact('calendar', t('schedule'), when, UI.iconButton('edit', t('change'), () => editEvent(e), { sm: true, size: 13 })));
+    facts.appendChild(iconFact('calendar', t('schedule'), when, roEvent ? null : UI.iconButton('edit', t('change'), () => editEvent(e), { sm: true, size: 13 })));
     if (e.location) facts.appendChild(iconFact('pin', t('location'), U.esc(e.location)));
     if (e.rrule) {
       const rec = { freq: e.rrule.freq, interval: e.rrule.interval, byday: e.rrule.byday };
       facts.appendChild(iconFact('repeat', t('seriesRule'), U.esc(UI.ruleSummary(rec)) + (e.rrule.until ? ` · ${U.esc(t('until'))} ${U.esc(U.fmtMonthDay(e.rrule.until))}` : ''),
-        UI.iconButton('edit', t('edit'), () => editEvent(e), { sm: true, size: 13 })));
+        roEvent ? null : UI.iconButton('edit', t('edit'), () => editEvent(e), { sm: true, size: 13 })));
     }
     if (e.tagIds && e.tagIds.length) {
       const html = e.tagIds.map((id) => {
@@ -783,6 +836,7 @@
     }
 
     const actions = U.el('div', { class: 'detail-actions' });
+    if (roEvent) { root.appendChild(actions); return root; }
     const editBtn = U.el('button', { class: 'btn ghost' });
     editBtn.innerHTML = ICON('edit', 13) + `<span>${U.esc(t('edit'))}</span>`;
     editBtn.addEventListener('click', () => editEvent(e));
@@ -801,9 +855,10 @@
   function renderDetail(params) {
     if (params.type === 'event') return eventDetail(params.id, params.occurrence);
     const todo = S.todoById(params.id);
-    // A record in the Trash is not openable: showing a live-looking detail with
-    // working Edit and Complete would let the user write to a deleted row.
-    if (!todo || todo.deletedAt) {
+    // A record that does not exist is an error page. A record in the Trash is
+    // not: it opens with its deleted banner and a restore, and with nothing on
+    // the page able to write to it.
+    if (!todo) {
       return UI.page({
         title: t('errorTitle'),
         onBack: () => App.back(),

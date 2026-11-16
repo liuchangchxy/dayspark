@@ -130,9 +130,13 @@ scenario('R9-2 this-and-following moves a cross-day occurrence and later ones', 
     });
     return unique;
   }, info.anchor);
-  const onOldDay = result.filter((r) => r.d === new Date(info.anchor).toDateString());
+  // Compare instants, not `toDateString()` text: weekday names do not sort in date order
+  // ("Thu" < "Wed" lexicographically), which made this pass or fail by which day of the week
+  // the anchor happened to be.
+  const anchorDayMs = new Date(info.anchor).setHours(0, 0, 0, 0);
+  const onOldDay = result.filter((r) => new Date(r.d).getTime() === anchorDayMs);
   assertEq(onOldDay.length, 0, 'the dragged occurrence must not remain on its old day: ' + JSON.stringify(result));
-  const laterWeekdays = result.filter((r) => r.d > new Date(info.anchor).toDateString());
+  const laterWeekdays = result.filter((r) => new Date(r.d).getTime() > anchorDayMs);
   assert(laterWeekdays.length > 0, 'later occurrences must exist: ' + JSON.stringify(result));
   const movedWeekday = new Date(new Date(info.anchor).getTime() + 86400000).getDay();
   assert(laterWeekdays.every((r) => r.wd === movedWeekday), 'later occurrences must follow the new weekday: ' + JSON.stringify(result));
@@ -241,7 +245,10 @@ scenario('R9-6 a 15-minute phone block can be moved, not only resized', async (b
     };
   }, id);
   assert(!probe.midResize, 'the middle of a 15-minute block must move it, not resize it');
-  assert(probe.topResize, 'the bottom edge must still resize');
+  // J5 needs a 48px effective handle; a 48px block cannot carry one without
+  // swallowing its own body, so a short block has no handle and resizes through
+  // 改期… in the block menu instead of through a 16px strip.
+  assert(!probe.topResize, 'a 48px block must not expose a sub-48px resize strip');
   await page.mouse.move(probe.x, probe.y);
   await page.mouse.down();
   await page.mouse.move(probe.x, probe.y + 48, { steps: 5 });

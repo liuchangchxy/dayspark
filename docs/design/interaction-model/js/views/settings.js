@@ -86,7 +86,8 @@
   }
 
   function renderSettings(params) {
-    const section = params && params.section;
+    const SECTION_ALIAS = { sync: 'account', ai: 'advanced', general: 'appearance' };
+    const section = params && params.section ? (SECTION_ALIAS[params.section] || params.section) : null;
     const page = UI.page({
       title: t('pageSettings'),
       onBack: () => App.back(),
@@ -130,18 +131,8 @@
         cal.appendChild(row({ icon: 'calendar', title: t('manageCalendars'), onClick: () => App.go('calendars') }));
         addSection('calendar', t('calendar'), cal);
 
-        // Data, split by the job: exchange with other calendar apps vs. keep
-        // this install recoverable.
-        const data = group(t('data'));
-        data.appendChild(U.el('div', { class: 'group-label', text: t('dataExchange') }));
-        data.appendChild(row({
-          icon: 'upload', title: t('importIcs'), subtitle: t('calendarData'),
-          onClick: () => importFlow(),
-        }));
-        data.appendChild(row({ icon: 'download', title: t('exportAllCalendars'), onClick: () => exportFlow() }));
-        data.appendChild(U.el('div', { class: 'group-label', text: t('dataBackup') }));
-        data.appendChild(row({ icon: 'archive', title: t('fullBackup'), subtitle: t('fullBackupDesc'), onClick: () => backupFlow() }));
-        addSection('data', t('data'), data);
+        // Sync, then data. The frozen section order is 通用 / 日历 / 同步 / 数据 /
+        // AI / 通知 / 关于 (CORE_UX_SPEC §7, OpenDesign H1).
 
         // Account
         const account = group(t('account'));
@@ -168,7 +159,7 @@
           const syncRow = row({ icon: 'refresh', title: t('syncNow'), onClick: () => syncNow() });
           syncRow.dataset.testid = 'settings-sync';
           account.appendChild(syncRow);
-          account.appendChild(row({ icon: 'layers', title: t('connectedDevices'), value: '2', onClick: () => devicesSheet() }));
+          account.appendChild(row({ icon: 'layers', title: t('connectedDevices'), value: devicesStore.state === 'ready' ? String(devicesStore.items.length) : '—', onClick: () => devicesSheet() }));
           account.appendChild(row({
             icon: 'logout', title: t('logout'), danger: true, onClick: () => {
               UI.confirm({ title: t('logout'), message: t('signOutBody'), danger: true, confirmText: t('logout') }).then((ok) => {
@@ -226,6 +217,23 @@
           account.appendChild(form);
         }
         addSection('account', t('account'), account);
+
+        // Data, split by the job: exchange with other calendar apps vs. keep
+        // this install recoverable.
+        const data = group(t('data'));
+        data.appendChild(U.el('div', { class: 'group-label', text: t('dataExchange') }));
+        data.appendChild(row({
+          icon: 'upload', title: t('importIcs'), subtitle: t('calendarData'),
+          onClick: () => importFlow(),
+        }));
+        data.appendChild(row({ icon: 'download', title: t('exportIcsRow'), onClick: () => exportFlow() }));
+        data.appendChild(row({ icon: 'download', title: t('exportAllCalendars'), onClick: () => exportFlow() }));
+        data.appendChild(U.el('div', { class: 'group-label', text: t('dataBackup') }));
+        data.appendChild(row({ icon: 'archive', title: t('exportFullBackup'), subtitle: t('fullBackupDesc'), onClick: () => backupFlow() }));
+        data.appendChild(row({ icon: 'upload', title: t('mergeBackup'), subtitle: t('mergeBackupDesc'), onClick: () => mergeBackupFlow() }));
+        data.appendChild(row({ icon: 'tag', title: t('navTags'), value: String(S.state.tags.length), onClick: () => App.go('tags') }));
+        data.appendChild(row({ icon: 'trash', title: t('navTrash'), value: String(S.deletedTodos().length + S.deletedEvents().length), onClick: () => App.go('trash') }));
+        addSection('data', t('data'), data);
 
         // AI: one top-level group. No Advanced > ExpansionTile > dialog nesting.
         const advanced = group(t('aiAssistant'));
@@ -293,17 +301,18 @@
           let active = sections.some((x) => x.key === S.state.settingsSection)
             ? S.state.settingsSection
             : sections[0].key;
-          // The route's section is an entry point, not a pin: once the user
-          // picks another section, a re-render must not drag them back.
-          if (section && sections.some((x) => x.key === section)
-              && (!S.state.settingsRouteApplied || S.state.settingsRouteApplied !== section)) {
+          // The route's section is an entry point. App.go/navigate applies it
+          // before this view renders, so every arrival lands where it asked.
+          if (section && sections.some((x) => x.key === section)) {
             active = section;
             S.state.settingsSection = section;
-            S.state.settingsRouteApplied = section;
           }
           function show(key) {
             active = key;
             S.state.settingsSection = key;
+            // The route and the visible section must not disagree: otherwise a
+            // later re-render drags the user back to the entry section.
+            if (S.state.route.name === 'settings') S.state.route.params = { section: key };
             nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.section === key));
             pane.innerHTML = '';
             const sec = sections.find((x) => x.key === key);
@@ -348,20 +357,71 @@
     }, 1100);
   }
 
+  // Connected devices are loaded, not painted: the sheet has a loading state,
+  // an empty state and a retryable error, and the count comes from the list.
+  const devicesStore = { state: 'loading', items: [] };
   function devicesSheet() {
     UI.sheet({
       title: t('connectedDevices'),
       body(host) {
-        [
-          { name: 'MacBook Pro', last: S.state.lang === 'zh' ? '刚刚' : 'just now', current: true },
-          { name: 'iPhone 15', last: S.state.lang === 'zh' ? '12 分钟前' : '12 min ago' },
-        ].forEach((d) => {
-          const r = U.el('div', { class: 'list-row' });
-          r.innerHTML = `<span class="icon">${ICON('user', 16)}</span><span class="main"><span class="t">${U.esc(d.name)}${d.current ? ' · ' + U.esc(S.state.lang === 'zh' ? '本机' : 'this device') : ''}</span><span class="s">${U.esc(d.last)}</span></span>`;
-          host.appendChild(r);
-        });
+        const draw = () => {
+          host.innerHTML = '';
+          if (devicesStore.state === 'loading') {
+            host.appendChild(UI.skeletonRows(3));
+            return;
+          }
+          if (devicesStore.state === 'error') {
+            host.appendChild(UI.emptyState('alert', t('errorTitle'), t('errorBody'), [{
+              label: t('retry'),
+              primary: true,
+              action: () => { devicesStore.state = 'loading'; draw(); loadDevices(draw); },
+            }]));
+            return;
+          }
+          if (!devicesStore.items.length) {
+            host.appendChild(UI.emptyState('device', t('noDevices'), t('noDevicesHint'), []));
+            return;
+          }
+          devicesStore.items.forEach((d) => {
+            const r = U.el('div', { class: 'list-row' });
+            r.dataset.testid = 'device-row';
+            r.innerHTML = `<span class="icon">${ICON('user', 16)}</span><span class="main"><span class="t">${U.esc(d.name)}${d.current ? ' · ' + U.esc(S.state.lang === 'zh' ? '本机' : 'this device') : ''}</span><span class="s">${U.esc(d.last || '')}</span></span>`;
+            if (!d.current) {
+              const rm = U.el('button', { class: 'link-danger', text: t('removeDevice') });
+              rm.dataset.testid = 'device-remove';
+              rm.addEventListener('click', () => {
+                devicesStore.items = devicesStore.items.filter((x) => x.id !== d.id);
+                draw();
+              });
+              r.appendChild(rm);
+            }
+            host.appendChild(r);
+          });
+          if (!devicesStore.items.some((d) => !d.current)) {
+            // This device has no remove action — signing out is the way to leave
+            // it — so "no devices" would be a dead state. What can be empty is
+            // the set of *other* devices, and that is what the copy says.
+            host.appendChild(UI.emptyState('device', t('noOtherDevices'), t('noDevicesHint'), []));
+          }
+        };
+        draw();
+        if (devicesStore.state === 'loading') loadDevices(draw);
       },
     });
+  }
+
+  function loadDevices(draw) {
+    setTimeout(() => {
+      if (S.state.offline) { devicesStore.state = 'error'; draw(); return; }
+      if (!devicesStore.items.length) {
+        devicesStore.items = [
+          { id: 1, name: 'MacBook Pro', last: S.state.lang === 'zh' ? '刚刚' : 'just now', current: true },
+          { id: 2, name: 'iPhone 15', last: S.state.lang === 'zh' ? '12 分钟前' : '12 min ago' },
+        ];
+      }
+      devicesStore.state = 'ready';
+      draw();
+    }, 500);
   }
 
   function importFlow() {
@@ -391,12 +451,24 @@
         const pick = U.el('button', { class: 'btn ghost', text: S.state.lang === 'zh' ? '选择 .ics 文件' : 'Choose a .ics file' });
         const name = U.el('span', { class: 'tiny muted', text: S.state.lang === 'zh' ? '未选择' : 'None' });
         pick.addEventListener('click', () => input.click());
-        input.addEventListener('change', () => { name.textContent = input.files && input.files[0] ? input.files[0].name : (S.state.lang === 'zh' ? '未选择' : 'None'); });
+        let chosen = null;
+        input.addEventListener('change', () => {
+          chosen = input.files && input.files[0] ? input.files[0] : null;
+          name.textContent = chosen ? chosen.name : (S.state.lang === 'zh' ? '未选择' : 'None');
+          name.classList.remove('field-error');
+        });
         zone.appendChild(pick); zone.appendChild(name);
         host.appendChild(zone);
         host.appendChild(U.el('div', { class: 'field-hint', style: 'margin:8px 0', text: S.state.lang === 'zh' ? '导入的重复项若无可靠时区，会保留为待确认的旧数据。' : 'Repeating items without a reliable time zone are kept for confirmation.' }));
         const btn = U.el('button', { class: 'btn primary', text: t('import') });
+        // Importing nothing is not a successful import: the action refuses and
+        // says why instead of reporting 12 imported items.
         btn.addEventListener('click', () => {
+          if (!chosen) {
+            name.textContent = t('chooseFileFirst');
+            name.classList.add('field-error');
+            return;
+          }
           btn.disabled = true; btn.textContent = t('loading');
           setTimeout(() => {
             btn.disabled = false; btn.textContent = t('import');
@@ -444,6 +516,14 @@
         host.appendChild(b);
       },
     });
+  }
+
+  function mergeBackupFlow() {
+    UI.confirm({
+      title: t('mergeBackup'),
+      message: t('mergeBackupDesc'),
+      confirmText: t('mergeBackup'),
+    }).then((ok) => { if (ok) UI.toast(t('backupRestored')); });
   }
 
   function aiConfigSheet() {

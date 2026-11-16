@@ -38,7 +38,13 @@
   function shift(dir) {
     const a = anchor();
     const v = S.state.calendarView;
-    if (v === 'month') setAnchor(new Date(a.getFullYear(), a.getMonth() + dir, 1));
+    if (v === 'month') {
+      // Keep the day of the month and clamp at shorter months: paging from
+      // 31 January used to land on 1 February and move the shared browseDate.
+      const day = a.getDate();
+      const last = new Date(a.getFullYear(), a.getMonth() + dir + 1, 0).getDate();
+      setAnchor(new Date(a.getFullYear(), a.getMonth() + dir, Math.min(day, last)));
+    }
     else if (v === 'week') setAnchor(U.addDays(a, 7 * dir));
     else setAnchor(U.addDays(a, dir));
   }
@@ -441,6 +447,9 @@
     node.innerHTML = `<div class="bt">${U.esc(e.summary)}</div><div class="bm">${U.esc(U.fmtTimeRange(e.startDt, e.endDt))}${e.location ? ' · ' + U.esc(e.location) : ''}</div>`;
     node.setAttribute('aria-label', `${e.summary} ${U.fmtTimeRange(e.startDt, e.endDt)}`);
     if (p.height < 34) node.classList.add('short');
+    // On a phone a short block cannot carry a 48px resize handle without
+    // covering its whole body; 改期… in the block menu is the precise path.
+    if (U.isNarrow() && p.height < 96) node.classList.add('no-resize');
     const resize = U.el('div', { class: 'resize' });
     node.appendChild(resize);
     attachBlockDrag(node, resize, {
@@ -472,6 +481,7 @@
     }
     node.innerHTML = `<div class="bt">${U.esc(todo ? todo.summary : '')}</div><div class="bm">${U.esc(t('scheduled'))} · ${U.esc(U.fmtTimeRange(a.startAt, a.endAt))}</div>`;
     if (p.height < 34) node.classList.add('short');
+    if (U.isNarrow() && p.height < 96) node.classList.add('no-resize');
     const resize = U.el('div', { class: 'resize' });
     node.appendChild(resize);
     attachBlockDrag(node, resize, { kind: 'alloc', data: a, day, hh, top: p.top, height: p.height });
@@ -540,6 +550,9 @@
 
     function down(e, m) {
       if (e.button !== undefined && e.button !== 0) return;
+      // A refused drop leaves its click to be consumed; starting a new gesture
+      // must clear that guard or the next real click would be swallowed.
+      node.dataset.moved = '0';
       mode = m;
       startX = e.clientX; startY = e.clientY;
       origTop = parseFloat(node.style.top) || 0;
@@ -583,7 +596,7 @@
         mode = null;
         node.classList.remove('dragging');
         node.style.opacity = '1';
-        restoreVisual();
+        restoreVisual(false);
         return;
       }
       mode = null;
@@ -609,12 +622,12 @@
         const e2 = U.addMinutes(end, resizedMin);
         if (e2 <= start) return;
         if (ctx.kind === 'event') moveEvent(ctx.data, start, e2, { silent: false, from: start, resized: true, onCancel: restoreVisual });
-        else moveAlloc(ctx.data, start, e2, { resized: true, onCancel: restoreVisual });
+        else if (moveAlloc(ctx.data, start, e2, { resized: true, onCancel: restoreVisual }) === false) node.dataset.moved = '1';
       } else {
         const s = U.addMinutes(start, movedMin);
         const e2 = U.addMinutes(end, movedMin);
         if (ctx.kind === 'event') moveEvent(ctx.data, s, e2, { from: start, onCancel: restoreVisual });
-        else moveAlloc(ctx.data, s, e2, { onCancel: restoreVisual });
+        else if (moveAlloc(ctx.data, s, e2, { onCancel: restoreVisual }) === false) node.dataset.moved = '1';
       }
     }
     node.addEventListener('pointerup', up);
@@ -721,7 +734,7 @@
       // the block back where it was instead of leaving a moved ghost on screen.
       if (o.onCancel) o.onCancel();
       UI.toast(t('occurrenceMoveBlocked'), { warn: true });
-      return;
+      return false;
     }
     App.render();
     if (!o.silent) {
@@ -729,6 +742,7 @@
         undo: () => { S.rescheduleAllocation(a.id, prev.start, prev.end); App.render(); },
       });
     }
+    return true;
   }
 
   function cancelAllocFlow(a) {

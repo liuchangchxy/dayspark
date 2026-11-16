@@ -105,6 +105,7 @@
     scopeSheet({
       options: [
         { mode: 'this', label: t('scopeThis'), desc: t('editScopeThisDesc') },
+        { mode: 'future', label: t('scopeFuture'), desc: t('editScopeFutureDesc') },
         { mode: 'all', label: t('scopeAll'), desc: t('editScopeAllDesc') },
       ],
       onPick: (mode) => {
@@ -113,6 +114,12 @@
           // midnight anchor used for exdate bookkeeping.
           App.openComposer('event', {
             mode: 'edit', id: e.id, occurrence: e.startDt.getTime(),
+          });
+        } else if (mode === 'future') {
+          // Editing "this and following" truncates the old series only when the
+          // edit is saved; cancelling the composer must write nothing.
+          App.openComposer('event', {
+            mode: 'edit', id: e.id, occurrence: e.startDt.getTime(), scope: 'future',
           });
         } else {
           App.openComposer('event', { mode: 'edit', id: e.id });
