@@ -475,6 +475,73 @@ svg { display: block; }
 .slot-sheet-option .s { font-size: 11px; color: var(--ink-3); }
 .slot-sheet-option:hover { background: var(--surface-2); }
 
+/* ---------- master-detail (Todo at >=1180) ---------- */
+/* The list keeps its column and the detail opens beside it. The pane is a
+   selection, not a route: closing it clears the selection and the list is
+   exactly where it was. */
+.todos-masterdetail { flex: 1; min-height: 0; display: flex; min-width: 0; }
+.todos-masterdetail > .md-list { flex: 1 1 50%; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.todos-masterdetail > .md-detail {
+  flex: 0 0 clamp(380px, 42%, 560px);
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  animation: md-in .001ms linear;
+}
+@keyframes md-in { from { opacity: .6; } to { opacity: 1; } }
+.todos-masterdetail .detail-scroll { max-width: none; padding: 4px 22px 40px; }
+.todos-masterdetail .detail-head { max-width: none; padding: 12px 14px 6px; }
+.pane-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pane-body > .detail { flex: 1; min-height: 0; }
+.md-close { flex: none; }
+.md-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 24px; color: var(--ink-3); font-size: 12.5px; text-align: center;
+}
+.md-selected { background: var(--accent-tint, color-mix(in srgb, var(--accent) 8%, transparent)); }
+.todo-row.md-selected { box-shadow: inset 2px 0 0 var(--accent); }
+
+/* ---------- calendar picker ---------- */
+.cal-picker {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 32px;
+  padding: 0 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface); font-size: 12.5px; color: var(--ink); cursor: pointer;
+}
+.cal-picker:hover { background: var(--surface-2); }
+.cal-picker .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.cal-list { display: flex; flex-direction: column; }
+.cal-option {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 12px 4px; border: 0; border-bottom: 1px solid var(--line-2);
+  background: none; text-align: left; font-size: 13.5px; color: var(--ink); cursor: pointer;
+}
+.cal-option .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.cal-option .nm { flex: 1; }
+.cal-option.on { font-weight: 620; color: var(--accent); }
+.cal-option:hover { background: var(--surface-2); }
+.cal-new { margin-top: 10px; }
+
+/* ---------- date picker ---------- */
+.page-sub-btn {
+  display: inline-flex; align-items: center; gap: 5px; border: 0; background: none;
+  padding: 4px 6px; margin-left: -6px; border-radius: 6px;
+  font-size: 11.5px; color: var(--ink-3); cursor: pointer;
+}
+.page-sub-btn:hover { background: var(--surface-3); color: var(--ink-2); }
+.picker-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.picker-month { flex: 1; text-align: center; font-size: 13px; font-weight: 620; }
+.picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.picker-dow { text-align: center; font-size: 10px; color: var(--ink-3); padding: 4px 0; }
+.picker-day {
+  height: 34px; border: 0; background: none; border-radius: 6px;
+  font-size: 12px; color: var(--ink); cursor: pointer;
+}
+.picker-day:hover { background: var(--surface-3); }
+.picker-day.out { color: var(--ink-3); opacity: .55; }
+.picker-day.today { box-shadow: inset 0 0 0 1px var(--line); }
+.picker-day.on { background: var(--accent); color: #fff; font-weight: 650; }
+
 /* ---------- detail ---------- */
 .detail { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--surface); }
 .detail-head { display: flex; align-items: center; gap: 4px; padding: 10px 12px 6px; flex: none; width: 100%; max-width: 800px; margin: 0 auto; }
@@ -522,6 +589,13 @@ svg { display: block; }
 .composer-title-input:focus { outline: none; }
 .composer-type { margin-bottom: 14px; }
 .form-block { border-top: 1px solid var(--line); padding: 12px 0; display: flex; flex-direction: column; gap: 10px; }
+.form-section { display: flex; flex-direction: column; }
+.form-section-title {
+  font-size: 10.5px; font-weight: 650; letter-spacing: .5px; text-transform: uppercase;
+  color: var(--ink-3); padding: 16px 0 6px;
+}
+.form-section:first-child .form-section-title { padding-top: 4px; }
+.detail-facts > .form-section-title:first-child { padding-top: 8px; }
 .form-row { display: flex; align-items: center; gap: 10px; }
 .form-row .label { width: 56px; flex: none; font-size: 11.5px; color: var(--ink-3); }
 .form-row .control { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -610,6 +684,7 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
 .settings-group > h2 { font-size: 10.5px; letter-spacing: .5px; color: var(--ink-3); font-weight: 650; padding: 10px 14px 4px; text-transform: uppercase; }
 .group-label { font-size: 10.5px; letter-spacing: .4px; color: var(--ink-3); font-weight: 650; padding: 10px 14px 4px; border-top: 1px solid var(--line-2); text-transform: uppercase; }
 .group-label:first-of-type { border-top: 0; }
+.group-desc { font-size: 11.5px; line-height: 1.55; color: var(--ink-3); margin: 2px 0 8px; max-width: 52ch; }
 .setting-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 9px 14px; border-top: 1px solid var(--line-2); width: 100%; text-align: left; }
 .setting-row:first-of-type { border-top: 0; }
 .setting-row:hover { background: var(--surface-2); }
@@ -689,11 +764,11 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .page-content { padding: 0 16px 28px; }
   .page-content.tight { padding-bottom: 96px; }
   .bottomnav {
-    display: grid; grid-template-columns: repeat(3, 1fr); flex: none;
+    display: grid; grid-template-columns: repeat(4, 1fr); flex: none;
     border-top: 1px solid var(--line); background: var(--surface);
     padding-bottom: env(safe-area-inset-bottom);
   }
-  .bottomnav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 54px; font-size: 10px; color: var(--ink-3); }
+  .bottomnav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 48px; height: 54px; font-size: 10px; color: var(--ink-3); }
   .bottomnav button.on { color: var(--accent); }
   .bottomnav button svg { width: 19px; height: 19px; }
   .row { min-height: 52px; }
@@ -718,6 +793,45 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .detail-title { font-size: 20px; }
   .composer-body { padding: 14px 16px 40px; }
   .form-row .label { width: 48px; }
+
+  /* Touch targets: a finger is not a cursor. Every control that can be hit
+     gets at least 48px in its smallest dimension. Controls that draw small on
+     purpose (swatches, checkboxes, dots, chips) keep their look and grow their
+     hit area instead, so the surface stays dense without becoming a trap. */
+  .hit { min-width: 48px; min-height: 48px; }
+  .icon-btn { width: 48px; height: 48px; }
+  .icon-btn.sm { width: 48px; height: 48px; }
+  .btn { min-height: 48px; }
+  .btn.sm { min-height: 48px; }
+  .row { min-height: 56px; }
+  .todo-row { min-height: 56px; }
+  .selbox { width: 28px; height: 28px; position: relative; }
+  .selbox::after { content: ""; position: absolute; inset: -12px; }
+  .swatches { gap: 4px; }
+  .swatch { width: 30px; height: 30px; position: relative; }
+  .swatch::after { content: ""; position: absolute; inset: -9px; }
+  .setting-row { min-height: 56px; }
+  .fact { min-height: 48px; align-items: center; }
+
+  .fact .act .icon-btn { width: 48px; height: 48px; }
+  .link-danger { min-height: 48px; padding: 0 8px; }
+  .alloc-live { min-height: 48px; }
+  .weekstrip .ws-arrow { min-width: 48px; min-height: 48px; }
+  .page-sub-btn { min-height: 48px; padding: 0 8px; }
+
+  .chips-scroll { padding-top: 2px; padding-bottom: 4px; }
+  /* Rows that are themselves the control. */
+  .capture { min-height: 48px; }
+
+  .link-btn { min-height: 48px; display: inline-flex; align-items: center; }
+  .cal-today-btn { min-height: 48px !important; padding: 0 14px; }
+  .month-more { min-height: 24px; display: flex; align-items: center; }
+  .occurrence-picker .occ-row { min-height: 48px; }
+  .list-row { min-height: 56px; }
+  .search-hit { min-height: 56px; }
+  .slot-sheet-option { min-height: 56px; }
+  .picker-day { height: 48px; }
+  .cal-option { min-height: 52px; }
 }
 @media (min-width: 900px) {
   .mobile-only { display: none !important; }
@@ -742,22 +856,47 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
 :root[data-theme="dark"] .row.overdue { background: color-mix(in srgb, var(--red) 8%, var(--surface)); }
 :root[data-theme="dark"] .swipe-wrap > .todo-row { background: var(--surface); }
 
-/* Hit-target guarantees: small visual labels keep a 44px touch box. */
+/* Hit-target guarantees. One block, one number: 48px. A finger is not a cursor
+   and the platform minimum is not a suggestion. Controls that draw small on
+   purpose keep their look and grow their box instead. */
 @media (max-width: 899px) {
-  .capture-plus { min-height: 44px; padding: 0 6px; margin: -8px 0; }
-  .link-btn { min-height: 44px; padding: 0 6px; margin: -14px 0; }
-  .section-head { min-height: 44px; }
-  .link-btn, .capture-plus { font-size: 11.5px; }
-
-  /* Touch targets are 48px on phones even where the desktop control is 28-32.
-     The visual size stays as designed; only the hit area grows. */
   .icon-btn, .icon-btn.sm, .btn, .btn.sm { min-width: 48px; min-height: 48px; }
   .icon-btn.sm { margin: -10px; }
   .btn { padding: 0 14px; }
   .btn.sm { padding: 0 12px; }
+  .capture-plus { min-height: 48px; padding: 0 8px; }
+  .link-btn { min-height: 48px; padding: 0 8px; margin: -14px 0; font-size: 11.5px; }
+  .capture-plus { font-size: 11.5px; }
+
   .alloc-live { min-height: 48px; }
   .alloc-live .link-danger { min-height: 48px; padding: 0 10px; margin-right: -10px; }
-  .fact .v[role="button"] { min-height: 44px; display: flex; align-items: center; }
-  .detail-actions .btn { min-height: 44px; }
-  .capture input, .todo-quick input { min-height: 44px; }
+  .fact .v[role="button"] { min-height: 48px; display: flex; align-items: center; }
+  .detail-actions .btn { min-height: 48px; }
+  .capture input, .todo-quick input { min-height: 48px; }
+  .chip-btn { height: 48px; padding: 0 12px; }
+  .segmented button, .segmented.lg button { height: 48px; padding: 0 12px; }
+  /* Seven day cells share one row, so the box is as wide as the week allows;
+     the height carries the 48px guarantee. */
+  /* Seven 48px day cells do not fit a 390px screen side by side. Let the strip
+     scroll horizontally at the real touch size instead of shrinking the cells
+     below the platform minimum. */
+  .weekstrip .ws-days { overflow-x: auto; scrollbar-width: none; }
+  .weekstrip .ws-days::-webkit-scrollbar { display: none; }
+  .ws-day { flex: 0 0 48px; min-width: 48px; min-height: 56px; }
+  .chips-scroll .chip-btn { min-width: 48px; justify-content: center; }
+  /* Calendar blocks are drawn to scale — a 30-minute block is half an hour
+     tall — so their height cannot be padded without lying about duration.
+     They get an invisible hit area instead, the same way swatches do. */
+  .timegrid .block, .block.alloc, .month-event { position: relative; }
+  .timegrid .block::after, .block.alloc::after {
+    content: ""; position: absolute; left: 0; right: 0;
+    top: 50%; height: 48px; transform: translateY(-50%);
+  }
+  .month-event::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 48px; transform: translateY(-50%); }
+  .ws-arrow { min-width: 48px; min-height: 48px; }
+  .cal-today-btn { min-height: 48px; }
+  .cal-head .segmented button { min-height: 48px; min-width: 48px; }
+  .deadline-chip { min-height: 48px; padding-top: 10px; padding-bottom: 10px; }
+  .month-event { min-height: 22px; }
+  .block.short, .timegrid .block { min-height: 30px; }
 }

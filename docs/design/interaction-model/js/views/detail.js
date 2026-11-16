@@ -42,7 +42,13 @@
     const head = U.el('div', { class: 'detail-head' });
     if (narrow) head.appendChild(UI.iconButton('chevronLeft', t('back'), () => App.back()));
     head.appendChild(U.el('span', { class: 'spacer' }));
-    const moreBtn = UI.iconButton('sliders', t('more'), () => openMenu(moreBtn, todo));
+    // A menu opened from a click needs to stop that click reaching the
+    // document-level "click outside a menu closes it" handler, or it is built
+    // and torn down in the same frame and the button looks dead.
+    const moreBtn = UI.iconButton('sliders', t('more'), (ev) => {
+      ev.stopPropagation();
+      openMenu(moreBtn, todo);
+    });
     head.appendChild(moreBtn);
     if (narrow) head.appendChild(UI.iconButton('x', t('close'), () => App.back()));
     root.appendChild(head);
@@ -65,6 +71,10 @@
 
     const facts = U.el('div', { class: 'detail-facts' });
     scroll.appendChild(facts);
+
+    // Sections follow CORE_UX_SPEC 4.2 so the detail and the editor read in
+    // the same order: 时间 / 提醒 / 整理 / 内容.
+    facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionTime') }));
 
     // deadline
     const dueAct = UI.iconButton('edit', t('change'), () => editDeadline(todo), { sm: true, size: 13 });
@@ -111,6 +121,15 @@
         UI.iconButton('edit', t('edit'), () => App.openComposer('todo', { mode: 'edit', id: todo.id, focus: 'repeat' }), { sm: true, size: 13 })));
     }
 
+    // reminders: part of 提醒, ahead of the organising fields.
+    facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionReminder') }));
+    if (todo.reminderOffsets.length) {
+      facts.appendChild(iconFact('bell', t('reminder'), todo.reminderOffsets.map((m) => U.esc(reminderLabel(m))).join(' · ')));
+    }
+
+    // 整理
+    facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionOrganize') }));
+
     // priority
     const prioLabel = { 9: t('high'), 5: t('medium'), 1: t('low') }[todo.priority] || t('noPriority');
     facts.appendChild(iconFact('flag', t('priority'), U.esc(prioLabel),
@@ -126,14 +145,17 @@
     facts.appendChild(iconFact('tag', t('tags'), tagsHtml,
       UI.iconButton('edit', t('change'), () => tagSheet(todo), { sm: true, size: 13 }), null, () => tagSheet(todo)));
 
-    // calendar
+    // calendar: the same picker the composer uses, so the fact is editable in
+    // place rather than being the one dead row on the page.
     const cal = S.calendarById(todo.calendarId);
-    facts.appendChild(iconFact('folder', t('calendar'), `<span class="chip"><span class="dot" style="background:${cal ? cal.color : 'var(--accent)'}"></span>${U.esc(cal ? cal.name : '')}</span>`));
-
-    // reminders
-    if (todo.reminderOffsets.length) {
-      facts.appendChild(iconFact('bell', t('reminder'), todo.reminderOffsets.map((m) => U.esc(reminderLabel(m))).join(' · ')));
-    }
+    facts.appendChild(iconFact(
+      'folder',
+      t('calendar'),
+      `<span class="chip"><span class="dot" style="background:${cal ? cal.color : 'var(--accent)'}"></span>${U.esc(cal ? cal.name : '')}</span>`,
+      UI.iconButton('edit', t('change'), () => changeCalendar(todo), { sm: true, size: 13 }),
+      null,
+      () => changeCalendar(todo),
+    ));
 
     // parent
     if (todo.parentId) {
@@ -141,9 +163,12 @@
       if (parent) {
         facts.appendChild(iconFact('list', t('parentTodo'), `<a href="#" data-parent>${U.esc(parent.summary)}</a>`));
         const link = facts.querySelector('[data-parent]');
-        if (link) link.addEventListener('click', (e) => { e.preventDefault(); S.navigate('detail', { type: 'todo', id: parent.id }); });
+        if (link) link.addEventListener('click', (e) => { e.preventDefault(); App.openRecord('todo', parent.id); });
       }
     }
+
+    // 内容
+    facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionContent') }));
 
     // occurrences
     if (todo.recurrence) {
@@ -187,7 +212,7 @@
           row.appendChild(UI.checkbox(S.isDone(sub), () => { S.completeTodo(sub.id); App.render(); }));
           const title = U.el('button', { class: 'title', text: sub.summary, style: 'text-align:left' });
           if (S.isDone(sub)) title.style.textDecoration = 'line-through';
-          title.addEventListener('click', () => S.navigate('detail', { type: 'todo', id: sub.id }));
+          title.addEventListener('click', () => App.openRecord('todo', sub.id));
           row.appendChild(title);
           if (sub.dueDate) row.appendChild(U.el('span', { class: 'tiny muted', text: U.fmtDeadline(sub.dueDate) }));
           sec.appendChild(row);
@@ -341,6 +366,14 @@
         box.appendChild(acts);
         host.appendChild(box);
       },
+    });
+  }
+
+  function changeCalendar(todo) {
+    UI.openCalendarSheet(todo.calendarId, (id) => {
+      S.updateTodo(todo.id, { calendarId: id });
+      App.render();
+      UI.toast(t('updatedToast', { t: todo.summary }));
     });
   }
 
@@ -571,7 +604,7 @@
         if (occ) {
           const row = U.el('button', { class: 'occ-row' });
           row.innerHTML = `<span class="date">${U.esc(U.fmtMonthDay(d))} · ${U.esc(U.fmtWeekdayLong(d))}</span><span class="state">${U.esc(U.fmtTimeRange(occ.startDt, occ.endDt))}</span>`;
-          row.addEventListener('click', () => S.navigate('detail', { type: 'event', id: e.id, occurrence: occ.startDt.getTime() }));
+          row.addEventListener('click', () => App.openRecord('event', e.id, occ.startDt.getTime()));
           box.appendChild(row);
         }
       }

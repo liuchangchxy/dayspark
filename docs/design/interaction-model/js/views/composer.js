@@ -22,6 +22,9 @@
       scheduleStart: c.scheduleStart || null, scheduleEnd: c.scheduleEnd || null,
       scheduleOccurrence: c.scheduleOccurrence || null,
       moreOpen: false, focus: c.focus || null,
+      // Editing an existing record already has a title; a fresh form has not
+      // been touched yet and must not be greeted with an error.
+      touched: c.mode === 'edit',
     };
     if (c.mode === 'edit') {
       if (c.kind === 'todo') {
@@ -33,6 +36,7 @@
           calendarId: todo.calendarId, recurrence: todo.recurrence,
           reminderOffsets: todo.reminderOffsets.slice(), attachments: todo.attachments.slice(),
           parentId: todo.parentId,
+          statusDone: S.isDone(todo),
         });
         const allocs = S.allocationsForTodo(todo.id).filter(S.isAllocationLive);
         if (allocs.length) {
@@ -124,6 +128,7 @@
     titleInput.value = draft.summary;
     titleInput.addEventListener('input', () => {
       draft.summary = titleInput.value;
+      draft.touched = true;
       markDirty();
       autoGrow(titleInput);
       validate();
@@ -165,9 +170,6 @@
 
     const formHost = U.el('div');
     body.appendChild(formHost);
-
-    const moreHost = U.el('div');
-    body.appendChild(moreHost);
 
     const foot = U.el('div', { class: 'composer-foot' });
     const cancelBtn = U.el('button', { class: 'btn ghost lg', text: t('cancel') });
@@ -214,29 +216,71 @@
       return b;
     }
 
+    // CORE_UX_SPEC 4.2: the same section order everywhere — 任务 / 时间 / 提醒 /
+    // 整理 / 内容. One flat run of fields makes 重复 look unrelated to 时间 and
+    // buries 提醒, so the groups are explicit and each one is labelled.
+    function section(parent, title) {
+      const s = U.el('div', { class: 'form-section' });
+      s.appendChild(U.el('div', { class: 'form-section-title', text: title }));
+      parent.appendChild(s);
+      return s;
+    }
+
     function renderBody() {
       formHost.innerHTML = '';
+      const dueBtn = null;
       const block = U.el('div', { class: 'form-block' });
 
       if (draft.kind === 'todo') {
-        // deadline
-        const dueBtn = pillButton('flag', draft.dueDate ? U.fmtDeadline(draft.dueDate) : t('noDeadline'), () => deadlinePicker(), 'composer-deadline');
-        dueBtn.classList.toggle('on', !!draft.dueDate);
+        // ---------- 任务 ----------
+        const taskSec = section(formHost, t('sectionTask'));
+        if (isEdit) {
+          const doneSeg = U.el('div', { class: 'segmented' });
+          [[false, t('markComplete')], [true, t('completed')]].forEach(([val, label]) => {
+            const b = U.el('button', { class: draft.statusDone === val ? 'on' : '', text: label });
+            b.dataset.testid = 'composer-status-' + (val ? 'done' : 'open');
+            b.addEventListener('click', () => { draft.statusDone = val; markDirty(); renderBody(); });
+            doneSeg.appendChild(b);
+          });
+          taskSec.appendChild(row(t('status'), doneSeg));
+        }
+
+        // ---------- 时间 ----------
+        const timeSec = section(formHost, t('sectionTime'));
+        const deadlineBtn = pillButton('flag', draft.dueDate ? U.fmtDeadline(draft.dueDate) : t('noDeadline'), () => deadlinePicker(), 'composer-deadline');
+        deadlineBtn.classList.toggle('on', !!draft.dueDate);
         const dueClear = draft.dueDate ? U.el('button', { class: 'icon-btn sm', 'aria-label': t('clear'), html: ICON('x', 13) }) : null;
         if (dueClear) dueClear.addEventListener('click', () => { draft.dueDate = null; markDirty(); renderBody(); validate(); });
-        block.appendChild(row(t('deadline'), [dueBtn, dueClear].filter(Boolean)));
+        timeSec.appendChild(row(t('deadline'), [deadlineBtn, dueClear].filter(Boolean)));
 
-        // scheduled execution
+        const recBtn = U.el('button', { class: 'chip-btn' + (draft.recurrence ? ' on' : '') });
+        recBtn.dataset.testid = 'composer-repeat';
+        recBtn.innerHTML = ICON('repeat', 13) + `<span>${U.esc(UI.ruleSummary(draft.recurrence))}</span>`;
+        recBtn.addEventListener('click', () => repeatPicker());
+        timeSec.appendChild(row(t('repeat'), recBtn));
+        if (draft.recurrence) {
+          timeSec.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px;margin-top:-6px', text: t('repeatHint') }));
+        }
+
         const schBtn = pillButton('clockPlus', draft.scheduleStart ? U.fmtMonthDayTime(draft.scheduleStart) + ' – ' + U.fmtTime(draft.scheduleEnd) : t('addSchedule'), () => schedulePicker(), 'composer-schedule');
         schBtn.classList.toggle('on', !!draft.scheduleStart);
         const schClear = draft.scheduleStart ? U.el('button', { class: 'icon-btn sm', 'aria-label': t('clear'), html: ICON('x', 13) }) : null;
         if (schClear) schClear.addEventListener('click', () => {
           draft.scheduleStart = null; draft.scheduleEnd = null; markDirty(); renderBody(); validate();
         });
-        block.appendChild(row(t('scheduleExec'), [schBtn, schClear].filter(Boolean)));
-        block.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px;margin-top:-6px', text: t('scheduleHint') }));
+        timeSec.appendChild(row(t('scheduleExec'), [schBtn, schClear].filter(Boolean)));
+        timeSec.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px;margin-top:-6px', text: t('scheduleHint') }));
 
-        // priority
+        // ---------- 提醒 ----------
+        renderReminderSection(section(formHost, t('sectionReminder')));
+
+        // ---------- 整理 ----------
+        const orgSec = section(formHost, t('sectionOrganize'));
+        orgSec.appendChild(row(t('calendar'), UI.calendarPicker(draft.calendarId, (id) => {
+          draft.calendarId = id;
+          markDirty();
+          renderBody();
+        })));
         const prio = U.el('div', { class: 'segmented' });
         [[0, t('noPriority')], [1, t('low')], [5, t('medium')], [9, t('high')]].forEach(([val, label]) => {
           const b = U.el('button', { class: draft.priority === val ? 'on' : '', text: label, 'aria-pressed': draft.priority === val ? 'true' : 'false' });
@@ -244,19 +288,27 @@
           b.addEventListener('click', () => { draft.priority = val; markDirty(); renderBody(); });
           prio.appendChild(b);
         });
-        block.appendChild(row(t('priority'), prio));
-
-        // calendar
-        const calSel = U.el('select', { class: 'select', 'aria-label': t('calendar') });
-        S.state.calendars.forEach((cal) => {
-          const o = U.el('option', { value: String(cal.id), text: cal.name });
-          if (cal.id === draft.calendarId) o.selected = true;
-          calSel.appendChild(o);
+        orgSec.appendChild(row(t('priority'), prio));
+        const tagWrap = U.el('div', { class: 'chip-row' });
+        S.state.tags.forEach((tag) => {
+          const on = draft.tagIds.includes(tag.id);
+          const b = U.el('button', { class: 'chip-btn' + (on ? ' on' : '') });
+          b.dataset.testid = 'composer-tag-' + tag.id;
+          b.innerHTML = `<span class="dot" style="background:${tag.color}"></span>${U.esc(tag.name)}`;
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          b.addEventListener('click', () => {
+            draft.tagIds = on ? draft.tagIds.filter((x) => x !== tag.id) : draft.tagIds.concat(tag.id);
+            markDirty(); renderBody();
+          });
+          tagWrap.appendChild(b);
         });
-        calSel.addEventListener('change', () => { draft.calendarId = parseInt(calSel.value, 10); markDirty(); });
-        block.appendChild(row(t('calendar'), calSel));
+        orgSec.appendChild(row(t('tags'), tagWrap));
+
+        // ---------- 内容 ----------
+        renderContentSection();
       } else {
-        // event: all-day
+        // ---------- 时间 ----------
+        const timeSec = section(formHost, t('sectionTime'));
         const allday = U.el('div', { class: 'segmented' });
         [[false, S.state.lang === 'zh' ? '定时' : 'Timed'], [true, t('allDay')]].forEach(([val, label]) => {
           const b = U.el('button', { class: draft.isAllDay === val ? 'on' : '', text: label, 'aria-pressed': draft.isAllDay === val ? 'true' : 'false' });
@@ -269,7 +321,7 @@
           });
           allday.appendChild(b);
         });
-        block.appendChild(row(t('allDay'), allday));
+        timeSec.appendChild(row(t('allDay'), allday));
 
         const dateInput = U.el('input', { class: 'input', type: 'date', value: U.toInputDate(draft.startDt), 'aria-label': t('starts') });
         dateInput.dataset.testid = 'composer-start-date';
@@ -282,7 +334,7 @@
           draft.endDt = draft.isAllDay ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59) : new Date(draft.startDt.getTime() + dur);
           markDirty(); renderBody(); validate();
         });
-        block.appendChild(row(t('starts'), dateInput));
+        timeSec.appendChild(row(t('starts'), dateInput));
 
         if (!draft.isAllDay) {
           const t1 = U.el('input', { class: 'input', type: 'time', value: U.fmtTime(draft.startDt), 'aria-label': t('starts') });
@@ -294,7 +346,7 @@
             const [h2, m2] = t2.value.split(':').map(Number);
             if (isNaN(h1) || isNaN(h2)) return;
             draft.startDt = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), h1, m1 || 0);
-            let end = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), h2, m2 || 0);
+            const end = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), h2, m2 || 0);
             draft.endDt = end;
             markDirty(); validate();
           };
@@ -304,113 +356,88 @@
           timeRow.appendChild(t1);
           timeRow.appendChild(U.el('span', { class: 'muted', text: '–' }));
           timeRow.appendChild(t2);
-          block.appendChild(row(t('schedule'), timeRow));
+          timeSec.appendChild(row(t('schedule'), timeRow));
         }
 
-        const loc = U.el('input', { class: 'input', placeholder: t('location'), value: draft.location, 'aria-label': t('location') });
-        loc.dataset.testid = 'composer-location';
-        loc.addEventListener('input', () => { draft.location = loc.value; markDirty(); });
-        block.appendChild(row(t('location'), loc));
+        // ---------- 提醒 ----------
+        renderReminderSection(section(formHost, t('sectionReminder')));
 
-        const calSel = U.el('select', { class: 'select', 'aria-label': t('calendar') });
-        S.state.calendars.forEach((cal) => {
-          const o = U.el('option', { value: String(cal.id), text: cal.name });
-          if (cal.id === draft.calendarId) o.selected = true;
-          calSel.appendChild(o);
+        // ---------- 整理 ----------
+        const orgSec = section(formHost, t('sectionOrganize'));
+        orgSec.appendChild(row(t('calendar'), UI.calendarPicker(draft.calendarId, (id) => {
+          draft.calendarId = id;
+          markDirty();
+          renderBody();
+        })));
+        const tagWrap = U.el('div', { class: 'chip-row' });
+        S.state.tags.forEach((tag) => {
+          const on = draft.tagIds.includes(tag.id);
+          const b = U.el('button', { class: 'chip-btn' + (on ? ' on' : '') });
+          b.dataset.testid = 'composer-tag-' + tag.id;
+          b.innerHTML = `<span class="dot" style="background:${tag.color}"></span>${U.esc(tag.name)}`;
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          b.addEventListener('click', () => {
+            draft.tagIds = on ? draft.tagIds.filter((x) => x !== tag.id) : draft.tagIds.concat(tag.id);
+            markDirty(); renderBody();
+          });
+          tagWrap.appendChild(b);
         });
-        calSel.addEventListener('change', () => { draft.calendarId = parseInt(calSel.value, 10); markDirty(); });
-        block.appendChild(row(t('calendar'), calSel));
+        orgSec.appendChild(row(t('tags'), tagWrap));
+
+        // ---------- 内容 ----------
+        renderContentSection();
       }
-
-      // tags
-      const tagWrap = U.el('div', { class: 'chip-row' });
-      S.state.tags.forEach((tag) => {
-        const on = draft.tagIds.includes(tag.id);
-        const b = U.el('button', { class: 'chip-btn' + (on ? ' on' : '') });
-        b.dataset.testid = 'composer-tag-' + tag.id;
-        b.innerHTML = `<span class="dot" style="background:${tag.color}"></span>${U.esc(tag.name)}`;
-        b.setAttribute('aria-pressed', on ? 'true' : 'false');
-        b.addEventListener('click', () => {
-          draft.tagIds = on ? draft.tagIds.filter((x) => x !== tag.id) : draft.tagIds.concat(tag.id);
-          markDirty(); renderBody();
-        });
-        tagWrap.appendChild(b);
-      });
-      block.appendChild(row(t('tags'), tagWrap));
 
       formHost.appendChild(block);
 
-      // notes
-      const notesBlock = U.el('div', { class: 'form-block' });
+      if (draft.focus === 'deadline' && draft.kind === 'todo') { draft.focus = null; setTimeout(() => deadlinePicker(), 60); }
+      if (draft.focus === 'schedule' && draft.kind === 'todo') { draft.focus = null; setTimeout(() => schedulePicker(), 60); }
+      if (draft.focus === 'repeat') { draft.focus = null; setTimeout(() => repeatPicker(), 60); }
+    }
+
+    // 内容 is the same for both types: an event adds 地点 at the top.
+    function renderContentSection() {
+      const sec = section(formHost, t('sectionContent'));
+      if (draft.kind === 'event') {
+        const loc = U.el('input', { class: 'input', placeholder: t('location'), value: draft.location, 'aria-label': t('location') });
+        loc.dataset.testid = 'composer-location';
+        loc.addEventListener('input', () => { draft.location = loc.value; markDirty(); });
+        sec.appendChild(row(t('location'), loc));
+      }
       const notes = U.el('textarea', { class: 'textarea', placeholder: t('notesPlaceholder'), 'aria-label': t('notes'), rows: '3' });
       notes.dataset.testid = 'composer-notes';
       notes.value = draft.notes || '';
       notes.addEventListener('input', () => { draft.notes = notes.value; markDirty(); });
-      notesBlock.appendChild(U.el('div', { class: 'field-label', text: t('notes') }));
-      notesBlock.appendChild(notes);
-      formHost.appendChild(notesBlock);
+      sec.appendChild(U.el('div', { class: 'field-label', text: t('notes') }));
+      sec.appendChild(notes);
 
-      renderMore();
-      if (draft.focus === 'deadline' && draft.kind === 'todo') { draft.focus = null; setTimeout(() => deadlinePicker(), 60); }
-      if (draft.focus === 'schedule' && draft.kind === 'todo') { draft.focus = null; setTimeout(() => schedulePicker(), 60); }
-      if (draft.focus === 'repeat') { draft.focus = null; draft.moreOpen = true; renderMore(); }
-    }
-
-    function renderMore() {
-      moreHost.innerHTML = '';
-      const toggle = U.el('button', { class: 'more-toggle' });
-      toggle.dataset.testid = 'composer-more';
-      toggle.innerHTML = (draft.moreOpen ? ICON('chevronUp', 13) : ICON('chevronDown', 13)) + `<span>${U.esc(S.state.lang === 'zh' ? '重复与提醒' : 'Repeat & reminders')}</span>`;
-      toggle.addEventListener('click', () => { draft.moreOpen = !draft.moreOpen; renderMore(); });
-      moreHost.appendChild(toggle);
-      if (!draft.moreOpen) return;
-
-      const block = U.el('div', { class: 'form-block' });
-      const recBtn = U.el('button', { class: 'chip-btn' + (draft.recurrence ? ' on' : '') });
-      recBtn.dataset.testid = 'composer-repeat';
-      recBtn.innerHTML = ICON('repeat', 13) + `<span>${U.esc(UI.ruleSummary(draft.recurrence))}</span>`;
-      recBtn.addEventListener('click', () => repeatPicker());
-      block.appendChild(row(t('repeat'), recBtn));
-      if (draft.recurrence) {
-        block.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px;margin-top:-6px', text: draft.kind === 'todo' ? t('repeatHint') : (S.state.lang === 'zh' ? '重复日程按系列编辑，单次改动会询问范围。' : 'Repeating events edit as a series; single changes ask for scope.') }));
+      // Subtasks belong in the form as well as the detail: a parent whose
+      // children only exist in one of the two surfaces is a hidden capability.
+      if (draft.kind === 'todo' && isEdit && !draft.parentId) {
+        const wrap = U.el('div', { class: 'chip-row', 'data-testid': 'composer-subtasks' });
+        const subs = S.subtasksOf(draft.id);
+        subs.forEach((s) => {
+          const chip = U.el('span', { class: 'chip' });
+          chip.innerHTML = ICON('list', 11) + `<span>${U.esc(s.summary)}</span>`;
+          wrap.appendChild(chip);
+        });
+        const addSub = U.el('button', { class: 'chip-btn', 'data-testid': 'composer-add-subtask' });
+        addSub.innerHTML = ICON('plus', 12) + `<span>${U.esc(t('addSubtask'))}</span>`;
+        addSub.addEventListener('click', () => {
+          const parentId = draft.id;
+          leave(true);
+          App.openComposer('todo', { parentId });
+        });
+        wrap.appendChild(addSub);
+        sec.appendChild(row(t('subtasks'), wrap));
       }
 
-      const remWrap = U.el('div', { class: 'chip-row' });
-      const offsets = draft.reminderOffsets;
-      offsets.forEach((min, idx) => {
-        const chip = U.el('span', { class: 'chip amber' });
-        chip.innerHTML = `${ICON('bell', 11)}<span>${U.esc(reminderLabel(min))}</span>`;
-        const x = U.el('button', { class: 'icon-btn sm', style: 'width:16px;height:16px', 'aria-label': t('remove'), html: ICON('x', 10) });
-        x.addEventListener('click', () => { offsets.splice(idx, 1); markDirty(); renderMore(); });
-        chip.appendChild(x);
-        remWrap.appendChild(chip);
-      });
-      const addRem = U.el('button', { class: 'chip-btn' });
-      addRem.innerHTML = ICON('plus', 12) + `<span>${U.esc(t('addReminder'))}</span>`;
-      addRem.addEventListener('click', () => {
-        UI.sheet({
-          title: t('addReminder'),
-          body(host, close) {
-            [[0, t('onStart')], [5, '5 ' + t('minutesBefore')], [15, '15 ' + t('minutesBefore')], [30, '30 ' + t('minutesBefore')], [60, '1 ' + t('hoursBefore')], [1440, '1 ' + t('daysBefore')]].forEach(([v, label]) => {
-              const b = U.el('button', { class: 'slot-sheet-option' });
-              b.innerHTML = `<span class="ico">${ICON('bell', 16)}</span><span><span class="t">${U.esc(label)}</span></span>`;
-              b.addEventListener('click', () => { offsets.push(v); offsets.sort((a, b) => a - b); markDirty(); close(null); renderMore(); });
-              host.appendChild(b);
-            });
-          },
-        });
-      });
-      remWrap.appendChild(addRem);
-      block.appendChild(row(t('reminder'), remWrap));
-      moreHost.appendChild(block);
-
-      const attachBlock = U.el('div', { class: 'form-block' });
       const attachWrap = U.el('div', { class: 'chip-row' });
       draft.attachments.forEach((a, i) => {
         const chip = U.el('span', { class: 'chip' });
         chip.innerHTML = ICON('paperclip', 11) + `<span>${U.esc(a)}</span>`;
         const x = U.el('button', { class: 'icon-btn sm', style: 'width:16px;height:16px', 'aria-label': t('remove'), html: ICON('x', 10) });
-        x.addEventListener('click', () => { draft.attachments.splice(i, 1); markDirty(); renderMore(); });
+        x.addEventListener('click', () => { draft.attachments.splice(i, 1); markDirty(); renderBody(); });
         chip.appendChild(x);
         attachWrap.appendChild(chip);
       });
@@ -422,14 +449,44 @@
         input.multiple = true;
         input.addEventListener('change', () => {
           Array.from(input.files || []).forEach((f) => draft.attachments.push(f.name));
-          markDirty(); renderMore();
+          markDirty(); renderBody();
         });
         input.click();
       });
       attachWrap.appendChild(addAttach);
-      block.appendChild(row(t('attachments'), attachWrap));
-      moreHost.appendChild(block);
+      sec.appendChild(row(t('attachments'), attachWrap));
     }
+
+    function renderReminderSection(sec) {
+      const remWrap = U.el('div', { class: 'chip-row' });
+      const offsets = draft.reminderOffsets;
+      offsets.forEach((min, idx) => {
+        const chip = U.el('span', { class: 'chip amber' });
+        chip.innerHTML = `${ICON('bell', 11)}<span>${U.esc(reminderLabel(min))}</span>`;
+        const x = U.el('button', { class: 'icon-btn sm', style: 'width:16px;height:16px', 'aria-label': t('remove'), html: ICON('x', 10) });
+        x.addEventListener('click', () => { offsets.splice(idx, 1); markDirty(); renderBody(); });
+        chip.appendChild(x);
+        remWrap.appendChild(chip);
+      });
+      const addRem = U.el('button', { class: 'chip-btn', 'data-testid': 'composer-add-reminder' });
+      addRem.innerHTML = ICON('plus', 12) + `<span>${U.esc(t('addReminder'))}</span>`;
+      addRem.addEventListener('click', () => {
+        UI.sheet({
+          title: t('addReminder'),
+          body(host, close) {
+            [[0, t('onStart')], [5, '5 ' + t('minutesBefore')], [15, '15 ' + t('minutesBefore')], [30, '30 ' + t('minutesBefore')], [60, '1 ' + t('hoursBefore')], [1440, '1 ' + t('daysBefore')]].forEach(([v, label]) => {
+              const b = U.el('button', { class: 'slot-sheet-option' });
+              b.innerHTML = `<span class="ico">${ICON('bell', 16)}</span><span><span class="t">${U.esc(label)}</span></span>`;
+              b.addEventListener('click', () => { offsets.push(v); offsets.sort((a, b) => a - b); markDirty(); close(null); renderBody(); });
+              host.appendChild(b);
+            });
+          },
+        });
+      });
+      remWrap.appendChild(addRem);
+      sec.appendChild(row(t('reminder'), remWrap));
+    }
+
 
     function reminderLabel(min) {
       if (min === 0) return t('onStart');
@@ -637,7 +694,7 @@
                 draft.dueDate = U.startOfDay(U.now());
               }
               draft.recurrence = o.rec;
-              markDirty(); close(null); renderMore(); renderBody(); validate();
+              markDirty(); close(null); renderBody(); validate();
             });
             box.appendChild(b);
           });
@@ -684,7 +741,7 @@
               anchor: draft.kind === 'todo' ? 'due' : 'start',
               valueType: draft.kind === 'todo' ? 'date' : 'localDateTime',
             };
-            markDirty(); close(null); renderMore(); renderBody(); validate();
+            markDirty(); close(null); renderBody(); validate();
           });
           custom.appendChild(applyCustom);
           box.appendChild(custom);
@@ -698,12 +755,17 @@
       if (!draft.summary.trim()) errs.push(t('titleRequired'));
       if (draft.kind === 'event' && draft.endDt <= draft.startDt) errs.push(t('timeInvalid'));
       if (draft.kind === 'todo' && draft.startDate && draft.dueDate && draft.startDate > draft.dueDate) errs.push(t('startAfterDue'));
+      // An untouched new form is not a mistake. Saving stays disabled so the
+      // rule is still enforced, but the red message waits until the user has
+      // actually typed into the field — otherwise the page greets them with an
+      // accusation they did nothing to earn.
+      const showErrors = draft.touched;
       if (errs.length) {
-        errBox.hidden = false;
-        errBox.textContent = errs.join(' · ');
+        errBox.hidden = !showErrors;
+        errBox.textContent = showErrors ? errs.join(' · ') : '';
         saveBtn.disabled = true;
         saveTop.disabled = true;
-        titleInput.classList.toggle('invalid', !draft.summary.trim());
+        titleInput.classList.toggle('invalid', showErrors && !draft.summary.trim());
       } else {
         errBox.hidden = true;
         saveBtn.disabled = false;
@@ -730,6 +792,14 @@
           attachments: draft.attachments.slice(),
         };
         if (draft.parentId) payload.parentId = draft.parentId;
+        if (isEdit && !draft.parentId) {
+          // Completion lives here too: the form says what state the record is
+          // in, so leaving it on "completed" must not be silently ignored.
+          payload.status = draft.statusDone ? S.TODO_STATUS.DONE : S.TODO_STATUS.OPEN;
+          if (draft.statusDone) payload.completedAt = S.todoById(draft.id).completedAt || U.now();
+          else payload.completedAt = null;
+          if (draft.statusDone) payload.percentComplete = 100;
+        }
         let todo;
         if (isEdit) {
           todo = S.updateTodo(draft.id, payload);

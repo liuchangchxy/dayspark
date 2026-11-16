@@ -123,12 +123,16 @@
       apply.dataset.testid = 'ai-apply';
       const reject = U.el('button', { class: 'btn ghost sm', text: t('aiReject') });
       apply.addEventListener('click', () => {
-        m.proposal.run();
+        // A double-click or a synchronous second dispatch would otherwise run
+        // the write twice. The state check is the guard, not the re-render.
+        if (m.proposal.state === 'applied' || m.proposal.state === 'rejected') return;
         m.proposal.state = 'applied';
+        m.proposal.run();
         App.render();
         UI.toast(t('aiApplied'));
       });
       reject.addEventListener('click', () => {
+        if (m.proposal.state === 'applied' || m.proposal.state === 'rejected') return;
         m.proposal.state = 'rejected';
         App.render();
       });
@@ -199,7 +203,7 @@
     return {
       role: 'assistant',
       text: S.state.lang === 'zh'
-        ? '我可以读取今天的日程与待办、计算空闲时间，并在你确认后安排执行时间或创建条目。试试问「今天还剩多少空闲时间」。'
+        ? '我可以读取今天的日程与待办、计算空闲时间，并在你确认后计划执行时间或创建条目。试试问「今天还剩多少空闲时间」。'
         : 'I can read today’s events and to-dos, compute free time, and — after you confirm — reserve time or create items. Try “how much free time is left today”.',
     };
   }

@@ -174,8 +174,12 @@ scenario('R5 editing a recurring block from the calendar asks for the scope firs
   await page.evaluate(() => {
     const e = window.Store.state.events.find((x) => x.rrule && !x.deletedAt);
     const d = new Date(e.startDt.getTime());
-    window.Store.state.calendarAnchor = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    window.Store.state.calendarFocusDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    window.Store.state.calendarAnchor = day;
+    window.Store.state.calendarFocusDay = day;
+    // The calendar reads the shared browse date, so an anchor set alone does
+    // not move it.
+    window.Store.setBrowseDate(day);
     window.Store.state.calendarView = 'day';
     window.App.go('calendar');
   });

@@ -9,19 +9,22 @@
   const HOUR_H = () => (U.isNarrow() ? 56 : 48);
   const DAY_START = 0, DAY_END = 24;
 
-  function anchor() { return S.state.calendarAnchor || U.startOfDay(U.now()); }
+  // One browsed date, shared with Todo · 按日期 (CORE_UX_SPEC 16.1).
+  function anchor() { return S.browseDate(); }
   function setAnchor(d, focusDay) {
-    S.state.calendarAnchor = U.startOfDay(d);
-    if (focusDay) S.state.calendarFocusDay = U.startOfDay(d);
+    const day = U.startOfDay(d);
+    S.state.calendarAnchor = day;
+    S.setBrowseDate(day);
+    if (focusDay) S.state.calendarFocusDay = day;
     App.render();
   }
   function setView(v) { S.state.calendarView = v; App.render(); }
 
   function openEvent(e) {
-    S.navigate('detail', { type: 'event', id: e.id, occurrence: e.isOccurrence ? e.startDt.getTime() : null });
+    App.openRecord('event', e.id, e.isOccurrence ? e.startDt.getTime() : null);
   }
   function openTodo(todo) {
-    S.navigate('detail', { type: 'todo', id: todo.id });
+    App.openRecord('todo', todo.id);
   }
 
   function shift(dir) {
@@ -125,6 +128,9 @@
         cell.addEventListener('click', () => {
           S.state.calendarFocusDay = U.startOfDay(d);
           S.state.calendarAnchor = U.startOfDay(d);
+          // Picking a day in the calendar is the gesture that moves the shared
+          // browse date, so Todo · 按日期 lands on the same day.
+          S.setBrowseDate(U.startOfDay(d));
           S.state.calendarView = 'day';
           App.render();
         });
@@ -144,6 +150,7 @@
       cell.addEventListener('click', () => {
         S.state.calendarFocusDay = U.startOfDay(d);
         S.state.calendarAnchor = U.startOfDay(d);
+        S.setBrowseDate(U.startOfDay(d));
         S.state.calendarView = 'day';
         App.render();
       });
@@ -674,9 +681,6 @@
         host.appendChild(mk('clockPlus', t('scheduleTodo'), t('scheduleTodoDesc'), () => {
           pickSchedulable(start, end);
         }, 'slot-schedule-todo'));
-        host.appendChild(mk('plus', t('createTodoHere'), t('createTodoHereDesc'), () => {
-          App.openComposer('todo', { scheduleStart: start, scheduleEnd: end });
-        }, 'slot-new-todo'));
       },
     });
   }

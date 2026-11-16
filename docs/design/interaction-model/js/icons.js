@@ -58,6 +58,7 @@
     keyboard: '<rect x="2.4" y="5.4" width="15.2" height="9.2" rx="1.8"/><path d="M5.4 8.4h.01M8.2 8.4h.01M11 8.4h.01M13.8 8.4h.01M5.4 11.6h.01M14 11.6h.01M8 11.6h4"/>',
     dot: '<circle cx="10" cy="10" r="3.4"/>',
     squareCheck: '<rect x="3.4" y="3.4" width="13.2" height="13.2" rx="3"/><path d="m6.8 10 2.2 2.2 4.2-4.6"/>',
+    ellipsis: '<circle cx="4.6" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="15.4" cy="10" r="1.5"/>',
     calendarPlus: '<rect x="2.7" y="4" width="14.6" height="13.3" rx="2.4"/><path d="M2.7 8h14.6M6.6 2.4v3M13.4 2.4v3M10 10.6v4.2M7.9 12.7h4.2"/>',
     clockPlus: '<circle cx="9" cy="9" r="6.2"/><path d="M9 5.4V9l2.4 1.6M15.6 15.6v3.4M13.9 17.3h3.4"/>',
     bellOff: '<path d="M5.4 8.4a4.6 4.6 0 0 1 7-4M14.6 9.6c0 3.4 1.4 4.4 1.4 4.4H6.8M8.4 16.2a1.8 1.8 0 0 0 3.2 0M3.2 3.2l13.6 13.6"/>',

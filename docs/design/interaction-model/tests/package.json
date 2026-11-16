@@ -4,11 +4,12 @@
   "private": true,
   "description": "Real-browser tests for the DaySpark interaction-model prototype",
   "scripts": {
-    "test": "node smoke.js && node interactions.js && node surfaces.js && node reviewer-findings.js",
+    "test": "node smoke.js && node interactions.js && node surfaces.js && node reviewer-findings.js && node reviewer-findings-r2.js && node reviewer-findings-r3.js",
     "smoke": "node smoke.js",
     "interactions": "node interactions.js",
     "surfaces": "node surfaces.js",
-    "review": "node reviewer-findings.js"
+    "review": "node reviewer-findings.js",
+    "review3": "node reviewer-findings-r3.js"
   },
   "license": "UNLICENSED",
   "type": "commonjs",

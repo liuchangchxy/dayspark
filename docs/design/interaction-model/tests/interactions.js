@@ -281,8 +281,18 @@ scenario('composer blocks saving an empty title and explains why', async (browse
   await clickTestId(page, 'todos-create');
   const disabled = await page.evaluate(() => document.querySelector('[data-testid="composer-save"]').disabled);
   assert(disabled, 'save must be disabled with an empty title');
+  // An untouched form is not a mistake: the rule is enforced silently, and the
+  // red explanation waits until the user has actually typed something.
+  const premature = await page.evaluate(() => {
+    const n = document.querySelector('.hint-box.error');
+    return !!n && !n.hidden && n.textContent.trim().length > 0;
+  });
+  assert(!premature, 'an empty new form must not accuse the user before they type');
+  await page.fill('[data-testid="composer-title"]', 'x');
+  await page.fill('[data-testid="composer-title"]', '');
+  await settle(page, 140);
   const err = await textOf(page, '.hint-box.error');
-  assert(err && err.length > 0, 'an inline error should explain the empty title');
+  assert(err && err.length > 0, 'after the title is cleared the inline error should explain why');
   const countBefore = (await state(page)).todos.length;
   await page.click('[data-testid="composer-save"]', { force: true }).catch(() => {});
   await settle(page, 150);
@@ -1002,9 +1012,17 @@ scenario('mobile: bottom nav reaches every primary tab and a created item opens 
   const page = await newPage(browser, MOBILE);
   await noOverflow(page);
   const tabs = await page.$$('[data-testid^="tab-"]');
-  assertEq(tabs.length, 3, 'mobile bottom nav should have three destinations');
-
+  assertEq(tabs.length, 4, 'mobile bottom nav should be the three destinations plus More');
+  // Every tool that lives in the desktop rail has to be reachable on a phone
+  // too, or Settings/Search/AI/Calendars are dead ends there.
+  await clickTestId(page, 'tab-more');
+  await settle(page, 220);
+  const menuLabels = await page.$$eval('.menu button', (ns) => ns.map((n) => n.textContent.trim()));
+  ['搜索', 'AI 助手', '标签', '日历管理', '回收站', '设置'].forEach((label) => {
+    assert(menuLabels.some((x) => x.includes(label)), `mobile More menu must expose ${label}, got ${JSON.stringify(menuLabels)}`);
+  });
   await clickTestId(page, 'tab-todos');
+  await settle(page, 160);
   assert((await state(page)).route.name === 'todos', 'bottom nav should open Todos');
   await clickTestId(page, 'todos-create');
   assert(await exists(page, '[data-testid="composer"]'), 'mobile create button should open the composer');
@@ -1101,6 +1119,7 @@ scenario('dragging one occurrence of a repeating event asks the scope, and undo 
     const d = new Date(e.startDt.getFullYear(), e.startDt.getMonth(), e.startDt.getDate());
     window.Store.state.calendarAnchor = d;
     window.Store.state.calendarFocusDay = d;
+    window.Store.setBrowseDate(d);
     window.Store.state.calendarView = 'day';
     return e.id;
   });

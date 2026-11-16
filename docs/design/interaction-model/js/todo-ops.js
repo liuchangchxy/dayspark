@@ -37,5 +37,12 @@
     return true;
   }
 
-  window.TodoOps = { complete, todayOccurrenceId };
+  // The one place that decides "is this row already finished", so a surface
+  // never has to re-derive it and silently act on the opposite state.
+  function isDone(todo, occurrenceId) {
+    if (!todo) return false;
+    return todo.recurrence ? S.isOccurrenceDone(todo, occurrenceId) : S.isDone(todo);
+  }
+
+  window.TodoOps = { complete, todayOccurrenceId, isDone };
 })();

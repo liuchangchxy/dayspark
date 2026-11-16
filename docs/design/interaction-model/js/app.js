@@ -99,6 +99,28 @@
     return n;
   }
 
+  // Master-detail is a pane on the Todo destination only, exactly where the
+  // app has one. Everywhere else a detail is a page, because there is no list
+  // to keep beside it.
+  function paneOpenHere() {
+    return !U.isNarrow() && U.isSplit() && S.state.tab === 'todos' && !!S.state.paneSelection;
+  }
+
+  // Opening a record: answer in place when the pane exists, otherwise navigate.
+  // Clicking a row must not silently do nothing on the destinations that have
+  // no pane.
+  function openRecord(type, id, occurrence) {
+    if (!U.isNarrow() && U.isSplit() && S.state.tab === 'todos') {
+      S.selectPane(type, id, occurrence);
+      return;
+    }
+    S.navigate('detail', { type, id, occurrence: occurrence || null });
+  }
+
+  // A detail route stays a route. Turning it into a pane here would hijack
+  // arrivals from Search or a deep link, leaving the user on Todo instead of
+  // the page they asked for. The pane is entered only by clicking a row.
+
   function renderRail() {
     const rail = U.qs('#rail');
     rail.innerHTML = '';
@@ -167,6 +189,25 @@
       b.addEventListener('click', () => go(item.key));
       nav.appendChild(b);
     });
+    // The rail carries every tool on desktop. On a phone the bottom bar is the
+    // only shell the user has, so the tools have to live here too or Settings,
+    // Search, AI and Calendars management become unreachable by touch.
+    const more = U.el('button', { class: active === 'more' ? 'on' : '', 'aria-label': t('navMore') });
+    more.dataset.testid = 'tab-more';
+    more.innerHTML = ICON('ellipsis', 19) + `<span>${U.esc(t('navMore'))}</span>`;
+    more.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      UI.menu(more, [
+        { icon: 'search', text: t('navSearch'), action: () => go('search') },
+        { icon: 'sparkles', text: t('navAi'), action: () => go('chat') },
+        { icon: 'tag', text: t('navTags'), action: () => go('tags') },
+        { icon: 'layers', text: t('pageCalendars'), action: () => go('calendars') },
+        { icon: 'trash', text: t('navTrash'), action: () => go('trash') },
+        { sep: true },
+        { icon: 'settings', text: t('navSettings'), action: () => go('settings') },
+      ]);
+    });
+    nav.appendChild(more);
   }
 
   function guarded(fn) {
@@ -182,6 +223,10 @@
         S.state.tab = name;
         S.state.route = { name, params: params || {} };
         S.state.selection = null;
+        // Changing destination closes the detail pane. What it holds belongs to
+        // the list that opened it; leaving it up would show a record the user
+        // is no longer looking at in the list.
+        if (name !== 'todos') S.state.paneSelection = null;
         S.emit('navigate');
         return;
       }
@@ -200,7 +245,12 @@
       if (UI.closeTop()) { e.preventDefault(); return; }
       if (S.state.menu) { UI.closeMenu(); return; }
       if (Registry.escapeHandler) { e.preventDefault(); Registry.escapeHandler(); return; }
-      if (!typing && S.state.route.name !== 'action') { e.preventDefault(); back(); }
+      if (S.state.paneSelection && paneOpenHere()) { e.preventDefault(); S.clearPane(); return; }
+      // Reaching here means nothing above claimed the key: no overlay, no menu,
+      // and no page with an unsaved draft (the composer registers its own
+      // handler). So Escape means "leave", even with the caret in a field —
+      // a search box that swallows Escape strands the user on that page.
+      if (S.state.route.name !== 'action') { e.preventDefault(); back(); }
       return;
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -238,8 +288,11 @@
     const today = U.startOfDay(U.now());
     S.state.actionDate = today;
     S.state.todosView = { kind: 'day', day: today };
+    // "Back to today" moves the one browsed date, so the calendar and the Todo
+    // list are back on the same day rather than each holding a different one.
     S.state.calendarAnchor = today;
     S.state.calendarFocusDay = today;
+    S.state.browseDate = today;
     go(S.state.tab || 'action');
     UI.toast(S.state.lang === 'zh' ? '已回到今天' : 'Back to today', { duration: 1600 });
   }
@@ -277,7 +330,10 @@
             try { history.pushState({ ds: true }, ''); } catch (_) {}
           });
         } else {
-          back();
+          // Back closes the detail pane before it leaves the page: the pane is
+          // the most recent thing the user opened.
+          if (S.state.paneSelection && paneOpenHere()) S.state.paneSelection = null;
+          else back();
           try { history.pushState({ ds: true }, ''); } catch (_) {}
         }
       });
@@ -296,6 +352,8 @@
   Registry.jumpToday = jumpToday;
   Registry.openComposer = openComposer;
   Registry.showShortcuts = showShortcuts;
+  Registry.openRecord = openRecord;
+  Registry.paneOpenHere = paneOpenHere;
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

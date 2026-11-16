@@ -12,6 +12,9 @@
     S.state.todosView = next;
     multi.active = false;
     multi.ids.clear();
+    // Browsing a day here is the same act as tapping a calendar day, so both
+    // surfaces move together (CORE_UX_SPEC 16.1).
+    if (next.kind === 'day' && next.day) S.state.browseDate = U.startOfDay(next.day);
     App.render();
   }
 
@@ -22,7 +25,7 @@
   }
 
   function openTodo(todo) {
-    S.navigate('detail', { type: 'todo', id: todo.id });
+    App.openRecord('todo', todo.id);
   }
 
   function todoTile(todo, opts) {
@@ -93,6 +96,13 @@
       e.preventDefault();
       openRowMenu(rowNode, todo);
     });
+    // The row the pane is showing reads as selected, so the list still says
+    // which record is on the right.
+    if (S.state.paneSelection && S.state.paneSelection.type === 'todo'
+        && String(S.state.paneSelection.id) === String(todo.id)) {
+      rowNode.classList.add('md-selected');
+      wrap.classList.add('md-selected');
+    }
     if (!multi.active && !o.done) attachReorder(wrap, rowNode, todo);
     attachSwipe(wrap, rowNode, todo);
     wrap.appendChild(rowNode);
@@ -315,6 +325,10 @@
         if (!todo || !S.isOpen(todo)) return;
         const occ = todo.recurrence ? window.TodoOps.todayOccurrenceId(todo) : null;
         if (todo.recurrence && !occ) { skipped.push(todo.summary); return; }
+        // Batch 完成 must never flip a finished row back open. For a series the
+        // parent stays OPEN after one occurrence is ticked, so the row is still
+        // on screen and would otherwise be toggled the wrong way.
+        if (window.TodoOps.isDone(todo, occ)) { skipped.push(todo.summary); return; }
         const result = S.completeTodo(id, occ ? { occurrenceId: occ } : undefined);
         if (result) written.push({ id, occ });
       });
@@ -322,7 +336,7 @@
       multi.active = false;
       App.render();
       if (!written.length) {
-        UI.toast(t('recurrenceNeedsOccurrence'), { warn: true });
+        UI.toast(t('batchNothingToComplete', { n: skipped.length }), { warn: true });
         return;
       }
       UI.toast(t('selectedCount', { n: written.length }) + ' · ' + t('done'), {
@@ -391,17 +405,69 @@
     return strip;
   }
 
+  // A week strip alone means reaching a date three months out is twelve taps.
+  // The subtitle is the shortcut: tap it, pick a month, pick a day.
+  function datePicker(current) {
+    const cur = U.startOfDay(current || U.now());
+    UI.sheet({
+      title: t('jumpToDate'),
+      body(host, close) {
+        let shown = new Date(cur.getFullYear(), cur.getMonth(), 1);
+        const head = U.el('div', { class: 'picker-head' });
+        const prevY = U.el('button', { class: 'chip-btn', text: '«', 'aria-label': t('prevYear') });
+        const prevM = U.el('button', { class: 'chip-btn', text: '‹', 'aria-label': t('prevMonth') });
+        const label = U.el('span', { class: 'picker-month' });
+        const nextM = U.el('button', { class: 'chip-btn', text: '›', 'aria-label': t('nextMonth') });
+        const nextY = U.el('button', { class: 'chip-btn', text: '»', 'aria-label': t('nextYear') });
+        [prevY, prevM, label, nextM, nextY].forEach((n) => head.appendChild(n));
+        host.appendChild(head);
+        const grid = U.el('div', { class: 'picker-grid' });
+        host.appendChild(grid);
+        const jump = U.el('button', { class: 'btn ghost sm', 'data-testid': 'picker-today', text: t('today') });
+        jump.addEventListener('click', () => { close(null); setView({ kind: 'day', day: U.startOfDay(U.now()) }); });
+        host.appendChild(jump);
+
+        function draw() {
+          label.textContent = S.state.lang === 'zh'
+            ? `${shown.getFullYear()} 年 ${shown.getMonth() + 1} 月`
+            : U.fmtMonthYear(shown);
+          grid.innerHTML = '';
+          I18N.t('weekdaysShort').forEach((w) => grid.appendChild(U.el('span', { class: 'picker-dow', text: w })));
+          const first = U.startOfWeek(shown, S.state.weekStartsOn);
+          for (let i = 0; i < 42; i += 1) {
+            const d = U.addDays(first, i);
+            const out = d.getMonth() !== shown.getMonth();
+            const b = U.el('button', {
+              class: 'picker-day' + (out ? ' out' : '') + (U.sameDay(d, cur) ? ' on' : '') + (U.sameDay(d, U.now()) ? ' today' : ''),
+              text: String(d.getDate()),
+              'aria-label': U.fmtMonthDay(d),
+            });
+            b.dataset.testid = 'picker-day';
+            b.addEventListener('click', () => { close(null); setView({ kind: 'day', day: U.startOfDay(d) }); });
+            grid.appendChild(b);
+          }
+        }
+        prevY.addEventListener('click', () => { shown = new Date(shown.getFullYear() - 1, shown.getMonth(), 1); draw(); });
+        nextY.addEventListener('click', () => { shown = new Date(shown.getFullYear() + 1, shown.getMonth(), 1); draw(); });
+        prevM.addEventListener('click', () => { shown = new Date(shown.getFullYear(), shown.getMonth() - 1, 1); draw(); });
+        nextM.addEventListener('click', () => { shown = new Date(shown.getFullYear(), shown.getMonth() + 1, 1); draw(); });
+        draw();
+      },
+    });
+  }
+
   function renderTodos() {
     const v = view();
     const today = U.startOfDay(U.now());
     const day = v.kind === 'day' ? v.day : null;
+    // Create sits in the header on every platform (CORE_UX_SPEC 1.2: no FAB).
+    // On a phone it drops the label; the action itself never moves.
     const actions = [];
-    if (!U.isNarrow()) {
-      const add = U.el('button', { class: 'btn primary', 'data-testid': 'todos-create' });
-      add.innerHTML = ICON('plus', 14) + `<span>${U.esc(t('newTodo'))}</span>`;
-      add.addEventListener('click', () => App.openComposer('todo', day ? { dueDate: day } : {}));
-      actions.push(add);
-    }
+    const add = U.el('button', { class: 'btn primary', 'data-testid': 'todos-create' });
+    add.innerHTML = ICON('plus', 14) + (U.isNarrow() ? '' : `<span>${U.esc(t('newTodo'))}</span>`);
+    add.setAttribute('aria-label', t('newTodo'));
+    add.addEventListener('click', () => App.openComposer('todo', day ? { dueDate: day } : {}));
+    actions.push(add);
     const tagsBtn = UI.iconButton('tag', t('navTags'), () => App.go('tags'));
     const trashBtn = UI.iconButton('trash', t('navTrash'), () => App.go('trash'));
     const filterBtn = UI.iconButton('filter', t('filterAndDisplay'), (ev) => {
@@ -416,96 +482,144 @@
     }, { testid: 'todos-filter' });
     actions.push(filterBtn, tagsBtn, trashBtn);
 
+    // In a day view the subtitle is the only control that can reach a far date,
+    // so it is a button, not decoration.
+    let subtitleNode = null;
+    if (day) {
+      subtitleNode = U.el('button', { class: 'page-sub-btn', 'data-testid': 'todos-date-picker' });
+      subtitleNode.innerHTML = `${U.esc(U.fmtMonthDay(day))} · ${U.esc(U.fmtWeekdayLong(day))}` + ICON('chevronDown', 12);
+      subtitleNode.addEventListener('click', (ev) => { ev.stopPropagation(); datePicker(day); });
+    }
+
     const page = UI.page({
       title: t('pageTodos'),
-      subtitle: day ? `${U.esc(U.fmtMonthDay(day))} · ${U.esc(U.fmtWeekdayLong(day))}` : (v.kind === 'inbox' ? t('inbox') : t('allTasks')),
+      subtitle: day ? subtitleNode : (v.kind === 'inbox' ? t('inbox') : t('allTasks')),
       actions,
       build(content) {
-        const toolbar = U.el('div', { class: 'todo-toolbar' });
-        const chips = U.el('div', { class: 'chips-scroll' });
-        [
-          { label: t('allTasks'), on: v.kind === 'all', act: () => setView({ kind: 'all', day: null }) },
-          { label: t('inbox'), on: v.kind === 'inbox', act: () => setView({ kind: 'inbox', day: null }) },
-          { label: t('today'), on: v.kind === 'day' && U.sameDay(v.day, today), act: () => setView({ kind: 'day', day: today }) },
-        ].forEach((c) => {
-          const b = U.el('button', { class: 'chip-btn' + (c.on ? ' on' : ''), text: c.label, 'aria-pressed': c.on ? 'true' : 'false' });
-          b.addEventListener('click', c.act);
-          chips.appendChild(b);
-        });
-        toolbar.appendChild(chips);
-        const spacer = U.el('span', { class: 'spacer' });
-        toolbar.appendChild(spacer);
-        const selBtn = U.el('button', { class: 'chip-btn' + (multi.active ? ' on' : ''), text: multi.active ? t('exitSelect') : t('selectMode') });
-        selBtn.addEventListener('click', () => { multi.active = !multi.active; multi.ids.clear(); App.render(); });
-        toolbar.appendChild(selBtn);
-        content.appendChild(toolbar);
-
-        if (v.kind === 'day') content.appendChild(weekStrip(day));
-
-        if (S.state.tags.length) {
-          const tagBar = U.el('div', { class: 'chips-scroll' });
-          tagBar.style.paddingBottom = '6px';
-          S.state.tags.forEach((tag) => {
-            const on = S.state.selectedTagIds.includes(tag.id);
-            const b = U.el('button', { class: 'chip-btn' + (on ? ' on' : '') });
-            b.innerHTML = `<span class="dot" style="background:${tag.color}"></span>${U.esc(tag.name)}`;
-            b.setAttribute('aria-pressed', on ? 'true' : 'false');
-            b.addEventListener('click', () => {
-              S.state.selectedTagIds = on ? S.state.selectedTagIds.filter((x) => x !== tag.id) : S.state.selectedTagIds.concat(tag.id);
-              App.render();
-            });
-            tagBar.appendChild(b);
-          });
-          if (S.state.selectedTagIds.length) {
-            const clear = U.el('button', { class: 'chip-btn', text: t('clear') });
-            clear.addEventListener('click', () => { S.state.selectedTagIds = []; App.render(); });
-            tagBar.appendChild(clear);
-          }
-          content.appendChild(tagBar);
+        const panes = buildList(v, day, today);
+        const split = !U.isNarrow() && U.isSplit();
+        if (!split) {
+          content.appendChild(panes);
+          return;
         }
-
-        if (multi.active) content.appendChild(selectBar());
-
-        const add = quickAdd(v.kind === 'day' ? U.fmtMonthDay(day) : (v.kind === 'inbox' ? t('inbox') : null), (text) => {
-          const todo = S.createTodo({ summary: text, dueDate: v.kind === 'day' ? U.startOfDay(day) : null });
-          App.render();
-          UI.toast(t('createdToast', { t: todo.summary }), {
-            undo: () => { S.softDeleteTodo(todo.id); App.render(); },
-          });
-          const focus = U.qs('[data-testid="todo-quick-add"]');
-          if (focus) focus.focus();
-        });
-        content.appendChild(add.box);
-
-        const list = U.el('div', { class: 'todo-list', 'data-testid': 'todo-list' });
-        content.appendChild(list);
-
-        if (v.kind === 'day') {
-          renderDay(list, day);
-        } else if (v.kind === 'inbox') {
-          renderInbox(list);
-        } else {
-          renderAll(list);
-        }
+        // Master-detail: the list never leaves. The right pane is a selection,
+        // so closing it puts the user back exactly where they were in the list.
+        const wrap = U.el('div', { class: 'todos-masterdetail', 'data-testid': 'todos-masterdetail' });
+        const left = U.el('div', { class: 'md-list' });
+        left.appendChild(panes);
+        wrap.appendChild(left);
+        const right = U.el('div', { class: 'md-detail', 'data-testid': 'detail-pane' });
+        wrap.appendChild(right);
+        const sel = S.state.paneSelection;
+        if (sel) right.appendChild(buildPane(sel));
+        else right.appendChild(U.el('div', { class: 'md-empty', text: t('paneEmpty') }));
+        content.appendChild(wrap);
       },
     });
 
-    if (U.isNarrow()) {
-      const fab = U.el('button', { class: 'btn primary', 'data-testid': 'todos-create' });
-      fab.innerHTML = ICON('plus', 14);
-      fab.style.position = 'fixed';
-      fab.style.right = '16px';
-      fab.style.bottom = '66px';
-      fab.style.zIndex = '40';
-      fab.style.width = '48px';
-      fab.style.height = '48px';
-      fab.style.borderRadius = '50%';
-      fab.style.boxShadow = 'var(--shadow-1)';
-      fab.setAttribute('aria-label', t('newTodo'));
-      fab.addEventListener('click', () => App.openComposer('todo', day ? { dueDate: day } : {}));
-      page.appendChild(fab);
-    }
     return page;
+  }
+
+  // The scrolling body of the Todo destination: chips, week strip, tag filter,
+  // quick add and the list itself. Kept separate from the page frame so the
+  // master-detail layout can put it in the left column verbatim.
+  function buildList(v, day, today) {
+    const root = U.el('div', { class: 'todo-body' });
+    const toolbar = U.el('div', { class: 'todo-toolbar' });
+    const chips = U.el('div', { class: 'chips-scroll' });
+    [
+      { label: t('allTasks'), on: v.kind === 'all', act: () => setView({ kind: 'all', day: null }) },
+      { label: t('inbox'), on: v.kind === 'inbox', act: () => setView({ kind: 'inbox', day: null }) },
+      { label: t('today'), on: v.kind === 'day' && U.sameDay(v.day, today), act: () => setView({ kind: 'day', day: today }) },
+    ].forEach((c) => {
+      const b = U.el('button', { class: 'chip-btn' + (c.on ? ' on' : ''), text: c.label, 'aria-pressed': c.on ? 'true' : 'false' });
+      b.addEventListener('click', c.act);
+      chips.appendChild(b);
+    });
+    toolbar.appendChild(chips);
+    toolbar.appendChild(U.el('span', { class: 'spacer' }));
+    const selBtn = U.el('button', { class: 'chip-btn' + (multi.active ? ' on' : ''), text: multi.active ? t('exitSelect') : t('selectMode') });
+    selBtn.addEventListener('click', () => { multi.active = !multi.active; multi.ids.clear(); App.render(); });
+    toolbar.appendChild(selBtn);
+    root.appendChild(toolbar);
+
+    if (v.kind === 'day') root.appendChild(weekStrip(day));
+
+    if (S.state.tags.length) {
+      const tagBar = U.el('div', { class: 'chips-scroll' });
+      tagBar.style.paddingBottom = '6px';
+      S.state.tags.forEach((tag) => {
+        const on = S.state.selectedTagIds.includes(tag.id);
+        const b = U.el('button', { class: 'chip-btn' + (on ? ' on' : '') });
+        b.innerHTML = `<span class="dot" style="background:${tag.color}"></span>${U.esc(tag.name)}`;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.addEventListener('click', () => {
+          S.state.selectedTagIds = on ? S.state.selectedTagIds.filter((x) => x !== tag.id) : S.state.selectedTagIds.concat(tag.id);
+          App.render();
+        });
+        tagBar.appendChild(b);
+      });
+      if (S.state.selectedTagIds.length) {
+        const clear = U.el('button', { class: 'chip-btn', text: t('clear') });
+        clear.addEventListener('click', () => { S.state.selectedTagIds = []; App.render(); });
+        tagBar.appendChild(clear);
+      }
+      root.appendChild(tagBar);
+    }
+
+    if (multi.active) root.appendChild(selectBar());
+
+    const add = quickAdd(v.kind === 'day' ? U.fmtMonthDay(day) : (v.kind === 'inbox' ? t('inbox') : null), (text) => {
+      const todo = S.createTodo({ summary: text, dueDate: v.kind === 'day' ? U.startOfDay(day) : null });
+      App.render();
+      UI.toast(t('createdToast', { t: todo.summary }), {
+        undo: () => { S.softDeleteTodo(todo.id); App.render(); },
+      });
+      const focus = U.qs('[data-testid="todo-quick-add"]');
+      if (focus) focus.focus();
+    });
+    root.appendChild(add.box);
+
+    const list = U.el('div', { class: 'todo-list', 'data-testid': 'todo-list' });
+    root.appendChild(list);
+    if (v.kind === 'day') renderDay(list, day);
+    else if (v.kind === 'inbox') renderInbox(list);
+    else renderAll(list);
+    return root;
+  }
+
+  // The right column. Reuses the read-only detail body, and adds the two things
+  // a pane needs that a page does not: a visible way to close it, and no
+  // back chevron (there is nowhere to go back to).
+  function buildPane(sel) {
+    const host = U.el('div', { class: 'pane-body', 'data-testid': 'detail-pane-body' });
+
+    let body;
+    if (sel.type === 'event') body = window.__detail.eventDetail(sel.id, sel.occurrence);
+    else body = window.__detail.todoDetail(S.todoById(sel.id));
+
+    const isDetail = body && body.classList && body.classList.contains('detail');
+    const head = isDetail ? body.querySelector('.detail-head') : null;
+    if (head) {
+      // The pane keeps the record's own controls (its More menu holds edit,
+      // schedule, subtask, delete) and gains a close button beside them. A pane
+      // with no visible exit strands pointer users on Escape alone.
+      head.style.justifyContent = 'flex-end';
+      head.querySelectorAll('.spacer').forEach((n) => n.remove());
+      const btn = U.el('button', { class: 'btn ghost sm md-close', 'data-testid': 'pane-close' });
+      btn.innerHTML = ICON('x', 13) + `<span>${U.esc(t('close'))}</span>`;
+      btn.addEventListener('click', () => S.clearPane());
+      head.appendChild(btn);
+    } else {
+      const close = U.el('div', { class: 'detail-head', style: 'justify-content:flex-end' });
+      const btn = U.el('button', { class: 'btn ghost sm md-close', 'data-testid': 'pane-close' });
+      btn.innerHTML = ICON('x', 13) + `<span>${U.esc(t('close'))}</span>`;
+      btn.addEventListener('click', () => S.clearPane());
+      close.appendChild(btn);
+      host.appendChild(close);
+    }
+    host.appendChild(body);
+    return host;
   }
 
   function renderDay(list, day) {
@@ -524,7 +638,7 @@
       return;
     }
     if (overdue.length) {
-      list.appendChild(UI.sectionHead(t('overdue'), overdue.length, { tone: 'danger' }));
+      list.appendChild(UI.sectionHead(t('overdueSection'), overdue.length, { tone: 'danger' }));
       overdue.forEach((todo) => list.appendChild(todoTile(todo)));
     }
     if (dated.length) {

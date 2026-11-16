@@ -111,6 +111,8 @@
     };
   }
   function isNarrow() { return window.innerWidth < 900; }
+  // Master-detail is a pane, not a route: at this width the list stays and the
+  // detail opens beside it. Mirrors kMasterDetailBreakpoint in the app.
   function isSplit() { return window.innerWidth >= 1180; }
 
   window.U = {

@@ -29,9 +29,14 @@
     reminders: [],
     calendarView: 'week',
     calendarAnchor: null,
+    browseDate: null,
     actionDate: null,
     selection: null,
     todoSelection: null,
+    // Which record the desktop detail pane is showing. A selection, not a
+    // route: it lives only while Todo is the active destination, so arriving
+    // from another tab never resurrects a detail the user did not ask for.
+    paneSelection: null,
     selectedTagIds: [],
     searchQuery: '',
     account: { signedIn: false, email: null, server: null, lastSync: null, phase: 'idle', rejected: [] },
@@ -70,6 +75,7 @@
     const today = U.startOfDay(U.now());
     state.actionDate = today;
     state.calendarAnchor = today;
+    state.browseDate = today;
     state.todosView = { kind: 'day', day: today };
     state.calendarFocusDay = today;
     const now = U.now();
@@ -638,7 +644,17 @@
       const now = U.now();
       const prev = t.occurrenceStates[occId];
       if (prev && prev.completedAt) {
+        const wasAt = prev.completedAt;
         delete t.occurrenceStates[occId];
+        // Undo has to give back what completion took. Otherwise the to-do
+        // reopens but its reserved block stays gone from Today and Calendar,
+        // and nothing in the UI ever says where it went.
+        state.allocations.forEach((a) => {
+          if (a.todoId === t.id && a.occurrenceId === occId
+              && a.state === ALLOC.INVALIDATED && a.startAt >= wasAt) {
+            a.state = ALLOC.ACTIVE;
+          }
+        });
         emit('todo:uncomplete');
         return t;
       }
@@ -653,8 +669,15 @@
       return t;
     }
     if (isDone(t)) {
+      const wasAt = t.completedAt;
       t.status = TODO_STATUS.OPEN;
       t.completedAt = null;
+      t.percentComplete = 0;
+      state.allocations.forEach((a) => {
+        if (a.todoId === t.id && a.state === ALLOC.INVALIDATED && wasAt && a.startAt >= wasAt) {
+          a.state = ALLOC.ACTIVE;
+        }
+      });
       touch(t);
       emit('todo:uncomplete');
       return t;
@@ -888,6 +911,36 @@
     emit('navigate');
   }
 
+  // ---------- browse date ----------
+  // CORE_UX_SPEC 16.1: Todo · 按日期 and the Calendar share one browsed date.
+  // Today is not part of this: it always reads the clock, so it can never be
+  // dragged off to some other day by browsing.
+  function browseDate() {
+    return state.browseDate ? new Date(state.browseDate.getTime()) : U.startOfDay(U.now());
+  }
+  function setBrowseDate(d) {
+    state.browseDate = U.startOfDay(d);
+    // A day-browsing Todo list follows it, or the two surfaces would disagree
+    // about which day "the" browsed day is.
+    if (state.todosView && state.todosView.kind === 'day') {
+      state.todosView = { kind: 'day', day: state.browseDate };
+    }
+    emit('browse');
+  }
+
+  // ---------- detail pane selection ----------
+  // Setting it never pushes history: the pane is not a place you can go back
+  // to, it is what the current list has selected.
+  function selectPane(type, id, occurrence) {
+    state.paneSelection = { type, id, occurrence: occurrence || null };
+    emit('select');
+  }
+  function clearPane() {
+    if (!state.paneSelection) return;
+    state.paneSelection = null;
+    emit('select');
+  }
+
   window.Store = {
     state, subscribe, emit, seed, occurrenceIdFor, occurrenceDateFromId, occurrencesInWindow, occurrenceState,
     isOccurrenceDone, isOpenOn, matchesRule, liveTodos, liveEvents, todoById, eventById, tagById, calendarById,
@@ -897,6 +950,6 @@
     cancelAllocation, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
     purgeEvent, emptyTrash, deletedTodos, deletedEvents, reorderTodos, createTag, updateTag, deleteTag,
     createCalendar, updateCalendar, deleteCalendar, setSetting, setLang, applyTheme, savePrefs, loadPrefs, pushUndo, takeUndo,
-    navigate, back, TODO_STATUS, ALLOC, PRIORITY,
+    navigate, back, selectPane, clearPane, browseDate, setBrowseDate, TODO_STATUS, ALLOC, PRIORITY,
   };
 })();

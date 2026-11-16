@@ -184,8 +184,9 @@ scenario('a repeat rule set in the composer produces occurrences on later days',
   await go(page, 'todos');
   await clickTestId(page, 'todos-create');
   await page.fill('[data-testid="composer-title"]', '每周一固定复盘');
-  await clickTestId(page, 'composer-more');
-  assert(await exists(page, '[data-testid="composer-repeat"]'), 'repeat row missing in the more section');
+  // 重复 lives in the 时间 section now, always visible: it is not a hidden
+  // "more" option any more (CORE_UX_SPEC 4.2).
+  assert(await exists(page, '[data-testid="composer-repeat"]'), 'repeat row missing from the time section');
   await clickTestId(page, 'composer-repeat');
   assert(await exists(page, '.sheet'), 'repeat sheet did not open');
   await page.evaluate(() => {
@@ -224,8 +225,7 @@ scenario('a reminder added in the composer is saved and shown on the detail', as
   await go(page, 'todos');
   await clickTestId(page, 'todos-create');
   await page.fill('[data-testid="composer-title"]', '带提醒的待办');
-  await clickTestId(page, 'composer-more');
-  await clickText(page, /添加提醒|Add reminder/);
+  await clickTestId(page, 'composer-add-reminder');
   assert(await exists(page, '.sheet'), 'reminder sheet did not open');
   await page.evaluate(() => {
     const opt = Array.from(document.querySelectorAll('.sheet button')).find((b) => /15/.test(b.textContent));

@@ -17,10 +17,10 @@
   }
 
   function openTodo(todo) {
-    S.navigate('detail', { type: 'todo', id: todo.id });
+    App.openRecord('todo', todo.id);
   }
   function openEvent(event) {
-    S.navigate('detail', { type: 'event', id: event.id, occurrence: event.occurrenceAnchor ? event.occurrenceAnchor.getTime() : null });
+    App.openRecord('event', event.id, event.occurrenceAnchor ? event.occurrenceAnchor.getTime() : null);
   }
 
   function row(opts) {
@@ -72,13 +72,14 @@
     const proj = S.actionProjection(day);
     const now = U.now();
 
+    // Create is a stable header action on every platform (CORE_UX_SPEC 1.2:
+    // no FAB). On a phone it drops its label, not its place.
     const actions = [];
-    if (!U.isNarrow()) {
-      const addBtn = U.el('button', { class: 'btn primary', 'data-testid': 'action-create' });
-      addBtn.innerHTML = ICON('plus', 14) + `<span>${U.esc(t('new'))}</span>`;
-      addBtn.addEventListener('click', () => openCreateChooser());
-      actions.push(addBtn);
-    }
+    const addBtn = U.el('button', { class: 'btn primary', 'data-testid': 'action-create' });
+    addBtn.innerHTML = ICON('plus', 14) + (U.isNarrow() ? '' : `<span>${U.esc(t('new'))}</span>`);
+    addBtn.setAttribute('aria-label', t('new'));
+    addBtn.addEventListener('click', () => openCreateChooser());
+    actions.push(addBtn);
 
     const page = UI.page({
       title: t('pageAction'),
@@ -105,7 +106,10 @@
             UI.toast(t('createdToast', { t: todo.summary }), {
               undo: () => { S.softDeleteTodo(todo.id); App.render(); },
             });
-            S.state.highlight = 'inbox-entry';
+            // Point the highlight at the record, not at a container: the
+            // unplanned preview needs the id to bring a new item into view when
+            // it would otherwise fall past the three-row cap.
+            S.state.highlight = { testid: 'action-todo', testids: ['action-todo'], id: todo.id };
             App.render();
             const again = U.qs('[data-testid="action-capture"]');
             if (again) again.focus();
@@ -140,9 +144,18 @@
           later.forEach((entry) => sections.push(entryRow(entry, false, now)));
         }
 
+        // A to-do that is both planned today and due today appears once. Today
+        // is an execution surface, so the allocation is the primary row and the
+        // deadline rides along as metadata on it. Rendering it again in the
+        // deadline section would show the same obligation twice and read as two
+        // separate things to do.
+        const plannedTodayIds = new Set(proj.allocations.map((x) => x.todo.id));
+
         const dueRows = [];
         proj.todayTaskInstances.forEach((inst) => dueRows.push(instanceRow(inst, false, day)));
-        proj.dueTodayTodos.forEach((todo) => dueRows.push(todoRow(todo, now)));
+        proj.dueTodayTodos
+          .filter((todo) => !plannedTodayIds.has(todo.id))
+          .forEach((todo) => dueRows.push(todoRow(todo, now)));
         if (dueRows.length) {
           sections.push(UI.sectionHead(t('dueTodaySection'), dueRows.length));
           dueRows.forEach((r) => sections.push(r));
@@ -155,7 +168,7 @@
         missedShown.forEach((inst) => overdueRows.push(instanceRow(inst, true, day)));
         if (overdueRows.length) {
           const hidden = missedAll.length - missedShown.length;
-          sections.push(UI.sectionHead(t('overdue'), overdueRows.length + hidden, { tone: 'danger' }));
+          sections.push(UI.sectionHead(t('overdueSection'), overdueRows.length + hidden, { tone: 'danger' }));
           overdueRows.forEach((r) => sections.push(r));
           if (hidden > 0) {
             const fold = U.el('button', { class: 'row', 'data-testid': 'overdue-more', style: 'justify-content:center;color:var(--ink-2);font-size:12px;font-weight:600' });
@@ -224,21 +237,6 @@
       },
     });
 
-    if (U.isNarrow()) {
-      const fab = U.el('button', { class: 'btn primary', 'data-testid': 'action-create' });
-      fab.innerHTML = ICON('plus', 16);
-      fab.style.position = 'fixed';
-      fab.style.right = '16px';
-      fab.style.bottom = '66px';
-      fab.style.zIndex = '40';
-      fab.style.width = '48px';
-      fab.style.height = '48px';
-      fab.style.borderRadius = '50%';
-      fab.style.boxShadow = 'var(--shadow-1)';
-      fab.setAttribute('aria-label', t('new'));
-      fab.addEventListener('click', () => openCreateChooser());
-      page.appendChild(fab);
-    }
     return page;
   }
 

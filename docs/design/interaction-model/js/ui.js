@@ -236,8 +236,11 @@
   function deadlineMeta(todo, now) {
     if (!todo.dueDate) return '';
     const overdue = S.isOpen(todo) && todo.dueDate < (now || U.now());
+    // Say 截止. On a row that already shows a time block, a bare time reads as a
+    // second schedule; the word is what distinguishes a deadline from an
+    // execution slot.
     const label = U.fmtDeadline(todo.dueDate);
-    return `<span class="row-deadline${overdue ? ' over' : ''}">${ICON('flag', 11)}<span>${overdue ? t('overdue') + ' · ' : ''}${U.esc(label)}</span></span>`;
+    return `<span class="row-deadline${overdue ? ' over' : ''}">${ICON('flag', 11)}<span>${overdue ? t('overdue') + ' · ' : ''}${U.esc(t('deadlinePrefix', { d: label }))}</span></span>`;
   }
 
   function allocMeta(todo) {
@@ -373,7 +376,10 @@
     const titleRow = U.el('div', { style: 'display:flex;align-items:baseline;gap:10px;min-width:0' });
     titleRow.appendChild(U.el('h1', { class: 'page-title', text: opts.title }));
     wrap.appendChild(titleRow);
-    if (opts.subtitle) wrap.appendChild(U.el('div', { class: 'page-sub', html: opts.subtitle }));
+    if (opts.subtitle) {
+      if (typeof opts.subtitle === 'string') wrap.appendChild(U.el('div', { class: 'page-sub', html: opts.subtitle }));
+      else wrap.appendChild(opts.subtitle);
+    }
     head.appendChild(wrap);
     if (opts.actions && opts.actions.length) {
       const acts = U.el('div', { class: 'page-actions' });
@@ -390,10 +396,98 @@
     return root;
   }
 
+  // The calendar field. A native <select> hides the one thing a calendar is:
+  // its colour. CORE_UX_SPEC 5 also requires the picker to open even when
+  // there is only one calendar, and to offer creating another inline.
+  function calendarPicker(currentId, onPick) {
+    const cal = window.Store.calendarById(currentId) || window.Store.state.calendars[0];
+    const b = U.el('button', { class: 'cal-picker', 'data-testid': 'calendar-picker' });
+    b.innerHTML = `<span class="dot" style="background:${cal ? cal.color : 'var(--accent)'}"></span><span class="nm">${U.esc(cal ? cal.name : '')}</span>` + ICON('chevronDown', 12);
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      openCalendarSheet(currentId, onPick);
+    });
+    return b;
+  }
+
+  function openCalendarSheet(currentId, onPick) {
+    const S = window.Store;
+    sheet({
+      title: t('calendar'),
+      body(host, close) {
+        const list = U.el('div', { class: 'cal-list' });
+        host.appendChild(list);
+        function draw() {
+          list.innerHTML = '';
+          S.state.calendars.forEach((cal) => {
+            const on = cal.id === currentId;
+            const item = U.el('button', { class: 'cal-option' + (on ? ' on' : '') });
+            item.dataset.testid = 'calendar-option';
+            item.dataset.id = String(cal.id);
+            item.setAttribute('aria-pressed', on ? 'true' : 'false');
+            item.innerHTML = `<span class="dot" style="background:${cal.color}"></span><span class="nm">${U.esc(cal.name)}</span>` + (on ? ICON('check', 14) : '');
+            item.addEventListener('click', () => { close(null); onPick(cal.id); });
+            list.appendChild(item);
+          });
+        }
+        draw();
+        const add = U.el('button', { class: 'btn ghost sm cal-new', 'data-testid': 'calendar-new' });
+        add.innerHTML = ICON('plus', 13) + `<span>${U.esc(t('newCalendar'))}</span>`;
+        add.addEventListener('click', () => {
+          close(null);
+          createCalendarFlow((created) => {
+            if (!created) return;
+            onPick(created.id);
+            // Re-open with the new calendar selected, so the user sees where
+            // they landed instead of being dropped back on a bare field.
+            openCalendarSheet(created.id, onPick);
+          });
+        });
+        host.appendChild(add);
+      },
+    });
+  }
+
+  function createCalendarFlow(done) {
+    const S = window.Store;
+    let name = '';
+    let color = '#2457d6';
+    sheet({
+      title: t('newCalendar'),
+      body(host, close) {
+        const input = U.el('input', { class: 'input', placeholder: t('calendarName'), 'aria-label': t('calendarName'), 'data-testid': 'calendar-name' });
+        input.addEventListener('input', () => { name = input.value; });
+        host.appendChild(input);
+        host.appendChild(colorSwatches((c) => { color = c; }));
+        const save = U.el('button', { class: 'btn primary', 'data-testid': 'calendar-create' });
+        save.textContent = t('create');
+        save.addEventListener('click', () => {
+          if (!name.trim()) return;
+          const created = S.createCalendar(name, color);
+          close(null);
+          if (done) done(created);
+        });
+        host.appendChild(save);
+      },
+    });
+  }
+
+  function colorSwatches(onPick) {
+    const wrap = U.el('div', { class: 'swatches', style: 'margin:10px 0' });
+    ['#2457d6', '#0f9d6e', '#d97706', '#9333ea', '#dc2626'].forEach((c) => {
+      const s = U.el('button', { class: 'swatch', 'aria-label': c });
+      s.style.background = c;
+      s.addEventListener('click', () => onPick(c));
+      wrap.appendChild(s);
+    });
+    return wrap;
+  }
+
   window.UI = {
     page,
     toast, hideToast, confirm, modal, sheet, menu, closeMenu, closeTop, closeAll, hasOpenLayer, releaseAll,
     checkbox, priorityDot, tagChips, deadlineMeta, allocMeta, repeatMeta, ruleSummary, busyBar,
     skeletonRows, emptyState, sectionHead, announce, iconButton, keyHint, trap, release,
+    calendarPicker, openCalendarSheet, createCalendarFlow, colorSwatches,
   };
 })();

@@ -107,6 +107,9 @@
 
         // Account
         const account = group(t('account'));
+        // A bare server field and a password box does not tell anyone what
+        // sync is or where their data goes. Say it once, plainly.
+        account.appendChild(U.el('p', { class: 'group-desc', text: t('syncDesc') }));
         if (S.state.account.signedIn) {
           account.appendChild(row({
             icon: 'user', title: S.state.account.email,

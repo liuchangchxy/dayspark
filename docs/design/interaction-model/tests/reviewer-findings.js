@@ -46,8 +46,12 @@ async function openRecurringOccurrenceDay(page) {
   return page.evaluate(() => {
     const e = window.Store.state.events.find((x) => x.rrule && !x.deletedAt);
     const d = new Date(e.startDt.getTime());
-    window.Store.state.calendarAnchor = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    window.Store.state.calendarFocusDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    window.Store.state.calendarAnchor = day;
+    window.Store.state.calendarFocusDay = day;
+    // The calendar reads the one shared browse date, so setting only the
+    // private anchor no longer moves it.
+    window.Store.setBrowseDate(day);
     window.Store.state.calendarView = 'day';
     window.App.go('calendar');
     return { id: e.id, startMs: e.startDt.getTime() };
