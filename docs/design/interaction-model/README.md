@@ -43,15 +43,17 @@ python3 -m http.server 8810
 桌面 1440×900：
 
 1. **今天**页 → 顶部输入框打「买灯泡」→ Enter → 这条立刻出现在下方「未安排」预览里并高亮，计数 +1 → 点「未安排 · n 项」进列表看到全部。
-2. **待办**页 → 行内输入框打「写周报」→ Enter（今天视图，会继承今天的截止）→ 勾选完成 → toast 里点「撤销」（注意：待办回来，它原先占的时段也一起回来）。
+2. **待办**页 → 行内输入框打「写周报」→ Enter（今天视图，会继承今天的截止）→ 勾选完成 → **已完成行内的「撤销」**（注意：待办回来，它原先占的时段也一起回来）。日视图输入框下方还有「计划这一天」：建待办并直接占用该日时段，截止保持为空。
 3. **待办**页 1440 宽是双栏：点任意行，左边列表**不动**，右边出现详情窗格；点别的行换内容；右上「关闭」或 `Esc` 收起窗格。点副标题日期可跳任意月份。
 4. 行尾「更多」→「安排时间」→ 选一个时段 → 切到**日历**周视图，看到虚线安排块；点它 → 进详情。
-5. **日历** → 点某天空白时段 → sheet 两个出口 → 新建日程 → 保存后回到日历，块出现在格子里。
+5. **日历** → 点某天空白时段 → sheet 三个出口（新建日程 / 安排待办 / 新建并安排）→ 新建日程 → 保存后回到日历，块出现在格子里。桌面可双击月视图空格直接建；手机点有事项的月格下钻。凌晨默认折叠，右下角可「回到现在」。
 6. 详情页 → 只读；点「编辑」才进 composer；改标题 → 保存 → 回详情；切到**待办**和**今天**，标题同步。表单按 任务 / 时间 / 提醒 / 整理 / 内容 分区。
 7. 详情「移到回收站」→ 去**回收站**恢复 → 回到原列表。
 8. **设置** → 语言切 English、主题切深色 → 立刻生效；再切回来。
 
-手机 390×844：底部四个入口（今天 / 日历 / 待办 / **更多**）——「更多」里是搜索、AI、标签、日历管理、回收站、设置。建一条 → 点行开整页详情 → 返回；待办行左滑删除并撤销；日历点格建日程。所有可点元素的高度都不小于 48px。
+手机 390×844：底部四个入口（今天 / 日历 / 待办 / **更多**）——「更多」里是第一项「快速添加」，以及搜索、AI、标签、日历管理、回收站、设置。建一条 → 点行开整页详情 → 返回；待办行左滑删除并撤销；日历点格建日程。可点元素按有效命中区逐类测到 ≥48px（`reviewer-findings-r4.js` D6）。
+
+**快速添加**：rail / 手机「更多」/ `Q`。打「明天下午三点 开会 1小时」→ 预览明说「将创建日程」与时段；打「明天 交报告」→「将创建待办 · 截止明天」；什么都不带日期 → 无截止待办。
 
 键盘（桌面）：`N` 新建待办，`/` 搜索，`T` 回今天，`Esc` 关浮层/返回，`?` 看快捷键。
 
@@ -67,10 +69,11 @@ docs/design/interaction-model/
 │   ├── store.js            唯一数据源：种子数据 + 全部写操作（纯函数式改 state）
 │   ├── event-ops.js        日程删除/编辑的唯一实现（重复范围只在这里问）
 │   ├── todo-ops.js         待办完成的唯一实现（重复任务按实例）
+│   ├── quick-add.js        一句话解析（时刻→日程，日期→截止，无日期→无截止待办）
 │   ├── i18n.js             中英双语字典（切换即时生效）
 │   ├── ui.js               page/row/sheet/modal/menu/toast/空态/骨架等构件
 │   ├── util.js             日期格式化、断点判定
-│   └── views/              action / todo / calendar / composer / detail / search /
+│   └── views/              action / quickadd / todo / calendar / composer / detail / search /
 │                           library(tags,calendars,trash,about,feedback) / settings / chat / misc
 ├── tests/
 │   ├── smoke.js            冒烟：启动、无横向溢出、按钮都有名字、路由可达、零控制台错误
@@ -79,6 +82,7 @@ docs/design/interaction-model/
 │   ├── reviewer-findings.js 20 条第一轮独立 Reviewer 发现的逐条回归
 │   ├── reviewer-findings-r2.js 20 条第二轮独立 Reviewer 发现的逐条回归
 │   ├── reviewer-findings-r3.js 24 条第三轮独立 Reviewer 发现的逐条回归
+│   ├── reviewer-findings-r4.js 16 条第四轮独立 Reviewer 发现的逐条回归
 │   └── debug/              调试与截图脚本（不参与门禁）
 ├── research/
 │   ├── APP_SURFACE_V034.md 真实 Flutter 代码盘点（v0.34.0 基线，带 file:line 引用）
@@ -105,6 +109,8 @@ node surfaces.js           # 14 个功能面场景
 node reviewer-findings.js  # 20 条第一轮 Reviewer 发现回归
 node reviewer-findings-r2.js # 20 条第二轮 Reviewer 发现回归
 node reviewer-findings-r3.js # 24 条第三轮 Reviewer 发现回归
+node reviewer-findings-r4.js # 16 条第四轮 Reviewer 发现回归
+npm test                   # 七套一起跑（141 项）
 ```
 
 加 `--headed` 可以看着浏览器跑；`--filter=<子串>` 只跑名字匹配的场景。结果与时间戳见 `TEST_RESULTS.md`。
@@ -126,4 +132,5 @@ node reviewer-findings-r3.js # 24 条第三轮 Reviewer 发现回归
 | 项 | 状态 |
 |---|---|
 | ~~桌面 master-detail~~ | **已按 `CORE_UX_SPEC.md` §4 实现**：≥1180 列表常驻 + 右侧详情窗格（选中而非路由）。见 `BEHAVIORS.md` A6 |
+| 平台集成（widget 深链 / Android 返回键 / Web URL / 通知持久化） | 明确不在交互原型内；通知操作以模拟卡定义行为。见 `COVERAGE.md` §8 |
 | 设计工具的在线协作（OpenDesign / DesignSync） | 本轮**无法访问**（无可用凭据/连接），因此原型是用本地 HTML/CSS/JS 手工实现的。视觉基线直接取自仓库冻结的 `DESIGN.md`（D Final tokens），未走在线设计项目。这是环境限制，不是选择。 |

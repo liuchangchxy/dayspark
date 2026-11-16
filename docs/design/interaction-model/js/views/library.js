@@ -289,6 +289,22 @@
     return row;
   }
 
+  function openChangelog() {
+    UI.sheet({
+      title: t('changelogTitle'),
+      subtitle: 'v0.34.0+34',
+      body(host) {
+        const zh = S.state.lang === 'zh';
+        const items = zh
+          ? ['桌面双栏：列表常驻，右侧查看详情', '统一创建入口：待办 / 日程 / 一句话快速添加', '待办筛选：日历、标签、优先级', '今天分区：逾期、遗漏、更早、今天完成']
+          : ['Desktop split view keeps the list and opens details beside it', 'One create entry: to-do, event, or one-line quick add', 'To-do filters: calendar, tag and priority', 'Today separates overdue, missed, earlier and completed'];
+        const list = U.el('ul', { class: 'changelog-list' });
+        items.forEach((x) => list.appendChild(U.el('li', { text: x })));
+        host.appendChild(list);
+      },
+    });
+  }
+
   // ---------- about ----------
   function renderAbout() {
     const page = UI.page({
@@ -317,16 +333,14 @@
         content.appendChild(version);
         const links = U.el('div', { class: 'settings-group' });
         [
-          { icon: 'external', label: t('openSource') },
-          { icon: 'info', label: t('privacy') },
-          { icon: 'key', label: t('pageSettings') + ' · ' + t('advanced') },
+          { icon: 'note', label: t('changelog'), action: () => openChangelog() },
+          { icon: 'star', label: S.state.lang === 'zh' ? '在 GitHub 上加星' : 'Star on GitHub', action: () => UI.toast('github.com/liuchangchxy/dayspark') },
+          { icon: 'external', label: S.state.lang === 'zh' ? '报告问题' : 'Report an issue', action: () => UI.toast('github.com/liuchangchxy/dayspark/issues') },
+          { icon: 'key', label: t('openSource'), action: () => UI.toast(S.state.lang === 'zh' ? '开源许可（原型未包含全文）' : 'Licenses (not in prototype)') },
         ].forEach((l) => {
           const r = U.el('button', { class: 'setting-row' });
           r.innerHTML = `<span class="icon">${ICON(l.icon, 16)}</span><span class="body"><span class="t">${U.esc(l.label)}</span></span><span class="value">${ICON('chevronRight', 13)}</span>`;
-          r.addEventListener('click', () => {
-            if (l.label.includes(t('advanced'))) App.go('settings', { section: 'advanced' });
-            else UI.toast(S.state.lang === 'zh' ? '开源许可页（原型未包含）' : 'License page (not in prototype)');
-          });
+          r.addEventListener('click', l.action);
           links.appendChild(r);
         });
         content.appendChild(links);
@@ -337,39 +351,31 @@
 
   // ---------- feedback ----------
   function renderFeedback() {
-    let kind = 'bug';
     const page = UI.page({
       title: t('pageFeedback'),
       onBack: () => App.back(),
       narrow: true,
       build(content) {
-        const types = U.el('div', { class: 'feedback-type' });
-        [['bug', S.state.lang === 'zh' ? '问题' : 'Problem'], ['idea', S.state.lang === 'zh' ? '想法' : 'Idea']].forEach(([k, label]) => {
-          const b = U.el('button', { class: 'chip-btn' + (k === kind ? ' on' : ''), text: label });
-          b.addEventListener('click', () => {
-            kind = k;
-            types.querySelectorAll('button').forEach((x) => x.classList.remove('on'));
-            b.classList.add('on');
-          });
-          types.appendChild(b);
-        });
-        content.appendChild(types);
-        const ta = U.el('textarea', { class: 'textarea', rows: '7', placeholder: t('feedbackPlaceholder'), style: 'margin-top:12px', 'aria-label': t('feedbackPlaceholder') });
+        // Feedback leaves the app as text: copy it, or open the GitHub issue
+        // page with it. There is no in-app ticketing backend to pretend about.
+        const ta = U.el('textarea', { class: 'textarea', rows: '7', placeholder: t('feedbackPlaceholder'), 'aria-label': t('feedbackPlaceholder') });
         ta.dataset.testid = 'feedback-text';
         content.appendChild(ta);
-        const send = U.el('button', { class: 'btn primary lg', text: t('send'), style: 'margin-top:12px' });
+        const row = U.el('div', { class: 'input-row', style: 'margin-top:12px' });
+        const copy = U.el('button', { class: 'btn ghost lg', text: S.state.lang === 'zh' ? '复制' : 'Copy', 'data-testid': 'feedback-copy' });
+        copy.addEventListener('click', () => {
+          if (!ta.value.trim()) { ta.classList.add('invalid'); ta.focus(); return; }
+          if (navigator.clipboard) navigator.clipboard.writeText(ta.value);
+          UI.toast(S.state.lang === 'zh' ? '已复制' : 'Copied');
+        });
+        const send = U.el('button', { class: 'btn primary lg', text: S.state.lang === 'zh' ? '在 GitHub 提交' : 'Submit on GitHub', 'data-testid': 'feedback-submit' });
         send.addEventListener('click', () => {
           if (!ta.value.trim()) { ta.classList.add('invalid'); ta.focus(); return; }
-          send.disabled = true;
-          send.textContent = t('loading');
-          setTimeout(() => {
-            send.disabled = false;
-            send.textContent = t('send');
-            ta.value = '';
-            UI.toast(t('sent'));
-          }, 800);
+          if (navigator.clipboard) navigator.clipboard.writeText(ta.value);
+          UI.toast(S.state.lang === 'zh' ? '已复制。网页版会打开 GitHub 新建 issue。' : 'Copied. The web build opens a new GitHub issue.');
         });
-        content.appendChild(send);
+        row.appendChild(copy); row.appendChild(send);
+        content.appendChild(row);
       },
     });
     return page;

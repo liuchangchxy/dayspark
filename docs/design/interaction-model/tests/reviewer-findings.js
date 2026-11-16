@@ -419,11 +419,11 @@ scenario('F11 completing an in-progress allocation removes it from Now', async (
   });
   await settle(page, 320);
   assert(await exists(page, '[data-testid="action-allocation"]'), 'the in-progress allocation should be in Now');
-  await page.evaluate(() => {
-    const row = document.querySelector('[data-testid="action-allocation"]');
+  await page.evaluate((tid) => {
+    const row = document.querySelector(`[data-testid="action-allocation"][data-id="${tid}"]`);
     const box = row.querySelector('[role="checkbox"], .checkbox, button');
     box.click();
-  });
+  }, info.todoId);
   await settle(page, 320);
   const inNow = await page.evaluate((tid) => {
     const heads = Array.from(document.querySelectorAll('#view .section-head'));
@@ -432,7 +432,7 @@ scenario('F11 completing an in-progress allocation removes it from Now', async (
     let node = heads[nowIdx].nextElementSibling;
     let hits = 0;
     while (node && !node.classList.contains('section-head')) {
-      if (node.textContent.includes('action-allocation') || node.dataset.testid === 'action-allocation') hits++;
+      if (node.dataset.testid === 'action-allocation' && Number(node.dataset.id) === tid) hits++;
       node = node.nextElementSibling;
     }
     return hits;
@@ -457,11 +457,11 @@ scenario('F12 the overdue section never truncates missed instances silently', as
   });
   await settle(page, 320);
   const headCount = await page.evaluate(() => {
-    const h = Array.from(document.querySelectorAll('#view .section-head')).find((n) => /逾期|Overdue/.test(n.textContent));
+    const h = Array.from(document.querySelectorAll('#view .section-head')).find((n) => /遗漏|Missed/.test(n.textContent));
     return h ? Number((h.textContent.match(/(\d+)/) || [])[1]) : null;
   });
   const shown = await count(page, '[data-testid="action-instance"]');
-  assert(headCount !== null, 'the overdue section should render');
+  assert(headCount !== null, 'the missed section should render');
   assert(headCount > shown, 'the header count should include the folded instances');
   assert(await exists(page, '[data-testid="overdue-more"]'), 'the folded instances need an exit');
   await page.click('[data-testid="overdue-more"]');

@@ -884,19 +884,240 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .weekstrip .ws-days::-webkit-scrollbar { display: none; }
   .ws-day { flex: 0 0 48px; min-width: 48px; min-height: 56px; }
   .chips-scroll .chip-btn { min-width: 48px; justify-content: center; }
-  /* Calendar blocks are drawn to scale — a 30-minute block is half an hour
-     tall — so their height cannot be padded without lying about duration.
-     They get an invisible hit area instead, the same way swatches do. */
+  /* Calendar blocks are drawn to scale; their 48px guarantee comes from the
+     phone hour height (96px), not a pseudo-element: overlapping hit boxes
+     stole each other's taps. */
   .timegrid .block, .block.alloc, .month-event { position: relative; }
-  .timegrid .block::after, .block.alloc::after {
-    content: ""; position: absolute; left: 0; right: 0;
-    top: 50%; height: 48px; transform: translateY(-50%);
-  }
-  .month-event::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 48px; transform: translateY(-50%); }
   .ws-arrow { min-width: 48px; min-height: 48px; }
   .cal-today-btn { min-height: 48px; }
   .cal-head .segmented button { min-height: 48px; min-width: 48px; }
   .deadline-chip { min-height: 48px; padding-top: 10px; padding-bottom: 10px; }
   .month-event { min-height: 22px; }
   .block.short, .timegrid .block { min-height: 30px; }
+}
+
+/* ---- quick add ---- */
+.quick-preview {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.quick-kind {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
+  color: var(--violet);
+}
+.quick-kind.todo {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.quick-title { margin-top: 8px; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.quick-when { margin-top: 3px; font-size: 12px; color: var(--ink-2); }
+
+/* ---- inline undo pinned to the row ---- */
+.row-undo {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+}
+.row-undo:hover { background: var(--surface-2); }
+
+/* ---- plan this day ---- */
+.plan-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0 8px;
+  padding: 9px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.plan-bar .tiny { margin-left: auto; }
+.plan-bar:hover { background: var(--surface-2); color: var(--ink); }
+
+/* ---- filter count ---- */
+.filter-count {
+  margin-left: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 8px;
+  padding: 0 4px;
+  line-height: 14px;
+}
+
+/* ---- save failure ---- */
+.save-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-top: 1px solid color-mix(in srgb, var(--red) 30%, var(--line));
+  background: color-mix(in srgb, var(--red) 7%, var(--surface));
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+/* ---- deleted record ---- */
+.deleted-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--red) 25%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--red) 6%, var(--surface));
+}
+.deleted-banner .msg { flex: 1; min-width: 0; font-size: 12px; }
+.deleted-banner .msg strong { display: block; color: var(--red); }
+.deleted-banner .msg span { color: var(--ink-2); }
+
+/* ---- attachments ---- */
+.attachment-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+.attachment-row .link-btn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- settings split ---- */
+.settings-split {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 640px);
+  gap: 24px;
+  align-items: start;
+}
+.settings-nav {
+  position: sticky;
+  top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.settings-nav-item {
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 550;
+}
+.settings-nav-item:hover { background: var(--surface-2); color: var(--ink); }
+.settings-nav-item.on { background: var(--surface-2); color: var(--ink); font-weight: 650; }
+.settings-pane .settings-group:first-child { margin-top: 0; }
+.setting-row.is-disabled { opacity: .55; }
+
+/* ---- calendar dawn / now ---- */
+.dawn-fold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+.dawn-fold:hover { color: var(--ink); }
+.back-now {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 6;
+  box-shadow: var(--shadow-1);
+  background: var(--surface);
+}
+
+/* ---- chat quick actions ---- */
+.chat-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.changelog-list { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); }
+.changelog-list li { margin: 5px 0; }
+.search-hit.active { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Mobile hit targets, second pass. The first pass missed controls nested inside
+   menus, settings and the calendar grid; this block covers every control the
+   round-4 review measured below 48. */
+@media (max-width: 899px) {
+  .menu button { min-height: 48px; padding: 0 12px; font-size: 13px; }
+  .switch {
+    width: 48px;
+    height: 48px;
+    background: transparent;
+    border: 0;
+  }
+  .switch::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 13px;
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: var(--surface-3);
+    border: 1px solid var(--line);
+  }
+  .switch.on::before { background: var(--accent); border-color: var(--accent); }
+  .switch::after { top: 16px; left: 7px; width: 16px; height: 16px; }
+  .switch.on::after { transform: translateX(17px); }
+  .swatch { width: 44px; height: 44px; }
+  .swatch::after { inset: -2px; }
+  .search-box { min-height: 48px; }
+  .search-box input { min-height: 44px; }
+  .chat-input { min-height: 48px; }
+  .chat-input textarea { min-height: 44px; padding: 10px 0; }
+  .toast .undo { min-height: 48px; padding: 0 10px; }
+  .toast .x { min-width: 48px; min-height: 48px; }
+  .segmented button, .segmented.lg button { min-width: 48px; }
+  .banner button { min-height: 48px; padding: 0 10px; }
+  .plan-bar { min-height: 48px; }
+  .row-undo { height: 48px; }
+  .dawn-fold { height: 48px; }
+  .back-now { min-height: 48px; }
+
+  /* Calendar blocks are drawn to scale, and the phone hour is 96px so the
+     smallest realistic block (30 min) is itself 48px. No pseudo-element hit
+     expansion: neighbouring blocks would steal each other's taps. */
+  .timegrid .block, .block.alloc, .month-event { overflow: visible; }
+  .timegrid .block .bt, .timegrid .block .bm,
+  .block.alloc .bt, .block.alloc .bm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .month-event > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .all-day-row .month-event { height: 48px !important; min-height: 48px; }
+}
+
+@media (max-width: 899px) {
+  .input, .select, .textarea, textarea { min-height: 48px; }
+  .checkbox { position: relative; }
+  .checkbox::after { content: ""; position: absolute; inset: -14px; }
+}
+
+@media (max-width: 899px) {
+  .swatch { width: 48px; height: 48px; }
+  .search-box input { min-height: 48px; }
+  .chat-input textarea { min-height: 48px; }
 }

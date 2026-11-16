@@ -453,7 +453,11 @@ scenario('creating an event from a calendar slot fills the grid and Action', asy
   await go(page, 'calendar');
   await clickTestId(page, 'cal-view-day');
   const slots = await page.$$('.slot-hit');
-  assert(slots.length === 24, 'day view should expose 24 hourly slots');
+  // Dawn is folded by default; the fold must expose the hours it hides.
+  assert(slots.length === 18, `day view should fold 00:00-06:00 by default (got ${slots.length})`);
+  await page.evaluate(() => document.querySelector('[data-testid="dawn-fold"]').click());
+  await settle(page, 160);
+  assertEq((await page.$$('.slot-hit')).length, 24, 'expanding dawn must expose all 24 hours');
   await page.evaluate(() => {
     const slot = Array.from(document.querySelectorAll('.slot-hit')).find((s) => s.dataset.hour === '10');
     slot.click();
@@ -810,18 +814,16 @@ scenario('tag filter narrows the list and clearing it restores every row', async
   await page.evaluate(() => window.__todoHelpers.setView({ kind: 'all', day: null }));
   await settle(page, 180);
   const all = await count(page, '[data-testid="todo-tile"]');
-  await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('.chips-scroll .chip-btn')).find((x) => x.textContent.trim() === '健康');
-    b.click();
-  });
-  await settle(page, 200);
+  const tagId = await page.evaluate(() => window.Store.state.tags.find((t) => t.name === '健康').id);
+  await clickTestId(page, 'todos-filter');
+  await clickTestId(page, 'filter-tag-' + tagId);
+  await clickTestId(page, 'filter-apply');
+  await settle(page, 220);
   const filtered = await count(page, '[data-testid="todo-tile"]');
   assert(filtered > 0 && filtered < all, `tag filter should narrow the list (all=${all}, filtered=${filtered})`);
-  await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('.chip-btn')).find((x) => x.textContent.trim() === '清除');
-    b.click();
-  });
-  await settle(page, 200);
+  await clickTestId(page, 'todos-filter');
+  await clickTestId(page, 'filter-clear');
+  await settle(page, 220);
   assertEq(await count(page, '[data-testid="todo-tile"]'), all, 'clearing the filter must restore the list');
   await noErrors(page);
   await page.close();

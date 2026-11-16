@@ -500,6 +500,9 @@ scenario('R17 Settings carries no retired six-things or week-start control', asy
   const text = await page.evaluate(() => document.body.textContent);
   assert(!/六件事|Six things/.test(text), 'six-things must not appear in Settings');
   assert(!/每周起始日|Week starts on/.test(text), 'the week start must not be a setting');
+  assert(await page.evaluate(() => !!document.querySelector('[data-testid="settings-nav-calendar"]')), 'a Calendars group must exist');
+  await page.click('[data-testid="settings-nav-calendar"]');
+  await settle(page, 160);
   const sections = await page.$$eval('.settings-group > h2', (ns) => ns.map((n) => n.textContent.trim()));
   assert(sections.some((s) => /日历|Calendar/.test(s)), 'a Calendars group must exist');
   assertNoErrors(page);

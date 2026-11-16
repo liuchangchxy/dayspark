@@ -9,11 +9,15 @@
     const now = U.now();
     const locale = S.state.lang;
     const wd = U.fmtWeekdayLong(d);
+    const sameYear = d.getFullYear() === now.getFullYear();
+    const dateText = sameYear
+      ? U.fmtMonthDay(d)
+      : (locale === 'zh' ? `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日` : `${U.fmtMonthDay(d)} ${d.getFullYear()}`);
     if (locale === 'zh') {
       const lunar = S.state.showLunar ? ' · ' + t('lunarSample') : '';
-      return U.esc(wd + lunar);
+      return U.esc(dateText + ' · ' + wd + lunar);
     }
-    return U.esc(wd);
+    return U.esc(dateText + ' · ' + wd);
   }
 
   function openTodo(todo) {
@@ -36,7 +40,12 @@
     if (opts.meta) main.appendChild(U.el('span', { class: 'row-meta', html: opts.meta }));
     b.appendChild(main);
     const tail = U.el('span', { class: 'row-tail' });
-    if (opts.onToggle) {
+    // Undo lives on the row it reversed, not in a toast that vanishes: the
+    // finished row is exactly where the user is still looking (v0.34.0 pins it
+    // the same way).
+    if (opts.undo) {
+      tail.appendChild(opts.undo);
+    } else if (opts.onToggle) {
       tail.appendChild(UI.checkbox(!!opts.done, opts.onToggle, opts.toggleLabel));
     } else {
       tail.innerHTML = `<span class="row-chevron">${ICON('chevronForward', 13)}</span>`;
@@ -68,7 +77,8 @@
   }
 
   function renderAction() {
-    const day = S.state.actionDate || U.startOfDay(U.now());
+    const day = U.startOfDay(U.now());
+    S.state.actionDate = day;
     const proj = S.actionProjection(day);
     const now = U.now();
 
@@ -152,7 +162,12 @@
         const plannedTodayIds = new Set(proj.allocations.map((x) => x.todo.id));
 
         const dueRows = [];
-        proj.todayTaskInstances.forEach((inst) => dueRows.push(instanceRow(inst, false, day)));
+        // A recurring occurrence that already has an allocation today is the
+        // same obligation as that allocation; showing the instance again made
+        // one task look like two.
+        proj.todayTaskInstances
+          .filter((inst) => !plannedTodayIds.has(inst.todo.id))
+          .forEach((inst) => dueRows.push(instanceRow(inst, false, day)));
         proj.dueTodayTodos
           .filter((todo) => !plannedTodayIds.has(todo.id))
           .forEach((todo) => dueRows.push(todoRow(todo, now)));
@@ -161,18 +176,24 @@
           dueRows.forEach((r) => sections.push(r));
         }
 
-        const overdueRows = [];
-        proj.overdueTodos.forEach((todo) => overdueRows.push(todoRow(todo, now)));
+        // Overdue, missed repeats, ended timed items and finished work are four
+        // different states (CORE_UX_SPEC 1.1): an obligation never met, a
+        // recurring instance that slipped, a meeting that ended, and work you
+        // completed. Folding any two together erases which one happened.
+        const overdueRows = proj.overdueTodos.map((todo) => todoRow(todo, now));
+        if (overdueRows.length) {
+          sections.push(UI.sectionHead(t('overdueSection'), overdueRows.length, { tone: 'danger' }));
+          overdueRows.forEach((r) => sections.push(r));
+        }
+
         const missedAll = proj.missedTaskInstances;
         const missedShown = S.state.overdueExpanded ? missedAll : missedAll.slice(0, 5);
-        missedShown.forEach((inst) => overdueRows.push(instanceRow(inst, true, day)));
-        if (overdueRows.length) {
-          const hidden = missedAll.length - missedShown.length;
-          sections.push(UI.sectionHead(t('overdueSection'), overdueRows.length + hidden, { tone: 'danger' }));
-          overdueRows.forEach((r) => sections.push(r));
-          if (hidden > 0) {
+        if (missedAll.length) {
+          sections.push(UI.sectionHead(t('todayMissed'), missedAll.length, { tone: 'danger' }));
+          missedShown.forEach((inst) => sections.push(instanceRow(inst, true, day)));
+          if (missedAll.length > missedShown.length) {
             const fold = U.el('button', { class: 'row', 'data-testid': 'overdue-more', style: 'justify-content:center;color:var(--ink-2);font-size:12px;font-weight:600' });
-            fold.innerHTML = `<span>${U.esc(t('moreItems', { n: hidden }))}</span>${ICON('chevronDown', 14)}`;
+            fold.innerHTML = `<span>${U.esc(t('moreItems', { n: missedAll.length - missedShown.length }))}</span>${ICON('chevronDown', 14)}`;
             fold.addEventListener('click', () => { S.state.overdueExpanded = true; App.render(); });
             sections.push(fold);
           } else if (missedAll.length > 5) {
@@ -187,12 +208,16 @@
           ...proj.events.filter((e) => e.endDt <= now).map((e) => ({ kind: 'event', start: e.startDt, end: e.endDt, event: e })),
           ...proj.allocations.filter((x) => x.allocation.endAt <= now).map((x) => ({ kind: 'alloc', start: x.allocation.startAt, end: x.allocation.endAt, item: x })),
         ].sort((a, b) => a.start - b.start);
+        if (earlier.length) {
+          sections.push(UI.sectionHead(t('actionEarlierToday'), earlier.length));
+          earlier.forEach((entry) => sections.push(entryRow(entry, false, now, true)));
+        }
+
         const doneRows = [];
-        earlier.forEach((entry) => doneRows.push(entryRow(entry, false, now, true)));
         proj.completedTodayTodos.forEach((todo) => doneRows.push(todoRow(todo, now, true)));
         proj.completedTodayTaskInstances.forEach((inst) => doneRows.push(instanceRow(inst, false, day, true)));
         if (doneRows.length) {
-          sections.push(UI.sectionHead(t('actionEarlierToday'), doneRows.length));
+          sections.push(UI.sectionHead(t('todayCompleted'), doneRows.length));
           doneRows.forEach((r) => sections.push(r));
         }
 
@@ -216,13 +241,15 @@
           sections.push(UI.sectionHead(t('inbox'), null));
           previewed.forEach((todo) => sections.push(todoRow(todo, now)));
         }
-        const inbox = U.el('button', { class: 'row', 'data-testid': 'inbox-entry' });
-        inbox.innerHTML = `<span class="row-leading">${ICON('inbox', 15)}</span><span class="row-main"><span class="row-title" style="color:var(--ink-2)">${U.esc(t('inboxEntry', { n: proj.inboxCount }))}</span></span><span class="row-tail"><span class="row-chevron">${ICON('chevronForward', 13)}</span></span>`;
-        inbox.addEventListener('click', () => {
-          S.state.todosView = { kind: 'inbox', day: null };
-          App.go('todos');
-        });
-        sections.push(inbox);
+        if (proj.inboxCount > 0) {
+          const inbox = U.el('button', { class: 'row', 'data-testid': 'inbox-entry' });
+          inbox.innerHTML = `<span class="row-leading">${ICON('inbox', 15)}</span><span class="row-main"><span class="row-title" style="color:var(--ink-2)">${U.esc(t('inboxEntry', { n: proj.inboxCount }))}</span></span><span class="row-tail"><span class="row-chevron">${ICON('chevronForward', 13)}</span></span>`;
+          inbox.addEventListener('click', () => {
+            S.state.todosView = { kind: 'inbox', day: null };
+            App.go('todos');
+          });
+          sections.push(inbox);
+        }
 
         // The empty state speaks for the whole day, so it only appears when there
         // is genuinely nothing to show — an unplanned preview counts as something.
@@ -292,6 +319,7 @@
       ].filter(Boolean).join('<span>·</span>'),
       cls: (isOverdue && !past ? 'overdue' : '') + (past ? ' past' : ''),
       done: S.isDone(todo),
+      undo: past ? inlineUndoFor(todo, null) : null,
       onToggle: () => toggle(todo),
       onTap: () => openTodo(todo),
       testid: 'action-todo',
@@ -309,6 +337,7 @@
       meta: `<span>${U.esc(missed ? t('missed') : t('recurringTask'))}</span><span>·</span><span>${U.esc(U.fmtRelativeDay(inst.day, day))}</span>${UI.priorityDot(todo.priority)}`,
       cls: (missed ? 'overdue' : '') + (past ? ' past' : ''),
       done,
+      undo: past ? inlineUndoFor(todo, inst.occurrenceId) : null,
       onToggle: () => toggle(todo, inst.occurrenceId),
       onTap: () => openTodo(todo),
       testid: 'action-instance',
@@ -316,8 +345,33 @@
     });
   }
 
+  function inlineUndoFor(todo, occurrenceId) {
+    const u = S.state.inlineUndo;
+    if (!u) return null;
+    if (u.key !== todo.id + ':' + (occurrenceId || '')) return null;
+    if (u.until <= Date.now()) return null;
+    const b = U.el('button', { class: 'row-undo', text: t('undo'), 'data-testid': 'action-undo' });
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      S.state.inlineUndo = null;
+      window.TodoOps.complete(todo, occurrenceId);
+      App.render();
+    });
+    return b;
+  }
+
   function toggle(todo, occurrenceId) {
+    const wasDone = window.TodoOps.isDone(todo, occurrenceId);
     window.TodoOps.complete(todo, occurrenceId);
+    if (!wasDone) {
+      S.state.inlineUndo = { key: todo.id + ':' + (occurrenceId || ''), until: Date.now() + 8000 };
+      setTimeout(() => {
+        const u = S.state.inlineUndo;
+        if (u && u.until <= Date.now()) { S.state.inlineUndo = null; App.render(); }
+      }, 8200);
+    } else {
+      S.state.inlineUndo = null;
+    }
   }
 
   App.defineView('action', renderAction);

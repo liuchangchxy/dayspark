@@ -21,6 +21,7 @@
       startDt: c.startDt || null, endDt: c.endDt || null, isAllDay: false, location: '',
       scheduleStart: c.scheduleStart || null, scheduleEnd: c.scheduleEnd || null,
       scheduleOccurrence: c.scheduleOccurrence || null,
+      planDate: c.planDate ? U.startOfDay(new Date(c.planDate)) : null,
       moreOpen: false, focus: c.focus || null,
       // Editing an existing record already has a title; a fresh form has not
       // been touched yet and must not be greeted with an error.
@@ -62,20 +63,35 @@
         base.startDt = base.startDt || new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
         base.endDt = base.endDt || U.addMinutes(base.startDt, 60);
       }
+      // "Plan this day" starts from a date, not from a deadline: it reserves a
+      // slot on that day and leaves the deadline empty (no invented dueDate).
+      if (base.planDate && base.kind === 'todo') {
+        base.scheduleStart = base.scheduleStart
+          || new Date(base.planDate.getFullYear(), base.planDate.getMonth(), base.planDate.getDate(), 9, 0);
+        base.scheduleEnd = base.scheduleEnd || U.addMinutes(base.scheduleStart, 60);
+      }
     }
     return base;
   }
 
   function composer() {
     const c = S.state.composer || {};
-    const draft = draftFromRoute();
-    let dirty = false;
+    // A render replaces #view, so the draft must live in state, not in this
+    // closure: resizing across a breakpoint or a theme emit must not wipe a
+    // half-typed form (or silently disarm its discard guard).
+    const routeKey = JSON.stringify(c);
+    const draft = (S.state.composerDraft && S.state.composerDraft._routeKey === routeKey)
+      ? S.state.composerDraft
+      : draftFromRoute();
+    draft._routeKey = routeKey;
+    S.state.composerDraft = draft;
+    let dirty = !!draft.dirty;
     const isEdit = draft.mode === 'edit';
     const narrow = U.isNarrow();
 
     const root = U.el('div', { class: 'composer', 'data-testid': 'composer' });
 
-    function markDirty() { dirty = true; }
+    function markDirty() { dirty = true; draft.dirty = true; }
 
     function askDiscard() {
       return UI.confirm({
@@ -95,12 +111,13 @@
     App.leaveGuard = () => {
       if (!dirty) return Promise.resolve(true);
       return askDiscard().then((ok) => {
-        if (ok) S.state.composer = null;
+        if (ok) { S.state.composer = null; S.state.composerDraft = null; }
         return ok;
       });
     };
     function leave() {
       S.state.composer = null;
+      S.state.composerDraft = null;
       App.back();
     }
 
@@ -140,6 +157,16 @@
       }
     });
     body.appendChild(titleInput);
+
+    // A one-line parse is a faster path into the same draft, not a second form.
+    if (!draft.planDate) {
+      const parseBtn = U.el('button', { class: 'chip-btn', 'data-testid': 'composer-ai-parse' });
+      parseBtn.innerHTML = ICON('sparkles', 12) + `<span>${U.esc(t('aiParse'))}</span>`;
+      parseBtn.addEventListener('click', () => aiParseSheet());
+      const parseRow = U.el('div', { class: 'chip-row', style: 'margin:8px 0 2px' });
+      parseRow.appendChild(parseBtn);
+      body.appendChild(parseRow);
+    }
 
     const errBox = U.el('div', { class: 'hint-box error', hidden: 'hidden', role: 'alert' });
     body.appendChild(errBox);
@@ -196,6 +223,11 @@
     foot.appendChild(saveBtn);
     root.appendChild(foot);
 
+    // A failed write keeps the draft and offers the retry in place. Telling the
+    // user "save failed" and closing the sheet would discard their work.
+    const saveErr = U.el('div', { class: 'save-error', hidden: 'hidden', role: 'alert', 'data-testid': 'composer-save-error' });
+    root.appendChild(saveErr);
+
     // ---------- fields ----------
     function row(label, control, tail) {
       const r = U.el('div', { class: 'form-row' });
@@ -234,7 +266,7 @@
       if (draft.kind === 'todo') {
         // ---------- 任务 ----------
         const taskSec = section(formHost, t('sectionTask'));
-        if (isEdit) {
+        if (isEdit && !draft.recurrence) {
           const doneSeg = U.el('div', { class: 'segmented' });
           [[false, t('markComplete')], [true, t('completed')]].forEach(([val, label]) => {
             const b = U.el('button', { class: draft.statusDone === val ? 'on' : '', text: label });
@@ -637,6 +669,44 @@
 
           const preview = U.el('div', { class: 'preview' });
           box.appendChild(preview);
+
+          const suggLabel = U.el('div', { class: 'field-label', text: t('recommendedSlots') });
+          box.appendChild(suggLabel);
+          const sugg = U.el('div', { class: 'chip-row', 'data-testid': 'schedule-suggestions' });
+          box.appendChild(sugg);
+
+          function drawSuggestions() {
+            sugg.innerHTML = '';
+            const s = U.fromInputDateTime(start.value) || baseStart;
+            const day = U.startOfDay(s);
+            const mins = parseInt(durSel.value, 10);
+            const taken = [];
+            S.state.events.forEach((e) => { if (!e.deletedAt) taken.push([e.startDt, e.endDt]); });
+            S.state.allocations.forEach((a) => {
+              if (S.isAllocationLive(a) && a.id !== draft.scheduleAllocId) taken.push([a.startAt, a.endAt]);
+            });
+            const slots = [];
+            for (let m = 8 * 60; m + mins <= 21 * 60 && slots.length < 3; m += 30) {
+              const from = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, m);
+              const to = U.addMinutes(from, mins);
+              const clash = taken.some(([a, b]) => a < to && b > from);
+              if (!clash) slots.push(from);
+            }
+            if (!slots.length) {
+              sugg.appendChild(U.el('span', { class: 'tiny muted', text: t('nothingHere') }));
+              return;
+            }
+            slots.forEach((slot) => {
+              const b = U.el('button', { class: 'chip-btn', text: U.fmtTimeRange(slot, U.addMinutes(slot, mins)) });
+              b.dataset.testid = 'schedule-suggestion';
+              b.addEventListener('click', () => {
+                start.value = U.toInputDateTime(slot);
+                upd();
+              });
+              sugg.appendChild(b);
+            });
+          }
+
           function upd() {
             const s = U.fromInputDateTime(start.value);
             const mins = parseInt(durSel.value, 10);
@@ -646,6 +716,7 @@
             const evs = S.state.events.filter((e) => !e.deletedAt && e.startDt < U.addMinutes(s, mins) && e.endDt > s);
             if (conflict.length) preview.innerHTML += `<div style="color:var(--amber);margin-top:4px">${U.esc(t('allocateConflict', { t: (S.todoById(conflict[0].todoId) || {}).summary || '' }))}</div>`;
             if (evs.length) preview.innerHTML += `<div style="color:var(--amber);margin-top:2px">${U.esc(t('conflict'))}: ${U.esc(evs[0].summary)}</div>`;
+            drawSuggestions();
           }
           start.addEventListener('change', upd);
           durSel.addEventListener('change', upd);
@@ -691,7 +762,9 @@
             b.innerHTML = `<span class="ico">${ICON(o.rec ? 'repeat' : 'x', 16)}</span><span><span class="t">${U.esc(o.label)}</span></span>${on ? '<span style="margin-left:auto;color:var(--accent)">' + ICON('check', 15) + '</span>' : ''}`;
             b.addEventListener('click', () => {
               if (o.rec && draft.kind === 'todo' && !draft.dueDate && !draft.startDate) {
-                draft.dueDate = U.startOfDay(U.now());
+                // The series needs a start, not a deadline. Writing dueDate here
+                // would manufacture an obligation the user never set.
+                draft.startDate = U.startOfDay(U.now());
               }
               draft.recurrence = o.rec;
               markDirty(); close(null); renderBody(); validate();
@@ -750,6 +823,93 @@
       });
     }
 
+    // The primary label names what the save will write. "Save" alone made a
+    // form that quietly carried a deadline, a slot and two reminders read as a
+    // title-only save.
+    function saveFieldSummary() {
+      const parts = [];
+      if (draft.kind === 'todo') {
+        if (draft.dueDate) parts.push(t('saveFieldsDue', { d: U.fmtDeadline(draft.dueDate) }));
+        if (draft.scheduleStart) parts.push(t('saveFieldsSchedule', { d: U.fmtMonthDayTime(draft.scheduleStart) }));
+      } else {
+        parts.push(U.fmtMonthDayTime(draft.startDt));
+        if (draft.isAllDay) parts.push(t('allDay'));
+      }
+      if (draft.reminderOffsets.length) parts.push(t('saveFieldsReminders', { n: draft.reminderOffsets.length }));
+      if (draft.tagIds.length) parts.push(t('saveFieldsTags', { n: draft.tagIds.length }));
+      const cal = S.calendarById(draft.calendarId);
+      if (cal) parts.push(t('saveFieldsCalendar', { c: cal.name }));
+      return parts.slice(0, 3).join(' · ');
+    }
+    function updateSaveLabel() {
+      const fields = saveFieldSummary();
+      const label = fields ? t('saveWith', { fields }) : t('save');
+      saveBtn.textContent = label;
+      saveTop.textContent = label;
+      saveBtn.title = label;
+    }
+
+    function aiParseSheet() {
+      let parsed = null;
+      UI.sheet({
+        title: t('aiParse'),
+        subtitle: t('aiParseHint'),
+        body(host, close) {
+          const box = U.el('div', { class: 'picker' });
+          host.appendChild(box);
+          const ta = U.el('textarea', { class: 'textarea', rows: '3', placeholder: t('quickAddPlaceholder'), 'data-testid': 'ai-parse-input' });
+          ta.value = titleInput.value;
+          box.appendChild(ta);
+          const out = U.el('div', { class: 'quick-preview', 'data-testid': 'ai-parse-preview' });
+          box.appendChild(out);
+          const acts = U.el('div', { class: 'input-row' });
+          const apply = U.el('button', { class: 'btn primary', text: t('aiParseApply'), 'data-testid': 'ai-parse-apply' });
+          apply.disabled = true;
+          acts.appendChild(apply);
+          box.appendChild(acts);
+          function draw() {
+            out.innerHTML = '';
+            parsed = ta.value.trim() ? window.QuickParse.parse(ta.value, U.now()) : null;
+            if (!parsed) { apply.disabled = true; return; }
+            apply.disabled = false;
+            out.appendChild(U.el('div', { class: 'quick-kind ' + (parsed.kind === 'event' ? 'event' : 'todo'), text: parsed.kind === 'event' ? t('quickAddEvent') : t('quickAddTodo') }));
+            out.appendChild(U.el('div', { class: 'quick-title', text: parsed.title }));
+            const when = parsed.kind === 'event'
+              ? U.fmtMonthDayTime(parsed.start) + ' · ' + U.fmtTimeRange(parsed.start, parsed.end)
+              : (parsed.dueDate ? t('deadlinePrefix', { d: U.fmtDeadline(parsed.dueDate) }) : t('quickAddNoParse'));
+            out.appendChild(U.el('div', { class: 'quick-when', text: when }));
+          }
+          ta.addEventListener('input', draw);
+          apply.addEventListener('click', () => {
+            if (!parsed) return;
+            draft.summary = parsed.title || ta.value;
+            titleInput.value = draft.summary;
+            if (draft.kind === 'todo') {
+              if (parsed.kind === 'event') {
+                draft.scheduleStart = parsed.start;
+                draft.scheduleEnd = parsed.end;
+              } else if (parsed.dueDate) {
+                draft.dueDate = parsed.dueDate;
+              }
+            } else if (parsed.kind === 'event') {
+              draft.startDt = parsed.start;
+              draft.endDt = parsed.end;
+            } else if (parsed.dueDate) {
+              draft.startDt = new Date(parsed.dueDate.getFullYear(), parsed.dueDate.getMonth(), parsed.dueDate.getDate(), 9, 0);
+              draft.endDt = U.addMinutes(draft.startDt, 60);
+            }
+            draft.touched = true;
+            markDirty();
+            close(null);
+            renderBody();
+            validate();
+            autoGrow(titleInput);
+          });
+          draw();
+        },
+      });
+    }
+
     function validate() {
       const errs = [];
       if (!draft.summary.trim()) errs.push(t('titleRequired'));
@@ -772,7 +932,21 @@
         saveTop.disabled = false;
         titleInput.classList.remove('invalid');
       }
+      updateSaveLabel();
       return errs;
+    }
+
+    function showSaveError() {
+      saveErr.innerHTML = '';
+      saveErr.hidden = false;
+      saveErr.appendChild(U.el('span', { text: t('saveFailed') }));
+      const retry = U.el('button', { class: 'btn ghost sm', text: t('retrySave'), 'data-testid': 'composer-retry' });
+      retry.addEventListener('click', () => {
+        S.state.simulateSaveFailure = false;
+        saveErr.hidden = true;
+        save(true);
+      });
+      saveErr.appendChild(retry);
     }
 
     function save(closeAfter) {
@@ -783,6 +957,14 @@
         UI.announce(errs[0]);
         return;
       }
+      // The states bench can arm a failed write so the recovery path is real
+      // rather than described.
+      if (S.state.simulateSaveFailure) {
+        showSaveError();
+        UI.announce(t('saveFailed'));
+        return;
+      }
+      saveErr.hidden = true;
       if (draft.kind === 'todo') {
         const payload = {
           summary: draft.summary.trim(), description: draft.notes || null,
@@ -792,7 +974,7 @@
           attachments: draft.attachments.slice(),
         };
         if (draft.parentId) payload.parentId = draft.parentId;
-        if (isEdit && !draft.parentId) {
+        if (isEdit && !draft.recurrence) {
           // Completion lives here too: the form says what state the record is
           // in, so leaving it on "completed" must not be silently ignored.
           payload.status = draft.statusDone ? S.TODO_STATUS.DONE : S.TODO_STATUS.OPEN;
@@ -830,8 +1012,10 @@
           S.cancelAllocation(draft.scheduleAllocId);
         }
         dirty = false;
+        draft.dirty = false;
         const created = !isEdit;
         S.state.composer = null;
+        S.state.composerDraft = null;
         if (draft.parentId && created) {
           S.navigate('detail', { type: 'todo', id: draft.parentId });
         } else if (created) {
@@ -865,7 +1049,9 @@
         } else if (isEdit) event = S.updateEvent(draft.id, payload);
         else event = S.createEvent(payload);
         dirty = false;
+        draft.dirty = false;
         S.state.composer = null;
+        S.state.composerDraft = null;
         if (splitCopy) {
           // The edited thing is now the one-off copy, not the series instance
           // that was on screen when Edit was pressed; staying there would show

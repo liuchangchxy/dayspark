@@ -476,11 +476,10 @@ scenario('P1-11 Settings shows no raw i18n keys', async (browser) => {
     return Array.from(found);
   });
   assertEq(leaks, [], `Settings must not leak raw i18n keys, got ${JSON.stringify(leaks)}`);
-  const manage = await page.evaluate(() => {
-    const row = Array.from(document.querySelectorAll('.setting-row, .group-label, .list-row'))
-      .find((n) => /日历管理|Calendars/.test(n.textContent));
-    return !!row;
-  });
+  const manage = await page.evaluate(() =>
+    !!document.querySelector('[data-testid="settings-nav-calendar"]') ||
+    !!Array.from(document.querySelectorAll('.setting-row, .group-label, .list-row'))
+      .find((n) => /日历管理|Calendars/.test(n.textContent)));
   assert(manage, 'Settings must carry the 日历管理 entry');
   assertNoErrors(page);
   await page.close();
@@ -566,12 +565,16 @@ scenario('P2-3 sync explains itself and backup says 合并备份', async (browse
   const page = await newPage(browser);
   await go(page, 'settings');
   await settle(page, 300);
+  await page.click('[data-testid="settings-nav-account"]');
+  await settle(page, 160);
   const desc = await page.evaluate(() => {
     const n = document.querySelector('.group-desc');
     return n ? n.textContent.trim() : '';
   });
   assert(/多台设备|多设备|multiple devices|multi-device/i.test(desc),
     `the sync group must explain what sync is for, got "${desc}"`);
+  await page.click('[data-testid="settings-nav-data"]');
+  await settle(page, 160);
   assert(/备份/.test(await page.evaluate(() => document.body.textContent)), 'settings must expose backup');
 
   // 合并备份 is the label inside the backup sheet, so open it and read it there.
@@ -707,7 +710,7 @@ scenario('P3-4 the calendar slot sheet offers the two named jobs', async (browse
     const nodes = Array.from(document.querySelectorAll('.slot-sheet-option .t'));
     return nodes.map((n) => n.textContent.trim());
   });
-  assertEq(labels, ['新建日程', '安排待办'], `the slot sheet names exactly the two real jobs, got ${JSON.stringify(labels)}`);
+  assertEq(labels, ['新建日程', '安排待办', '新建并安排'], `the slot sheet names the three real jobs, got ${JSON.stringify(labels)}`);
   assertNoErrors(page);
   await page.close();
 });

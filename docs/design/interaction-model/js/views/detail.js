@@ -39,8 +39,11 @@
   function todoDetail(todo) {
     const root = U.el('div', { class: 'detail', 'data-testid': 'todo-detail' });
     const narrow = U.isNarrow();
+    // A routed detail is a page at every width, so it always offers a visible
+    // way back. A pane does not: its route is still Todo.
+    const routed = S.state.route.name === 'detail';
     const head = U.el('div', { class: 'detail-head' });
-    if (narrow) head.appendChild(UI.iconButton('chevronLeft', t('back'), () => App.back()));
+    if (narrow || routed) head.appendChild(UI.iconButton('chevronLeft', t('back'), () => App.back(), { cls: 'back-btn' }));
     head.appendChild(U.el('span', { class: 'spacer' }));
     // A menu opened from a click needs to stop that click reaching the
     // document-level "click outside a menu closes it" handler, or it is built
@@ -59,12 +62,36 @@
     const title = U.el('h1', { class: 'detail-title' + (S.isDone(todo) ? ' done' : ''), text: todo.summary });
     scroll.appendChild(title);
 
+    // A record that was deleted in another surface must not keep offering live
+    // edits as if nothing happened.
+    if (todo.deletedAt) {
+      const bar = U.el('div', { class: 'deleted-banner', 'data-testid': 'detail-deleted' });
+      bar.appendChild(U.el('div', { class: 'msg', html: `<strong>${U.esc(t('recordDeleted'))}</strong><span>${U.esc(t('recordDeletedHint'))}</span>` }));
+      const restore = U.el('button', { class: 'btn primary sm', text: t('restore'), 'data-testid': 'detail-restore' });
+      restore.addEventListener('click', () => {
+        S.restoreTodo(todo.id);
+        App.render();
+        UI.toast(t('restoredToast', { t: todo.summary }));
+      });
+      const backBtn = U.el('button', { class: 'btn ghost sm', text: t('close') });
+      backBtn.addEventListener('click', () => {
+        if (S.state.paneSelection) S.clearPane(); else App.back();
+      });
+      bar.appendChild(restore);
+      bar.appendChild(backBtn);
+      scroll.appendChild(bar);
+    }
+
     const status = U.el('div', { class: 'detail-status' });
     const done = S.isDone(todo);
-    const doneBtn = U.el('button', { class: 'btn ' + (done ? 'ghost' : 'primary'), 'data-testid': 'detail-complete' });
-    doneBtn.innerHTML = ICON('check', 14) + `<span>${U.esc(done ? t('markIncomplete') : t('markComplete'))}</span>`;
-    doneBtn.addEventListener('click', () => { window.TodoOps.complete(todo); });
-    status.appendChild(doneBtn);
+    // A trashed record is not a live obligation: completion and edits wait
+    // until it is restored.
+    if (!todo.deletedAt) {
+      const doneBtn = U.el('button', { class: 'btn ' + (done ? 'ghost' : 'primary'), 'data-testid': 'detail-complete' });
+      doneBtn.innerHTML = ICON('check', 14) + `<span>${U.esc(done ? t('markIncomplete') : t('markComplete'))}</span>`;
+      doneBtn.addEventListener('click', () => { window.TodoOps.complete(todo); });
+      status.appendChild(doneBtn);
+    }
     if (todo.recurrence) status.appendChild(U.el('span', { class: 'chip violet', html: ICON('repeat', 10) + `<span>${U.esc(t('recurrence'))}</span>` }));
     if (todo.completedAt && done) status.appendChild(U.el('span', { class: 'tiny muted', text: t('completed') + ' · ' + U.fmtMonthDayTime(todo.completedAt) }));
     scroll.appendChild(status);
@@ -123,9 +150,13 @@
 
     // reminders: part of 提醒, ahead of the organising fields.
     facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionReminder') }));
-    if (todo.reminderOffsets.length) {
-      facts.appendChild(iconFact('bell', t('reminder'), todo.reminderOffsets.map((m) => U.esc(reminderLabel(m))).join(' · ')));
-    }
+    const remValue = todo.reminderOffsets.length
+      ? todo.reminderOffsets.map((m) => U.esc(reminderLabel(m))).join(' · ')
+      : `<span class="muted">${U.esc(t('none'))}</span>`;
+    const remFact = iconFact('bell', t('reminder'), remValue,
+      UI.iconButton('edit', t('reminderEdit'), () => reminderSheet(todo), { sm: true, size: 13, testid: 'detail-reminder-edit' }),
+      null, () => reminderSheet(todo));
+    facts.appendChild(remFact);
 
     // 整理
     facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionOrganize') }));
@@ -251,6 +282,34 @@
     notesSec.appendChild(notes);
     scroll.appendChild(notesSec);
 
+    // Attachments are a local, read-only resource once saved: open is a local
+    // handoff, delete is a real write, and the surface says which it is.
+    const attach = (todo.attachments || []);
+    const attachSec = U.el('div', { class: 'detail-section', 'data-testid': 'detail-attachments' });
+    attachSec.appendChild(U.el('h3', { text: t('attachments') + (attach.length ? ' · ' + attach.length : '') }));
+    if (!attach.length) {
+      attachSec.appendChild(U.el('div', { class: 'field-hint', text: t('none') }));
+    } else {
+      attach.forEach((name, idx) => {
+        const row = U.el('div', { class: 'attachment-row' });
+        const open = U.el('button', { class: 'link-btn', text: name, 'data-testid': 'attachment-open' });
+        open.addEventListener('click', () => UI.toast(t('attachmentLocal') + ' · ' + name));
+        const del = U.el('button', { class: 'icon-btn sm', 'aria-label': t('remove'), html: ICON('trash', 13), 'data-testid': 'attachment-delete' });
+        del.addEventListener('click', () => {
+          const next = attach.slice();
+          next.splice(idx, 1);
+          if (writeTodo(todo, { attachments: next })) {
+            App.render();
+            UI.toast(t('updatedToast', { t: todo.summary }));
+          }
+        });
+        row.appendChild(open);
+        row.appendChild(del);
+        attachSec.appendChild(row);
+      });
+    }
+    scroll.appendChild(attachSec);
+
     // meta
     const metaSec = U.el('div', { class: 'detail-section' });
     metaSec.innerHTML = `<div class="kv"><span class="k">${U.esc(t('createdAt'))}</span><span class="v">${U.esc(U.fmtMonthDayTime(todo.createdAt))}</span></div>` +
@@ -258,6 +317,7 @@
     scroll.appendChild(metaSec);
 
     const actions = U.el('div', { class: 'detail-actions' });
+    if (todo.deletedAt) { root.appendChild(actions); return root; }
     const editBtn = U.el('button', { class: 'btn ghost', 'data-testid': 'detail-edit' });
     editBtn.innerHTML = ICON('edit', 13) + `<span>${U.esc(t('edit'))}</span>`;
     editBtn.addEventListener('click', () => App.openComposer('todo', { mode: 'edit', id: todo.id }));
@@ -321,12 +381,88 @@
       danger: true, confirmText: t('moveToTrash'),
     }).then((ok) => {
       if (!ok) return;
+      const inPane = !!S.state.paneSelection;
       S.softDeleteTodo(todo.id);
-      App.back();
+      if (!inPane) App.back();
       App.render();
       UI.toast(t('deletedToast', { t: todo.summary }), {
         undo: () => { S.restoreTodo(todo.id); App.render(); },
       });
+    });
+  }
+
+  // Inline edits share one write path so a failed write leaves the old value
+  // visible and offers the retry, instead of pretending the change landed.
+  function writeTodo(todo, patch) {
+    if (todo.deletedAt) {
+      UI.toast(t('recordDeleted'), { warn: true });
+      return false;
+    }
+    if (S.state.simulateDetailFailure) {
+      S.state.simulateDetailFailure = false;
+      const host = document.querySelector('[data-testid="todo-detail"] .detail-scroll');
+      if (host) {
+        const bar = U.el('div', { class: 'save-error', 'data-testid': 'detail-save-error' });
+        bar.appendChild(U.el('span', { text: t('detailSaveFailed') }));
+        const retry = U.el('button', { class: 'btn ghost sm', text: t('retry'), 'data-testid': 'detail-retry' });
+        retry.addEventListener('click', () => {
+          S.updateTodo(todo.id, patch);
+          App.render();
+          UI.toast(t('updatedToast', { t: todo.summary }));
+        });
+        bar.appendChild(retry);
+        host.prepend(bar);
+      }
+      return false;
+    }
+    S.updateTodo(todo.id, patch);
+    return true;
+  }
+
+  function reminderSheet(todo) {
+    let offsets = todo.reminderOffsets.slice();
+    UI.sheet({
+      title: t('reminder'),
+      body(host, close) {
+        function draw() {
+          host.innerHTML = '';
+          const box = U.el('div', { class: 'picker', 'data-testid': 'detail-reminders' });
+          host.appendChild(box);
+          const current = U.el('div', { class: 'chip-row' });
+          if (!offsets.length) current.appendChild(U.el('span', { class: 'tiny muted', text: t('none') }));
+          offsets.forEach((min, idx) => {
+            const chip = U.el('span', { class: 'chip amber' });
+            chip.innerHTML = `${ICON('bell', 11)}<span>${U.esc(reminderLabel(min))}</span>`;
+            const x = U.el('button', { class: 'icon-btn sm', style: 'width:16px;height:16px', 'aria-label': t('remove'), html: ICON('x', 10) });
+            x.addEventListener('click', () => { offsets.splice(idx, 1); draw(); });
+            chip.appendChild(x);
+            current.appendChild(chip);
+          });
+          box.appendChild(current);
+          box.appendChild(U.el('div', { class: 'field-label', text: t('addReminder') }));
+          [[0, t('onStart')], [5, '5 ' + t('minutesBefore')], [15, '15 ' + t('minutesBefore')], [30, '30 ' + t('minutesBefore')], [60, '1 ' + t('hoursBefore')], [1440, '1 ' + t('daysBefore')]].forEach(([v, label]) => {
+            const b = U.el('button', { class: 'slot-sheet-option' });
+            b.dataset.testid = 'detail-reminder-option';
+            b.innerHTML = `<span class="ico">${ICON('bell', 16)}</span><span><span class="t">${U.esc(label)}</span></span>`;
+            b.addEventListener('click', () => {
+              if (!offsets.includes(v)) offsets.push(v);
+              offsets.sort((a, b2) => a - b2);
+              draw();
+            });
+            box.appendChild(b);
+          });
+          const acts = U.el('div', { class: 'input-row' });
+          const apply = U.el('button', { class: 'btn primary', text: t('save'), 'data-testid': 'detail-reminder-save' });
+          apply.addEventListener('click', () => {
+            const ok = writeTodo(todo, { reminderOffsets: offsets.slice() });
+            close(null);
+            if (ok) { App.render(); UI.toast(t('updatedToast', { t: todo.summary })); }
+          });
+          acts.appendChild(apply);
+          box.appendChild(acts);
+        }
+        draw();
+      },
     });
   }
 
@@ -345,9 +481,8 @@
         const acts = U.el('div', { class: 'input-row' });
         const clear = U.el('button', { class: 'btn ghost', text: t('noDeadline') });
         clear.addEventListener('click', () => {
-          S.updateTodo(todo.id, { dueDate: null });
-          close(null); App.render();
-          UI.toast(t('updatedToast', { t: todo.summary }));
+          const ok = writeTodo(todo, { dueDate: null });
+          close(null); if (ok) { App.render(); UI.toast(t('updatedToast', { t: todo.summary })); }
         });
         const apply = U.el('button', { class: 'btn primary', text: t('save') });
         apply.dataset.testid = 'edit-deadline-apply';
@@ -358,9 +493,8 @@
             const [h, m] = time.value.split(':').map(Number);
             d.setHours(h, m || 0);
           }
-          S.updateTodo(todo.id, { dueDate: d });
-          close(null); App.render();
-          UI.toast(t('updatedToast', { t: todo.summary }));
+          const ok = writeTodo(todo, { dueDate: d });
+          close(null); if (ok) { App.render(); UI.toast(t('updatedToast', { t: todo.summary })); }
         });
         acts.appendChild(clear); acts.appendChild(apply);
         box.appendChild(acts);
@@ -371,9 +505,10 @@
 
   function changeCalendar(todo) {
     UI.openCalendarSheet(todo.calendarId, (id) => {
-      S.updateTodo(todo.id, { calendarId: id });
-      App.render();
-      UI.toast(t('updatedToast', { t: todo.summary }));
+      if (writeTodo(todo, { calendarId: id })) {
+        App.render();
+        UI.toast(t('updatedToast', { t: todo.summary }));
+      }
     });
   }
 
@@ -384,7 +519,10 @@
         [[0, t('noPriority')], [1, t('low')], [5, t('medium')], [9, t('high')]].forEach(([v, label]) => {
           const b = U.el('button', { class: 'slot-sheet-option' });
           b.innerHTML = `<span class="ico">${ICON('flag', 16)}</span><span><span class="t">${U.esc(label)}</span></span>${todo.priority === v ? '<span style="margin-left:auto;color:var(--accent)">' + ICON('check', 15) + '</span>' : ''}`;
-          b.addEventListener('click', () => { S.updateTodo(todo.id, { priority: v }); close(null); App.render(); });
+          b.addEventListener('click', () => {
+            const ok = writeTodo(todo, { priority: v });
+            close(null); if (ok) App.render();
+          });
           host.appendChild(b);
         });
       },
@@ -401,8 +539,8 @@
           b.innerHTML = `<span class="ico" style="background:color-mix(in srgb, ${tag.color} 14%, transparent);color:${tag.color}">${ICON('tag', 16)}</span><span><span class="t">${U.esc(tag.name)}</span></span>${on ? '<span style="margin-left:auto;color:var(--accent)">' + ICON('check', 15) + '</span>' : ''}`;
           b.addEventListener('click', () => {
             const next = on ? todo.tagIds.filter((x) => x !== tag.id) : todo.tagIds.concat(tag.id);
-            S.updateTodo(todo.id, { tagIds: next });
-            close(null); App.render();
+            const ok = writeTodo(todo, { tagIds: next });
+            close(null); if (ok) App.render();
           });
           host.appendChild(b);
         });
@@ -422,8 +560,8 @@
         cancel.addEventListener('click', () => close(null));
         const save = U.el('button', { class: 'btn primary', text: t('save') });
         save.addEventListener('click', () => {
-          S.updateTodo(todo.id, { description: ta.value.trim() || null });
-          close(null); App.render();
+          const ok = writeTodo(todo, { description: ta.value.trim() || null });
+          close(null); if (ok) App.render();
         });
         foot.appendChild(cancel); foot.appendChild(save);
         host.appendChild(foot);
@@ -544,8 +682,11 @@
 
     const root = U.el('div', { class: 'detail', 'data-testid': 'event-detail' });
     const narrow = U.isNarrow();
+    // A routed detail is a page at every width, so it always offers a visible
+    // way back. A pane does not: its route is still Todo.
+    const routed = S.state.route.name === 'detail';
     const head = U.el('div', { class: 'detail-head' });
-    if (narrow) head.appendChild(UI.iconButton('chevronLeft', t('back'), () => App.back()));
+    if (narrow || routed) head.appendChild(UI.iconButton('chevronLeft', t('back'), () => App.back(), { cls: 'back-btn' }));
     head.appendChild(U.el('span', { class: 'spacer' }));
     head.appendChild(UI.iconButton('edit', t('edit'), () => editEvent(e), { sm: true }));
     head.appendChild(UI.iconButton('trash', t('moveToTrash'), () => deleteEvent(e)));

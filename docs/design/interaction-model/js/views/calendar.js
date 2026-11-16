@@ -6,8 +6,16 @@
   const UI = window.UI;
   const t = (k, v) => I18N.t(k, v);
 
-  const HOUR_H = () => (U.isNarrow() ? 56 : 48);
-  const DAY_START = 0, DAY_END = 24;
+  // A 30-minute block is the smallest thing a finger has to hit, so on a phone
+  // the hour itself grows until half an hour is 48px tall. The alternative —
+  // expanding the hit box with a pseudo-element — made neighbouring blocks
+  // steal each other's taps.
+  const HOUR_H = () => (U.isNarrow() ? 96 : 48);
+  const DAY_END = 24;
+  // Early hours are folded by default: nobody plans a 03:00 meeting often, and
+  // the four empty rows cost more than they explain. Expanding is one tap and
+  // stays for the session.
+  function dayStart() { return S.state.dawnOpen ? 0 : 6; }
 
   // One browsed date, shared with Todo · 按日期 (CORE_UX_SPEC 16.1).
   function anchor() { return S.browseDate(); }
@@ -126,6 +134,10 @@
         cell.appendChild(dots);
         cell.setAttribute('aria-label', `${U.fmtMonthDay(d)} ${U.fmtWeekdayLong(d)} · ${items.length}`);
         cell.addEventListener('click', () => {
+          // On a phone a month cell is too small to preview anything, so a tap
+          // only drills into a day that has something to show. An empty cell
+          // would open an empty day and cost a back-press to leave.
+          if (!items.length) { UI.toast(t('phoneDrillHint'), { duration: 1600 }); return; }
           S.state.calendarFocusDay = U.startOfDay(d);
           S.state.calendarAnchor = U.startOfDay(d);
           // Picking a day in the calendar is the gesture that moves the shared
@@ -153,6 +165,15 @@
         S.setBrowseDate(U.startOfDay(d));
         S.state.calendarView = 'day';
         App.render();
+      });
+      // Desktop months have room for a creation gesture the phone does not:
+      // double-clicking an empty cell opens a new event at the next hour.
+      cell.addEventListener('dblclick', (ev) => {
+        ev.preventDefault();
+        const now = U.now();
+        const hour = U.sameDay(d, now) ? Math.min(23, now.getHours() + 1) : 9;
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0);
+        App.openComposer('event', { startDt: start, endDt: U.addMinutes(start, 60) });
       });
       grid.appendChild(cell);
     }));
@@ -227,7 +248,8 @@
     content.appendChild(deadlineLane(days[0], days.length === 1 ? 'day' : 'week'));
     const wrap = U.el('div', { class: 'time-wrap' });
     const hh = HOUR_H();
-    const gridH = (DAY_END - DAY_START) * hh;
+    const ds = dayStart();
+    const gridH = (DAY_END - ds) * hh;
 
     const head = U.el('div', { class: 'time-head' });
     head.appendChild(U.el('div', { class: 'gutter' }));
@@ -258,9 +280,9 @@
     body.style.height = gridH + 'px';
 
     const gutter = U.el('div', { class: 'time-gutter' });
-    for (let h = DAY_START; h < DAY_END; h++) {
+    for (let h = ds; h < DAY_END; h++) {
       const lab = U.el('span', { class: 'hour-label', text: U.pad(h) + ':00' });
-      lab.style.top = ((h - DAY_START) * hh) + 'px';
+      lab.style.top = ((h - ds) * hh) + 'px';
       gutter.appendChild(lab);
     }
     body.appendChild(gutter);
@@ -268,15 +290,15 @@
     const now = U.now();
     days.forEach((d, di) => {
       const col = U.el('div', { class: 'daycol' + (di === 0 ? ' first' : '') });
-      for (let h = DAY_START; h < DAY_END; h++) {
+      for (let h = ds; h < DAY_END; h++) {
         const line = U.el('div', { class: 'hour-line' });
-        line.style.top = ((h - DAY_START) * hh) + 'px';
+        line.style.top = ((h - ds) * hh) + 'px';
         col.appendChild(line);
         const half = U.el('div', { class: 'half-line' });
-        half.style.top = ((h - DAY_START) * hh + hh / 2) + 'px';
+        half.style.top = ((h - ds) * hh + hh / 2) + 'px';
         col.appendChild(half);
         const slot = U.el('button', { class: 'slot-hit' });
-        slot.style.top = ((h - DAY_START) * hh) + 'px';
+        slot.style.top = ((h - ds) * hh) + 'px';
         slot.style.height = hh + 'px';
         slot.setAttribute('aria-label', `${U.fmtMonthDay(d)} ${U.pad(h)}:00 ${t('createHere')}`);
         slot.dataset.day = String(d.getTime());
@@ -302,9 +324,9 @@
 
       if (U.sameDay(d, now)) {
         const mins = now.getHours() * 60 + now.getMinutes();
-        if (mins >= DAY_START * 60 && mins <= DAY_END * 60) {
+        if (mins >= ds * 60 && mins <= DAY_END * 60) {
           const nl = U.el('div', { class: 'now-line' });
-          nl.style.top = ((mins / 60 - DAY_START) * hh) + 'px';
+          nl.style.top = ((mins / 60 - ds) * hh) + 'px';
           col.appendChild(nl);
         }
       }
@@ -312,7 +334,23 @@
     });
 
     scroll.appendChild(body);
+    // Folded early hours: a strip that says what is hidden and opens them.
+    const fold = U.el('button', { class: 'dawn-fold', 'data-testid': 'dawn-fold' });
+    fold.innerHTML = S.state.dawnOpen
+      ? ICON('chevronUp', 12) + `<span>${U.esc(t('collapseList'))}</span>`
+      : ICON('chevronDown', 12) + `<span>${U.esc(t('dawnShow'))}</span><span class="tiny muted">${U.esc(t('dawnFold'))}</span>`;
+    fold.addEventListener('click', () => { S.state.dawnOpen = !S.state.dawnOpen; App.render(); });
+    wrap.appendChild(fold);
     wrap.appendChild(scroll);
+    const jump = U.el('button', { class: 'back-now btn ghost sm', 'data-testid': 'back-to-now', text: t('backToNow') });
+    jump.addEventListener('click', () => {
+      const n = U.now();
+      const mins = n.getHours() * 60 + n.getMinutes();
+      const top = Math.max(0, ((mins / 60) - dayStart()) * hh - 80);
+      if (scroll.scrollTo) scroll.scrollTo({ top, behavior: 'smooth' });
+      else scroll.scrollTop = top;
+    });
+    wrap.appendChild(jump);
     content.appendChild(wrap);
     content.appendChild(legend('time'));
 
@@ -320,7 +358,7 @@
       requestAnimationFrame(() => {
         if (scroll.dataset.scrolled) return;
         scroll.dataset.scrolled = '1';
-        const target = Math.max(0, (7 - DAY_START) * hh - 8);
+        const target = Math.max(0, (8 - ds) * hh - 8);
         if (scroll.scrollHeight > scroll.clientHeight + 4) {
           scroll.scrollTop = target;
           return;
@@ -364,11 +402,11 @@
   }
 
   function blockPosition(start, end, day, hh, pos) {
-    const dayStart = U.startOfDay(day);
-    const sMin = (start - dayStart) / U.MS_MIN;
-    const eMin = (end - dayStart) / U.MS_MIN;
-    const top = (sMin / 60 - DAY_START) * hh;
-    const height = Math.max(16, ((eMin - sMin) / 60) * hh - 1);
+    const day0 = U.startOfDay(day);
+    const sMin = (start - day0) / U.MS_MIN;
+    const eMin = (end - day0) / U.MS_MIN;
+    const top = Math.max(0, (sMin / 60 - dayStart()) * hh);
+    const height = Math.max(16, ((eMin - sMin) / 60) * hh - (U.isNarrow() ? 0 : 1));
     return { top, height, sMin, eMin };
   }
 
@@ -531,13 +569,16 @@
       const newH = Math.max(snap, Math.round(height / snap) * snap);
       node.style.top = newTop + 'px';
       node.style.height = newH + 'px';
-      const dayStart = U.startOfDay(ctx.day);
-      const startMin = Math.round((newTop / hh) * 60 / 15) * 15;
+      const day0 = U.startOfDay(ctx.day);
+      // The grid may start at 06:00 when dawn is folded, so the pixel offset is
+      // measured from that hour, not from midnight.
+      const offsetMin = dayStart() * 60;
+      const startMin = Math.round((newTop / hh) * 60 / 15) * 15 + offsetMin;
       const endMin = startMin + Math.round((newH / hh) * 60 / 15) * 15;
-      const newStart = U.addMinutes(dayStart, startMin);
-      const newEnd = U.addMinutes(dayStart, endMin);
-      const targetDay = U.addDays(dayStart, dayOffset);
-      const shiftDays = Math.round((targetDay - dayStart) / U.MS_DAY);
+      const newStart = U.addMinutes(day0, startMin);
+      const newEnd = U.addMinutes(day0, endMin);
+      const targetDay = U.addDays(day0, dayOffset);
+      const shiftDays = Math.round((targetDay - day0) / U.MS_DAY);
       const s = U.addDays(newStart, shiftDays);
       const e2 = U.addDays(newEnd, shiftDays);
       if (wasMode === 'resize') {
@@ -678,9 +719,13 @@
         host.appendChild(mk('calendarPlus', t('newEvent'), t('createEventDesc'), () => {
           App.openComposer('event', { startDt: start, endDt: end });
         }, 'slot-new-event'));
-        host.appendChild(mk('clockPlus', t('scheduleTodo'), t('scheduleTodoDesc'), () => {
+        const candidates = S.schedulableTodos().length;
+        host.appendChild(mk('clockPlus', t('scheduleTodo'), t('slotCandidates', { n: candidates }), () => {
           pickSchedulable(start, end);
         }, 'slot-schedule-todo'));
+        host.appendChild(mk('checkSquare', t('newAndSchedule'), t('planThisDayHint'), () => {
+          App.openComposer('todo', { scheduleStart: start, scheduleEnd: end });
+        }, 'slot-new-and-schedule'));
       },
     });
   }
@@ -690,6 +735,15 @@
       title: t('scheduleTodo'),
       subtitle: U.fmtMonthDay(start) + ' ' + U.fmtTimeRange(start, end),
       body(host, close) {
+        if (S.state.simulateSlotFailure) {
+          S.state.simulateSlotFailure = false;
+          const err = U.el('div', { class: 'field-hint', style: 'color:var(--red);padding:10px 0', text: t('slotFailed') });
+          host.appendChild(err);
+          const retry = U.el('button', { class: 'btn ghost sm', text: t('retry'), 'data-testid': 'slot-retry' });
+          retry.addEventListener('click', () => { close(null); pickSchedulable(start, end); });
+          host.appendChild(retry);
+          return;
+        }
         const search = U.el('input', { class: 'input', placeholder: S.state.lang === 'zh' ? '搜索待办' : 'Search to-dos', style: 'margin-bottom:8px' });
         host.appendChild(search);
         const list = U.el('div');

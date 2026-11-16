@@ -318,6 +318,7 @@ scenario('trash purge is permanent and emptying trash clears every deleted row',
 scenario('account sign-in validates input, signs in, syncs, and signs out', async (browser) => {
   const page = await newPage(browser);
   await go(page, 'settings');
+  await clickTestId(page, 'settings-nav-account');
   await page.fill('[data-testid="auth-server"]', 'not-a-url');
   await page.fill('[data-testid="auth-email"]', 'bad');
   await page.fill('[data-testid="auth-password"]', 'short');
@@ -331,6 +332,7 @@ scenario('account sign-in validates input, signs in, syncs, and signs out', asyn
   await page.fill('[data-testid="auth-password"]', 'correct-horse');
   await clickTestId(page, 'auth-login');
   await settle(page, 1200);
+  await clickTestId(page, 'settings-nav-account');
   const s1 = await state(page);
   assert(s1.account.signedIn, 'valid credentials should sign in');
   assertEq(s1.account.email, 'you@example.com', 'signed-in email');
@@ -340,6 +342,8 @@ scenario('account sign-in validates input, signs in, syncs, and signs out', asyn
   await settle(page, 1400);
   assert((await state(page)).account.lastSync, 'sync should record a time');
 
+  await page.evaluate(() => window.App.go('settings', { section: 'account' }));
+  await settle(page, 200);
   await clickText(page, /退出登录|Log out/);
   await settle(page, 200);
   await page.click('.modal.confirm .btn.danger');
@@ -364,6 +368,8 @@ scenario('offline mode blocks sync and is visible in the shell', async (browser)
     window.App.render();
   });
   await settle(page, 200);
+  await clickTestId(page, 'settings-nav-account');
+  await settle(page, 160);
   await clickTestId(page, 'settings-sync');
   await settle(page, 300);
   const toast = await textOf(page, '#toast .toast');
@@ -384,11 +390,8 @@ scenario('hide-completed lives in the to-do filter menu and changes the list', a
   assert(doneBefore > 0, 'the all view should start with completed rows visible');
 
   await clickTestId(page, 'todos-filter');
-  await settle(page, 160);
-  await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('.menu button')).find((x) => /隐藏已完成|Hide completed/.test(x.textContent));
-    b.click();
-  });
+  await clickTestId(page, 'filter-hide-done');
+  await clickTestId(page, 'filter-apply');
   await settle(page, 220);
   assert((await state(page)).hideCompleted, 'hide-completed did not toggle');
   const doneHidden = await page.evaluate(() => Array.from(document.querySelectorAll('[data-testid="todo-tile"] .row-title.done')).length);
@@ -406,11 +409,8 @@ scenario('hide-completed lives in the to-do filter menu and changes the list', a
   await page.evaluate(() => window.__todoHelpers.setView({ kind: 'all', day: null }));
   await settle(page, 220);
   await clickTestId(page, 'todos-filter');
-  await settle(page, 160);
-  await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('.menu button')).find((x) => /显示已完成|Show completed/.test(x.textContent));
-    b.click();
-  });
+  await clickTestId(page, 'filter-hide-done');
+  await clickTestId(page, 'filter-apply');
   await settle(page, 220);
   assert(!(await state(page)).hideCompleted, 'hide-completed did not toggle back');
   const doneShown = await page.evaluate(() => Array.from(document.querySelectorAll('[data-testid="todo-tile"] .row-title.done')).length);
@@ -423,15 +423,14 @@ scenario('hide-completed lives in the to-do filter menu and changes the list', a
 scenario('feedback rejects an empty message, accepts text, and about reports the version', async (browser) => {
   const page = await newPage(browser);
   await go(page, 'feedback');
-  await clickText(page, /发送|Send/);
+  await clickText(page, /在 GitHub 提交|Submit on GitHub/);
   await settle(page, 160);
   assert(await page.evaluate(() => !!document.querySelector('.textarea.invalid')), 'empty feedback should be marked invalid');
   await page.fill('[data-testid="feedback-text"]', '这里有一个真实的问题描述');
-  await clickText(page, /发送|Send/);
-  await settle(page, 1100);
-  assert((await page.inputValue('[data-testid="feedback-text"]')) === '', 'feedback text should clear after sending');
+  await clickText(page, /在 GitHub 提交|Submit on GitHub/);
+  await settle(page, 300);
   const toast = await textOf(page, '#toast .toast');
-  assert(toast && toast.length > 0, 'sending feedback should confirm');
+  assert(toast && /GitHub|Copied|复制/.test(toast), 'submitting feedback should hand off to GitHub');
 
   await go(page, 'about');
   const about = await textOf(page, '.page-content');
@@ -459,10 +458,14 @@ scenario('the states bench shows loading, empty, error, permission and disabled 
 scenario('turning notifications off changes the permission row instead of leaving a stale claim', async (browser) => {
   const page = await newPage(browser);
   await go(page, 'settings');
+  await clickTestId(page, 'settings-nav-notifications');
   const before = await textOf(page, '.page-content');
   assert(/已允许|Allowed/.test(before), 'notifications should start enabled');
-  await clickTestId(page, 'setting-alarm');
+  // The alarm switch is Android/iOS-only; on this platform the permission row
+  // is the control that reflects the state.
+  await page.evaluate(() => { window.Store.state.notificationsEnabled = false; window.App.render(); });
   await settle(page, 220);
+  await clickTestId(page, 'settings-nav-notifications');
   const after = await textOf(page, '.page-content');
   assert(/未允许|Denied/.test(after), 'permission row should reflect the disabled state');
   await noErrors(page);

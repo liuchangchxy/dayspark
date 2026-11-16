@@ -5,6 +5,32 @@
   const UI = window.UI;
   const t = (k, v) => I18N.t(k, v);
 
+  function platform() {
+    const ua = (navigator.userAgent || '');
+    if (/Android/i.test(ua)) return 'android';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+    if (/Mac OS X|Macintosh/i.test(ua)) return 'macos';
+    if (/Windows/i.test(ua)) return 'windows';
+    if (/Linux/i.test(ua)) return 'linux';
+    return 'web';
+  }
+
+  function changelogSheet() {
+    UI.sheet({
+      title: t('changelogTitle'),
+      subtitle: 'v0.34.0+34',
+      body(host) {
+        const zh = S.state.lang === 'zh';
+        const items = zh
+          ? ['桌面双栏：列表常驻，右侧查看详情', '统一创建入口：待办 / 日程 / 一句话快速添加', '待办支持筛选：日历、标签、优先级', '今日分区：逾期、遗漏、更早、今天完成']
+          : ['Desktop split view: the list stays, details open beside it', 'One create entry: to-do, event, or one-line quick add', 'To-do filters: calendar, tag and priority', 'Today separates overdue, missed, earlier and completed'];
+        const list = U.el('ul', { class: 'changelog-list' });
+        items.forEach((x) => list.appendChild(U.el('li', { text: x })));
+        host.appendChild(list);
+      },
+    });
+  }
+
   function group(title) {
     const g = U.el('div', { class: 'settings-group' });
     if (title) g.appendChild(U.el('h2', { text: title }));
@@ -38,7 +64,14 @@
     const sw = U.el('button', { class: 'switch' + (on ? ' on' : ''), role: 'switch', 'aria-checked': on ? 'true' : 'false', 'aria-label': title });
     if (testid) sw.dataset.testid = testid;
     sw.addEventListener('click', () => onToggle(!on));
-    return row({ title, subtitle, trailing: sw });
+    const r = row({ title, subtitle, trailing: sw });
+    // The whole row is the target, not only the 38px switch.
+    r.style.cursor = 'pointer';
+    r.addEventListener('click', (e) => {
+      if (e.target.closest('.switch')) return;
+      onToggle(!on);
+    });
+    return r;
   }
 
   function segmented(options, value, onChange, testidPrefix) {
@@ -57,13 +90,18 @@
     const page = UI.page({
       title: t('pageSettings'),
       onBack: () => App.back(),
-      narrow: true,
+      narrow: !(U.isSplit() && !U.isNarrow()),
       build(content) {
+        const sections = [];
+        function addSection(key, title, node) {
+          node.dataset.section = key;
+          sections.push({ key, title, node });
+        }
         // Appearance
         const appearance = group(t('appearance'));
         appearance.appendChild(row({
           icon: 'sun', title: t('theme'),
-          trailing: segmented([['light', t('themeLight')], ['dark', t('themeDark')]], S.state.theme, (v) => { S.state.theme = v; S.applyTheme(); S.savePrefs(); App.render(); }, 'theme'),
+          trailing: segmented([['system', t('themeSystem')], ['light', t('themeLight')], ['dark', t('themeDark')]], S.state.theme, (v) => { S.state.theme = v; S.applyTheme(); S.savePrefs(); App.render(); }, 'theme'),
         }));
         const swatchRow = row({ icon: 'star', title: t('themeColor') });
         const sw = U.el('div', { class: 'swatches' });
@@ -78,19 +116,19 @@
         appearance.appendChild(swatchRow);
         appearance.appendChild(row({
           icon: 'globe', title: t('language'),
-          trailing: segmented([['zh', t('languageZh')], ['en', t('languageEn')]], S.state.lang, (v) => { S.setLang(v); App.render(); }, 'lang'),
+          trailing: segmented([['system', t('languageSystem')], ['zh', t('languageZh')], ['en', t('languageEn')]], S.state.langPref || S.state.lang, (v) => { S.setLang(v); App.render(); }, 'lang'),
         }));
         appearance.appendChild(row({
           icon: 'bolt', title: t('defaultTab'),
           trailing: segmented([['action', t('today')], ['calendar', t('calendar')], ['todos', t('todos')]], S.state.defaultTab, (v) => { S.state.defaultTab = v; S.savePrefs(); App.render(); }, 'default-tab'),
         }));
         appearance.appendChild(switchRow(S.state.lang === 'zh' ? '显示农历' : 'Show lunar dates', S.state.lang === 'zh' ? '日期标题下显示农历日期。' : 'Show the lunar date under day headings.', S.state.showLunar, (v) => { S.state.showLunar = v; S.savePrefs(); App.render(); }, 'setting-lunar'));
-        content.appendChild(anchorGroup(appearance, 'appearance'));
+        addSection('appearance', t('appearance'), appearance);
 
         // Calendars
         const cal = group(t('calendar'));
         cal.appendChild(row({ icon: 'calendar', title: t('manageCalendars'), onClick: () => App.go('calendars') }));
-        content.appendChild(anchorGroup(cal, 'calendar'));
+        addSection('calendar', t('calendar'), cal);
 
         // Data, split by the job: exchange with other calendar apps vs. keep
         // this install recoverable.
@@ -103,7 +141,7 @@
         data.appendChild(row({ icon: 'download', title: t('exportAllCalendars'), onClick: () => exportFlow() }));
         data.appendChild(U.el('div', { class: 'group-label', text: t('dataBackup') }));
         data.appendChild(row({ icon: 'archive', title: t('fullBackup'), subtitle: t('fullBackupDesc'), onClick: () => backupFlow() }));
-        content.appendChild(anchorGroup(data, 'data'));
+        addSection('data', t('data'), data);
 
         // Account
         const account = group(t('account'));
@@ -111,6 +149,14 @@
         // sync is or where their data goes. Say it once, plainly.
         account.appendChild(U.el('p', { class: 'group-desc', text: t('syncDesc') }));
         if (S.state.account.signedIn) {
+          if (S.state.account.loadError) {
+            const err = row({
+              icon: 'refresh', title: t('accountLoadFailed'), subtitle: t('errorBody'), danger: true,
+              onClick: () => { S.state.account.loadError = false; App.render(); UI.toast(t('syncPhaseIdle')); },
+            });
+            err.dataset.testid = 'account-retry';
+            account.appendChild(err);
+          } else {
           account.appendChild(row({
             icon: 'user', title: S.state.account.email,
             subtitle: S.state.offline ? t('offlineBanner') : t('syncPhaseIdle') + (S.state.account.lastSync ? ' · ' + t('lastSync', { t: U.fmtMonthDayTime(S.state.account.lastSync) }) : ''),
@@ -129,6 +175,7 @@
               });
             },
           }));
+          }
         } else {
           const form = U.el('div', { style: 'padding:12px 14px' });
           const fields = {};
@@ -172,7 +219,7 @@
           form.appendChild(btns);
           account.appendChild(form);
         }
-        content.appendChild(anchorGroup(account, 'account'));
+        addSection('account', t('account'), account);
 
         // AI: one top-level group. No Advanced > ExpansionTile > dialog nesting.
         const advanced = group(t('aiAssistant'));
@@ -183,25 +230,47 @@
             value: S.state.ai.configured ? `<span class="chip green" style="height:18px">${U.esc(t('aiConfigured', { m: S.state.ai.model }))}</span>` : `<span class="chip amber" style="height:18px">${U.esc(t('aiNotConfigured'))}</span>`,
             onClick: () => aiConfigSheet(),
           }));
-          advanced.appendChild(row({ icon: 'sparkles', title: t('pageChat'), onClick: () => App.go('chat') }));
+          advanced.appendChild(row({ icon: 'note', title: t('aiTutorial'), onClick: () => UI.toast(S.state.lang === 'zh' ? '把服务商的 Key 填进「AI 配置」；只保存在本机。' : 'Paste your provider key into AI configuration; it stays on this device.') }));
+          // Opening the assistant is only meaningful once it is both enabled and
+          // configured; a disabled row says why instead of opening an empty page.
+          const openRow = row({
+            icon: 'sparkles', title: t('openAssistant'),
+            subtitle: S.state.ai.configured ? null : t('aiNotConfigured'),
+            onClick: () => { if (S.state.ai.configured) App.go('chat'); else UI.toast(t('aiNoKey'), { warn: true }); },
+          });
+          if (!S.state.ai.configured) openRow.classList.add('is-disabled');
+          advanced.appendChild(openRow);
         }
-        content.appendChild(anchorGroup(advanced, 'advanced'));
+        addSection('advanced', t('aiAssistant'), advanced);
 
-        // Notifications
+        // Platform-gated, not a wall of switches no one can act on: alarm
+        // settings only exist where the platform has an alarm channel.
         const notif = group(t('notifications'));
-        notif.appendChild(switchRow(t('systemAlarm'), t('systemAlarmDesc'), S.state.notificationsEnabled, (v) => { S.state.notificationsEnabled = v; S.savePrefs(); App.render(); }, 'setting-alarm'));
-        notif.appendChild(row({
-          icon: 'bell', title: t('notificationPermission'),
-          subtitle: S.state.notificationsEnabled ? t('notificationPermissionDesc') : t('permissionDenied'),
-          value: S.state.notificationsEnabled ? `<span class="chip green" style="height:18px">${U.esc(S.state.lang === 'zh' ? '已允许' : 'Allowed')}</span>` : `<span class="chip red" style="height:18px">${U.esc(S.state.lang === 'zh' ? '未允许' : 'Denied')}</span>`,
-          onClick: () => UI.toast(t('notificationPermissionAsked'), { warn: true }),
-        }));
-        notif.appendChild(switchRow(t('exactAlarm'), t('exactAlarmDesc'), S.state.exactAlarm, (v) => { S.state.exactAlarm = v; S.savePrefs(); App.render(); }, 'setting-exact'));
-        content.appendChild(anchorGroup(notif, 'notifications'));
+        const plat = platform();
+        notif.appendChild(U.el('p', { class: 'group-desc', text: t('platformLabel') + ' · ' + plat }));
+        if (plat === 'android' || plat === 'ios') {
+          notif.appendChild(switchRow(t('systemAlarm'), t('systemAlarmDesc'), S.state.notificationsEnabled, (v) => { S.state.notificationsEnabled = v; S.savePrefs(); App.render(); }, 'setting-alarm'));
+        }
+        if (plat === 'android' || plat === 'macos' || plat === 'web') {
+          notif.appendChild(row({
+            icon: 'bell', title: t('notificationPermission'),
+            subtitle: S.state.notificationsEnabled ? t('notificationPermissionDesc') : t('permissionDenied'),
+            value: S.state.notificationsEnabled ? `<span class="chip green" style="height:18px">${U.esc(S.state.lang === 'zh' ? '已允许' : 'Allowed')}</span>` : `<span class="chip red" style="height:18px">${U.esc(S.state.lang === 'zh' ? '未允许' : 'Denied')}</span>`,
+            onClick: () => UI.toast(t('notificationPermissionAsked'), { warn: true }),
+          }));
+        }
+        if (plat === 'android') {
+          notif.appendChild(switchRow(t('exactAlarm'), t('exactAlarmDesc'), S.state.exactAlarm, (v) => { S.state.exactAlarm = v; S.savePrefs(); App.render(); }, 'setting-exact'));
+        }
+        if (plat !== 'android' && plat !== 'ios' && plat !== 'macos' && plat !== 'web') {
+          notif.appendChild(U.el('div', { class: 'field-hint', text: t('unsupportedWeb') }));
+        }
+        addSection('notifications', t('notifications'), notif);
 
         // About
         const about = group('');
         about.appendChild(row({ icon: 'info', title: t('aboutTitle'), value: 'v0.34.0+34', onClick: () => App.go('about') }));
+        about.appendChild(row({ icon: 'note', title: t('changelog'), onClick: () => changelogSheet() }));
         about.appendChild(row({ icon: 'note', title: t('feedbackTitle'), onClick: () => App.go('feedback') }));
         about.appendChild(row({
           icon: 'layers',
@@ -209,10 +278,43 @@
           subtitle: S.state.lang === 'zh' ? '加载、空、错误、离线、权限、禁用（原型评审用）' : 'Loading, empty, error, offline, permission, disabled (prototype review)',
           onClick: () => App.go('states'),
         }));
-        content.appendChild(anchorGroup(about, 'about'));
+        addSection('about', t('aboutTitle'), about);
+
+        // Wide desktops get the same persistent list + content split the Todo
+        // destination uses. A single long scroll makes a section jump a hunt.
+        if (U.isSplit() && !U.isNarrow()) {
+          const split = U.el('div', { class: 'settings-split', 'data-testid': 'settings-split' });
+          const nav = U.el('div', { class: 'settings-nav' });
+          const pane = U.el('div', { class: 'settings-pane' });
+          let active = sections[0].key;
+          if (section && sections.some((x) => x.key === section)) active = section;
+          function show(key) {
+            active = key;
+            nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.section === key));
+            pane.innerHTML = '';
+            const sec = sections.find((x) => x.key === key);
+            if (sec) {
+              const anchor = U.el('div');
+              anchor.appendChild(sec.node);
+              pane.appendChild(anchor);
+            }
+          }
+          sections.forEach((sec) => {
+            const b = U.el('button', { class: 'settings-nav-item', 'data-testid': 'settings-nav-' + sec.key, text: sec.title });
+            b.dataset.section = sec.key;
+            b.addEventListener('click', () => show(sec.key));
+            nav.appendChild(b);
+          });
+          split.appendChild(nav);
+          split.appendChild(pane);
+          content.appendChild(split);
+          show(active);
+        } else {
+          sections.forEach((sec) => content.appendChild(sec.node));
+        }
       },
     });
-    if (section) {
+    if (section && !(U.isSplit() && !U.isNarrow())) {
       const target = page.querySelector('[data-section="' + section + '"]');
       if (target) setTimeout(() => target.scrollIntoView({ block: 'start' }), 40);
     }
@@ -249,10 +351,25 @@
   }
 
   function importFlow() {
+    let target = S.state.calendars[0] ? S.state.calendars[0].id : null;
     UI.sheet({
       title: t('importTo'),
       subtitle: t('calendarData'),
       body(host, close) {
+        host.appendChild(U.el('div', { class: 'field-label', text: t('importTarget') }));
+        const calRow = U.el('div', { class: 'chip-row', 'data-testid': 'import-calendars' });
+        S.state.calendars.forEach((c) => {
+          const b = U.el('button', { class: 'chip-btn' + (target === c.id ? ' on' : '') });
+          b.dataset.testid = 'import-calendar-' + c.id;
+          b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${U.esc(c.name)}`;
+          b.addEventListener('click', () => {
+            target = c.id;
+            calRow.querySelectorAll('button').forEach((x) => x.classList.remove('on'));
+            b.classList.add('on');
+          });
+          calRow.appendChild(b);
+        });
+        host.appendChild(calRow);
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.ics,text/calendar';
@@ -270,7 +387,8 @@
           setTimeout(() => {
             btn.disabled = false; btn.textContent = t('import');
             close(null);
-            UI.toast(t('importedResult', { n: 12 }));
+            const cal = S.calendarById(target);
+            UI.toast(t('importedResult', { n: 12 }) + (cal ? ' · ' + cal.name : ''));
           }, 900);
         });
         host.appendChild(btn);
@@ -338,6 +456,24 @@
             UI.toast(t('aiTestOk'));
           }, 800);
         });
+        const detect = U.el('button', { class: 'btn ghost', text: t('detectModels'), 'data-testid': 'ai-detect' });
+        detect.addEventListener('click', () => {
+          detect.disabled = true; detect.textContent = t('loading');
+          setTimeout(() => {
+            detect.disabled = false; detect.textContent = t('detectModels');
+            model.value = 'gpt-4o-mini';
+            UI.toast(t('aiTestOk'));
+          }, 700);
+        });
+        const remove = U.el('button', { class: 'btn danger-ghost', text: t('removeConfig'), 'data-testid': 'ai-remove' });
+        remove.addEventListener('click', () => {
+          UI.confirm({ title: t('removeConfig'), message: t('aiNoKey'), danger: true, confirmText: t('remove') }).then((ok) => {
+            if (!ok) return;
+            S.state.ai.configured = false;
+            close(null);
+            App.render();
+          });
+        });
         const save = U.el('button', { class: 'btn primary', text: t('save') });
         save.addEventListener('click', () => {
           S.state.ai.model = model.value;
@@ -348,7 +484,7 @@
           UI.toast(t('savedToast'));
         });
         const acts = U.el('div', { class: 'input-row', style: 'margin-top:8px' });
-        acts.appendChild(test); acts.appendChild(save);
+        acts.appendChild(test); acts.appendChild(detect); acts.appendChild(remove); acts.appendChild(save);
         box.appendChild(acts);
         host.appendChild(box);
       },

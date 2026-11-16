@@ -66,6 +66,41 @@
         row.innerHTML = `<span class="row-time">09:30</span><span class="row-leading">${ICON('flag', 14)}</span><span class="row-main"><span class="row-title">${U.esc(long)}</span><span class="row-meta">${U.esc(t('deadline'))} · ${U.esc(t('overdue'))}</span></span><span class="row-tail">${ICON('chevronForward', 13)}</span>`;
         content.appendChild(row);
 
+        content.appendChild(UI.sectionHead(S.state.lang === 'zh' ? '写入失败与重试' : 'Failed writes & retry'));
+        const failRow = U.el('div', { class: 'chip-row' });
+        [
+          ['save-fail', S.state.lang === 'zh' ? '下一次保存失败' : 'Fail next save', () => { S.state.simulateSaveFailure = true; UI.toast(S.state.lang === 'zh' ? '已布置：打开任一编辑器保存一次' : 'Armed: save once in any editor'); }],
+          ['detail-fail', S.state.lang === 'zh' ? '下一次详情写入失败' : 'Fail next inline edit', () => { S.state.simulateDetailFailure = true; UI.toast(S.state.lang === 'zh' ? '已布置：在待办详情里改一次' : 'Armed: change one field in a to-do detail'); }],
+          ['slot-fail', S.state.lang === 'zh' ? '可安排列表加载失败' : 'Fail schedulable list', () => { S.state.simulateSlotFailure = true; UI.toast(S.state.lang === 'zh' ? '已布置：在日历空白时段点「安排待办」' : 'Armed: choose Schedule to-do from a calendar slot'); }],
+          ['account-fail', S.state.lang === 'zh' ? '账户加载失败' : 'Fail account load', () => {
+            S.state.account = { signedIn: true, email: 'you@example.com', server: 'https://nas.local:8080', lastSync: U.now(), phase: 'idle', rejected: [], loadError: true };
+            App.go('settings', { section: 'account' });
+          }],
+        ].forEach(([id, label, action]) => {
+          const b = U.el('button', { class: 'chip-btn', text: label, 'data-testid': 'arm-' + id });
+          b.addEventListener('click', action);
+          failRow.appendChild(b);
+        });
+        content.appendChild(failRow);
+        content.appendChild(U.el('div', { class: 'field-hint', text: S.state.lang === 'zh' ? '重试按钮就在失败发生的位置；没有假装保存成功。' : 'The retry sits where the failure happened; nothing pretends the write landed.' }));
+
+        content.appendChild(UI.sectionHead(t('notifySim')));
+        const due = S.pendingTodos().find((x) => x.dueDate);
+        const note2 = U.el('div', { class: 'card' });
+        note2.innerHTML = `<div class="ct">${ICON('bell', 13)} ${U.esc(due ? due.summary : t('nothingHere'))}</div><div class="cs">${U.esc(S.state.lang === 'zh' ? '通知栏上的两个操作，行为与 App 内一致。' : 'The two notification actions behave exactly as they do in-app.')}</div>`;
+        const acts = U.el('div', { class: 'chip-row', style: 'margin-top:8px' });
+        const mark = U.el('button', { class: 'chip-btn on', text: t('notifyMarkDone'), 'data-testid': 'notify-complete' });
+        mark.addEventListener('click', () => {
+          if (!due) { UI.toast(t('nothingHere'), { warn: true }); return; }
+          window.TodoOps.complete(due);
+          UI.toast(t('completedToast', { t: due.summary }));
+        });
+        const snooze = U.el('button', { class: 'chip-btn', text: t('notifySnooze'), 'data-testid': 'notify-snooze' });
+        snooze.addEventListener('click', () => UI.toast(t('notifySnooze')));
+        acts.appendChild(mark); acts.appendChild(snooze);
+        note2.appendChild(acts);
+        content.appendChild(note2);
+
         content.appendChild(UI.sectionHead(S.state.lang === 'zh' ? '提示条' : 'Toasts'));
         const btns = U.el('div', { class: 'chip-row' });
         const b3 = U.el('button', { class: 'chip-btn', text: S.state.lang === 'zh' ? '带撤销' : 'With undo' });

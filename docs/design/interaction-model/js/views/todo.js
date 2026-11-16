@@ -19,9 +19,19 @@
   }
 
   function tagMatches(todo) {
+    // One filter model, three axes: calendar, tag (OR within tags) and priority.
+    // Hide-completed stays a display switch, not a filter condition.
+    if (S.state.filterCalendarId && todo.calendarId !== S.state.filterCalendarId) return false;
+    if (S.state.filterPriority !== null && S.state.filterPriority !== undefined && todo.priority !== S.state.filterPriority) return false;
     const sel = S.state.selectedTagIds;
     if (!sel.length) return true;
     return todo.tagIds.some((id) => sel.includes(id));
+  }
+
+  function activeFilterCount() {
+    return (S.state.filterCalendarId ? 1 : 0)
+      + (S.state.filterPriority !== null && S.state.filterPriority !== undefined ? 1 : 0)
+      + S.state.selectedTagIds.length;
   }
 
   function openTodo(todo) {
@@ -57,7 +67,7 @@
       if (o.ordinal !== undefined && o.ordinal !== null) {
         rowNode.appendChild(U.el('span', { class: 'ordinal', text: String(o.ordinal + 1) }));
       }
-      rowNode.appendChild(UI.checkbox(o.done, () => toggle(todo), t('markComplete')));
+      rowNode.appendChild(UI.checkbox(o.done, () => toggle(todo, o), t('markComplete')));
     }
 
     const main = U.el('div', { class: 'main' });
@@ -104,7 +114,7 @@
       wrap.classList.add('md-selected');
     }
     if (!multi.active && !o.done) attachReorder(wrap, rowNode, todo);
-    attachSwipe(wrap, rowNode, todo);
+    attachSwipe(wrap, rowNode, todo, o);
     wrap.appendChild(rowNode);
     return wrap;
   }
@@ -168,7 +178,20 @@
     });
   }
 
-  function toggle(todo) { window.TodoOps.complete(todo); }
+  function toggle(todo, opts) {
+    // On a browsed day the row is that day's occurrence, not today's. Resolving
+    // "today" here ticked the wrong instance and left the visible row untouched.
+    if (todo.recurrence) {
+      const day = (opts && opts.day) || U.startOfDay(U.now());
+      if (!S.matchesRule(todo, day)) {
+        UI.toast(t('recurrenceNeedsOccurrence'), { warn: true });
+        return;
+      }
+      window.TodoOps.complete(todo, S.occurrenceIdFor(todo, day));
+      return;
+    }
+    window.TodoOps.complete(todo);
+  }
 
   function openRowMenu(anchor, todo) {
     const items = [
@@ -228,7 +251,7 @@
     UI.modal({ title: t('tags'), body });
   }
 
-  function attachSwipe(wrap, rowNode, todo) {
+  function attachSwipe(wrap, rowNode, todo, opts) {
     let startX = 0, startY = 0, dx = 0, active = false, decided = false, horizontal = false;
     rowNode.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse') return;
@@ -265,7 +288,7 @@
         }, 120);
       } else if (commit && dx >= 80) {
         rowNode.style.transform = '';
-        toggle(todo);
+        toggle(todo, opts);
       } else {
         rowNode.style.transform = '';
       }
@@ -369,6 +392,20 @@
     return bar;
   }
 
+  function visibleForPane() {
+    const v = view();
+    const done = S.state.hideCompleted ? [] : S.completedTodos();
+    if (v.kind === 'day') {
+      const g = S.todosForDay(v.day);
+      return new Set(g.overdue.concat(g.dated, S.state.hideCompleted ? [] : g.done).filter(tagMatches).map((t) => t.id));
+    }
+    if (v.kind === 'inbox') {
+      const extra = done.filter((t) => !t.dueDate && !t.parentId);
+      return new Set(S.inboxTodos().concat(extra).filter(tagMatches).map((t) => t.id));
+    }
+    return new Set(S.pendingTodos().concat(done).filter(tagMatches).map((t) => t.id));
+  }
+
   function currentList() {
     const v = view();
     if (v.kind === 'all') return S.pendingTodos().filter(tagMatches);
@@ -456,10 +493,105 @@
     });
   }
 
+  // Filtering has three axes in v0.34.0 (calendar, tag, priority) plus the
+  // display switch for completed work. A tag-only chip strip looked like the
+  // whole feature and silently hid the other two.
+  function filterSheet() {
+    let cal = S.state.filterCalendarId || null;
+    let prio = S.state.filterPriority === undefined ? null : S.state.filterPriority;
+    let tags = S.state.selectedTagIds.slice();
+    let hide = !!S.state.hideCompleted;
+    UI.sheet({
+      title: t('filter'),
+      body(host, close) {
+        function draw() {
+          host.innerHTML = '';
+          const box = U.el('div', { class: 'picker', 'data-testid': 'filter-sheet' });
+          host.appendChild(box);
+
+          function groupLabel(text) {
+            box.appendChild(U.el('div', { class: 'field-label', text }));
+          }
+          function chipRow() { const r = U.el('div', { class: 'chip-row' }); box.appendChild(r); return r; }
+          function chip(parent, label, on, onClick, testid) {
+            const b = U.el('button', { class: 'chip-btn' + (on ? ' on' : ''), text: label });
+            if (testid) b.dataset.testid = testid;
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            b.addEventListener('click', onClick);
+            parent.appendChild(b);
+            return b;
+          }
+
+          groupLabel(t('filterCalendar'));
+          const calRow = chipRow();
+          chip(calRow, t('filterAny'), !cal, () => { cal = null; draw(); }, 'filter-any-calendar');
+          S.state.calendars.forEach((c) => {
+            const b = chip(calRow, c.name, cal === c.id, () => { cal = c.id; draw(); }, 'filter-calendar-' + c.id);
+            b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${U.esc(c.name)}`;
+          });
+
+          groupLabel(t('filterPriority'));
+          const prioRow = chipRow();
+          chip(prioRow, t('filterAny'), prio === null, () => { prio = null; draw(); }, 'filter-any-priority');
+          [[0, t('noPriority')], [1, t('low')], [5, t('medium')], [9, t('high')]].forEach(([v, label]) => {
+            chip(prioRow, label, prio === v, () => { prio = v; draw(); }, 'filter-priority-' + v);
+          });
+
+          groupLabel(t('filterTag'));
+          const tagRow = chipRow();
+          if (!S.state.tags.length) tagRow.appendChild(U.el('span', { class: 'tiny muted', text: t('none') }));
+          S.state.tags.forEach((tag) => {
+            const on = tags.includes(tag.id);
+            const b = chip(tagRow, tag.name, on, () => {
+              tags = on ? tags.filter((x) => x !== tag.id) : tags.concat(tag.id);
+              draw();
+            }, 'filter-tag-' + tag.id);
+            b.innerHTML = `<span class="dot" style="background:${tag.color}"></span>${U.esc(tag.name)}`;
+          });
+
+          const swRow = U.el('div', { class: 'setting-row', style: 'border:0;padding:8px 0' });
+          const sw = U.el('button', { class: 'switch' + (hide ? ' on' : ''), role: 'switch', 'aria-checked': hide ? 'true' : 'false', 'aria-label': t('hideCompleted'), 'data-testid': 'filter-hide-done' });
+          sw.addEventListener('click', () => { hide = !hide; draw(); });
+          swRow.innerHTML = `<span class="body"><span class="t">${U.esc(t('hideCompleted'))}</span><span class="s">${U.esc(t('hideCompletedDesc'))}</span></span>`;
+          swRow.appendChild(sw);
+          box.appendChild(swRow);
+
+          const acts = U.el('div', { class: 'input-row' });
+          const clear = U.el('button', { class: 'btn ghost', text: t('filterClear'), 'data-testid': 'filter-clear' });
+          clear.addEventListener('click', () => {
+            cal = null; prio = null; tags = []; hide = false;
+            S.state.filterCalendarId = null; S.state.filterPriority = null;
+            S.state.selectedTagIds = []; S.state.hideCompleted = false;
+            close(null); App.render();
+          });
+          const apply = U.el('button', { class: 'btn primary', text: t('confirm'), 'data-testid': 'filter-apply' });
+          apply.addEventListener('click', () => {
+            S.state.filterCalendarId = cal;
+            S.state.filterPriority = prio;
+            S.state.selectedTagIds = tags;
+            S.state.hideCompleted = hide;
+            S.savePrefs();
+            close(null);
+            App.render();
+          });
+          acts.appendChild(clear); acts.appendChild(apply);
+          box.appendChild(acts);
+        }
+        draw();
+      },
+    });
+  }
+
   function renderTodos() {
     const v = view();
     const today = U.startOfDay(U.now());
     const day = v.kind === 'day' ? v.day : null;
+    // A filter or an edit can move the selected record out of the list. Keeping
+    // its detail in the pane would show a record the list no longer contains.
+    if (S.state.paneSelection && S.state.paneSelection.type === 'todo') {
+      const visible = visibleForPane();
+      if (!visible.has(Number(S.state.paneSelection.id))) S.state.paneSelection = null;
+    }
     // Create sits in the header on every platform (CORE_UX_SPEC 1.2: no FAB).
     // On a phone it drops the label; the action itself never moves.
     const actions = [];
@@ -470,16 +602,15 @@
     actions.push(add);
     const tagsBtn = UI.iconButton('tag', t('navTags'), () => App.go('tags'));
     const trashBtn = UI.iconButton('trash', t('navTrash'), () => App.go('trash'));
-    const filterBtn = UI.iconButton('filter', t('filterAndDisplay'), (ev) => {
+    const filterBtn = UI.iconButton('filter', t('filter'), (ev) => {
       ev.stopPropagation();
-      UI.menu(ev.currentTarget, [
-        {
-          icon: S.state.hideCompleted ? 'eye' : 'checkSquare',
-          text: S.state.hideCompleted ? t('showCompleted') : t('hideCompleted'),
-          action: () => { S.state.hideCompleted = !S.state.hideCompleted; S.savePrefs(); App.render(); },
-        },
-      ]);
+      filterSheet();
     }, { testid: 'todos-filter' });
+    const count = activeFilterCount();
+    if (count) {
+      filterBtn.classList.add('active');
+      filterBtn.innerHTML += `<span class="filter-count">${count}</span>`;
+    }
     actions.push(filterBtn, tagsBtn, trashBtn);
 
     // In a day view the subtitle is the only control that can reach a far date,
@@ -487,7 +618,8 @@
     let subtitleNode = null;
     if (day) {
       subtitleNode = U.el('button', { class: 'page-sub-btn', 'data-testid': 'todos-date-picker' });
-      subtitleNode.innerHTML = `${U.esc(U.fmtMonthDay(day))} · ${U.esc(U.fmtWeekdayLong(day))}` + ICON('chevronDown', 12);
+      const yearPart = day.getFullYear() === new Date().getFullYear() ? '' : day.getFullYear() + (S.state.lang === 'zh' ? '年' : ' ');
+      subtitleNode.innerHTML = `${U.esc(yearPart + U.fmtMonthDay(day))} · ${U.esc(U.fmtWeekdayLong(day))}` + ICON('chevronDown', 12);
       subtitleNode.addEventListener('click', (ev) => { ev.stopPropagation(); datePicker(day); });
     }
 
@@ -545,29 +677,58 @@
 
     if (v.kind === 'day') root.appendChild(weekStrip(day));
 
-    if (S.state.tags.length) {
-      const tagBar = U.el('div', { class: 'chips-scroll' });
+    if (S.state.tags.length || activeFilterCount()) {
+      // The sheet is where filtering happens; this row only reports what is on
+      // and offers one-tap clearing, so the list never hides items silently.
+      const tagBar = U.el('div', { class: 'chips-scroll', 'data-testid': 'active-filters' });
       tagBar.style.paddingBottom = '6px';
-      S.state.tags.forEach((tag) => {
-        const on = S.state.selectedTagIds.includes(tag.id);
-        const b = U.el('button', { class: 'chip-btn' + (on ? ' on' : '') });
+      if (S.state.filterCalendarId) {
+        const cal = S.calendarById(S.state.filterCalendarId);
+        const b = U.el('button', { class: 'chip-btn on' });
+        b.innerHTML = `<span class="dot" style="background:${cal ? cal.color : 'var(--accent)'}"></span>${U.esc(cal ? cal.name : '')}`;
+        b.addEventListener('click', () => { S.state.filterCalendarId = null; App.render(); });
+        tagBar.appendChild(b);
+      }
+      if (S.state.filterPriority !== null && S.state.filterPriority !== undefined) {
+        const labels = { 0: t('noPriority'), 1: t('low'), 5: t('medium'), 9: t('high') };
+        const b = U.el('button', { class: 'chip-btn on', text: labels[S.state.filterPriority] || '' });
+        b.addEventListener('click', () => { S.state.filterPriority = null; App.render(); });
+        tagBar.appendChild(b);
+      }
+      S.state.selectedTagIds.forEach((id) => {
+        const tag = S.tagById(id);
+        if (!tag) return;
+        const b = U.el('button', { class: 'chip-btn on' });
         b.innerHTML = `<span class="dot" style="background:${tag.color}"></span>${U.esc(tag.name)}`;
-        b.setAttribute('aria-pressed', on ? 'true' : 'false');
         b.addEventListener('click', () => {
-          S.state.selectedTagIds = on ? S.state.selectedTagIds.filter((x) => x !== tag.id) : S.state.selectedTagIds.concat(tag.id);
+          S.state.selectedTagIds = S.state.selectedTagIds.filter((x) => x !== id);
           App.render();
         });
         tagBar.appendChild(b);
       });
-      if (S.state.selectedTagIds.length) {
-        const clear = U.el('button', { class: 'chip-btn', text: t('clear') });
-        clear.addEventListener('click', () => { S.state.selectedTagIds = []; App.render(); });
+      if (activeFilterCount()) {
+        const clear = U.el('button', { class: 'chip-btn', text: t('filterClear') });
+        clear.addEventListener('click', () => {
+          S.state.filterCalendarId = null;
+          S.state.filterPriority = null;
+          S.state.selectedTagIds = [];
+          App.render();
+        });
         tagBar.appendChild(clear);
+      } else {
+        tagBar.appendChild(U.el('span', { class: 'tiny muted', text: t('filter') }));
       }
       root.appendChild(tagBar);
     }
 
     if (multi.active) root.appendChild(selectBar());
+
+    if (v.kind === 'day') {
+      const plan = U.el('button', { class: 'plan-bar', 'data-testid': 'plan-day' });
+      plan.innerHTML = `${ICON('clockPlus', 15)}<span>${U.esc(t('planThisDay'))}</span><span class="tiny muted">${U.esc(t('planThisDayHint'))}</span>`;
+      plan.addEventListener('click', () => App.openComposer('todo', { planDate: day, focus: 'title' }));
+      root.appendChild(plan);
+    }
 
     const add = quickAdd(v.kind === 'day' ? U.fmtMonthDay(day) : (v.kind === 'inbox' ? t('inbox') : null), (text) => {
       const todo = S.createTodo({ summary: text, dueDate: v.kind === 'day' ? U.startOfDay(day) : null });
@@ -594,9 +755,20 @@
   function buildPane(sel) {
     const host = U.el('div', { class: 'pane-body', 'data-testid': 'detail-pane-body' });
 
+    const rec = sel.type === 'event' ? S.eventById(sel.id) : S.todoById(sel.id);
+    if (!rec) {
+      const head = U.el('div', { class: 'detail-head', style: 'justify-content:flex-end' });
+      const btn = U.el('button', { class: 'btn ghost sm md-close', 'data-testid': 'pane-close' });
+      btn.innerHTML = ICON('x', 13) + `<span>${U.esc(t('close'))}</span>`;
+      btn.addEventListener('click', () => S.clearPane());
+      head.appendChild(btn);
+      host.appendChild(head);
+      host.appendChild(UI.emptyState('alert', t('nothingHere'), t('errorBody')));
+      return host;
+    }
     let body;
     if (sel.type === 'event') body = window.__detail.eventDetail(sel.id, sel.occurrence);
-    else body = window.__detail.todoDetail(S.todoById(sel.id));
+    else body = window.__detail.todoDetail(rec);
 
     const isDetail = body && body.classList && body.classList.contains('detail');
     const head = isDetail ? body.querySelector('.detail-head') : null;
@@ -639,18 +811,18 @@
     }
     if (overdue.length) {
       list.appendChild(UI.sectionHead(t('overdueSection'), overdue.length, { tone: 'danger' }));
-      overdue.forEach((todo) => list.appendChild(todoTile(todo)));
+      overdue.forEach((todo) => list.appendChild(todoTile(todo, { day })));
     }
     if (dated.length) {
       list.appendChild(UI.sectionHead(isToday ? t('today') : U.fmtMonthDay(day), dated.length, { tone: 'accent' }));
-      dated.forEach((todo) => list.appendChild(todoTile(todo)));
+      dated.forEach((todo) => list.appendChild(todoTile(todo, { day })));
     }
     if ((done.length || doneInstances.length) && !S.state.hideCompleted) {
       list.appendChild(UI.sectionHead(t('completedSection'), done.length + doneInstances.length));
-      done.forEach((todo) => list.appendChild(todoTile(todo, { done: true })));
+      done.forEach((todo) => list.appendChild(todoTile(todo, { done: true, day })));
       // A ticked occurrence of a repeating to-do belongs here too: the series
       // stays open, but this day's instance is finished.
-      doneInstances.forEach((x) => list.appendChild(todoTile(x.todo, { done: true })));
+      doneInstances.forEach((x) => list.appendChild(todoTile(x.todo, { done: true, day })));
     }
   }
 

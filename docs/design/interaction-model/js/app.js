@@ -93,6 +93,7 @@
     const n = S.state.route.name;
     if (n === 'search') return 'search';
     if (n === 'chat') return 'chat';
+    if (n === 'quickadd') return 'quickadd';
     if (n === 'composer') return S.state.composer && S.state.composer.kind === 'event' ? 'calendar' : (S.state.tab || 'action');
     if (n === 'detail') return S.state.tab || 'action';
     if (n === 'action' || n === 'calendar' || n === 'todos') return n;
@@ -153,6 +154,7 @@
 
     const tools = U.el('div', { class: 'rail-nav' });
     [
+      { key: 'quickadd', icon: 'bolt', label: t('quickAdd') },
       { key: 'search', icon: 'search', label: t('navSearch') },
       { key: 'chat', icon: 'sparkles', label: t('navAi') },
       { key: 'tags', icon: 'tag', label: t('navTags') },
@@ -198,6 +200,7 @@
     more.addEventListener('click', (ev) => {
       ev.stopPropagation();
       UI.menu(more, [
+        { icon: 'bolt', text: t('quickAdd'), action: () => go('quickadd') },
         { icon: 'search', text: t('navSearch'), action: () => go('search') },
         { icon: 'sparkles', text: t('navAi'), action: () => go('chat') },
         { icon: 'tag', text: t('navTags'), action: () => go('tags') },
@@ -219,6 +222,7 @@
   function go(name, params) {
     UI.closeMenu();
     guarded(() => {
+      if (name !== 'todos') S.state.paneSelection = null;
       if (name === 'action' || name === 'calendar' || name === 'todos') {
         S.state.tab = name;
         S.state.route = { name, params: params || {} };
@@ -243,6 +247,9 @@
     const typing = el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
     if (e.key === 'Escape') {
       if (UI.closeTop()) { e.preventDefault(); return; }
+      // Menus are not modal layers, but Escape must still close one before it
+      // means "leave this page".
+      if (document.querySelector('.menu')) { UI.closeMenu(); e.preventDefault(); return; }
       if (S.state.menu) { UI.closeMenu(); return; }
       if (Registry.escapeHandler) { e.preventDefault(); Registry.escapeHandler(); return; }
       if (S.state.paneSelection && paneOpenHere()) { e.preventDefault(); S.clearPane(); return; }
@@ -257,6 +264,7 @@
     // Shortcuts must not mutate the page behind an open sheet or dialog.
     if (UI.hasOpenLayer()) return;
     if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openComposer('todo'); return; }
+    if (e.key === 'q' || e.key === 'Q') { e.preventDefault(); go('quickadd'); return; }
     if (e.key === '/') { e.preventDefault(); go('search'); return; }
     if (e.key === 't' || e.key === 'T') { e.preventDefault(); jumpToday(); return; }
     if (e.key === '?') { e.preventDefault(); showShortcuts(); return; }
@@ -298,6 +306,9 @@
   }
 
   function openComposer(kind, opts) {
+    // A fresh editor never inherits the previous draft, even if the route
+    // parameters happen to be identical.
+    S.state.composerDraft = null;
     S.state.composer = Object.assign({ kind: kind || 'todo', mode: 'create' }, opts || {});
     S.navigate('composer', {});
   }
@@ -332,7 +343,7 @@
         } else {
           // Back closes the detail pane before it leaves the page: the pane is
           // the most recent thing the user opened.
-          if (S.state.paneSelection && paneOpenHere()) S.state.paneSelection = null;
+          if (S.state.paneSelection && paneOpenHere()) { S.state.paneSelection = null; App.render(); }
           else back();
           try { history.pushState({ ds: true }, ''); } catch (_) {}
         }
@@ -344,6 +355,19 @@
       render();
       window.__READY__ = true;
     }, 80);
+    rollTodayAtMidnight();
+  }
+
+  // Today is the clock, never a stored day: even an idle tab rolls its own
+  // date when the clock crosses midnight.
+  function rollTodayAtMidnight() {
+    const now = U.now();
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+    setTimeout(() => {
+      S.state.actionDate = U.startOfDay(U.now());
+      App.render();
+      rollTodayAtMidnight();
+    }, Math.max(1000, next - now));
   }
 
   Registry.render = render;

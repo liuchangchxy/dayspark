@@ -10,6 +10,7 @@
 
   const state = {
     lang: 'zh',
+    langPref: 'zh',
     theme: 'light',
     accent: 'blue',
     tab: 'action',
@@ -702,6 +703,7 @@
     if (t.deletedAt) return t;
     t.deletedAt = U.now();
     subtasksOf(id).forEach((s) => { s.deletedAt = t.deletedAt; });
+    dropPaneIfGone();
     touch(t);
     emit('todo:delete');
     return t;
@@ -712,6 +714,7 @@
     if (!e) return null;
     e.deletedAt = U.now();
     e.updatedAt = U.now();
+    dropPaneIfGone();
     emit('event:delete');
     return e;
   }
@@ -760,6 +763,7 @@
   function purgeTodo(id) {
     const t = todoById(id);
     if (!t) return null;
+    if (state.paneSelection && state.paneSelection.type === 'todo' && Number(state.paneSelection.id) === Number(id)) state.paneSelection = null;
     // Purging a parent purges its subtasks too. Leaving them behind stranded
     // rows in Trash that could never be restored (their parent is gone).
     // subtasksOf only sees live rows, and a soft-deleted parent's children are
@@ -774,12 +778,14 @@
   function purgeEvent(id) {
     const e = eventById(id);
     if (!e) return null;
+    if (state.paneSelection && state.paneSelection.type === 'event' && Number(state.paneSelection.id) === Number(id)) state.paneSelection = null;
     state.events = state.events.filter((x) => x.id !== id);
     emit('event:purge');
     return e;
   }
 
   function emptyTrash() {
+    state.paneSelection = null;
     const ids = state.todos.filter((t) => t.deletedAt).map((t) => t.id);
     const eids = state.events.filter((e) => e.deletedAt).map((e) => e.id);
     ids.forEach(purgeTodo);
@@ -856,14 +862,21 @@
   }
 
   function setLang(lang) {
-    state.lang = lang;
-    I18N.setLang(lang);
+    state.langPref = lang === 'system' ? 'system' : lang;
+    state.lang = lang === 'system' ? (String(navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en') : lang;
+    I18N.setLang(state.lang);
     savePrefs();
     emit('lang');
   }
 
   function applyTheme() {
-    document.documentElement.dataset.theme = state.theme;
+    // "System" is resolved only when painting: the preference stays "system"
+    // so a later OS change follows without rewriting the setting.
+    let theme = state.theme;
+    if (theme === 'system') {
+      theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.accent = state.accent;
   }
 
@@ -871,7 +884,7 @@
   // survives one, so the few settings that are launch or shell choices persist;
   // nothing else does, because the prototype's data is in memory only.
   const PREFS_KEY = 'dayspark.g0.prefs';
-  const PREF_KEYS = ['lang', 'theme', 'accent', 'defaultTab', 'showLunar', 'hideCompleted', 'weekStartsOn', 'notificationsEnabled', 'exactAlarm'];
+  const PREF_KEYS = ['lang', 'langPref', 'theme', 'accent', 'defaultTab', 'showLunar', 'hideCompleted', 'weekStartsOn', 'notificationsEnabled', 'exactAlarm'];
   function savePrefs() {
     try {
       const out = {};
@@ -898,6 +911,9 @@
   // ---------- history (in-app navigation) ----------
   function navigate(name, params, opts) {
     if (!opts || !opts.replace) state.history.push({ name: state.route.name, params: state.route.params });
+    // The pane belongs to the Todo list. Any other destination (including a
+    // tool such as Search or Settings) retires it.
+    if (name !== 'todos') state.paneSelection = null;
     state.route = { name, params: params || {} };
     state.menu = null;
     if (window.UI) { window.UI.closeAll(); window.UI.closeMenu(); window.UI.hideToast(); }
@@ -939,6 +955,13 @@
     if (!state.paneSelection) return;
     state.paneSelection = null;
     emit('select');
+  }
+  // A pane may only show a record that still exists and is not in the trash.
+  function dropPaneIfGone() {
+    const sel = state.paneSelection;
+    if (!sel) return;
+    const rec = sel.type === 'event' ? eventById(sel.id) : todoById(sel.id);
+    if (!rec || rec.deletedAt) state.paneSelection = null;
   }
 
   window.Store = {

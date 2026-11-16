@@ -5,6 +5,13 @@
   const UI = window.UI;
   const t = (k, v) => I18N.t(k, v);
 
+  function lastUserText() {
+    for (let i = S.state.ai.messages.length - 1; i >= 0; i -= 1) {
+      if (S.state.ai.messages[i].role === 'user') return S.state.ai.messages[i].text;
+    }
+    return '';
+  }
+
   function renderChat() {
     const root = U.el('div', { class: 'page' });
     const narrow = U.isNarrow();
@@ -15,6 +22,17 @@
     wrap.appendChild(U.el('h1', { class: 'page-title', text: t('pageChat') }));
     wrap.appendChild(U.el('div', { class: 'page-sub', text: !S.state.ai.enabled ? t('aiDisabled') : (S.state.ai.configured ? t('aiConfigured', { m: S.state.ai.model }) : t('aiNotConfigured')) }));
     head.appendChild(wrap);
+    if (S.state.ai.messages.length) {
+      const clear = UI.iconButton('trash', t('chatClear'), () => {
+        UI.confirm({ title: t('chatClear'), message: t('chatClearBody'), danger: true, confirmText: t('chatClear') }).then((ok) => {
+          if (!ok) return;
+          S.state.ai.messages = [];
+          S.state.ai.pending = false;
+          App.render();
+        });
+      }, { testid: 'chat-clear' });
+      head.appendChild(clear);
+    }
     const cfg = UI.iconButton('settings', t('aiConfig'), () => App.go('settings', { section: 'advanced' }));
     head.appendChild(cfg);
     root.appendChild(head);
@@ -47,18 +65,14 @@
       intro.style.alignSelf = 'stretch';
       intro.innerHTML = `<h2>${U.esc(t('chatEmptyTitle'))}</h2><p>${U.esc(t('chatEmptyHint'))}</p>`;
       scroll.appendChild(intro);
-      const prompts = S.state.lang === 'zh'
-        ? ['今天还剩多少空闲时间？', '把「Q4 预算表」安排到明天上午', '这周有什么截止事项？']
-        : ['How much free time is left today?', 'Schedule “Q4 budget” tomorrow morning', 'What is due this week?'];
-      const box = U.el('div', { class: 'chip-row', style: 'margin-top:4px' });
-      prompts.forEach((p) => {
-        const b = U.el('button', { class: 'chip-btn', text: p });
-        b.addEventListener('click', () => send(p));
-        box.appendChild(b);
-      });
-      scroll.appendChild(box);
+      // One example, not a menu of prompt chips: the user came here with a
+      // question, not to browse a template gallery.
+      const example = U.el('button', { class: 'chip-btn', text: t('chatExample'), 'data-testid': 'chat-example' });
+      example.addEventListener('click', () => send(t('chatExample')));
+      scroll.appendChild(example);
     }
-    S.state.ai.messages.forEach((m) => scroll.appendChild(messageNode(m)));
+    const lastAssistant = S.state.ai.messages.reduce((n, m, i) => (m.role === 'assistant' ? i : n), -1);
+    S.state.ai.messages.forEach((m, i) => scroll.appendChild(messageNode(m, i === lastAssistant)));
     if (S.state.ai.pending) {
       const typing = U.el('div', { class: 'msg assistant' });
       typing.innerHTML = `<div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>`;
@@ -75,6 +89,9 @@
     sendBtn.classList.add('active');
     box.appendChild(sendBtn);
     wrapInput.appendChild(box);
+    // The input is 24px tall by design; the padded container forwards taps.
+    box.addEventListener('click', (e) => { if (e.target === box) ta.focus(); });
+    wrapInput.addEventListener('click', (e) => { if (e.target === wrapInput) ta.focus(); });
     root.appendChild(wrapInput);
 
     ta.addEventListener('input', () => {
@@ -103,7 +120,7 @@
     }
   }
 
-  function messageNode(m) {
+  function messageNode(m, latest) {
     const node = U.el('div', { class: 'msg ' + m.role });
     node.appendChild(U.el('div', { class: 'who', text: m.role === 'user' ? (S.state.lang === 'zh' ? '你' : 'You') : t('aiAssistant') }));
     node.appendChild(U.el('div', { class: 'bubble', text: m.text }));
@@ -119,12 +136,9 @@
         return node;
       }
       const acts = U.el('div', { class: 'ab' });
-      const apply = U.el('button', { class: 'btn primary sm', text: t('aiApply') });
-      apply.dataset.testid = 'ai-apply';
+      const apply = U.el('button', { class: 'btn primary sm', text: t('aiApply'), 'data-testid': 'ai-apply' });
       const reject = U.el('button', { class: 'btn ghost sm', text: t('aiReject') });
       apply.addEventListener('click', () => {
-        // A double-click or a synchronous second dispatch would otherwise run
-        // the write twice. The state check is the guard, not the re-render.
         if (m.proposal.state === 'applied' || m.proposal.state === 'rejected') return;
         m.proposal.state = 'applied';
         m.proposal.run();
@@ -139,8 +153,117 @@
       acts.appendChild(apply); acts.appendChild(reject);
       card.appendChild(acts);
       node.appendChild(card);
+      return node;
+    }
+    if (latest && m.role === 'assistant') {
+      // The latest answer carries the four things a next step can be. Each one
+      // opens a real surface instead of silently writing.
+      const row = U.el('div', { class: 'chat-actions', 'data-testid': 'chat-actions' });
+      [
+        ['calendar', t('chatQuickAddEvent'), () => App.openComposer('event', { summary: (lastUserText() || '').slice(0, 60) })],
+        ['checkSquare', t('chatQuickAddTodo'), () => App.openComposer('todo', { summary: (lastUserText() || '').slice(0, 60) })],
+        ['clockPlus', t('chatQuickSchedule'), () => scheduleSheet()],
+        ['list', t('chatQuickBreakdown'), () => breakdownSheet(lastUserText())],
+      ].forEach(([icon, label, action]) => {
+        const b = U.el('button', { class: 'chip-btn' });
+        b.innerHTML = ICON(icon, 12) + `<span>${U.esc(label)}</span>`;
+        b.dataset.testid = 'chat-action-' + label;
+        b.addEventListener('click', action);
+        row.appendChild(b);
+      });
+      node.appendChild(row);
     }
     return node;
+  }
+
+  function scheduleSheet() {
+    const candidates = S.schedulableTodos();
+    if (!candidates.length) {
+      UI.toast(t('slotEmpty'), { warn: true });
+      return;
+    }
+    UI.sheet({
+      title: t('chatSchedulePick'),
+      body(host, close) {
+        const box = U.el('div', { class: 'picker', 'data-testid': 'chat-schedule' });
+        host.appendChild(box);
+        const todoSel = U.el('select', { class: 'select' });
+        candidates.forEach((todo) => todoSel.appendChild(U.el('option', { value: String(todo.id), text: todo.summary })));
+        box.appendChild(U.el('div', { class: 'field-label', text: t('scheduleExec') }));
+        box.appendChild(todoSel);
+        const start = U.el('input', { class: 'input', type: 'datetime-local' });
+        const now = U.now();
+        const first = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.min(23, now.getHours() + 1), 0);
+        start.value = U.toInputDateTime(first);
+        box.appendChild(U.el('div', { class: 'field-label', text: t('starts') }));
+        box.appendChild(start);
+        const dur = U.el('select', { class: 'select' });
+        [30, 45, 60, 90, 120].forEach((m) => dur.appendChild(U.el('option', {
+          value: String(m),
+          text: m < 60 ? m + (S.state.lang === 'zh' ? ' 分钟' : ' min') : (m / 60) + (S.state.lang === 'zh' ? ' 小时' : ' h'),
+        })));
+        dur.value = '60';
+        box.appendChild(U.el('div', { class: 'field-label', text: t('ends') }));
+        box.appendChild(dur);
+        const apply = U.el('button', { class: 'btn primary', text: t('confirm'), 'data-testid': 'chat-schedule-apply' });
+        apply.addEventListener('click', () => {
+          const s = U.fromInputDateTime(start.value);
+          if (!s) return;
+          const todoId = Number(todoSel.value);
+          S.createAllocation({ todoId, startAt: s, endAt: U.addMinutes(s, parseInt(dur.value, 10)) });
+          close(null);
+          App.render();
+          UI.toast(t('aiApplied'));
+        });
+        box.appendChild(apply);
+      },
+    });
+  }
+
+  function breakdownSheet(text) {
+    const candidates = S.pendingTodos();
+    if (!candidates.length) {
+      UI.toast(t('chatBreakdownEmpty'), { warn: true });
+      return;
+    }
+    const matched = candidates.find((x) => text && (text.includes(x.summary) || x.summary.includes(text.slice(0, 4))));
+    const target = matched || candidates[0];
+    const parts = [
+      S.state.lang === 'zh' ? '收集资料' : 'Gather material',
+      S.state.lang === 'zh' ? '完成初稿' : 'Draft the first pass',
+      S.state.lang === 'zh' ? '检查并收尾' : 'Review and finish',
+    ];
+    UI.sheet({
+      title: t('chatBreakdownTitle'),
+      subtitle: target.summary,
+      body(host, close) {
+        const box = U.el('div', { class: 'picker', 'data-testid': 'chat-breakdown' });
+        host.appendChild(box);
+        const checks = [];
+        parts.forEach((label, i) => {
+          const row = U.el('label', { class: 'list-row' });
+          const cb = U.el('input', { type: 'checkbox', checked: 'checked' });
+          cb.dataset.testid = 'chat-breakdown-item';
+          checks.push(cb);
+          row.appendChild(cb);
+          row.appendChild(U.el('span', { class: 'main', html: `<span class="t">${U.esc(label)}</span>` }));
+          box.appendChild(row);
+        });
+        const apply = U.el('button', { class: 'btn primary', text: t('aiApply'), 'data-testid': 'chat-breakdown-apply' });
+        apply.addEventListener('click', () => {
+          let n = 0;
+          checks.forEach((cb, i) => {
+            if (!cb.checked) return;
+            S.createTodo({ summary: parts[i], parentId: target.id });
+            n += 1;
+          });
+          close(null);
+          App.render();
+          UI.toast(t('chatBreakdownApplied', { n }));
+        });
+        box.appendChild(apply);
+      },
+    });
   }
 
   function replyFor(q) {
@@ -157,9 +280,6 @@
         : `Between 08:00 and 20:00 today you have ${Math.floor(busy / 60)}h ${busy % 60}m booked, leaving about ${h}h ${m}m free.` };
     }
     if (/安排|schedule|排到/.test(lower)) {
-      // Act on the to-do the user named. Falling back to "the first open one"
-      // meant the proposal card could describe a different task than the one
-      // asked about, and applying it wrote to that other task.
       const named = S.liveTodos().find((x) => {
         const name = x.summary.toLowerCase();
         return lower.includes(name) || lower.includes(x.summary);
