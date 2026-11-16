@@ -916,6 +916,429 @@ scenario('R12-35 calendar delete undo restores a cross-calendar subtask', async 
   await page.__ctx.close();
 });
 
+/* A-R4-1 — a re-render while the discard dialog is open changes nothing */
+scenario('R12-36 a resize during the discard question asks once and keeps a kept draft', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'action');
+  await page.keyboard.press('n');
+  await settle(page, 250);
+  await page.fill('[data-testid="composer-title"]', '重绘草稿');
+  await page.evaluate(() => document.activeElement.blur());
+  await page.goBack();
+  await settle(page, 250);
+  await page.setViewportSize({ width: 1320, height: 900 });
+  await settle(page, 250);
+  await clickText(page, 'button', '继续编辑');
+  await settle(page, 300);
+  const kept = await page.evaluate(() => ({
+    route: window.Store.state.route.name,
+    value: (document.querySelector('[data-testid="composer-title"]') || {}).value,
+    dialogs: Array.from(document.querySelectorAll('button')).filter((b) => b.textContent.trim() === '放弃').length,
+  }));
+  assertEq(kept.route, 'composer', '继续编辑 must stay on the composer');
+  assertEq(kept.dialogs, 0, 'the question must not be re-asked by the re-render');
+  assertEq(kept.value, '重绘草稿', '继续编辑 must keep the draft after a re-render');
+
+  await page.evaluate(() => document.activeElement.blur());
+  await page.goBack();
+  await settle(page, 250);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await settle(page, 250);
+  await clickText(page, 'button', '放弃');
+  await settle(page, 400);
+  const left = await page.evaluate(() => ({
+    route: window.Store.state.route.name,
+    dialogs: Array.from(document.querySelectorAll('button')).filter((b) => b.textContent.trim() === '放弃').length,
+  }));
+  assertEq(left.dialogs, 0, 'one discard must leave without a second question');
+  assertEq(left.route, 'action', 'one discard must complete the Back');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R4-1 — feedback reports the tab it really opened */
+scenario('R12-37 feedback submit reports success when the tab opens', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'feedback');
+  await settle(page, 250);
+  await page.fill('[data-testid="feedback-text"]', '反馈内容');
+  const popupPromise = page.waitForEvent('popup', { timeout: 4000 }).catch(() => null);
+  await clickTestId(page, 'feedback-submit');
+  const popup = await popupPromise;
+  assert(popup, 'the submit must open a real tab');
+  await settle(page, 300);
+  const toast = await toastText(page);
+  assert(/已在新标签页打开|Opened GitHub/i.test(toast), 'a tab that opened must not be reported as blocked or failed: ' + toast);
+  await page.__ctx.close();
+});
+
+/* G-R4-2 — a deletion never moves an older deletion stamp forward */
+scenario('R12-38 deleting a trashed event keeps its original stamp', async (browser) => {
+  const page = await newPage(browser);
+  const out = await page.evaluate(() => {
+    const e = window.Store.state.events.find((x) => x.summary === '已取消的访谈');
+    const before = e.deletedAt;
+    window.Store.softDeleteEvent(e.id);
+    const afterSecond = window.Store.eventById(e.id).deletedAt;
+    const cal = window.Store.state.calendars.find((c) => c.id === e.calendarId);
+    window.Store.deleteCalendar(cal.id, { move: false });
+    const afterCalendar = window.Store.eventById(e.id).deletedAt;
+    return { before, afterSecond, afterCalendar, trashed: !!afterCalendar };
+  });
+  assertEq(out.trashed, true, 'the event stays trashed');
+  assertEq(out.afterSecond, out.before, 'a second delete must not move the first stamp');
+  assertEq(out.afterCalendar, out.before, 'a calendar deletion must not re-stamp a trashed row');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* F-R4-1 — a trashed recurring record has no occurrence controls */
+scenario('R12-39 a trashed recurring todo shows no occurrence list', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const todo = window.Store.createTodo({ summary: '回收站重复', recurrence: { freq: 'daily', interval: 1 } });
+    window.Store.softDeleteTodo(todo.id);
+    window.App.openRecord('todo', todo.id);
+    return todo.id;
+  });
+  await settle(page, 300);
+  const out = await page.evaluate(() => ({
+    occ: document.querySelectorAll('[data-testid="detail-occurrence"]').length,
+    hint: document.body.innerText.includes('每次实例可单独完成'),
+    banner: /回收站|trash/i.test(document.body.innerText),
+  }));
+  assertEq(out.banner, true, 'the trashed banner must render');
+  assertEq(out.occ, 0, 'a trashed record must not render occurrence checkboxes');
+  assertEq(out.hint, false, 'a trashed record must not promise per-occurrence completion');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* F-R4-2 — phone detail text controls are 48px targets */
+scenario('R12-40 phone note and subtask title are 48px targets', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => {
+    const parent = window.Store.createTodo({ summary: '触控父任务', description: '一行备注' });
+    window.Store.createTodo({ summary: '子任务标题', parentId: parent.id });
+    window.App.openRecord('todo', parent.id);
+  });
+  await settle(page, 300);
+  const sizes = await page.evaluate(() => {
+    const note = document.querySelector('.detail-note');
+    const title = document.querySelector('.subtask .title');
+    const box = (el) => { const r = el.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; };
+    return { note: box(note), title: box(title) };
+  });
+  assert(sizes.note.h >= 48, 'the note target must be at least 48px tall: ' + JSON.stringify(sizes.note));
+  assert(sizes.title.h >= 48, 'the subtask title target must be at least 48px tall: ' + JSON.stringify(sizes.title));
+  await page.evaluate(() => document.querySelector('.detail-note').click());
+  await settle(page, 200);
+  assert(await exists(page, 'textarea'), 'tapping the note must still open its editor');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* F-R4-3 — a trashed record describes its active block once, correctly */
+scenario('R12-41 a trashed todo keeps an active block as planned', async (browser) => {
+  const page = await newPage(browser);
+  const out = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const start = new Date(day); start.setHours(9, 0, 0, 0);
+    const todo = window.Store.createTodo({ summary: '回收站计划' });
+    window.Store.createAllocation({ todoId: todo.id, startAt: start, endAt: new Date(start.getTime() + 3600000) });
+    window.Store.softDeleteTodo(todo.id);
+    window.App.openRecord('todo', todo.id);
+    return { id: todo.id };
+  });
+  await settle(page, 300);
+  const text = await page.evaluate(() => document.body.innerText);
+  assert(!/未安排/.test(text), 'a trashed record with an active block must not say 未安排');
+  assert(!/完成时失效|Invalidated/.test(text), 'an active block must not be labelled invalidated');
+  assert(/09:00/.test(text), 'the block itself must be shown: ' + text.slice(0, 200));
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R4-1 — the phone save label wraps instead of widening the page */
+scenario('R12-42 a long save label keeps the phone layout and the sheet reachable', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  const id = await page.evaluate(() => {
+    const todo = window.Store.liveTodos().find((x) => x.dueDate && x.summary.includes('读 20 页'));
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    return todo.id;
+  });
+  await settle(page, 350);
+  const layout = await page.evaluate(() => {
+    const btn = document.querySelector('[data-testid="composer-save"]');
+    const r = btn.getBoundingClientRect();
+    return { vw: window.innerWidth, doc: document.documentElement.scrollWidth, right: r.right, label: btn.textContent };
+  });
+  assert(layout.label.length > 6, 'the label must still name the fields: ' + layout.label);
+  assert(layout.doc <= layout.vw, 'the save label must not widen the page: doc ' + layout.doc + ' vs ' + layout.vw);
+  assert(layout.right <= layout.vw + 1, 'the save button must stay inside the viewport: ' + layout.right);
+  await clickTestId(page, 'composer-schedule');
+  await settle(page, 300);
+  const apply = await page.evaluate(() => {
+    const b = document.querySelector('[data-testid="schedule-apply"]');
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, vh: window.innerHeight };
+  });
+  assert(apply, 'the schedule sheet must render');
+  assert(apply.bottom <= apply.vh && apply.top >= 0, 'the schedule action must be on screen: ' + JSON.stringify(apply));
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R4-2 — removing the repeat and moving the block really moves it */
+scenario('R12-43 a block moves after the repeat is removed', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const todo = window.Store.liveTodos().find((x) => x.recurrence && x.summary.includes('读 20 页'));
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    return todo.id;
+  });
+  await settle(page, 350);
+  await clickTestId(page, 'composer-repeat');
+  await clickText(page, '[data-testid="repeat-option"]', '不重复');
+  await settle(page, 250);
+  await clickTestId(page, 'composer-schedule');
+  await settle(page, 250);
+  const target = await page.evaluate(() => {
+    const d = window.U.addDays(window.U.startOfDay(window.U.now()), 1);
+    d.setHours(9, 0);
+    const s = document.querySelector('[data-testid="schedule-start"]');
+    s.value = window.U.toInputDateTime(d);
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+    return d.getTime();
+  });
+  await clickTestId(page, 'schedule-apply');
+  await settle(page, 250);
+  await clickTestId(page, 'composer-save');
+  await settle(page, 350);
+  const out = await page.evaluate((tid) => {
+    const todo = window.Store.todoById(tid);
+    const live = window.Store.state.allocations.filter((a) => a.todoId === tid && a.state === window.Store.ALLOC.ACTIVE);
+    return {
+      recurrence: !!todo.recurrence,
+      starts: live.map((a) => a.startAt.getTime()),
+      occs: live.map((a) => a.occurrenceId),
+      route: window.Store.state.route.name,
+    };
+  }, id);
+  assertEq(out.recurrence, false, 'the record must no longer repeat');
+  assertEq(out.starts, [target], 'the block must move to the chosen day');
+  assertEq(out.occs, [null], 'a non-repeating block owns no occurrence');
+  assertEq(out.route !== 'composer', true, 'the save must leave the composer');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R4-3 — the rule on screen must reach the block's day */
+scenario('R12-44 a weekly rule refuses a block on a day it never reaches', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const todo = window.Store.liveTodos().find((x) => x.recurrence && x.summary.includes('读 20 页'));
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    return todo.id;
+  });
+  await settle(page, 350);
+  await clickTestId(page, 'composer-repeat');
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('[data-testid="repeat-option"]')).find((x) => x.textContent.includes('每周') && x.textContent.includes('('));
+    b.click();
+  });
+  await settle(page, 250);
+  await clickTestId(page, 'composer-schedule');
+  await settle(page, 250);
+  await page.evaluate(() => {
+    const d = window.U.addDays(window.U.startOfDay(window.U.now()), 1);
+    d.setHours(21, 0);
+    const s = document.querySelector('[data-testid="schedule-start"]');
+    s.value = window.U.toInputDateTime(d);
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await clickTestId(page, 'schedule-apply');
+  await settle(page, 250);
+  const out = await page.evaluate((tid) => ({
+    disabled: document.querySelector('[data-testid="composer-save"]').disabled,
+    error: (document.querySelector('.hint-box.error') || {}).innerText || '',
+    before: window.Store.state.allocations.filter((a) => a.todoId === tid && a.state === window.Store.ALLOC.ACTIVE).map((a) => a.startAt.getTime()),
+  }), id);
+  assertEq(out.disabled, true, 'a block the rule cannot reach must disable the save');
+  assert(/计划|occurrence|实例/i.test(out.error), 'the refusal must say why: ' + out.error);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R4-4 — a repeating event is a conflict on every occurrence day */
+scenario('R12-45 conflict names a repeating event occurrence', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => {
+    const d = window.U.addDays(window.U.startOfDay(window.U.now()), 1);
+    const s = new Date(d); s.setHours(14, 0, 0, 0);
+    window.Store.createEvent({
+      summary: '每周同步会', startDt: s, endDt: new Date(s.getTime() + 3600000),
+      calendarId: 1, rrule: { freq: 'WEEKLY', interval: 1, byday: [s.getDay()], until: null, timeZone: 'Asia/Shanghai', anchor: 'start', valueType: 'localDateTime' },
+    });
+    window.App.openComposer('todo');
+  });
+  await settle(page, 300);
+  await page.fill('[data-testid="composer-title"]', '撞重复日程');
+  await clickTestId(page, 'composer-more');
+  await clickTestId(page, 'composer-schedule');
+  await settle(page, 250);
+  await page.evaluate(() => {
+    const d = window.U.addDays(window.U.startOfDay(window.U.now()), 1);
+    d.setHours(14, 0);
+    const s = document.querySelector('[data-testid="schedule-start"]');
+    s.value = window.U.toInputDateTime(d);
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await settle(page, 250);
+  const preview = await page.evaluate(() => document.body.innerText);
+  assert(preview.includes('每周同步会'), 'the preview must name the repeating event occurrence');
+  await clickTestId(page, 'schedule-apply');
+  await settle(page, 200);
+  await clickTestId(page, 'composer-save');
+  await settle(page, 350);
+  const toast = await toastText(page);
+  assert(toast.includes('每周同步会'), 'the save toast must name the conflict: ' + toast);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R4-1 — exactly 8px is still a hold, aligned or not */
+scenario('R12-46 an 8px jitter writes nothing even off the quarter hour', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  const before = await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const s = new Date(d); s.setHours(9, 7, 0, 0);
+    const e = window.Store.createEvent({ summary: '八像素测试', startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    window.App.go('calendar', { view: 'day' });
+    return { id: e.id, start: e.startDt.getTime() };
+  });
+  await settle(page, 350);
+  const box = await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('八像素测试'));
+    const r = b.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  const cdp = await page.__ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', box.x, box.y);
+  await touch('touchMove', box.x, box.y + 8);
+  await settle(page, 600);
+  await touch('touchEnd');
+  await settle(page, 350);
+  const after = await page.evaluate((id) => ({
+    start: window.Store.eventById(id).startDt.getTime(),
+    route: window.Store.state.route.name,
+  }), before.id);
+  assertEq(after.start, before.start, 'an 8px jitter must not move the event');
+  assertEq(after.route, 'calendar', 'the release must not navigate');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R4-2 — once the hold menu is open, sliding does not drag */
+scenario('R12-47 sliding after the hold menu opens writes nothing', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  const before = await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const s = new Date(d); s.setHours(9, 0, 0, 0);
+    const e = window.Store.createEvent({ summary: '按住后滑动', startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    window.App.go('calendar', { view: 'day' });
+    return { id: e.id, start: e.startDt.getTime() };
+  });
+  await settle(page, 350);
+  const box = await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('按住后滑动'));
+    const r = b.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  const cdp = await page.__ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', box.x, box.y);
+  await settle(page, 620);
+  await touch('touchMove', box.x, box.y + 60);
+  await settle(page, 120);
+  await touch('touchEnd');
+  await settle(page, 350);
+  const after = await page.evaluate((id) => ({
+    start: window.Store.eventById(id).startDt.getTime(),
+    route: window.Store.state.route.name,
+  }), before.id);
+  assertEq(after.start, before.start, 'a slide after the menu opened must not move the event');
+  assertEq(after.route, 'calendar', 'the release must not navigate');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R4-6 — a tap on the resize strip is not a way into the record */
+scenario('R12-48 a jitter on the resize strip does not navigate', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const s = new Date(d); s.setHours(13, 0, 0, 0);
+    window.Store.createEvent({ summary: '拉伸手柄', startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    window.App.go('calendar', { view: 'day' });
+  });
+  await settle(page, 350);
+  const box = await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('拉伸手柄'));
+    const r = b.querySelector('.resize').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  const cdp = await page.__ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', box.x, box.y);
+  await touch('touchMove', box.x, box.y + 4);
+  await settle(page, 120);
+  await touch('touchEnd');
+  await settle(page, 350);
+  assertEq(await page.evaluate(() => window.Store.state.route.name), 'calendar', 'a strip tap must stay on the calendar');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R4-5 — the gesture guard does not eat a later, different click */
+scenario('R12-49 a drag does not swallow a click on another block', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const a = new Date(d); a.setHours(9, 0, 0, 0);
+    const b = new Date(d); b.setHours(15, 0, 0, 0);
+    window.Store.createEvent({ summary: '拖甲', startDt: a, endDt: new Date(a.getTime() + 3600000), calendarId: 1 });
+    window.Store.createEvent({ summary: '点乙', startDt: b, endDt: new Date(b.getTime() + 3600000), calendarId: 1 });
+    window.App.go('calendar', { view: 'day' });
+  });
+  await settle(page, 350);
+  const boxes = await page.evaluate(() => {
+    const at = (name) => {
+      const el = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes(name));
+      const r = el.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    };
+    return { a: at('拖甲'), b: at('点乙') };
+  });
+  await page.mouse.move(boxes.a.x, boxes.a.y);
+  await page.mouse.down();
+  await page.mouse.move(boxes.a.x, boxes.a.y + 60, { steps: 4 });
+  await page.mouse.up();
+  await page.mouse.click(boxes.b.x, boxes.b.y);
+  await settle(page, 400);
+  const out = await page.evaluate(() => ({
+    route: window.Store.state.route.name,
+    title: document.body.innerText.includes('点乙'),
+  }));
+  assertEq(out.route, 'detail', 'a click on another block must open that block');
+  assertEq(out.title, true, 'the opened record must be the clicked one');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   const failures = [];

@@ -833,6 +833,10 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .capture { min-height: 48px; }
 
   .link-btn { min-height: 48px; display: inline-flex; align-items: center; }
+  /* The note value and a subtask title are controls on touch: the text stays
+     its size, the hit area grows to the 48px minimum. */
+  .detail-note { min-height: 48px; display: flex; align-items: center; }
+  .subtask .title { min-height: 48px; display: flex; align-items: center; }
   .section-head { min-height: 48px; flex-wrap: wrap; row-gap: 2px; }
   .row-undo { min-width: 48px; }
   .cal-today-btn { min-height: 48px !important; padding: 0 14px; }
@@ -873,6 +877,12 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
 @media (max-width: 899px) {
   .icon-btn, .icon-btn.sm, .btn, .btn.sm { min-width: 48px; min-height: 48px; }
   .btn { padding: 0 14px; }
+  /* The save label names what will be written; on a phone the sentence is
+     longer than the footer, so it wraps inside its own button instead of
+     widening the page and pushing a sheet's actions off screen. */
+  .composer-foot { overflow: hidden; }
+  .composer-foot .btn { min-width: 0; }
+  .composer-foot .btn.primary { flex: 0 1 auto; max-width: 62vw; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; padding: 8px 14px; text-align: center; }
   .btn.sm { padding: 0 12px; }
   .capture-plus { min-height: 48px; padding: 0 8px; }
   .link-btn { min-height: 48px; padding: 0 8px; margin: -14px 0; font-size: 11.5px; }

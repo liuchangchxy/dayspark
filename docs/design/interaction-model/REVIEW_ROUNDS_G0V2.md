@@ -265,3 +265,37 @@ column.
 | I-R3-1 | The deadline lane listed a completed recurring occurrence as an open deadline | the recurring branch never consulted the occurrence state | done occurrences are skipped, matching the dated list | r12-33 | fixed |
 
 Round-4 scope: A, D, E, F, G, H, I (every domain the patch touched); B, C, J stay frozen at PASS.
+
+### Round 4 — deep review of the patched domains against `17a886e`
+
+| Domain | Verdict | P0 | P1 | P2 | Notes |
+|---|---|---|---|---|---|
+| A shell | FAIL | 0 | 1 | 2 | a re-render during the discard question asked twice and lost a kept draft |
+| D calendar | FAIL | 0 | 3 | 4 | 8px was both hold and drag; a hold could still drag; month cell (fixed in `81380b4`) |
+| E composer | FAIL | 0 | 4 | 3 | phone save label widened the page; silent cross-day refusal; rule did not cover the block day; recurring-event conflicts invisible |
+| F detail | FAIL | 0 | 2 | 3 | phone note/subtask targets under 48px; trashed recurring record still drew occurrence boxes |
+| G tools | FAIL | 0 | 1 | 2 | feedback submit still reported a false failure (About was fixed) |
+| H settings | PASS | 0 | 0 | 5 | scroll offset, sync phase copy, notification label, platform statement, device cache |
+| I data | FAIL | 0 | 2 | 1 | month grid vs lane; cascade-touched subtask not undone (both fixed in `81380b4`) |
+
+#### Round-4 backlog
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| A-R4-1 | Resizing while the discard question was open asked twice and a kept draft was gone | popstate re-ran the whole ladder after the guard approved, reaching the freshly rendered page's handler | a resolved guard navigates directly | r12-36 | fixed |
+| D-R4-1 | Exactly 8px was both a hold and a drag; a block at 09:07 moved +15 on release | drag threshold `>=8`, movement read from the snapped rendered top | drag starts beyond 8px; movement is the finger's delta | r12-46 | fixed |
+| D-R4-2 | Sliding after the hold menu opened still dragged and wrote | the drag listeners stayed live after the menu opened | the menu owns the gesture; pointermove and release write nothing | r12-47 | fixed |
+| D-R4-3 | Month cell painted a finished occurrence as an open deadline | cell used series status and the raw anchor date | occurrence-aware cell (committed in `81380b4`) | r12-34 | fixed |
+| D-R4-5 | The gesture guard swallowed any block click for 400ms | guard keyed on time only | guard keyed on time and the release point | r12-49 | fixed |
+| D-R4-6 | A jitter on the resize strip navigated into the record | strip tap fell through to the block click | a strip gesture never navigates | r12-48 | fixed |
+| E-R4-1 | Phone save label overflowed the footer, widened the page and pushed the sheet's actions off screen | label drawn as one unbreakable line in a shrinkable flex item | the label wraps inside its own button on phone | r12-42 | fixed |
+| E-R4-2 | Removing the repeat and moving the block across days was silently refused while the toast said 已更新 | the block kept an occurrence id a non-repeating record cannot own; the refusal went unchecked | the stale occurrence is cleared; a refused reschedule is surfaced | r12-43 | fixed |
+| E-R4-3 | A live block survived on a day the new rule never reaches | validation compared the occurrence date, not the rule on screen | validation asks the shown rule | r12-44 | fixed |
+| E-R4-4 | Conflict scan and suggested slots ignored repeating event occurrences | the scan read raw series times | the scan expands occurrences through `eventsOnDay` | r12-45 | fixed |
+| F-R4-1 | Phone 备注 and subtask title were 18–21px targets | the mobile block never gave these two text controls a 48px box | both grow to 48px | r12-40 | fixed |
+| F-R4-2 | A trashed repeating record still drew occurrence checkboxes and completion copy | the section was gated per checkbox, not per surface | the section is not rendered when trashed | r12-39 | fixed |
+| G-R4-1 | Feedback submit claimed a blocked tab that really opened | `window.open(..., 'noopener')` always returns null | open normally, then sever the opener | r12-37 | fixed |
+| I-R4-1 | Month grid kept a finished recurring deadline the lane dropped | see D-R4-3 | occurrence-aware cell | r12-34 | fixed |
+| I-R4-2 | Undo after deleting a calendar did not restore a cross-calendar cascaded subtask | the snapshot held seed rows only | the snapshot covers the cascade | r12-35 | fixed |
+
+Round-5 scope: A, D, E, F, G, I; H stays PASS and frozen; B, C, J frozen at PASS.

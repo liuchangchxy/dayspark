@@ -163,7 +163,11 @@
     // scheduled allocations
     const allocs = S.allocationsForTodo(todo.id)
       .filter((a) => !todo.recurrence || a.occurrenceId === contextOcc);
-    const liveAllocs = allocs.filter(S.isAllocationLive);
+    // A trashed todo is hidden from live surfaces, but the blocks it holds are
+    // still its own history: read them by their own state so the detail does
+    // not call an active block "invalidated".
+    const allocLive = (a) => (ro ? a.state === S.ALLOC.ACTIVE && !a.deletedAt : S.isAllocationLive(a));
+    const liveAllocs = allocs.filter(allocLive);
     // Work that is already finished has nothing to reserve: offering the
     // control would write a block the completion rule immediately invalidates,
     // which looks like a successful action and produces nothing.
@@ -255,7 +259,9 @@
     facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionContent') }));
 
     // occurrences
-    if (todo.recurrence) {
+    // A trashed record is read-only as a whole page (D-18): no occurrence
+    // checkboxes, and none of the copy that promises completion.
+    if (todo.recurrence && !ro) {
       const sec = U.el('div', { class: 'detail-section' });
       sec.appendChild(U.el('h3', { text: t('occurrenceList') }));
       sec.appendChild(U.el('div', { class: 'field-hint', text: t('occurrenceListHint') }));
@@ -332,7 +338,7 @@
     }
 
     // allocation history
-    const history = allocs.filter((a) => !S.isAllocationLive(a));
+    const history = allocs.filter((a) => !allocLive(a));
     if (history.length) {
       const sec = U.el('div', { class: 'detail-section' });
       sec.appendChild(U.el('h3', { text: S.state.lang === 'zh' ? '历史安排' : 'Past schedules' }));

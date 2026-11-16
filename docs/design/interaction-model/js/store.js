@@ -856,6 +856,9 @@
   function softDeleteEvent(id) {
     const e = eventById(id);
     if (!e) return null;
+    // Re-deleting would move the stamp backwards in time and falsify the Trash
+    // row's "deleted at"; the first deletion is the one that happened.
+    if (e.deletedAt) return e;
     e.deletedAt = U.now();
     e.updatedAt = U.now();
     dropPaneIfGone();

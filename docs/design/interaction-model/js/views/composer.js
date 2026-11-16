@@ -12,6 +12,26 @@
   // old closure must reach the live form instead of writing into detached DOM.
   const live = { renderBody: () => {}, validate: () => {}, autoGrow: () => {}, titleInput: null };
 
+  // Overlaps must be judged against what the calendar draws: a repeating event
+  // owns one block per occurrence, not one block at its anchor.
+  function eventBlocksBetween(from, to) {
+    const out = [];
+    const seen = new Set();
+    let d = U.startOfDay(from);
+    const last = U.startOfDay(to);
+    while (d <= last) {
+      S.eventsOnDay(d).forEach((e) => {
+        if (e.startDt >= to || e.endDt <= from) return;
+        const key = e.id + ':' + e.startDt.getTime();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(e);
+      });
+      d = U.addDays(d, 1);
+    }
+    return out;
+  }
+
   function draftFromRoute() {
     const c = S.state.composer || { kind: 'todo', mode: 'create' };
     const now = U.now();
@@ -856,9 +876,9 @@
             const day = U.startOfDay(s);
             const mins = parseInt(durSel.value, 10);
             const taken = [];
-            S.state.events.forEach((e) => { if (!e.deletedAt) taken.push([e.startDt, e.endDt]); });
+            eventBlocksBetween(day, U.endOfDay(day)).forEach((e) => taken.push([e.startDt, e.endDt]));
             S.state.allocations.forEach((a) => {
-              if (S.isAllocationLive(a) && a.id !== draft.scheduleAllocId) taken.push([a.startAt, a.endAt]);
+              if (S.isAllocationLive(a) && a.id !== draft.scheduleAllocId && a.todoId !== draft.id) taken.push([a.startAt, a.endAt]);
             });
             const slots = [];
             for (let m = 8 * 60; m + mins <= 21 * 60 && slots.length < 3; m += 30) {
@@ -888,8 +908,8 @@
             if (!s) return;
             syncOccurrence(occSel, start.value);
             preview.textContent = `${U.fmtMonthDay(s)} ${U.fmtTimeRange(s, U.addMinutes(s, mins))}`;
-            const conflict = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < U.addMinutes(s, mins) && a.endAt > s && a.id !== draft.scheduleAllocId);
-            const evs = S.state.events.filter((e) => !e.deletedAt && e.startDt < U.addMinutes(s, mins) && e.endDt > s);
+            const conflict = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < U.addMinutes(s, mins) && a.endAt > s && a.id !== draft.scheduleAllocId && a.todoId !== draft.id);
+            const evs = eventBlocksBetween(s, U.addMinutes(s, mins));
             if (conflict.length) preview.innerHTML += `<div style="color:var(--amber);margin-top:4px">${U.esc(t('allocateConflict', { t: (S.todoById(conflict[0].todoId) || {}).summary || '' }))}</div>`;
             if (evs.length) preview.innerHTML += `<div style="color:var(--amber);margin-top:2px">${U.esc(t('conflict'))}: ${U.esc(evs[0].summary)}</div>`;
             drawSuggestions();
@@ -1146,11 +1166,14 @@
       if (draft.kind === 'event' && draft.endDt <= draft.startDt) errs.push(t('timeInvalid'));
       if (draft.kind === 'todo' && draft.recurrence && draft.startDate && draft.dueDate && draft.startDate > draft.dueDate) errs.push(t('startAfterDue'));
       if (draft.kind === 'todo' && draft.scheduleStart && draft.scheduleEnd && draft.recurrence) {
-        if (draft.scheduleOccurrence) {
+        // The rule on screen is the one that will be written, so the block has
+        // to be reachable under it — a stale occurrence id from an earlier rule
+        // must not carry a block onto a day the series never visits.
+        if (!S.matchesRule(scheduleProbe(), draft.scheduleStart)) {
+          errs.push(t('scheduleNeedsOccurrence'));
+        } else if (draft.scheduleOccurrence) {
           const occDay = S.occurrenceDateFromId(draft.scheduleOccurrence);
           if (!occDay || !U.sameDay(occDay, draft.scheduleStart)) errs.push(t('scheduleOccurrenceMismatch'));
-        } else if (scheduleOccurrenceFor(draft.scheduleStart) === false) {
-          errs.push(t('scheduleNeedsOccurrence'));
         }
       }
       // An untouched new form is not a mistake. Saving stays disabled so the
@@ -1233,8 +1256,8 @@
         if (draft.scheduleStart && draft.scheduleEnd) {
           const cs = draft.scheduleStart;
           const ce = draft.scheduleEnd;
-          const evs = S.state.events.filter((e) => !e.deletedAt && e.startDt < ce && e.endDt > cs);
-          const allocs = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < ce && a.endAt > cs && a.id !== draft.scheduleAllocId);
+          const evs = eventBlocksBetween(cs, ce);
+          const allocs = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < ce && a.endAt > cs && a.id !== draft.scheduleAllocId && a.todoId !== todo.id);
           if (evs.length) conflictName = evs[0].summary;
           else if (allocs.length) conflictName = (S.todoById(allocs[0].todoId) || {}).summary || null;
         }
@@ -1254,8 +1277,16 @@
             scheduleBlocked = true;
           } else if (draft.scheduleAllocId) {
             const alloc = S.state.allocations.find((a) => a.id === draft.scheduleAllocId);
-            if (alloc && occ) alloc.occurrenceId = occ;
-            S.rescheduleAllocation(draft.scheduleAllocId, draft.scheduleStart, draft.scheduleEnd);
+            if (alloc) {
+              // A block of a record that is no longer repeating is a plain
+              // allocation: keeping the old occurrence id made the move look
+              // like a cross-day occurrence jump and get refused in silence.
+              if (todo.recurrence) { if (occ) alloc.occurrenceId = occ; }
+              else alloc.occurrenceId = null;
+            }
+            if (!S.rescheduleAllocation(draft.scheduleAllocId, draft.scheduleStart, draft.scheduleEnd)) {
+              scheduleBlocked = true;
+            }
           } else {
             S.createAllocation({
               todoId: todo.id, startAt: draft.scheduleStart, endAt: draft.scheduleEnd,

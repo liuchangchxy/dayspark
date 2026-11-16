@@ -535,12 +535,19 @@
   // A gesture that ends in a write re-renders the grid, so a guard stored on the
   // old node cannot swallow the click the browser synthesises afterwards. The
   // guard therefore lives at document level for the instant after a gesture.
-  let suppressClickUntil = 0;
-  function swallowTrailingClick() { suppressClickUntil = Date.now() + 400; }
+  let suppressClick = null;
+  function swallowTrailingClick(x, y) {
+    suppressClick = { x: x || 0, y: y || 0, until: Date.now() + 400 };
+  }
   document.addEventListener('click', (ev) => {
+    if (!suppressClick || Date.now() >= suppressClick.until) { suppressClick = null; return; }
     const onBlock = ev.target instanceof Element && ev.target.closest('.block');
-    if (!onBlock || Date.now() >= suppressClickUntil) return;
-    suppressClickUntil = 0;
+    // Only the click the browser synthesised at the gesture's own release point
+    // is the gesture's; a different block clicked afterwards is a real click.
+    const near = Math.abs((ev.clientX || 0) - suppressClick.x) <= 8
+      && Math.abs((ev.clientY || 0) - suppressClick.y) <= 8;
+    if (!onBlock || !near) return;
+    suppressClick = null;
     ev.stopPropagation();
     ev.preventDefault();
   }, true);
@@ -564,10 +571,10 @@
     node.addEventListener('pointermove', (ev) => {
       if (timer && (Math.abs(ev.clientX - sx) > 8 || Math.abs(ev.clientY - sy) > 8)) clear();
     });
-    node.addEventListener('pointerup', () => {
+    node.addEventListener('pointerup', (ev) => {
       const held = fired;
       clear();
-      if (held) swallowTrailingClick();
+      if (held) swallowTrailingClick(ev.clientX, ev.clientY);
     });
     node.addEventListener('pointercancel', clear);
     node.addEventListener('click', (ev) => {
@@ -627,7 +634,7 @@
   }
 
   function attachBlockDrag(node, resize, ctx) {
-    let mode = null, startX = 0, startY = 0, origTop = 0, origH = 0, moved = false, dayOffset = 0;
+    let mode = null, startX = 0, startY = 0, origTop = 0, origH = 0, moved = false, dayOffset = 0, lastDy = 0, lastDx = 0;
     const hh = ctx.hh;
 
     function down(e, m) {
@@ -641,6 +648,7 @@
       origH = parseFloat(node.style.height) || 0;
       moved = false;
       dayOffset = 0;
+      lastDy = 0; lastDx = 0;
       node.classList.add('dragging');
       node.setPointerCapture && node.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -650,9 +658,14 @@
 
     node.addEventListener('pointermove', (e) => {
       if (!mode) return;
+      // The hold menu owns the gesture once it is open; a finger that slides
+      // afterwards must not drag the block behind it (D-24).
+      if (document.querySelector('.menu')) return;
       const dy = e.clientY - startY;
       const dx = e.clientX - startX;
-      if (!moved && Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+      lastDy = dy; lastDx = dx;
+      // Exactly 8px is still a hold (D-24): a drag starts beyond it.
+      if (!moved && Math.abs(dy) <= 8 && Math.abs(dx) <= 8) return;
       moved = true;
       if (mode === 'move') {
         node.style.top = origTop + dy + 'px';
@@ -673,6 +686,8 @@
     function up(e) {
       if (!mode) return;
       const wasMode = mode;
+      const upX = e ? e.clientX : 0;
+      const upY = e ? e.clientY : 0;
       if (e && e.type === 'pointercancel') {
         // The browser took the gesture for scrolling; the block never moved.
         mode = null;
@@ -684,21 +699,28 @@
       mode = null;
       node.classList.remove('dragging');
       node.style.opacity = '1';
-      if (!moved) { node.dataset.moved = '0'; return; }
+      if (!moved) {
+        node.dataset.moved = '0';
+        // The resize strip is a control, not a way into the record: a tap or a
+        // jitter there must not navigate away from the calendar.
+        if (wasMode === 'resize') swallowTrailingClick(upX, upY);
+        return;
+      }
       node.dataset.moved = '1';
-      swallowTrailingClick();
+      swallowTrailingClick(upX, upY);
+      if (document.querySelector('.menu')) { restoreVisual(); return; }
       const top = parseFloat(node.style.top) || origTop;
       const height = parseFloat(node.style.height) || origH;
-      const snap = hh / 4;
-      const newTop = Math.round(top / snap) * snap;
-      const newH = Math.max(snap, Math.round(height / snap) * snap);
+      // Move by the finger's movement, not by the rendered top: with dawn
+      // folded the top is clipped, and a block that starts at 09:07 has no
+      // quarter-hour top to snap from either. Both cases wrote a phantom
+      // +15 minutes on a release that moved nothing.
+      const movedMin = Math.round((lastDy / hh) * 60 / 15) * 15 + dayOffset * 24 * 60;
+      const resizedMin = Math.round((lastDy / hh) * 60 / 15) * 15;
+      const newTop = origTop + (movedMin / 60) * hh;
+      const newH = Math.max(hh / 4, origH + (resizedMin / 60) * hh);
       node.style.top = newTop + 'px';
       node.style.height = newH + 'px';
-      // Move by the movement, not by the rendered top: with dawn folded the
-      // top is clipped, and reading it back would rewrite an early event to
-      // 06:00. Resize by the height change for the same reason.
-      const movedMin = Math.round(((newTop - origTop) / hh) * 60 / 15) * 15 + dayOffset * 24 * 60;
-      const resizedMin = Math.round(((newH - origH) / hh) * 60 / 15) * 15;
       const start = ctx.kind === 'event' ? ctx.data.startDt : ctx.data.startAt;
       const end = ctx.kind === 'event' ? ctx.data.endDt : ctx.data.endAt;
       if (wasMode === 'resize') {

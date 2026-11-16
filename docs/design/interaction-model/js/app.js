@@ -424,7 +424,10 @@
         const guard = Registry.leaveGuard;
         if (guard && !UI.hasOpenLayer() && !document.querySelector('.menu')) {
           guard().then((ok) => {
-            if (ok) { Registry.leaveGuard = null; run(); }
+            // The approved guard already is this page's exit: walking the
+            // ladder again would let the freshly rendered page ask the same
+            // question a second time (and drop a draft the user chose to keep).
+            if (ok) { Registry.leaveGuard = null; back(); }
             try { history.pushState({ ds: true }, ''); } catch (_) {}
           });
         } else {

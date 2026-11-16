@@ -425,9 +425,12 @@
           const url = 'https://github.com/liuchangchxy/dayspark/issues/new?title='
             + encodeURIComponent(S.state.lang === 'zh' ? '反馈' : 'Feedback')
             + '&body=' + encodeURIComponent(ta.value.trim());
+          // "noopener" makes window.open return null even when the tab opened,
+          // so open normally and sever the reference instead (see openExternal).
           let opened = null;
-          try { opened = window.open(url, '_blank', 'noopener'); } catch (err) { opened = null; }
+          try { opened = window.open(url, '_blank'); } catch (err) { opened = null; }
           if (opened) {
+            try { opened.opener = null; } catch (_) {}
             UI.toast(S.state.lang === 'zh' ? '已在新标签页打开 GitHub' : 'Opened GitHub in a new tab');
           } else {
             copyText(ta.value, S.state.lang === 'zh'
