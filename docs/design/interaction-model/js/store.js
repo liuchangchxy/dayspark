@@ -55,6 +55,7 @@
     highlight: null,
     lastCreated: null,
     calendarFocusDay: null,
+    settingsSection: 'appearance',
     composer: null,
     history: [],
   };
@@ -851,6 +852,9 @@
       state.events.filter((e) => e.calendarId === id).forEach((e) => purgeEvent(e.id));
     }
     state.calendars = state.calendars.filter((c) => c.id !== id);
+    // A filter that names the deleted calendar would hide every remaining row
+    // and read as "nothing left" rather than "that calendar is gone".
+    if (state.filterCalendarId === id) state.filterCalendarId = null;
     emit('calendar:delete');
     return { ok: true };
   }
@@ -917,8 +921,10 @@
   function navigate(name, params, opts) {
     if (!opts || !opts.replace) state.history.push({ name: state.route.name, params: state.route.params });
     // The pane belongs to the Todo list. Any other destination (including a
-    // tool such as Search or Settings) retires it.
-    if (name !== 'todos') state.paneSelection = null;
+    // tool such as Search or Settings) retires it — except the composer, which
+    // is where editing the selected record happens; cancelling must come back
+    // to the same pane.
+    if (name !== 'todos' && name !== 'composer') state.paneSelection = null;
     state.route = { name, params: params || {} };
     state.menu = null;
     if (window.UI) { window.UI.closeAll(); window.UI.closeMenu(); window.UI.hideToast(); }

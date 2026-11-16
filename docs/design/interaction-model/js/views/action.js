@@ -86,7 +86,7 @@
     // no FAB). On a phone it drops its label, not its place.
     const actions = [];
     const addBtn = U.el('button', { class: 'btn primary', 'data-testid': 'action-create' });
-    addBtn.innerHTML = ICON('plus', 14) + (U.isNarrow() ? '' : `<span>${U.esc(t('new'))}</span>`);
+    addBtn.innerHTML = ICON('plus', 14) + `<span class="label">${U.esc(t('new'))}</span>`;
     addBtn.setAttribute('aria-label', t('new'));
     addBtn.addEventListener('click', () => openCreateChooser());
     actions.push(addBtn);
@@ -272,10 +272,12 @@
     if (entry.kind === 'event') {
       const e = entry.event;
       return row({
-        time: U.fmtTime(e.startDt),
+        time: e.isAllDay ? t('allDay') : U.fmtTime(e.startDt),
         leading: `<span style="color:${S.calendarColor(e.calendarId)}">${ICON('calendar', 14)}</span>`,
         title: e.summary,
-        meta: `<span>${U.esc(t('untilTime', { t: U.fmtTime(e.endDt) }))}</span>${e.location ? `<span>·</span><span>${U.esc(e.location)}</span>` : ''}`,
+        meta: e.isAllDay
+          ? (e.location ? `<span>${U.esc(e.location)}</span>` : '')
+          : `<span>${U.esc(t('untilTime', { t: U.fmtTime(e.endDt) }))}</span>${e.location ? `<span>·</span><span>${U.esc(e.location)}</span>` : ''}`,
         cls: (warm ? 'current' : '') + (past ? ' past' : ''),
         done: past,
         onTap: () => openEvent(e),
@@ -307,7 +309,7 @@
     const isOverdue = S.isOpen(todo) && todo.dueDate && todo.dueDate < now;
     const clock = todo.dueDate ? U.fmtClockNoMidnight(todo.dueDate) : '';
     return row({
-      time: clock || (todo.dueDate ? t('today') : ''),
+      time: clock || (todo.dueDate && U.sameDay(todo.dueDate, now) ? t('today') : ''),
       leading: todo.dueDate
         ? `<span style="color:${isOverdue ? 'var(--red)' : 'var(--amber)'}">${ICON('flag', 14)}</span>`
         : `<span style="color:var(--ink-3)">${ICON('inbox', 14)}</span>`,

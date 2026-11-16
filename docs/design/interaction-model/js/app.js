@@ -16,6 +16,37 @@
     heading.focus({ preventScroll: true });
   }
 
+  // Replacing #view rebuilds every scroll container. Without this, selecting a
+  // record near the bottom of a list (or dragging a late calendar block) throws
+  // the user back to the top of the page.
+  function scrollKey(el) {
+    const cls = typeof el.className === 'string' ? el.className : '';
+    return el.tagName + '.' + cls + (el.dataset && el.dataset.testid ? '#' + el.dataset.testid : '');
+  }
+  function scrollSnapshot(root) {
+    const map = new Map();
+    Array.from(root.querySelectorAll('*')).forEach((el) => {
+      if (!(el.scrollTop > 0 || el.scrollLeft > 0)) return;
+      const key = scrollKey(el);
+      const list = map.get(key) || [];
+      list.push([el.scrollTop, el.scrollLeft]);
+      map.set(key, list);
+    });
+    return map;
+  }
+  function restoreScroll(root, map) {
+    if (!map || !map.size) return;
+    const seen = new Map();
+    Array.from(root.querySelectorAll('*')).forEach((el) => {
+      const key = scrollKey(el);
+      const list = map.get(key);
+      if (!list) return;
+      const i = seen.get(key) || 0;
+      seen.set(key, i + 1);
+      if (list[i]) { el.scrollTop = list[i][0]; el.scrollLeft = list[i][1]; }
+    });
+  }
+
   function render() {
     Registry.leaveGuard = null;
     S.applyTheme();
@@ -32,10 +63,12 @@
     const focusId = prev && prev.dataset ? prev.dataset.testid : null;
     const caret = focusId && typeof prev.selectionStart === 'number'
       ? { s: prev.selectionStart, e: prev.selectionEnd } : null;
+    const prevScroll = scrollSnapshot(host);
     host.innerHTML = '';
     Registry.escapeHandler = null;
     const node = fn(route.params || {});
     host.appendChild(node);
+    restoreScroll(host, prevScroll);
     const routeKey = route.name + ':' + JSON.stringify(route.params || {});
     const changedRoute = routeKey !== lastRouteKey;
     lastRouteKey = routeKey;
@@ -184,7 +217,8 @@
   function renderBottomNav() {
     const nav = U.qs('#bottomnav');
     nav.innerHTML = '';
-    const active = currentSection();
+    const current = currentSection();
+    const active = (current === 'action' || current === 'calendar' || current === 'todos') ? current : 'more';
     navItems().forEach((item) => {
       const b = U.el('button', { class: active === item.key ? 'on' : '', 'aria-label': item.label });
       b.dataset.testid = 'tab-' + item.key;
@@ -223,7 +257,7 @@
   function go(name, params) {
     UI.closeMenu();
     guarded(() => {
-      if (name !== 'todos') S.state.paneSelection = null;
+      if (name !== 'todos' && name !== 'composer') S.state.paneSelection = null;
       if (name === 'action' || name === 'calendar' || name === 'todos') {
         S.state.tab = name;
         S.state.route = { name, params: params || {} };

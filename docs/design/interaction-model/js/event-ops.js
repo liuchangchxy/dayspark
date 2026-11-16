@@ -13,15 +13,17 @@
 
   function scopeSheet(opts) {
     const o = opts || {};
+    let picked = false;
     UI.sheet({
       title: t('repeatScopeTitle'),
       subtitle: t('repeatScopeBody'),
+      onClose: () => { if (!picked && o.onCancel) o.onCancel(); },
       body(host, close) {
         (o.options || []).forEach((opt) => {
           const b = U.el('button', { class: 'slot-sheet-option' });
           b.dataset.testid = 'scope-' + opt.mode;
           b.innerHTML = `<span class="ico">${ICON('repeat', 16)}</span><span><span class="t">${U.esc(opt.label)}</span><br><span class="s">${U.esc(opt.desc)}</span></span>`;
-          b.addEventListener('click', () => { close(null); o.onPick(opt.mode); });
+          b.addEventListener('click', () => { picked = true; close(null); o.onPick(opt.mode); });
           host.appendChild(b);
         });
       },

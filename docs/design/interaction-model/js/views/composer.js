@@ -401,6 +401,17 @@
         });
         timeSec.appendChild(row(t('allDay'), allday));
 
+        // A repeating Event is a first-class record (the series/occurrence
+        // rules are already implemented); the form must expose its rule.
+        const recBtn = U.el('button', { class: 'chip-btn' + (draft.recurrence ? ' on' : '') });
+        recBtn.dataset.testid = 'composer-repeat';
+        recBtn.innerHTML = ICON('repeat', 13) + `<span>${U.esc(UI.ruleSummary(draft.recurrence))}</span>`;
+        recBtn.addEventListener('click', () => repeatPicker());
+        timeSec.appendChild(row(t('repeat'), recBtn));
+        if (draft.recurrence) {
+          timeSec.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px', text: t('repeatHint') }));
+        }
+
         const dateInput = U.el('input', { class: 'input', type: 'date', value: U.toInputDate(draft.startDt), 'aria-label': t('starts') });
         dateInput.dataset.testid = 'composer-start-date';
         dateInput.addEventListener('change', () => {

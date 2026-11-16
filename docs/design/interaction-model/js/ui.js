@@ -458,11 +458,18 @@
         const input = U.el('input', { class: 'input', placeholder: t('calendarName'), 'aria-label': t('calendarName'), 'data-testid': 'calendar-name' });
         input.addEventListener('input', () => { name = input.value; });
         host.appendChild(input);
+        const err = U.el('div', { class: 'field-error' });
+        host.appendChild(err);
         host.appendChild(colorSwatches((c) => { color = c; }));
         const save = U.el('button', { class: 'btn primary', 'data-testid': 'calendar-create' });
         save.textContent = t('create');
         save.addEventListener('click', () => {
-          if (!name.trim()) return;
+          if (!name.trim()) {
+            err.textContent = t('calendarNameRequired');
+            input.classList.add('invalid');
+            input.focus();
+            return;
+          }
           const created = S.createCalendar(name, color);
           close(null);
           if (done) done(created);

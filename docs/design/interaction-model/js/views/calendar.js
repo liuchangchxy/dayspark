@@ -10,7 +10,7 @@
   // the hour itself grows until half an hour is 48px tall. The alternative —
   // expanding the hit box with a pseudo-element — made neighbouring blocks
   // steal each other's taps.
-  const HOUR_H = () => (U.isNarrow() ? 96 : 48);
+  const HOUR_H = () => (U.isNarrow() ? 192 : 48);
   const DAY_END = 24;
   // Early hours are folded by default: nobody plans a 03:00 meeting often, and
   // the four empty rows cost more than they explain. Expanding is one tap and
@@ -477,7 +477,7 @@
     attachBlockDrag(node, resize, { kind: 'alloc', data: a, day, hh, top: p.top, height: p.height });
     node.addEventListener('click', (ev) => {
       if (node.dataset.moved === '1') { node.dataset.moved = '0'; return; }
-      if (todo) openTodo(todo);
+      if (todo) openTodo(todo, day);
     });
     node.addEventListener('contextmenu', (ev) => {
       ev.preventDefault();
@@ -497,7 +497,7 @@
       items.push({ icon: 'trash', text: t('delete'), danger: true, action: () => deleteEventFlow(e) });
     } else {
       const a = ctx.data;
-      items.push({ icon: 'eye', text: t('view'), action: () => ctx.todo && openTodo(ctx.todo) });
+      items.push({ icon: 'eye', text: t('view'), action: () => ctx.todo && openTodo(ctx.todo, ctx.data.startAt) });
       items.push({ icon: 'clockPlus', text: S.state.lang === 'zh' ? '改期…' : 'Reschedule…', action: () => rescheduleDialog(ctx) });
       items.push({ icon: 'x', text: t('cancelAllocation'), danger: true, action: () => cancelAllocFlow(a) });
     }
@@ -569,9 +569,23 @@
       }
     });
 
-    function up() {
+    function restoreVisual() {
+      node.style.top = ctx.top + 'px';
+      node.style.height = ctx.height + 'px';
+      node.dataset.moved = '0';
+    }
+
+    function up(e) {
       if (!mode) return;
       const wasMode = mode;
+      if (e && e.type === 'pointercancel') {
+        // The browser took the gesture for scrolling; the block never moved.
+        mode = null;
+        node.classList.remove('dragging');
+        node.style.opacity = '1';
+        restoreVisual();
+        return;
+      }
       mode = null;
       node.classList.remove('dragging');
       node.style.opacity = '1';
@@ -594,12 +608,12 @@
       if (wasMode === 'resize') {
         const e2 = U.addMinutes(end, resizedMin);
         if (e2 <= start) return;
-        if (ctx.kind === 'event') moveEvent(ctx.data, start, e2, { silent: false, from: start, resized: true });
-        else moveAlloc(ctx.data, start, e2);
+        if (ctx.kind === 'event') moveEvent(ctx.data, start, e2, { silent: false, from: start, resized: true, onCancel: restoreVisual });
+        else moveAlloc(ctx.data, start, e2, { resized: true });
       } else {
         const s = U.addMinutes(start, movedMin);
         const e2 = U.addMinutes(end, movedMin);
-        if (ctx.kind === 'event') moveEvent(ctx.data, s, e2, { from: start });
+        if (ctx.kind === 'event') moveEvent(ctx.data, s, e2, { from: start, onCancel: restoreVisual });
         else moveAlloc(ctx.data, s, e2);
       }
     }
@@ -672,6 +686,7 @@
           { mode: 'all', label: t('scopeAll'), desc: t('moveScopeAllDesc') },
         ],
         onPick: (mode) => apply(mode),
+        onCancel: o.onCancel,
       });
     } else if (e.isOccurrence && !o.silent) {
       apply('this');
@@ -682,10 +697,11 @@
 
   function moveAlloc(a, start, end, opts) {
     const prev = { start: a.startAt, end: a.endAt };
+    const o = opts || {};
     S.rescheduleAllocation(a.id, start, end);
     App.render();
-    if (!(opts && opts.silent)) {
-      UI.toast(t('allocationMoved', { t: U.fmtMonthDayTime(start) }), {
+    if (!o.silent) {
+      UI.toast(t(o.resized ? 'allocationResized' : 'allocationMoved', { t: U.fmtMonthDayTime(o.resized ? end : start) }), {
         undo: () => { S.rescheduleAllocation(a.id, prev.start, prev.end); App.render(); },
       });
     }
@@ -854,8 +870,13 @@
     }
     const create = U.el('button', { class: 'btn primary', 'data-testid': 'calendar-create' });
     create.innerHTML = ICON('plus', 14) + `<span class="label">${U.esc(t('newEvent'))}</span>`;
+    create.setAttribute('aria-label', t('newEvent'));
     create.addEventListener('click', () => {
-      const day = S.state.calendarFocusDay || a;
+      const focus = S.state.calendarFocusDay;
+      let day = a;
+      if (S.state.calendarView === 'month') {
+        day = focus && U.sameMonth(focus, a) ? focus : new Date(a.getFullYear(), a.getMonth(), 1);
+      }
       const now = U.now();
       const isToday = U.sameDay(day, now);
       const start = isToday ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1) : new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9);

@@ -101,6 +101,18 @@
     }
     rowNode.appendChild(actions);
 
+    rowNode.tabIndex = 0;
+    rowNode.setAttribute('aria-label', todo.summary);
+    rowNode.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      if (multi.active) {
+        if (multi.ids.has(todo.id)) multi.ids.delete(todo.id); else multi.ids.add(todo.id);
+        App.render();
+        return;
+      }
+      openTodo(todo, o.day);
+    });
     rowNode.addEventListener('click', () => {
       if (multi.active) {
         if (multi.ids.has(todo.id)) multi.ids.delete(todo.id); else multi.ids.add(todo.id);
@@ -115,7 +127,7 @@
     });
     // The row the pane is showing reads as selected, so the list still says
     // which record is on the right.
-    if (S.state.paneSelection && S.state.paneSelection.type === 'todo'
+    if (!U.isNarrow() && U.isSplit() && S.state.paneSelection && S.state.paneSelection.type === 'todo'
         && String(S.state.paneSelection.id) === String(todo.id)) {
       rowNode.classList.add('md-selected');
       wrap.classList.add('md-selected');
@@ -446,7 +458,7 @@
     const today = U.startOfDay(U.now());
     const ws = U.startOfWeek(selected || today, S.state.weekStartsOn);
     const strip = U.el('div', { class: 'weekstrip' });
-    const prev = U.el('button', { class: 'ws-arrow', 'aria-label': t('back'), html: ICON('chevronLeft', 15) });
+    const prev = U.el('button', { class: 'ws-arrow', 'aria-label': t('prevWeek'), html: ICON('chevronLeft', 15) });
     prev.addEventListener('click', () => setView({ kind: 'day', day: U.addDays(selected || today, -7) }));
     strip.appendChild(prev);
     const days = U.el('div', { class: 'ws-days' });
@@ -464,7 +476,7 @@
       days.appendChild(b);
     }
     strip.appendChild(days);
-    const next = U.el('button', { class: 'ws-arrow', 'aria-label': t('more'), html: ICON('chevronRight', 15) });
+    const next = U.el('button', { class: 'ws-arrow', 'aria-label': t('nextWeek'), html: ICON('chevronRight', 15) });
     next.addEventListener('click', () => setView({ kind: 'day', day: U.addDays(selected || today, 7) }));
     strip.appendChild(next);
     return strip;
@@ -629,13 +641,23 @@
     // its detail in the pane would show a record the list no longer contains.
     if (S.state.paneSelection && S.state.paneSelection.type === 'todo') {
       const visible = visibleForPane();
-      if (!visible.has(Number(S.state.paneSelection.id))) S.state.paneSelection = null;
+      if (!visible.has(Number(S.state.paneSelection.id))) {
+        // Completion removes a (recurring) instance from the visible list but
+        // the record is still what the user is looking at. Keep its pane; only
+        // a filter/date change that hides an open record retires the selection.
+        const rec = S.todoById(S.state.paneSelection.id);
+        const sel = S.state.paneSelection;
+        const d = sel.day ? new Date(sel.day) : U.startOfDay(U.now());
+        const occDone = rec && rec.recurrence && S.matchesRule(rec, d)
+          && S.isOccurrenceDone(rec, S.occurrenceIdFor(rec, d));
+        if (!(rec && !rec.deletedAt && (S.isDone(rec) || occDone))) S.state.paneSelection = null;
+      }
     }
     // Create sits in the header on every platform (CORE_UX_SPEC 1.2: no FAB).
     // On a phone it drops the label; the action itself never moves.
     const actions = [];
     const add = U.el('button', { class: 'btn primary', 'data-testid': 'todos-create' });
-    add.innerHTML = ICON('plus', 14) + (U.isNarrow() ? '' : `<span>${U.esc(t('newTodo'))}</span>`);
+    add.innerHTML = ICON('plus', 14) + `<span class="label">${U.esc(t('newTodo'))}</span>`;
     add.setAttribute('aria-label', t('newTodo'));
     add.addEventListener('click', () => App.openComposer('todo', day ? { dueDate: day } : {}));
     actions.push(add);

@@ -232,8 +232,7 @@
         const row = U.el('div', { class: 'occ-row' });
         row.dataset.testid = 'detail-occurrence';
         row.appendChild(UI.checkbox(isDone, () => {
-          S.completeTodo(todo.id, { occurrenceId: id });
-          App.render();
+          window.TodoOps.complete(todo, id);
         }, todo.summary));
         row.appendChild(U.el('span', { class: 'date', text: U.fmtMonthDay(d) + ' · ' + U.fmtWeekdayLong(d) }));
         const alloc = S.state.allocations.find((a) => a.todoId === todo.id && a.occurrenceId === id && a.state === S.ALLOC.ACTIVE);

@@ -287,10 +287,16 @@
           const split = U.el('div', { class: 'settings-split', 'data-testid': 'settings-split' });
           const nav = U.el('div', { class: 'settings-nav' });
           const pane = U.el('div', { class: 'settings-pane' });
-          let active = sections[0].key;
-          if (section && sections.some((x) => x.key === section)) active = section;
+          let active = sections.some((x) => x.key === S.state.settingsSection)
+            ? S.state.settingsSection
+            : sections[0].key;
+          if (section && sections.some((x) => x.key === section)) {
+            active = section;
+            S.state.settingsSection = section;
+          }
           function show(key) {
             active = key;
+            S.state.settingsSection = key;
             nav.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.section === key));
             pane.innerHTML = '';
             const sec = sections.find((x) => x.key === key);

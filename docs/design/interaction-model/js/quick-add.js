@@ -61,6 +61,15 @@
         cut('半小时');
       }
     }
+    // English duration: "for 1 hour", "30 min".
+    if (!durationMin) {
+      const enDur = rest.match(/\b(?:for\s+)?(\d+(?:\.\d+)?)\s*(hours?|hrs?|minutes?|mins?)\b/i);
+      if (enDur) {
+        const n = parseFloat(enDur[1]);
+        durationMin = /^h/i.test(enDur[2]) ? Math.round(n * 60) : Math.round(n);
+        cut(enDur[0]);
+      }
+    }
 
     // Date words.
     const dayWords = [['大后天', 3], ['后天', 2], ['明天', 1], ['今天', 0], ['今日', 0]];
@@ -70,6 +79,16 @@
         sawDate = true;
         cut(word);
         break;
+      }
+    }
+
+    if (!date) {
+      const enDay = rest.match(/\b(day after tomorrow|tomorrow|today)\b/i);
+      if (enDay) {
+        const word = enDay[1].toLowerCase();
+        date = dayAt(base, word === 'tomorrow' ? 1 : (word === 'today' ? 0 : 2));
+        sawDate = true;
+        cut(enDay[0]);
       }
     }
 
@@ -93,6 +112,47 @@
     }
 
     if (!date) {
+      const DOWS = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+      const enWeek = rest.match(/\b(next|this)?\s*(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+      if (enWeek) {
+        const target = DOWS[enWeek[2].toLowerCase()];
+        const today = base.getDay();
+        const monday = (today + 6) % 7;
+        const kind = (enWeek[1] || '').toLowerCase();
+        let delta;
+        if (kind === 'next') delta = 7 - monday + ((target + 6) % 7);
+        else if (kind === 'this') delta = ((target + 6) % 7) - monday;
+        else delta = (target - today + 7) % 7;
+        date = dayAt(base, delta);
+        sawDate = true;
+        cut(enWeek[0]);
+      }
+    }
+
+    if (!date) {
+      const iso = rest.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+      if (iso) {
+        date = new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+        sawDate = true;
+        cut(iso[0]);
+      }
+    }
+
+    if (!date) {
+      const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+      const enMD = rest.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b/i);
+      if (enMD) {
+        const month = MONTHS[enMD[1].slice(0, 3).toLowerCase()];
+        const day = parseInt(enMD[2], 10);
+        let year = base.getFullYear();
+        if (new Date(year, month, day) < U.startOfDay(base)) year += 1;
+        date = new Date(year, month, day);
+        sawDate = true;
+        cut(enMD[0]);
+      }
+    }
+
+    if (!date) {
       const md = rest.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/);
       if (md) {
         const month = parseInt(md[1], 10) - 1;
@@ -103,6 +163,29 @@
         date = new Date(year, month, day);
         sawDate = true;
         cut(md[0]);
+      }
+    }
+
+    // English clock: 3pm, 3:30 p.m., at 15, 15:00.
+    if (!sawTime) {
+      let enClock = rest.match(/\b(?:at\s+)?(\d{1,2})(?::([0-5]\d))?\s*(a\.?m\.?|p\.?m\.?)\b/i);
+      let eh = null, em = 0, pm = false;
+      if (enClock) {
+        eh = parseInt(enClock[1], 10);
+        em = enClock[2] ? parseInt(enClock[2], 10) : 0;
+        pm = /^p/i.test(enClock[3]);
+      } else {
+        enClock = rest.match(/\bat\s+(\d{1,2})(?::([0-5]\d))?\b/i);
+        if (enClock) { eh = parseInt(enClock[1], 10); em = enClock[2] ? parseInt(enClock[2], 10) : 0; }
+      }
+      if (eh !== null && eh >= 0 && eh <= 24 && em >= 0 && em < 60) {
+        if (pm && eh < 12) eh += 12;
+        if (!pm && /a/i.test((enClock && enClock[3]) || '') && eh === 12) eh = 0;
+        if (eh === 24) eh = 0;
+        hours = eh;
+        minutes = em;
+        sawTime = true;
+        cut(enClock[0]);
       }
     }
 
@@ -142,7 +225,8 @@
       }
     }
 
-    const title = rest.replace(/\s+/g, ' ').replace(/^[\s,，。.、;；:：-]+|[\s,，。.、;；:：-]+$/g, '').trim();
+    let title = rest.replace(/\s+/g, ' ').replace(/^[\s,，。.、;；:：-]+|[\s,，。.、;；:：-]+$/g, '').trim();
+    title = title.replace(/^(?:at|on|for)\s+/i, '').trim();
 
     if (sawTime) {
       const end = U.addMinutes(start, durationMin || 60);

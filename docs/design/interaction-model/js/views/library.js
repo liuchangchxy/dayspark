@@ -168,10 +168,10 @@
         const foot = U.el('div', { class: 'input-row', style: 'justify-content:flex-end;margin-top:10px' });
         const cancel = U.el('button', { class: 'btn ghost', text: t('cancel') });
         cancel.addEventListener('click', () => close(null));
-        const save = U.el('button', { class: 'btn primary', text: cal ? t('save') : t('create') });
+        const save = U.el('button', { class: 'btn primary', text: cal ? t('save') : t('create'), 'data-testid': 'calendar-create' });
         save.addEventListener('click', () => {
           const name = input.value.trim();
-          if (!name) { err.textContent = t('calendarNameRequired'); input.classList.add('invalid'); return; }
+          if (!name) { err.textContent = t('calendarNameRequired'); input.classList.add('invalid'); input.focus(); return; }
           if (cal) S.updateCalendar(cal.id, { name, color: chosen });
           else S.createCalendar(name, chosen);
           close(null); App.render();

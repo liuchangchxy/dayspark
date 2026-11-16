@@ -60,8 +60,7 @@
         content.appendChild(dis);
 
         content.appendChild(UI.sectionHead(S.state.lang === 'zh' ? '长内容' : 'Long content'));
-        const long = '这是一条非常长的标题，用来检查截断与换行是否按设计工作：' +
-          (S.state.lang === 'zh' ? '把季度预算、客户排期、设计走查和发布说明全部塞进一行，看它是否会撑破布局。' : '');
+        const long = t('longSample');
         const row = U.el('div', { class: 'row' });
         row.innerHTML = `<span class="row-time">09:30</span><span class="row-leading">${ICON('flag', 14)}</span><span class="row-main"><span class="row-title">${U.esc(long)}</span><span class="row-meta">${U.esc(t('deadline'))} · ${U.esc(t('overdue'))}</span></span><span class="row-tail">${ICON('chevronForward', 13)}</span>`;
         content.appendChild(row);

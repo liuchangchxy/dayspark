@@ -220,7 +220,7 @@ scenario('P1-4 phone calendar draws allocations at their real time', async (brow
       return {
         id: a.id,
         rendered: Math.round(b.getBoundingClientRect().top - top),
-        expected: Math.round(((start.getHours() * 60 + start.getMinutes()) / 60 - 6) * 96),
+        expected: Math.round(((start.getHours() * 60 + start.getMinutes()) / 60 - 6) * 192),
       };
     });
   });

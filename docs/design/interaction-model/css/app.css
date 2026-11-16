@@ -776,6 +776,7 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .month-cell { padding: 4px 5px; }
   .month-event { font-size: 9px; height: 15px; }
   .row .actions { opacity: 1; }
+  .todo-row .grab { width: 48px; opacity: .8; }
   .row-meta { flex-wrap: nowrap; overflow: hidden; }
   .todo-row .row-meta > * { flex: none; }
   .todo-row .row-meta .chip { display: none; }
@@ -842,8 +843,8 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .month-grid { grid-auto-rows: minmax(54px, 1fr); }
   .month-cell .lunar { display: none; }
   .month-event { height: 14px; }
-  .page-actions .btn.primary .label { display: none; }
-  .page-actions .btn.primary { width: 36px; padding: 0; }
+  .page-actions .btn.primary { padding: 0 10px; }
+  .page-actions .btn.primary .label { display: inline; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -894,7 +895,7 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .deadline-chip { min-height: 48px; padding-top: 10px; padding-bottom: 10px; }
   .month-event { min-height: 22px; }
   .block.short, .timegrid .block { min-height: 48px; }
-  .block .resize { height: 24px; }
+  .block .resize { height: 48px; }
 }
 
 /* ---- quick add ---- */
@@ -1099,11 +1100,11 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .plan-bar { min-height: 48px; }
   .row-undo { height: 48px; }
   .dawn-fold { height: 48px; }
-  .back-now { min-height: 48px; }
+  .back-now { min-height: 48px; bottom: 72px; }
 
-  /* Calendar blocks are drawn to scale, and the phone hour is 96px so the
-     smallest realistic block (30 min) is itself 48px. No pseudo-element hit
-     expansion: neighbouring blocks would steal each other's taps. */
+  /* Calendar blocks are drawn to scale. The phone hour is 192px so a 15-minute
+     block is itself 48px and taller blocks never need a min-height that would
+     overlap the next one. No pseudo-element hit expansion. */
   .timegrid .block, .block.alloc, .month-event { overflow: visible; }
   .timegrid .block .bt, .timegrid .block .bm,
   .block.alloc .bt, .block.alloc .bm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
