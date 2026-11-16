@@ -1878,6 +1878,55 @@ scenario('R12-67 calendar arrows step the view and a populated cell does not cre
   await page.__ctx.close();
 });
 
+/* F-R6-01 — an occurrence block's conflict is the block that was written */
+scenario('R12-68 the occurrence picker names the conflict on the picked day', async (browser) => {
+  const page = await newPage(browser);
+  const info = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const mkEvent = (d, name) => {
+      const s = new Date(d); s.setHours(6, 0, 0, 0);
+      return window.Store.createEvent({ summary: name, startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    };
+    mkEvent(day, '今日占位');
+    mkEvent(window.U.addDays(day, 1), '明日占位');
+    const todo = window.Store.createTodo({ summary: '跨日实例排期', startDate: day, recurrence: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } });
+    window.App.openRecord('todo', todo.id);
+    return { id: todo.id, tomorrow: window.U.addDays(day, 1).toISOString() };
+  });
+  await settle(page, 350);
+  await clickTestId(page, 'detail-schedule');
+  await settle(page, 250);
+  const tomorrow = new Date(info.tomorrow);
+  await page.evaluate((iso) => {
+    const d = new Date(iso); d.setHours(6, 0, 0, 0);
+    const input = document.querySelector('[data-testid="allocate-apply"]').closest('.picker').querySelector('input[type="datetime-local"]');
+    input.value = window.U.toInputDateTime(d);
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, info.tomorrow);
+  await clickTestId(page, 'allocate-apply');
+  await settle(page, 250);
+  const picked = await page.evaluate((iso) => {
+    const d = new Date(iso);
+    const label = window.U.fmtMonthDay(d);
+    const rows = Array.from(document.querySelectorAll('[data-testid="occurrence-row"]'));
+    const row = rows.find((r) => r.textContent.includes(label));
+    if (!row) return false;
+    row.click();
+    return true;
+  }, info.tomorrow);
+  assert(picked, 'the occurrence sheet must offer tomorrow');
+  await settle(page, 350);
+  const out = await page.evaluate((tid) => {
+    const alloc = window.Store.state.allocations.filter((a) => a.todoId === tid && a.state === window.Store.ALLOC.ACTIVE).pop();
+    return { day: new Date(alloc.startAt).getDate(), toast: (document.querySelector('.toast') || {}).innerText || '' };
+  }, info.id);
+  assertEq(out.day, tomorrow.getDate(), 'the block must sit on the picked occurrence day');
+  assert(out.toast.includes('明日占位'), 'the toast must name the record on the written day: ' + out.toast);
+  assert(!out.toast.includes('今日占位'), 'the toast must not name a record on the typed day: ' + out.toast);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   const failures = [];

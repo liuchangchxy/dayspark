@@ -697,8 +697,8 @@
           if (todo.recurrence) {
             pickOccurrence(todo, st, en);
           } else {
-            const hit = S.conflictAt(st, en, { ignoreTodoId: todo.id });
-            S.createAllocation({ todoId: todo.id, startAt: st, endAt: en });
+            const created = S.createAllocation({ todoId: todo.id, startAt: st, endAt: en });
+            const hit = S.conflictAt(created.startAt, created.endAt, { ignoreAllocId: created.id, ignoreTodoId: todo.id });
             App.render();
             const clash = hit ? t('allocateConflict', { t: hit.summary }) : null;
             UI.toast(t('scheduleToast', { t: todo.summary }) + (clash ? ' · ' + clash : ''), {
@@ -732,8 +732,10 @@
           b.disabled = isDone;
           b.addEventListener('click', () => {
             close(null);
-            const hit = S.conflictAt(start, end, { ignoreTodoId: todo.id });
-            S.createAllocation({ todoId: todo.id, startAt: start, endAt: end, occurrenceId: id });
+            // D-05 moves the block onto the occurrence's own day, so the
+            // conflict must be read from the block that was actually written.
+            const created = S.createAllocation({ todoId: todo.id, startAt: start, endAt: end, occurrenceId: id });
+            const hit = S.conflictAt(created.startAt, created.endAt, { ignoreAllocId: created.id, ignoreTodoId: todo.id });
             App.render();
             const clash = hit ? t('allocateConflict', { t: hit.summary }) : null;
             UI.toast(t('scheduleToast', { t: todo.summary }) + (clash ? ' · ' + clash : ''));
