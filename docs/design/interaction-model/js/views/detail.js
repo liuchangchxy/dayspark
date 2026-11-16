@@ -349,9 +349,11 @@
     const notesSec = U.el('div', { class: 'detail-section' });
     notesSec.appendChild(U.el('h3', { text: t('notes') }));
     const notes = U.el('div', { class: 'detail-note' + (todo.description ? '' : ' muted'), text: todo.description || t('noDescription') });
-    notes.style.cursor = 'pointer';
-    notes.title = t('editInline');
-    notes.addEventListener('click', () => notesEditor(todo));
+    if (!ro) {
+      notes.style.cursor = 'pointer';
+      notes.title = t('editInline');
+      notes.addEventListener('click', () => notesEditor(todo));
+    }
     notesSec.appendChild(notes);
     scroll.appendChild(notesSec);
 
@@ -367,17 +369,19 @@
         const row = U.el('div', { class: 'attachment-row' });
         const open = U.el('button', { class: 'link-btn', text: name, 'data-testid': 'attachment-open' });
         open.addEventListener('click', () => UI.toast(t('attachmentLocal') + ' · ' + name));
-        const del = U.el('button', { class: 'icon-btn sm', 'aria-label': t('remove'), html: ICON('trash', 13), 'data-testid': 'attachment-delete' });
-        del.addEventListener('click', () => {
-          const next = attach.slice();
-          next.splice(idx, 1);
-          if (writeTodo(todo, { attachments: next })) {
-            App.render();
-            UI.toast(t('updatedToast', { t: todo.summary }));
-          }
-        });
         row.appendChild(open);
-        row.appendChild(del);
+        if (!ro) {
+          const del = U.el('button', { class: 'icon-btn sm', 'aria-label': t('remove'), html: ICON('trash', 13), 'data-testid': 'attachment-delete' });
+          del.addEventListener('click', () => {
+            const next = attach.slice();
+            next.splice(idx, 1);
+            if (writeTodo(todo, { attachments: next })) {
+              App.render();
+              UI.toast(t('updatedToast', { t: todo.summary }));
+            }
+          });
+          row.appendChild(del);
+        }
         attachSec.appendChild(row);
       });
     }

@@ -223,6 +223,9 @@
         return;
       }
       S.occurrencesInWindow(todo, U.startOfDay(from), U.startOfDay(to)).forEach((occDay) => {
+        // A finished instance is history, not an open deadline; the dated list
+        // already splits done instances out, and the two must agree (I13).
+        if (S.isOccurrenceDone(todo, S.occurrenceIdFor(todo, occDay))) return;
         const due = occurrenceDeadline(todo.dueDate, occDay);
         if (due >= from && due <= to) items.push({ todo, due, day: occDay });
       });
@@ -517,6 +520,19 @@
     return node;
   }
 
+  // A gesture that ends in a write re-renders the grid, so a guard stored on the
+  // old node cannot swallow the click the browser synthesises afterwards. The
+  // guard therefore lives at document level for the instant after a gesture.
+  let suppressClickUntil = 0;
+  function swallowTrailingClick() { suppressClickUntil = Date.now() + 400; }
+  document.addEventListener('click', (ev) => {
+    const onBlock = ev.target instanceof Element && ev.target.closest('.block');
+    if (!onBlock || Date.now() >= suppressClickUntil) return;
+    suppressClickUntil = 0;
+    ev.stopPropagation();
+    ev.preventDefault();
+  }, true);
+
   // D-16 sends short-block resizing to the block menu. On a real touch device
   // there is no right-click, and long-press does not synthesise contextmenu in
   // every shell, so the menu needs its own hold gesture.
@@ -536,7 +552,11 @@
     node.addEventListener('pointermove', (ev) => {
       if (timer && (Math.abs(ev.clientX - sx) > 8 || Math.abs(ev.clientY - sy) > 8)) clear();
     });
-    node.addEventListener('pointerup', clear);
+    node.addEventListener('pointerup', () => {
+      const held = fired;
+      clear();
+      if (held) swallowTrailingClick();
+    });
     node.addEventListener('pointercancel', clear);
     node.addEventListener('click', (ev) => {
       if (!fired) return;
@@ -620,7 +640,7 @@
       if (!mode) return;
       const dy = e.clientY - startY;
       const dx = e.clientX - startX;
-      if (!moved && Math.abs(dy) < 4 && Math.abs(dx) < 4) return;
+      if (!moved && Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
       moved = true;
       if (mode === 'move') {
         node.style.top = origTop + dy + 'px';
@@ -654,6 +674,7 @@
       node.style.opacity = '1';
       if (!moved) { node.dataset.moved = '0'; return; }
       node.dataset.moved = '1';
+      swallowTrailingClick();
       const top = parseFloat(node.style.top) || origTop;
       const height = parseFloat(node.style.height) || origH;
       const snap = hh / 4;
@@ -671,9 +692,11 @@
       if (wasMode === 'resize') {
         const e2 = U.addMinutes(end, resizedMin);
         if (e2 <= start) return;
+        if (resizedMin === 0) { restoreVisual(); return; }
         if (ctx.kind === 'event') moveEvent(ctx.data, start, e2, { silent: false, from: start, resized: true, onCancel: restoreVisual });
         else if (moveAlloc(ctx.data, start, e2, { resized: true, onCancel: restoreVisual }) === false) node.dataset.moved = '1';
       } else {
+        if (movedMin === 0) { restoreVisual(); return; }
         const s = U.addMinutes(start, movedMin);
         const e2 = U.addMinutes(end, movedMin);
         if (ctx.kind === 'event') moveEvent(ctx.data, s, e2, { from: start, onCancel: restoreVisual });

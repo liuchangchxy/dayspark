@@ -411,6 +411,8 @@
               rm.addEventListener('click', () => {
                 devicesStore.items = devicesStore.items.filter((x) => x.id !== d.id);
                 draw();
+                const countEl = document.querySelector('[data-testid="connected-devices-row"] .value');
+                if (countEl) countEl.textContent = String(devicesStore.items.length);
               });
               r.appendChild(rm);
             }
@@ -579,7 +581,7 @@
         host.appendChild(err);
         const apply = U.el('button', { class: 'btn primary lg', text: t('mergeBackup'), 'data-testid': 'merge-apply', style: 'margin-top:10px' });
         apply.addEventListener('click', () => {
-          if (!chosen) { err.textContent = t('chooseFileFirst'); return; }
+          if (!chosen) { err.textContent = t('noBackupFile'); return; }
           const reader = new FileReader();
           reader.onerror = () => { err.textContent = t('invalidBackup'); };
           reader.onload = () => {
@@ -607,7 +609,10 @@
       if (!row || row.id == null) { skipped++; return; }
       const existing = list.find((x) => x.id === row.id);
       if (!existing) { list.push(hydrate(row)); added++; return; }
-      if ((existing.updatedAt || 0) < (row.updatedAt || 0)) { Object.assign(existing, hydrate(row)); updated++; }
+      // A backup serialises dates as ISO strings; comparing a Date with a string
+      // is always false, so every newer record was counted as skipped.
+      const at = (v) => (v == null ? 0 : (v instanceof Date ? v.getTime() : new Date(v).getTime()));
+      if (at(existing.updatedAt) < at(row.updatedAt)) { Object.assign(existing, hydrate(row)); updated++; }
       else skipped++;
     };
     data.todos.forEach((row) => mergeRow(S.state.todos, row, (r) => Object.assign({}, r, {

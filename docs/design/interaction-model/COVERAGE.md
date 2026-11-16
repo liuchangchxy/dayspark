@@ -345,3 +345,15 @@ rail、行菜单、多选、拖动排序、滑动、块改尺寸、今天节奏�
 其余的根因簇（唯一返回阶梯、唯一完成写点、occurrence 归属、撤销即逆操作、写点唯一化、失败不谎报）落在 `BEHAVIORS.md`
 A2 / B3 / B5 / C2 / H 与 `design/domains/`，逐条回归场景见 `tests/reviewer-findings-r11.js`（36 条，编号与
 `REVIEW_ROUNDS_G0V2.md` 的 backlog 一一对应）。
+
+### 9.1 G0 v2 第二轮复查的裁定
+
+| 裁定 | 契约落点 | 原型实现 | 回归证据 |
+|---|---|---|---|
+| D-11 修正：完成的记录离开「计划执行」，已开始的安排按 INV-144 留作历史 | `BEHAVIORS.md` B3；`design/decisions.md` D-11 | `js/views/todo.js` `renderDay()` | `reviewer-findings-r12.js` R12-04 |
+| D-21 恢复时重绑已删除的日历 | `BEHAVIORS.md` B4 | `js/store.js` `rebindMissingCalendar()` | R12-23 |
+| D-22 合并备份必须有文件并报告新增/更新/跳过 | `BEHAVIORS.md` F 数据行 | `js/views/settings.js` `mergeBackupFlow()` | R12-21 |
+| D-23 快捷芯片标签 = 实际写入的时刻 | `BEHAVIORS.md`（composer 证据）；`design/decisions.md` D-23 | `js/views/composer.js` `chipDayLabel()` | R12-10 |
+| D-24 触摸长按打开块菜单（D-16 的补偿路径） | `BEHAVIORS.md` C2 | `js/views/calendar.js` `attachTouchMenu()` | R12-09 |
+| D-25 同槽重叠各占一列 | `BEHAVIORS.md` C2；`design/decisions.md` D-25 | `js/views/calendar.js` `computeOverlaps()` | R12-26 |
+| D-10 修正：删除带内容的日历可撤销（连同内容/绑定） | `BEHAVIORS.md` F；`design/decisions.md` D-10 | `js/views/library.js` + `S.undoDeleteCalendar()` | R12-19 |

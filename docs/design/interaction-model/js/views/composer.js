@@ -140,7 +140,10 @@
     App.leaveGuard = () => {
       if (!dirty) return Promise.resolve(true);
       return askDiscard().then((ok) => {
-        if (ok) { S.state.composer = null; S.state.composerDraft = null; }
+        // The guard has already asked; clearing the local flag keeps the page's
+        // own escape handler from asking the same question a second time when
+        // browser Back walks the ladder after the guard resolves.
+        if (ok) { dirty = false; S.state.composer = null; S.state.composerDraft = null; }
         return ok;
       });
     };
@@ -1224,6 +1227,17 @@
           S.completeTodo(todo.id);
           todo = S.todoById(draft.id);
         }
+        // Conflict is read BEFORE the write. Computing it afterwards counted the
+        // row this save had just created as an overlap with itself.
+        let conflictName = null;
+        if (draft.scheduleStart && draft.scheduleEnd) {
+          const cs = draft.scheduleStart;
+          const ce = draft.scheduleEnd;
+          const evs = S.state.events.filter((e) => !e.deletedAt && e.startDt < ce && e.endDt > cs);
+          const allocs = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < ce && a.endAt > cs && a.id !== draft.scheduleAllocId);
+          if (evs.length) conflictName = evs[0].summary;
+          else if (allocs.length) conflictName = (S.todoById(allocs[0].todoId) || {}).summary || null;
+        }
         // schedule: a repeating to-do is scheduled per occurrence, so a schedule
         // without an occurrence would be invisible; refuse instead of writing one.
         let scheduleBlocked = false;
@@ -1297,16 +1311,7 @@
         const base = created ? t('createdToast', { t: todo.summary }) : t('updatedToast', { t: todo.summary });
         // D-09: an overlapping schedule saves and the toast names the conflict.
         // The picker preview said it, then the save toast dropped it.
-        let conflictName = null;
-        if (draft.scheduleStart && draft.scheduleEnd && !scheduleBlocked) {
-          const s = draft.scheduleStart;
-          const e2 = draft.scheduleEnd;
-          const evs = S.state.events.filter((e) => !e.deletedAt && e.startDt < e2 && e.endDt > s);
-          const allocs = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < e2 && a.endAt > s && a.id !== draft.scheduleAllocId);
-          if (evs.length) conflictName = evs[0].summary;
-          else if (allocs.length) conflictName = (S.todoById(allocs[0].todoId) || {}).summary || null;
-        }
-        const msg = base + (conflictName ? ' · ' + t('conflict') + ': ' + conflictName : '');
+        const msg = base + (conflictName && !scheduleBlocked ? ' · ' + t('conflict') + ': ' + conflictName : '');
         UI.toast(scheduleBlocked ? msg + ' · ' + t('recurrenceNeedsOccurrence') : msg, {
           warn: scheduleBlocked,
           undo: created ? () => { S.softDeleteTodo(todo.id); App.render(); } : null,

@@ -62,6 +62,7 @@ function assertNoErrors(page) {
   assert(page.__errors.length === 0, 'console errors: ' + page.__errors.slice(0, 3).join(' | '));
 }
 const bodyText = (page) => page.evaluate(() => document.body.innerText);
+const exists = (page, sel) => page.evaluate((x) => !!document.querySelector(x), sel);
 const toastText = (page) => page.evaluate(() => (document.querySelector('.toast') || {}).innerText || '');
 
 /* A-R2-1 — T on a dirty composer is refused as a whole */
@@ -105,6 +106,30 @@ scenario('R12-02 discard from a second composer leaves one Close', async (browse
   await clickTestId(page, 'composer-close');
   const route = await page.evaluate(() => window.Store.state.route.name);
   assertEq(route, 'action', 'one Close returns to the origin');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* A-R3-1 — browser Back with a dirty composer asks once */
+scenario('R12-27 browser Back asks once and one discard leaves', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'action');
+  await page.keyboard.press('n');
+  await settle(page, 250);
+  await page.fill('[data-testid="composer-title"]', '返回草稿');
+  await page.evaluate(() => document.activeElement.blur());
+  await page.goBack();
+  await settle(page, 300);
+  const first = await page.evaluate(() => !!Array.from(document.querySelectorAll('button')).find((b) => b.textContent.trim() === '放弃'));
+  assert(first, 'browser Back must ask before discarding');
+  await clickText(page, 'button', '放弃');
+  await settle(page, 400);
+  const state = await page.evaluate(() => ({
+    dialogs: Array.from(document.querySelectorAll('button')).filter((b) => b.textContent.trim() === '放弃').length,
+    route: window.Store.state.route.name,
+  }));
+  assertEq(state.dialogs, 0, 'one discard must not open a second identical dialog');
+  assertEq(state.route, 'action', 'one discard must complete the Back');
   assertNoErrors(page);
   await page.__ctx.close();
 });
@@ -670,6 +695,168 @@ scenario('R12-26 two events with the same slot are both reachable', async (brows
   }, ids);
   assertEq(hit.sameLeft, false, 'overlapping blocks must get separate columns');
   assertEq(hit.hitId, String(ids[0]), 'the first block must be the one under the pointer');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R3-1 — a first block does not conflict with itself */
+scenario('R12-28 a new schedule does not name itself as a conflict', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => window.App.openComposer('todo'));
+  await settle(page, 250);
+  await page.fill('[data-testid="composer-title"]', '独立时段测试');
+  await clickTestId(page, 'composer-more');
+  await clickTestId(page, 'composer-schedule');
+  await settle(page, 250);
+  await page.evaluate(() => {
+    const d = window.U.addDays(window.U.startOfDay(window.U.now()), 1);
+    d.setHours(2, 0);
+    const el = document.querySelector('[data-testid="schedule-start"]');
+    el.value = window.U.toInputDateTime(d);
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await clickTestId(page, 'schedule-apply');
+  await settle(page, 200);
+  await clickTestId(page, 'composer-save');
+  await settle(page, 300);
+  const toast = await toastText(page);
+  assert(!/重叠|overlap/i.test(toast), 'a block with no other booking must not name a conflict: ' + toast);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* H-R3-1 — an ISO updatedAt in a backup is still "newer" */
+scenario('R12-29 merge compares ISO updatedAt as a time', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'settings', { section: 'data' });
+  await settle(page, 300);
+  await clickText(page, '.setting-row', '合并备份');
+  await settle(page, 250);
+  const backup = await page.evaluate(() => {
+    const row = JSON.parse(JSON.stringify(window.Store.todoById(3)));
+    row.summary = '备份里的新版标题';
+    row.updatedAt = new Date(Date.now() + 3600000).toISOString();
+    return JSON.stringify({ todos: [row], events: [] });
+  });
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.click('[data-testid="merge-choose"]');
+  const chooser = await chooserPromise;
+  await chooser.setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
+  await settle(page, 150);
+  await clickTestId(page, 'merge-apply');
+  await settle(page, 350);
+  const out = await page.evaluate(() => ({
+    summary: window.Store.todoById(3).summary,
+    toast: (document.querySelector('.toast') || {}).innerText || '',
+  }));
+  assertEq(out.summary, '备份里的新版标题', 'a newer ISO record must be applied');
+  assert(/更新 1|updated 1/i.test(out.toast), 'the report must count the update: ' + out.toast);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R3-1 — a trashed record has no write surface at all */
+scenario('R12-30 a trashed record has no inline editor or attachment delete', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => window.Store.state.todos.find((t) => t.summary === '旧版发布检查清单').id);
+  await page.evaluate((tid) => window.App.openRecord('todo', tid), id);
+  await settle(page, 250);
+  assert(await exists(page, '.detail-note'), 'the note fact must still render');
+  await page.evaluate(() => document.querySelector('.detail-note').click());
+  await settle(page, 200);
+  const overlay = await page.evaluate(() => document.querySelectorAll('.modal, .sheet, .dialog').length);
+  assertEq(overlay, 0, 'clicking the note on a trashed record must not open an editor');
+  assert(!(await exists(page, '[data-testid="attachment-delete"]')), 'a trashed record must not offer attachment delete');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R3-2 — the calendar inverse restores rows that were already in Trash */
+scenario('R12-31 calendar move undo restores trashed bindings exactly', async (browser) => {
+  const page = await newPage(browser);
+  const before = await page.evaluate(() => {
+    const e = window.Store.state.events.find((x) => x.summary === '已取消的访谈');
+    return { cal: e.calendarId, deletedAt: e.deletedAt };
+  });
+  await go(page, 'calendars');
+  await settle(page, 250);
+  await page.evaluate(() => {
+    const row = Array.from(document.querySelectorAll('.setting-row, .cal-row, .list-row')).find((r) => r.textContent.includes('工作'));
+    row.querySelector('button[aria-label="删除日历"], button[aria-label="Delete calendar"]').click();
+  });
+  await settle(page, 250);
+  await clickText(page, 'button', '移动到其他日历');
+  await settle(page, 300);
+  await page.evaluate(() => document.querySelector('.toast .undo').click());
+  await settle(page, 300);
+  const after = await page.evaluate(() => {
+    const e = window.Store.state.events.find((x) => x.summary === '已取消的访谈');
+    return { cal: e.calendarId, deletedAt: e.deletedAt, calExists: !!window.Store.calendarById(2) };
+  });
+  assertEq(after.cal, before.cal, 'undo must take back the binding of a trashed row');
+  assertEq(after.deletedAt, before.deletedAt, 'undo must restore the original deletion stamp');
+  assertEq(after.calExists, true, 'the calendar must be back');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R3-1 — a jittery touch hold never navigates away */
+scenario('R12-32 touch jitter does not turn a hold or drag into navigation', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => {
+    const d = window.U.addDays(window.U.startOfDay(window.U.now()), 0);
+    const s = new Date(d); s.setHours(15, 0, 0, 0);
+    const e = new Date(s.getTime() + 15 * 60000);
+    window.Store.createEvent({ summary: '抖动测试', startDt: s, endDt: e, calendarId: 1 });
+    window.App.go('calendar', { view: 'day' });
+  });
+  await settle(page, 350);
+  const box = await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('抖动测试'));
+    const r = b.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  const cdp = await page.__ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', {
+    type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
+  });
+  const route = () => page.evaluate(() => window.Store.state.route.name);
+
+  await touch('touchStart', box.x, box.y);
+  await touch('touchMove', box.x, box.y + 5);
+  await settle(page, 520);
+  await touch('touchEnd');
+  await settle(page, 350);
+  assertEq(await route(), 'calendar', 'a 5px jitter hold must not navigate');
+
+  const box2 = await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('抖动测试'));
+    const r = b.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await touch('touchStart', box2.x, box2.y);
+  await touch('touchMove', box2.x, box2.y + 10);
+  await settle(page, 150);
+  await touch('touchEnd');
+  await settle(page, 350);
+  assertEq(await route(), 'calendar', 'a 10px drag must stay on the calendar');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* I-R3-1 — a finished recurring instance is not an open deadline in the lane */
+scenario('R12-33 the deadline lane drops a completed occurrence', async (browser) => {
+  const page = await newPage(browser);
+  const seed = await page.evaluate(() => {
+    const todo = window.Store.liveTodos().find((t) => t.recurrence && t.dueDate && t.summary.includes('读 20 页'));
+    const day = window.U.startOfDay(window.U.now());
+    return { id: todo.id, summary: todo.summary, occ: window.Store.occurrenceIdFor(todo, day) };
+  });
+  await page.evaluate(([id, occ]) => window.Store.completeTodo(id, { occurrenceId: occ }), [seed.id, seed.occ]);
+  await go(page, 'calendar', { view: 'day' });
+  await settle(page, 300);
+  const lane = await page.evaluate(() => (document.querySelector('[data-testid="deadline-lane"]') || {}).innerText || '');
+  assert(!lane.includes(seed.summary), 'a completed occurrence must not be listed as an open deadline: ' + lane);
   assertNoErrors(page);
   await page.__ctx.close();
 });

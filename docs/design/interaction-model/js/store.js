@@ -1002,6 +1002,13 @@
     if (state.calendars.length <= 1) return { ok: false, reason: 'only' };
     const target = state.calendars.find((c) => c.id !== id);
     const move = opts && opts.move;
+    // The move path rewrites every row bound to the calendar, trashed or not,
+    // so the inverse has to snapshot every row it can touch (D-06, D-10).
+    const snapshot = {
+      filterCalendarId: state.filterCalendarId,
+      todos: state.todos.filter((r) => r.calendarId === id).map((r) => ({ id: r.id, calendarId: r.calendarId, deletedAt: r.deletedAt, updatedAt: r.updatedAt })),
+      events: state.events.filter((r) => r.calendarId === id).map((r) => ({ id: r.id, calendarId: r.calendarId, deletedAt: r.deletedAt, updatedAt: r.updatedAt })),
+    };
     if (move) {
       state.todos.forEach((t) => { if (t.calendarId === id) t.calendarId = target.id; });
       state.events.forEach((e) => { if (e.calendarId === id) e.calendarId = target.id; });
@@ -1017,27 +1024,32 @@
     // and read as "nothing left" rather than "that calendar is gone".
     if (state.filterCalendarId === id) state.filterCalendarId = null;
     emit('calendar:delete');
-    return { ok: true };
+    return { ok: true, snapshot };
   }
 
   // D-10 names "calendar with content" among the confirm+undo set. The calendar
   // row itself is removed from the list, so undo has to put it back where it was
   // and take back exactly the rows this deletion moved to Trash.
-  function undoDeleteCalendar(cal, index, todoIds, eventIds, rebind) {
+  function undoDeleteCalendar(cal, index, snapshot) {
     if (!cal || state.calendars.some((c) => c.id === cal.id)) return false;
     state.calendars.splice(Math.max(0, Math.min(index, state.calendars.length)), 0, Object.assign({}, cal));
-    (todoIds || []).forEach((id) => {
-      const t = todoById(id);
+    const snap = snapshot || { todos: [], events: [] };
+    (snap.todos || []).forEach((row) => {
+      const t = todoById(row.id);
       if (!t) return;
-      if (rebind) { t.calendarId = cal.id; touch(t); }
-      else if (t.deletedAt) { t.deletedAt = null; touch(t); }
+      t.calendarId = row.calendarId;
+      t.deletedAt = row.deletedAt;
+      touch(t);
+      t.updatedAt = row.updatedAt;
     });
-    (eventIds || []).forEach((id) => {
-      const e = eventById(id);
+    (snap.events || []).forEach((row) => {
+      const e = eventById(row.id);
       if (!e) return;
-      if (rebind) { e.calendarId = cal.id; e.updatedAt = U.now(); }
-      else if (e.deletedAt) { e.deletedAt = null; e.updatedAt = U.now(); }
+      e.calendarId = row.calendarId;
+      e.deletedAt = row.deletedAt;
+      e.updatedAt = row.updatedAt;
     });
+    if (snap.filterCalendarId !== undefined) state.filterCalendarId = snap.filterCalendarId;
     emit('calendar:restore');
     return true;
   }

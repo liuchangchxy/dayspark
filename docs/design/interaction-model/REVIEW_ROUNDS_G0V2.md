@@ -236,4 +236,32 @@ D-11 amended (INV-144 stands; row leaves current work), D-21 restore rebinding, 
 D-23 truthful quick-chip labels, D-24 touch hold opens the block menu, D-25 identical intervals get their own
 column.
 
-### Round 3 — pending
+### Round 3 — verification round against `5ec8e36`
+
+| Domain | Verdict | P0 | P1 | P2 | Notes |
+|---|---|---|---|---|---|
+| A shell | FAIL | 0 | 1 | 0 | browser Back asked the leave guard twice |
+| B today | PASS | 0 | 0 | 1 | second completion steals the first row's inline undo |
+| C todos | PASS | 0 | 0 | 3 | checkbox label on done rows; duplicate 今天 heads; tablet-touch grip |
+| D calendar | FAIL | 0 | 1 | 1 | hold/drag click guard lost under 4–12px finger jitter |
+| E composer | FAIL | 0 | 1 | 0 | a first block named itself in the conflict toast |
+| F detail | FAIL | 0 | 1 | 1 | 备注 inline editor and attachment delete still live on a trashed record |
+| G tools | FAIL | 0 | 2 | 2 | trashed 备注 editor (same root as F); calendar-move undo skipped trashed rows |
+| H settings | FAIL | 0 | 1 | 1 | merge compared ISO `updatedAt` as a string |
+| I data | FAIL | 0 | 1 | 1 | deadline lane listed a completed recurring occurrence as open |
+| J visual | PASS | 0 | 0 | 5 | type scale, dark tokens/contrast, width caps, toast over 回到现在, 3-way overlap |
+| Integrator | pending | | | | running |
+
+#### Round-3 backlog
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| A-R3-1 | Browser Back with a dirty composer asked twice | the escape handler re-read a dirty flag the guard had already resolved | the accepted-discard branch clears the local draft state | r12-27 | fixed |
+| E-R3-1 | A first schedule toasted itself as an overlapping conflict | conflict scan ran after the allocation was written | the conflict is computed before the write | r12-28 | fixed |
+| H-R3-1 | Merge skipped newer rows whose `updatedAt` was an ISO string | string comparison against a `Date` | both sides normalized to a timestamp before comparing | r12-29 | fixed |
+| F-R3-1 / G-P1-1 | Trashed record still opened the 备注 editor and drew attachment delete | read-only gate applied per control, missed two | notes are a fact when trashed; delete is not drawn | r12-30 | fixed |
+| G-R3-2 | Calendar move-undo left trashed rows bound to the surviving calendar and kept a re-stamped `deletedAt` | inverse built from live rows while the forward op rewrites the whole table | delete snapshots every affected row; undo restores from it | r12-31 | fixed |
+| D-R3-1 | 4–12px finger jitter on a block opened the menu and then navigated | drag threshold 4px vs hold cancel 8px, and a zero-delta move still re-rendered; the click guard lived on the detached node | drag threshold 8px, zero-delta writes skipped, document-level guard swallows the trailing block click | r12-32 | fixed |
+| I-R3-1 | The deadline lane listed a completed recurring occurrence as an open deadline | the recurring branch never consulted the occurrence state | done occurrences are skipped, matching the dated list | r12-33 | fixed |
+
+Round-4 scope: A, D, E, F, G, H, I (every domain the patch touched); B, C, J stay frozen at PASS.

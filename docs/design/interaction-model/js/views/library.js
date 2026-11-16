@@ -188,16 +188,14 @@
   function deleteCalendarFlow(cal) {
     const events = S.liveEvents().filter((x) => x.calendarId === cal.id).length;
     const todos = S.liveTodos().filter((x) => x.calendarId === cal.id).length;
-    const todoIds = S.liveTodos().filter((x) => x.calendarId === cal.id).map((x) => x.id);
-    const eventIds = S.liveEvents().filter((x) => x.calendarId === cal.id).map((x) => x.id);
     const index = S.state.calendars.findIndex((c) => c.id === cal.id);
     const calCopy = Object.assign({}, cal);
     if (!events && !todos) {
       UI.confirm({ title: t('deleteCalendar'), message: S.state.lang === 'zh' ? `删除「${cal.name}」？` : `Delete “${cal.name}”?`, danger: true, confirmText: t('delete') }).then((ok) => {
         if (!ok) return;
-        S.deleteCalendar(cal.id, { move: false });
+        const res = S.deleteCalendar(cal.id, { move: false });
         App.render();
-        UI.toast(t('calendarDeleted'), { undo: () => { S.undoDeleteCalendar(calCopy, index, [], []); App.render(); } });
+        UI.toast(t('calendarDeleted'), { undo: () => { S.undoDeleteCalendar(calCopy, index, res.snapshot); App.render(); } });
       });
       return;
     }
@@ -212,17 +210,17 @@
           host.appendChild(b);
         };
         mk('move', t('moveContentsTo'), S.state.lang === 'zh' ? '内容转到第一个其他日历' : 'Move items to the first other calendar', () => {
-          S.deleteCalendar(cal.id, { move: true });
+          const res = S.deleteCalendar(cal.id, { move: true });
           App.render();
           UI.toast(S.state.lang === 'zh' ? '已移动并删除日历' : 'Moved and deleted', {
-            undo: () => { S.undoDeleteCalendar(calCopy, index, todoIds, eventIds, true); App.render(); },
+            undo: () => { S.undoDeleteCalendar(calCopy, index, res.snapshot); App.render(); },
           });
         });
         mk('trash', t('deleteCalendarAndContents'), S.state.lang === 'zh' ? '内容一并移到回收站，可单独恢复' : 'Contents move to Trash and can be restored', () => {
-          S.deleteCalendar(cal.id, { move: false });
+          const res = S.deleteCalendar(cal.id, { move: false });
           App.render();
           UI.toast(S.state.lang === 'zh' ? '已移到回收站并删除日历' : 'Moved to Trash and deleted the calendar', {
-            undo: () => { S.undoDeleteCalendar(calCopy, index, todoIds, eventIds, false); App.render(); },
+            undo: () => { S.undoDeleteCalendar(calCopy, index, res.snapshot); App.render(); },
           });
         }, true);
       },
@@ -386,10 +384,14 @@
 
   // About's GitHub rows used to toast a bare URL and call it an action. Open the
   // real page; if the browser blocks it, copy the address and say so.
+  // Opening with "noopener" makes window.open return null even when the tab
+  // really opened, which would report a blocked tab that was not blocked.
+  // Open normally, then sever the opener reference.
   function openExternal(url) {
     let opened = null;
-    try { opened = window.open(url, '_blank', 'noopener'); } catch (_) { opened = null; }
+    try { opened = window.open(url, '_blank'); } catch (_) { opened = null; }
     if (opened) {
+      try { opened.opener = null; } catch (_) {}
       UI.toast(S.state.lang === 'zh' ? '已在新标签页打开 GitHub' : 'Opened GitHub in a new tab');
       return;
     }
