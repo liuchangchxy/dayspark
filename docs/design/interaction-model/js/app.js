@@ -330,6 +330,19 @@
     if (e.key === 'q' || e.key === 'Q') { e.preventDefault(); go('quickadd'); return; }
     if (e.key === '/') { e.preventDefault(); go('search'); return; }
     if (e.key === 't' || e.key === 'T') { e.preventDefault(); jumpToday(); return; }
+    if (S.state.route.name === 'calendar' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      // D8: the arrows step the calendar by its own unit.
+      e.preventDefault();
+      const back = e.key === 'ArrowLeft';
+      const view = S.state.calendarView;
+      const base = U.startOfDay(S.state.browseDate || U.now());
+      const next = new Date(base);
+      if (view === 'month') next.setMonth(next.getMonth() + (back ? -1 : 1));
+      else next.setDate(next.getDate() + (back ? -1 : 1) * (view === 'week' ? 7 : 1));
+      S.setBrowseDate(U.startOfDay(next));
+      App.render();
+      return;
+    }
     if (e.key === '?') { e.preventDefault(); showShortcuts(); return; }
   });
 

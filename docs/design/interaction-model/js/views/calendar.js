@@ -206,6 +206,9 @@
       cell.addEventListener('dblclick', (ev) => {
         ev.preventDefault();
         if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+        // D3 grants creation on an empty cell. A deadline is not an entry that
+        // occupies time (INV-140), so only a block or an event blocks creation.
+        if (items.some((it) => it.kind !== 'due')) { drill(); return; }
         const now = U.now();
         const hour = U.sameDay(d, now) ? Math.min(23, now.getHours() + 1) : 9;
         const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0);
@@ -292,6 +295,8 @@
   }
 
   // ---------- time grid ----------
+  let gridScrollMemo = { key: '', top: 0 };
+
   function renderTimeGrid(content, days, opts) {
     const narrow = U.isNarrow();
     content.appendChild(deadlineLane(days[0], days.length === 1 ? 'day' : 'week'));
@@ -325,6 +330,9 @@
     wrap.appendChild(allDay);
 
     const scroll = U.el('div', { class: 'time-scroll', 'data-testid': 'time-scroll' });
+    const gridKey = days.map((d) => U.startOfDay(d).getTime()).join(',') + ':' + (S.state.dawnOpen ? '1' : '0');
+    const memoScroll = gridScrollMemo.key === gridKey ? gridScrollMemo.top : null;
+    scroll.addEventListener('scroll', () => { gridScrollMemo = { key: gridKey, top: scroll.scrollTop }; });
     const body = U.el('div', { class: 'time-body' });
     body.style.height = gridH + 'px';
 
@@ -408,6 +416,9 @@
       requestAnimationFrame(() => {
         if (scroll.dataset.scrolled) return;
         scroll.dataset.scrolled = '1';
+        // A re-render (a drag write included) keeps the user where they were;
+        // only a new day or view starts at 08:00.
+        if (memoScroll != null) { scroll.scrollTop = memoScroll; return; }
         const target = Math.max(0, (8 - ds) * hh - 8);
         if (scroll.scrollHeight > scroll.clientHeight + 4) {
           scroll.scrollTop = target;
@@ -566,7 +577,14 @@
       fired = false;
       sx = ev.clientX;
       sy = ev.clientY;
-      timer = setTimeout(() => { timer = null; fired = true; blockMenu(node, ctx); }, 480);
+      timer = setTimeout(() => {
+        timer = null;
+        // The flag is what tells this block's drag handler that the menu owns
+        // the gesture; a menu opened anywhere else must not freeze the grid.
+        node.dataset.holdMenu = '1';
+        fired = true;
+        blockMenu(node, ctx);
+      }, 480);
     });
     node.addEventListener('pointermove', (ev) => {
       if (timer && (Math.abs(ev.clientX - sx) > 8 || Math.abs(ev.clientY - sy) > 8)) clear();
@@ -574,6 +592,7 @@
     node.addEventListener('pointerup', (ev) => {
       const held = fired;
       clear();
+      node.dataset.holdMenu = '0';
       if (held) swallowTrailingClick(ev.clientX, ev.clientY);
     });
     node.addEventListener('pointercancel', clear);
@@ -642,6 +661,10 @@
       // A refused drop leaves its click to be consumed; starting a new gesture
       // must clear that guard or the next real click would be swallowed.
       node.dataset.moved = '0';
+      node.dataset.holdMenu = '0';
+      // A press anywhere dismisses an open menu. The block's preventDefault
+      // suppresses the mousedown UI.menu closes on, so it has to be explicit.
+      if (document.querySelector('.menu')) UI.closeMenu();
       mode = m;
       startX = e.clientX; startY = e.clientY;
       origTop = parseFloat(node.style.top) || 0;
@@ -660,7 +683,7 @@
       if (!mode) return;
       // The hold menu owns the gesture once it is open; a finger that slides
       // afterwards must not drag the block behind it (D-24).
-      if (document.querySelector('.menu')) return;
+      if (node.dataset.holdMenu === '1') return;
       const dy = e.clientY - startY;
       const dx = e.clientX - startX;
       lastDy = dy; lastDx = dx;
@@ -708,7 +731,7 @@
       }
       node.dataset.moved = '1';
       swallowTrailingClick(upX, upY);
-      if (document.querySelector('.menu')) { restoreVisual(); return; }
+      if (node.dataset.holdMenu === '1') { restoreVisual(); return; }
       const top = parseFloat(node.style.top) || origTop;
       const height = parseFloat(node.style.height) || origH;
       // Move by the finger's movement, not by the rendered top: with dawn
@@ -725,7 +748,7 @@
       const end = ctx.kind === 'event' ? ctx.data.endDt : ctx.data.endAt;
       if (wasMode === 'resize') {
         const e2 = U.addMinutes(end, resizedMin);
-        if (e2 <= start) return;
+        if (e2 <= start) { restoreVisual(); return; }
         if (resizedMin === 0) { restoreVisual(); return; }
         if (ctx.kind === 'event') moveEvent(ctx.data, start, e2, { silent: false, from: start, resized: true, onCancel: restoreVisual });
         else if (moveAlloc(ctx.data, start, e2, { resized: true, onCancel: restoreVisual }) === false) node.dataset.moved = '1';

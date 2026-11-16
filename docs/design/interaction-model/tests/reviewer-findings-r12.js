@@ -1742,6 +1742,142 @@ scenario('R12-63 the save label refreshes after a removal and speaks singular En
   await page.__ctx.close();
 });
 
+/* D-R5-1 — an open menu does not freeze the grid */
+scenario('R12-64 a drag works while another block menu is open', async (browser) => {
+  const page = await newPage(browser);
+  const ids = await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const mk = (h, name) => {
+      const s = new Date(d); s.setHours(h, 0, 0, 0);
+      return window.Store.createEvent({ summary: name, startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    };
+    const a = mk(9, '菜单甲');
+    const b = mk(15, '菜单乙');
+    window.App.go('calendar', { view: 'day' });
+    return { a: a.id, b: b.id, start: b.startDt.getTime() };
+  });
+  await settle(page, 350);
+  const boxes = await page.evaluate(() => {
+    const at = (name) => {
+      const el = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes(name));
+      const r = el.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + 20 };
+    };
+    return { a: at('菜单甲'), b: at('菜单乙') };
+  });
+  await page.mouse.click(boxes.a.x, boxes.a.y, { button: 'right' });
+  await settle(page, 250);
+  const menuOpen = await page.evaluate(() => !!document.querySelector('.menu'));
+  assert(menuOpen, 'the right-click must open the menu');
+  await page.mouse.move(boxes.b.x, boxes.b.y);
+  await page.mouse.down();
+  await page.mouse.move(boxes.b.x, boxes.b.y + 60, { steps: 4 });
+  await page.mouse.up();
+  await settle(page, 350);
+  const out = await page.evaluate((x) => ({
+    start: window.Store.eventById(x.b).startDt.getTime(),
+    route: window.Store.state.route.name,
+  }), ids);
+  assert(out.start !== ids.start, 'a drag with a menu open must still move the block');
+  assertEq(out.route, 'calendar', 'the release must not open a record');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R5-2 — a refused resize never leaves a ghost (D-6) */
+scenario('R12-65 a refused resize puts the block back', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const s = new Date(d); s.setHours(9, 0, 0, 0);
+    window.Store.createEvent({ summary: '幽灵测试', startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    window.App.go('calendar', { view: 'day' });
+  });
+  await settle(page, 350);
+  const before = await page.evaluate(() => {
+    const el = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('幽灵测试'));
+    return { height: el.style.height, top: el.style.top };
+  });
+  const strip = await page.evaluate(() => {
+    const el = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('幽灵测试'));
+    const r = el.querySelector('.resize').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await page.mouse.move(strip.x, strip.y);
+  await page.mouse.down();
+  await page.mouse.move(strip.x, strip.y - 200, { steps: 5 });
+  await page.mouse.up();
+  await settle(page, 250);
+  const after = await page.evaluate(() => {
+    const el = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('幽灵测试'));
+    return { height: el.style.height, top: el.style.top };
+  });
+  assertEq(after.height, before.height, 'a refused resize must draw the block where it was');
+  assertEq(after.top, before.top, 'the block must not move either');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R5-3 — a drag write does not throw the grid back to 08:00 */
+scenario('R12-66 the time grid keeps its scroll after a drag write', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const s = new Date(d); s.setHours(15, 0, 0, 0);
+    window.Store.createEvent({ summary: '滚动保持', startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    window.App.go('calendar', { view: 'day' });
+  });
+  await settle(page, 400);
+  const box = await page.evaluate(() => {
+    const sc = document.querySelector('.time-scroll');
+    sc.scrollTop = 700;
+    const el = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('滚动保持'));
+    const r = el.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + 30, before: sc.scrollTop };
+  });
+  await settle(page, 150);
+  const cdp = await page.__ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', box.x, box.y);
+  await touch('touchMove', box.x, box.y + 60);
+  await settle(page, 150);
+  await touch('touchEnd');
+  await settle(page, 450);
+  const after = await page.evaluate(() => document.querySelector('.time-scroll').scrollTop);
+  assert(Math.abs(after - box.before) <= 60, 'the grid must not jump back to 08:00 after a drag: ' + box.before + ' -> ' + after);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D8 — arrows step the calendar; a populated month cell does not create */
+scenario('R12-67 calendar arrows step the view and a populated cell does not create', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => window.App.go('calendar'));
+  await settle(page, 350);
+  const start = await page.evaluate(() => window.U.startOfDay(window.Store.state.browseDate || window.U.now()).getTime());
+  await page.keyboard.press('ArrowRight');
+  await settle(page, 300);
+  const right = await page.evaluate(() => window.U.startOfDay(window.Store.state.browseDate).getTime());
+  assertEq(right, start + 7 * 86400000, 'ArrowRight must step a week in week view');
+  await page.keyboard.press('ArrowLeft');
+  await settle(page, 300);
+  assertEq(await page.evaluate(() => window.U.startOfDay(window.Store.state.browseDate).getTime()), start, 'ArrowLeft must step back');
+  await clickTestId(page, 'cal-view-month');
+  await settle(page, 300);
+  const cell = await page.evaluate(() => {
+    const c = Array.from(document.querySelectorAll('.month-cell')).find((x) => !x.classList.contains('other') && x.querySelectorAll('.month-event.evt, .month-event.alloc').length > 0);
+    if (!c) return null;
+    const r = c.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  assert(cell, 'the month must have a populated cell');
+  await page.mouse.dblclick(cell.x, cell.y);
+  await settle(page, 350);
+  assertEq(await page.evaluate(() => window.Store.state.route.name), 'calendar', 'a populated cell must not open the composer');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   const failures = [];

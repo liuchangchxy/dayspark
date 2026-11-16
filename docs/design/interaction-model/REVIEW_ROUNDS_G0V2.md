@@ -305,7 +305,7 @@ Round-5 scope: A, D, E, F, G, I; H stays PASS and frozen; B, C, J frozen at PASS
 | Domain | Verdict | P0 | P1 | P2 | Notes |
 |---|---|---|---|---|---|
 | A shell | FAIL | 0 | 1 | 1 | a second Back while the question was open unloaded the app |
-| D calendar | pending | | | | |
+| D calendar | FAIL | 0 | 1 | 4 | an open menu froze every drag and the release opened the record |
 | E composer | FAIL | 0 | 2 | 4 | sibling blocks not reconciled on a rule edit; 重复开始 accepted and ignored |
 | F detail | FAIL | 0 | 2 | 0 | phone 父任务 link 78×16; detail scheduling named itself as a conflict |
 | G tools | FAIL | 1 | 2 | 5 | merge accepted any JSON and overwrote a record; merged rows crashed the detail; merged cascade could not be restored |
@@ -331,5 +331,11 @@ Round-5 scope: A, D, E, F, G, I; H stays PASS and frozen; B, C, J frozen at PASS
 | G-R5-5 | 清空对话 during a pending reply repopulated the thread | the scheduled reply belonged to no conversation | a clear invalidates the in-flight reply | r12-58 | fixed |
 | G2 | A no-results search offered no action | empty state had no action slot | it offers to create a to-do with the term | r12-59 | fixed |
 | E-R5-3 | The save label went stale after a removal and used plural English for one item | the handler re-rendered without validating; one key served every count | the label refreshes and has singular keys | r12-63 | fixed |
+
+| D-R5-1 | An open block menu froze every drag; on desktop the release opened the dragged record | the gesture gate asked whether *any* menu was open, and the block's preventDefault suppressed the menu's outside-press close | the gate is per-block (`holdMenu`), and a new press dismisses an open menu | r12-64 | fixed |
+| D-R5-2 | A refused resize left the block drawn at its dragged height | the refusal returned without restoring the visuals | the refusal restores the block (D-6) | r12-65 | fixed |
+| D-R5-3 | Every re-render threw the time grid back to 08:00, including a drag write | the scroll-to-08:00 animation ran on every built grid | the grid remembers its offset per day list and fold state | r12-66 | fixed |
+| D8 | `←`/`→` were documented as calendar steps and did nothing | no handler | the arrows step a day, a week or a month by the current view | r12-67 | fixed |
+| D3 | Double-clicking a populated month cell created an event | the gesture ignored the cell's contents | only a cell without a block or event creates; a deadline does not occupy time (INV-140) | r12-67 | fixed |
 
 Round-6 scope: A, D, E, F, G, I; H, B, C, J stay frozen at PASS.
