@@ -2202,6 +2202,117 @@ scenario('R12-76 the phone save label is not clipped', async (browser) => {
   await page.__ctx.close();
 });
 
+/* G-R7-1 — a save label that needs four or five lines grows its footer */
+scenario('R12-83 a long save label grows the footer instead of escaping it', async (browser) => {
+  for (const pair of [['工作台', '四字'], ['个人事务与家庭安排', '长名']]) {
+    const page = await newPage(browser, MOBILE, true);
+    await page.evaluate(([name]) => {
+      const cal = window.Store.createCalendar(name, '#2f6fed');
+      const day = window.U.startOfDay(window.U.now());
+      const todo = window.Store.createTodo({ summary: '长标签保存', dueDate: window.U.addDays(day, 3), calendarId: cal.id });
+      window.Store.createAllocation({ todoId: todo.id, startAt: new Date(day.getTime() + 9 * 3600000), endAt: new Date(day.getTime() + 10 * 3600000) });
+      window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    }, pair);
+    await settle(page, 350);
+    const box = await page.evaluate(() => {
+      const b = document.querySelector('[data-testid="composer-save"]');
+      const foot = document.querySelector('.composer-foot');
+      const label = document.createRange();
+      label.selectNodeContents(b);
+      const lr = label.getBoundingClientRect();
+      const br = b.getBoundingClientRect();
+      const fr = foot.getBoundingClientRect();
+      const lines = Math.round(lr.height / (parseFloat(getComputedStyle(b).lineHeight) || 17));
+      const nav = document.querySelector('.bottom-nav');
+      return {
+        lines, clip: b.scrollHeight - b.clientHeight,
+        insideLabel: lr.top >= br.top - 1 && lr.bottom <= br.bottom + 1,
+        insideFoot: br.top >= fr.top - 1 && br.bottom <= fr.bottom + 1,
+        footBottom: fr.bottom, navTop: nav ? nav.getBoundingClientRect().top : null,
+        vh: window.innerHeight, text: b.textContent,
+      };
+    });
+    assert(box.lines >= 3, 'the case must actually wrap onto several lines: ' + JSON.stringify(box));
+    assert(box.clip <= 2, 'the label must not be clipped by its button: ' + JSON.stringify(box));
+    assert(box.insideLabel, 'the label must paint inside its own button: ' + JSON.stringify(box));
+    assert(box.insideFoot, 'the button must stay inside the footer: ' + JSON.stringify(box));
+    assert(box.footBottom <= box.vh + 1, 'the footer must stay in the viewport: ' + JSON.stringify(box));
+    if (box.navTop !== null) assert(box.insideFoot && box.footBottom <= box.navTop + 1, 'the footer must not sit under the nav');
+    assertNoErrors(page);
+    await page.__ctx.close();
+  }
+});
+
+/* G-R7-2 — the 重复开始 field shows the pending anchor it will write */
+scenario('R12-84 the repeat start field shows the pending anchor', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => window.App.openComposer('todo', { mode: 'create' }));
+  await settle(page, 300);
+  await clickTestId(page, 'composer-more');
+  await settle(page, 250);
+  await clickTestId(page, 'composer-repeat');
+  await settle(page, 300);
+  const target = await page.evaluate(() => {
+    const input = document.querySelector('[data-testid="repeat-start"]');
+    const day = window.U.addDays(window.U.fromInputDate(input.value), 3);
+    input.value = window.U.toInputDate(day);
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return window.U.toInputDate(day);
+  });
+  await settle(page, 200);
+  await page.keyboard.press('Escape');
+  await settle(page, 300);
+  await clickTestId(page, 'composer-repeat');
+  await settle(page, 300);
+  const seen = await page.evaluate(() => document.querySelector('[data-testid="repeat-start"]').value);
+  assertEq(seen, target, 'the field must show the pending 重复开始 it will write');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R7-3 — a rotated phone keeps a real calendar grid */
+scenario('R12-85 the rotated phone calendar grid stays usable', async (browser) => {
+  const page = await newPage(browser, { width: 844, height: 390 }, true);
+  const id = await page.evaluate(() => {
+    const d = window.U.startOfDay(window.U.now());
+    const s = new Date(d); s.setHours(9, 0, 0, 0);
+    const e = window.Store.createEvent({ summary: '横屏网格', startDt: s, endDt: new Date(s.getTime() + 3600000), calendarId: 1 });
+    window.App.go('calendar', { view: 'day' });
+    return e.id;
+  });
+  await settle(page, 500);
+  const grid = await page.evaluate(() => {
+    const ts = document.querySelector('[data-testid="time-scroll"]');
+    const tr = ts.getBoundingClientRect();
+    const b = Array.from(document.querySelectorAll('.block')).find((x) => x.textContent.includes('横屏网格'));
+    const br = b.getBoundingClientRect();
+    const pt = { x: br.x + br.width / 2, y: Math.min(Math.max(br.y + 12, tr.top + 4), Math.min(br.bottom - 6, tr.bottom - 4, window.innerHeight - 4)) };
+    const el = document.elementFromPoint(pt.x, pt.y);
+    return {
+      client: ts.clientHeight,
+      hit: !!el && (el === b || b.contains(el)),
+      pt, width: document.documentElement.scrollWidth, vw: window.innerWidth,
+    };
+  });
+  assert(grid.client >= 200, 'the rotated phone grid must not collapse: ' + JSON.stringify(grid));
+  assert(grid.hit, 'a block must be reachable on the rotated phone grid: ' + JSON.stringify(grid));
+  assert(grid.width <= grid.vw + 1, 'the rotated phone must not scroll sideways');
+  const cdp = await page.__ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', grid.pt.x, grid.pt.y);
+  await settle(page, 620);
+  await touch('touchEnd');
+  await settle(page, 300);
+  const menu = await page.evaluate(() => ({
+    menu: !!document.querySelector('.menu'),
+    route: window.Store.state.route.name,
+    start: window.Store.eventById(0),
+  }));
+  assert(menu.menu || menu.route === 'detail', 'holding a block on the rotated phone must open its menu or record: ' + JSON.stringify({ menu: menu.menu, route: menu.route }));
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
 /* G-R6-2 / G-R6-3 — a merged rule's end date is a date everywhere */
 scenario('R12-77 a merged rule with an end date opens and edits', async (browser) => {
   const page = await newPage(browser);

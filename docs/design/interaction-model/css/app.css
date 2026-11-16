@@ -432,6 +432,15 @@ svg { display: block; }
 .all-day-row .gutter { width: 46px; flex: none; font-size: 9px; color: var(--ink-3); display: grid; place-items: center; }
 .all-day-row .daycol { flex: 1; min-width: 0; padding: 3px; border-left: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 2px; }
 .time-scroll { flex: 1; overflow: auto; min-height: 0; position: relative; }
+
+/* A rotated phone has 390px of height; the fixed rows above the grid (head,
+   all-day, dawn fold) already cost 148 and the page chrome the rest, so the
+   grid collapsed to zero and no block was reachable. Let the page scroll and
+   hold a real grid height instead of an empty box. */
+@media (max-height: 560px) {
+  .time-wrap { height: auto; flex: none; }
+  .time-scroll { flex: none; height: 320px; min-height: 0; }
+}
 .time-body { display: flex; position: relative; }
 .time-gutter { width: 46px; flex: none; position: relative; }
 .hour-label { position: absolute; right: 6px; font-family: var(--mono); font-size: 9px; color: var(--ink-3); transform: translateY(-50%); }
@@ -885,7 +894,10 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   /* Secondary footer actions keep their intrinsic width: only the primary
      label needs to shrink, and a ghost button's text must stay inside it. */
   .composer-foot .btn:not(.primary) { flex: 0 0 auto; }
-  .composer-foot .btn.primary { flex: 0 1 auto; max-width: 62vw; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; padding: 8px 14px; text-align: center; }
+  /* The label is a sentence, and a sentence that needs four lines makes the
+     button four lines tall: the footer grows with it instead of letting the
+     text paint outside its own box and under the bottom nav. */
+  .composer-foot .btn.primary { flex: 0 1 auto; max-width: 62vw; height: auto; min-height: 48px; align-self: center; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; padding: 8px 14px; text-align: center; }
   .btn.sm { padding: 0 12px; }
   .capture-plus { min-height: 48px; padding: 0 8px; }
   .link-btn { min-height: 48px; padding: 0 8px; margin: -14px 0; font-size: 11.5px; }

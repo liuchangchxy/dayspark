@@ -999,6 +999,7 @@
                 // 重复开始 exists only inside recurrence: choosing a rule anchors
                 // the series, choosing 不重复 must clear it even when the record
                 // has a deadline, or the hidden value keeps blocking saves.
+                if (!o.rec) draft.startDateInput = null;
                 if (draft.kind === 'todo') {
                   if (!o.rec) draft.startDate = null;
                   else if (!draft.dueDate) draft.startDate = draft.startDateInput || U.startOfDay(U.now());
@@ -1029,7 +1030,7 @@
           const sctrl = U.el('div', { class: 'control' });
           const startDateInput = U.el('input', { class: 'input', type: 'date', style: 'max-width:170px' });
           startDateInput.dataset.testid = 'repeat-start';
-          const fallbackStart = draft.startDate || draft.dueDate || U.startOfDay(U.now());
+          const fallbackStart = draft.startDateInput || draft.startDate || draft.dueDate || U.startOfDay(U.now());
           startDateInput.value = U.toInputDate(fallbackStart);
           startDateInput.addEventListener('change', () => {
             const d = U.fromInputDate(startDateInput.value);
