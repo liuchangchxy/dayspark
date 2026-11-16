@@ -574,7 +574,7 @@ scenario('R12-21 merge backup requires a file and reports the result', async (br
   const chooserPromise = page.waitForEvent('filechooser');
   await page.click('[data-testid="merge-choose"]');
   const chooser = await chooserPromise;
-  await chooser.setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ todos: [{ id: 99991, summary: '备份任务', status: 'NEEDS-ACTION', updatedAt: Date.now(), calendarId: 1, tagIds: [], reminderOffsets: [], attachments: [], occurrenceStates: {} }], events: [] })) });
+  await chooser.setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ todos: [{ id: 99991, summary: '备份任务', status: 'NEEDS-ACTION', updatedAt: Date.now(), createdAt: Date.now(), calendarId: 1, priority: 0, sortOrder: 0, parentId: null, recurrence: null, description: null, dueDate: null, startDate: null, completedAt: null, deletedAt: null, tagIds: [], reminderOffsets: [], attachments: [], occurrenceStates: {} }], events: [] })) });
   await settle(page, 200);
   await clickTestId(page, 'merge-apply');
   await settle(page, 400);
@@ -933,11 +933,13 @@ scenario('R12-36 a resize during the discard question asks once and keeps a kept
   const kept = await page.evaluate(() => ({
     route: window.Store.state.route.name,
     value: (document.querySelector('[data-testid="composer-title"]') || {}).value,
+    focus: (document.activeElement && document.activeElement.dataset.testid) || '',
     dialogs: Array.from(document.querySelectorAll('button')).filter((b) => b.textContent.trim() === '放弃').length,
   }));
   assertEq(kept.route, 'composer', '继续编辑 must stay on the composer');
   assertEq(kept.dialogs, 0, 'the question must not be re-asked by the re-render');
   assertEq(kept.value, '重绘草稿', '继续编辑 must keep the draft after a re-render');
+  assertEq(kept.focus, 'composer-title', '继续编辑 must return focus to the title after a re-render');
 
   await page.evaluate(() => document.activeElement.blur());
   await page.goBack();
@@ -1335,6 +1337,407 @@ scenario('R12-49 a drag does not swallow a click on another block', async (brows
   }));
   assertEq(out.route, 'detail', 'a click on another block must open that block');
   assertEq(out.title, true, 'the opened record must be the clicked one');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* A-R5-1 — a second Back closes the question, it never unloads the app */
+scenario('R12-50 a second Back while the question is open keeps the draft', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'action');
+  await page.keyboard.press('n');
+  await settle(page, 250);
+  await page.fill('[data-testid="composer-title"]', '第二次返回');
+  await page.evaluate(() => document.activeElement.blur());
+  await page.goBack();
+  await settle(page, 350);
+  const asked = await page.evaluate(() => Array.from(document.querySelectorAll('button')).some((b) => b.textContent.trim() === '放弃'));
+  assert(asked, 'the first Back must ask');
+  await page.goBack();
+  await settle(page, 450);
+  const out = await page.evaluate(() => ({
+    ready: window.__READY__ === true,
+    route: window.Store && window.Store.state.route.name,
+    value: (document.querySelector('[data-testid="composer-title"]') || {}).value,
+    dialogs: Array.from(document.querySelectorAll('button')).filter((b) => b.textContent.trim() === '放弃').length,
+    hist: history.state === null,
+  }));
+  assertEq(out.ready, true, 'a second Back must not unload the app');
+  assertEq(out.route, 'composer', 'the question closes back to the composer');
+  assertEq(out.value, '第二次返回', 'the draft must survive');
+  assertEq(out.dialogs, 0, 'the question closes, it is not re-asked');
+  assertEq(out.hist, false, 'the app must keep its own history entry');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* F-R5-02 — the detail's first booking is not its own conflict */
+scenario('R12-51 a first detail schedule names no self conflict', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const d = window.U.addDays(window.U.startOfDay(window.U.now()), 2);
+    const todo = window.Store.createTodo({ summary: '详情排期测试', dueDate: d });
+    window.App.openRecord('todo', todo.id);
+    return todo.id;
+  });
+  await settle(page, 300);
+  await clickTestId(page, 'detail-schedule');
+  await settle(page, 250);
+  await clickTestId(page, 'allocate-apply');
+  await settle(page, 300);
+  const toast = await toastText(page);
+  assert(!toast.includes('详情排期测试') || !/重叠|overlap/i.test(toast), 'the first booking must not name itself: ' + toast);
+  assertEq(await page.evaluate((tid) => window.Store.state.allocations.filter((a) => a.todoId === tid && a.state === window.Store.ALLOC.ACTIVE).length, id), 1, 'exactly one block is written');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* Integrator-R5-1 — back from a result restores paging and scroll */
+scenario('R12-52 returning from a search result keeps pages and scroll', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => {
+    for (let i = 1; i <= 30; i++) window.Store.createTodo({ summary: '检索项 ' + i });
+    window.App.go('search');
+  });
+  await settle(page, 300);
+  await page.fill('[data-testid="search-input"]', '检索项');
+  await settle(page, 600);
+  for (let i = 0; i < 6; i++) {
+    const more = await page.evaluate(() => {
+      const b = Array.from(document.querySelectorAll('button')).find((x) => /加载更多|Load more/i.test(x.textContent));
+      if (b) b.click();
+      return !!b;
+    });
+    if (!more) break;
+    await settle(page, 200);
+  }
+  const loaded = await page.evaluate(() => document.querySelectorAll('[data-testid="search-results"] .search-hit').length);
+  assert(loaded >= 24, 'the test must load several pages first: ' + loaded);
+  await page.evaluate(() => { document.querySelector('.page-scroll').scrollTop = 500; });
+  await settle(page, 150);
+  await page.evaluate(() => document.querySelectorAll('[data-testid="search-results"] .search-hit')[20].click());
+  await settle(page, 350);
+  await page.evaluate(() => document.querySelector('[data-testid="page-back"], .page-back') ? document.querySelector('[data-testid="page-back"], .page-back').click() : window.App.back());
+  await settle(page, 400);
+  const out = await page.evaluate(() => ({
+    route: window.Store.state.route.name,
+    hits: document.querySelectorAll('[data-testid="search-results"] .search-hit').length,
+    scroll: document.querySelector('.page-scroll').scrollTop,
+  }));
+  assertEq(out.route, 'search', 'back must land on the results');
+  assert(out.hits >= 24, 'the loaded pages must survive the round trip: ' + out.hits);
+  assert(out.scroll > 0, 'the scroll offset must be restored: ' + out.scroll);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* F-R5-01 — the phone 父任务 link is a 48px target */
+scenario('R12-53 the phone parent-task link is a 48px target', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => {
+    const parent = window.Store.createTodo({ summary: '父链接父任务' });
+    const child = window.Store.createTodo({ summary: '父链接子任务', parentId: parent.id });
+    window.App.openRecord('todo', child.id);
+  });
+  await settle(page, 300);
+  const box = await page.evaluate(() => {
+    const a = document.querySelector('[data-parent]');
+    const r = a.getBoundingClientRect();
+    return { w: Math.round(r.width), h: Math.round(r.height) };
+  });
+  assert(box.h >= 48, 'the parent link must be at least 48px tall: ' + JSON.stringify(box));
+  await page.evaluate(() => document.querySelector('[data-parent]').click());
+  await settle(page, 300);
+  const title = await page.evaluate(() => document.body.innerText);
+  assert(title.includes('父链接父任务'), 'tapping the parent link must open the parent');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+async function mergeFile(page, payload) {
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.click('[data-testid="merge-choose"]');
+  const chooser = await chooserPromise;
+  await chooser.setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(payload)) });
+  await settle(page, 150);
+  await clickTestId(page, 'merge-apply');
+  await settle(page, 350);
+}
+
+/* G-R5-1 — a file that is not a backup is refused, not merged */
+scenario('R12-54 a foreign JSON file does not overwrite a record', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'settings', { section: 'data' });
+  await settle(page, 300);
+  await clickText(page, '.setting-row', '合并备份');
+  await settle(page, 250);
+  const before = await page.evaluate(() => {
+    const t = window.Store.todoById(3);
+    return { summary: t.summary, due: t.dueDate ? t.dueDate.getTime() : null, tags: t.tagIds.length };
+  });
+  await mergeFile(page, { todos: [{ id: 3, summary: '外来覆盖', updatedAt: '2099-01-01T00:00:00.000Z' }] });
+  const after = await page.evaluate(() => {
+    const t = window.Store.todoById(3);
+    return { summary: t.summary, due: t.dueDate ? t.dueDate.getTime() : null, tags: t.tagIds.length,
+      error: (document.querySelector('[data-testid="merge-error"]') || {}).innerText || '' };
+  });
+  assertEq(after.summary, before.summary, 'a foreign file must not overwrite the record');
+  assertEq(after.due, before.due, 'the deadline must be untouched');
+  assertEq(after.tags, before.tags, 'the tags must be untouched');
+  assert(/不是 DaySpark 备份|not a DaySpark backup/i.test(after.error), 'the refusal must say why: ' + after.error);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R5-2 — a merged record opens without crashing */
+scenario('R12-55 a merged todo opens like any other record', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'settings', { section: 'data' });
+  await settle(page, 300);
+  await clickText(page, '.setting-row', '合并备份');
+  await settle(page, 250);
+  const row = await page.evaluate(() => {
+    const t = window.Store.todoById(3);
+    const copy = JSON.parse(JSON.stringify(t));
+    copy.id = 9001;
+    copy.summary = '合并进来的记录';
+    copy.createdAt = '2026-10-01T02:00:00.000Z';
+    copy.updatedAt = '2026-10-02T02:00:00.000Z';
+    return copy;
+  });
+  await mergeFile(page, { todos: [row], events: [] });
+  const opened = await page.evaluate(() => {
+    window.App.openRecord('todo', 9001);
+    return true;
+  });
+  await settle(page, 350);
+  const out = await page.evaluate(() => ({
+    text: document.body.innerText,
+    route: window.Store.state.route.name,
+  }));
+  assertEq(opened, true, 'the merged record must be openable');
+  assertEq(out.route, 'detail', 'the merged record opens its detail');
+  assert(out.text.includes('合并进来的记录'), 'the merged record must render its title');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R5-3 — restore after a merge still restores the cascade it came with */
+scenario('R12-56 a merged trashed parent restores its child', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'settings', { section: 'data' });
+  await settle(page, 300);
+  await clickText(page, '.setting-row', '合并备份');
+  await settle(page, 250);
+  const stamp = '2026-10-03T02:00:00.000Z';
+  const rows = await page.evaluate((st) => {
+    const base = JSON.parse(JSON.stringify(window.Store.todoById(3)));
+    const parent = Object.assign({}, base, { id: 9101, summary: '合并父', parentId: null, deletedAt: st });
+    const child = Object.assign({}, base, { id: 9102, summary: '合并子', parentId: 9101, deletedAt: st });
+    return [parent, child];
+  }, stamp);
+  await mergeFile(page, { todos: rows, events: [] });
+  const out = await page.evaluate(() => {
+    const ok = !!window.Store.restoreTodo(9101);
+    return { ok, parent: window.Store.todoById(9101).deletedAt, child: window.Store.todoById(9102).deletedAt };
+  });
+  assertEq(out.ok, true, 'the parent must restore');
+  assertEq(out.parent, null, 'the parent is live');
+  assertEq(out.child, null, 'the child deleted with it comes back too');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R5-4 — a nested grandchild is not stranded */
+scenario('R12-57 deleting a parent takes the whole subtree', async (browser) => {
+  const page = await newPage(browser);
+  const out = await page.evaluate(() => {
+    const a = window.Store.createTodo({ summary: '三层甲' });
+    const b = window.Store.createTodo({ summary: '三层乙', parentId: a.id });
+    const c = window.Store.createTodo({ summary: '三层丙', parentId: b.id });
+    window.Store.softDeleteTodo(a.id);
+    const trashed = [a, b, c].map((x) => !!window.Store.todoById(x.id).deletedAt);
+    window.Store.restoreTodo(a.id);
+    const restored = [a, b, c].map((x) => !!window.Store.todoById(x.id).deletedAt);
+    return { trashed, restored };
+  });
+  assertEq(out.trashed, [true, true, true], 'the cascade must reach the grandchild');
+  assertEq(out.restored, [false, false, false], 'restoring must bring the whole subtree back');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R5-5 — clearing the chat cancels an in-flight reply */
+scenario('R12-58 clearing the chat while a reply is pending stays empty', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => {
+    window.Store.state.ai.enabled = true;
+    window.Store.state.ai.configured = true;
+    window.Store.state.ai.messages = [{ role: 'user', text: '早先的问题' }];
+    window.App.go('chat');
+  });
+  await settle(page, 300);
+  await page.evaluate(() => {
+    const ta = document.querySelector('[data-testid="chat-input"]');
+    ta.value = '清空前的问题';
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  });
+  await settle(page, 200);
+  await clickTestId(page, 'chat-clear');
+  await clickText(page, '.modal button, button', '清空');
+  await settle(page, 1100);
+  const out = await page.evaluate(() => ({
+    messages: window.Store.state.ai.messages.length,
+    pending: window.Store.state.ai.pending,
+  }));
+  assertEq(out.messages, 0, 'the cleared thread must stay empty');
+  assertEq(out.pending, false, 'no reply may arrive after the clear');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G2 — a no-results search offers an action */
+scenario('R12-59 a no-results search offers a way forward', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'search');
+  await settle(page, 250);
+  await page.fill('[data-testid="search-input"]', 'ZZZ不存在的词');
+  await settle(page, 700);
+  const hasAction = await page.evaluate(() => Array.from(document.querySelectorAll('.empty button')).length > 0);
+  assert(hasAction, 'a no-results state must offer an action');
+  await page.evaluate(() => document.querySelector('.empty button').click());
+  await settle(page, 350);
+  const out = await page.evaluate(() => ({
+    route: window.Store.state.route.name,
+    value: (document.querySelector('[data-testid="composer-title"]') || {}).value,
+  }));
+  assertEq(out.route, 'composer', 'the action must open the composer');
+  assertEq(out.value, 'ZZZ不存在的词', 'the composer must carry the searched term');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* I-R5-1 — every block loses its occurrence when the repeat is removed */
+scenario('R12-60 removing the repeat frees every block, not just one', async (browser) => {
+  const page = await newPage(browser);
+  const ids = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const todo = window.Store.createTodo({ summary: '双块规则', dueDate: day, recurrence: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } });
+    const mk = (d) => {
+      const s = new Date(d); s.setHours(10, 0, 0, 0);
+      return window.Store.createAllocation({ todoId: todo.id, startAt: s, endAt: new Date(s.getTime() + 3600000), occurrenceId: window.Store.occurrenceIdFor(todo, d) });
+    };
+    const a = mk(day);
+    const b = mk(window.U.addDays(day, 1));
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    return { todo: todo.id, a: a.id, b: b.id, tomorrow: window.U.addDays(day, 1).getTime() };
+  });
+  await settle(page, 350);
+  await clickTestId(page, 'composer-repeat');
+  await clickText(page, '[data-testid="repeat-option"]', '不重复');
+  await settle(page, 250);
+  await clickTestId(page, 'composer-save');
+  await settle(page, 400);
+  const out = await page.evaluate((x) => {
+    const occs = [x.a, x.b].map((id) => window.Store.state.allocations.find((y) => y.id === id));
+    const moved = window.Store.rescheduleAllocation(x.b, new Date(x.tomorrow + 86400000 + 10 * 3600000), new Date(x.tomorrow + 86400000 + 11 * 3600000));
+    return { occs: occs.map((o) => o.occurrenceId), moved: !!moved, start: moved ? moved.startAt.getTime() : null };
+  }, ids);
+  assertEq(out.occs, [null, null], 'every block of a non-repeating record owns no occurrence');
+  assertEq(out.moved, true, 'the sibling block must still be movable');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* I-R5-2 — a rule that cannot reach every block is refused visibly */
+scenario('R12-61 a rule change that would strand a block is refused', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const todo = window.Store.createTodo({ summary: '规则外块', dueDate: day, recurrence: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } });
+    [day, window.U.addDays(day, 1)].forEach((d) => {
+      const s = new Date(d); s.setHours(10, 0, 0, 0);
+      window.Store.createAllocation({ todoId: todo.id, startAt: s, endAt: new Date(s.getTime() + 3600000), occurrenceId: window.Store.occurrenceIdFor(todo, d) });
+    });
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    return todo.id;
+  });
+  await settle(page, 350);
+  await clickTestId(page, 'composer-repeat');
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('[data-testid="repeat-option"]')).find((x) => x.textContent.includes('每周') && x.textContent.includes('('));
+    b.click();
+  });
+  await settle(page, 300);
+  const out = await page.evaluate((tid) => ({
+    disabled: document.querySelector('[data-testid="composer-save"]').disabled,
+    error: (document.querySelector('.hint-box.error') || {}).innerText || '',
+    freq: (window.Store.todoById(tid).recurrence || {}).freq,
+  }), id);
+  assertEq(out.disabled, true, 'the save must be refused while a block is outside the rule');
+  assert(/规则|rule/i.test(out.error), 'the refusal must say why: ' + out.error);
+  assertEq(out.freq, 'DAILY', 'nothing may be written');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R5-2 — 重复开始 is written, not silently ignored */
+scenario('R12-62 the chosen repeat start becomes the series anchor', async (browser) => {
+  const page = await newPage(browser);
+  const target = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const todo = window.Store.createTodo({
+      summary: '系列起点测试', startDate: day,
+      recurrence: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' },
+    });
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    return window.U.addDays(day, 5).getTime();
+  });
+  await settle(page, 350);
+  await clickTestId(page, 'composer-repeat');
+  await page.evaluate((ms) => {
+    const input = document.querySelector('[data-testid="repeat-start"]');
+    const d = new Date(ms);
+    const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    input.value = iso;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, target);
+  await settle(page, 200);
+  await clickText(page, '[data-testid="repeat-option"]', '每天');
+  await settle(page, 250);
+  await clickTestId(page, 'composer-save');
+  await settle(page, 350);
+  const out = await page.evaluate(() => {
+    const todo = window.Store.liveTodos().find((x) => x.summary === '系列起点测试');
+    return { start: window.U.startOfDay(todo.startDate).getTime(), matches: window.Store.matchesRule(todo, new Date(todo.startDate)) };
+  });
+  assertEq(out.start, target, 'the chosen repeat start must be saved');
+  assertEq(out.matches, true, 'the series must actually begin there');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R5-3 — the save label never describes a field the save will not write */
+scenario('R12-63 the save label refreshes after a removal and speaks singular English', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    window.Store.setLang('en');
+    const todo = window.Store.liveTodos().find((x) => x.reminderOffsets && x.reminderOffsets.length === 1 && x.tagIds.length === 1);
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    return todo.id;
+  });
+  await settle(page, 350);
+  const before = await page.evaluate(() => document.querySelector('[data-testid="composer-save"]').textContent);
+  assert(!/1 tags|1 reminders/.test(before), 'singular counts must not be plural: ' + before);
+  assert(/1 tag\b|1 reminder\b/.test(before), 'the label must name the single tag and reminder: ' + before);
+  await page.evaluate(() => {
+    const chip = document.querySelector('.chip.amber button');
+    if (chip) chip.click();
+  });
+  await settle(page, 300);
+  const after = await page.evaluate(() => document.querySelector('[data-testid="composer-save"]').textContent);
+  assert(!/reminder/i.test(after), 'a removed reminder must leave the label: ' + after);
   assertNoErrors(page);
   await page.__ctx.close();
 });

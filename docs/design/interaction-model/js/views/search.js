@@ -11,8 +11,12 @@
     let query = S.state.searchQuery || '';
     let todos = [];
     let events = [];
-    let shownTodos = PAGE;
-    let shownEvents = PAGE;
+    // Returning from a result must land on the list the user left: paging is
+    // part of the destination's state, not of one render.
+    const savedShown = S.state.searchShown && S.state.searchShown.query === query ? S.state.searchShown : null;
+    let shownTodos = savedShown ? savedShown.todos : PAGE;
+    let shownEvents = savedShown ? savedShown.events : PAGE;
+    function syncShown() { S.state.searchShown = { query, todos: shownTodos, events: shownEvents }; }
     let active = -1;
     let hits = [];
 
@@ -86,7 +90,9 @@
           todos = r.todos;
           events = r.events;
           if (!todos.length && !events.length) {
-            results.appendChild(UI.emptyState('search', t('searchNoResults', { q: query }), S.state.lang === 'zh' ? '换个关键词，或检查拼写。' : 'Try another keyword.'));
+            results.appendChild(UI.emptyState('search', t('searchNoResults', { q: query }),
+              S.state.lang === 'zh' ? '换个关键词，或用这个词新建一项。' : 'Try another keyword, or create one with this name.',
+              [{ label: S.state.lang === 'zh' ? '用这个词新建待办' : 'Create a to-do with this', action: () => App.openComposer('todo', { summary: query.trim() }) }]));
             return;
           }
           results.appendChild(U.el('div', { class: 'field-hint', text: t('searchResultsCount', { n: todos.length + events.length }) }));
@@ -103,7 +109,7 @@
             });
             if (todos.length > shownTodos) {
               const more = U.el('button', { class: 'btn ghost sm', text: t('searchLoadMore'), 'data-testid': 'search-more' });
-              more.addEventListener('click', () => { shownTodos += PAGE; draw(); });
+              more.addEventListener('click', () => { shownTodos += PAGE; syncShown(); draw(); });
               results.appendChild(more);
             }
           }
@@ -120,7 +126,7 @@
             });
             if (events.length > shownEvents) {
               const more = U.el('button', { class: 'btn ghost sm', text: t('searchLoadMore'), 'data-testid': 'search-more-event' });
-              more.addEventListener('click', () => { shownEvents += PAGE; draw(); });
+              more.addEventListener('click', () => { shownEvents += PAGE; syncShown(); draw(); });
               results.appendChild(more);
             }
           }
@@ -140,6 +146,7 @@
           clearBtn.hidden = !query;
           shownTodos = PAGE;
           shownEvents = PAGE;
+          S.state.searchShown = null;
           draw();
         }, 300));
         input.addEventListener('keydown', (e) => {
@@ -157,7 +164,8 @@
           }
         });
         draw();
-        setTimeout(() => input.focus(), 30);
+        // Focusing must not pull a restored scroll offset back to the top.
+        setTimeout(() => { if (input.focus) input.focus({ preventScroll: true }); }, 30);
       },
     });
     return page;

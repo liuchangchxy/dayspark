@@ -28,6 +28,9 @@
           if (!ok) return;
           S.state.ai.messages = [];
           S.state.ai.pending = false;
+          // A reply already scheduled belongs to the conversation that was
+          // cleared; without this it repopulated the empty thread.
+          S.state.ai.generation = (S.state.ai.generation || 0) + 1;
           App.render();
         });
       }, { testid: 'chat-clear' });
@@ -119,8 +122,10 @@
       if (!q || S.state.ai.pending) return;
       S.state.ai.messages.push({ role: 'user', text: q });
       S.state.ai.pending = true;
+      const generation = S.state.ai.generation || 0;
       App.render();
       setTimeout(() => {
+        if ((S.state.ai.generation || 0) !== generation) return;
         S.state.ai.pending = false;
         S.state.ai.messages.push(replyFor(q));
         App.render();

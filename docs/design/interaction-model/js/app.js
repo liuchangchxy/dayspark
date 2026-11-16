@@ -417,9 +417,15 @@
     if (window.history && history.pushState) {
       try { history.pushState({ ds: true }, ''); } catch (_) { /* file:// may refuse */ }
       window.addEventListener('popstate', () => {
-        // Browser Back follows the same ladder as Esc: an open overlay is the
-        // most recent thing the user did, so it closes first. Only when nothing
-        // above claims the step does the route move.
+        // Re-arm the sentinel immediately. Re-arming only after the guard
+        // resolves left the document with no entry of its own while the
+        // question was open, so a second Back unloaded the app and lost the
+        // draft.
+        try { history.pushState({ ds: true }, ''); } catch (_) {}
+        // Browser Back follows the same ladder as Esc: an open overlay (the
+        // discard question included) is the most recent thing the user did,
+        // so it closes first. Only when nothing above claims the step does the
+        // route move.
         const run = () => { if (!backLadder()) back(); };
         const guard = Registry.leaveGuard;
         if (guard && !UI.hasOpenLayer() && !document.querySelector('.menu')) {
@@ -428,11 +434,9 @@
             // ladder again would let the freshly rendered page ask the same
             // question a second time (and drop a draft the user chose to keep).
             if (ok) { Registry.leaveGuard = null; back(); }
-            try { history.pushState({ ds: true }, ''); } catch (_) {}
           });
         } else {
           run();
-          try { history.pushState({ ds: true }, ''); } catch (_) {}
         }
       });
     }

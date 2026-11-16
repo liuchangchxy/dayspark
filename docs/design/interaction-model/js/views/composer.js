@@ -146,6 +146,11 @@
       return UI.confirm({
         title: t('discardTitle'), message: t('discardBody'),
         confirmText: t('discard'), cancelText: t('keepEditing'), danger: true,
+      }).then((ok) => {
+        // Keeping the draft means returning to it: a re-render during the
+        // question replaced the field the modal would have refocused.
+        if (!ok && live.titleInput && live.titleInput.isConnected) live.titleInput.focus();
+        return ok;
       });
     }
     function closeComposer(force) {
@@ -250,6 +255,7 @@
             draft.endDt = U.addMinutes(draft.startDt, 60);
           }
           live.renderBody();
+          live.validate();
         });
         typeSeg.appendChild(b);
       });
@@ -636,7 +642,7 @@
         const chip = U.el('span', { class: 'chip amber' });
         chip.innerHTML = `${ICON('bell', 11)}<span>${U.esc(reminderLabel(min))}</span>`;
         const x = U.el('button', { class: 'icon-btn sm', style: 'width:16px;height:16px', 'aria-label': t('remove'), html: ICON('x', 10) });
-        x.addEventListener('click', () => { offsets.splice(idx, 1); markDirty(); live.renderBody(); });
+        x.addEventListener('click', () => { offsets.splice(idx, 1); markDirty(); live.renderBody(); live.validate(); });
         chip.appendChild(x);
         remWrap.appendChild(chip);
       });
@@ -939,16 +945,32 @@
       });
     }
 
+    // 重复开始 is the series anchor. Accepting a date and writing the old
+    // anchor was a silent lie; an Event moves its block, a Todo moves startDate.
+    function applyRepeatStart() {
+      if (!draft.startDateInput) return;
+      const d = U.startOfDay(draft.startDateInput);
+      if (draft.kind === 'todo') { draft.startDate = d; return; }
+      const shift = d.getTime() - U.startOfDay(draft.startDt).getTime();
+      if (shift) {
+        draft.startDt = new Date(draft.startDt.getTime() + shift);
+        draft.endDt = new Date(draft.endDt.getTime() + shift);
+      }
+    }
+
     function repeatPicker() {
       UI.sheet({
         title: t('repeat'),
         body(host, close) {
           const box = U.el('div', { class: 'picker' });
+          // The weekly preset is named after the day it will actually anchor;
+          // a chosen 重复开始 wins over the deadline for that day.
+          const baseDay = draft.startDateInput || draft.dueDate || draft.startDt || U.now();
           const opts = [
             { label: t('never'), rec: null },
             { label: t('daily'), rec: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: draft.kind === 'todo' ? 'due' : 'start', valueType: draft.kind === 'todo' ? 'date' : 'localDateTime' } },
             { label: t('repeatWeekdays'), rec: { freq: 'WEEKLY', interval: 1, byday: [1, 2, 3, 4, 5], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
-            { label: t('weekly') + ' (' + U.fmtWeekdayLong(draft.dueDate || draft.startDt || U.now()) + ')', rec: { freq: 'WEEKLY', interval: 1, byday: [(draft.dueDate || draft.startDt || U.now()).getDay()], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
+            { label: t('weekly') + ' (' + U.fmtWeekdayLong(baseDay) + ')', rec: { freq: 'WEEKLY', interval: 1, byday: [baseDay.getDay()], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
             { label: t('monthly'), rec: { freq: 'MONTHLY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
             { label: t('yearly'), rec: { freq: 'YEARLY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
           ];
@@ -965,6 +987,7 @@
                 if (!o.rec) draft.startDate = null;
                 else if (!draft.dueDate) draft.startDate = draft.startDateInput || U.startOfDay(U.now());
               }
+              if (o.rec) applyRepeatStart();
               draft.recurrence = o.rec;
               markDirty(); close(null); live.renderBody(); live.validate();
             });
@@ -1039,6 +1062,7 @@
                 ? U.startOfDay(draft.startDateInput)
                 : U.startOfDay(U.now());
             }
+            applyRepeatStart();
             markDirty(); close(null); live.renderBody(); live.validate();
           });
           custom.appendChild(applyCustom);
@@ -1081,8 +1105,12 @@
         parts.push(U.fmtMonthDayTime(draft.startDt));
         if (draft.isAllDay) parts.push(t('allDay'));
       }
-      if (draft.reminderOffsets.length) parts.push(t('saveFieldsReminders', { n: draft.reminderOffsets.length }));
-      if (draft.tagIds.length) parts.push(t('saveFieldsTags', { n: draft.tagIds.length }));
+      if (draft.reminderOffsets.length) {
+        parts.push(t(draft.reminderOffsets.length === 1 ? 'saveFieldsReminderOne' : 'saveFieldsReminders', { n: draft.reminderOffsets.length }));
+      }
+      if (draft.tagIds.length) {
+        parts.push(t(draft.tagIds.length === 1 ? 'saveFieldsTagOne' : 'saveFieldsTags', { n: draft.tagIds.length }));
+      }
       const cal = S.calendarById(draft.calendarId);
       if (cal) parts.push(t('saveFieldsCalendar', { c: cal.name }));
       return parts.slice(0, 3).join(' · ');
@@ -1176,6 +1204,14 @@
           if (!occDay || !U.sameDay(occDay, draft.scheduleStart)) errs.push(t('scheduleOccurrenceMismatch'));
         }
       }
+      // The form edits one block; the record may own others. A rule that cannot
+      // reach one of them would strand it on a day the series never visits.
+      if (draft.kind === 'todo' && draft.id && draft.recurrence) {
+        const probe = scheduleProbe();
+        const outside = S.state.allocations.some((a) => a.todoId === draft.id
+          && a.state === S.ALLOC.ACTIVE && !a.deletedAt && !S.matchesRule(probe, a.startAt));
+        if (outside) errs.push(t('scheduleOutsideRule'));
+      }
       // An untouched new form is not a mistake. Saving stays disabled so the
       // rule is still enforced, but the red message waits until the user has
       // actually typed into the field — otherwise the page greets them with an
@@ -1256,10 +1292,8 @@
         if (draft.scheduleStart && draft.scheduleEnd) {
           const cs = draft.scheduleStart;
           const ce = draft.scheduleEnd;
-          const evs = eventBlocksBetween(cs, ce);
-          const allocs = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < ce && a.endAt > cs && a.id !== draft.scheduleAllocId && a.todoId !== todo.id);
-          if (evs.length) conflictName = evs[0].summary;
-          else if (allocs.length) conflictName = (S.todoById(allocs[0].todoId) || {}).summary || null;
+          const hit = S.conflictAt(cs, ce, { ignoreAllocId: draft.scheduleAllocId, ignoreTodoId: todo.id });
+          conflictName = hit ? hit.summary : null;
         }
         // schedule: a repeating to-do is scheduled per occurrence, so a schedule
         // without an occurrence would be invisible; refuse instead of writing one.
@@ -1296,6 +1330,9 @@
         } else if (draft.scheduleAllocId) {
           S.cancelAllocation(draft.scheduleAllocId);
         }
+        // Every block of the record follows the rule that was written, not only
+        // the one this form loaded.
+        if (isEdit) S.reconcileAllocations(todo.id);
         dirty = false;
         draft.dirty = false;
         const created = !isEdit;

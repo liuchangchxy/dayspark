@@ -771,6 +771,46 @@
     return a;
   }
 
+  // One conflict definition for every surface that writes a block (D-09).
+  // The composer and the detail used to each scan raw series times and each
+  // counted the block they had just written as a clash with itself.
+  function conflictAt(startAt, endAt, opts) {
+    const o = opts || {};
+    const seen = new Set();
+    let d = U.startOfDay(startAt);
+    const last = U.startOfDay(endAt);
+    while (d <= last) {
+      const hit = eventsOnDay(d).find((e) => {
+        if (e.startDt >= endAt || e.endDt <= startAt) return false;
+        const k = e.id + ':' + e.startDt.getTime();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      if (hit) return { kind: 'event', summary: hit.summary };
+      d = U.addDays(d, 1);
+    }
+    const a = state.allocations.find((x) => isAllocationLive(x)
+      && x.startAt < endAt && x.endAt > startAt
+      && x.id !== o.ignoreAllocId && x.todoId !== o.ignoreTodoId);
+    if (a) return { kind: 'allocation', summary: (todoById(a.todoId) || {}).summary || '' };
+    return null;
+  }
+
+  // A rule edit changes what every block of the record may bind to. Reconciling
+  // only the block a form happened to load left siblings bound to occurrences
+  // the new rule never reaches (I4, D-05).
+  function reconcileAllocations(todoId) {
+    const todo = todoById(todoId);
+    if (!todo) return;
+    state.allocations
+      .filter((a) => a.todoId === todoId && a.state === ALLOC.ACTIVE && !a.deletedAt)
+      .forEach((a) => {
+        if (!todo.recurrence) { a.occurrenceId = null; a.updatedAt = U.now(); return; }
+        if (matchesRule(todo, a.startAt)) { a.occurrenceId = occurrenceIdFor(todo, a.startAt); a.updatedAt = U.now(); }
+      });
+  }
+
   function cancelAllocation(id) {
     const a = state.allocations.find((x) => x.id === id);
     if (!a) return null;
@@ -845,8 +885,17 @@
     // Re-deleting an already trashed row would move its timestamp, breaking the
     // stamp match that lets undo restore a parent together with its subtasks.
     if (t.deletedAt) return t;
-    t.deletedAt = U.now();
-    subtasksOf(id).forEach((s) => { s.deletedAt = t.deletedAt; });
+    const stamp = U.now();
+    t.deletedAt = stamp;
+    // Nesting is reachable (a subtask's own detail can add children), so the
+    // cascade has to reach every descendant, not only the first level.
+    const cascade = (pid) => {
+      state.todos.filter((x) => x.parentId === pid && !x.deletedAt).forEach((s) => {
+        s.deletedAt = stamp;
+        cascade(s.id);
+      });
+    };
+    cascade(id);
     dropPaneIfGone();
     touch(t);
     emit('todo:delete');
@@ -888,7 +937,9 @@
       // would sit under a still-deleted parent and never be reachable. Bring the
       // parent back instead, which restores the whole cascade.
       if (p.deletedAt) {
-        if (p.deletedAt !== t.deletedAt) return null;
+        // A backup round trip hydrates stamps into new Date objects: identity
+        // comparison refused a cascade that really did happen together.
+        if (new Date(p.deletedAt).getTime() !== new Date(t.deletedAt).getTime()) return null;
         if (!restoreTodo(p.id)) return null;
       }
     }
@@ -900,9 +951,12 @@
     // back too. Only children deleted at that same moment belong to this undo;
     // ones the user deleted separately keep their own place in Trash.
     if (stamp) {
-      state.todos
-        .filter((x) => x.parentId === id && x.deletedAt === stamp)
-        .forEach((s) => { s.deletedAt = null; touch(s); });
+      const restoreCascade = (pid) => {
+        state.todos
+          .filter((x) => x.parentId === pid && x.deletedAt && new Date(x.deletedAt).getTime() === new Date(stamp).getTime())
+          .forEach((s) => { s.deletedAt = null; touch(s); restoreCascade(s.id); });
+      };
+      restoreCascade(id);
     }
     emit('todo:restore');
     return t;
@@ -1202,7 +1256,7 @@
     calendarColor, isOpen, isDone, subtasksOf, isAllocationLive, allocationsForTodo, allocationsOnDay,
     splitEventOccurrence, splitEventFuture, eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos, plannedTodoIds,
     searchAll, createTodo, updateTodo, createEvent, updateEvent, createAllocation, rescheduleAllocation,
-    cancelAllocation, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
+    cancelAllocation, conflictAt, reconcileAllocations, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
     purgeEvent, emptyTrash, deletedTodos, deletedEvents, reorderTodos, createTag, updateTag, deleteTag,
     createCalendar, updateCalendar, deleteCalendar, undoDeleteCalendar, setSetting, setLang, localizeSeed, applyTheme, savePrefs, loadPrefs, pushUndo, takeUndo,
     navigate, back, selectPane, clearPane, browseDate, setBrowseDate, TODO_STATUS, ALLOC, PRIORITY,

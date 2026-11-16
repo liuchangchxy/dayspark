@@ -836,6 +836,7 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   /* The note value and a subtask title are controls on touch: the text stays
      its size, the hit area grows to the 48px minimum. */
   .detail-note { min-height: 48px; display: flex; align-items: center; }
+  .fact .v a[data-parent] { min-height: 48px; display: inline-flex; align-items: center; }
   .subtask .title { min-height: 48px; display: flex; align-items: center; }
   .section-head { min-height: 48px; flex-wrap: wrap; row-gap: 2px; }
   .row-undo { min-width: 48px; }
@@ -882,6 +883,9 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
      widening the page and pushing a sheet's actions off screen. */
   .composer-foot { overflow: hidden; }
   .composer-foot .btn { min-width: 0; }
+  /* Secondary footer actions keep their intrinsic width: only the primary
+     label needs to shrink, and a ghost button's text must stay inside it. */
+  .composer-foot .btn:not(.primary) { flex: 0 0 auto; }
   .composer-foot .btn.primary { flex: 0 1 auto; max-width: 62vw; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; padding: 8px 14px; text-align: center; }
   .btn.sm { padding: 0 12px; }
   .capture-plus { min-height: 48px; padding: 0 8px; }

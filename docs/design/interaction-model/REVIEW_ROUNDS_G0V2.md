@@ -299,3 +299,37 @@ Round-4 scope: A, D, E, F, G, H, I (every domain the patch touched); B, C, J sta
 | I-R4-2 | Undo after deleting a calendar did not restore a cross-calendar cascaded subtask | the snapshot held seed rows only | the snapshot covers the cascade | r12-35 | fixed |
 
 Round-5 scope: A, D, E, F, G, I; H stays PASS and frozen; B, C, J frozen at PASS.
+
+### Round 5 — verification of the round-4 fix set against `acf192a`
+
+| Domain | Verdict | P0 | P1 | P2 | Notes |
+|---|---|---|---|---|---|
+| A shell | FAIL | 0 | 1 | 1 | a second Back while the question was open unloaded the app |
+| D calendar | pending | | | | |
+| E composer | FAIL | 0 | 2 | 4 | sibling blocks not reconciled on a rule edit; 重复开始 accepted and ignored |
+| F detail | FAIL | 0 | 2 | 0 | phone 父任务 link 78×16; detail scheduling named itself as a conflict |
+| G tools | FAIL | 1 | 2 | 5 | merge accepted any JSON and overwrote a record; merged rows crashed the detail; merged cascade could not be restored |
+| I data | FAIL | 0 | 2 | 0 | the same sibling-block root as E; a rule change stranded a block |
+| Integrator | FAIL | 0 | 1 | 1 | back from a search result lost the loaded pages and the scroll |
+
+#### Round-5 backlog
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| A-R5-1 | A second browser Back while the discard question was open unloaded the app and lost the draft | the history sentinel was re-armed only after the guard resolved | the sentinel is re-armed synchronously, so Back closes the question (keep editing) | r12-50 | fixed |
+| A-R5-2 | 继续编辑 after a re-render lost focus and caret | the focus trap restored a detached node | the trap returns focus to the live node with the same identity; the composer refocuses its title | r12-36 | fixed |
+| E-R5-1 / I-R5-1 | A rule edit reconciled only the block the form loaded; siblings kept occurrence ids the record cannot own, and their moves were refused | reconciliation was per-manifestation (`draft.scheduleAllocId`) | one store routine reconciles every live block against the written rule | r12-60 | fixed |
+| E-R5-2 | 重复开始 was accepted and silently ignored | the value was read only when the record had no deadline, and for todos only | the chosen start anchors the series for both kinds; the weekly preset follows it | r12-62 | fixed |
+| I-R5-2 | A rule change could strand a sibling block on a day the series never reaches | validation saw only the draft's block | the form refuses the save while any live block is outside the rule | r12-61 | fixed |
+| F-R5-01 | Phone 父任务 link was a 78×16 target | the mobile target block never covered it | 48px inline-flex target | r12-53 | fixed |
+| F-R5-02 | The detail's first schedule named itself as a conflict | a second conflict implementation scanned after the write, with no self exclusion | both surfaces call one conflict routine (D-09) | r12-51 | fixed |
+| G-R5-1 (P0) | 合并备份 accepted any JSON with a `todos` array and overwrote a real record | validation checked only the array's existence | a backup must match the known shape row by row, or it is refused and nothing is written | r12-54 | fixed |
+| G-R5-2 | Opening a merged record crashed the detail | hydration left `createdAt` as a string | every date field is hydrated, and unknown calendars/tags are made usable | r12-55 | fixed |
+| G-R5-3 | A merged trashed parent would not restore its child | restore compared deletion stamps by object identity | stamps compare by time | r12-56 | fixed |
+| Integrator-R5-1 | Back from a search result lost the loaded pages and the scroll | paging lived in the render closure and the input focus pulled the page to the top | paging is part of the destination's state; focus does not scroll | r12-52 | fixed |
+| G-R5-4 | A nested grandchild stayed live under a trashed parent | the cascade stopped at the first level | the cascade and its undo walk the whole subtree | r12-57 | fixed |
+| G-R5-5 | 清空对话 during a pending reply repopulated the thread | the scheduled reply belonged to no conversation | a clear invalidates the in-flight reply | r12-58 | fixed |
+| G2 | A no-results search offered no action | empty state had no action slot | it offers to create a to-do with the term | r12-59 | fixed |
+| E-R5-3 | The save label went stale after a removal and used plural English for one item | the handler re-rendered without validating; one key served every count | the label refreshes and has singular keys | r12-63 | fixed |
+
+Round-6 scope: A, D, E, F, G, I; H, B, C, J stay frozen at PASS.

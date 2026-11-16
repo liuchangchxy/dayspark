@@ -600,33 +600,56 @@
   }
 
   function mergeBackupData(data) {
-    if (!data || typeof data !== 'object' || !Array.isArray(data.todos)) return null;
-    const day = (v) => (v == null ? null : (v instanceof Date ? v : new Date(v)));
+    // A backup is a known shape, not "some JSON with a todos array": accepting
+    // anything else silently overwrote real records with half-empty rows (P0).
+    if (!data || typeof data !== 'object' || !Array.isArray(data.todos) || !Array.isArray(data.events)) return null;
+    const asDate = (v) => (v == null ? null : (v instanceof Date ? v : new Date(v)));
+    const at = (v) => (v == null ? 0 : (v instanceof Date ? v.getTime() : new Date(v).getTime()));
+    const statuses = Object.values(S.TODO_STATUS);
+    const badTodo = (r) => !r || typeof r !== 'object' || !Number.isFinite(r.id) || typeof r.summary !== 'string'
+      || !statuses.includes(r.status) || !Number.isFinite(r.calendarId)
+      || r.createdAt == null || r.updatedAt == null || Number.isNaN(at(r.createdAt));
+    const badEvent = (r) => !r || typeof r !== 'object' || !Number.isFinite(r.id) || typeof r.summary !== 'string'
+      || !Number.isFinite(r.calendarId) || r.startDt == null || r.endDt == null || r.updatedAt == null
+      || Number.isNaN(new Date(r.startDt).getTime()) || Number.isNaN(new Date(r.endDt).getTime());
+    if (data.todos.some(badTodo) || data.events.some(badEvent)) return null;
+    // A restored-from-file row must be usable like any other: an unknown
+    // calendar or tag would render as a dead reference (D-21 class).
+    const calId = (v) => (S.calendarById(v) ? v : (S.state.calendars[0] || {}).id);
+    const tagList = (list) => (Array.isArray(list) ? list.filter((id) => S.tagById(id)) : []);
     let added = 0;
     let updated = 0;
     let skipped = 0;
     const mergeRow = (list, row, hydrate) => {
-      if (!row || row.id == null) { skipped++; return; }
       const existing = list.find((x) => x.id === row.id);
       if (!existing) { list.push(hydrate(row)); added++; return; }
-      // A backup serialises dates as ISO strings; comparing a Date with a string
-      // is always false, so every newer record was counted as skipped.
-      const at = (v) => (v == null ? 0 : (v instanceof Date ? v.getTime() : new Date(v).getTime()));
       if (at(existing.updatedAt) < at(row.updatedAt)) { Object.assign(existing, hydrate(row)); updated++; }
       else skipped++;
     };
     data.todos.forEach((row) => mergeRow(S.state.todos, row, (r) => Object.assign({}, r, {
-      dueDate: day(r.dueDate), startDate: day(r.startDate), completedAt: day(r.completedAt),
-      updatedAt: day(r.updatedAt) || U.now(), deletedAt: day(r.deletedAt),
-      tagIds: Array.isArray(r.tagIds) ? r.tagIds.slice() : [],
+      calendarId: calId(r.calendarId),
+      tagIds: tagList(r.tagIds),
+      dueDate: asDate(r.dueDate), startDate: asDate(r.startDate), completedAt: asDate(r.completedAt),
+      createdAt: asDate(r.createdAt), updatedAt: asDate(r.updatedAt) || U.now(), deletedAt: asDate(r.deletedAt),
       reminderOffsets: Array.isArray(r.reminderOffsets) ? r.reminderOffsets.slice() : [],
       attachments: Array.isArray(r.attachments) ? r.attachments.slice() : [],
       occurrenceStates: r.occurrenceStates || {},
+      sortOrder: Number.isFinite(r.sortOrder) ? r.sortOrder : 0,
+      priority: Number.isFinite(r.priority) ? r.priority : 0,
+      parentId: r.parentId == null ? null : r.parentId,
+      recurrence: r.recurrence || null,
+      description: r.description == null ? null : r.description,
     })));
-    (Array.isArray(data.events) ? data.events : []).forEach((row) => mergeRow(S.state.events, row, (r) => Object.assign({}, r, {
-      startDt: day(r.startDt), endDt: day(r.endDt), updatedAt: day(r.updatedAt) || U.now(), deletedAt: day(r.deletedAt),
-      tagIds: Array.isArray(r.tagIds) ? r.tagIds.slice() : [],
+    data.events.forEach((row) => mergeRow(S.state.events, row, (r) => Object.assign({}, r, {
+      calendarId: calId(r.calendarId),
+      tagIds: tagList(r.tagIds),
+      startDt: asDate(r.startDt), endDt: asDate(r.endDt),
+      createdAt: asDate(r.createdAt) || U.now(),
+      updatedAt: asDate(r.updatedAt) || U.now(), deletedAt: asDate(r.deletedAt),
       reminderOffsets: Array.isArray(r.reminderOffsets) ? r.reminderOffsets.slice() : [],
+      location: r.location == null ? null : r.location,
+      description: r.description == null ? null : r.description,
+      exdates: Array.isArray(r.exdates) ? r.exdates.map(asDate) : [],
     })));
     S.emit('backup:merge');
     return { a: added, u: updated, s: skipped };

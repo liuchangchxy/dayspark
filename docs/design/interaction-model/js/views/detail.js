@@ -697,9 +697,10 @@
           if (todo.recurrence) {
             pickOccurrence(todo, st, en);
           } else {
+            const hit = S.conflictAt(st, en, { ignoreTodoId: todo.id });
             S.createAllocation({ todoId: todo.id, startAt: st, endAt: en });
             App.render();
-            const clash = conflictNote(st, en);
+            const clash = hit ? t('allocateConflict', { t: hit.summary }) : null;
             UI.toast(t('scheduleToast', { t: todo.summary }) + (clash ? ' · ' + clash : ''), {
               undo: () => {
                 const created = S.state.allocations[S.state.allocations.length - 1];
@@ -713,19 +714,6 @@
         host.appendChild(box);
       },
     });
-  }
-
-  // Saving an overlapping slot is allowed (manual scheduling is the user's call)
-  // but never silent: the toast names what it overlaps.
-  function conflictNote(start, end) {
-    const hitAlloc = S.state.allocations.find((a) => S.isAllocationLive(a) && a.startAt < end && a.endAt > start);
-    if (hitAlloc) {
-      const other = S.todoById(hitAlloc.todoId);
-      return t('allocateConflict', { t: other ? other.summary : '' });
-    }
-    const hitEvent = S.liveEvents().find((e) => e.startDt < end && e.endDt > start);
-    if (hitEvent) return t('allocateConflict', { t: hitEvent.summary });
-    return null;
   }
 
   function pickOccurrence(todo, start, end) {
@@ -744,9 +732,10 @@
           b.disabled = isDone;
           b.addEventListener('click', () => {
             close(null);
+            const hit = S.conflictAt(start, end, { ignoreTodoId: todo.id });
             S.createAllocation({ todoId: todo.id, startAt: start, endAt: end, occurrenceId: id });
             App.render();
-            const clash = conflictNote(start, end);
+            const clash = hit ? t('allocateConflict', { t: hit.summary }) : null;
             UI.toast(t('scheduleToast', { t: todo.summary }) + (clash ? ' · ' + clash : ''));
           });
           box.appendChild(b);

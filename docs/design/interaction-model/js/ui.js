@@ -19,7 +19,9 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
     document.addEventListener('keydown', keydown, true);
-    traps.push({ node, keydown, prev });
+    const caret = prev && typeof prev.selectionStart === 'number'
+      ? { s: prev.selectionStart, e: prev.selectionEnd } : null;
+    traps.push({ node, keydown, prev, caret });
     const focusTarget = node.querySelector('[data-autofocus]') || node.querySelector(selector);
     if (focusTarget) setTimeout(() => focusTarget.focus(), 0);
   }
@@ -29,7 +31,19 @@
     const entry = traps[idx];
     document.removeEventListener('keydown', entry.keydown, true);
     traps.splice(idx, 1);
-    if (entry.prev && entry.prev.focus) entry.prev.focus();
+    // A re-render may have replaced the control that opened the layer. Focus
+    // the live node with the same identity instead of a detached one.
+    let back = entry.prev;
+    if (back && !back.isConnected && back.dataset && back.dataset.testid) {
+      const id = back.dataset.id ? `[data-id="${back.dataset.id}"]` : '';
+      back = document.querySelector(`[data-testid="${back.dataset.testid}"]${id}`) || null;
+    }
+    if (back && back.focus) {
+      back.focus();
+      if (entry.caret && typeof back.setSelectionRange === 'function') {
+        try { back.setSelectionRange(entry.caret.s, entry.caret.e); } catch (_) {}
+      }
+    }
   }
   function releaseAll() {
     traps.slice().forEach((x) => release(x.node));
