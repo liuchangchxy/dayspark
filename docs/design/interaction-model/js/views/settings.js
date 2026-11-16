@@ -590,7 +590,7 @@
             if (!report) { err.textContent = t('invalidBackup'); return; }
             close(null);
             App.render();
-            UI.toast(t('mergeReport', report));
+            UI.toast(t('mergeReport', report) + (report.c ? ' · ' + t('mergeRuleSkipped', { n: report.c }) : ''));
           };
           reader.readAsText(chosen);
         });
@@ -606,13 +606,38 @@
     const asDate = (v) => (v == null ? null : (v instanceof Date ? v : new Date(v)));
     const at = (v) => (v == null ? 0 : (v instanceof Date ? v.getTime() : new Date(v).getTime()));
     const statuses = Object.values(S.TODO_STATUS);
+    const optionalText = (v) => v == null || typeof v === 'string';
     const badTodo = (r) => !r || typeof r !== 'object' || !Number.isFinite(r.id) || typeof r.summary !== 'string'
       || !statuses.includes(r.status) || !Number.isFinite(r.calendarId)
-      || r.createdAt == null || r.updatedAt == null || Number.isNaN(at(r.createdAt));
+      || r.createdAt == null || r.updatedAt == null || Number.isNaN(at(r.createdAt)) || Number.isNaN(at(r.updatedAt))
+      || !optionalText(r.description)
+      || (r.parentId != null && (!Number.isFinite(r.parentId) || r.parentId === r.id))
+      || (r.recurrence != null && typeof r.recurrence !== 'object');
     const badEvent = (r) => !r || typeof r !== 'object' || !Number.isFinite(r.id) || typeof r.summary !== 'string'
       || !Number.isFinite(r.calendarId) || r.startDt == null || r.endDt == null || r.updatedAt == null
-      || Number.isNaN(new Date(r.startDt).getTime()) || Number.isNaN(new Date(r.endDt).getTime());
+      || Number.isNaN(new Date(r.startDt).getTime()) || Number.isNaN(new Date(r.endDt).getTime())
+      || Number.isNaN(at(r.updatedAt)) || !optionalText(r.description)
+      || (r.rrule != null && typeof r.rrule !== 'object');
     if (data.todos.some(badTodo) || data.events.some(badEvent)) return null;
+    // Parent links must form a forest: a cycle would make permanent delete
+    // recurse forever, and a link to a row that exists nowhere would strand it.
+    const knownIds = new Set(S.state.todos.map((x) => x.id));
+    data.todos.forEach((r) => knownIds.add(r.id));
+    const parentOf = new Map(data.todos.map((r) => [r.id, r.parentId == null ? null : r.parentId]));
+    const cyclic = data.todos.some((r) => {
+      let cur = r.parentId;
+      const seen = new Set([r.id]);
+      while (cur != null) {
+        if (seen.has(cur)) return true;
+        seen.add(cur);
+        const existing = S.state.todos.find((x) => x.id === cur);
+        if (existing) return false;
+        if (!parentOf.has(cur)) return true;
+        cur = parentOf.get(cur);
+      }
+      return false;
+    });
+    if (cyclic) return null;
     // A restored-from-file row must be usable like any other: an unknown
     // calendar or tag would render as a dead reference (D-21 class).
     const calId = (v) => (S.calendarById(v) ? v : (S.state.calendars[0] || {}).id);
@@ -620,26 +645,49 @@
     let added = 0;
     let updated = 0;
     let skipped = 0;
-    const mergeRow = (list, row, hydrate) => {
+    let ruleSkipped = 0;
+    const touched = new Set();
+    const mergeRow = (list, row, hydrate, guard) => {
       const existing = list.find((x) => x.id === row.id);
       if (!existing) { list.push(hydrate(row)); added++; return; }
-      if (at(existing.updatedAt) < at(row.updatedAt)) { Object.assign(existing, hydrate(row)); updated++; }
-      else skipped++;
+      if (at(existing.updatedAt) >= at(row.updatedAt)) { skipped++; return; }
+      // A rule that cannot reach a block already on the device would strand it
+      // on a day the series never visits (I4); a file merge cannot ask, so the
+      // row is left as it is and reported.
+      if (guard && !guard(row)) { skipped++; ruleSkipped++; return; }
+      Object.assign(existing, hydrate(row));
+      updated++;
     };
-    data.todos.forEach((row) => mergeRow(S.state.todos, row, (r) => Object.assign({}, r, {
+    const ruleReaches = (row) => {
+      if (!row.recurrence) return true;
+      const probe = {
+        recurrence: row.recurrence, startDate: asDate(row.startDate), dueDate: asDate(row.dueDate),
+        createdAt: asDate(row.createdAt), occurrenceStates: {},
+      };
+      return S.state.allocations
+        .filter((a) => a.todoId === row.id && a.state === S.ALLOC.ACTIVE && !a.deletedAt)
+        .every((a) => S.matchesRule(probe, a.startAt));
+    };
+    data.todos.forEach((row) => {
+      mergeRow(S.state.todos, row, (r) => Object.assign({}, r, {
       calendarId: calId(r.calendarId),
       tagIds: tagList(r.tagIds),
       dueDate: asDate(r.dueDate), startDate: asDate(r.startDate), completedAt: asDate(r.completedAt),
       createdAt: asDate(r.createdAt), updatedAt: asDate(r.updatedAt) || U.now(), deletedAt: asDate(r.deletedAt),
       reminderOffsets: Array.isArray(r.reminderOffsets) ? r.reminderOffsets.slice() : [],
       attachments: Array.isArray(r.attachments) ? r.attachments.slice() : [],
-      occurrenceStates: r.occurrenceStates || {},
+      // Per-occurrence completion times are dates too; a string here crashed
+      // the detail and made uncompletion unable to find the block it invalidated.
+      occurrenceStates: Object.fromEntries(Object.entries(r.occurrenceStates || {}).map(([k, v]) => [k,
+        v && typeof v === 'object' ? Object.assign({}, v, { completedAt: asDate(v.completedAt) }) : v])),
       sortOrder: Number.isFinite(r.sortOrder) ? r.sortOrder : 0,
       priority: Number.isFinite(r.priority) ? r.priority : 0,
       parentId: r.parentId == null ? null : r.parentId,
-      recurrence: r.recurrence || null,
+      recurrence: r.recurrence ? Object.assign({}, r.recurrence, { until: asDate(r.recurrence.until) }) : null,
       description: r.description == null ? null : r.description,
-    })));
+    }), ruleReaches);
+      touched.add(row.id);
+    });
     data.events.forEach((row) => mergeRow(S.state.events, row, (r) => Object.assign({}, r, {
       calendarId: calId(r.calendarId),
       tagIds: tagList(r.tagIds),
@@ -650,9 +698,13 @@
       location: r.location == null ? null : r.location,
       description: r.description == null ? null : r.description,
       exdates: Array.isArray(r.exdates) ? r.exdates.map(asDate) : [],
+      rrule: r.rrule ? Object.assign({}, r.rrule, { until: asDate(r.rrule.until) }) : null,
     })));
+    // A merged rule applies to every block of the record, exactly as an edit
+    // through the form does.
+    touched.forEach((id) => S.reconcileAllocations(id));
     S.emit('backup:merge');
-    return { a: added, u: updated, s: skipped };
+    return { a: added, u: updated, s: skipped, c: ruleSkipped };
   }
 
   function aiConfigSheet() {

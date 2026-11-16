@@ -881,7 +881,6 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   /* The save label names what will be written; on a phone the sentence is
      longer than the footer, so it wraps inside its own button instead of
      widening the page and pushing a sheet's actions off screen. */
-  .composer-foot { overflow: hidden; }
   .composer-foot .btn { min-width: 0; }
   /* Secondary footer actions keep their intrinsic width: only the primary
      label needs to shrink, and a ghost button's text must stay inside it. */

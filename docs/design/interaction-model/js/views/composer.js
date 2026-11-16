@@ -246,6 +246,17 @@
         b.addEventListener('click', () => {
           if (draft.kind === k) return;
           draft.kind = k;
+          // A rule carries its anchor type. Switching type with a rule in place
+          // must not leave one a todo can never match (valueType localDateTime
+          // on a date-anchored series).
+          if (draft.recurrence) {
+            if (k === 'todo') {
+              draft.recurrence = Object.assign({}, draft.recurrence, { anchor: 'due', valueType: 'date' });
+              if (!draft.startDate && !draft.dueDate) draft.startDate = draft.startDateInput || U.startOfDay(U.now());
+            } else {
+              draft.recurrence = Object.assign({}, draft.recurrence, { anchor: 'start', valueType: 'localDateTime' });
+            }
+          }
           markDirty();
           if (k === 'event' && !draft.startDt) {
             const now = U.now();
@@ -963,36 +974,43 @@
         title: t('repeat'),
         body(host, close) {
           const box = U.el('div', { class: 'picker' });
-          // The weekly preset is named after the day it will actually anchor;
-          // a chosen 重复开始 wins over the deadline for that day.
-          const baseDay = draft.startDateInput || draft.dueDate || draft.startDt || U.now();
-          const opts = [
-            { label: t('never'), rec: null },
-            { label: t('daily'), rec: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: draft.kind === 'todo' ? 'due' : 'start', valueType: draft.kind === 'todo' ? 'date' : 'localDateTime' } },
-            { label: t('repeatWeekdays'), rec: { freq: 'WEEKLY', interval: 1, byday: [1, 2, 3, 4, 5], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
-            { label: t('weekly') + ' (' + U.fmtWeekdayLong(baseDay) + ')', rec: { freq: 'WEEKLY', interval: 1, byday: [baseDay.getDay()], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
-            { label: t('monthly'), rec: { freq: 'MONTHLY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
-            { label: t('yearly'), rec: { freq: 'YEARLY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
-          ];
-          opts.forEach((o) => {
-            const b = U.el('button', { class: 'slot-sheet-option' });
-            b.dataset.testid = 'repeat-option';
-            const on = (o.rec === null && !draft.recurrence) || (o.rec && draft.recurrence && o.rec.freq === draft.recurrence.freq && o.label === t('repeatWeekdays') === (draft.recurrence.byday && draft.recurrence.byday.length === 5));
-            b.innerHTML = `<span class="ico">${ICON(o.rec ? 'repeat' : 'x', 16)}</span><span><span class="t">${U.esc(o.label)}</span></span>${on ? '<span style="margin-left:auto;color:var(--accent)">' + ICON('check', 15) + '</span>' : ''}`;
-            b.addEventListener('click', () => {
-              // 重复开始 exists only inside recurrence: choosing a rule anchors
-              // the series, choosing 不重复 must clear it even when the record
-              // has a deadline, or the hidden value keeps blocking saves.
-              if (draft.kind === 'todo') {
-                if (!o.rec) draft.startDate = null;
-                else if (!draft.dueDate) draft.startDate = draft.startDateInput || U.startOfDay(U.now());
-              }
-              if (o.rec) applyRepeatStart();
-              draft.recurrence = o.rec;
-              markDirty(); close(null); live.renderBody(); live.validate();
+          // The weekly preset names the day it will anchor. 重复开始 can change
+          // while the sheet is open, so the list is rebuilt from the live value
+          // instead of a snapshot taken when the sheet opened.
+          const list = U.el('div');
+          box.appendChild(list);
+          function drawOptions() {
+            list.innerHTML = '';
+            const baseDay = draft.startDateInput || draft.dueDate || draft.startDt || U.now();
+            const opts = [
+              { label: t('never'), rec: null },
+              { label: t('daily'), rec: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: draft.kind === 'todo' ? 'due' : 'start', valueType: draft.kind === 'todo' ? 'date' : 'localDateTime' } },
+              { label: t('repeatWeekdays'), rec: { freq: 'WEEKLY', interval: 1, byday: [1, 2, 3, 4, 5], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
+              { label: t('weekly') + ' (' + U.fmtWeekdayLong(baseDay) + ')', rec: { freq: 'WEEKLY', interval: 1, byday: [baseDay.getDay()], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
+              { label: t('monthly'), rec: { freq: 'MONTHLY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
+              { label: t('yearly'), rec: { freq: 'YEARLY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } },
+            ];
+            opts.forEach((o) => {
+              const b = U.el('button', { class: 'slot-sheet-option' });
+              b.dataset.testid = 'repeat-option';
+              const on = (o.rec === null && !draft.recurrence) || (o.rec && draft.recurrence && o.rec.freq === draft.recurrence.freq && o.label === t('repeatWeekdays') === (draft.recurrence.byday && draft.recurrence.byday.length === 5));
+              b.innerHTML = `<span class="ico">${ICON(o.rec ? 'repeat' : 'x', 16)}</span><span><span class="t">${U.esc(o.label)}</span></span>${on ? '<span style="margin-left:auto;color:var(--accent)">' + ICON('check', 15) + '</span>' : ''}`;
+              b.addEventListener('click', () => {
+                // 重复开始 exists only inside recurrence: choosing a rule anchors
+                // the series, choosing 不重复 must clear it even when the record
+                // has a deadline, or the hidden value keeps blocking saves.
+                if (draft.kind === 'todo') {
+                  if (!o.rec) draft.startDate = null;
+                  else if (!draft.dueDate) draft.startDate = draft.startDateInput || U.startOfDay(U.now());
+                }
+                if (o.rec) applyRepeatStart();
+                draft.recurrence = o.rec;
+                markDirty(); close(null); live.renderBody(); live.validate();
+              });
+              list.appendChild(b);
             });
-            box.appendChild(b);
-          });
+          }
+          drawOptions();
 
           const custom = U.el('div', { class: 'form-block', style: 'margin-top:8px' });
           const intRow = U.el('div', { class: 'form-row' });
@@ -1020,6 +1038,7 @@
             // to a record whose rule the user never applied.
             draft.startDateInput = U.startOfDay(d);
             markDirty();
+            drawOptions();
           });
           sctrl.appendChild(startDateInput);
           startRow.appendChild(sctrl);
@@ -1208,8 +1227,11 @@
       // reach one of them would strand it on a day the series never visits.
       if (draft.kind === 'todo' && draft.id && draft.recurrence) {
         const probe = scheduleProbe();
+        // The block this form owns is decided by this save (moved or cleared),
+        // so it cannot be the reason the save is refused.
         const outside = S.state.allocations.some((a) => a.todoId === draft.id
-          && a.state === S.ALLOC.ACTIVE && !a.deletedAt && !S.matchesRule(probe, a.startAt));
+          && a.state === S.ALLOC.ACTIVE && !a.deletedAt && a.id !== draft.scheduleAllocId
+          && !S.matchesRule(probe, a.startAt));
         if (outside) errs.push(t('scheduleOutsideRule'));
       }
       // An untouched new form is not a mistake. Saving stays disabled so the

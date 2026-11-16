@@ -34,7 +34,10 @@
         const clearBtn = U.el('button', { class: 'icon-btn sm', 'aria-label': t('searchClear'), html: ICON('x', 14), 'data-testid': 'search-clear' });
         clearBtn.hidden = !query;
         clearBtn.addEventListener('click', () => {
-          input.value = ''; query = ''; clearBtn.hidden = true; draw(); input.focus();
+          // The clear is a write to the destination's state: leaving it only in
+          // this closure let the next re-render restore the old query.
+          input.value = ''; query = ''; S.state.searchQuery = ''; S.state.searchShown = null;
+          clearBtn.hidden = true; draw(); input.focus();
         });
         box.appendChild(clearBtn);
         box.addEventListener('click', (e) => { if (!e.target.closest('button')) input.focus(); });

@@ -811,6 +811,16 @@
       });
   }
 
+  // Undoing a creation removes the row; cancelling would leave a schedule the
+  // user never kept in the record's history (creation undo is an inverse, D-06).
+  function deleteAllocation(id) {
+    const a = state.allocations.find((x) => x.id === id);
+    if (!a) return null;
+    state.allocations = state.allocations.filter((x) => x.id !== id);
+    emit('allocation:delete');
+    return a;
+  }
+
   function cancelAllocation(id) {
     const a = state.allocations.find((x) => x.id === id);
     if (!a) return null;
@@ -1204,11 +1214,15 @@
       if (state.route.name === 'action') return;
       state.route = { name: 'action', params: {} };
       state.tab = 'action';
+      state.paneSelection = null;
       if (window.UI) { window.UI.closeAll(); window.UI.closeMenu(); window.UI.hideToast(); }
       emit('navigate');
       return;
     }
     state.route = prev;
+    // Leaving 待办 retires the pane selection, exactly as the rail and the
+    // bottom nav do; otherwise Back would keep a selection the user left.
+    if (prev.name !== 'todos') state.paneSelection = null;
     if (window.UI) { window.UI.closeAll(); window.UI.closeMenu(); window.UI.hideToast(); }
     emit('navigate');
   }
@@ -1256,7 +1270,7 @@
     calendarColor, isOpen, isDone, subtasksOf, isAllocationLive, allocationsForTodo, allocationsOnDay,
     splitEventOccurrence, splitEventFuture, eventsOnDay, actionProjection, pendingTodos, completedTodos, todosForDay, inboxTodos, schedulableTodos, plannedTodoIds,
     searchAll, createTodo, updateTodo, createEvent, updateEvent, createAllocation, rescheduleAllocation,
-    cancelAllocation, conflictAt, reconcileAllocations, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
+    cancelAllocation, deleteAllocation, conflictAt, reconcileAllocations, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
     purgeEvent, emptyTrash, deletedTodos, deletedEvents, reorderTodos, createTag, updateTag, deleteTag,
     createCalendar, updateCalendar, deleteCalendar, undoDeleteCalendar, setSetting, setLang, localizeSeed, applyTheme, savePrefs, loadPrefs, pushUndo, takeUndo,
     navigate, back, selectPane, clearPane, browseDate, setBrowseDate, TODO_STATUS, ALLOC, PRIORITY,

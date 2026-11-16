@@ -339,3 +339,41 @@ Round-5 scope: A, D, E, F, G, I; H stays PASS and frozen; B, C, J frozen at PASS
 | D3 | Double-clicking a populated month cell created an event | the gesture ignored the cell's contents | only a cell without a block or event creates; a deadline does not occupy time (INV-140) | r12-67 | fixed |
 
 Round-6 scope: A, D, E, F, G, I; H, B, C, J stay frozen at PASS.
+
+### Round 6 — final formal round against `9a73eb7`
+
+| Domain | Verdict | P0 | P1 | P2 | Notes |
+|---|---|---|---|---|---|
+| A shell | FAIL | 0 | 1 | 2 | one Esc closed every stacked overlay |
+| D calendar | FAIL | 0 | 1 | 4 | month arrows skipped or refused at month ends |
+| E composer | FAIL | 0 | 1 | 3 | the weekly preset ignored a 重复开始 chosen after the sheet opened |
+| F detail | PASS | 0 | 1→0 | 0 | the occurrence picker named the typed slot's conflict; fixed and re-verified PASS |
+| G tools | FAIL | 1 | 5 | 1 | merge left nested dates as strings and admitted malformed rows |
+| I data | FAIL | 1 | 1 | 0 | the same nested-date crash from the merge path; merged rules not reconciled |
+| Integrator | pending | | | | |
+
+#### Round-6 backlog
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| A-R6-1 | One Esc closed every stacked overlay and discarded its input | every layer's capture Escape listener ran; stopPropagation does not stop siblings | only the topmost trap handles the keyboard | r12-69 | fixed |
+| A-R6-2 | Back out of 待办 kept the pane selection, which re-appeared later | back did not retire the selection while the rail did | leaving 待办 by any exit retires it | r12-70 | fixed |
+| F-R6-01 | The occurrence picker named the conflict for the typed slot, not the block written | the conflict was read before D-05 moved the block | the conflict is read from the created block | r12-68 | fixed, F re-verified PASS |
+| D-R6-1 | Month arrows turned 31 Jan into 3 Mar, and 31 May backwards into 1 May | `setMonth` without the clamp the buttons use | one clamp for buttons and keys (D-27) | r12-81 | fixed |
+| D-R6-2 | A menu stayed open when its block scrolled away | the menu only listened for an outside press | it closes when its anchor scrolls | — | fixed |
+| D-R6-3 | The press that dismissed a menu also acted underneath | nothing consumed it | menus are non-modal by ruling: the press dismisses and then acts (D-26) | r12-64 | ruled |
+| D-R6-4 | Toggling the fold threw the grid back to 08:00 | the scroll memo was keyed on the fold state | the memo is keyed on the day list only | r12-82 | fixed |
+| D-R6-5 | Double-click at 23:30 prefilled a past 23:00 | the hour was clamped to 23 instead of rolling over | the next whole hour, even across midnight | — | fixed |
+| E-R6-1 | The weekly preset ignored 重复开始 chosen after the sheet opened | the option list was built once, from a snapshot | the list rebuilds from the live value; the rule anchors on it | r12-73 | fixed |
+| E-R6-2 | The outside-rule check refused a save that itself moved the block onto the rule | it counted the form's own block | the form's own block is excluded | r12-74 | fixed |
+| E-R6-3 | A type switch left a todo with a rule it can never match | the rule kept its event anchor | switching type re-anchors the rule and guarantees an anchor date | r12-75 | fixed |
+| E-R6-4 | The phone footer clipped a long save label | the footer hid its overflow | the footer grows; nothing is clipped | r12-76 | fixed |
+| G-R6-1 / I-R6-1 (P0) | A valid backup crashed every render and uncompletion could not find its block | nested dates (`occurrenceStates[*].completedAt`, `recurrence.until`, `rrule.until`) stayed strings | every nested date is hydrated | r12-71, r12-77 | fixed |
+| G-R6-2 / G-R6-3 | A merged rule with an end date broke the detail and the repeat sheet | the same root | the same fix | r12-77 | fixed |
+| G-R6-4 | The shape check admitted rows that crashed search or delete | text fields, parent links and timestamps were unchecked | text types, a parent forest and timestamp validity are enforced before writing | r12-78 | fixed |
+| G-R6-5 | The search X clear was forgotten by the next re-render | it cleared a closure, not the destination state | it clears `searchQuery` and the paging state | r12-79 | fixed |
+| G-R6-6 | Undoing a schedule left a cancelled row in the record's history | the inverse cancelled instead of removing | creation-undo removes the row | r12-80 | fixed |
+| I-R6-2 | A merged rule change did not reconcile live blocks | merge only assigned fields | a row whose rule would strand a block is skipped and reported; merged rules reconcile every block | r12-72 | fixed |
+
+Round 7 (close-out) scope: A, D, E, G, I re-verify their round-6 fixes and the rule amendments (D-26, D-27,
+D-22 amended); F is already PASS at `1762f5e`; B, C, H, J stay frozen at PASS.

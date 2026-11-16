@@ -210,8 +210,15 @@
         // occupies time (INV-140), so only a block or an event blocks creation.
         if (items.some((it) => it.kind !== 'due')) { drill(); return; }
         const now = U.now();
-        const hour = U.sameDay(d, now) ? Math.min(23, now.getHours() + 1) : 9;
-        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0);
+        // D3: the next whole hour. At 23:30 that hour is tomorrow's 00:00, not a
+        // past 23:00 on the cell's day.
+        let start;
+        if (U.sameDay(d, now)) {
+          start = new Date(now.getTime() + 3600000);
+          start.setMinutes(0, 0, 0);
+        } else {
+          start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0);
+        }
         App.openComposer('event', { startDt: start, endDt: U.addMinutes(start, 60) });
       });
       grid.appendChild(cell);
@@ -330,7 +337,7 @@
     wrap.appendChild(allDay);
 
     const scroll = U.el('div', { class: 'time-scroll', 'data-testid': 'time-scroll' });
-    const gridKey = days.map((d) => U.startOfDay(d).getTime()).join(',') + ':' + (S.state.dawnOpen ? '1' : '0');
+    const gridKey = days.map((d) => U.startOfDay(d).getTime()).join(',');
     const memoScroll = gridScrollMemo.key === gridKey ? gridScrollMemo.top : null;
     scroll.addEventListener('scroll', () => { gridScrollMemo = { key: gridKey, top: scroll.scrollTop }; });
     const body = U.el('div', { class: 'time-body' });
@@ -664,6 +671,8 @@
       node.dataset.holdMenu = '0';
       // A press anywhere dismisses an open menu. The block's preventDefault
       // suppresses the mousedown UI.menu closes on, so it has to be explicit.
+      // Menus are non-modal (OpenDesign D-26): a press elsewhere dismisses the
+      // menu and then does its own job, so a drag or a nav tap is not eaten.
       if (document.querySelector('.menu')) UI.closeMenu();
       mode = m;
       startX = e.clientX; startY = e.clientY;
@@ -1017,7 +1026,7 @@
       warn: !!overlap,
       undo: () => {
         const created = S.state.allocations[S.state.allocations.length - 1];
-        if (created) S.cancelAllocation(created.id);
+        if (created) S.deleteAllocation(created.id);
         App.render();
       },
     });

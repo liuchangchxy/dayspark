@@ -704,7 +704,7 @@
             UI.toast(t('scheduleToast', { t: todo.summary }) + (clash ? ' · ' + clash : ''), {
               undo: () => {
                 const created = S.state.allocations[S.state.allocations.length - 1];
-                if (created) S.cancelAllocation(created.id);
+                if (created) S.deleteAllocation(created.id);
                 App.render();
               },
             });

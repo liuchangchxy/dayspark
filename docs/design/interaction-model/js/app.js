@@ -337,7 +337,15 @@
       const view = S.state.calendarView;
       const base = U.startOfDay(S.state.browseDate || U.now());
       const next = new Date(base);
-      if (view === 'month') next.setMonth(next.getMonth() + (back ? -1 : 1));
+      if (view === 'month') {
+        // D1: the day-of-month is preserved and clamped at month ends; a plain
+        // setMonth would skip February and turn Jan 31 into Mar 3.
+        const dayOfMonth = next.getDate();
+        next.setDate(1);
+        next.setMonth(next.getMonth() + (back ? -1 : 1));
+        const last = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+        next.setDate(Math.min(dayOfMonth, last));
+      }
       else next.setDate(next.getDate() + (back ? -1 : 1) * (view === 'week' ? 7 : 1));
       S.setBrowseDate(U.startOfDay(next));
       App.render();

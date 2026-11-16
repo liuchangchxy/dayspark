@@ -10,7 +10,12 @@
     const prev = document.activeElement;
     const selector = 'a[href],button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
     function keydown(e) {
-      if (e.key === 'Escape' && onEscape) { e.stopPropagation(); onEscape(); return; }
+      // Only the topmost layer owns the keyboard. Every layer registers its own
+      // capture listener and stopPropagation does not stop siblings, so without
+      // this one Escape closed the whole stack and discarded its unsaved input.
+      const top = traps[traps.length - 1];
+      if (!top || top.node !== node) return;
+      if (e.key === 'Escape' && onEscape) { e.stopPropagation(); e.preventDefault(); onEscape(); return; }
       if (e.key !== 'Tab') return;
       const items = Array.from(node.querySelectorAll(selector)).filter((x) => x.offsetParent !== null);
       if (!items.length) return;
@@ -206,9 +211,20 @@
     menuNode = node;
     setTimeout(() => {
       const onDoc = (e) => {
-        if (menuNode && !menuNode.contains(e.target)) { closeMenu(); document.removeEventListener('mousedown', onDoc, true); }
+        if (!menuNode || menuNode.contains(e.target)) return;
+        // Menus are non-modal (D-26): the press dismisses the menu and then
+        // does its own job, so a nav tap or a drag is never eaten.
+        closeMenu();
+        document.removeEventListener('mousedown', onDoc, true);
+      };
+      const onScroll = (e) => {
+        if (!menuNode) { document.removeEventListener('scroll', onScroll, true); return; }
+        if (menuNode.contains(e.target) && e.target !== document) return;
+        closeMenu();
+        document.removeEventListener('scroll', onScroll, true);
       };
       document.addEventListener('mousedown', onDoc, true);
+      document.addEventListener('scroll', onScroll, true);
     }, 0);
     const first = node.querySelector('button:not([disabled])');
     if (first) first.focus();

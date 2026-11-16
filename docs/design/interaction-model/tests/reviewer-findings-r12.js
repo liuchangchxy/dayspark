@@ -1927,6 +1927,453 @@ scenario('R12-68 the occurrence picker names the conflict on the picked day', as
   await page.__ctx.close();
 });
 
+/* A-R6-1 — Esc closes one layer, like Back */
+scenario('R12-69 Escape closes only the top layer', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'action');
+  await page.evaluate(() => {
+    window.UI.sheet({ title: '外层表', body(host) { host.appendChild(window.U.el('input', { class: 'input', value: '未保存的值' })); } });
+    window.UI.sheet({ title: '内层表', body(host) { host.appendChild(window.U.el('div', { text: '内层' })); } });
+  });
+  await settle(page, 300);
+  const opened = await page.evaluate(() => document.querySelectorAll('.sheet').length);
+  assertEq(opened, 2, 'two layers must be open');
+  await page.keyboard.press('Escape');
+  await settle(page, 300);
+  const out = await page.evaluate(() => ({
+    sheets: document.querySelectorAll('.sheet').length,
+    outer: document.body.innerText.includes('外层表'),
+    value: (document.querySelector('.sheet input') || {}).value || '',
+  }));
+  assertEq(out.sheets, 1, 'one Escape must close one layer: ' + out.sheets);
+  assertEq(out.outer, true, 'the outer layer must stay');
+  assertEq(out.value, '未保存的值', 'the outer layer keeps its unsaved input');
+  await page.keyboard.press('Escape');
+  await settle(page, 250);
+  assertEq(await page.evaluate(() => document.querySelectorAll('.sheet, .modal').length), 0, 'the second Escape closes the last layer');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* A-R6-2 — leaving 待办 by Back retires the pane selection */
+scenario('R12-70 Back out of 待办 retires the pane selection', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'todos');
+  await settle(page, 300);
+  await page.evaluate(() => document.querySelector('[data-testid="todo-row"]').click());
+  await settle(page, 250);
+  assert(await page.evaluate(() => !!window.Store.state.paneSelection), 'the pane must be selected');
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await settle(page, 300);
+  await page.goBack();
+  await settle(page, 400);
+  const route = await page.evaluate(() => window.Store.state.route.name);
+  assert(route !== 'todos', 'Back must leave 待办');
+  await page.evaluate(() => window.App.go('todos'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await settle(page, 400);
+  const pane = await page.evaluate(() => window.Store.state.paneSelection);
+  assertEq(pane, null, 'the selection must be retired, not revived later');
+  assert(!(await exists(page, '[data-testid="pane-close"]')), 'no record pane may be open');
+  assert(!(await exists(page, '[data-testid="detail-pane-body"]')), 'the pane must show its empty state');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* I-R6-1 — a merged record's per-occurrence completion is a date */
+scenario('R12-71 a merged occurrence state opens and uncompletes', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const todo = window.Store.liveTodos().find((x) => x.recurrence && x.summary.includes('读 20 页'));
+    window.Store.completeTodo(todo.id, { occurrenceId: window.Store.occurrenceIdFor(todo, day) });
+    return todo.id;
+  });
+  await go(page, 'settings', { section: 'data' });
+  await settle(page, 300);
+  await clickText(page, '.setting-row', '合并备份');
+  await settle(page, 250);
+  const row = await page.evaluate((tid) => {
+    const copy = JSON.parse(JSON.stringify(window.Store.todoById(tid)));
+    copy.updatedAt = new Date(Date.now() + 3600000).toISOString();
+    return copy;
+  }, id);
+  await mergeFile(page, { todos: [row], events: [] });
+  await page.evaluate((tid) => window.App.openRecord('todo', tid), id);
+  await settle(page, 400);
+  const out = await page.evaluate((tid) => {
+    const todo = window.Store.todoById(tid);
+    const occKey = Object.keys(todo.occurrenceStates)[0];
+    if (!occKey) return { route: window.Store.state.route.name, keys: [], isDate: false, done: false, active: 0, text: 0 };
+    const done = window.Store.isOccurrenceDone(todo, occKey);
+    // Read the stored stamp before uncompleting: the write removes the entry.
+    const isDate = todo.occurrenceStates[occKey].completedAt instanceof Date;
+    window.Store.completeTodo(tid, { occurrenceId: occKey });
+    const allocs = window.Store.state.allocations.filter((a) => a.todoId === tid);
+    return {
+      route: window.Store.state.route.name,
+      keys: [occKey],
+      isDate,
+      done,
+      active: allocs.filter((a) => a.state === window.Store.ALLOC.ACTIVE).length,
+      text: document.body.innerText.length,
+    };
+  }, id);
+  assertEq(out.isDate, true, 'the merged completion time must be a Date');
+  assertEq(out.route, 'detail', 'the merged record must open');
+  assert(out.text > 100, 'the detail must render, not blank');
+  assertEq(out.done, true, 'the merged occurrence is completed');
+  assert(out.active > 0, 'uncompleting must reactivate the block it invalidated');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* I-R6-2 — a merged rule that would strand a block is refused, not applied */
+scenario('R12-72 a merged rule that cannot reach a block is skipped', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const todo = window.Store.createTodo({ summary: '合并规则冲突', dueDate: day, recurrence: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } });
+    const s = new Date(day); s.setHours(21, 0, 0, 0);
+    window.Store.createAllocation({ todoId: todo.id, startAt: s, endAt: new Date(s.getTime() + 1800000), occurrenceId: window.Store.occurrenceIdFor(todo, day) });
+    return todo.id;
+  });
+  await go(page, 'settings', { section: 'data' });
+  await settle(page, 300);
+  await clickText(page, '.setting-row', '合并备份');
+  await settle(page, 250);
+  const row = await page.evaluate((tid) => {
+    const copy = JSON.parse(JSON.stringify(window.Store.todoById(tid)));
+    copy.updatedAt = new Date(Date.now() + 3600000).toISOString();
+    copy.recurrence = { freq: 'WEEKLY', interval: 1, byday: [(window.U.startOfDay(window.U.now()).getDay() + 1) % 7], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' };
+    return copy;
+  }, id);
+  await mergeFile(page, { todos: [row], events: [] });
+  const out = await page.evaluate((tid) => ({
+    freq: window.Store.todoById(tid).recurrence.freq,
+    toast: (document.querySelector('.toast') || {}).innerText || '',
+  }), id);
+  assertEq(out.freq, 'DAILY', 'a rule that strands a block must not be written');
+  assert(/跳过|skipped/i.test(out.toast), 'the report must say rows were skipped: ' + out.toast);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R6-1 — the weekly preset follows 重复开始 chosen while the sheet is open */
+scenario('R12-73 the weekly preset follows a later repeat start', async (browser) => {
+  const page = await newPage(browser);
+  const target = await page.evaluate(() => {
+    window.App.openComposer('todo');
+    return window.U.addDays(window.U.startOfDay(window.U.now()), 2).getTime();
+  });
+  await settle(page, 300);
+  await page.fill('[data-testid="composer-title"]', '周起点');
+  await clickTestId(page, 'composer-more');
+  await clickTestId(page, 'composer-repeat');
+  await settle(page, 250);
+  await page.evaluate((ms) => {
+    const d = new Date(ms);
+    const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const input = document.querySelector('[data-testid="repeat-start"]');
+    input.value = iso;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, target);
+  await settle(page, 200);
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('[data-testid="repeat-option"]')).find((x) => x.textContent.includes('每周') && x.textContent.includes('('));
+    b.click();
+  });
+  await settle(page, 250);
+  await clickTestId(page, 'composer-save');
+  await settle(page, 350);
+  const out = await page.evaluate((ms) => {
+    const todo = window.Store.liveTodos().find((x) => x.summary === '周起点');
+    return {
+      start: window.U.startOfDay(todo.startDate).getTime(),
+      byday: todo.recurrence.byday,
+      matches: window.Store.matchesRule(todo, new Date(ms)),
+    };
+  }, target);
+  assertEq(out.start, target, 'the chosen start must be written');
+  assertEq(out.byday, [new Date(target).getDay()], 'the weekly rule must anchor on the chosen day');
+  assertEq(out.matches, true, 'the series must begin on the chosen day');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R6-2 — a save that fixes the offending block is not refused */
+scenario('R12-74 moving a block and changing the rule in one save works', async (browser) => {
+  const page = await newPage(browser);
+  const ids = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const todo = window.Store.createTodo({ summary: '一次改好', dueDate: day, recurrence: { freq: 'DAILY', interval: 1, byday: [], until: null, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' } });
+    const s = new Date(window.U.addDays(day, 1)); s.setHours(10, 0, 0, 0);
+    const a = window.Store.createAllocation({ todoId: todo.id, startAt: s, endAt: new Date(s.getTime() + 3600000), occurrenceId: window.Store.occurrenceIdFor(todo, window.U.addDays(day, 1)) });
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+    return { todo: todo.id, alloc: a.id, day2: window.U.addDays(day, 2).getTime(), day3: window.U.addDays(day, 3).getTime() };
+  });
+  await settle(page, 350);
+  await clickTestId(page, 'composer-repeat');
+  await settle(page, 250);
+  await page.evaluate(() => {
+    const num = document.querySelector('.sheet input[type="number"]');
+    num.value = '2';
+    num.dispatchEvent(new Event('input', { bubbles: true }));
+    num.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await clickText(page, '.sheet button', '应用');
+  await settle(page, 300);
+  await clickTestId(page, 'composer-schedule');
+  await settle(page, 250);
+  await page.evaluate((ms) => {
+    const d = new Date(ms); d.setHours(10, 0, 0, 0);
+    const s = document.querySelector('[data-testid="schedule-start"]');
+    s.value = window.U.toInputDateTime(d);
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+  }, ids.day2);
+  await clickTestId(page, 'schedule-apply');
+  await settle(page, 250);
+  const disabled = await page.evaluate(() => document.querySelector('[data-testid="composer-save"]').disabled);
+  assertEq(disabled, false, 'a save that moves the block onto the rule must be allowed');
+  await clickTestId(page, 'composer-save');
+  await settle(page, 350);
+  const out = await page.evaluate((x) => {
+    const a = window.Store.state.allocations.find((y) => y.id === x.alloc);
+    const todo = window.Store.todoById(x.todo);
+    return { interval: todo.recurrence.interval, day: new Date(a.startAt).getDate(), occ: a.occurrenceId };
+  }, ids);
+  assertEq(out.interval, 2, 'the rule is written');
+  assertEq(out.day, new Date(ids.day2).getDate(), 'the block moved');
+  assert(out.occ, 'the block is bound to an occurrence');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R6-3 — a type switch never leaves an inert rule */
+scenario('R12-75 switching type back leaves a matchable rule', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => window.App.openComposer('todo'));
+  await settle(page, 300);
+  await clickTestId(page, 'composer-type-event');
+  await settle(page, 250);
+  await clickTestId(page, 'composer-repeat');
+  await clickText(page, '[data-testid="repeat-option"]', '每天');
+  await settle(page, 250);
+  await clickTestId(page, 'composer-type-todo');
+  await settle(page, 250);
+  await page.fill('[data-testid="composer-title"]', '来回切换');
+  await clickTestId(page, 'composer-save');
+  await settle(page, 350);
+  const out = await page.evaluate(() => {
+    const todo = window.Store.liveTodos().find((x) => x.summary === '来回切换');
+    if (!todo) return null;
+    const from = window.U.startOfDay(window.U.now());
+    return {
+      anchor: todo.recurrence.anchor,
+      start: !!todo.startDate || !!todo.dueDate,
+      occ: window.Store.occurrencesInWindow(todo, from, window.U.addDays(from, 30)).length,
+    };
+  });
+  assert(out, 'the todo must be saved');
+  assertEq(out.anchor, 'due', 'a todo rule is date-anchored');
+  assertEq(out.start, true, 'the series must have an anchor date');
+  assert(out.occ > 0, 'the rule must actually occur');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* E-R6-4 — the phone footer never clips its label */
+scenario('R12-76 the phone save label is not clipped', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => {
+    const todo = window.Store.liveTodos().find((x) => x.dueDate && x.reminderOffsets.length >= 1 && x.summary.includes('读 20 页'))
+      || window.Store.liveTodos().find((x) => x.dueDate && x.summary.includes('读 20 页'));
+    window.App.openComposer('todo', { mode: 'edit', id: todo.id });
+  });
+  await settle(page, 350);
+  const box = await page.evaluate(() => {
+    const b = document.querySelector('[data-testid="composer-save"]');
+    const r = b.getBoundingClientRect();
+    return { clip: b.scrollHeight - b.clientHeight, right: r.right, vw: window.innerWidth, label: b.textContent };
+  });
+  assert(box.clip <= 2, 'the primary label must not be clipped: ' + JSON.stringify(box));
+  assert(box.right <= box.vw + 1, 'the button must stay inside the viewport');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R6-2 / G-R6-3 — a merged rule's end date is a date everywhere */
+scenario('R12-77 a merged rule with an end date opens and edits', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const day = window.U.startOfDay(window.U.now());
+    const until = window.U.addDays(day, 20);
+    const todo = window.Store.createTodo({
+      summary: '带结束的重复', dueDate: day,
+      recurrence: { freq: 'DAILY', interval: 1, byday: [], until, timeZone: 'Asia/Shanghai', anchor: 'due', valueType: 'date' },
+    });
+    window.App.go('settings', { section: 'data' });
+    return todo.id;
+  });
+  await settle(page, 300);
+  await clickText(page, '.setting-row', '合并备份');
+  await settle(page, 250);
+  const row = await page.evaluate((tid) => {
+    const copy = JSON.parse(JSON.stringify(window.Store.todoById(tid)));
+    copy.updatedAt = new Date(Date.now() + 3600000).toISOString();
+    return copy;
+  }, id);
+  await mergeFile(page, { todos: [row], events: [] });
+  await page.evaluate((tid) => window.App.openRecord('todo', tid), id);
+  await settle(page, 350);
+  const detail = await page.evaluate((tid) => ({
+    route: window.Store.state.route.name,
+    until: window.Store.todoById(tid).recurrence.until instanceof Date,
+    text: document.body.innerText.length,
+  }), id);
+  assertEq(detail.until, true, 'the merged end date must be a Date');
+  assertEq(detail.route, 'detail', 'the merged record must open');
+  assert(detail.text > 100, 'the detail must render');
+  await page.evaluate((tid) => window.App.openComposer('todo', { mode: 'edit', id: tid }), id);
+  await settle(page, 350);
+  await clickTestId(page, 'composer-repeat');
+  await settle(page, 300);
+  const sheet = await page.evaluate(() => ({
+    options: document.querySelectorAll('[data-testid="repeat-option"]').length,
+    until: (document.querySelector('.sheet input[type="date"]') || {}).value || '',
+  }));
+  assert(sheet.options >= 5, 'the repeat sheet must render its options: ' + sheet.options);
+  assert(sheet.until, 'the repeat sheet must show the existing end date');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R6-4 — malformed rows are refused, not imported */
+scenario('R12-78 malformed backup rows are refused', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'settings', { section: 'data' });
+  await settle(page, 300);
+  const base = await page.evaluate(() => {
+    const t = window.Store.todoById(3);
+    const copy = JSON.parse(JSON.stringify(t));
+    copy.id = 9501;
+    return copy;
+  });
+  const cases = [
+    Object.assign({}, base, { description: { bad: true } }),
+    Object.assign({}, base, { parentId: 9501 }),
+    Object.assign({}, base, { updatedAt: 'not-a-date' }),
+  ];
+  const results = [];
+  for (const row of cases) {
+    // A refused file keeps its sheet open on purpose; close it before the next case.
+    if (await exists(page, '.sheet')) { await page.keyboard.press('Escape'); await settle(page, 250); }
+    await clickText(page, '.setting-row', '合并备份');
+    await settle(page, 250);
+    await mergeFile(page, { todos: [row], events: [] });
+    results.push(await page.evaluate(() => ({
+      wrote: !!window.Store.todoById(9501),
+      error: (document.querySelector('[data-testid="merge-error"]') || {}).innerText || '',
+      sheet: document.querySelectorAll('.sheet').length,
+    })));
+  }
+  results.forEach((r, i) => {
+    assertEq(r.wrote, false, 'case ' + i + ' must not write');
+    assert(/不是 DaySpark 备份|not a DaySpark backup/i.test(r.error), 'case ' + i + ' must say why: ' + r.error);
+    assertEq(r.sheet, 1, 'case ' + i + ' keeps the sheet open');
+  });
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R6-5 — the search clear survives a re-render */
+scenario('R12-79 clearing search persists across a re-render', async (browser) => {
+  const page = await newPage(browser);
+  await go(page, 'search');
+  await settle(page, 250);
+  await page.fill('[data-testid="search-input"]', '会议');
+  await settle(page, 600);
+  await clickTestId(page, 'search-clear');
+  await settle(page, 200);
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await settle(page, 350);
+  const out = await page.evaluate(() => ({
+    value: document.querySelector('[data-testid="search-input"]').value,
+    query: window.Store.state.searchQuery,
+  }));
+  assertEq(out.value, '', 'the field must stay cleared after a re-render');
+  assertEq(out.query, '', 'the destination state must be cleared too');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* G-R6-6 — undoing a schedule removes the block, not just cancels it */
+scenario('R12-80 a schedule undo leaves no cancelled history', async (browser) => {
+  const page = await newPage(browser);
+  const id = await page.evaluate(() => {
+    const todo = window.Store.createTodo({ summary: '安排撤销测试' });
+    window.App.openRecord('todo', todo.id);
+    return todo.id;
+  });
+  await settle(page, 300);
+  await clickTestId(page, 'detail-schedule');
+  await settle(page, 250);
+  await clickTestId(page, 'allocate-apply');
+  await settle(page, 300);
+  await page.evaluate(() => document.querySelector('.toast .undo').click());
+  await settle(page, 300);
+  const out = await page.evaluate((tid) => ({
+    all: window.Store.state.allocations.filter((a) => a.todoId === tid).length,
+    text: document.body.innerText,
+  }), id);
+  assertEq(out.all, 0, 'the created block must be removed, not cancelled');
+  assert(!/已取消|Cancelled/.test(out.text), 'no cancelled history line may remain: ' + out.text.slice(0, 200));
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R6-1 — month arrows clamp like the buttons do */
+scenario('R12-81 the month arrow clamps at a short month', async (browser) => {
+  const page = await newPage(browser);
+  await page.evaluate(() => {
+    window.Store.state.browseDate = new Date(2026, 0, 31);
+    window.Store.state.calendarView = 'month';
+    window.App.go('calendar');
+  });
+  await settle(page, 350);
+  await page.keyboard.press('ArrowRight');
+  await settle(page, 300);
+  const next = await page.evaluate(() => window.Store.state.browseDate.getTime());
+  assertEq(new Date(next).getMonth(), 1, 'ArrowRight from 31 Jan must land in February');
+  assertEq(new Date(next).getDate(), 28, 'the day is clamped to the month end');
+  await page.keyboard.press('ArrowLeft');
+  await settle(page, 300);
+  const back = await page.evaluate(() => window.Store.state.browseDate.getTime());
+  assertEq(new Date(back).getMonth(), 0, 'ArrowLeft returns to January');
+  assertEq(new Date(back).getDate(), 28, 'the clamped day is preserved');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* D-R6-4 — folding the dawn keeps the viewed time */
+scenario('R12-82 toggling the fold keeps the grid where it was', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await page.evaluate(() => window.App.go('calendar', { view: 'day' }));
+  await settle(page, 400);
+  const before = await page.evaluate(() => {
+    const sc = document.querySelector('.time-scroll');
+    sc.scrollTop = 700;
+    return sc.scrollTop;
+  });
+  await settle(page, 150);
+  await page.evaluate(() => document.querySelector('[data-testid="dawn-fold"]').click());
+  await settle(page, 400);
+  const after = await page.evaluate(() => document.querySelector('.time-scroll').scrollTop);
+  assert(after > 300, 'folding must not throw the grid back to the start: ' + before + ' -> ' + after);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   const failures = [];
