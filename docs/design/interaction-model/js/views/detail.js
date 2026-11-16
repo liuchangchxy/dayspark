@@ -344,7 +344,11 @@
       sec.appendChild(U.el('h3', { text: S.state.lang === 'zh' ? '历史安排' : 'Past schedules' }));
       history.forEach((a) => {
         const line = U.el('div', { class: 'alloc-line' });
-        const stateLabel = a.state === S.ALLOC.CANCELLED ? t('cancelled') : (S.state.lang === 'zh' ? '完成时失效' : 'Invalidated');
+        // A block that had started is history, not a casualty: only the blocks
+        // completion actually invalidated may say so (D-28).
+        const stateLabel = a.state === S.ALLOC.CANCELLED
+          ? t('cancelled')
+          : (S.isAllocationHistory(a) ? t('startedHistory') : t('invalidatedAtCompletion'));
         line.innerHTML = `<span class="when">${U.esc(U.fmtMonthDayTime(a.startAt))} – ${U.esc(U.fmtTime(a.endAt))}</span><span class="chip outline">${U.esc(stateLabel)}</span>`;
         sec.appendChild(line);
       });

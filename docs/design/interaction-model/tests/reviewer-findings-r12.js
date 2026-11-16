@@ -2447,6 +2447,11 @@ scenario('R12-88 a completed occurrence keeps its started block as history', asy
   assert(/history/.test(grid.cls), 'the block must carry the history style');
   assert(!grid.resize, 'a history block has no resize handle');
   assertEq(grid.cursor, 'default', 'a history block is not draggable');
+  await page.evaluate((id) => window.App.openRecord('todo', id), setup.id);
+  await settle(page, 400);
+  const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.alloc-line')).map((r) => r.textContent));
+  assert(rows.some((r) => /已开始|Started/.test(r)), 'the detail must call the surviving block history: ' + JSON.stringify(rows));
+  assert(!rows.some((r) => /完成时失效|Invalidated/.test(r)), 'no row may claim completion invalidated it: ' + JSON.stringify(rows));
   assertNoErrors(page);
   await page.__ctx.close();
 });

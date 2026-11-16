@@ -28,6 +28,7 @@
     createdAt: '创建于', updatedAt: '更新于', high: '高', medium: '中', low: '低',
     noPriority: '无优先级', status: '状态', pending: '未完成', completed: '已完成',
     cancelled: '已取消', overdue: '逾期', overdueSection: '已逾期', scheduled: '已安排', unscheduled: '未安排',
+    startedHistory: '已开始 · 历史', invalidatedAtCompletion: '完成时失效',
     recurrence: '重复任务', occurrence: '本次', series: '系列',
 
     never: '不重复', daily: '每天', weekly: '每周', monthly: '每月', yearly: '每年',
@@ -292,6 +293,7 @@
     updatedAt: 'Updated', high: 'High', medium: 'Medium', low: 'Low',
     noPriority: 'No priority', status: 'Status', pending: 'Open',
     completed: 'Completed', cancelled: 'Cancelled', overdue: 'Overdue', overdueSection: 'Overdue',
+    startedHistory: 'Started · history', invalidatedAtCompletion: 'Invalidated at completion',
     scheduled: 'Scheduled', unscheduled: 'Unscheduled', recurrence: 'Repeating',
     occurrence: 'Occurrence', series: 'Series',
 
