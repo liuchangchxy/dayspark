@@ -1004,9 +1004,16 @@
     const move = opts && opts.move;
     // The move path rewrites every row bound to the calendar, trashed or not,
     // so the inverse has to snapshot every row it can touch (D-06, D-10).
+    // Deleting with content also cascades to subtasks, which may live in another
+    // calendar, so the affected set is the seed rows plus their live children.
+    const seedTodos = state.todos.filter((r) => r.calendarId === id);
+    const affected = new Map(seedTodos.map((r) => [r.id, r]));
+    if (!move) {
+      seedTodos.forEach((r) => subtasksOf(r.id).forEach((s) => { if (!affected.has(s.id)) affected.set(s.id, s); }));
+    }
     const snapshot = {
       filterCalendarId: state.filterCalendarId,
-      todos: state.todos.filter((r) => r.calendarId === id).map((r) => ({ id: r.id, calendarId: r.calendarId, deletedAt: r.deletedAt, updatedAt: r.updatedAt })),
+      todos: Array.from(affected.values()).map((r) => ({ id: r.id, calendarId: r.calendarId, deletedAt: r.deletedAt, updatedAt: r.updatedAt })),
       events: state.events.filter((r) => r.calendarId === id).map((r) => ({ id: r.id, calendarId: r.calendarId, deletedAt: r.deletedAt, updatedAt: r.updatedAt })),
     };
     if (move) {

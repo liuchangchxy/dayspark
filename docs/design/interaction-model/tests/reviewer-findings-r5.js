@@ -364,8 +364,11 @@ scenario('P1-8 desktop month double-click opens the event composer', async (brow
   const cell = await page.evaluate(() => {
     const now = window.U.now();
     const cells = Array.from(document.querySelectorAll('.month-cell'));
-    const target = cells.find((c) => !c.classList.contains('other') && c.querySelectorAll('.month-event').length === 0
+    // Deadline chips are facts, not creation targets: a cell that only carries
+    // due chips is still empty for the double-click-to-create gesture.
+    const late = cells.filter((c) => !c.classList.contains('other')
       && Number(c.querySelector('.mday') ? c.querySelector('.mday').textContent : 0) > 20);
+    const target = late.find((c) => c.querySelectorAll('.month-event.evt, .month-event.alloc').length === 0) || late[0];
     if (!target) return null;
     const r = target.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };

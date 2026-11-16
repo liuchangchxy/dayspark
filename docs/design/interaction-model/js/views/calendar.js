@@ -127,7 +127,19 @@
       });
       const events = S.eventsOnDay(d);
       const allocs = S.allocationsOnDay(d);
-      const due = S.liveTodos().filter((x) => S.isOpen(x) && x.dueDate && U.sameDay(x.dueDate, d));
+      // A recurring series owns one deadline per occurrence day, and a finished
+      // occurrence is not an open deadline — the cell must agree with the lane.
+      const due = [];
+      S.liveTodos().filter((x) => S.isOpen(x) && x.dueDate).forEach((x) => {
+        if (!x.recurrence) {
+          if (U.sameDay(x.dueDate, d)) due.push({ todo: x, due: x.dueDate });
+          return;
+        }
+        const day = U.startOfDay(d);
+        if (!S.matchesRule(x, day)) return;
+        if (S.isOccurrenceDone(x, S.occurrenceIdFor(x, day))) return;
+        due.push({ todo: x, due: occurrenceDeadline(x.dueDate, day) });
+      });
       const head = U.el('div', { class: 'mhead' });
       head.innerHTML = `<span class="mday">${d.getDate()}</span>`;
       if (S.state.showLunar && d.getDate() === 1) head.innerHTML += `<span class="lunar">${U.esc(t('lunarSample'))}</span>`;
@@ -136,7 +148,7 @@
       const items = [];
       events.forEach((e) => items.push({ kind: 'evt', label: e.summary, color: S.calendarColor(e.calendarId), time: e.isAllDay ? '' : U.fmtTime(e.startDt), data: e }));
       allocs.forEach((x) => items.push({ kind: 'alloc', label: S.todoById(x.todoId) ? S.todoById(x.todoId).summary : '', time: U.fmtTime(x.startAt), data: x }));
-      due.forEach((x) => items.push({ kind: 'due', label: x.summary, time: U.fmtClockNoMidnight(x.dueDate), data: x }));
+      due.forEach((x) => items.push({ kind: 'due', label: x.todo.summary, time: U.fmtClockNoMidnight(x.due), data: x.todo }));
 
       if (U.isNarrow()) {
         const dots = U.el('div', { class: 'mdots' });

@@ -861,6 +861,61 @@ scenario('R12-33 the deadline lane drops a completed occurrence', async (browser
   await page.__ctx.close();
 });
 
+/* I-R4-1 — the month grid agrees with the lane about a finished occurrence */
+scenario('R12-34 the month grid drops a completed recurring occurrence', async (browser) => {
+  const page = await newPage(browser);
+  const seed = await page.evaluate(() => {
+    const day = window.U.addDays(window.U.startOfDay(window.U.now()), 0);
+    const due = new Date(day); due.setHours(10, 0, 0, 0);
+    const todo = window.Store.createTodo({ summary: '月度网格重复', dueDate: due, recurrence: { freq: 'daily', interval: 1 } });
+    const occ = window.Store.occurrenceIdFor(todo, day);
+    window.Store.completeTodo(todo.id, { occurrenceId: occ });
+    window.App.go('calendar', { view: 'month' });
+    return { id: todo.id };
+  });
+  await settle(page, 350);
+  const cell = await page.evaluate(() => {
+    const cells = Array.from(document.querySelectorAll('.month-cell'));
+    const d = window.U.now().getDate();
+    const c = cells.find((x) => x.querySelector('.mday') && x.querySelector('.mday').textContent === String(d) && !x.classList.contains('other'));
+    return c ? c.innerText : '';
+  });
+  assert(!cell.includes('月度网格重复'), 'the month cell must not show a finished occurrence as an open deadline: ' + cell);
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
+/* I-R4-2 — deleting a calendar with content undoes the cascade it caused */
+scenario('R12-35 calendar delete undo restores a cross-calendar subtask', async (browser) => {
+  const page = await newPage(browser);
+  const ids = await page.evaluate(() => {
+    const home = window.Store.state.calendars.find((c) => c.name === '家庭') || window.Store.state.calendars[2];
+    const personal = window.Store.state.calendars.find((c) => c.id !== home.id);
+    const parent = window.Store.createTodo({ summary: '级联父', calendarId: home.id });
+    const child = window.Store.createTodo({ summary: '级联子', calendarId: personal.id, parentId: parent.id });
+    return { cal: home.id, parent: parent.id, child: child.id };
+  });
+  await go(page, 'calendars');
+  await settle(page, 250);
+  await page.evaluate((calName) => {
+    const row = Array.from(document.querySelectorAll('.setting-row, .cal-row, .list-row')).find((r) => r.textContent.includes(calName));
+    row.querySelector('button[aria-label="删除日历"], button[aria-label="Delete calendar"]').click();
+  }, '家庭');
+  await settle(page, 250);
+  await clickText(page, 'button', '删除日历和内容');
+  await settle(page, 300);
+  await page.evaluate(() => document.querySelector('.toast .undo').click());
+  await settle(page, 300);
+  const after = await page.evaluate((x) => ({
+    parent: !!window.Store.todoById(x.parent).deletedAt,
+    child: !!window.Store.todoById(x.child).deletedAt,
+  }), ids);
+  assertEq(after.parent, false, 'the parent comes back');
+  assertEq(after.child, false, 'the cascaded child comes back with it');
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME });
   const failures = [];
