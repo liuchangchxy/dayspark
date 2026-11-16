@@ -425,7 +425,7 @@ delete and the menu only. F, B, C, H, J stay frozen at PASS.
 | `6372f83` | D | PASS | menu closes only when its anchor moves; D-28 holds on desktop and phone; only the recorded fold P2 remains |
 | `6372f83` | E | PASS | type chrome, refused-slot label, preset rule shape, footer at 900/901/1100/1440, 118 checks, zero findings |
 | `6372f83` | Integrator | PASS | three P1s and the 900px overflow fixed; J1–J9 pass on phone and desktop; one P2 (detail label) |
-| `9118cb0` | Integrator | pending | the detail history label |
+| `9118cb0` | Integrator | PASS | the detail reads 已开始 · 历史 for the surviving block and 完成时失效 only for the invalidated one, desktop and phone |
 
 | ID | Finding | Root cause | Fix | Regression | Status |
 |---|---|---|---|---|---|
