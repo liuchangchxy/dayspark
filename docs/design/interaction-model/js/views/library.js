@@ -82,6 +82,9 @@
         });
         foot.appendChild(cancel); foot.appendChild(save);
         host.appendChild(foot);
+        host.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && e.target === input) { e.preventDefault(); save.click(); }
+        });
         input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save.click(); });
       },
     });
@@ -104,7 +107,8 @@
       narrow: true,
       actions: [(() => {
         const b = U.el('button', { class: 'btn primary', 'data-testid': 'calendars-create' });
-        b.innerHTML = ICON('plus', 14) + `<span>${U.esc(t('newCalendar'))}</span>`;
+        b.setAttribute('aria-label', t('newCalendar'));
+        b.innerHTML = ICON('plus', 14) + `<span class="label">${U.esc(t('newCalendar'))}</span>`;
         b.addEventListener('click', () => editCalendar(null));
         return b;
       })()],
@@ -141,7 +145,7 @@
       body(host, close) {
         const field = U.el('div', { class: 'field' });
         field.innerHTML = `<label>${U.esc(t('calendarName'))}</label>`;
-        const input = U.el('input', { class: 'input', value: cal ? cal.name : '', 'data-autofocus': '' });
+        const input = U.el('input', { class: 'input', value: cal ? cal.name : '', 'data-autofocus': '', 'data-testid': 'calendar-name' });
         field.appendChild(input);
         const err = U.el('div', { class: 'field-error' });
         field.appendChild(err);
@@ -174,6 +178,9 @@
         });
         foot.appendChild(cancel); foot.appendChild(save);
         host.appendChild(foot);
+        host.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && e.target === input) { e.preventDefault(); save.click(); }
+        });
       },
     });
   }

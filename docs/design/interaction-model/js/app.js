@@ -110,12 +110,13 @@
   // Opening a record: answer in place when the pane exists, otherwise navigate.
   // Clicking a row must not silently do nothing on the destinations that have
   // no pane.
-  function openRecord(type, id, occurrence) {
+  function openRecord(type, id, occurrence, day) {
+    const dayMs = day ? U.startOfDay(day).getTime() : null;
     if (!U.isNarrow() && U.isSplit() && S.state.tab === 'todos') {
-      S.selectPane(type, id, occurrence);
+      S.selectPane(type, id, occurrence, dayMs);
       return;
     }
-    S.navigate('detail', { type, id, occurrence: occurrence || null });
+    S.navigate('detail', { type, id, occurrence: occurrence || null, day: dayMs });
   }
 
   // A detail route stays a route. Turning it into a pane here would hijack

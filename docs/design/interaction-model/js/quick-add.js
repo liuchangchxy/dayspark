@@ -78,9 +78,14 @@
       if (weekday) {
         const target = WEEKDAYS[weekday[2]];
         const today = base.getDay();
-        const delta = /下周|下星期/.test(weekday[1])
-          ? 7 - today + target
-          : (target - today + 7) % 7;
+        // 本周/这周 means the Monday-based week containing today, so a Sunday
+        // asking for 本周一 means six days ago, not tomorrow. 下周 moves that
+        // whole week forward; a bare weekday means the next matching day.
+        const monday = (today + 6) % 7;
+        let delta;
+        if (/下周|下星期/.test(weekday[1])) delta = 7 - monday + ((target + 6) % 7);
+        else if (/本周|这周|这星期/.test(weekday[1])) delta = ((target + 6) % 7) - monday;
+        else delta = (target - today + 7) % 7;
         date = dayAt(base, delta);
         sawDate = true;
         cut(weekday[0]);
@@ -110,6 +115,8 @@
       if (h !== null && h >= 0 && h <= 24 && m >= 0 && m < 60) {
         const period = clock[1] || '';
         if (/下午|傍晚|晚上|夜里/.test(period) && h < 12) h += 12;
+        // 晚上12点 is midnight, not noon; 中午12点 stays noon.
+        if (/晚上|夜里/.test(period) && h === 12) h = 0;
         if (/中午/.test(period) && h < 11) h = 12;
         if (/上午|早上|早晨/.test(period) && h === 12) h = 0;
         if (h === 24) h = 0;

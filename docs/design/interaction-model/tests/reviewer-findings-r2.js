@@ -412,6 +412,7 @@ scenario('R13 the quick time chip never proposes a slot in the past', async (bro
   await settle(page, 240);
   await page.evaluate(() => window.App.openComposer('todo', {}));
   await settle(page, 300);
+  await page.click('[data-testid="composer-more"]');
   await page.evaluate(() => {
     const b = Array.from(document.querySelectorAll('button')).find((x) => /安排时间|Schedule time/.test(x.textContent));
     b.click();

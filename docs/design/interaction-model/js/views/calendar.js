@@ -31,8 +31,8 @@
   function openEvent(e) {
     App.openRecord('event', e.id, e.isOccurrence ? e.startDt.getTime() : null);
   }
-  function openTodo(todo) {
-    App.openRecord('todo', todo.id);
+  function openTodo(todo, day) {
+    App.openRecord('todo', todo.id, null, day || anchor());
   }
 
   function shift(dir) {
@@ -159,17 +159,26 @@
       });
       if (items.length > max) cell.appendChild(U.el('span', { class: 'month-more', text: '+' + (items.length - max) }));
 
-      cell.addEventListener('click', () => {
+      const drill = () => {
         S.state.calendarFocusDay = U.startOfDay(d);
         S.state.calendarAnchor = U.startOfDay(d);
         S.setBrowseDate(U.startOfDay(d));
         S.state.calendarView = 'day';
         App.render();
-      });
+      };
       // Desktop months have room for a creation gesture the phone does not:
-      // double-clicking an empty cell opens a new event at the next hour.
+      // double-clicking a cell opens a new event at the next hour. The single
+      // click has to wait for the second one, because drilling re-renders and
+      // the fresh cell can never receive the dblclick.
+      let clickTimer = null;
+      cell.addEventListener('click', () => {
+        if (U.isNarrow()) { drill(); return; }
+        if (clickTimer) return;
+        clickTimer = setTimeout(() => { clickTimer = null; drill(); }, 220);
+      });
       cell.addEventListener('dblclick', (ev) => {
         ev.preventDefault();
+        if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
         const now = U.now();
         const hour = U.sameDay(d, now) ? Math.min(23, now.getHours() + 1) : 9;
         const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0);
@@ -307,8 +316,11 @@
         col.appendChild(slot);
       }
 
-      const events = S.eventsOnDay(d).filter((e) => !e.isAllDay);
-      const allocs = S.allocationsOnDay(d);
+      const foldMin = dayStart() * 60;
+      const events = S.eventsOnDay(d).filter((e) => !e.isAllDay)
+        .filter((e) => S.state.dawnOpen || ((e.endDt - U.startOfDay(d)) / U.MS_MIN) > foldMin);
+      const allocs = S.allocationsOnDay(d)
+        .filter((a) => S.state.dawnOpen || ((a.endAt - U.startOfDay(d)) / U.MS_MIN) > foldMin);
       const layout = computeOverlaps(events.map((e) => ({ s: e.startDt, e: e.endDt, raw: e })).concat(allocs.map((x) => ({ s: x.startAt, e: x.endAt, raw: x }))));
 
       events.forEach((e) => {
@@ -405,8 +417,11 @@
     const day0 = U.startOfDay(day);
     const sMin = (start - day0) / U.MS_MIN;
     const eMin = (end - day0) / U.MS_MIN;
-    const top = Math.max(0, (sMin / 60 - dayStart()) * hh);
-    const height = Math.max(16, ((eMin - sMin) / 60) * hh - (U.isNarrow() ? 0 : 1));
+    // Folded dawn clips the visible start, not the data: a 03:00 block that
+    // runs past 06:00 is drawn from 06:00, and its height starts there too.
+    const visStart = Math.max(sMin, dayStart() * 60);
+    const top = Math.max(0, (visStart / 60 - dayStart()) * hh);
+    const height = Math.max(16, ((eMin - visStart) / 60) * hh - (U.isNarrow() ? 0 : 1));
     return { top, height, sMin, eMin };
   }
 
@@ -569,23 +584,22 @@
       const newH = Math.max(snap, Math.round(height / snap) * snap);
       node.style.top = newTop + 'px';
       node.style.height = newH + 'px';
-      const day0 = U.startOfDay(ctx.day);
-      // The grid may start at 06:00 when dawn is folded, so the pixel offset is
-      // measured from that hour, not from midnight.
-      const offsetMin = dayStart() * 60;
-      const startMin = Math.round((newTop / hh) * 60 / 15) * 15 + offsetMin;
-      const endMin = startMin + Math.round((newH / hh) * 60 / 15) * 15;
-      const newStart = U.addMinutes(day0, startMin);
-      const newEnd = U.addMinutes(day0, endMin);
-      const targetDay = U.addDays(day0, dayOffset);
-      const shiftDays = Math.round((targetDay - day0) / U.MS_DAY);
-      const s = U.addDays(newStart, shiftDays);
-      const e2 = U.addDays(newEnd, shiftDays);
+      // Move by the movement, not by the rendered top: with dawn folded the
+      // top is clipped, and reading it back would rewrite an early event to
+      // 06:00. Resize by the height change for the same reason.
+      const movedMin = Math.round(((newTop - origTop) / hh) * 60 / 15) * 15 + dayOffset * 24 * 60;
+      const resizedMin = Math.round(((newH - origH) / hh) * 60 / 15) * 15;
+      const start = ctx.kind === 'event' ? ctx.data.startDt : ctx.data.startAt;
+      const end = ctx.kind === 'event' ? ctx.data.endDt : ctx.data.endAt;
       if (wasMode === 'resize') {
-        if (ctx.kind === 'event') moveEvent(ctx.data, ctx.data.startDt, e2, { silent: false, from: ctx.data.startDt, resized: true });
-        else moveAlloc(ctx.data, ctx.data.startAt, e2);
+        const e2 = U.addMinutes(end, resizedMin);
+        if (e2 <= start) return;
+        if (ctx.kind === 'event') moveEvent(ctx.data, start, e2, { silent: false, from: start, resized: true });
+        else moveAlloc(ctx.data, start, e2);
       } else {
-        if (ctx.kind === 'event') moveEvent(ctx.data, s, e2, { from: ctx.data.startDt });
+        const s = U.addMinutes(start, movedMin);
+        const e2 = U.addMinutes(end, movedMin);
+        if (ctx.kind === 'event') moveEvent(ctx.data, s, e2, { from: start });
         else moveAlloc(ctx.data, s, e2);
       }
     }

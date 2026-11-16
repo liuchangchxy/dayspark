@@ -33,7 +33,7 @@
           input.value = ''; query = ''; clearBtn.hidden = true; draw(); input.focus();
         });
         box.appendChild(clearBtn);
-        box.addEventListener('click', (e) => { if (e.target === box) input.focus(); });
+        box.addEventListener('click', (e) => { if (!e.target.closest('button')) input.focus(); });
         content.appendChild(box);
 
         const hint = U.el('div', { class: 'field-hint', style: 'margin-top:6px', text: t('searchKeyboardHint') });

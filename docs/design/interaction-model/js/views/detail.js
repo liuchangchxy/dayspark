@@ -36,7 +36,7 @@
     return v;
   }
 
-  function todoDetail(todo) {
+  function todoDetail(todo, contextDay) {
     const root = U.el('div', { class: 'detail', 'data-testid': 'todo-detail' });
     const narrow = U.isNarrow();
     // A routed detail is a page at every width, so it always offers a visible
@@ -89,7 +89,21 @@
     if (!todo.deletedAt) {
       const doneBtn = U.el('button', { class: 'btn ' + (done ? 'ghost' : 'primary'), 'data-testid': 'detail-complete' });
       doneBtn.innerHTML = ICON('check', 14) + `<span>${U.esc(done ? t('markIncomplete') : t('markComplete'))}</span>`;
-      doneBtn.addEventListener('click', () => { window.TodoOps.complete(todo); });
+      doneBtn.addEventListener('click', () => {
+        // Completion follows the day the record was opened from. A recurring
+        // series has one open instance per day, so "today" is only correct
+        // when the detail came from Today or an undated surface.
+        let occ = null;
+        if (todo.recurrence) {
+          const d = contextDay ? U.startOfDay(contextDay) : U.startOfDay(U.now());
+          if (!S.matchesRule(todo, d)) {
+            UI.toast(t('recurrenceNeedsOccurrence'), { warn: true });
+            return;
+          }
+          occ = S.occurrenceIdFor(todo, d);
+        }
+        window.TodoOps.complete(todo, occ);
+      });
       status.appendChild(doneBtn);
     }
     if (todo.recurrence) status.appendChild(U.el('span', { class: 'chip violet', html: ICON('repeat', 10) + `<span>${U.esc(t('recurrence'))}</span>` }));
@@ -179,11 +193,13 @@
     // calendar: the same picker the composer uses, so the fact is editable in
     // place rather than being the one dead row on the page.
     const cal = S.calendarById(todo.calendarId);
+    const calEdit = UI.iconButton('edit', t('change'), () => changeCalendar(todo), { sm: true, size: 13 });
+    calEdit.dataset.testid = 'detail-calendar-edit';
     facts.appendChild(iconFact(
       'folder',
-      t('calendar'),
+      t('ownCalendar'),
       `<span class="chip"><span class="dot" style="background:${cal ? cal.color : 'var(--accent)'}"></span>${U.esc(cal ? cal.name : '')}</span>`,
-      UI.iconButton('edit', t('change'), () => changeCalendar(todo), { sm: true, size: 13 }),
+      calEdit,
       null,
       () => changeCalendar(todo),
     ));
@@ -783,7 +799,9 @@
         },
       });
     }
-    return todoDetail(todo);
+    // The Todo list and Today open a record for a specific day; a recurring
+    // record completed from that detail must resolve that day, not today.
+    return todoDetail(todo, params.day ? new Date(params.day) : null);
   }
 
   App.defineView('detail', renderDetail);

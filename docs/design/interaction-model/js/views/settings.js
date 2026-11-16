@@ -215,6 +215,9 @@
           }
           login.addEventListener('click', () => submit('login'));
           register.addEventListener('click', () => submit('register'));
+          form.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); submit('login'); }
+          });
           btns.appendChild(login); btns.appendChild(register);
           form.appendChild(btns);
           account.appendChild(form);
@@ -251,18 +254,16 @@
         if (plat === 'android' || plat === 'ios') {
           notif.appendChild(switchRow(t('systemAlarm'), t('systemAlarmDesc'), S.state.notificationsEnabled, (v) => { S.state.notificationsEnabled = v; S.savePrefs(); App.render(); }, 'setting-alarm'));
         }
-        if (plat === 'android' || plat === 'macos' || plat === 'web') {
-          notif.appendChild(row({
-            icon: 'bell', title: t('notificationPermission'),
-            subtitle: S.state.notificationsEnabled ? t('notificationPermissionDesc') : t('permissionDenied'),
-            value: S.state.notificationsEnabled ? `<span class="chip green" style="height:18px">${U.esc(S.state.lang === 'zh' ? '已允许' : 'Allowed')}</span>` : `<span class="chip red" style="height:18px">${U.esc(S.state.lang === 'zh' ? '未允许' : 'Denied')}</span>`,
-            onClick: () => UI.toast(t('notificationPermissionAsked'), { warn: true }),
-          }));
-        }
+        notif.appendChild(row({
+          icon: 'bell', title: t('notificationPermission'),
+          subtitle: S.state.notificationsEnabled ? t('notificationPermissionDesc') : t('permissionDenied'),
+          value: S.state.notificationsEnabled ? `<span class="chip green" style="height:18px">${U.esc(S.state.lang === 'zh' ? '已允许' : 'Allowed')}</span>` : `<span class="chip red" style="height:18px">${U.esc(S.state.lang === 'zh' ? '未允许' : 'Denied')}</span>`,
+          onClick: () => UI.toast(t('notificationPermissionAsked'), { warn: true }),
+        }));
         if (plat === 'android') {
           notif.appendChild(switchRow(t('exactAlarm'), t('exactAlarmDesc'), S.state.exactAlarm, (v) => { S.state.exactAlarm = v; S.savePrefs(); App.render(); }, 'setting-exact'));
         }
-        if (plat !== 'android' && plat !== 'ios' && plat !== 'macos' && plat !== 'web') {
+        if (plat === 'web') {
           notif.appendChild(U.el('div', { class: 'field-hint', text: t('unsupportedWeb') }));
         }
         addSection('notifications', t('notifications'), notif);
@@ -461,13 +462,31 @@
           detect.disabled = true; detect.textContent = t('loading');
           setTimeout(() => {
             detect.disabled = false; detect.textContent = t('detectModels');
-            model.value = 'gpt-4o-mini';
-            UI.toast(t('aiTestOk'));
+            // A detected list, not a single answer: the user chooses what the
+            // key actually has access to.
+            const found = ['gpt-4o-mini', 'gpt-4o', 'claude-sonnet-5-5', 'deepseek-chat'];
+            UI.sheet({
+              title: t('detectModels'),
+              body(host, close) {
+                const list = U.el('div', { class: 'picker' });
+                found.forEach((name) => {
+                  const b = U.el('button', { class: 'slot-sheet-option', 'data-testid': 'ai-model-option' });
+                  b.innerHTML = `<span class="t">${U.esc(name)}</span>`;
+                  b.addEventListener('click', () => {
+                    model.value = name;
+                    close(null);
+                    UI.toast(t('aiModelChosen', { m: name }));
+                  });
+                  list.appendChild(b);
+                });
+                host.appendChild(list);
+              },
+            });
           }, 700);
         });
         const remove = U.el('button', { class: 'btn danger-ghost', text: t('removeConfig'), 'data-testid': 'ai-remove' });
         remove.addEventListener('click', () => {
-          UI.confirm({ title: t('removeConfig'), message: t('aiNoKey'), danger: true, confirmText: t('remove') }).then((ok) => {
+          UI.confirm({ title: t('removeConfig'), message: t('aiRemoveConfirm'), danger: true, confirmText: t('remove') }).then((ok) => {
             if (!ok) return;
             S.state.ai.configured = false;
             close(null);
@@ -475,6 +494,12 @@
           });
         });
         const save = U.el('button', { class: 'btn primary', text: t('save') });
+        box.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+            e.preventDefault();
+            save.click();
+          }
+        });
         save.addEventListener('click', () => {
           S.state.ai.model = model.value;
           S.state.ai.provider = prov.value;

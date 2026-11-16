@@ -176,6 +176,22 @@
     return node;
   }
 
+  // A repeating to-do has no single row to schedule: the allocation has to name
+  // the occurrence it belongs to. Find the first occurrence on or after the
+  // requested day, keeping the requested clock time, so the write is visible.
+  function occurrenceForSchedule(todo, start) {
+    if (!todo || !todo.recurrence) return { at: start, occurrenceId: null };
+    let day = U.startOfDay(start);
+    for (let i = 0; i < 14; i++) {
+      if (S.matchesRule(todo, day)) {
+        const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), start.getHours(), start.getMinutes());
+        return { at, occurrenceId: S.occurrenceIdFor(todo, day) };
+      }
+      day = U.addDays(day, 1);
+    }
+    return null;
+  }
+
   function scheduleSheet() {
     const candidates = S.schedulableTodos();
     if (!candidates.length) {
@@ -210,10 +226,21 @@
           const s = U.fromInputDateTime(start.value);
           if (!s) return;
           const todoId = Number(todoSel.value);
-          S.createAllocation({ todoId, startAt: s, endAt: U.addMinutes(s, parseInt(dur.value, 10)) });
+          const todo = S.todoById(todoId);
+          const occ = occurrenceForSchedule(todo, s);
+          if (!occ) {
+            UI.toast(t('scheduleNoOccurrence'), { warn: true });
+            return;
+          }
+          S.createAllocation({
+            todoId, occurrenceId: occ.occurrenceId,
+            startAt: occ.at, endAt: U.addMinutes(occ.at, parseInt(dur.value, 10)),
+          });
           close(null);
           App.render();
-          UI.toast(t('aiApplied'));
+          UI.toast(occ.occurrenceId && !U.sameDay(occ.at, s)
+            ? t('scheduleMovedToOccurrence', { d: U.fmtMonthDayTime(occ.at) })
+            : t('aiApplied'), { duration: 2400 });
         });
         box.appendChild(apply);
       },
@@ -289,17 +316,31 @@
       const wantsTomorrow = /明天|tomorrow/.test(lower);
       const day = U.addDays(U.startOfDay(U.now()), wantsTomorrow ? 1 : 0);
       const hour = /下午|afternoon/.test(lower) ? 14 : 9;
-      const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
-      const end = U.addMinutes(start, 60);
+      let start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, 0);
+      let end = U.addMinutes(start, 60);
+      const occ = occurrenceForSchedule(target, start);
+      if (!occ) {
+        return {
+          role: 'assistant',
+          text: S.state.lang === 'zh'
+            ? '这个重复待办在接下来的两周里没有可安排的发生日，所以我没有写入任何时间。'
+            : 'That repeating to-do has no occurrence in the next two weeks, so I did not book any time.',
+        };
+      }
+      const shifted = !U.sameDay(occ.at, start);
+      start = occ.at;
+      end = U.addMinutes(start, 60);
       return {
         role: 'assistant',
         text: S.state.lang === 'zh'
           ? (named ? '可以。我不会直接写入，先给你确认。' : '没在待办里找到你提到的名字，先按第一条未完成待办给方案；如果不对，请改名后再试。')
-          : (named ? 'I can. Nothing is written until you confirm.' : 'I could not match that name, so this targets the first open to-do; rename it and ask again if that is wrong.'),
+            + (target.recurrence && shifted ? ' 这是重复待办，会排到它最近的发生日。' : '')
+          : (named ? 'I can. Nothing is written until you confirm.' : 'I could not match that name, so this targets the first open to-do; rename it and ask again if that is wrong.')
+            + (target.recurrence && shifted ? ' This repeats, so it books its next occurrence.' : ''),
         proposal: {
           label: t('aiProposalSchedule', { t: target.summary, when: U.fmtMonthDayTime(start) }),
           run: () => {
-            S.createAllocation({ todoId: target.id, startAt: start, endAt: end });
+            S.createAllocation({ todoId: target.id, occurrenceId: occ.occurrenceId, startAt: start, endAt: end });
             App.render();
           },
         },

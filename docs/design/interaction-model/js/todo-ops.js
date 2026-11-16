@@ -30,6 +30,15 @@
       UI.toast(t('recurrenceNeedsOccurrence'), { warn: true });
       return false;
     }
+    if (!wasDone) {
+      S.state.inlineUndo = { key: todo.id + ':' + (occurrenceId || ''), until: Date.now() + 8000 };
+      setTimeout(() => {
+        const u = S.state.inlineUndo;
+        if (u && u.until <= Date.now()) { S.state.inlineUndo = null; App.render(); }
+      }, 8200);
+    } else {
+      S.state.inlineUndo = null;
+    }
     App.render();
     UI.toast(wasDone ? t('uncompletedToast', { t: todo.summary }) : t('completedToast', { t: todo.summary }), {
       undo: () => { S.completeTodo(todo.id, occurrenceId ? { occurrenceId } : undefined); App.render(); },

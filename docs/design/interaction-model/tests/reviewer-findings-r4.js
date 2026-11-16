@@ -58,6 +58,7 @@ scenario('D1 composer draft survives a breakpoint resize and keeps the discard g
   await go(page, 'todos');
   await clickTestId(page, 'todos-create');
   await page.fill('[data-testid="composer-title"]', '我的草稿标题');
+  await clickTestId(page, 'composer-more');
   await page.fill('[data-testid="composer-notes"]', '草稿备注：不要在缩放后消失');
   await settle(page, 120);
   await page.setViewportSize(MID);
@@ -336,6 +337,7 @@ scenario('D14 repeating an undated todo does not fabricate a deadline', async (b
   // Clear the deadline the day-view create control inherited, then repeat.
   await clickTestId(page, 'composer-deadline');
   await clickText(page, '.sheet button', '无截止');
+  await clickTestId(page, 'composer-more');
   await clickTestId(page, 'composer-repeat');
   await clickText(page, '.sheet .slot-sheet-option', '每天');
   await settle(page, 200);

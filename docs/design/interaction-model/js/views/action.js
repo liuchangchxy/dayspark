@@ -20,8 +20,8 @@
     return U.esc(dateText + ' · ' + wd);
   }
 
-  function openTodo(todo) {
-    App.openRecord('todo', todo.id);
+  function openTodo(todo, day) {
+    App.openRecord('todo', todo.id, null, day || U.startOfDay(U.now()));
   }
   function openEvent(event) {
     App.openRecord('event', event.id, event.occurrenceAnchor ? event.occurrenceAnchor.getTime() : null);
@@ -268,6 +268,7 @@
   }
 
   function entryRow(entry, warm, now, past) {
+    const day = U.startOfDay(U.now());
     if (entry.kind === 'event') {
       const e = entry.event;
       return row({
@@ -296,7 +297,7 @@
         if (todo.recurrence && !a.occurrenceId) return;
         toggle(todo, a.occurrenceId);
       },
-      onTap: () => openTodo(todo),
+      onTap: () => openTodo(todo, day),
       testid: 'action-allocation',
       id: todo.id,
     });
@@ -339,7 +340,7 @@
       done,
       undo: past ? inlineUndoFor(todo, inst.occurrenceId) : null,
       onToggle: () => toggle(todo, inst.occurrenceId),
-      onTap: () => openTodo(todo),
+      onTap: () => openTodo(todo, inst.day),
       testid: 'action-instance',
       id: todo.id,
     });
@@ -361,17 +362,7 @@
   }
 
   function toggle(todo, occurrenceId) {
-    const wasDone = window.TodoOps.isDone(todo, occurrenceId);
     window.TodoOps.complete(todo, occurrenceId);
-    if (!wasDone) {
-      S.state.inlineUndo = { key: todo.id + ':' + (occurrenceId || ''), until: Date.now() + 8000 };
-      setTimeout(() => {
-        const u = S.state.inlineUndo;
-        if (u && u.until <= Date.now()) { S.state.inlineUndo = null; App.render(); }
-      }, 8200);
-    } else {
-      S.state.inlineUndo = null;
-    }
   }
 
   App.defineView('action', renderAction);

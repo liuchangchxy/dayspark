@@ -34,8 +34,8 @@
       + S.state.selectedTagIds.length;
   }
 
-  function openTodo(todo) {
-    App.openRecord('todo', todo.id);
+  function openTodo(todo, day) {
+    App.openRecord('todo', todo.id, null, day);
   }
 
   function todoTile(todo, opts) {
@@ -86,6 +86,13 @@
 
     const actions = U.el('div', { class: 'actions' });
     if (!multi.active) {
+      const rowOcc = todo.recurrence
+        ? (o.day && S.matchesRule(todo, o.day)
+          ? S.occurrenceIdFor(todo, o.day)
+          : (S.matchesRule(todo, U.startOfDay(U.now())) ? S.occurrenceIdFor(todo, U.startOfDay(U.now())) : null))
+        : null;
+      const undo = o.done ? rowUndoFor(todo, rowOcc) : null;
+      if (undo) actions.appendChild(undo);
       const moreBtn = UI.iconButton('more' in ICON_NAMES ? 'more' : 'sliders', t('more'), (e) => {
         e.stopPropagation();
         openRowMenu(moreBtn, todo);
@@ -100,7 +107,7 @@
         App.render();
         return;
       }
-      openTodo(todo);
+      openTodo(todo, o.day);
     });
     rowNode.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -176,6 +183,19 @@
       document.addEventListener('pointerup', up);
       document.addEventListener('pointercancel', up);
     });
+  }
+
+  function rowUndoFor(todo, occurrenceId) {
+    const u = S.state.inlineUndo;
+    if (!u || u.key !== todo.id + ':' + (occurrenceId || '') || u.until <= Date.now()) return null;
+    const b = U.el('button', { class: 'row-undo', text: t('undo'), 'data-testid': 'todo-undo' });
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      S.state.inlineUndo = null;
+      window.TodoOps.complete(todo, occurrenceId);
+      App.render();
+    });
+    return b;
   }
 
   function toggle(todo, opts) {
@@ -343,10 +363,18 @@
       // nothing for a series and still reported success.
       const written = [];
       const skipped = [];
+      const v = view();
+      const contextDay = v.kind === 'day' ? v.day : null;
       ids.forEach((id) => {
         const todo = S.todoById(id);
         if (!todo || !S.isOpen(todo)) return;
-        const occ = todo.recurrence ? window.TodoOps.todayOccurrenceId(todo) : null;
+        // Batch completion follows the day being browsed, exactly like the
+        // single-row tick; resolving today here ticked an off-screen instance.
+        let occ = null;
+        if (todo.recurrence) {
+          if (contextDay && S.matchesRule(todo, contextDay)) occ = S.occurrenceIdFor(todo, contextDay);
+          else if (!contextDay) occ = window.TodoOps.todayOccurrenceId(todo);
+        }
         if (todo.recurrence && !occ) { skipped.push(todo.summary); return; }
         // Batch 完成 must never flip a finished row back open. For a series the
         // parent stays OPEN after one occurrence is ticked, so the row is still
@@ -458,6 +486,17 @@
         const nextY = U.el('button', { class: 'chip-btn', text: '»', 'aria-label': t('nextYear') });
         [prevY, prevM, label, nextM, nextY].forEach((n) => head.appendChild(n));
         host.appendChild(head);
+        const direct = U.el('div', { class: 'input-row', style: 'margin-bottom:8px' });
+        const jumpDate = U.el('input', { class: 'input', type: 'date', value: U.toInputDate(cur), 'aria-label': t('jumpToDate') });
+        jumpDate.dataset.testid = 'picker-jump-date';
+        jumpDate.addEventListener('change', () => {
+          const d = U.fromInputDate(jumpDate.value);
+          if (!d) return;
+          close(null);
+          setView({ kind: 'day', day: U.startOfDay(d) });
+        });
+        direct.appendChild(jumpDate);
+        host.appendChild(direct);
         const grid = U.el('div', { class: 'picker-grid' });
         host.appendChild(grid);
         const jump = U.el('button', { class: 'btn ghost sm', 'data-testid': 'picker-today', text: t('today') });
@@ -730,7 +769,7 @@
       root.appendChild(plan);
     }
 
-    const add = quickAdd(v.kind === 'day' ? U.fmtMonthDay(day) : (v.kind === 'inbox' ? t('inbox') : null), (text) => {
+    const add = quickAdd(v.kind === 'day' ? t('deadlinePrefix', { d: U.fmtMonthDay(day) }) : (v.kind === 'inbox' ? t('inbox') : null), (text) => {
       const todo = S.createTodo({ summary: text, dueDate: v.kind === 'day' ? U.startOfDay(day) : null });
       App.render();
       UI.toast(t('createdToast', { t: todo.summary }), {
@@ -768,7 +807,7 @@
     }
     let body;
     if (sel.type === 'event') body = window.__detail.eventDetail(sel.id, sel.occurrence);
-    else body = window.__detail.todoDetail(rec);
+    else body = window.__detail.todoDetail(rec, sel.day ? new Date(sel.day) : null);
 
     const isDetail = body && body.classList && body.classList.contains('detail');
     const head = isDetail ? body.querySelector('.detail-head') : null;

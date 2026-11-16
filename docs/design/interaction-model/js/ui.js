@@ -413,7 +413,7 @@
   function openCalendarSheet(currentId, onPick) {
     const S = window.Store;
     sheet({
-      title: t('calendar'),
+      title: t('ownCalendar'),
       body(host, close) {
         const list = U.el('div', { class: 'cal-list' });
         host.appendChild(list);

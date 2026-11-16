@@ -209,7 +209,7 @@ svg { display: block; }
 .input::placeholder, .textarea::placeholder { color: var(--ink-3); opacity: .85; }
 .input.invalid, .textarea.invalid { border-color: var(--red); }
 .field-error { font-size: 11.5px; color: var(--red); }
-.field-hint { font-size: 11.5px; color: var(--ink-3); }
+.field-hint { font-size: 11.5px; color: var(--ink-3); pointer-events: none; }
 .input-row { display: flex; align-items: center; gap: 8px; }
 .input-row .input { flex: 1; }
 
@@ -824,6 +824,8 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .capture { min-height: 48px; }
 
   .link-btn { min-height: 48px; display: inline-flex; align-items: center; }
+  .section-head { min-height: 48px; flex-wrap: wrap; row-gap: 2px; }
+  .row-undo { min-width: 48px; }
   .cal-today-btn { min-height: 48px !important; padding: 0 14px; }
   .month-more { min-height: 24px; display: flex; align-items: center; }
   .occurrence-picker .occ-row { min-height: 48px; }
@@ -861,7 +863,6 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
    purpose keep their look and grow their box instead. */
 @media (max-width: 899px) {
   .icon-btn, .icon-btn.sm, .btn, .btn.sm { min-width: 48px; min-height: 48px; }
-  .icon-btn.sm { margin: -10px; }
   .btn { padding: 0 14px; }
   .btn.sm { padding: 0 12px; }
   .capture-plus { min-height: 48px; padding: 0 8px; }
@@ -887,13 +888,13 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   /* Calendar blocks are drawn to scale; their 48px guarantee comes from the
      phone hour height (96px), not a pseudo-element: overlapping hit boxes
      stole each other's taps. */
-  .timegrid .block, .block.alloc, .month-event { position: relative; }
   .ws-arrow { min-width: 48px; min-height: 48px; }
   .cal-today-btn { min-height: 48px; }
   .cal-head .segmented button { min-height: 48px; min-width: 48px; }
   .deadline-chip { min-height: 48px; padding-top: 10px; padding-bottom: 10px; }
   .month-event { min-height: 22px; }
-  .block.short, .timegrid .block { min-height: 30px; }
+  .block.short, .timegrid .block { min-height: 48px; }
+  .block .resize { height: 24px; }
 }
 
 /* ---- quick add ---- */
@@ -1091,7 +1092,7 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .search-box input { min-height: 44px; }
   .chat-input { min-height: 48px; }
   .chat-input textarea { min-height: 44px; padding: 10px 0; }
-  .toast .undo { min-height: 48px; padding: 0 10px; }
+  .toast .undo { min-height: 48px; min-width: 48px; padding: 0 10px; }
   .toast .x { min-width: 48px; min-height: 48px; }
   .segmented button, .segmented.lg button { min-width: 48px; }
   .banner button { min-height: 48px; padding: 0 10px; }

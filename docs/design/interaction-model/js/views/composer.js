@@ -7,6 +7,11 @@
   const UI = window.UI;
   const t = (k, v) => I18N.t(k, v);
 
+  // A sheet or picker outlives one render of the composer. When the window
+  // crosses a breakpoint the form is rebuilt, so callbacks captured from the
+  // old closure must reach the live form instead of writing into detached DOM.
+  const live = { renderBody: () => {}, validate: () => {}, autoGrow: () => {}, titleInput: null };
+
   function draftFromRoute() {
     const c = S.state.composer || { kind: 'todo', mode: 'create' };
     const now = U.now();
@@ -23,6 +28,9 @@
       scheduleOccurrence: c.scheduleOccurrence || null,
       planDate: c.planDate ? U.startOfDay(new Date(c.planDate)) : null,
       moreOpen: false, focus: c.focus || null,
+      // CORE_UX_SPEC 4.2: a new Todo opens as Quick Create. The full five
+      // sections are one 更多 away, not the first thing the user has to read.
+      quick: c.mode !== 'edit' && (c.kind || 'todo') === 'todo',
       // Editing an existing record already has a title; a fresh form has not
       // been touched yet and must not be greeted with an error.
       touched: c.mode === 'edit',
@@ -66,8 +74,12 @@
       // "Plan this day" starts from a date, not from a deadline: it reserves a
       // slot on that day and leaves the deadline empty (no invented dueDate).
       if (base.planDate && base.kind === 'todo') {
+        const planNow = U.now();
+        const planHour = U.sameDay(base.planDate, planNow)
+          ? Math.min(23, Math.max(9, planNow.getHours() + 1))
+          : 9;
         base.scheduleStart = base.scheduleStart
-          || new Date(base.planDate.getFullYear(), base.planDate.getMonth(), base.planDate.getDate(), 9, 0);
+          || new Date(base.planDate.getFullYear(), base.planDate.getMonth(), base.planDate.getDate(), planHour, 0);
         base.scheduleEnd = base.scheduleEnd || U.addMinutes(base.scheduleStart, 60);
       }
     }
@@ -148,7 +160,7 @@
       draft.touched = true;
       markDirty();
       autoGrow(titleInput);
-      validate();
+      live.validate();
     });
     titleInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !U.isNarrow()) {
@@ -187,7 +199,7 @@
           draft.startDt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
           draft.endDt = U.addMinutes(draft.startDt, 60);
         }
-        renderBody();
+        live.renderBody();
       });
       typeSeg.appendChild(b);
     });
@@ -248,6 +260,39 @@
       return b;
     }
 
+    function renderQuick() {
+      const sec = section(formHost, t('sectionTask'));
+      const deadlineBtn = pillButton('flag', draft.dueDate ? U.fmtDeadline(draft.dueDate) : t('noDeadline'), () => deadlinePicker(), 'composer-deadline');
+      deadlineBtn.classList.toggle('on', !!draft.dueDate);
+      const dueClear = draft.dueDate ? U.el('button', { class: 'icon-btn sm', 'aria-label': t('clear'), html: ICON('x', 13) }) : null;
+      if (dueClear) dueClear.addEventListener('click', () => { draft.dueDate = null; markDirty(); live.renderBody(); live.validate(); });
+      sec.appendChild(row(t('deadline'), [deadlineBtn, dueClear].filter(Boolean)));
+      if (S.state.calendars.length > 1) {
+        sec.appendChild(row(t('ownCalendar'), UI.calendarPicker(draft.calendarId, (id) => {
+          draft.calendarId = id;
+          markDirty();
+          live.renderBody();
+        })));
+      }
+      if (draft.scheduleStart) {
+        const schBtn = pillButton('clockPlus', U.fmtMonthDayTime(draft.scheduleStart) + ' – ' + U.fmtTime(draft.scheduleEnd), () => schedulePicker(), 'composer-schedule');
+        schBtn.classList.add('on');
+        const schClear = U.el('button', { class: 'icon-btn sm', 'aria-label': t('clear'), html: ICON('x', 13) });
+        schClear.addEventListener('click', () => {
+          draft.scheduleStart = null; draft.scheduleEnd = null; markDirty(); live.renderBody(); live.validate();
+        });
+        sec.appendChild(row(t('scheduleExec'), [schBtn, schClear]));
+      }
+      const more = U.el('button', { class: 'chip-btn', 'data-testid': 'composer-more' });
+      more.innerHTML = ICON('chevronDown', 13) + `<span>${U.esc(t('more'))}</span>`;
+      more.addEventListener('click', () => { draft.quick = false; live.renderBody(); live.validate(); });
+      const moreRow = U.el('div', { class: 'form-row' });
+      const moreCtrl = U.el('div', { class: 'control' });
+      moreCtrl.appendChild(more);
+      moreRow.appendChild(moreCtrl);
+      sec.appendChild(moreRow);
+    }
+
     // CORE_UX_SPEC 4.2: the same section order everywhere — 任务 / 时间 / 提醒 /
     // 整理 / 内容. One flat run of fields makes 重复 look unrelated to 时间 and
     // buries 提醒, so the groups are explicit and each one is labelled.
@@ -260,6 +305,7 @@
 
     function renderBody() {
       formHost.innerHTML = '';
+      if (draft.kind === 'todo' && draft.quick && !isEdit) { renderQuick(); return; }
       const dueBtn = null;
       const block = U.el('div', { class: 'form-block' });
 
@@ -271,7 +317,7 @@
           [[false, t('markComplete')], [true, t('completed')]].forEach(([val, label]) => {
             const b = U.el('button', { class: draft.statusDone === val ? 'on' : '', text: label });
             b.dataset.testid = 'composer-status-' + (val ? 'done' : 'open');
-            b.addEventListener('click', () => { draft.statusDone = val; markDirty(); renderBody(); });
+            b.addEventListener('click', () => { draft.statusDone = val; markDirty(); live.renderBody(); });
             doneSeg.appendChild(b);
           });
           taskSec.appendChild(row(t('status'), doneSeg));
@@ -282,7 +328,7 @@
         const deadlineBtn = pillButton('flag', draft.dueDate ? U.fmtDeadline(draft.dueDate) : t('noDeadline'), () => deadlinePicker(), 'composer-deadline');
         deadlineBtn.classList.toggle('on', !!draft.dueDate);
         const dueClear = draft.dueDate ? U.el('button', { class: 'icon-btn sm', 'aria-label': t('clear'), html: ICON('x', 13) }) : null;
-        if (dueClear) dueClear.addEventListener('click', () => { draft.dueDate = null; markDirty(); renderBody(); validate(); });
+        if (dueClear) dueClear.addEventListener('click', () => { draft.dueDate = null; markDirty(); live.renderBody(); live.validate(); });
         timeSec.appendChild(row(t('deadline'), [deadlineBtn, dueClear].filter(Boolean)));
 
         const recBtn = U.el('button', { class: 'chip-btn' + (draft.recurrence ? ' on' : '') });
@@ -291,33 +337,33 @@
         recBtn.addEventListener('click', () => repeatPicker());
         timeSec.appendChild(row(t('repeat'), recBtn));
         if (draft.recurrence) {
-          timeSec.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px;margin-top:-6px', text: t('repeatHint') }));
+          timeSec.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px', text: t('repeatHint') }));
         }
 
         const schBtn = pillButton('clockPlus', draft.scheduleStart ? U.fmtMonthDayTime(draft.scheduleStart) + ' – ' + U.fmtTime(draft.scheduleEnd) : t('addSchedule'), () => schedulePicker(), 'composer-schedule');
         schBtn.classList.toggle('on', !!draft.scheduleStart);
         const schClear = draft.scheduleStart ? U.el('button', { class: 'icon-btn sm', 'aria-label': t('clear'), html: ICON('x', 13) }) : null;
         if (schClear) schClear.addEventListener('click', () => {
-          draft.scheduleStart = null; draft.scheduleEnd = null; markDirty(); renderBody(); validate();
+          draft.scheduleStart = null; draft.scheduleEnd = null; markDirty(); live.renderBody(); live.validate();
         });
         timeSec.appendChild(row(t('scheduleExec'), [schBtn, schClear].filter(Boolean)));
-        timeSec.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px;margin-top:-6px', text: t('scheduleHint') }));
+        timeSec.appendChild(U.el('div', { class: 'field-hint', style: 'padding-left:66px', text: t('scheduleHint') }));
 
         // ---------- 提醒 ----------
         renderReminderSection(section(formHost, t('sectionReminder')));
 
         // ---------- 整理 ----------
         const orgSec = section(formHost, t('sectionOrganize'));
-        orgSec.appendChild(row(t('calendar'), UI.calendarPicker(draft.calendarId, (id) => {
+        orgSec.appendChild(row(t('ownCalendar'), UI.calendarPicker(draft.calendarId, (id) => {
           draft.calendarId = id;
           markDirty();
-          renderBody();
+          live.renderBody();
         })));
         const prio = U.el('div', { class: 'segmented' });
         [[0, t('noPriority')], [1, t('low')], [5, t('medium')], [9, t('high')]].forEach(([val, label]) => {
           const b = U.el('button', { class: draft.priority === val ? 'on' : '', text: label, 'aria-pressed': draft.priority === val ? 'true' : 'false' });
           b.dataset.testid = 'composer-priority-' + val;
-          b.addEventListener('click', () => { draft.priority = val; markDirty(); renderBody(); });
+          b.addEventListener('click', () => { draft.priority = val; markDirty(); live.renderBody(); });
           prio.appendChild(b);
         });
         orgSec.appendChild(row(t('priority'), prio));
@@ -330,7 +376,7 @@
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           b.addEventListener('click', () => {
             draft.tagIds = on ? draft.tagIds.filter((x) => x !== tag.id) : draft.tagIds.concat(tag.id);
-            markDirty(); renderBody();
+            markDirty(); live.renderBody();
           });
           tagWrap.appendChild(b);
         });
@@ -349,7 +395,7 @@
             draft.isAllDay = val;
             if (val) { draft.startDt.setHours(0, 0, 0, 0); draft.endDt = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), 23, 59); }
             else { draft.startDt.setHours(9, 0, 0, 0); draft.endDt = U.addMinutes(draft.startDt, 60); }
-            markDirty(); renderBody(); validate();
+            markDirty(); live.renderBody(); live.validate();
           });
           allday.appendChild(b);
         });
@@ -364,7 +410,7 @@
           const sh = draft.startDt.getHours(), sm = draft.startDt.getMinutes();
           draft.startDt = new Date(d.getFullYear(), d.getMonth(), d.getDate(), draft.isAllDay ? 0 : sh, draft.isAllDay ? 0 : sm);
           draft.endDt = draft.isAllDay ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59) : new Date(draft.startDt.getTime() + dur);
-          markDirty(); renderBody(); validate();
+          markDirty(); live.renderBody(); live.validate();
         });
         timeSec.appendChild(row(t('starts'), dateInput));
 
@@ -380,7 +426,7 @@
             draft.startDt = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), h1, m1 || 0);
             const end = new Date(draft.startDt.getFullYear(), draft.startDt.getMonth(), draft.startDt.getDate(), h2, m2 || 0);
             draft.endDt = end;
-            markDirty(); validate();
+            markDirty(); live.validate();
           };
           t1.addEventListener('change', applyTimes);
           t2.addEventListener('change', applyTimes);
@@ -396,10 +442,10 @@
 
         // ---------- 整理 ----------
         const orgSec = section(formHost, t('sectionOrganize'));
-        orgSec.appendChild(row(t('calendar'), UI.calendarPicker(draft.calendarId, (id) => {
+        orgSec.appendChild(row(t('ownCalendar'), UI.calendarPicker(draft.calendarId, (id) => {
           draft.calendarId = id;
           markDirty();
-          renderBody();
+          live.renderBody();
         })));
         const tagWrap = U.el('div', { class: 'chip-row' });
         S.state.tags.forEach((tag) => {
@@ -410,7 +456,7 @@
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           b.addEventListener('click', () => {
             draft.tagIds = on ? draft.tagIds.filter((x) => x !== tag.id) : draft.tagIds.concat(tag.id);
-            markDirty(); renderBody();
+            markDirty(); live.renderBody();
           });
           tagWrap.appendChild(b);
         });
@@ -469,7 +515,7 @@
         const chip = U.el('span', { class: 'chip' });
         chip.innerHTML = ICON('paperclip', 11) + `<span>${U.esc(a)}</span>`;
         const x = U.el('button', { class: 'icon-btn sm', style: 'width:16px;height:16px', 'aria-label': t('remove'), html: ICON('x', 10) });
-        x.addEventListener('click', () => { draft.attachments.splice(i, 1); markDirty(); renderBody(); });
+        x.addEventListener('click', () => { draft.attachments.splice(i, 1); markDirty(); live.renderBody(); });
         chip.appendChild(x);
         attachWrap.appendChild(chip);
       });
@@ -481,7 +527,7 @@
         input.multiple = true;
         input.addEventListener('change', () => {
           Array.from(input.files || []).forEach((f) => draft.attachments.push(f.name));
-          markDirty(); renderBody();
+          markDirty(); live.renderBody();
         });
         input.click();
       });
@@ -496,7 +542,7 @@
         const chip = U.el('span', { class: 'chip amber' });
         chip.innerHTML = `${ICON('bell', 11)}<span>${U.esc(reminderLabel(min))}</span>`;
         const x = U.el('button', { class: 'icon-btn sm', style: 'width:16px;height:16px', 'aria-label': t('remove'), html: ICON('x', 10) });
-        x.addEventListener('click', () => { offsets.splice(idx, 1); markDirty(); renderBody(); });
+        x.addEventListener('click', () => { offsets.splice(idx, 1); markDirty(); live.renderBody(); });
         chip.appendChild(x);
         remWrap.appendChild(chip);
       });
@@ -509,7 +555,7 @@
             [[0, t('onStart')], [5, '5 ' + t('minutesBefore')], [15, '15 ' + t('minutesBefore')], [30, '30 ' + t('minutesBefore')], [60, '1 ' + t('hoursBefore')], [1440, '1 ' + t('daysBefore')]].forEach(([v, label]) => {
               const b = U.el('button', { class: 'slot-sheet-option' });
               b.innerHTML = `<span class="ico">${ICON('bell', 16)}</span><span><span class="t">${U.esc(label)}</span></span>`;
-              b.addEventListener('click', () => { offsets.push(v); offsets.sort((a, b) => a - b); markDirty(); close(null); renderBody(); });
+              b.addEventListener('click', () => { offsets.push(v); offsets.sort((a, b) => a - b); markDirty(); close(null); live.renderBody(); });
               host.appendChild(b);
             });
           },
@@ -536,17 +582,19 @@
           const quick = U.el('div', { class: 'picker' });
           const now = U.now();
           const today = U.startOfDay(now);
+          const satOffset = 5 - ((today.getDay() + 6) % 7);
+          const saturday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + satOffset, 18, 0);
           const options = [
             { label: t('today') + ' 18:00', value: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 18, 0) },
             { label: t('tomorrow'), value: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, 18, 0) },
-            { label: t('thisWeek') + ' ' + U.fmtWeekdayShort(U.addDays(today, 5)), value: new Date(today.getFullYear(), today.getMonth(), today.getDate() + ((5 - today.getDay() + 7) % 7), 18, 0) },
+            { label: t('thisWeek') + ' ' + U.fmtWeekdayShort(saturday), value: saturday },
             { label: t('nextWeek'), value: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7, 18, 0) },
           ];
           const qRow = U.el('div', { class: 'quick' });
           options.forEach((o) => {
             const b = U.el('button', { class: 'chip-btn', text: o.label });
             b.dataset.testid = 'deadline-quick';
-            b.addEventListener('click', () => { draft.dueDate = o.value; markDirty(); close(null); renderBody(); validate(); });
+            b.addEventListener('click', () => { draft.dueDate = o.value; markDirty(); close(null); live.renderBody(); live.validate(); });
             qRow.appendChild(b);
           });
           quick.appendChild(qRow);
@@ -562,7 +610,7 @@
 
           const actions = U.el('div', { class: 'input-row' });
           const clear = U.el('button', { class: 'btn ghost', text: t('noDeadline') });
-          clear.addEventListener('click', () => { draft.dueDate = null; markDirty(); close(null); renderBody(); validate(); });
+          clear.addEventListener('click', () => { draft.dueDate = null; markDirty(); close(null); live.renderBody(); live.validate(); });
           const apply = U.el('button', { class: 'btn primary', text: t('apply') });
           apply.dataset.testid = 'deadline-apply';
           apply.addEventListener('click', () => {
@@ -573,7 +621,7 @@
               d.setHours(h, m || 0, 0, 0);
             }
             draft.dueDate = d;
-            markDirty(); close(null); renderBody(); validate();
+            markDirty(); close(null); live.renderBody(); live.validate();
           });
           actions.appendChild(clear); actions.appendChild(apply);
           quick.appendChild(actions);
@@ -724,7 +772,7 @@
 
           const actions = U.el('div', { class: 'input-row' });
           const clear = U.el('button', { class: 'btn ghost', text: t('clear') });
-          clear.addEventListener('click', () => { draft.scheduleStart = null; draft.scheduleEnd = null; markDirty(); close(null); renderBody(); validate(); });
+          clear.addEventListener('click', () => { draft.scheduleStart = null; draft.scheduleEnd = null; markDirty(); close(null); live.renderBody(); live.validate(); });
           const apply = U.el('button', { class: 'btn primary', text: t('apply') });
           apply.dataset.testid = 'schedule-apply';
           apply.addEventListener('click', () => {
@@ -733,7 +781,7 @@
             draft.scheduleStart = s;
             draft.scheduleEnd = U.addMinutes(s, parseInt(durSel.value, 10));
             if (occSel) draft.scheduleOccurrence = occSel.value || null;
-            markDirty(); close(null); renderBody(); validate();
+            markDirty(); close(null); live.renderBody(); live.validate();
           });
           actions.appendChild(clear); actions.appendChild(apply);
           box.appendChild(actions);
@@ -767,7 +815,7 @@
                 draft.startDate = U.startOfDay(U.now());
               }
               draft.recurrence = o.rec;
-              markDirty(); close(null); renderBody(); validate();
+              markDirty(); close(null); live.renderBody(); live.validate();
             });
             box.appendChild(b);
           });
@@ -783,6 +831,23 @@
           ctrl.appendChild(interval); ctrl.appendChild(unit);
           intRow.appendChild(ctrl);
           custom.appendChild(intRow);
+
+          const startRow = U.el('div', { class: 'form-row' });
+          startRow.appendChild(U.el('span', { class: 'label', text: t('repeatStart') }));
+          const sctrl = U.el('div', { class: 'control' });
+          const startDateInput = U.el('input', { class: 'input', type: 'date', style: 'max-width:170px' });
+          startDateInput.dataset.testid = 'repeat-start';
+          const fallbackStart = draft.startDate || draft.dueDate || U.startOfDay(U.now());
+          startDateInput.value = U.toInputDate(fallbackStart);
+          startDateInput.addEventListener('change', () => {
+            const d = U.fromInputDate(startDateInput.value);
+            if (!d) return;
+            draft.startDate = U.startOfDay(d);
+            markDirty();
+          });
+          sctrl.appendChild(startDateInput);
+          startRow.appendChild(sctrl);
+          custom.appendChild(startRow);
 
           const untilRow = U.el('div', { class: 'form-row' });
           untilRow.appendChild(U.el('span', { class: 'label', text: t('until') }));
@@ -814,7 +879,7 @@
               anchor: draft.kind === 'todo' ? 'due' : 'start',
               valueType: draft.kind === 'todo' ? 'date' : 'localDateTime',
             };
-            markDirty(); close(null); renderBody(); validate();
+            markDirty(); close(null); live.renderBody(); live.validate();
           });
           custom.appendChild(applyCustom);
           box.appendChild(custom);
@@ -826,11 +891,32 @@
     // The primary label names what the save will write. "Save" alone made a
     // form that quietly carried a deadline, a slot and two reminders read as a
     // title-only save.
+    // A schedule on a repeating to-do belongs to one occurrence. Derive it from
+    // the slot when the user set the slot before the repeat, so the write is not
+    // silently dropped; false means the slot is not an occurrence at all.
+    function scheduleProbe() {
+      const realTodo = draft.id ? S.todoById(draft.id) : null;
+      return {
+        recurrence: draft.recurrence, startDate: draft.startDate, dueDate: draft.dueDate,
+        createdAt: realTodo ? realTodo.createdAt : U.now(), id: draft.id,
+        occurrenceStates: realTodo ? realTodo.occurrenceStates : {},
+      };
+    }
+    function scheduleOccurrenceFor(start) {
+      if (!draft.recurrence) return null;
+      if (draft.scheduleOccurrence) return draft.scheduleOccurrence;
+      const probe = scheduleProbe();
+      if (!S.matchesRule(probe, start)) return false;
+      return S.occurrenceIdFor(probe, start);
+    }
+
     function saveFieldSummary() {
       const parts = [];
       if (draft.kind === 'todo') {
         if (draft.dueDate) parts.push(t('saveFieldsDue', { d: U.fmtDeadline(draft.dueDate) }));
-        if (draft.scheduleStart) parts.push(t('saveFieldsSchedule', { d: U.fmtMonthDayTime(draft.scheduleStart) }));
+        if (draft.scheduleStart && scheduleOccurrenceFor(draft.scheduleStart) !== false) {
+          parts.push(t('saveFieldsSchedule', { d: U.fmtMonthDayTime(draft.scheduleStart) }));
+        }
       } else {
         parts.push(U.fmtMonthDayTime(draft.startDt));
         if (draft.isAllDay) parts.push(t('allDay'));
@@ -858,7 +944,7 @@
           const box = U.el('div', { class: 'picker' });
           host.appendChild(box);
           const ta = U.el('textarea', { class: 'textarea', rows: '3', placeholder: t('quickAddPlaceholder'), 'data-testid': 'ai-parse-input' });
-          ta.value = titleInput.value;
+          ta.value = draft.summary;
           box.appendChild(ta);
           const out = U.el('div', { class: 'quick-preview', 'data-testid': 'ai-parse-preview' });
           box.appendChild(out);
@@ -883,7 +969,7 @@
           apply.addEventListener('click', () => {
             if (!parsed) return;
             draft.summary = parsed.title || ta.value;
-            titleInput.value = draft.summary;
+            if (live.titleInput) live.titleInput.value = draft.summary;
             if (draft.kind === 'todo') {
               if (parsed.kind === 'event') {
                 draft.scheduleStart = parsed.start;
@@ -901,8 +987,8 @@
             draft.touched = true;
             markDirty();
             close(null);
-            renderBody();
-            validate();
+            live.renderBody();
+            live.validate();
             autoGrow(titleInput);
           });
           draw();
@@ -915,6 +1001,14 @@
       if (!draft.summary.trim()) errs.push(t('titleRequired'));
       if (draft.kind === 'event' && draft.endDt <= draft.startDt) errs.push(t('timeInvalid'));
       if (draft.kind === 'todo' && draft.startDate && draft.dueDate && draft.startDate > draft.dueDate) errs.push(t('startAfterDue'));
+      if (draft.kind === 'todo' && draft.scheduleStart && draft.scheduleEnd && draft.recurrence) {
+        if (draft.scheduleOccurrence) {
+          const occDay = S.occurrenceDateFromId(draft.scheduleOccurrence);
+          if (!occDay || !U.sameDay(occDay, draft.scheduleStart)) errs.push(t('scheduleOccurrenceMismatch'));
+        } else if (scheduleOccurrenceFor(draft.scheduleStart) === false) {
+          errs.push(t('scheduleNeedsOccurrence'));
+        }
+      }
       // An untouched new form is not a mistake. Saving stays disabled so the
       // rule is still enforced, but the red message waits until the user has
       // actually typed into the field — otherwise the page greets them with an
@@ -950,7 +1044,7 @@
     }
 
     function save(closeAfter) {
-      const errs = validate();
+      const errs = live.validate();
       if (errs.length) {
         const first = root.querySelector('.invalid') || root.querySelector('.hint-box.error');
         if (first && first.focus) first.focus();
@@ -992,20 +1086,24 @@
         // without an occurrence would be invisible; refuse instead of writing one.
         let scheduleBlocked = false;
         if (draft.scheduleStart && draft.scheduleEnd) {
-          if (todo.recurrence && !draft.scheduleOccurrence) {
+          let occ = draft.scheduleOccurrence;
+          if (todo.recurrence && !occ && S.matchesRule(todo, draft.scheduleStart)) {
+            occ = S.occurrenceIdFor(todo, draft.scheduleStart);
+          }
+          if (todo.recurrence && !occ) {
             scheduleBlocked = true;
-          } else if (todo.recurrence && S.isOccurrenceDone(todo, draft.scheduleOccurrence)) {
+          } else if (todo.recurrence && S.isOccurrenceDone(todo, occ)) {
             // The picker disables finished occurrences; a stale draft must not
             // slip one through and write a block nothing will ever draw.
             scheduleBlocked = true;
           } else if (draft.scheduleAllocId) {
             const alloc = S.state.allocations.find((a) => a.id === draft.scheduleAllocId);
-            if (alloc && draft.scheduleOccurrence) alloc.occurrenceId = draft.scheduleOccurrence;
+            if (alloc && occ) alloc.occurrenceId = occ;
             S.rescheduleAllocation(draft.scheduleAllocId, draft.scheduleStart, draft.scheduleEnd);
           } else {
             S.createAllocation({
               todoId: todo.id, startAt: draft.scheduleStart, endAt: draft.scheduleEnd,
-              occurrenceId: draft.scheduleOccurrence || null,
+              occurrenceId: occ || null,
             });
           }
         } else if (draft.scheduleAllocId) {
@@ -1075,6 +1173,10 @@
       node.style.height = Math.min(120, node.scrollHeight) + 'px';
     }
 
+    live.renderBody = renderBody;
+    live.validate = validate;
+    live.autoGrow = autoGrow;
+    live.titleInput = titleInput;
     renderBody();
     validate();
     App.escapeHandler = () => closeComposer();

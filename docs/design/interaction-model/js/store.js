@@ -898,6 +898,11 @@
       if (!raw) return;
       const saved = JSON.parse(raw);
       PREF_KEYS.forEach((k) => { if (saved[k] !== undefined) state[k] = saved[k]; });
+      // "Follow system" is a live preference, not the language that happened to
+      // be resolved in the old session: re-resolve it on every boot.
+      if (state.langPref === 'system') {
+        state.lang = String(navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+      }
     } catch (_) { /* ignore a corrupt or blocked store */ }
   }
 
@@ -947,8 +952,8 @@
   // ---------- detail pane selection ----------
   // Setting it never pushes history: the pane is not a place you can go back
   // to, it is what the current list has selected.
-  function selectPane(type, id, occurrence) {
-    state.paneSelection = { type, id, occurrence: occurrence || null };
+  function selectPane(type, id, occurrence, day) {
+    state.paneSelection = { type, id, occurrence: occurrence || null, day: day || null };
     emit('select');
   }
   function clearPane() {

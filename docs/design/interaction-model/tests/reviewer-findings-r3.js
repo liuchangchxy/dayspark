@@ -491,6 +491,8 @@ scenario('P1-12 the Todo form uses the 任务/时间/提醒/整理/内容 sectio
   await go(page, 'todos');
   await page.evaluate(() => window.App.openComposer('todo', {}));
   await settle(page, 320);
+  await page.click('[data-testid="composer-more"]');
+  await settle(page, 200);
   const order = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.form-section-title')).map((n) => n.textContent.trim()));
   assertEq(order, ['任务', '时间', '提醒', '整理', '内容'], 'the form must present the five sections in order');
