@@ -1,5 +1,7 @@
 # Feature-coverage audit — prototype vs DaySpark v0.34.0
 
+> **Post-audit resolution (2026-11-16)**: every gap below was triaged and either implemented, aligned, or explicitly excluded with a reason. See `COVERAGE.md` §8 for the resolution table and the two places where this audit is deliberately overruled by the frozen `CORE_UX_SPEC.md` (desktop sidebar) or corrected by the code (event-form range validation already existed). This document is kept as the audit record, not as the current status.
+
 Read-only audit of `docs/design/interaction-model/` against the real Flutter source.
 Every claim about the app cites `file:line` in `/Users/chang/Desktop/Code/dayspark-g0/lib/`.
 Every claim about the prototype cites `file:line` in `docs/design/interaction-model/`.
