@@ -144,21 +144,96 @@ label terminology; settings group 10.5px.
 ## Round 2 — 2026-11-17
 
 Scope: protocol §5 — every domain that had a P1 (all ten) plus every domain touched by the round-1 fix diff
-(all ten) goes through deep review again; one integrator. Reviewers must read OpenDesign first, quote it, and
-reproduce findings with their own `/tmp` Playwright scripts. Rulings D-16…D-20 are in scope.
+(all ten) went through deep review again, with one integrator. Each reviewer read OpenDesign first, quoted it,
+and reproduced findings with its own `/tmp` Playwright scripts. Rulings D-16…D-20 were in scope.
 
-Snapshot: `655d8a6` + the round-1 fix set (uncommitted at review start; committed with this ledger).
+Snapshot: `6977f26` + the round-2 fix set (committed with this ledger).
+
+### Verdicts
 
 | Domain | Verdict | P1 | P2 | P3 |
 |---|---|---|---|---|
-| A 外壳 | pending | | | |
-| B 今天 | pending | | | |
-| C 待办 | pending | | | |
-| D 日历 | pending | | | |
-| E Composer | pending | | | |
-| F 详情 | pending | | | |
-| G 工具面 | pending | | | |
-| H 设置 | pending | | | |
-| I 数据语义 | pending | | | |
-| J 视觉/i18n | pending | | | |
-| Integrator | pending | | | |
+| A 外壳 | FAIL | 2 | 1 | 1 |
+| B 今天 | PASS | 0 | 4 | 2 |
+| C 待办 | FAIL | 4 | 9 | 2 |
+| D 日历 | FAIL | 2 | 5 | 3 |
+| E Composer | FAIL | 4 | 1 | 1 |
+| F 详情 | FAIL | 6 | 5 | 2 |
+| G 工具面 | FAIL | 3 | 7 | 3 |
+| H 设置 | FAIL | 3 | 5 | 2 |
+| I 数据语义 | FAIL | 3 | 2 | 1 |
+| J 视觉/i18n | FAIL | 1 | 5 | 9 |
+| Integrator | FAIL | 1 | 3 | 2 |
+
+Round-1 P1 count 37 → round-2 P1 count 29 (strictly down; several round-2 P1s are the same root cause seen
+from a second entry point, clustered below).
+
+### Round-2 P1 backlog — clustered by root cause
+
+Status: `fixed` means code changed and the named regression passes; `verified` requires the round-3 reviewer
+for that domain to reproduce the fix independently.
+
+#### N1 — trashed records are read-only as a whole page
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| F2-1 / G-P1-1 | Trashed Todo head menu edited, occurrence boxes completed, 添加子任务 created a live orphan | head/menu/occurrence controls never consulted the page's `ro` flag | head menu omitted; occurrence/subtask boxes disabled; no inline editors | r12-14 | fixed |
+| F2-2 | Trashed Event head still offered 编辑 / 移到回收站 and both wrote | edit/trash icons added before the read-only branch | head offers only 返回 (banner carries 恢复) | r12-15 | fixed |
+| G-P1-1b | 回收站 rows were inert, so D-18 had no UI entry point | rows built as plain divs | row opens the read-only detail; Enter/Space too | r12-14 | fixed |
+
+#### N2 — completion and read-only surfaces agree
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| C-P1-2 / F2-6 | Completed Todo still drawn as an open planned row and toggling reopened it | planned lane read allocations without the record's done state; D-11 wording contradicted INV-144 | planned lane excludes completed records; D-11 amended to INV-144 (row leaves current work, started block stays history) | r12-04 | fixed |
+| C-P1-3 / B-03 | Completed Todo could be scheduled from the row menu and wrote a block | row menu offered 安排时间 unconditionally | scheduling item only for open records in row and detail menus | r12-05 | fixed |
+| F2-4 | Recurring subtask checkbox wrote but never rendered checked | checkbox read series status, not occurrence state | shared occurrence resolved for state and write | r12-17 | fixed |
+
+#### N3 — one browsed date and one deadline reader
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| D-R2-2 | Month + 日程 created on stale `calendarFocusDay` (a week away) and at 01:00 in the folded dawn | second date source; header bypassed the fold guard | create uses `browseDate`; start clamped out of folded dawn | r12-08 | fixed |
+| I-R2-1 | Deadline lane dropped recurring deadlines outside the series anchor window | lane filtered raw `dueDate` | lane expands occurrences in range and uses each occurrence's deadline | r12-24 | fixed |
+| I-R2-2 / R3-1 | Lane chip opened detail on the browse date; completion refused | chip called `openTodo(todo)` without its own day | chip carries its occurrence day into the detail | r12-25 | fixed |
+| F2-3 | Recurring 截止 fact followed today/anchor, and its editor wrote the series anchor | detail fallback to today; inline editor wrote `todo.dueDate` | fact resolves the context day; a recurring deadline is not inline-editable (series edit) | r12-16 | fixed |
+
+#### N4 — the calendar tells the truth about blocks
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| D-R2-1 | 改期… ignored its end field for Events | `moveEvent` treated every dialog save as a delta move | `{exact:true}` writes both fields | r12-07 | fixed |
+| D-R2-5 / I-R2-01 | Block menu existed only on `contextmenu`; the D-16 fallback was unreachable by touch | no hold gesture | 480ms pointer hold opens the menu; movement cancels; trailing click swallowed | r12-09 | fixed |
+| J-R2-1 | Two events with identical intervals shared a column; the first was unreachable | overlap map keyed by start-end | layout assigned per block; identical intervals get separate columns | r12-26 | fixed |
+
+#### N5 — shells and forms do not write on a refused path
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| A-R2-1 | `T` changed the browsed date and toasted success before the discard guard resolved | mutation before guard | guard wraps the whole action | r12-01 | fixed |
+| A-R2-2 | `N` inside a composer then 放弃 left a duplicate composer entry | `navigate` pushed a second composer | opening from a composer replaces the entry | r12-02 | fixed |
+| C-P1-1 | Desktop pane refused planned-only / other-day rows | pane visibility built from the deadline projection only | pane accepts exactly the rows the day body renders | r12-03 | fixed |
+| C-P1-4 | Phone drew a 48×15 reorder grip and reordered | CSS + handler existed on touch | grip not drawn on phone; D-07 touch has swipe only | r12-06 | fixed |
+| E-P1-1 | Deadline chip label said 今天/本周 while writing tomorrow/next week | fixed labels | labels derive from the resolved instant (D-23) | r12-10 | fixed |
+| E-P1-2 | 重复开始 survived removing recurrence and blocked saves invisibly | clear only when no deadline; payload/validation read the orphan | clearing recurrence clears the anchor; payload/validation only use it while recurring | r12-11 | fixed |
+| E-P1-3 | Save label kept a stale tag count and omitted reminders | tag/calendar/reminder handlers re-rendered without validating | handlers re-run validation | r12-12 | fixed |
+| E-P1-4 | Overlapping schedule saved without the D-09 conflict toast | save toast built without the conflict | save toast names the same conflict as the preview | r12-13 | fixed |
+
+#### N6 — settings and tools claim only what happened
+
+| ID | Finding | Root cause | Fix | Regression | Status |
+|---|---|---|---|---|---|
+| H-1 / I-R2-3 | 合并备份 toasted success with no file and no write | confirm-only stub | file chooser, parse, id/updatedAt merge, 新增/更新/跳过 report, refusal without a file (D-22) | r12-21 | fixed |
+| H-2 | Device row stayed "—" after the sheet loaded a real list | count only refreshed on an unrelated render | the load updates the row it came from | r12-22 | fixed |
+| H-3 / G P2 | Restore after calendar deletion left a dangling calendar | restore cleared `deletedAt` without checking the calendar | restore rebinds to a live calendar (D-21) | r12-23 | fixed |
+| G-P1-2 | Calendar delete-with-content had no undo | calendar row removed permanently, contents soft-deleted | undo restores the calendar and takes back its rows/bindings (D-10 amended) | r12-19 | fixed |
+| G-P1-3 | About's GitHub rows toasted a URL instead of acting | placeholder actions | real `window.open`, copied address when blocked | r12-20 | fixed |
+| F2-5 | 所属日历 inline editor wrote on pick | deliberate deviation from D-13 | calendar is a fact; editing goes through composer | r12-18 | fixed |
+
+### Round-2 rulings written back to OpenDesign
+
+D-11 amended (INV-144 stands; row leaves current work), D-21 restore rebinding, D-22 merge file/report,
+D-23 truthful quick-chip labels, D-24 touch hold opens the block menu, D-25 identical intervals get their own
+column.
+
+### Round 3 — pending

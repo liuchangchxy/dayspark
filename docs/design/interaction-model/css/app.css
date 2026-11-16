@@ -781,7 +781,10 @@ mark { background: color-mix(in srgb, var(--accent) 20%, transparent); color: in
   .month-cell { padding: 4px 5px; }
   .month-event { font-size: 9px; height: 15px; }
   .row .actions { opacity: 1; }
-  .todo-row .grab { width: 48px; opacity: .8; }
+  /* D-07: reorder belongs to the desktop grip. On touch the grip was drawn as a
+     48x15 strip and dragging it really reordered, which is a sub-48 target that
+     also competes with swipe. Touch gets swipe only. */
+  .todo-row .grab { display: none; }
   .row-meta { flex-wrap: nowrap; overflow: hidden; }
   .todo-row .row-meta > * { flex: none; }
   .todo-row .row-meta .chip { display: none; }

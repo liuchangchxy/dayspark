@@ -863,6 +863,15 @@
     return e;
   }
 
+  // A record whose calendar was deleted with it can be restored, but a calendar
+  // reference to a row that no longer exists renders as a blank dot and hides the
+  // record from calendar filters. Restore never hands back an unusable record.
+  function rebindMissingCalendar(rec) {
+    if (calendarById(rec.calendarId)) return;
+    const first = state.calendars[0];
+    if (first) rec.calendarId = first.id;
+  }
+
   function restoreTodo(id) {
     const t = todoById(id);
     if (!t) return null;
@@ -882,6 +891,7 @@
     }
     const stamp = t.deletedAt;
     t.deletedAt = null;
+    rebindMissingCalendar(t);
     touch(t);
     // Deleting a parent takes its subtasks with it, so undo has to bring them
     // back too. Only children deleted at that same moment belong to this undo;
@@ -899,6 +909,7 @@
     const e = eventById(id);
     if (!e) return null;
     e.deletedAt = null;
+    rebindMissingCalendar(e);
     e.updatedAt = U.now();
     emit('event:restore');
     return e;
@@ -1007,6 +1018,28 @@
     if (state.filterCalendarId === id) state.filterCalendarId = null;
     emit('calendar:delete');
     return { ok: true };
+  }
+
+  // D-10 names "calendar with content" among the confirm+undo set. The calendar
+  // row itself is removed from the list, so undo has to put it back where it was
+  // and take back exactly the rows this deletion moved to Trash.
+  function undoDeleteCalendar(cal, index, todoIds, eventIds, rebind) {
+    if (!cal || state.calendars.some((c) => c.id === cal.id)) return false;
+    state.calendars.splice(Math.max(0, Math.min(index, state.calendars.length)), 0, Object.assign({}, cal));
+    (todoIds || []).forEach((id) => {
+      const t = todoById(id);
+      if (!t) return;
+      if (rebind) { t.calendarId = cal.id; touch(t); }
+      else if (t.deletedAt) { t.deletedAt = null; touch(t); }
+    });
+    (eventIds || []).forEach((id) => {
+      const e = eventById(id);
+      if (!e) return;
+      if (rebind) { e.calendarId = cal.id; e.updatedAt = U.now(); }
+      else if (e.deletedAt) { e.deletedAt = null; e.updatedAt = U.now(); }
+    });
+    emit('calendar:restore');
+    return true;
   }
 
   // ---------- settings ----------
@@ -1149,7 +1182,7 @@
     searchAll, createTodo, updateTodo, createEvent, updateEvent, createAllocation, rescheduleAllocation,
     cancelAllocation, completeTodo, softDeleteTodo, softDeleteEvent, restoreTodo, restoreEvent, purgeTodo,
     purgeEvent, emptyTrash, deletedTodos, deletedEvents, reorderTodos, createTag, updateTag, deleteTag,
-    createCalendar, updateCalendar, deleteCalendar, setSetting, setLang, localizeSeed, applyTheme, savePrefs, loadPrefs, pushUndo, takeUndo,
+    createCalendar, updateCalendar, deleteCalendar, undoDeleteCalendar, setSetting, setLang, localizeSeed, applyTheme, savePrefs, loadPrefs, pushUndo, takeUndo,
     navigate, back, selectPane, clearPane, browseDate, setBrowseDate, TODO_STATUS, ALLOC, PRIORITY,
   };
 })();

@@ -521,10 +521,12 @@ scenario('P2-6 the calendar field is labelled 所属日历 everywhere', async (b
   await settle(page, 240);
   const detail = await page.textContent('[data-testid="todo-detail"]');
   assert(detail.includes('所属日历'), 'detail must say 所属日历');
-  await clickTestId(page, 'detail-calendar-edit');
-  await settle(page, 200).catch(() => {});
-  const picker = await page.textContent('.sheet');
-  assert(picker.includes('所属日历'), 'picker title must say 所属日历');
+  // D-13: the calendar is a fact in detail. Changing it goes through 编辑 →
+  // composer, where the picker carries the same label.
+  await page.evaluate(() => window.App.openComposer('todo', { mode: 'edit', id: window.Store.pendingTodos()[0].id }));
+  await settle(page, 240);
+  const picker = await page.textContent('[data-testid="composer"]');
+  assert(picker.includes('所属日历'), 'composer picker must say 所属日历');
   assertNoErrors(page);
   await page.close();
 });
@@ -575,12 +577,14 @@ scenario('P2-9 the this-week chip and its value are the same day', async (browse
   await settle(page, 280);
   await clickTestId(page, 'todos-create');
   await clickTestId(page, 'composer-deadline');
+  // The chip must name the instant it writes. A label hard-coded to "本周" could
+  // point at next week after Saturday 18:00, so it now names the date.
   const label = await page.evaluate(() => {
-    const b = Array.from(document.querySelectorAll('[data-testid="deadline-quick"]')).find((x) => /本周/.test(x.textContent));
+    const b = Array.from(document.querySelectorAll('[data-testid="deadline-quick"]')).find((x) => /11月21日/.test(x.textContent));
     return b ? b.textContent : null;
   });
-  assert(label && /六/.test(label), 'the this-week chip should name Saturday: ' + label);
-  await clickText(page, '[data-testid="deadline-quick"]', '本周');
+  assert(label, 'a quick chip must name 11月21日 (the written Saturday): ' + label);
+  await clickText(page, '[data-testid="deadline-quick"]', '11月21日');
   const due = await page.evaluate(() => {
     const d = window.Store.state.composerDraft.dueDate;
     const x = new Date(d.__date !== undefined ? d.__date : d);

@@ -35,6 +35,15 @@
     App.openRecord('todo', todo.id, null, day || anchor());
   }
 
+  // The series' deadline time applied to the occurrence's own day.
+  function occurrenceDeadline(due, day) {
+    const d = U.startOfDay(day);
+    const src = new Date(due);
+    if (src.getHours() === 0 && src.getMinutes() === 0) return d;
+    d.setHours(src.getHours(), src.getMinutes(), 0, 0);
+    return d;
+  }
+
   function shift(dir) {
     const a = anchor();
     const v = S.state.calendarView;
@@ -203,35 +212,45 @@
     lane.appendChild(U.el('span', { class: 'lane-label', html: ICON('flag', 12) + `<span>${U.esc(t('deadlineLane'))}</span>` }));
     const from = mode === 'month' ? U.startOfMonth(a) : U.startOfDay(a);
     const to = mode === 'month' ? U.endOfMonth(a) : U.endOfDay(U.addDays(a, mode === 'week' ? 6 : 0));
-    const items = S.liveTodos().filter((x) => S.isOpen(x) && x.dueDate && x.dueDate >= from && x.dueDate <= to)
-      .sort((x, y) => x.dueDate - y.dueDate);
+    // A recurring series has no single deadline date: each occurrence owns the
+    // series' time of day on its own day. Filtering the raw anchor hid every
+    // series whose anchor sat outside the visible range, while the dated list
+    // showed those same deadlines as due.
+    const items = [];
+    S.liveTodos().filter((x) => S.isOpen(x) && x.dueDate).forEach((todo) => {
+      if (!todo.recurrence) {
+        if (todo.dueDate >= from && todo.dueDate <= to) items.push({ todo, due: todo.dueDate, day: U.startOfDay(todo.dueDate) });
+        return;
+      }
+      S.occurrencesInWindow(todo, U.startOfDay(from), U.startOfDay(to)).forEach((occDay) => {
+        const due = occurrenceDeadline(todo.dueDate, occDay);
+        if (due >= from && due <= to) items.push({ todo, due, day: occDay });
+      });
+    });
+    items.sort((x, y) => x.due - y.due);
     if (!items.length) {
       lane.appendChild(U.el('span', { class: 'tiny muted', text: S.state.lang === 'zh' ? '这段时间没有截止事项' : 'No deadlines in this range' }));
       return lane;
     }
+    const chipFor = (item) => {
+      const chip = U.el('button', { class: 'deadline-chip' });
+      const overdue = U.startOfDay(item.due) < U.startOfDay(U.now());
+      chip.innerHTML = `<span class="date" style="${overdue ? 'color:var(--red)' : ''}">${U.esc(U.fmtDeadline(item.due))}</span><span>${U.esc(item.todo.summary)}</span>`;
+      // The chip stands for one occurrence: open that day, not the browsed one.
+      chip.addEventListener('click', () => openTodo(item.todo, item.day));
+      return chip;
+    };
     if (U.isNarrow()) {
       // One scrolling line on phones: the lane must not push the grid off screen.
       lane.classList.add('scroll');
       const rail = U.el('div', { class: 'lane-rail' });
-      items.forEach((todo) => {
-        const chip = U.el('button', { class: 'deadline-chip' });
-        const overdue = U.startOfDay(todo.dueDate) < U.startOfDay(U.now());
-        chip.innerHTML = `<span class="date" style="${overdue ? 'color:var(--red)' : ''}">${U.esc(U.fmtDeadline(todo.dueDate))}</span><span>${U.esc(todo.summary)}</span>`;
-        chip.addEventListener('click', () => openTodo(todo));
-        rail.appendChild(chip);
-      });
+      items.forEach((item) => rail.appendChild(chipFor(item)));
       lane.appendChild(rail);
       return lane;
     }
     const expanded = S.state.deadlineExpanded;
     const visible = expanded ? items : items.slice(0, 8);
-    visible.forEach((todo) => {
-      const chip = U.el('button', { class: 'deadline-chip' });
-      const overdue = U.startOfDay(todo.dueDate) < U.startOfDay(U.now());
-      chip.innerHTML = `<span class="date" style="${overdue ? 'color:var(--red)' : ''}">${U.esc(U.fmtDeadline(todo.dueDate))}</span><span>${U.esc(todo.summary)}</span>`;
-      chip.addEventListener('click', () => openTodo(todo));
-      lane.appendChild(chip);
-    });
+    visible.forEach((item) => lane.appendChild(chipFor(item)));
     if (items.length > 8) {
       const fold = U.el('button', {
         class: 'deadline-chip more',
@@ -327,17 +346,15 @@
         .filter((e) => S.state.dawnOpen || ((e.endDt - U.startOfDay(d)) / U.MS_MIN) > foldMin);
       const allocs = S.allocationsOnDay(d)
         .filter((a) => S.state.dawnOpen || ((a.endAt - U.startOfDay(d)) / U.MS_MIN) > foldMin);
-      const layout = computeOverlaps(events.map((e) => ({ s: e.startDt, e: e.endDt, raw: e })).concat(allocs.map((x) => ({ s: x.startAt, e: x.endAt, raw: x }))));
+      const evItems = events.map((e) => ({ s: e.startDt, e: e.endDt, raw: e }));
+      const allocItems = allocs.map((x) => ({ s: x.startAt, e: x.endAt, raw: x }));
+      computeOverlaps(evItems.concat(allocItems));
 
-      events.forEach((e) => {
-        const key = e.startDt.getTime() + '-' + e.endDt.getTime();
-        const pos = layout.get(key) || { col: 0, cols: 1 };
-        col.appendChild(eventBlock(e, d, pos, hh));
+      evItems.forEach((it) => {
+        col.appendChild(eventBlock(it.raw, d, it.pos || { col: 0, cols: 1 }, hh));
       });
-      allocs.forEach((x) => {
-        const key = x.startAt.getTime() + '-' + x.endAt.getTime();
-        const pos = layout.get(key) || { col: 0, cols: 1 };
-        col.appendChild(allocBlock(x, d, pos, hh));
+      allocItems.forEach((it) => {
+        col.appendChild(allocBlock(it.raw, d, it.pos || { col: 0, cols: 1 }, hh));
       });
 
       if (U.sameDay(d, now)) {
@@ -391,7 +408,6 @@
   }
 
   function computeOverlaps(items) {
-    const map = new Map();
     const sorted = items.slice().sort((a, b) => a.s - b.s || a.e - b.e);
     const groups = [];
     let current = null;
@@ -414,9 +430,12 @@
         }
         if (!placed) { cols.push(it.e); it._col = cols.length - 1; }
       });
-      g.items.forEach((it) => map.set(it.s.getTime() + '-' + it.e.getTime(), { col: it._col || 0, cols: cols.length }));
+      // Position hangs off the item itself. A key of start-end collapsed two
+      // events with identical intervals into one entry, so both drew in the same
+      // column and the first became unreachable underneath the second.
+      g.items.forEach((it) => { it.pos = { col: it._col || 0, cols: cols.length }; });
     });
-    return map;
+    return items;
   }
 
   function blockPosition(start, end, day, hh, pos) {
@@ -463,6 +482,7 @@
       ev.preventDefault();
       blockMenu(node, { kind: 'event', data: e });
     });
+    attachTouchMenu(node, { kind: 'event', data: e });
     return node;
   }
 
@@ -493,7 +513,37 @@
       ev.preventDefault();
       blockMenu(node, { kind: 'alloc', data: a, todo });
     });
+    attachTouchMenu(node, { kind: 'alloc', data: a, todo });
     return node;
+  }
+
+  // D-16 sends short-block resizing to the block menu. On a real touch device
+  // there is no right-click, and long-press does not synthesise contextmenu in
+  // every shell, so the menu needs its own hold gesture.
+  function attachTouchMenu(node, ctx) {
+    let timer = null;
+    let fired = false;
+    let sx = 0;
+    let sy = 0;
+    const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    node.addEventListener('pointerdown', (ev) => {
+      if (ev.pointerType !== 'touch') return;
+      fired = false;
+      sx = ev.clientX;
+      sy = ev.clientY;
+      timer = setTimeout(() => { timer = null; fired = true; blockMenu(node, ctx); }, 480);
+    });
+    node.addEventListener('pointermove', (ev) => {
+      if (timer && (Math.abs(ev.clientX - sx) > 8 || Math.abs(ev.clientY - sy) > 8)) clear();
+    });
+    node.addEventListener('pointerup', clear);
+    node.addEventListener('pointercancel', clear);
+    node.addEventListener('click', (ev) => {
+      if (!fired) return;
+      fired = false;
+      ev.stopPropagation();
+      ev.preventDefault();
+    }, true);
   }
 
   function blockMenu(anchorNode, ctx) {
@@ -537,7 +587,7 @@
           const s = U.fromInputDateTime(i1.value), e2 = U.fromInputDateTime(i2.value);
           if (!s || !e2 || e2 <= s) { err.textContent = t('timeInvalid'); return; }
           close(null);
-          if (isEvent) moveEvent(item, s, e2); else moveAlloc(item, s, e2);
+          if (isEvent) moveEvent(item, s, e2, { exact: true }); else moveAlloc(item, s, e2);
         });
         body.appendChild(apply);
       },
@@ -682,7 +732,13 @@
         };
       } else {
         const prevStart = series.startDt, prevEnd = series.endDt;
-        if (o.resized) {
+        if (o.exact) {
+          // 改期… shows and owns both fields: writing only start and deriving
+          // the end from the old duration meant the dialog lied about the end,
+          // and on a phone short block this is the only resize path (D-16).
+          series.startDt = start;
+          series.endDt = end;
+        } else if (o.resized) {
           // Resize keeps the start and moves only the end.
           series.endDt = end;
         } else {
@@ -910,14 +966,27 @@
     create.innerHTML = ICON('plus', 14) + `<span class="label">${U.esc(t('newEvent'))}</span>`;
     create.setAttribute('aria-label', t('newEvent'));
     create.addEventListener('click', () => {
-      const focus = S.state.calendarFocusDay;
-      let day = a;
-      if (S.state.calendarView === 'month') {
-        day = focus && U.sameMonth(focus, a) ? focus : new Date(a.getFullYear(), a.getMonth(), 1);
-      }
+      // The calendar shows one browsed date. calendarFocusDay was a second
+      // source of truth that paging never moved, so the form opened a week away.
+      const base = S.state.browseDate || a;
+      const day = U.startOfDay(base);
       const now = U.now();
       const isToday = U.sameDay(day, now);
-      const start = isToday ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1) : new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9);
+      let start;
+      if (isToday) {
+        const nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
+        // A block created inside the folded dawn looks like it vanished: the
+        // calendar does not draw it until the fold is opened.
+        if (U.sameDay(nextHour, day) && nextHour.getHours() < 8) {
+          start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 8, 0, 0, 0);
+        } else if (!U.sameDay(nextHour, day)) {
+          start = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, 8, 0, 0, 0);
+        } else {
+          start = nextHour;
+        }
+      } else {
+        start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 9, 0, 0, 0);
+      }
       App.openComposer('event', { startDt: start, endDt: U.addMinutes(start, 60) });
     });
     actions.push(create);

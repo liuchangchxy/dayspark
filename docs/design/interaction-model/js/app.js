@@ -356,16 +356,21 @@
   }
 
   function jumpToday() {
-    const today = U.startOfDay(U.now());
-    S.state.actionDate = today;
-    S.state.todosView = { kind: 'day', day: today };
-    // "Back to today" moves the one browsed date, so the calendar and the Todo
-    // list are back on the same day rather than each holding a different one.
-    S.state.calendarAnchor = today;
-    S.state.calendarFocusDay = today;
-    S.state.browseDate = today;
-    go(S.state.tab || 'action');
-    UI.toast(S.state.lang === 'zh' ? '已回到今天' : 'Back to today', { duration: 1600 });
+    // The guard runs before anything moves. Mutating the browsed date first and
+    // asking afterwards meant a refused discard still changed the day and
+    // announced "back to today" behind the dialog.
+    guarded(() => {
+      const today = U.startOfDay(U.now());
+      S.state.actionDate = today;
+      S.state.todosView = { kind: 'day', day: today };
+      // "Back to today" moves the one browsed date, so the calendar and the Todo
+      // list are back on the same day rather than each holding a different one.
+      S.state.calendarAnchor = today;
+      S.state.calendarFocusDay = today;
+      S.state.browseDate = today;
+      go(S.state.tab || 'action');
+      UI.toast(S.state.lang === 'zh' ? '已回到今天' : 'Back to today', { duration: 1600 });
+    });
   }
 
   function openComposer(kind, opts) {
@@ -373,7 +378,9 @@
     // parameters happen to be identical.
     S.state.composerDraft = null;
     S.state.composer = Object.assign({ kind: kind || 'todo', mode: 'create' }, opts || {});
-    S.navigate('composer', {});
+    // Opening a second composer from inside one replaces it: pushing a second
+    // identical entry made the first Close appear to do nothing.
+    S.navigate('composer', {}, S.state.route.name === 'composer' ? { replace: true } : undefined);
   }
 
   function boot() {
@@ -384,6 +391,14 @@
     I18N.setLang(S.state.lang);
     S.applyTheme();
     S.subscribe(() => render());
+    // "Follow system" is resolved at paint time, so an OS theme change has to
+    // repaint without waiting for an unrelated render.
+    if (window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const onOs = () => { if (S.state.theme === 'system') S.applyTheme(); };
+      if (mq.addEventListener) mq.addEventListener('change', onOs);
+      else if (mq.addListener) mq.addListener(onOs);
+    }
     window.addEventListener('resize', U.debounce(() => render(), 140));
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.menu')) UI.closeMenu();

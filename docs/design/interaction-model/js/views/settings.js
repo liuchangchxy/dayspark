@@ -143,7 +143,20 @@
           if (S.state.account.loadError) {
             const err = row({
               icon: 'refresh', title: t('accountLoadFailed'), subtitle: t('errorBody'), danger: true,
-              onClick: () => { S.state.account.loadError = false; App.render(); UI.toast(t('syncPhaseIdle')); },
+              value: t('retry'),
+              // Retry re-attempts the read and reports the retry. It used to toast
+              // "已同步" for a sync that never ran.
+              onClick: () => {
+                S.state.account.loadError = false;
+                S.state.account.phase = 'pulling';
+                App.render();
+                setTimeout(() => {
+                  S.state.account.phase = 'idle';
+                  S.state.account.lastSync = S.state.account.lastSync || U.now();
+                  App.render();
+                  UI.toast(t('accountReloaded'));
+                }, 600);
+              },
             });
             err.dataset.testid = 'account-retry';
             account.appendChild(err);
@@ -159,7 +172,9 @@
           const syncRow = row({ icon: 'refresh', title: t('syncNow'), onClick: () => syncNow() });
           syncRow.dataset.testid = 'settings-sync';
           account.appendChild(syncRow);
-          account.appendChild(row({ icon: 'layers', title: t('connectedDevices'), value: devicesStore.state === 'ready' ? String(devicesStore.items.length) : '—', onClick: () => devicesSheet() }));
+          const devRow = row({ icon: 'layers', title: t('connectedDevices'), value: devicesStore.state === 'ready' ? String(devicesStore.items.length) : '—', onClick: () => devicesSheet() });
+          devRow.dataset.testid = 'connected-devices-row';
+          account.appendChild(devRow);
           account.appendChild(row({
             icon: 'logout', title: t('logout'), danger: true, onClick: () => {
               UI.confirm({ title: t('logout'), message: t('signOutBody'), danger: true, confirmText: t('logout') }).then((ok) => {
@@ -226,8 +241,8 @@
           icon: 'upload', title: t('importIcs'), subtitle: t('calendarData'),
           onClick: () => importFlow(),
         }));
-        data.appendChild(row({ icon: 'download', title: t('exportIcsRow'), onClick: () => exportFlow() }));
-        data.appendChild(row({ icon: 'download', title: t('exportAllCalendars'), onClick: () => exportFlow() }));
+        data.appendChild(row({ icon: 'download', title: t('exportIcsRow'), onClick: () => exportFlow('one') }));
+        data.appendChild(row({ icon: 'download', title: t('exportAllCalendars'), onClick: () => exportFlow('all') }));
         data.appendChild(U.el('div', { class: 'group-label', text: t('dataBackup') }));
         data.appendChild(row({ icon: 'archive', title: t('exportFullBackup'), subtitle: t('fullBackupDesc'), onClick: () => backupFlow() }));
         data.appendChild(row({ icon: 'upload', title: t('mergeBackup'), subtitle: t('mergeBackupDesc'), onClick: () => mergeBackupFlow() }));
@@ -340,6 +355,10 @@
     if (section && !(U.isSplit() && !U.isNarrow())) {
       const target = page.querySelector('[data-section="' + section + '"]');
       if (target) setTimeout(() => target.scrollIntoView({ block: 'start' }), 40);
+      // The route section is an entry point, not a permanent command. Leaving it
+      // armed made every later re-render (theme, language) drag the user back to
+      // the section they arrived from.
+      if (S.state.route.name === 'settings') S.state.route.params = {};
     }
     return page;
   }
@@ -421,6 +440,10 @@
       }
       devicesStore.state = 'ready';
       draw();
+      // The row that opened the sheet must show the count the sheet just loaded.
+      // Waiting for an unrelated re-render left it reading "—" after a real list.
+      const count = document.querySelector('[data-testid="connected-devices-row"] .value');
+      if (count) count.textContent = String(devicesStore.items.length);
     }, 500);
   }
 
@@ -482,9 +505,16 @@
     });
   }
 
-  function exportFlow() {
+  function exportFlow(mode) {
+    // One calendar's .ics and every calendar are different artifacts; using the
+    // same sheet for both made two rows do one thing.
+    const all = mode === 'all';
+    const artifact = all ? 'dayspark-calendars.zip' : 'dayspark.ics';
     UI.sheet({
-      title: t('exportAllCalendars'),
+      title: all ? t('exportAllCalendars') : t('exportIcsRow'),
+      subtitle: all
+        ? (S.state.lang === 'zh' ? '每个日历一个 .ics 文件' : 'One .ics file per calendar')
+        : (S.state.lang === 'zh' ? '当前日历一个 .ics 文件' : 'One .ics file for the current calendar'),
       body(host, close) {
         const btn = U.el('button', { class: 'btn primary', text: t('export') });
         btn.addEventListener('click', () => {
@@ -492,7 +522,7 @@
           setTimeout(() => {
             btn.disabled = false; btn.textContent = t('export');
             close(null);
-            UI.toast(t('exportedTo', { p: 'dayspark.ics' }) || t('export'));
+            UI.toast(t('exportedTo', { p: artifact }) || t('export'));
           }, 800);
         });
         host.appendChild(btn);
@@ -512,18 +542,89 @@
         host.appendChild(a);
         const b = U.el('button', { class: 'slot-sheet-option' });
         b.innerHTML = `<span class="ico">${ICON('upload', 17)}</span><span><span class="t">${U.esc(t('mergeBackup'))}</span><br><span class="s">${U.esc(S.state.lang === 'zh' ? '把备份内容合并到当前数据' : 'Merge a backup into current data')}</span></span>`;
-        b.addEventListener('click', () => { close(null); UI.toast(t('backupRestored')); });
+        b.addEventListener('click', () => { close(null); mergeBackupFlow(); });
         host.appendChild(b);
       },
     });
   }
 
+  // Merge is a data operation, so it needs the data: a file. The old flow asked
+  // for confirmation and then toasted success without opening anything. It now
+  // reads a backup, matches by id, prefers the newer updatedAt and reports what
+  // actually happened.
   function mergeBackupFlow() {
-    UI.confirm({
+    UI.sheet({
       title: t('mergeBackup'),
-      message: t('mergeBackupDesc'),
-      confirmText: t('mergeBackup'),
-    }).then((ok) => { if (ok) UI.toast(t('backupRestored')); });
+      subtitle: t('mergeBackupDesc'),
+      body(host, close) {
+        let chosen = null;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
+        const rowEl = U.el('div', { class: 'input-row' });
+        const pick = U.el('button', { class: 'btn ghost', text: t('chooseBackupFile'), 'data-testid': 'merge-choose' });
+        const name = U.el('span', { class: 'tiny muted', text: t('noFileChosen') });
+        name.dataset.testid = 'merge-file-name';
+        pick.addEventListener('click', () => input.click());
+        input.addEventListener('change', () => {
+          chosen = input.files && input.files[0] ? input.files[0] : null;
+          name.textContent = chosen ? chosen.name : t('noFileChosen');
+          err.textContent = '';
+        });
+        rowEl.appendChild(pick);
+        rowEl.appendChild(name);
+        host.appendChild(rowEl);
+        const err = U.el('div', { class: 'field-error', role: 'alert' });
+        err.dataset.testid = 'merge-error';
+        host.appendChild(err);
+        const apply = U.el('button', { class: 'btn primary lg', text: t('mergeBackup'), 'data-testid': 'merge-apply', style: 'margin-top:10px' });
+        apply.addEventListener('click', () => {
+          if (!chosen) { err.textContent = t('chooseFileFirst'); return; }
+          const reader = new FileReader();
+          reader.onerror = () => { err.textContent = t('invalidBackup'); };
+          reader.onload = () => {
+            let report = null;
+            try { report = mergeBackupData(JSON.parse(String(reader.result))); } catch (_) { report = null; }
+            if (!report) { err.textContent = t('invalidBackup'); return; }
+            close(null);
+            App.render();
+            UI.toast(t('mergeReport', report));
+          };
+          reader.readAsText(chosen);
+        });
+        host.appendChild(apply);
+      },
+    });
+  }
+
+  function mergeBackupData(data) {
+    if (!data || typeof data !== 'object' || !Array.isArray(data.todos)) return null;
+    const day = (v) => (v == null ? null : (v instanceof Date ? v : new Date(v)));
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+    const mergeRow = (list, row, hydrate) => {
+      if (!row || row.id == null) { skipped++; return; }
+      const existing = list.find((x) => x.id === row.id);
+      if (!existing) { list.push(hydrate(row)); added++; return; }
+      if ((existing.updatedAt || 0) < (row.updatedAt || 0)) { Object.assign(existing, hydrate(row)); updated++; }
+      else skipped++;
+    };
+    data.todos.forEach((row) => mergeRow(S.state.todos, row, (r) => Object.assign({}, r, {
+      dueDate: day(r.dueDate), startDate: day(r.startDate), completedAt: day(r.completedAt),
+      updatedAt: day(r.updatedAt) || U.now(), deletedAt: day(r.deletedAt),
+      tagIds: Array.isArray(r.tagIds) ? r.tagIds.slice() : [],
+      reminderOffsets: Array.isArray(r.reminderOffsets) ? r.reminderOffsets.slice() : [],
+      attachments: Array.isArray(r.attachments) ? r.attachments.slice() : [],
+      occurrenceStates: r.occurrenceStates || {},
+    })));
+    (Array.isArray(data.events) ? data.events : []).forEach((row) => mergeRow(S.state.events, row, (r) => Object.assign({}, r, {
+      startDt: day(r.startDt), endDt: day(r.endDt), updatedAt: day(r.updatedAt) || U.now(), deletedAt: day(r.deletedAt),
+      tagIds: Array.isArray(r.tagIds) ? r.tagIds.slice() : [],
+      reminderOffsets: Array.isArray(r.reminderOffsets) ? r.reminderOffsets.slice() : [],
+    })));
+    S.emit('backup:merge');
+    return { a: added, u: updated, s: skipped };
   }
 
   function aiConfigSheet() {

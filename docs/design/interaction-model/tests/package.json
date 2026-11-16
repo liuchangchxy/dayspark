@@ -4,7 +4,7 @@
   "private": true,
   "description": "Real-browser tests for the DaySpark interaction-model prototype",
   "scripts": {
-    "test": "node smoke.js && node interactions.js && node surfaces.js && node reviewer-findings.js && node reviewer-findings-r2.js && node reviewer-findings-r3.js && node reviewer-findings-r4.js && node reviewer-findings-r5.js && node reviewer-findings-r6.js && node reviewer-findings-r7.js && node reviewer-findings-r8.js && node reviewer-findings-r9.js && node reviewer-findings-r11.js",
+    "test": "node smoke.js && node interactions.js && node surfaces.js && node reviewer-findings.js && node reviewer-findings-r2.js && node reviewer-findings-r3.js && node reviewer-findings-r4.js && node reviewer-findings-r5.js && node reviewer-findings-r6.js && node reviewer-findings-r7.js && node reviewer-findings-r8.js && node reviewer-findings-r9.js && node reviewer-findings-r11.js && node reviewer-findings-r12.js",
     "smoke": "node smoke.js",
     "interactions": "node interactions.js",
     "surfaces": "node surfaces.js",
@@ -16,7 +16,8 @@
     "review7": "node reviewer-findings-r7.js",
     "review8": "node reviewer-findings-r8.js",
     "review9": "node reviewer-findings-r9.js",
-    "review11": "node reviewer-findings-r11.js"
+    "review11": "node reviewer-findings-r11.js",
+    "review12": "node reviewer-findings-r12.js"
   },
   "license": "UNLICENSED",
   "type": "commonjs",

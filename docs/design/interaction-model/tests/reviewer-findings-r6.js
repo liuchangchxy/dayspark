@@ -164,7 +164,9 @@ scenario('R6-3 calendar create opens in the viewed week/month', async (browser) 
     const x = new Date(d.__date !== undefined ? d.__date : d);
     return { day: x.getDate(), month: x.getMonth(), hour: x.getHours() };
   });
-  assertEq(month, { day: 1, month: 11, hour: 9 }, 'month create must land in the viewed month');
+  // The calendar has one browsed date (D-calendar D1). Month create lands on the
+  // day being browsed, not on the 1st: a second focus value was the bug D-R2-2 found.
+  assertEq(month, { day: new Date(brow).getDate(), month: 11, hour: 9 }, 'month create must land on the browsed day');
   assertNoErrors(page);
   await page.close();
 });

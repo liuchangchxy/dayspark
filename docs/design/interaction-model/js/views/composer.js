@@ -299,7 +299,7 @@
         sec.appendChild(row(t('ownCalendar'), UI.calendarPicker(draft.calendarId, (id) => {
           draft.calendarId = id;
           markDirty();
-          live.renderBody();
+          live.renderBody(); live.validate();
         })));
       }
       if (draft.scheduleStart) {
@@ -385,7 +385,7 @@
         orgSec.appendChild(row(t('ownCalendar'), UI.calendarPicker(draft.calendarId, (id) => {
           draft.calendarId = id;
           markDirty();
-          live.renderBody();
+          live.renderBody(); live.validate();
         })));
         const prio = U.el('div', { class: 'segmented' });
         [[0, t('noPriority')], [1, t('low')], [5, t('medium')], [9, t('high')]].forEach(([val, label]) => {
@@ -404,7 +404,7 @@
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           b.addEventListener('click', () => {
             draft.tagIds = on ? draft.tagIds.filter((x) => x !== tag.id) : draft.tagIds.concat(tag.id);
-            markDirty(); live.renderBody();
+            markDirty(); live.renderBody(); live.validate();
           });
           tagWrap.appendChild(b);
         });
@@ -512,7 +512,7 @@
         orgSec.appendChild(row(t('ownCalendar'), UI.calendarPicker(draft.calendarId, (id) => {
           draft.calendarId = id;
           markDirty();
-          live.renderBody();
+          live.renderBody(); live.validate();
         })));
         const tagWrap = U.el('div', { class: 'chip-row' });
         S.state.tags.forEach((tag) => {
@@ -523,7 +523,7 @@
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
           b.addEventListener('click', () => {
             draft.tagIds = on ? draft.tagIds.filter((x) => x !== tag.id) : draft.tagIds.concat(tag.id);
-            markDirty(); live.renderBody();
+            markDirty(); live.renderBody(); live.validate();
           });
           tagWrap.appendChild(b);
         });
@@ -626,7 +626,7 @@
             [[0, t('onStart')], [5, '5 ' + t('minutesBefore')], [15, '15 ' + t('minutesBefore')], [30, '30 ' + t('minutesBefore')], [60, '1 ' + t('hoursBefore')], [1440, '1 ' + t('daysBefore')]].forEach(([v, label]) => {
               const b = U.el('button', { class: 'slot-sheet-option' });
               b.innerHTML = `<span class="ico">${ICON('bell', 16)}</span><span><span class="t">${U.esc(label)}</span></span>`;
-              b.addEventListener('click', () => { offsets.push(v); offsets.sort((a, b) => a - b); markDirty(); close(null); live.renderBody(); });
+              b.addEventListener('click', () => { offsets.push(v); offsets.sort((a, b) => a - b); markDirty(); close(null); live.renderBody(); live.validate(); });
               host.appendChild(b);
             });
           },
@@ -642,6 +642,16 @@
       if (min < 60) return min + ' ' + t('minutesBefore');
       if (min < 1440) return (min / 60) + ' ' + t('hoursBefore');
       return (min / 1440) + ' ' + t('daysBefore');
+    }
+
+    // A quick chip's label names the instant it will write. "今天" was hard-coded
+    // next to a value that rolls to tomorrow after 23:00, and "本周" could land
+    // in the following week, so the button and the value disagreed.
+    function chipDayLabel(d) {
+      const now = U.now();
+      if (U.sameDay(d, now)) return t('today');
+      if (U.sameDay(d, U.addDays(U.startOfDay(now), 1))) return t('tomorrow');
+      return U.fmtMonthDay(d);
     }
 
     // ---------- pickers ----------
@@ -669,11 +679,13 @@
           }
           let saturday = at((6 - today.getDay() + 7) % 7, 18);
           if (saturday <= now) saturday = at((6 - today.getDay() + 7) % 7 + 7, 18);
+          const tomorrow = at(1, 18);
+          const nextWeek = at(7, 18);
           const options = [
-            { label: t('today') + ' ' + U.fmtTime(todayDue), value: todayDue },
-            { label: t('tomorrow') + ' ' + U.fmtTime(at(1, 18)), value: at(1, 18) },
-            { label: t('thisWeek') + ' ' + U.fmtWeekdayShort(saturday), value: saturday },
-            { label: t('nextWeek'), value: at(7, 18) },
+            { label: chipDayLabel(todayDue) + ' ' + U.fmtTime(todayDue), value: todayDue },
+            { label: chipDayLabel(tomorrow) + ' ' + U.fmtTime(tomorrow), value: tomorrow },
+            { label: chipDayLabel(saturday) + ' ' + U.fmtTime(saturday), value: saturday },
+            { label: t('nextWeek') + ' ' + U.fmtMonthDay(nextWeek) + ' ' + U.fmtTime(nextWeek), value: nextWeek },
           ];
           const qRow = U.el('div', { class: 'quick' });
           options.forEach((o) => {
@@ -799,22 +811,28 @@
 
           const quick = U.el('div', { class: 'quick' });
           [
-            { label: t('today'), d: 0 },
-            { label: t('tomorrow'), d: 1 },
+            { d: 0 },
+            { d: 1 },
           ].forEach((q) => {
-            const b = U.el('button', { class: 'chip-btn', text: q.label });
-            b.addEventListener('click', () => {
+            // Compute the slot once, then label the button with that same slot.
+            // The label used to be a fixed "今天" while the value rolled over.
+            const resolve = () => {
               const now = U.now();
-              // A quick chip must land on a slot that is still ahead. Late in
-              // the evening "today at 09:00" is in the past and "today at 23:00"
-              // is too, so the chip rolls to the next morning instead.
               let day = U.addDays(today, q.d);
               let h = q.d === 0 ? Math.max(9, now.getHours() + 1) : 9;
               if (q.d === 0 && now.getHours() >= 23) {
                 day = U.addDays(today, 1);
                 h = 9;
               }
-              start.value = U.toInputDateTime(new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.min(23, h), 0));
+              return new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.min(23, h), 0);
+            };
+            const slot = resolve();
+            const b = U.el('button', { class: 'chip-btn', text: chipDayLabel(slot) + ' ' + U.fmtTime(slot) });
+            b.addEventListener('click', () => {
+              // A quick chip must land on a slot that is still ahead. Late in
+              // the evening "today at 09:00" is in the past and "today at 23:00"
+              // is too, so the chip rolls to the next morning instead.
+              start.value = U.toInputDateTime(resolve());
               upd();
             });
             quick.appendChild(b);
@@ -918,11 +936,11 @@
             b.innerHTML = `<span class="ico">${ICON(o.rec ? 'repeat' : 'x', 16)}</span><span><span class="t">${U.esc(o.label)}</span></span>${on ? '<span style="margin-left:auto;color:var(--accent)">' + ICON('check', 15) + '</span>' : ''}`;
             b.addEventListener('click', () => {
               // 重复开始 exists only inside recurrence: choosing a rule anchors
-              // the series, choosing 不重复 leaves no start date behind.
-              if (draft.kind === 'todo' && !draft.dueDate) {
-                draft.startDate = o.rec
-                  ? (draft.startDateInput || U.startOfDay(U.now()))
-                  : null;
+              // the series, choosing 不重复 must clear it even when the record
+              // has a deadline, or the hidden value keeps blocking saves.
+              if (draft.kind === 'todo') {
+                if (!o.rec) draft.startDate = null;
+                else if (!draft.dueDate) draft.startDate = draft.startDateInput || U.startOfDay(U.now());
               }
               draft.recurrence = o.rec;
               markDirty(); close(null); live.renderBody(); live.validate();
@@ -1123,7 +1141,7 @@
       const errs = [];
       if (!draft.summary.trim()) errs.push(t('titleRequired'));
       if (draft.kind === 'event' && draft.endDt <= draft.startDt) errs.push(t('timeInvalid'));
-      if (draft.kind === 'todo' && draft.startDate && draft.dueDate && draft.startDate > draft.dueDate) errs.push(t('startAfterDue'));
+      if (draft.kind === 'todo' && draft.recurrence && draft.startDate && draft.dueDate && draft.startDate > draft.dueDate) errs.push(t('startAfterDue'));
       if (draft.kind === 'todo' && draft.scheduleStart && draft.scheduleEnd && draft.recurrence) {
         if (draft.scheduleOccurrence) {
           const occDay = S.occurrenceDateFromId(draft.scheduleOccurrence);
@@ -1185,7 +1203,7 @@
       if (draft.kind === 'todo') {
         const payload = {
           summary: draft.summary.trim(), description: draft.notes || null,
-          dueDate: draft.dueDate, startDate: draft.startDate,
+          dueDate: draft.dueDate, startDate: draft.recurrence ? draft.startDate : null,
           priority: draft.priority, tagIds: draft.tagIds.slice(), calendarId: draft.calendarId,
           recurrence: draft.recurrence, reminderOffsets: draft.reminderOffsets.slice(),
           attachments: draft.attachments.slice(),
@@ -1277,7 +1295,19 @@
           App.render();
         }
         const base = created ? t('createdToast', { t: todo.summary }) : t('updatedToast', { t: todo.summary });
-        UI.toast(scheduleBlocked ? base + ' · ' + t('recurrenceNeedsOccurrence') : base, {
+        // D-09: an overlapping schedule saves and the toast names the conflict.
+        // The picker preview said it, then the save toast dropped it.
+        let conflictName = null;
+        if (draft.scheduleStart && draft.scheduleEnd && !scheduleBlocked) {
+          const s = draft.scheduleStart;
+          const e2 = draft.scheduleEnd;
+          const evs = S.state.events.filter((e) => !e.deletedAt && e.startDt < e2 && e.endDt > s);
+          const allocs = S.state.allocations.filter((a) => S.isAllocationLive(a) && a.startAt < e2 && a.endAt > s && a.id !== draft.scheduleAllocId);
+          if (evs.length) conflictName = evs[0].summary;
+          else if (allocs.length) conflictName = (S.todoById(allocs[0].todoId) || {}).summary || null;
+        }
+        const msg = base + (conflictName ? ' · ' + t('conflict') + ': ' + conflictName : '');
+        UI.toast(scheduleBlocked ? msg + ' · ' + t('recurrenceNeedsOccurrence') : msg, {
           warn: scheduleBlocked,
           undo: created ? () => { S.softDeleteTodo(todo.id); App.render(); } : null,
         });

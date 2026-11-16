@@ -58,8 +58,10 @@
     const contextStart = contextDay ? U.startOfDay(contextDay) : U.startOfDay(U.now());
     const contextOcc = todo.recurrence && S.matchesRule(todo, contextStart)
       ? S.occurrenceIdFor(todo, contextStart) : null;
-    const dueForContext = todo.dueDate && todo.recurrence
-      ? occurrenceDeadline(todo.dueDate, contextStart)
+    const dueForContext = todo.recurrence
+      ? (contextDay && S.matchesRule(todo, contextStart)
+        ? occurrenceDeadline(todo.dueDate, contextStart)
+        : todo.dueDate)
       : todo.dueDate;
     const narrow = U.isNarrow();
     // A routed detail is a page at every width, so it always offers a visible
@@ -75,7 +77,9 @@
       ev.stopPropagation();
       openMenu(moreBtn, todo);
     });
-    head.appendChild(moreBtn);
+    // A trashed record is read-only: its only action is 恢复 in the banner. The
+    // header menu used to stay live and wrote through every item.
+    if (!ro) head.appendChild(moreBtn);
     if (narrow) head.appendChild(UI.iconButton('x', t('close'), () => App.back()));
     root.appendChild(head);
 
@@ -143,14 +147,17 @@
     facts.appendChild(U.el('div', { class: 'form-section-title', text: t('sectionTime') }));
 
     // deadline
-    const dueAct = editBtnFor(t('change'), () => editDeadline(todo), { sm: true, size: 13 });
+    // An occurrence's deadline is derived from the series; writing the series'
+    // anchor from here moved every occurrence. Editing a recurring deadline is a
+    // series edit, so it goes through 编辑.
+    const dueAct = todo.recurrence ? null : editBtnFor(t('change'), () => editDeadline(todo), { sm: true, size: 13 });
     facts.appendChild(iconFact(
       'flag',
       t('deadline'),
       dueForContext ? U.esc(U.fmtDeadline(dueForContext)) : `<span class="muted">${U.esc(t('noDeadline'))}</span>`,
       dueAct,
       'amber',
-      on(() => editDeadline(todo)),
+      todo.recurrence ? null : on(() => editDeadline(todo)),
     ));
 
     // scheduled allocations
@@ -222,18 +229,16 @@
     facts.appendChild(iconFact('tag', t('tags'), tagsHtml,
       editBtnFor(t('change'), () => tagSheet(todo), { sm: true, size: 13 }), null, on(() => tagSheet(todo))));
 
-    // calendar: the same picker the composer uses, so the fact is editable in
-    // place rather than being the one dead row on the page.
+    // calendar: a fact, not an inline editor. Picking a calendar in place writes
+    // on the pick with no commit boundary (D-13); changing it is a 编辑 action.
     const cal = S.calendarById(todo.calendarId);
-    const calEdit = ro ? null : UI.iconButton('edit', t('change'), () => changeCalendar(todo), { sm: true, size: 13 });
-    if (calEdit) calEdit.dataset.testid = 'detail-calendar-edit';
     facts.appendChild(iconFact(
       'folder',
       t('ownCalendar'),
       `<span class="chip"><span class="dot" style="background:${cal ? cal.color : 'var(--accent)'}"></span>${U.esc(cal ? cal.name : '')}</span>`,
-      calEdit,
       null,
-      on(() => changeCalendar(todo)),
+      null,
+      null,
     ));
 
     // parent
@@ -263,9 +268,12 @@
         const isDone = S.isOccurrenceDone(todo, id);
         const row = U.el('div', { class: 'occ-row' });
         row.dataset.testid = 'detail-occurrence';
-        row.appendChild(UI.checkbox(isDone, () => {
+        const occBox = UI.checkbox(isDone, () => {
+          if (ro) return;
           window.TodoOps.complete(todo, id);
-        }, todo.summary));
+        }, todo.summary);
+        if (ro) { occBox.disabled = true; occBox.setAttribute('aria-disabled', 'true'); }
+        row.appendChild(occBox);
         row.appendChild(U.el('span', { class: 'date', text: U.fmtMonthDay(d) + ' · ' + U.fmtWeekdayLong(d) }));
         const alloc = S.state.allocations.find((a) => a.todoId === todo.id && a.occurrenceId === id && a.state === S.ALLOC.ACTIVE);
         if (alloc) row.appendChild(U.el('span', { class: 'state', text: U.fmtTimeRange(alloc.startAt, alloc.endAt) }));
@@ -287,17 +295,28 @@
       if (subs.length) {
         subs.forEach((sub) => {
           const row = U.el('div', { class: 'subtask' });
-          // A subtask may repeat, so its completion needs the same occurrence
-          // resolution every other completion entry gets.
-          row.appendChild(UI.checkbox(S.isDone(sub), () => {
+          // A subtask may repeat, so both its shown state and its write resolve
+          // the same occurrence. Reading the series status left the box unchecked
+          // after a real write, and a second click deleted that occurrence again.
+          const subOcc = sub.recurrence && S.matchesRule(sub, contextStart)
+            ? S.occurrenceIdFor(sub, contextStart) : null;
+          const subDone = sub.recurrence
+            ? (subOcc ? S.isOccurrenceDone(sub, subOcc) : false)
+            : S.isDone(sub);
+          const subBox = UI.checkbox(subDone, () => {
             if (ro) return;
-            window.TodoOps.complete(sub);
-          }));
+            window.TodoOps.complete(sub, subOcc || undefined);
+          });
+          if (ro) { subBox.disabled = true; subBox.setAttribute('aria-disabled', 'true'); }
+          row.appendChild(subBox);
           const title = U.el('button', { class: 'title', text: sub.summary, style: 'text-align:left' });
-          if (S.isDone(sub)) title.style.textDecoration = 'line-through';
+          if (subDone) title.style.textDecoration = 'line-through';
           title.addEventListener('click', () => App.openRecord('todo', sub.id));
           row.appendChild(title);
-          if (sub.dueDate) row.appendChild(U.el('span', { class: 'tiny muted', text: U.fmtDeadline(sub.dueDate) }));
+          if (sub.dueDate) {
+            const subDue = sub.recurrence ? occurrenceDeadline(sub.dueDate, contextStart) : sub.dueDate;
+            row.appendChild(U.el('span', { class: 'tiny muted', text: U.fmtDeadline(subDue) }));
+          }
           sec.appendChild(row);
         });
       } else {
@@ -387,7 +406,14 @@
   function openMenu(anchor, todo) {
     const items = [
       { icon: 'edit', text: t('edit'), action: () => App.openComposer('todo', { mode: 'edit', id: todo.id }) },
-      { icon: 'clockPlus', text: t('allocateNow'), action: () => scheduleSheet(todo) },
+    ];
+    // Finished work reserves nothing. Offering the item and refusing on click
+    // made an unavailable action look available, and the row menu elsewhere
+    // still offered it outright.
+    if (S.isOpen(todo)) {
+      items.push({ icon: 'clockPlus', text: t('allocateNow'), action: () => scheduleSheet(todo) });
+    }
+    items.push(
       { icon: 'list', text: t('addSubtask'), action: () => App.openComposer('todo', { parentId: todo.id }) },
       { icon: 'copy', text: S.state.lang === 'zh' ? '复制标题' : 'Copy title', action: () => {
         const done = () => UI.toast(S.state.lang === 'zh' ? '已复制' : 'Copied');
@@ -397,7 +423,7 @@
       } },
       { sep: true },
       { icon: 'trash', text: t('moveToTrash'), danger: true, action: () => deleteFlow(todo) },
-    ];
+    );
     UI.menu(anchor, items);
   }
 
@@ -755,8 +781,10 @@
     const head = U.el('div', { class: 'detail-head' });
     if (narrow || routed) head.appendChild(UI.iconButton('chevronLeft', t('back'), () => App.back(), { cls: 'back-btn' }));
     head.appendChild(U.el('span', { class: 'spacer' }));
-    head.appendChild(UI.iconButton('edit', t('edit'), () => editEvent(e), { sm: true }));
-    head.appendChild(UI.iconButton('trash', t('moveToTrash'), () => deleteEvent(e)));
+    if (!roEvent) {
+      head.appendChild(UI.iconButton('edit', t('edit'), () => editEvent(e), { sm: true }));
+      head.appendChild(UI.iconButton('trash', t('moveToTrash'), () => deleteEvent(e)));
+    }
     if (narrow) head.appendChild(UI.iconButton('x', t('close'), () => App.back()));
     root.appendChild(head);
 

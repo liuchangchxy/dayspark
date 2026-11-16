@@ -188,11 +188,16 @@
   function deleteCalendarFlow(cal) {
     const events = S.liveEvents().filter((x) => x.calendarId === cal.id).length;
     const todos = S.liveTodos().filter((x) => x.calendarId === cal.id).length;
+    const todoIds = S.liveTodos().filter((x) => x.calendarId === cal.id).map((x) => x.id);
+    const eventIds = S.liveEvents().filter((x) => x.calendarId === cal.id).map((x) => x.id);
+    const index = S.state.calendars.findIndex((c) => c.id === cal.id);
+    const calCopy = Object.assign({}, cal);
     if (!events && !todos) {
       UI.confirm({ title: t('deleteCalendar'), message: S.state.lang === 'zh' ? `删除「${cal.name}」？` : `Delete “${cal.name}”?`, danger: true, confirmText: t('delete') }).then((ok) => {
         if (!ok) return;
         S.deleteCalendar(cal.id, { move: false });
         App.render();
+        UI.toast(t('calendarDeleted'), { undo: () => { S.undoDeleteCalendar(calCopy, index, [], []); App.render(); } });
       });
       return;
     }
@@ -209,12 +214,16 @@
         mk('move', t('moveContentsTo'), S.state.lang === 'zh' ? '内容转到第一个其他日历' : 'Move items to the first other calendar', () => {
           S.deleteCalendar(cal.id, { move: true });
           App.render();
-          UI.toast(S.state.lang === 'zh' ? '已移动并删除日历' : 'Moved and deleted');
+          UI.toast(S.state.lang === 'zh' ? '已移动并删除日历' : 'Moved and deleted', {
+            undo: () => { S.undoDeleteCalendar(calCopy, index, todoIds, eventIds, true); App.render(); },
+          });
         });
         mk('trash', t('deleteCalendarAndContents'), S.state.lang === 'zh' ? '内容一并移到回收站，可单独恢复' : 'Contents move to Trash and can be restored', () => {
           S.deleteCalendar(cal.id, { move: false });
           App.render();
-          UI.toast(S.state.lang === 'zh' ? '已移到回收站并删除日历' : 'Moved to Trash and deleted the calendar');
+          UI.toast(S.state.lang === 'zh' ? '已移到回收站并删除日历' : 'Moved to Trash and deleted the calendar', {
+            undo: () => { S.undoDeleteCalendar(calCopy, index, todoIds, eventIds, false); App.render(); },
+          });
         }, true);
       },
     });
@@ -269,6 +278,14 @@
   function trashRow(item, kind) {
     const row = U.el('div', { class: 'list-row' });
     row.dataset.testid = 'trash-row';
+    row.setAttribute('role', 'button');
+    row.tabIndex = 0;
+    row.style.cursor = 'pointer';
+    const open = () => App.openRecord(kind, item.id);
+    row.addEventListener('click', (e) => { if (e.target.closest('button')) return; open(); });
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
     const icon = kind === 'todo' ? 'checkSquare' : 'calendar';
     row.innerHTML = `<span class="icon" style="color:var(--ink-3)">${ICON(icon, 16)}</span><span class="main"><span class="t" style="text-decoration:line-through;color:var(--ink-2)">${U.esc(item.summary)}</span><span class="s">${U.esc(t('deletedAtLabel', { t: U.fmtMonthDayTime(item.deletedAt) }))}</span></span>`;
     const restore = U.el('button', { class: 'btn ghost sm', text: t('restore') });
@@ -342,8 +359,8 @@
         const links = U.el('div', { class: 'settings-group' });
         [
           { icon: 'note', label: t('changelog'), action: () => openChangelog() },
-          { icon: 'star', label: S.state.lang === 'zh' ? '在 GitHub 上加星' : 'Star on GitHub', action: () => UI.toast('github.com/liuchangchxy/dayspark') },
-          { icon: 'external', label: S.state.lang === 'zh' ? '报告问题' : 'Report an issue', action: () => UI.toast('github.com/liuchangchxy/dayspark/issues') },
+          { icon: 'star', label: S.state.lang === 'zh' ? '在 GitHub 上加星' : 'Star on GitHub', action: () => openExternal('https://github.com/liuchangchxy/dayspark') },
+          { icon: 'external', label: S.state.lang === 'zh' ? '报告问题' : 'Report an issue', action: () => openExternal('https://github.com/liuchangchxy/dayspark/issues/new') },
           { icon: 'key', label: t('openSource'), action: () => UI.toast(S.state.lang === 'zh' ? '开源许可（原型未包含全文）' : 'Licenses (not in prototype)') },
         ].forEach((l) => {
           const r = U.el('button', { class: 'setting-row' });
@@ -365,6 +382,20 @@
     const fail = () => UI.toast(S.state.lang === 'zh' ? '复制失败，请手动选中文本' : 'Copy failed — select the text and copy manually', { warn: true });
     if (!navigator.clipboard || !navigator.clipboard.writeText) { fail(); return; }
     navigator.clipboard.writeText(text).then(done, fail);
+  }
+
+  // About's GitHub rows used to toast a bare URL and call it an action. Open the
+  // real page; if the browser blocks it, copy the address and say so.
+  function openExternal(url) {
+    let opened = null;
+    try { opened = window.open(url, '_blank', 'noopener'); } catch (_) { opened = null; }
+    if (opened) {
+      UI.toast(S.state.lang === 'zh' ? '已在新标签页打开 GitHub' : 'Opened GitHub in a new tab');
+      return;
+    }
+    const say = () => UI.toast(S.state.lang === 'zh' ? '浏览器拦截了新标签页，地址已复制：' + url : 'The browser blocked the tab; the address was copied: ' + url);
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(say, () => UI.toast(url));
+    else UI.toast(url);
   }
 
   function renderFeedback() {

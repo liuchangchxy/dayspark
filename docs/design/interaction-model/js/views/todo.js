@@ -260,11 +260,17 @@
   function openRowMenu(anchor, todo) {
     const items = [
       { icon: 'edit', text: t('edit'), action: () => App.openComposer('todo', { mode: 'edit', id: todo.id }) },
-      { icon: 'clockPlus', text: t('allocateNow'), action: () => scheduleNow(todo) },
+    ];
+    // A finished record has nothing to reserve; the detail already refuses it,
+    // and this entry point used to write the block anyway.
+    if (S.isOpen(todo)) {
+      items.push({ icon: 'clockPlus', text: t('allocateNow'), action: () => scheduleNow(todo) });
+    }
+    items.push(
       { icon: 'calendarPlus', text: t('deadline'), action: () => App.openComposer('todo', { mode: 'edit', id: todo.id, focus: 'deadline' }) },
       { icon: 'tag', text: t('tags'), action: () => tagPicker(todo) },
       { sep: true },
-    ];
+    );
     if (todo.parentId == null) {
       items.push({ icon: 'list', text: t('addSubtask'), action: () => App.openComposer('todo', { parentId: todo.id }) });
     }
@@ -486,7 +492,18 @@
     const done = S.state.hideCompleted ? [] : S.completedTodos();
     if (v.kind === 'day') {
       const g = S.todosForDay(v.day);
-      return new Set(g.overdue.concat(g.dated, S.state.hideCompleted ? [] : g.done).filter(tagMatches).map((t) => t.id));
+      // The pane must accept exactly the rows the day body renders. Building it
+      // from the deadline projection alone made every planned-only row (and any
+      // row whose deadline is another day) dead to click in the split view.
+      const planned = S.allocationsOnDay(v.day)
+        .map((a) => S.todoById(a.todoId))
+        .filter((x) => x && !x.deletedAt);
+      const instances = (g.doneInstances || []).map((x) => x.todo);
+      const ids = planned
+        .concat(g.overdue, g.dated, S.state.hideCompleted ? [] : g.done, instances)
+        .filter(tagMatches)
+        .map((t) => t.id);
+      return new Set(ids);
     }
     if (v.kind === 'inbox') {
       const extra = done.filter((t) => !t.dueDate && !t.parentId);
@@ -917,6 +934,12 @@
     S.allocationsOnDay(day).forEach((a) => {
       const td = S.todoById(a.todoId);
       if (!td || seen.has(td.id) || !tagMatches(td)) return;
+      // A block that already started stays in the data (INV-144), but a finished
+      // record is not open planned work: drawing it here as an unchecked row
+      // made completion look like it had not happened.
+      const occDone = td.recurrence && S.matchesRule(td, day)
+        && S.isOccurrenceDone(td, S.occurrenceIdFor(td, day));
+      if (S.isDone(td) || occDone) return;
       seen.add(td.id);
       planned.push(td);
     });

@@ -219,19 +219,14 @@ scenario('R8-5 real touch drag and reorder commit', async (browser) => {
   // Manual order lives in the inventory list, not the date-grouped day view.
   await page.evaluate(() => window.__todoHelpers.setView({ kind: 'all', day: null }));
   await settle(page, 240);
+  // D-07: reorder is the desktop grip. Touch rows draw no grip at all, because a
+  // 48x15 strip is below the 48px target and competes with swipe.
   const order0 = await page.evaluate(() => window.Store.liveTodos().slice().sort((a, b) => a.sortOrder - b.sortOrder).map((t) => t.id).join(','));
-  const grab = await page.evaluate(() => {
-    const g = document.querySelector('.todo-row .grab').getBoundingClientRect();
-    return { x: g.left + g.width / 2, y: g.top + g.height / 2 };
-  });
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: grab.x, y: grab.y }] });
-  for (let i = 1; i <= 12; i++) {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: grab.x, y: grab.y + i * 22 }] });
-  }
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await settle(page, 500);
+  const visibleGrips = await page.evaluate(() => Array.from(document.querySelectorAll('.todo-row .grab'))
+    .filter((n) => n.offsetParent !== null).length);
+  assertEq(visibleGrips, 0, 'touch must not draw a reorder grip');
   const order1 = await page.evaluate(() => window.Store.liveTodos().slice().sort((a, b) => a.sortOrder - b.sortOrder).map((t) => t.id).join(','));
-  assert(order0 !== order1, 'a real touch reorder must change the order');
+  assertEq(order1, order0, 'touch has no reorder path, so the order must not change');
   assert(errors.length === 0, 'touch path errors: ' + errors.slice(0, 2).join(' | '));
   await ctx.close();
 });
