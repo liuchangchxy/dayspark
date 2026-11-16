@@ -39,6 +39,20 @@
 - 依据：`CORE_UX_SPEC.md` §3.1 / §3.2
 - 证据：`reviewer-findings-r2.js` R12；`interactions.js` 捕获链路
 
+### A6 桌面 master-detail（选中 ≠ 路由）
+- **数据**：`paneSelection = {type, id, occurrence}`。**写入选出不进历史栈**；关闭只清选中。
+- **界面**：宽度 ≥1180 且在**待办**目的地时，左侧列表常驻、右侧详情为窗格。点另一行替换窗格内容；窗格有可见的「关闭」；`Esc` **先关窗格**（不离开页面）；切换目的地（今天/日历/待办以外的页）清空选中；选中行在列表里高亮。
+- **失败**：**手机端不渲染窗格**，走整页详情 + 返回，两端能力相同、外壳不同。从搜索/日历打开记录仍是整页，不会被劫持成窗格。
+- 依据：`CORE_UX_SPEC.md` §4 / §12（「Desktop master-detail keeps the list visible」）
+- 证据：`reviewer-findings-r3.js` P1-6 / P1-6b
+
+### A7 一个浏览日（浏览 ≠ 今天）
+- **数据**：`browseDate` 是待办「按日期」与日历共用的唯一浏览日。待办选日、日历点日、日历翻页都写它；「回到今天」也写它。
+- **界面**：切换 tab 不改 `browseDate`。
+- **失败**：**今天页永远读时钟**，任何浏览都不会把它移到别的日期。
+- 依据：`CORE_UX_SPEC.md` §16.1
+- 证据：`reviewer-findings-r3.js` P1-8
+
 
 ---
 
@@ -57,12 +71,13 @@
 - 证据：「todos quick add inherits the browsed day as deadline」
 
 ### B3 完成 / 取消完成
-- **数据**（非重复）：`status: NEEDS-ACTION → COMPLETED`，`completedAt = now`；**所有 `startAt >= completedAt` 的 active 安排 → `invalidatedByCompletion`**；早于完成时刻的安排保留为历史。取消完成：状态回退、`completedAt = null`，**不复活**已失效/已取消的安排。
-- **数据**（重复）：只写 `occurrenceStates[occId].completedAt`，**系列本身永远保持 NEEDS-ACTION**；同样使该实例未来的安排失效。
-- **界面**：行移到「已完成」区（Day 单区 / 全部待办·未安排按完成日分组）；今天页出现于「今天早些时候」，**并立即离开「现在 / 稍后」**；日历不再把该安排画成当前工作（记录保留为历史）；toast 带撤销（撤销 = 再调一次 `completeTodo`，即反操作）。
-- **实现**：所有入口（列表勾选、详情按钮、Action 行）共用 `js/todo-ops.js` 的 `complete()`。
+- **数据**（非重复）：`status: NEEDS-ACTION → COMPLETED`，`completedAt = now`；**所有 `startAt >= completedAt` 的 active 安排 → `invalidatedByCompletion`**；早于完成时刻的安排保留为历史。
+- **数据**（撤销完成）：状态回退、`completedAt = null`，并**把这次完成作废的安排改回 `active`**——否则待办回来了、它占的时段却永久消失，界面上没有任何地方说明它去了哪。只恢复「被这次完成作废」的那些（`startAt >= 该次完成时刻`），用户自己取消过的安排不复活。
+- **数据**（重复）：只写 `occurrenceStates[occId].completedAt`，**系列本身永远保持 NEEDS-ACTION**；同样使该实例未来的安排失效；撤销时把该实例被作废的安排改回 `active`。
+- **界面**：行移到「已完成」区（Day 单区 / 全部待办·未安排按完成日分组）；今天页出现于「今天早些时候」，**并立即离开「现在 / 接下来」**；日历不再把该安排画成当前工作（记录保留为历史）；toast 带撤销（撤销 = 再调一次 `completeTodo`，即反操作）。
+- **实现**：所有入口（列表勾选、详情按钮、今天行）共用 `js/todo-ops.js` 的 `complete()`。**批量完成前先判断是否已完成**，已完成的计入跳过，绝不把已完成的实例切换回未完成。
 - **失败**：重复待办且今天没有匹配实例 → 警告 toast，不写库；**绝不出现「没写库却报已完成」**。
-- 证据：「completing a todo moves it to the completed section…」「completing one occurrence of a recurring todo…」；`reviewer-findings.js` F3 / F11
+- 证据：「completing a todo moves it to the completed section…」「completing one occurrence of a recurring todo…」；`reviewer-findings.js` F3 / F11；`reviewer-findings-r3.js` P1-1 / P1-1b / P1-2
 
 ### B4 删除 / 恢复 / 永久删除
 - **数据**：删除 = `deletedAt = now`（软删），父子任务在同一时刻级联软删。恢复 = `deletedAt = null`（保留截止、标签、安排等全部字段），**恢复父任务会把同一时刻级联删除的子任务一并恢复**；单独删过的子任务保持自己的删除时刻，不随之复活。永久删除 = 整棵子树移除（含已软删的孙级）+ 其安排一并移除。
@@ -204,9 +219,11 @@
 | AI 助手开关 | `ai.enabled` | 关掉后聊天页显示「AI 助手已关闭」空态，不再显示输入框 | 无 |
 | AI 配置 | `ai.provider/model/configured` | 设置与聊天页副标题同步 | 测试连接为模拟 |
 
+设置分组顺序按 `CORE_UX_SPEC.md` §7：**通用 / 日历 / 同步 / 数据 / AI 助手 / 通知与提醒 / 关于**。数据再分「日历数据交换（.ics）」与「DaySpark 备份」；备份合并的措辞是**合并备份**（它合并，不替换）。同步分组必须自解释：说明这是通过你自己的 DaySpark 同步服务器、在多台设备间同步。
+
 **退役项**（`CORE_UX_SPEC.md` §6 / §7 明确要求从主界面移除，原型已删）：**六件事**、**每周起始日**。旧的 `sixThings` 持久化偏好不参与任何新逻辑。
 
-证据：`surfaces.js`「switching language and theme…」「hide-completed…」「account sign-in…」「offline mode blocks sync…」；`reviewer-findings-r2.js` R17（设置里不得再出现六件事/每周起始日）
+证据：`surfaces.js`「switching language and theme…」「hide-completed…」「account sign-in…」「offline mode blocks sync…」；`reviewer-findings-r2.js` R17；`reviewer-findings-r3.js` P1-11 / P2-3
 
 ---
 
