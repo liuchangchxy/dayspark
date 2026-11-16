@@ -424,20 +424,20 @@
         if (scroll.dataset.scrolled) return;
         scroll.dataset.scrolled = '1';
         // A grid taller than the page viewport (a rotated phone) is only usable
-        // if the page brings it into view; otherwise the block the user came to
-        // see sits below the fold behind chrome that already filled the screen.
+        // if the page brings it into view. A grid that fits must not move the
+        // page: the phone control row above it would be clipped.
         const reveal = () => {
           const outer = scroll.closest('.page-scroll');
           if (!outer) return;
           const sr = scroll.getBoundingClientRect();
           const or = outer.getBoundingClientRect();
-          if (sr.bottom <= or.bottom + 4) return;
+          if (sr.height < or.height || sr.bottom <= or.bottom + 4) return;
           const want = Math.max(0, Math.min(sr.top - or.top - 8, sr.bottom - or.bottom));
           if (want) outer.scrollTop += want;
         };
         // A re-render (a drag write included) keeps the user where they were;
         // only a new day or view starts at 08:00.
-        if (memoScroll != null) { scroll.scrollTop = memoScroll; reveal(); return; }
+        if (memoScroll != null) { scroll.scrollTop = memoScroll; return; }
         const target = Math.max(0, (8 - ds) * hh - 8);
         if (scroll.scrollHeight > scroll.clientHeight + 4) {
           scroll.scrollTop = target;

@@ -2313,6 +2313,32 @@ scenario('R12-85 the rotated phone calendar grid stays usable', async (browser) 
   await page.__ctx.close();
 });
 
+/* G-R7-4 — a grid that fits does not move the page */
+scenario('R12-86 the portrait calendar keeps its control row on first paint', async (browser) => {
+  const page = await newPage(browser, MOBILE, true);
+  await go(page, 'calendar');
+  await settle(page, 450);
+  const m = await page.evaluate(() => {
+    const outer = document.querySelector('.page-scroll');
+    const head = document.querySelector('.cal-head');
+    const or = outer.getBoundingClientRect();
+    const hr = head.getBoundingClientRect();
+    const btn = head.querySelector('button');
+    const br = btn.getBoundingClientRect();
+    return {
+      outerScroll: outer.scrollTop, headTop: Math.round(hr.top), outerTop: Math.round(or.top),
+      visible: Math.round(Math.min(br.bottom, or.bottom, window.innerHeight) - Math.max(br.top, or.top)),
+      target: Math.round(br.height), grid: document.querySelector('[data-testid="time-scroll"]').clientHeight,
+    };
+  });
+  assertEq(m.outerScroll, 0, 'a grid that fits must not scroll the page by itself: ' + JSON.stringify(m));
+  assertEq(m.headTop, m.outerTop, 'the control row must start at the top of the scroll area: ' + JSON.stringify(m));
+  assert(m.visible >= m.target - 1, 'the control row must be fully visible, not clipped: ' + JSON.stringify(m));
+  assert(m.grid >= 300, 'the portrait grid must keep its height: ' + JSON.stringify(m));
+  assertNoErrors(page);
+  await page.__ctx.close();
+});
+
 /* G-R6-2 / G-R6-3 — a merged rule's end date is a date everywhere */
 scenario('R12-77 a merged rule with an end date opens and edits', async (browser) => {
   const page = await newPage(browser);
