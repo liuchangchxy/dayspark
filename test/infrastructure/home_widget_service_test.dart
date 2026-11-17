@@ -40,6 +40,7 @@ void main() {
     String? rrule,
     int priority = 0,
     DateTime? deletedAt,
+    DateTime? completedAt,
   }) {
     return db
         .into(db.todos)
@@ -48,6 +49,9 @@ void main() {
             calendarId: calId,
             summary: summary,
             status: Value(status),
+            completedAt: completedAt != null
+                ? Value(completedAt)
+                : const Value.absent(),
             dueDate: dueDate != null ? Value(dueDate) : const Value.absent(),
             parentId: parentId != null ? Value(parentId) : const Value.absent(),
             syncId: syncId != null ? Value(syncId) : const Value.absent(),
@@ -155,6 +159,7 @@ void main() {
         'timeline',
         'dueToday',
         'overdue',
+        'completed',
         'counts',
       });
       expect(
@@ -166,7 +171,14 @@ void main() {
       expect(todosBlock.keys.toSet(), {'today', 'inbox', 'all'});
       expect(
         (todosBlock['today'] as Map).keys.toSet(),
-        {'sixThingsCap', 'items', 'overdue', 'completedCount', 'total'},
+        {
+          'sixThingsCap',
+          'items',
+          'overdue',
+          'completed',
+          'completedCount',
+          'total',
+        },
       );
 
       final monthBlock = decoded['month'] as Map<String, dynamic>;
@@ -333,6 +345,215 @@ void main() {
       expect(instances.first['todoId'], isA<int>());
     });
 
+    test('a completed recurring occurrence keeps its row and its uncomplete identity', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.due,
+          value: LocalDate(2026, 10, 7),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY',
+      );
+      final id = await RecordScope.run(
+        db,
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calId,
+            summary: 'Daily Standup Notes',
+            rrule: Value(spec.rule.canonical),
+          ),
+          recurrenceSpec: spec,
+        ),
+      );
+      final todo =
+          await (db.select(db.todos)..where((t) => t.id.equals(id))).getSingle();
+      final occurrenceId =
+          OccurrenceId.forNominal(spec.anchor.value, spec.timeZone).value;
+      await db.into(db.taskInstanceStates).insert(
+        TaskInstanceStatesCompanion.insert(
+          syncId: 'sync-daily-1',
+          todoSyncId: todo.syncId!,
+          occurrenceId: occurrenceId,
+          status: const Value('completed'),
+          completedAt: Value(DateTime(2026, 10, 7, 9, 30)),
+        ),
+      );
+
+      final projection = await ActionProjectionQuery.fetch(db, date: now);
+      final action = HomeWidgetService.buildActionBlock(projection, date: now);
+      final completed = action['completed'] as List;
+      expect(
+        action['dueToday'],
+        isEmpty,
+        reason: 'a completed occurrence is its own row, not an open due-today one',
+      );
+      expect(completed, hasLength(1));
+      expect(completed.single['target'], 'taskInstance');
+      expect(completed.single['occurrenceId'], occurrenceId);
+      expect(completed.single['completed'], isTrue);
+      final counts = action['counts'] as Map<String, dynamic>;
+      expect(counts['dueToday'], 0);
+      expect(counts['completedToday'], 1);
+    });
+
+    test('completed rows skip tasks that were never due today', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
+      await insertTodo(
+        summary: 'Due today',
+        dueDate: DateTime(2026, 10, 7),
+        status: 'COMPLETED',
+        completedAt: DateTime(2026, 10, 7, 9, 0),
+      );
+      await insertTodo(
+        summary: 'Inbox task',
+        status: 'COMPLETED',
+        completedAt: DateTime(2026, 10, 7, 9, 5),
+      );
+      await insertTodo(
+        summary: 'Next week',
+        dueDate: DateTime(2026, 10, 14),
+        status: 'COMPLETED',
+        completedAt: DateTime(2026, 10, 7, 9, 10),
+      );
+      final parent = await insertTodo(
+        summary: 'Parent',
+        dueDate: DateTime(2026, 10, 7),
+      );
+      await insertTodo(
+        summary: 'Subtask',
+        dueDate: DateTime(2026, 10, 7),
+        status: 'COMPLETED',
+        parentId: parent,
+        completedAt: DateTime(2026, 10, 7, 9, 15),
+      );
+      final todayId = await insertTodo(
+        summary: 'Overdue',
+        dueDate: DateTime(2026, 10, 5),
+        status: 'COMPLETED',
+        completedAt: DateTime(2026, 10, 7, 9, 20),
+      );
+
+      final projection = await ActionProjectionQuery.fetch(db, date: now);
+      final action = HomeWidgetService.buildActionBlock(projection, date: now);
+      final summaries = (action['completed'] as List)
+          .map((row) => row['summary'])
+          .toSet();
+
+      expect(
+        summaries,
+        {'Due today', 'Overdue'},
+        reason: 'inbox, future-due and subtask completions were never widget rows',
+      );
+      expect(
+        (action['completed'] as List).any((row) => row['todoId'] == todayId),
+        isTrue,
+      );
+    });
+
+    test('a completed allocation stays on the timeline with its own undo, not twice', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.due,
+          value: LocalDate(2026, 10, 7),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY',
+      );
+      final id = await RecordScope.run(
+        db,
+        (tx) => TodoWriter.create(
+          db,
+          tx,
+          TodosCompanion.insert(
+            calendarId: calId,
+            summary: 'Deep Work',
+            rrule: Value(spec.rule.canonical),
+          ),
+          recurrenceSpec: spec,
+        ),
+      );
+      final todo =
+          await (db.select(db.todos)..where((t) => t.id.equals(id))).getSingle();
+      final occurrenceId =
+          OccurrenceId.forNominal(spec.anchor.value, spec.timeZone).value;
+      await insertAllocation(
+        todoId: todo.id,
+        todoSyncId: todo.syncId,
+        occurrenceId: occurrenceId,
+        startAt: DateTime(2026, 10, 7, 8, 0),
+        endAt: DateTime(2026, 10, 7, 9, 0),
+      );
+      await db.into(db.taskInstanceStates).insert(
+        TaskInstanceStatesCompanion.insert(
+          syncId: 'sync-deep-1',
+          todoSyncId: todo.syncId!,
+          occurrenceId: occurrenceId,
+          status: const Value('completed'),
+          completedAt: Value(DateTime(2026, 10, 7, 8, 30)),
+        ),
+      );
+
+      final projection = await ActionProjectionQuery.fetch(db, date: now);
+      final action = HomeWidgetService.buildActionBlock(projection, date: now);
+      final timeline = (action['timeline'] as List)
+          .where((row) => row['kind'] == 'taskAllocation')
+          .toList();
+      expect(timeline, hasLength(1));
+      expect(timeline.single['completed'], isTrue);
+      expect(timeline.single['occurrenceId'], occurrenceId);
+      expect(
+        action['completed'],
+        isEmpty,
+        reason: 'the same occurrence must not be drawn twice',
+      );
+    });
+
+    test('completed todos never appear in dueToday', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
+      final open = await insertTodo(
+        summary: 'Still open',
+        dueDate: DateTime(2026, 10, 7),
+      );
+      final done = await insertTodo(
+        summary: 'Already done',
+        dueDate: DateTime(2026, 10, 7),
+        status: 'COMPLETED',
+        completedAt: DateTime(2026, 10, 7, 9, 0),
+      );
+      final doneOverdue = await insertTodo(
+        summary: 'Done but overdue',
+        dueDate: DateTime(2026, 10, 4),
+        status: 'COMPLETED',
+        completedAt: DateTime(2026, 10, 7, 9, 10),
+      );
+
+      final projection = await ActionProjectionQuery.fetch(db, date: now);
+      final action = HomeWidgetService.buildActionBlock(projection, date: now);
+      final dueIds = (action['dueToday'] as List)
+          .map((row) => row['todoId'])
+          .toSet();
+      final overdueIds = (action['overdue'] as List)
+          .map((row) => row['todoId'])
+          .toSet();
+
+      expect(
+        dueIds,
+        {open},
+        reason:
+            'dueToday is the shared cross-platform contract and must stay '
+            'open-rows-only; Apple decodes it without a completed field',
+      );
+      expect(overdueIds, isEmpty);
+      final completedIds = (action['completed'] as List)
+          .map((row) => row['todoId'])
+          .toSet();
+      expect(completedIds, {done, doneOverdue});
+    });
+
     test('expands recurring events started more than 90 days ago', () async {
       final now = DateTime(2026, 10, 7, 10, 0);
       await insertEvent(
@@ -369,7 +590,7 @@ void main() {
         summary: 'Future Task',
         dueDate: DateTime(2026, 10, 20),
       );
-      await insertTodo(
+      final doneId = await insertTodo(
         summary: 'Done Task',
         dueDate: DateTime(2026, 10, 7),
         status: 'COMPLETED',
@@ -380,11 +601,15 @@ void main() {
         deletedAt: DateTime(2026, 10, 6),
       );
 
+      final done = await (db.select(db.todos)
+            ..where((t) => t.id.equals(doneId)))
+          .getSingle();
       final block = await HomeWidgetService.buildTodosBlock(
         db,
         now: now,
         sixThingsEnabled: false,
         completedCount: 1,
+        completedToday: [done],
       );
       final decoded = jsonDecode(jsonEncode(block)) as Map<String, dynamic>;
       final today = decoded['today'] as Map<String, dynamic>;
@@ -392,6 +617,13 @@ void main() {
       final all = decoded['all'] as Map<String, dynamic>;
 
       final todayIds = (today['items'] as List).map((i) => i['todoId']).toSet();
+      final completedRows = today['completed'] as List;
+      expect(
+        completedRows.single['todoId'],
+        doneId,
+        reason: 'a completed today row stays in the snapshot so it can be undone',
+      );
+      expect(completedRows.single['completed'], isTrue);
       expect(todayIds, contains(todayId));
       expect(todayIds, isNot(contains(overdueId)));
       expect(todayIds, isNot(contains(futureId)));
@@ -421,6 +653,62 @@ void main() {
       expect(item['hasTime'], isFalse);
       expect(item['recurring'], isFalse);
       expect(item['tagColors'], isEmpty);
+    });
+
+    test('completed rows that were never in the Today list get no undo row', () async {
+      final now = DateTime(2026, 10, 7, 10, 0);
+      final parent = await insertTodo(
+        summary: 'Parent',
+        dueDate: DateTime(2026, 10, 7),
+      );
+      final dueTodayId = await insertTodo(
+        summary: 'Due today',
+        dueDate: DateTime(2026, 10, 7),
+        status: 'COMPLETED',
+      );
+      final overdueId = await insertTodo(
+        summary: 'Overdue',
+        dueDate: DateTime(2026, 10, 5),
+        status: 'COMPLETED',
+      );
+      final inboxId = await insertTodo(
+        summary: 'Inbox task',
+        status: 'COMPLETED',
+      );
+      final futureId = await insertTodo(
+        summary: 'Future task',
+        dueDate: DateTime(2026, 10, 20),
+        status: 'COMPLETED',
+      );
+      final subtaskId = await insertTodo(
+        summary: 'Subtask',
+        dueDate: DateTime(2026, 10, 7),
+        parentId: parent,
+        status: 'COMPLETED',
+      );
+      final done = <int>[dueTodayId, overdueId, inboxId, futureId, subtaskId]
+          .map((id) => id);
+      final rows = await (db.select(db.todos)
+            ..where((t) => t.id.isIn(done.toList())))
+          .get();
+
+      final block = await HomeWidgetService.buildTodosBlock(
+        db,
+        now: now,
+        sixThingsEnabled: false,
+        completedCount: rows.length,
+        completedToday: rows,
+      );
+      final decoded = jsonDecode(jsonEncode(block)) as Map<String, dynamic>;
+      final completedIds = ((decoded['today'] as Map)['completed'] as List)
+          .map((row) => row['todoId'])
+          .toSet();
+
+      expect(
+        completedIds,
+        {dueTodayId, overdueId},
+        reason: 'inbox, future and subtask completions were never Today rows',
+      );
     });
 
     test('six things caps emitted items but keeps the real total', () async {

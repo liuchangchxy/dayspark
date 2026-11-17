@@ -170,7 +170,14 @@ class TodayWidgetProvider : AppWidgetProvider() {
       val overdueRows = block.overdue.map {
         PlannedRow(taskRow(context, it, pending, theme, error), taskRowHeight(context, it))
       }
+      // Completed rows are the undo affordance. They come from their own
+      // snapshot key and are drawn only after every open group, so they can
+      // never take a row away from an open task.
+      val completedRows = block.completed.map {
+        PlannedRow(taskRow(context, it, pending, theme, error), taskRowHeight(context, it))
+      }
       val allRows = currentRows + laterRows + dueRows + overdueRows
+      val allRowsWithCompleted = allRows + completedRows
 
       val completedCount = block.counts.completedToday
       val effectiveHeight = if (heightDp > 0) heightDp else 220
@@ -178,22 +185,12 @@ class TodayWidgetProvider : AppWidgetProvider() {
       // Section headers are spent from the same budget as the rows below them;
       // only the root padding, the date header and the footer are fixed chrome.
       val rowsAvailable = effectiveHeight - paddingDp * 2 - 48
-      // The completed footer is 48dp of fixed chrome and must never cost a task
-      // row: reserve it only when every row still fits beside it. Otherwise the
-      // footer disappears and the card spends its height on tasks.
-      val groups = listOf(currentRows, laterRows, dueRows, overdueRows)
-        .filter { it.isNotEmpty() }
-      val rowsNeeded = if (size == WidgetSize.SMALL) {
-        allRows.sumOf { it.heightDp }
-      } else {
-        groups.sumOf { group ->
-          WidgetSupport.SECTION_DP + group.sumOf { it.heightDp }
-        }
-      }
-      val reserveFooter = completedCount > 0 &&
-        (allRows.isEmpty() || rowsAvailable - 48 >= rowsNeeded)
-      val budget = RowBudget(rowsAvailable - if (reserveFooter) 48 else 0)
+      // Rows are placed first and the completed footer is only a fallback for a
+      // card with no room to draw the completed rows themselves, so the footer
+      // is decided after them rather than reserved up front.
+      val budget = RowBudget(rowsAvailable)
       var shown = 0
+      var completedShown = 0
 
       fun addSection(
         title: String,
@@ -229,10 +226,10 @@ class TodayWidgetProvider : AppWidgetProvider() {
         // order — now, later, due today, overdue — and fills whatever rows the
         // frame has. Picking only the first of now/later/due hid the overdue
         // list entirely on a frame that was several rows tall.
-        for (row in allRows) {
+        for (row in allRowsWithCompleted) {
           if (!budget.take(row.heightDp)) break
           views.addView(R.id.action_rows, row.views)
-          shown++
+          if (row in completedRows) completedShown++ else shown++
         }
       } else {
         addSection(ui?.now ?: "", currentRows, theme?.colors?.get("accent") ?: accent)
@@ -261,8 +258,18 @@ class TodayWidgetProvider : AppWidgetProvider() {
           views.addView(R.id.action_rows, summary)
           shown++
         }
+        for (row in completedRows) {
+          if (!budget.take(row.heightDp)) break
+          views.addView(R.id.action_rows, row.views)
+          completedShown++
+        }
       }
 
+      // The footer is a 48dp fixed view in every layout, so it is only drawn
+      // when a full 48dp is still unspent.
+      val reserveFooter = completedCount > 0 &&
+        completedShown == 0 &&
+        budget.take(48)
       if (!stale && reserveFooter) {
         views.setViewVisibility(R.id.action_completed, View.VISIBLE)
         views.setTextViewText(
@@ -335,13 +342,22 @@ class TodayWidgetProvider : AppWidgetProvider() {
         row.setViewVisibility(R.id.timeline_marker, View.GONE)
         row.setViewVisibility(R.id.timeline_check, View.VISIBLE)
         val target = if (!item.occurrenceId.isNullOrEmpty()) "taskInstance" else "todo"
-        val isPending = WidgetSupport.isPending(pending, target, todoId, item.occurrenceId)
+        val checked = item.completed ||
+          WidgetSupport.isPending(pending, target, todoId, item.occurrenceId)
         row.setImageViewResource(
           R.id.timeline_check,
-          if (isPending) R.drawable.widget_check_on else R.drawable.widget_check_off,
+          if (checked) R.drawable.widget_check_on else R.drawable.widget_check_off,
         )
-        if (isPending) {
+        if (checked) {
           WidgetSupport.tint(row, R.id.timeline_check, theme?.colors?.get("accent") ?: accent)
+        }
+        if (item.completed) {
+          WidgetSupport.textColor(row, R.id.timeline_title, theme, "textSecondary", secondary)
+          row.setInt(
+            R.id.timeline_title,
+            "setPaintFlags",
+            android.graphics.Paint.STRIKE_THRU_TEXT_FLAG,
+          )
         }
         row.setOnClickPendingIntent(
           R.id.timeline_check,
@@ -352,6 +368,11 @@ class TodayWidgetProvider : AppWidgetProvider() {
             item.todoSyncId,
             item.occurrenceId,
             item.allocationId,
+            command = if (item.completed) {
+              WidgetSnapshot.ACTION_UNCOMPLETE
+            } else {
+              WidgetSnapshot.ACTION_COMPLETE
+            },
           ),
         )
         WidgetSupport.bindOpen(
@@ -407,7 +428,7 @@ class TodayWidgetProvider : AppWidgetProvider() {
       )
       WidgetSupport.textColor(row, R.id.todo_meta, theme, "textSecondary", secondary)
 
-      val isPending = WidgetSupport.isPending(
+      val checked = action.completed || WidgetSupport.isPending(
         pending,
         action.target,
         action.todoId,
@@ -415,10 +436,18 @@ class TodayWidgetProvider : AppWidgetProvider() {
       )
       row.setImageViewResource(
         R.id.todo_check,
-        if (isPending) R.drawable.widget_check_on else R.drawable.widget_check_off,
+        if (checked) R.drawable.widget_check_on else R.drawable.widget_check_off,
       )
-      if (isPending) {
+      if (checked) {
         WidgetSupport.tint(row, R.id.todo_check, theme?.colors?.get("accent") ?: accent)
+      }
+      if (action.completed) {
+        WidgetSupport.textColor(row, R.id.todo_title, theme, "textSecondary", secondary)
+        row.setInt(
+          R.id.todo_title,
+          "setPaintFlags",
+          android.graphics.Paint.STRIKE_THRU_TEXT_FLAG,
+        )
       }
       if (action.todoId > 0) {
         row.setOnClickPendingIntent(
@@ -430,6 +459,11 @@ class TodayWidgetProvider : AppWidgetProvider() {
             action.todoSyncId,
             action.occurrenceId,
             null,
+            command = if (action.completed) {
+              WidgetSnapshot.ACTION_UNCOMPLETE
+            } else {
+              WidgetSnapshot.ACTION_COMPLETE
+            },
           ),
         )
         WidgetSupport.bindOpen(

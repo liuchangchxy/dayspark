@@ -198,12 +198,14 @@ Future<CommandExecutionResult> executeWidgetCommand(
   required ToggleTodoFunction toggleTodo,
 }) async {
   // Validate protocol & action
-  if (command.version != 1 || command.action != 'complete') {
+  if (command.version != 1 ||
+      (command.action != 'complete' && command.action != 'uncomplete')) {
     debugPrint(
       'widget_command: unsupported version ${command.version} or action ${command.action}',
     );
     return CommandExecutionResult.terminalInvalid;
   }
+  final wantedCompleted = command.action == 'complete';
 
   try {
     // 1. Resolve target Todo using strict 5-case identity resolver
@@ -280,10 +282,17 @@ Future<CommandExecutionResult> executeWidgetCommand(
         );
         return CommandExecutionResult.terminalInvalid; // Strict target rule
       }
-      if (todo.status == 'COMPLETED') {
+      // The action is the state the widget drew, not a blind toggle: a replayed
+      // command must stay idempotent, so "complete" on a completed row is a
+      // no-op and "uncomplete" on an open row is a no-op.
+      if ((todo.status == 'COMPLETED') == wantedCompleted) {
         return CommandExecutionResult.alreadyApplied;
       }
-      await toggleTodo(id: todo.id, isCompleted: true, occurrenceId: command.occurrenceId);
+      await toggleTodo(
+        id: todo.id,
+        isCompleted: wantedCompleted,
+        occurrenceId: command.occurrenceId,
+      );
       return CommandExecutionResult.success;
     } else if (command.target == 'taskInstance') {
       final occurrenceId = command.occurrenceId;
@@ -313,14 +322,14 @@ Future<CommandExecutionResult> executeWidgetCommand(
                       s.occurrenceId.equals(occurrenceId),
                 ))
                 .getSingleOrNull();
-        if (state != null && state.status.toLowerCase() == 'completed') {
+        if (state != null && (state.status.toLowerCase() == 'completed') == wantedCompleted) {
           return CommandExecutionResult.alreadyApplied;
         }
       }
 
       await toggleTodo(
         id: todo.id,
-        isCompleted: true,
+        isCompleted: wantedCompleted,
         occurrenceId: occurrenceId,
       );
       return CommandExecutionResult.success;

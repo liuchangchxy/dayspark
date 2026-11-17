@@ -284,13 +284,15 @@ internal object WidgetSupport {
     todoSyncId: String?,
     occurrenceId: String?,
     allocationId: String?,
+    command: String = WidgetSnapshot.ACTION_COMPLETE,
   ): PendingIntent {
     val occPart = occurrenceId ?: "single"
     val allocPart = allocationId ?: "none"
     val intent = Intent(context, WidgetActionReceiver::class.java).apply {
       action = WidgetSnapshot.ACTION_COMPLETE_ACTION
-      data = Uri.parse("dayspark://widget-toggle/$target/$todoId/$occPart/$allocPart")
+      data = Uri.parse("dayspark://widget-toggle/$command/$target/$todoId/$occPart/$allocPart")
       putExtra(WidgetSnapshot.EXTRA_TARGET, target)
+      putExtra(WidgetSnapshot.EXTRA_ACTION, command)
       putExtra(WidgetSnapshot.EXTRA_TODO_ID, todoId)
       if (!todoSyncId.isNullOrEmpty()) putExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID, todoSyncId)
       if (!occurrenceId.isNullOrEmpty()) putExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID, occurrenceId)

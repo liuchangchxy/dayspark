@@ -16,6 +16,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -50,6 +51,7 @@ class WidgetRowIntentTest {
     recurring: Boolean = false,
     tags: List<String> = emptyList(),
     dueDate: String? = "2026-11-16",
+    completed: Boolean = false,
   ): WidgetSnapshot.TodoItemRow = WidgetSnapshot.TodoItemRow(
     todoId = id,
     todoSyncId = null,
@@ -60,6 +62,7 @@ class WidgetRowIntentTest {
     hasTime = false,
     recurring = recurring,
     tagColors = tags,
+    completed = completed,
   )
 
   private fun itemRow(
@@ -252,23 +255,31 @@ class WidgetRowIntentTest {
     assertNull("checkbox must not open detail", startedUri())
   }
 
-  private fun actionTask(id: Int): WidgetSnapshot.ActionTaskRow = WidgetSnapshot.ActionTaskRow(
-    kind = "todoDeadline",
-    target = "todo",
+  private fun actionTask(
+    id: Int,
+    completed: Boolean = false,
+    target: String = "todo",
+    occurrenceId: String? = null,
+    kind: String = "todoDeadline",
+  ): WidgetSnapshot.ActionTaskRow = WidgetSnapshot.ActionTaskRow(
+    kind = kind,
+    target = target,
     summary = "Task $id",
     todoId = id,
     todoSyncId = null,
-    occurrenceId = null,
+    occurrenceId = occurrenceId,
     displayTime = null,
     priority = 0,
     dueEpochMs = null,
     dueDate = null,
     startEpochMs = null,
+    completed = completed,
   )
 
   private fun allocation(
     todoId: Int,
     occurrenceId: String? = null,
+    completed: Boolean = false,
   ): WidgetSnapshot.ActionTimelineRow =
     WidgetSnapshot.ActionTimelineRow(
       kind = "taskAllocation",
@@ -281,6 +292,7 @@ class WidgetRowIntentTest {
       allocationId = "alloc-$todoId-${occurrenceId ?: "single"}",
       todoId = todoId,
       occurrenceId = occurrenceId,
+      completed = completed,
     )
 
   private fun event(eventId: Int): WidgetSnapshot.ActionTimelineRow =
@@ -296,6 +308,84 @@ class WidgetRowIntentTest {
       calendarId = 1,
       color = "#3b82f6",
     )
+
+  @Test
+  fun `a completed row keeps its checked box and sends uncomplete`() {
+    val row = itemRow(todoItem(42, completed = true))
+    val check = row.findViewById<View>(R.id.todo_check)
+    assertTrue("a completed row still shows its checkbox", check.isShown)
+    val box = boundsIn(row, check)
+    tap(row, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f)
+    val sent = completeIntents()
+    assertEquals(1, sent.size)
+    assertEquals(
+      "the checked row must ask to restore, not to complete again",
+      "uncomplete",
+      sent.single().getStringExtra(WidgetSnapshot.EXTRA_ACTION),
+    )
+    assertEquals(42, sent.single().getIntExtra(WidgetSnapshot.EXTRA_TODO_ID, -1))
+    assertNull("the checkbox must not open the detail", startedUri())
+  }
+
+  @Test
+  fun `a completed today task row sends uncomplete too`() {
+    val row = apply(
+      TodayWidgetProvider.taskRow(
+        context,
+        actionTask(21, completed = true),
+        WidgetSnapshot.PendingTargets(emptySet(), emptySet()),
+        null,
+        0xFFFF0000.toInt(),
+      ),
+      360,
+    )
+    val box = boundsIn(row, row.findViewById(R.id.todo_check))
+    tap(row, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f)
+    assertEquals(1, completeIntents().size)
+    assertEquals(
+      "uncomplete",
+      completeIntents().single().getStringExtra(WidgetSnapshot.EXTRA_ACTION),
+    )
+    assertNull(startedUri())
+  }
+
+  @Test
+  fun `a completed recurring occurrence sends uncomplete for its own occurrence`() {
+    val row = apply(
+      TodayWidgetProvider.taskRow(
+        context,
+        actionTask(
+          31,
+          completed = true,
+          target = "taskInstance",
+          occurrenceId = "2026-10-07T08:00:00.000Z",
+          kind = "taskInstance",
+        ),
+        WidgetSnapshot.PendingTargets(emptySet(), emptySet()),
+        null,
+        0xFFFF0000.toInt(),
+      ),
+      360,
+    )
+    val check = row.findViewById<View>(R.id.todo_check)
+    val box = boundsIn(row, check)
+    tap(row, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f)
+    val sent = completeIntents()
+    assertEquals(1, sent.size)
+    assertEquals(
+      "uncomplete",
+      sent.single().getStringExtra(WidgetSnapshot.EXTRA_ACTION),
+    )
+    assertEquals(
+      "taskInstance",
+      sent.single().getStringExtra(WidgetSnapshot.EXTRA_TARGET),
+    )
+    assertEquals(
+      "2026-10-07T08:00:00.000Z",
+      sent.single().getStringExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID),
+    )
+    assertNull(startedUri())
+  }
 
   @Test
   fun `today task row opens its todo and only the checkbox completes`() {
@@ -338,6 +428,39 @@ class WidgetRowIntentTest {
     assertEquals(1, completeIntents().size)
     assertEquals(22, completeIntents().single().getIntExtra(WidgetSnapshot.EXTRA_TODO_ID, -1))
     assertNull(startedUri())
+  }
+
+  @Test
+  fun `a completed timeline allocation undoes its own occurrence`() {
+    val row = apply(
+      TodayWidgetProvider.timelineRow(
+        context,
+        allocation(24, "2026-11-17T01:00:00.000Z", completed = true),
+        WidgetSnapshot.PendingTargets(emptySet(), emptySet()),
+        null,
+        "",
+      ),
+      360,
+    )
+    val check = row.findViewById<View>(R.id.timeline_check)
+    assertTrue("a completed block keeps its checked box", check.isShown)
+    val title = row.findViewById<android.widget.TextView>(R.id.timeline_title)
+    assertTrue(
+      "a completed block is struck through",
+      title.paintFlags and android.graphics.Paint.STRIKE_THRU_TEXT_FLAG != 0,
+    )
+    val box = boundsIn(row, check)
+    tap(row, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f)
+    val sent = completeIntents()
+    assertEquals(1, sent.size)
+    assertEquals(
+      "uncomplete",
+      sent.single().getStringExtra(WidgetSnapshot.EXTRA_ACTION),
+    )
+    assertEquals(
+      "2026-11-17T01:00:00.000Z",
+      sent.single().getStringExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID),
+    )
   }
 
   @Test
@@ -411,6 +534,7 @@ class WidgetRowIntentTest {
     completed: Int = 0,
     summary: String = "Task",
     tags: Boolean = true,
+    done: Int = 0,
   ) {
     val today = JSONArray()
     for (i in 1..items) {
@@ -437,6 +561,19 @@ class WidgetRowIntentTest {
           .put("recurring", false),
       )
     }
+    val doneRows = JSONArray()
+    for (i in 1..done) {
+      doneRows.put(
+        JSONObject()
+          .put("todoId", 200 + i)
+          .put("summary", "Done $i")
+          .put("priority", 0)
+          .put("dueDate", "2026-11-16")
+          .put("hasTime", false)
+          .put("recurring", false)
+          .put("completed", true),
+      )
+    }
     val empty = JSONObject()
       .put("items", JSONArray())
       .put("overdue", JSONArray())
@@ -448,6 +585,7 @@ class WidgetRowIntentTest {
         JSONObject()
           .put("items", today)
           .put("overdue", late)
+          .put("completed", doneRows)
           .put("completedCount", completed)
           .put("total", items + overdue)
           .put("sixThingsCap", 6),
@@ -464,27 +602,48 @@ class WidgetRowIntentTest {
     WidgetStateStore.write(context, 1, WidgetUiState(todoMode = "today"))
   }
 
-  private fun writeActionSnapshot(due: Int, completed: Int) {
-    val rows = JSONArray()
-    for (i in 1..due) {
-      rows.put(
+  private fun writeActionSnapshot(
+    due: Int,
+    completed: Int,
+    completedRows: Int = 0,
+    overdue: Int = 0,
+  ) {
+    fun rows(count: Int, prefix: String, offset: Int): JSONArray {
+      val array = JSONArray()
+      for (i in 1..count) {
+        array.put(
+          JSONObject()
+            .put("kind", "todoDeadline")
+            .put("target", "todo")
+            .put("summary", "$prefix $i")
+            .put("todoId", offset + i)
+            .put("priority", 0),
+        )
+      }
+      return array
+    }
+    val done = JSONArray()
+    for (i in 1..completedRows) {
+      done.put(
         JSONObject()
           .put("kind", "todoDeadline")
           .put("target", "todo")
-          .put("summary", "Task $i")
-          .put("todoId", i)
-          .put("priority", 0),
+          .put("summary", "Done $i")
+          .put("todoId", 500 + i)
+          .put("priority", 0)
+          .put("completed", true),
       )
     }
     val action = JSONObject()
       .put("timeline", JSONArray())
-      .put("dueToday", rows)
-      .put("overdue", JSONArray())
+      .put("dueToday", rows(due, "Task", 0))
+      .put("overdue", rows(overdue, "Late", 100))
+      .put("completed", done)
       .put(
         "counts",
         JSONObject()
           .put("dueToday", due)
-          .put("overdue", 0)
+          .put("overdue", overdue)
           .put("completedToday", completed),
       )
     val snapshot = JSONObject()
@@ -556,6 +715,44 @@ class WidgetRowIntentTest {
   }
 
   @Test
+  fun `completed today rows stay visible and their checkbox undoes them`() {
+    writeTodoSnapshot(items = 1, done = 1)
+    val root = apply(TodoWidgetProvider.build(context, 1, WidgetSize.LARGE, 344), 360, 344)
+    val rows = assertRowsFit(root, R.id.todos_rows)
+    assertEquals("one open row and one completed row", 2, rows.childCount)
+    val done = rows.getChildAt(1)
+    val check = done.findViewById<View>(R.id.todo_check)
+    assertTrue("a completed row keeps a checked box", check.isShown)
+    val title = done.findViewById<android.widget.TextView>(R.id.todo_title)
+    assertTrue(
+      "a completed title is struck through",
+      title.paintFlags and android.graphics.Paint.STRIKE_THRU_TEXT_FLAG != 0,
+    )
+    val box = boundsIn(done, check)
+    tap(done, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f)
+    val sent = completeIntents()
+    assertEquals(1, sent.size)
+    assertEquals(
+      "uncomplete",
+      sent.single().getStringExtra(WidgetSnapshot.EXTRA_ACTION),
+    )
+    assertEquals(201, sent.single().getIntExtra(WidgetSnapshot.EXTRA_TODO_ID, -1))
+  }
+
+  @Test
+  fun `a card whose only tasks are completed shows the undo row, not a done label`() {
+    writeTodoSnapshot(items = 0, done = 1, completed = 1)
+    val root = apply(TodoWidgetProvider.build(context, 1, WidgetSize.LARGE, 344), 360, 344)
+    val rows = assertRowsFit(root, R.id.todos_rows)
+    assertEquals("the completed row is the only content", 1, rows.childCount)
+    assertEquals(
+      "a drawn undo row must not sit under an empty-state label",
+      View.GONE,
+      root.findViewById<View>(R.id.todos_empty).visibility,
+    )
+  }
+
+  @Test
   fun `a card with tasks but no room never claims it is empty`() {
     writeTodoSnapshot(items = 6)
     val root = apply(TodoWidgetProvider.build(context, 1, WidgetSize.MEDIUM, 140), 240, 140)
@@ -581,6 +778,47 @@ class WidgetRowIntentTest {
   }
 
   @Test
+  fun `today widget draws the completed undo row last and never instead of an open task`() {
+    writeActionSnapshot(due = 1, completed = 1, completedRows = 1, overdue = 1)
+    val root = apply(TodayWidgetProvider.build(context, 1, WidgetSize.LARGE, 344), 360, 344)
+    val rows = assertRowsFit(root, R.id.action_rows)
+    val titles = (0 until rows.childCount).mapNotNull { index ->
+      rows.getChildAt(index).findViewById<android.widget.TextView>(R.id.todo_title)?.text?.toString()
+    }
+    assertEquals(
+      "open due row, open overdue row, then the completed undo row",
+      listOf("Task 1", "Late 1", "Done 1"),
+      titles,
+    )
+    val done = rows.getChildAt(rows.childCount - 1)
+    val box = boundsIn(done, done.findViewById(R.id.todo_check))
+    tap(done, (box[0] + box[2]) / 2f, (box[1] + box[3]) / 2f)
+    val sent = completeIntents()
+    assertEquals(1, sent.size)
+    assertEquals(
+      "uncomplete",
+      sent.single().getStringExtra(WidgetSnapshot.EXTRA_ACTION),
+    )
+    assertEquals(501, sent.single().getIntExtra(WidgetSnapshot.EXTRA_TODO_ID, -1))
+  }
+
+  @Test
+  fun `completed rows never displace an open overdue task on a short card`() {
+    writeActionSnapshot(due = 1, completed = 2, completedRows = 2, overdue = 1)
+    val root = apply(TodayWidgetProvider.build(context, 1, WidgetSize.LARGE, 224), 360, 224)
+    val rows = assertRowsFit(root, R.id.action_rows)
+    val titles = (0 until rows.childCount).mapNotNull { index ->
+      rows.getChildAt(index).findViewById<android.widget.TextView>(R.id.todo_title)?.text?.toString()
+    }
+    assertTrue("the open due row is drawn", titles.contains("Task 1"))
+    assertTrue(
+      "an open overdue task must outrank the undo rows: $titles",
+      titles.contains("Late 1"),
+    )
+    assertFalse("the undo row is what gets dropped", titles.contains("Done 1"))
+  }
+
+  @Test
   fun `today widget drops the footer rather than hiding a task row`() {
     writeActionSnapshot(due = 2, completed = 3)
     val root = apply(TodayWidgetProvider.build(context, 1, WidgetSize.LARGE, 224), 360, 224)
@@ -598,6 +836,38 @@ class WidgetRowIntentTest {
     val footer = root.findViewById<View>(R.id.action_completed)
     assertEquals(View.VISIBLE, footer.visibility)
     assertTrue("footer must be fully inside the card", footer.bottom <= root.height)
+  }
+
+  @Test
+  fun `the footer is a fallback only and is never drawn beside a completed row`() {
+    // Tall enough for the open row, the completed row and the footer: the row
+    // wins and the footer stays hidden, so the same completion is not stated
+    // twice.
+    writeActionSnapshot(due = 1, completed = 1, completedRows = 1)
+    val tall = apply(TodayWidgetProvider.build(context, 1, WidgetSize.LARGE, 344), 360, 344)
+    val tallRows = assertRowsFit(tall, R.id.action_rows)
+    val tallTitles = (0 until tallRows.childCount).mapNotNull { index ->
+      tallRows.getChildAt(index).findViewById<android.widget.TextView>(R.id.todo_title)?.text?.toString()
+    }
+    assertTrue("the undo row is drawn", tallTitles.contains("Done 1"))
+    assertEquals(
+      "no footer beside a drawn undo row",
+      View.GONE,
+      tall.findViewById<View>(R.id.action_completed).visibility,
+    )
+
+    // A completion with no row to draw (the count is known but the row was
+    // filtered out of this card): the footer is the only thing left, and when
+    // it is drawn it must be fully inside the card.
+    writeActionSnapshot(due = 1, completed = 1, completedRows = 0)
+    val counted = apply(TodayWidgetProvider.build(context, 1, WidgetSize.LARGE, 344), 360, 344)
+    assertRowsFit(counted, R.id.action_rows)
+    val footer = counted.findViewById<View>(R.id.action_completed)
+    assertEquals("the footer is the fallback", View.VISIBLE, footer.visibility)
+    assertTrue(
+      "a drawn footer must be fully inside the card: bottom ${footer.bottom} > ${counted.height}",
+      footer.bottom <= counted.height,
+    )
   }
 
   @Test
@@ -804,9 +1074,11 @@ class WidgetRowIntentTest {
     target: String = "todo",
     occurrenceId: String? = null,
     allocationId: String? = null,
+    command: String = WidgetSnapshot.ACTION_COMPLETE,
   ): Intent = Intent(context, WidgetActionReceiver::class.java).apply {
     action = WidgetSnapshot.ACTION_COMPLETE_ACTION
     putExtra(WidgetSnapshot.EXTRA_TARGET, target)
+    putExtra(WidgetSnapshot.EXTRA_ACTION, command)
     putExtra(WidgetSnapshot.EXTRA_TODO_ID, todoId)
     if (occurrenceId != null) putExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID, occurrenceId)
     if (allocationId != null) putExtra(WidgetSnapshot.EXTRA_SOURCE_ALLOCATION_ID, allocationId)
@@ -843,6 +1115,60 @@ class WidgetRowIntentTest {
     assertEquals(2, pendingCount())
     receiver.onReceive(context, completeIntent(5, target = "taskInstance", occurrenceId = "2026-11-16"))
     assertEquals("only the matching occurrence is undone", 1, pendingCount())
+  }
+
+  @Test
+  fun `the receiver writes the row's own action into the queue`() {
+    val receiver = WidgetActionReceiver()
+    receiver.onReceive(context, completeIntent(42, command = WidgetSnapshot.ACTION_UNCOMPLETE))
+    val raw = WidgetSnapshot.readPendingCommands(context).single()["raw"] as String
+    assertTrue(
+      "an undo tap must queue uncomplete, not complete: $raw",
+      raw.contains("\"action\":\"uncomplete\""),
+    )
+
+    receiver.onReceive(context, completeIntent(42, command = WidgetSnapshot.ACTION_UNCOMPLETE))
+    assertEquals("a second undo tap cancels it", 0, pendingCount())
+
+    receiver.onReceive(context, completeIntent(43))
+    val second = WidgetSnapshot.readPendingCommands(context).single()["raw"] as String
+    assertTrue(
+      "a tap on an open row still queues complete: $second",
+      second.contains("\"action\":\"complete\""),
+    )
+  }
+
+  @Test
+  fun `complete and uncomplete for one row are distinct intents`() {
+    val todoItem = todoItem(42)
+    val row = itemRow(todoItem)
+    val open = row.findViewById<View>(R.id.todo_check)
+    val openBox = boundsIn(row, open)
+    tap(row, (openBox[0] + openBox[2]) / 2f, (openBox[1] + openBox[3]) / 2f)
+    val completeIntent = completeIntents().single()
+    assertTrue(
+      "the row must carry its action in the data URI too, or the launcher reuses one intent",
+      completeIntent.data.toString().contains("/complete/"),
+    )
+    val completeData = shadowOf(
+      WidgetSupport.togglePendingIntent(context, "todo", 42, null, null, null),
+    ).savedIntent.data
+    val undoData = shadowOf(
+      WidgetSupport.togglePendingIntent(
+        context,
+        "todo",
+        42,
+        null,
+        null,
+        null,
+        command = WidgetSnapshot.ACTION_UNCOMPLETE,
+      ),
+    ).savedIntent.data
+    assertNotEquals(
+      "the same row's complete and uncomplete must not share a PendingIntent identity",
+      completeData,
+      undoData,
+    )
   }
 
   @Test

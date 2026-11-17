@@ -275,6 +275,18 @@ class TodoWidgetProvider : AppWidgetProvider() {
         }
       }
 
+      // Today's completed rows stay under the open ones, checked, so the same
+      // checkbox can undo them after the command has already reached the DB.
+      // They are not part of `total` (open tasks), so the "more" row is not
+      // affected; when the budget runs out they are simply not drawn.
+      var completedShown = 0
+      if (!todayStale && todayMode && current.completed.isNotEmpty()) {
+        for (item in current.completed) {
+          if (!addItem(item, overdue = false, number = 0)) break
+          completedShown++
+        }
+      }
+
       val emitted = overdueShown + todayShown
       val more = total - emitted
       val moreText = ui?.withCount(ui.moreCount, more)
@@ -301,10 +313,13 @@ class TodoWidgetProvider : AppWidgetProvider() {
       }
 
       // "No tasks" is a statement about the data, not about how many rows
-      // happened to fit; a short card must not claim the list is empty.
+      // happened to fit; a short card must not claim the list is empty. A card
+      // whose only tasks are completed ones is not empty either: it is drawing
+      // the undo rows, so "all done" would sit on top of them.
       val hasTasks = current.items.isNotEmpty() ||
         overdueRows.isNotEmpty() ||
-        current.total > 0
+        current.total > 0 ||
+        completedShown > 0
       val empty = !todayStale && !hasTasks
       views.setViewVisibility(R.id.todos_empty, if (empty) View.VISIBLE else View.GONE)
       if (empty) {
@@ -470,12 +485,13 @@ class TodoWidgetProvider : AppWidgetProvider() {
       } else if (item.todoId > 0) {
         row.setViewVisibility(R.id.todo_check, View.VISIBLE)
         row.setViewVisibility(R.id.todo_repeat, View.GONE)
-        val isPending = WidgetSupport.isPending(pending, "todo", item.todoId, null)
+        val checked = item.completed ||
+          WidgetSupport.isPending(pending, "todo", item.todoId, null)
         row.setImageViewResource(
           R.id.todo_check,
-          if (isPending) R.drawable.widget_check_on else R.drawable.widget_check_off,
+          if (checked) R.drawable.widget_check_on else R.drawable.widget_check_off,
         )
-        if (isPending) {
+        if (checked) {
           WidgetSupport.tint(row, R.id.todo_check, theme?.colors?.get("accent") ?: accent)
         }
         row.setOnClickPendingIntent(
@@ -487,6 +503,11 @@ class TodoWidgetProvider : AppWidgetProvider() {
             item.todoSyncId,
             null,
             null,
+            command = if (item.completed) {
+              WidgetSnapshot.ACTION_UNCOMPLETE
+            } else {
+              WidgetSnapshot.ACTION_COMPLETE
+            },
           ),
         )
       } else {
@@ -511,7 +532,18 @@ class TodoWidgetProvider : AppWidgetProvider() {
           WidgetSupport.openUri(context, WidgetSupport.todosUri(mode), appWidgetId + 606),
         )
       }
-      WidgetSupport.textColor(row, R.id.todo_title, theme, "textPrimary", primary)
+      if (item.completed) {
+        // A completed row is the undo affordance: muted and struck through,
+        // with its checked box still tappable.
+        WidgetSupport.textColor(row, R.id.todo_title, theme, "textSecondary", secondary)
+        row.setInt(
+          R.id.todo_title,
+          "setPaintFlags",
+          android.graphics.Paint.STRIKE_THRU_TEXT_FLAG,
+        )
+      } else {
+        WidgetSupport.textColor(row, R.id.todo_title, theme, "textPrimary", primary)
+      }
       return row
     }
   }

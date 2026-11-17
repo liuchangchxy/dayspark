@@ -30,10 +30,10 @@ Baseline: `main` @ `7390987` (v0.34.0+34), worktree `dayspark-g1`, branch
    binds its list instead of staying dead.
 2. **Two taps on one checkbox queued two `complete` commands.** The widget drew
    a filled check, but the app applied completion twice. A second tap now
-   removes the pending command for that exact identity (target + todoId +
-   occurrenceId) instead of adding another. This is a **queue-level** undo:
-   once the app has consumed a command, a later tap enqueues a new `complete`
-   and the consumer answers `alreadyApplied`; there is no DB un-complete path.
+   removes a pending command with that exact identity (target + todoId +
+   occurrenceId) and action instead of adding another. That queue-level undo
+   only covers a command the app has not consumed yet; undoing **after** the
+   write is the separate fix in the next section.
 3. **The row budget min-clamped and clipped.** `rowBudget(...).coerceIn(min, …)`
    forced 3 rows into a 104dp rows area on a 4x2 card, so the launcher drew the
    third row as a ~20px sliver (`[99,1074][981,1094]` in the 2026-11-14
@@ -62,8 +62,12 @@ Baseline: `main` @ `7390987` (v0.34.0+34), worktree `dayspark-g1`, branch
 | `TodayWidgetProvider.kt` | same budget; per-row heights (`PlannedRow`); footer never costs a row; bind all todo/timeline open regions |
 | `CalendarWidgetProvider.kt` | summary rows bind their marker/time/title too (same PendingIntent) |
 | `WidgetSupport.kt` | `WidgetRows` id sets + `bindOpen`; `RowBudget`; row heights measured from the inflated layout and cached per configuration/font scale; `dpToPx` |
-| `WidgetSnapshot.kt` | `cancelPendingCommands` + `commandMatches` |
-| `WidgetActionReceiver.kt` | checkbox tap = cancel-if-pending else enqueue `complete`, then refresh |
+| `WidgetSnapshot.kt` | `cancelPendingCommands` + `commandMatches`; `completed` on todo/task rows; `todos.today.completed`; `complete`/`uncomplete` action on the command |
+| `WidgetActionReceiver.kt` | checkbox tap = cancel-if-pending else enqueue the row's action (`complete` / `uncomplete`), then refresh |
+| `TodoWidgetProvider.kt` (undo) | completed-today rows drawn after the open ones, checked/muted/struck, checkbox bound to `uncomplete` |
+| `TodayWidgetProvider.kt` (undo) | completed due/occurrence rows checked/muted/struck; checkbox bound to `uncomplete` for their own target |
+| `home_widget_service.dart` | snapshot keeps today's completed todos (`todos.today.completed`) and completed due-today/occurrence rows in a separate `action.completed` array (never `action.dueToday`); timeline occurrences carry `completed` and are not duplicated into `completed` |
+| `widget_command.dart` | executor accepts `complete`/`uncomplete` and acts per desired state (idempotent replay) |
 | `widget_timeline_row.xml` | `wrap_content` + `minHeight=48dp` so accessibility text grows the row instead of clipping it |
 
 ## Real-device taps (Pixel Launcher, API 35)
@@ -175,16 +179,115 @@ re-verified on this layout (`Read book`, `Finish report`, 1 → 0 commands).
 3. Restore the seeded row via SQL and cold-start again → widget shows the task
    again; no stale command.
 
+## Undo after the write (2026-11-17)
+
+The queue-level undo above ends where the reported bug begins: once the app has
+consumed the command and written `COMPLETED`, the row was no longer in the
+snapshot, so a later tap had nothing to act on — completion was one-way from the
+widget. Fixed end to end:
+
+- the checkbox intent carries the **desired state**, not a blind toggle:
+  `action = complete | uncomplete` in both the intent extra and the data URI, so
+  a replayed command stays idempotent (a replayed `complete` must never
+  un-complete);
+- the snapshot keeps today's completed rows in their own array —
+  `action.completed` for the Action/Today widget, `todos.today.completed` for
+  the Todos widget — never appended to `action.dueToday`, so both widgets can
+  still draw the row checked, muted and struck through after the refresh;
+- `dueToday` keeps its old cross-platform shape for a reason: the Apple widgets
+  decode it without a `completed` field and send a hardcoded `complete`, so a
+  completed row placed there would render as an open row whose box can never
+  fill;
+- `action.completed` is drawn last, after every open group (now, later, due
+  today, overdue), so on a short card the undo rows are what gets dropped and an
+  open overdue task can never be displaced by one;
+- completed rows are filtered to tasks that were actually due today or earlier,
+  top-level only: an inbox, future-due or checklist-subtask completion was never
+  a widget row;
+- a completed recurring occurrence already drawn on the timeline is not
+  duplicated into `action.completed`; that timeline row itself now carries
+  `completed` and its checkbox sends `uncomplete`;
+- the queue cancel is action-narrowed: only a pending command with the same
+  action is cancelled, so a stale committed-but-unacked `complete` can no longer
+  swallow the user's undo tap;
+- the executor acts per desired state: `(status == 'COMPLETED') ==
+  wantedCompleted` → `alreadyApplied`, otherwise one
+  `toggleTodo(isCompleted: wantedCompleted)`.
+
+### The loop on device (API 35, 420dpi, Pixel Launcher)
+
+Final code, `flutter build apk --debug` installed with `adb install -r`. Todos
+widget 2×2 added through the launcher's own picker; bounds come from
+`uiautomator dump` (`todo_check` 126px = 48dp, rows `[88,621][498,747]`,
+`[88,747][498,873]`, `[88,873][498,999]`). DB seeded with three todos due today.
+Screenshots are in `docs/qa/g1-undo/shots/`.
+
+| Step | Observed |
+|---|---|
+| tap `2. Finish report` checkbox in Todos (645,874) | queue 1 command, `{"action":"complete","target":"todo","todoId":2}`, widget filled, no page |
+| cold start app | queue 0, DB `2|Finish report|COMPLETED`; `Today 2`; open rows renumbered `1. Buy milk`, `2. Read book`; the completed row is **still drawn** checked, muted and struck through (`02-completed-row-stays.png`) |
+| tap that completed row's checkbox (645,1000) | queue 1 command, `{"action":"uncomplete","target":"todo","todoId":2,"todoSyncId":"01a1e6dc-…"}` — not `complete` |
+| cold start app | queue 0, DB `2|Finish report|NEEDS-ACTION`; widget back to `Today 3` with `2. Finish report` open in its place (`03-undone.png`) |
+| tap the same checkbox again (645,874) | queue 1 `complete` → cold start → `COMPLETED`, and the checked/struck row is drawn again (`04-completed-again.png`) |
+| tap the completed row's **title** (350,1000) | opened the todo detail (showing `Mark incomplete`); **0** commands |
+
+That is the loop the acceptance asks for: open → complete writes to the DB →
+refresh → tap → restores → refresh → tap → completes again, with the completed
+row reachable in between and no row/checkbox cross-triggering.
+
+### The same loop on Action/Today (2×2, side by side with Todos)
+
+Both widgets were on the same home screen at the same time, so every completion
+made in one was visible in the other after the next refresh. The Action
+completed row keeps both lines (title + `17:00`) and its checkbox sends
+`uncomplete` for its own target, exactly like the Todos row.
+
+The placement that matters is which row gets dropped on a short card. With one
+open due task, one open **overdue** task and two completed rows on a 224dp card:
+
+| Widget | Rows drawn (top to bottom) |
+|---|---|
+| Action/Today | `Read book` (open due), `Overdue thing` (open overdue), `Buy milk` (completed), and the second completed row is the one dropped |
+| Todos | `Overdue thing` (open), `1. Read book` (open), `Buy milk` (completed) |
+
+`05-overdue-never-displaced.png` is that state. Before the restructure the
+completed rows sat between the due and overdue groups and took the budget, so
+the open overdue task disappeared instead.
+
+Neither widget mutates the snapshot itself; both read the same one.
+
+### The recurring path is symmetric
+
+A completed occurrence from `completedTodayTaskInstances` is added to
+`action.completed` with `target: "taskInstance"` and its `occurrenceId`, unless
+its block is already on the timeline; in that case the timeline row carries
+`completed` and sends `uncomplete` for the same occurrence. The Android tests
+assert both rows' checkboxes send `uncomplete` carrying their own occurrence
+identity. No allocation was completed on device (the seeded DB has none — see
+harness limits), so that path is unit-level only in this pass.
+
+### Harness note
+
+This schema stores `DateTime` as Unix **seconds** (`created_at` defaults to
+`strftime('%s', …)`). A seed written in milliseconds read back as year 58848,
+every todo fell outside "today", and the widget correctly showed `No tasks` —
+a seed error, not a widget bug. Seed due dates in seconds.
+
 ## Automated evidence
 
-- `./gradlew :app:testDebugUnitTest` — **47 tests, 0 failed, skipped=0**
-  (`WidgetRowIntentTest` 29, `WidgetSnapshotCodecTest` 18). New tests dispatch
+- `./gradlew :app:testDebugUnitTest` — **58 tests, 0 failed, skipped=0**
+  (`WidgetRowIntentTest` 40, `WidgetSnapshotCodecTest` 18). New tests dispatch
   real `MotionEvent`s into RemoteViews inflated under Robolectric (native
   graphics) and assert the started activity URI / broadcast extras, not the XML;
   geometry tests build the real widget at fontScale 1.3/1.5/2.0 and assert each
   laid-out row is still ≥48dp.
 - `flutter analyze` — **No issues found**.
-- `flutter test` — **824 passed**.
+- `flutter test` — **831 passed** (824 before this pass; +7 for the undo path:
+  executor restores a completed todo and is idempotent, executor restores a
+  completed occurrence, snapshot keeps the completed occurrence's row, completed
+  rows skip tasks that were never due today, the Todos block applies the same
+  filter, completed rows never appear in `dueToday`, and a timeline occurrence
+  is not duplicated into `completed`).
 - Mutation proofs (each reverted afterwards):
   - disable the undo branch → `the second tap is an undo expected:<0> but was:<1>`
   - bind only the row root → `todo_title must carry the open action`
@@ -193,6 +296,25 @@ re-verified on this layout (`Read book`, `Finish report`, 1 → 0 commands).
   - replace per-row text with a fixed `M` sample, at 420dpi → `zh scale=1.5 height=220dp: row 1 is 124px but a touch target needs 126px`
   - end the tight-padding band at 112 → `the 112dp boundary still shows one full row`
   - remove each id-less fallback (calendar / today task / todo item) → its test goes red
+  - completed row sends `complete` again → `the checked row must ask to restore,
+    not to complete again expected:<[un]complete> but was:<[]>complete` (2 tests red)
+  - executor rejects `uncomplete` → both restore tests red (`alreadyApplied`
+    / `terminalInvalid` instead of one `toggleTodo(isCompleted: false)`)
+  - snapshot drops `completed` → the completed-row test goes red (the widget's
+    undo row has no data again)
+  - completed rows placed before the overdue group → `completed rows never
+    displace an open overdue task on a short card` and `today widget draws the
+    completed undo row last and never instead of an open task` red
+  - completed rows put back into `action.dueToday` → `completed todos never
+    appear in dueToday` red (this is the guard for the Apple contract)
+  - the footer drawn beside a completed row → `the footer is a fallback only and
+    is never drawn beside a completed row` red
+  - receiver always queues `complete` → `the receiver writes the row's own
+    action into the queue` red
+  - no due-date filter on completed rows → `completed rows skip tasks that were
+    never due today` red (actual set included Inbox task / Next week / Subtask)
+  - empty-state check ignores completed rows → `a card whose only tasks are
+    completed shows the undo row, not a done label` goes red
 - CI: the `unit-test` job pins JDK 17 (Gradle 8.14 refuses the runner image's
   JDK 25) and runs `flutter build apk --debug --config-only` before the Gradle
   step, because `gradlew` / `gradle-wrapper.jar` / `local.properties` are
