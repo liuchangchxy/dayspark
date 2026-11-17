@@ -400,8 +400,14 @@ card; no clipped row (footer bottom 1094 ≤ root bottom 1126).
 
 ## CI on the pull request
 
-`CI` run 43791376341 on PR #105: **all eight jobs pass** — `unit-test` 8m43s
-(including `Provision the Android Gradle project` and `Android widget touch and
-intent tests`, the latter `BUILD SUCCESSFUL in 4m 52s`, 300 tasks executed),
-`server-test`, `build-android`, `build-ios-simulator`, `build-linux`,
-`build-macos`, `build-web`, `build-windows`, and the `test` gate.
+`CI` run 43791376341 on PR #105 at `7f9d075`: **all eight jobs pass** —
+`unit-test` 8m43s (including `Provision the Android Gradle project` and
+`Android widget touch and intent tests`, the latter `BUILD SUCCESSFUL in
+4m 52s`, 300 tasks executed), `server-test`, `build-android`,
+`build-ios-simulator`, `build-linux`, `build-macos`, `build-web`,
+`build-windows`, and the `test` gate.
+
+`CI` run 43996620007 on PR #105 at `ffd109f` (the undo-after-the-write commit):
+**all nine jobs pass** — `unit-test`, `server-test`, `build-android`,
+`build-ios-simulator`, `build-linux`, `build-macos`, `build-web`,
+`build-windows`, and the `test` gate.
