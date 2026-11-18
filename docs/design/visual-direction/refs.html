@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visual reference board — 2026-11-19</title>
+<style>
+  :root {
+    --bg: #f6f6f7;
+    --panel: #ffffff;
+    --text: #16181d;
+    --muted: #6b7078;
+    --line: #d9dce1;
+    --accent: #2f5bd7;
+    --like: #1c7c4a;
+    --dislike: #a33a2c;
+    --shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111214;
+      --panel: #1a1c20;
+      --text: #e9eaec;
+      --muted: #9aa0a8;
+      --line: #31343a;
+      --accent: #7c9cf5;
+      --like: #57c98c;
+      --dislike: #ef8b7d;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px 12px;
+  }
+  .head-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+  h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .01em; }
+  .counts { display: flex; gap: 12px; font-size: 13px; color: var(--muted); }
+  .counts b { font-weight: 650; }
+  .counts .like b { color: var(--like); }
+  .counts .dislike b { color: var(--dislike); }
+  .spacer { flex: 1 1 auto; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  button {
+    font: inherit; color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 11px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .hint kbd {
+    font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px;
+    background: var(--panel);
+  }
+  main { padding: 18px 20px 40px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 8px;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .card.current { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .shot {
+    height: 560px;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--bg) 65%, var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .shot img {
+    max-width: 100%; max-height: 100%;
+    width: auto; height: auto;
+    display: block;
+  }
+  .meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .num { font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+  .app { font-weight: 650; font-size: 14px; }
+  .screen { font-size: 13px; color: var(--muted); }
+  .tag {
+    align-self: flex-start;
+    font-size: 11px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 6px;
+  }
+  .source { font-size: 12px; color: var(--accent); text-decoration: none; overflow-wrap: anywhere; }
+  .source:hover { text-decoration: underline; }
+  .actions { display: flex; gap: 8px; margin-top: auto; }
+  .actions button { flex: 1 1 0; padding: 8px 10px; font-size: 16px; line-height: 1.2; }
+  .actions button.liked { border-color: var(--like); color: var(--like); background: color-mix(in srgb, var(--like) 12%, var(--panel)); }
+  .actions button.disliked { border-color: var(--dislike); color: var(--dislike); background: color-mix(in srgb, var(--dislike) 12%, var(--panel)); }
+  .empty { color: var(--muted); padding: 40px 4px; font-size: 14px; }
+  #storage-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .export-panel { margin-top: 22px; }
+  .export-panel textarea {
+    width: 100%; min-height: 160px;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--text); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 6px; padding: 10px;
+    resize: vertical;
+  }
+  @media (max-width: 640px) {
+    header { padding: 12px 14px 10px; }
+    main { padding: 14px 14px 32px; }
+    .grid { grid-template-columns: 1fr; gap: 14px; }
+    .shot { height: 430px; }
+    .counts { font-size: 12px; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="head-row">
+    <h1>Visual reference board — 2026-11-19</h1>
+    <div class="counts" aria-live="polite">
+      <span class="like">喜欢 <b id="count-liked">0</b></span>
+      <span class="dislike">讨厌 <b id="count-disliked">0</b></span>
+      <span>未评 <b id="count-unrated">0</b></span>
+    </div>
+    <span class="spacer"></span>
+    <div class="filters" id="filters">
+      <button data-filter="all" aria-pressed="true">全部</button>
+      <button data-filter="unrated" aria-pressed="false">只看未评</button>
+      <button data-filter="liked" aria-pressed="false">只看喜欢</button>
+      <button data-filter="disliked" aria-pressed="false">只看讨厌</button>
+    </div>
+    <button id="export-btn">导出 JSON</button>
+  </div>
+  <div class="hint">
+    <kbd>1</kbd> 喜欢 · <kbd>2</kbd> 讨厌 · <kbd>←</kbd><kbd>→</kbd> 切换当前卡片 · <kbd>Enter</kbd> 下一张
+  </div>
+  <div id="storage-note" hidden></div>
+</header>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty-msg" hidden>当前筛选下没有图片。</div>
+  <section class="export-panel" id="export-panel" hidden>
+    <p id="export-msg" class="hint"></p>
+    <textarea id="export-area" readonly></textarea>
+  </section>
+</main>
+
+<script>
+const REFS = [
+  {
+    "id": "things3-anytime",
+    "app": "Things 3",
+    "screen": "Anytime",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/9f0d2a69-0445-4c6d-a4ab-94275b5be1b7",
+    "file": "things3-anytime.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light mode. Anytime list grouped by project."
+  },
+  {
+    "id": "things3-upcoming",
+    "app": "Things 3",
+    "screen": "Upcoming",
+    "category": "calendar",
+    "sourceUrl": "https://mobbin.com/explore/screens/590f4dd6-1a6d-45a3-91c3-3508a762b041",
+    "file": "things3-upcoming.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark mode. Upcoming grouped by day with calendar events."
+  },
+  {
+    "id": "things3-detail",
+    "app": "Things 3",
+    "screen": "To-do form",
+    "category": "detail",
+    "sourceUrl": "https://mobbin.com/explore/screens/07cc7ad2-a6ee-410b-a8a0-16cc5786ae65",
+    "file": "things3-detail.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Task edit sheet (to-do form) opened over the list."
+  },
+  {
+    "id": "todoist-today",
+    "app": "Todoist",
+    "screen": "Today task list",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/342de899-b7f1-4753-90b8-636764b9554d",
+    "file": "todoist-today.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light mode. Today list with priorities, labels and a floating add button."
+  },
+  {
+    "id": "todoist-calendar",
+    "app": "Todoist",
+    "screen": "Calendar",
+    "category": "calendar",
+    "sourceUrl": "https://mobbin.com/explore/screens/a2df34bd-c6e8-465f-831c-46e84ab254f0",
+    "file": "todoist-calendar.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Upcoming/calendar view with a month strip above the grouped list."
+  },
+  {
+    "id": "todoist-detail",
+    "app": "Todoist",
+    "screen": "Task detail",
+    "category": "detail",
+    "sourceUrl": "https://mobbin.com/explore/screens/d56f6d81-6afd-490b-9880-bb5fc83b518e",
+    "file": "todoist-detail.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Task detail sheet: scheduling, priority, labels, reminders, sub-tasks, comment field."
+  },
+  {
+    "id": "cron-calendar",
+    "app": "Cron Calendar (now Notion Calendar)",
+    "screen": "Day timeline",
+    "category": "calendar",
+    "sourceUrl": "https://mobbin.com/explore/screens/faa71ad3-3190-4566-ac0b-98e8c7a6e7fc",
+    "file": "cron-calendar.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Two-day timeline with hour grid, all-day row and bottom meeting bar. No events in this capture."
+  },
+  {
+    "id": "ticktick-tasks",
+    "app": "TickTick",
+    "screen": "Tasks & reminders",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/4f6cb999-7199-4125-9658-bf7136e49368",
+    "file": "ticktick-tasks.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light mode. Tasks grouped by list with priority colors, dates and a floating add button."
+  },
+  {
+    "id": "ticktick-today-empty",
+    "app": "TickTick",
+    "screen": "Today empty state",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/eafeaa8f-4f9c-4ff2-a47e-62b90a7dbe8e",
+    "file": "ticktick-today-empty.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Empty-state design for the Today view."
+  },
+  {
+    "id": "linear-home",
+    "app": "Linear",
+    "screen": "Home",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/a369b2d1-7456-4698-b618-64fc492e7468",
+    "file": "linear-home.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light mode. Home with My Issues, favorites and teams."
+  },
+  {
+    "id": "linear-edit",
+    "app": "Linear",
+    "screen": "Edit issue",
+    "category": "detail",
+    "sourceUrl": "https://mobbin.com/explore/screens/e4ef49b0-7eb1-450b-9eec-e6967ce8592d",
+    "file": "linear-edit.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Issue edit form with title, description, status/assignee/date chips and keyboard open."
+  },
+  {
+    "id": "linear-search",
+    "app": "Linear",
+    "screen": "Search results",
+    "category": "detail",
+    "sourceUrl": "https://mobbin.com/explore/screens/1d79d0f1-c4ad-4d3a-8764-5b0e70afb708",
+    "file": "linear-search.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Search screen with results, Issues/Projects tabs and keyboard open."
+  }
+];
+
+const STORAGE_KEY = 'dayspark-refs-choices-v1';
+const CHOICES = { like: 'like', dislike: 'dislike' };
+let storageOk = true;
+let state = {};
+let filter = 'all';
+let currentId = null;
+
+function loadState() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        for (const [id, v] of Object.entries(parsed)) {
+          if (v === 'like' || v === 'dislike') state[id] = v;
+        }
+      }
+    }
+  } catch (err) {
+    storageOk = false;
+    state = {};
+  }
+}
+
+function saveState() {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (err) {
+    storageOk = false;
+    updateStorageNote();
+  }
+}
+
+function updateStorageNote() {
+  const note = document.getElementById('storage-note');
+  if (storageOk) {
+    note.hidden = true;
+    return;
+  }
+  note.hidden = false;
+  note.textContent = '当前浏览器在 file:// 下禁用了 localStorage，本次选择只保存在页面内存中，请用“导出 JSON”保存结果。';
+}
+
+function counts() {
+  let liked = 0, disliked = 0;
+  for (const ref of REFS) {
+    if (state[ref.id] === 'like') liked += 1;
+    else if (state[ref.id] === 'dislike') disliked += 1;
+  }
+  return { liked, disliked, unrated: REFS.length - liked - disliked };
+}
+
+function renderCounts() {
+  const c = counts();
+  document.getElementById('count-liked').textContent = c.liked;
+  document.getElementById('count-disliked').textContent = c.disliked;
+  document.getElementById('count-unrated').textContent = c.unrated;
+}
+
+function visibleRefs() {
+  return REFS.filter((ref) => {
+    const c = state[ref.id];
+    if (filter === 'liked') return c === 'like';
+    if (filter === 'disliked') return c === 'dislike';
+    if (filter === 'unrated') return !c;
+    return true;
+  });
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  const visible = visibleRefs();
+  grid.textContent = '';
+  visible.forEach((ref) => {
+    const card = document.createElement('article');
+    card.className = 'card' + (ref.id === currentId ? ' current' : '');
+    card.dataset.id = ref.id;
+    card.setAttribute('aria-label', ref.app + ' ' + ref.screen);
+
+    const shot = document.createElement('div');
+    shot.className = 'shot';
+    const img = document.createElement('img');
+    img.src = 'refs/' + ref.file;
+    img.alt = ref.app + ' — ' + ref.screen;
+    img.loading = 'eager';
+    img.decoding = 'async';
+    shot.appendChild(img);
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = '#' + String(REFS.indexOf(ref) + 1).padStart(2, '0');
+    const app = document.createElement('span');
+    app.className = 'app';
+    app.textContent = ref.app;
+    const screen = document.createElement('span');
+    screen.className = 'screen';
+    screen.textContent = ref.screen;
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = ref.category;
+    const source = document.createElement('a');
+    source.className = 'source';
+    source.href = ref.sourceUrl;
+    source.target = '_blank';
+    source.rel = 'noopener noreferrer';
+    source.textContent = '来源页面';
+    source.addEventListener('click', (e) => e.stopPropagation());
+    meta.append(num, app, screen, tag, source);
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const likeBtn = document.createElement('button');
+    likeBtn.type = 'button';
+    likeBtn.dataset.action = 'like';
+    likeBtn.textContent = '👍';
+    likeBtn.title = '喜欢 (1)';
+    if (state[ref.id] === 'like') likeBtn.classList.add('liked');
+    likeBtn.setAttribute('aria-pressed', state[ref.id] === 'like' ? 'true' : 'false');
+    likeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentId = ref.id;
+      setChoice(ref.id, 'like');
+    });
+    const dislikeBtn = document.createElement('button');
+    dislikeBtn.type = 'button';
+    dislikeBtn.dataset.action = 'dislike';
+    dislikeBtn.textContent = '👎';
+    dislikeBtn.title = '讨厌 (2)';
+    if (state[ref.id] === 'dislike') dislikeBtn.classList.add('disliked');
+    dislikeBtn.setAttribute('aria-pressed', state[ref.id] === 'dislike' ? 'true' : 'false');
+    dislikeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentId = ref.id;
+      setChoice(ref.id, 'dislike');
+    });
+    actions.append(likeBtn, dislikeBtn);
+
+    card.append(shot, meta, actions);
+    card.addEventListener('click', () => {
+      currentId = ref.id;
+      updateCurrentCard();
+    });
+    grid.appendChild(card);
+  });
+
+  document.getElementById('empty-msg').hidden = visible.length !== 0;
+  if (visible.length && !visible.some((r) => r.id === currentId)) {
+    currentId = visible[0].id;
+  }
+  updateCurrentCard();
+  renderCounts();
+  updateStorageNote();
+}
+
+function updateCurrentCard() {
+  const cards = document.querySelectorAll('.card');
+  cards.forEach((card) => {
+    card.classList.toggle('current', card.dataset.id === currentId);
+  });
+  const current = document.querySelector('.card.current');
+  if (current && current.scrollIntoView) {
+    const rect = current.getBoundingClientRect();
+    const outside = rect.top < 80 || rect.bottom > window.innerHeight;
+    if (outside) current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function setChoice(id, choice) {
+  if (state[id] === choice) {
+    delete state[id];
+  } else {
+    state[id] = choice;
+  }
+  saveState();
+  render();
+}
+
+function moveCurrent(delta) {
+  const visible = visibleRefs();
+  if (!visible.length) return;
+  let idx = visible.findIndex((r) => r.id === currentId);
+  if (idx === -1) idx = 0;
+  idx = (idx + delta + visible.length) % visible.length;
+  currentId = visible[idx].id;
+  updateCurrentCard();
+}
+
+function setFilter(next) {
+  filter = next;
+  document.querySelectorAll('#filters button').forEach((b) => {
+    b.setAttribute('aria-pressed', b.dataset.filter === next ? 'true' : 'false');
+  });
+  render();
+}
+
+function buildExport() {
+  const c = counts();
+  return {
+    exportedAt: new Date().toISOString(),
+    board: 'docs/design/visual-direction/refs.html',
+    counts: c,
+    choices: REFS.map((ref) => ({
+      id: ref.id,
+      app: ref.app,
+      screen: ref.screen,
+      category: ref.category,
+      choice: state[ref.id] || null
+    }))
+  };
+}
+
+function exportJson() {
+  const json = JSON.stringify(buildExport(), null, 2);
+  const panel = document.getElementById('export-panel');
+  const area = document.getElementById('export-area');
+  const msg = document.getElementById('export-msg');
+  let downloaded = false;
+  try {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'refs-choices.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    downloaded = true;
+  } catch (err) {
+    downloaded = false;
+  }
+  if (!downloaded) {
+    panel.hidden = false;
+    area.value = json;
+    area.focus();
+    area.select();
+    msg.textContent = '下载不可用，已把 JSON 放在下方，请手动复制。';
+    return;
+  }
+  panel.hidden = false;
+  area.value = json;
+  msg.textContent = '已尝试下载 refs-choices.json；若浏览器拦截了下载，可直接复制下方内容。';
+}
+
+document.getElementById('filters').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-filter]');
+  if (!btn) return;
+  setFilter(btn.dataset.filter);
+});
+
+document.getElementById('export-btn').addEventListener('click', exportJson);
+
+document.addEventListener('keydown', (e) => {
+  const target = e.target;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === '1') {
+    if (currentId) setChoice(currentId, 'like');
+    e.preventDefault();
+  } else if (e.key === '2') {
+    if (currentId) setChoice(currentId, 'dislike');
+    e.preventDefault();
+  } else if (e.key === 'ArrowLeft') {
+    moveCurrent(-1);
+    e.preventDefault();
+  } else if (e.key === 'ArrowRight') {
+    moveCurrent(1);
+    e.preventDefault();
+  } else if (e.key === 'Enter') {
+    moveCurrent(1);
+    e.preventDefault();
+  }
+});
+
+loadState();
+const visibleAtStart = visibleRefs();
+currentId = visibleAtStart.length ? visibleAtStart[0].id : null;
+render();
+</script>
+</body>
+</html>

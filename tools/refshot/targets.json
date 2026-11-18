@@ -1,0 +1,86 @@
+[
+  {
+    "id": "things3-anytime",
+    "app": "Things 3",
+    "screen": "Anytime",
+    "category": "today",
+    "url": "https://mobbin.com/explore/screens/9f0d2a69-0445-4c6d-a4ab-94275b5be1b7"
+  },
+  {
+    "id": "things3-upcoming",
+    "app": "Things 3",
+    "screen": "Upcoming",
+    "category": "calendar",
+    "url": "https://mobbin.com/explore/screens/590f4dd6-1a6d-45a3-91c3-3508a762b041"
+  },
+  {
+    "id": "things3-detail",
+    "app": "Things 3",
+    "screen": "To-do form",
+    "category": "detail",
+    "url": "https://mobbin.com/explore/screens/07cc7ad2-a6ee-410b-a8a0-16cc5786ae65"
+  },
+  {
+    "id": "todoist-today",
+    "app": "Todoist",
+    "screen": "Today task list",
+    "category": "today",
+    "url": "https://mobbin.com/explore/screens/342de899-b7f1-4753-90b8-636764b9554d"
+  },
+  {
+    "id": "todoist-calendar",
+    "app": "Todoist",
+    "screen": "Calendar",
+    "category": "calendar",
+    "url": "https://mobbin.com/explore/screens/a2df34bd-c6e8-465f-831c-46e84ab254f0"
+  },
+  {
+    "id": "todoist-detail",
+    "app": "Todoist",
+    "screen": "Task detail",
+    "category": "detail",
+    "url": "https://mobbin.com/explore/screens/d56f6d81-6afd-490b-9880-bb5fc83b518e"
+  },
+  {
+    "id": "cron-calendar",
+    "app": "Cron Calendar (now Notion Calendar)",
+    "screen": "Day timeline",
+    "category": "calendar",
+    "url": "https://mobbin.com/explore/screens/faa71ad3-3190-4566-ac0b-98e8c7a6e7fc"
+  },
+  {
+    "id": "ticktick-tasks",
+    "app": "TickTick",
+    "screen": "Tasks & reminders",
+    "category": "today",
+    "url": "https://mobbin.com/explore/screens/4f6cb999-7199-4125-9658-bf7136e49368"
+  },
+  {
+    "id": "ticktick-today-empty",
+    "app": "TickTick",
+    "screen": "Today empty state",
+    "category": "today",
+    "url": "https://mobbin.com/explore/screens/eafeaa8f-4f9c-4ff2-a47e-62b90a7dbe8e"
+  },
+  {
+    "id": "linear-home",
+    "app": "Linear",
+    "screen": "Home",
+    "category": "today",
+    "url": "https://mobbin.com/explore/screens/a369b2d1-7456-4698-b618-64fc492e7468"
+  },
+  {
+    "id": "linear-edit",
+    "app": "Linear",
+    "screen": "Edit issue",
+    "category": "detail",
+    "url": "https://mobbin.com/explore/screens/e4ef49b0-7eb1-450b-9eec-e6967ce8592d"
+  },
+  {
+    "id": "linear-search",
+    "app": "Linear",
+    "screen": "Search results",
+    "category": "detail",
+    "url": "https://mobbin.com/explore/screens/1d79d0f1-c4ad-4d3a-8764-5b0e70afb708"
+  }
+]
