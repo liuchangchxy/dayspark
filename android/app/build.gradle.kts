@@ -69,6 +69,16 @@ android {
         versionName = flutter.versionName
     }
 
+    // Widget row layouts are RemoteViews: the launcher inflates them in its own
+    // process, so the only honest test of a hit target is inflating the layout
+    // and dispatching a real touch event. Robolectric gives the JVM test suite
+    // the Android view system (and the resources) to do exactly that.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -94,4 +104,5 @@ dependencies {
     // real artifact here — android.jar's copy is stubbed in unit tests.
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }

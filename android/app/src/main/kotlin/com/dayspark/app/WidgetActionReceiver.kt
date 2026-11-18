@@ -35,14 +35,32 @@ class WidgetActionReceiver : BroadcastReceiver() {
     val todoId = intent.getIntExtra(WidgetSnapshot.EXTRA_TODO_ID, -1)
     if (todoId < 0) return
 
-    WidgetSnapshot.writeCommand(
+    val target = intent.getStringExtra(WidgetSnapshot.EXTRA_TARGET) ?: "todo"
+    val command = when (intent.getStringExtra(WidgetSnapshot.EXTRA_ACTION)) {
+      WidgetSnapshot.ACTION_UNCOMPLETE -> WidgetSnapshot.ACTION_UNCOMPLETE
+      else -> WidgetSnapshot.ACTION_COMPLETE
+    }
+    val occurrenceId = intent.getStringExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID)
+    // Only a command that would do the same thing is cancelled. A stale
+    // committed-but-unacked `complete` must not swallow the user's undo.
+    val cancelled = WidgetSnapshot.cancelPendingCommands(
       context = context,
-      target = intent.getStringExtra(WidgetSnapshot.EXTRA_TARGET) ?: "todo",
+      target = target,
       todoId = todoId,
-      todoSyncId = intent.getStringExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID),
-      occurrenceId = intent.getStringExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID),
-      sourceAllocationId = intent.getStringExtra(WidgetSnapshot.EXTRA_SOURCE_ALLOCATION_ID),
+      occurrenceId = occurrenceId,
+      action = command,
     )
+    if (cancelled == 0) {
+      WidgetSnapshot.writeCommand(
+        context = context,
+        target = target,
+        todoId = todoId,
+        todoSyncId = intent.getStringExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID),
+        occurrenceId = occurrenceId,
+        sourceAllocationId = intent.getStringExtra(WidgetSnapshot.EXTRA_SOURCE_ALLOCATION_ID),
+        action = command,
+      )
+    }
 
     refreshAllWidgets(context)
   }

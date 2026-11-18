@@ -147,6 +147,54 @@ void main() {
       expect(toggledOccurrence, isNull);
     });
 
+    test('uncomplete restores a completed todo and is idempotent on open ones', () async {
+      final done = await insertTodo(
+        summary: 'Done todo',
+        status: 'COMPLETED',
+        syncId: 'sync_done',
+      );
+      final open = await insertTodo(summary: 'Open todo', syncId: 'sync_open');
+
+      var toggled = <String, bool>{};
+      Future<void> toggle({
+        required int id,
+        required bool isCompleted,
+        String? occurrenceId,
+      }) async {
+        toggled['$id'] = isCompleted;
+      }
+
+      final restore = await executeWidgetCommand(
+        db,
+        WidgetCommand(
+          commandId: 'cmd_undo',
+          action: 'uncomplete',
+          target: 'todo',
+          todoId: done.id,
+          todoSyncId: done.syncId,
+          at: DateTime.utc(2026, 10, 7, 10),
+        ),
+        toggleTodo: toggle,
+      );
+      expect(restore, CommandExecutionResult.success);
+      expect(toggled['${done.id}'], isFalse);
+
+      final noop = await executeWidgetCommand(
+        db,
+        WidgetCommand(
+          commandId: 'cmd_undo_noop',
+          action: 'uncomplete',
+          target: 'todo',
+          todoId: open.id,
+          todoSyncId: open.syncId,
+          at: DateTime.utc(2026, 10, 7, 10),
+        ),
+        toggleTodo: toggle,
+      );
+      expect(noop, CommandExecutionResult.alreadyApplied);
+      expect(toggled.containsKey('${open.id}'), isFalse);
+    });
+
     test('semantic idempotency: already completed todo returns alreadyApplied', () async {
       final todo = await insertTodo(
         summary: 'Completed todo',
@@ -373,6 +421,46 @@ void main() {
       );
 
       expect(res, CommandExecutionResult.terminalInvalid);
+    });
+
+    test('uncomplete restores a completed occurrence to open', () async {
+      final todo = await insertTodo(
+        summary: 'Recurring habit',
+        syncId: 'sync_habit_undo',
+        rrule: 'FREQ=DAILY',
+      );
+      await db.into(db.taskInstanceStates).insert(
+            TaskInstanceStatesCompanion.insert(
+              syncId: 'state_habit_undo',
+              todoSyncId: todo.syncId!,
+              occurrenceId: '2026-10-07T08:00:00.000Z',
+              status: const Value('COMPLETED'),
+              completedAt: Value(DateTime.utc(2026, 10, 7, 8, 15)),
+            ),
+          );
+
+      bool? toggled;
+      String? toggledOccurrence;
+      final res = await executeWidgetCommand(
+        db,
+        WidgetCommand(
+          commandId: 'cmd_inst_undo',
+          action: 'uncomplete',
+          target: 'taskInstance',
+          todoId: todo.id,
+          todoSyncId: todo.syncId,
+          occurrenceId: '2026-10-07T08:00:00.000Z',
+          at: DateTime.utc(2026, 10, 7, 8, 30),
+        ),
+        toggleTodo: ({required id, required isCompleted, occurrenceId}) async {
+          toggled = isCompleted;
+          toggledOccurrence = occurrenceId;
+        },
+      );
+
+      expect(res, CommandExecutionResult.success);
+      expect(toggled, isFalse);
+      expect(toggledOccurrence, '2026-10-07T08:00:00.000Z');
     });
 
     test('semantic idempotency: already completed instance state returns alreadyApplied', () async {

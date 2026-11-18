@@ -29,6 +29,7 @@ data class WidgetSnapshot(val json: JSONObject) {
     val todoId: Int? = null,
     val todoSyncId: String? = null,
     val occurrenceId: String? = null,
+    val completed: Boolean = false,
   )
 
   data class ActionTaskRow(
@@ -43,6 +44,7 @@ data class WidgetSnapshot(val json: JSONObject) {
     val dueEpochMs: Long?,
     val dueDate: String?,
     val startEpochMs: Long?,
+    val completed: Boolean = false,
   )
 
   data class ActionCounts(
@@ -56,6 +58,7 @@ data class WidgetSnapshot(val json: JSONObject) {
     val dueToday: List<ActionTaskRow>,
     val overdue: List<ActionTaskRow>,
     val counts: ActionCounts,
+    val completed: List<ActionTaskRow> = emptyList(),
   )
 
   data class TodoItemRow(
@@ -68,11 +71,13 @@ data class WidgetSnapshot(val json: JSONObject) {
     val hasTime: Boolean,
     val recurring: Boolean,
     val tagColors: List<String>,
+    val completed: Boolean = false,
   )
 
   data class TodoModeBlock(
     val items: List<TodoItemRow>,
     val overdue: List<TodoItemRow>,
+    val completed: List<TodoItemRow> = emptyList(),
     val completedCount: Int,
     val total: Int,
     val sixThingsCap: Int,
@@ -151,10 +156,12 @@ data class WidgetSnapshot(val json: JSONObject) {
           todoId = row.optionalInt("todoId"),
           todoSyncId = row.optionalString("todoSyncId"),
           occurrenceId = row.optionalString("occurrenceId"),
+          completed = row.optBoolean("completed", false),
         )
       },
       dueToday = o.optJSONArray("dueToday").toObjectList(::taskRow),
       overdue = o.optJSONArray("overdue").toObjectList(::taskRow),
+      completed = o.optJSONArray("completed").toObjectList(::taskRow),
       counts = ActionCounts(
         dueToday = counts?.optInt("dueToday", 0) ?: 0,
         overdue = counts?.optInt("overdue", 0) ?: 0,
@@ -314,6 +321,9 @@ data class WidgetSnapshot(val json: JSONObject) {
     const val ACTION_TOGGLE_TODO = "com.dayspark.app.action.TOGGLE_TODO"
     const val ACTION_COMPLETE_ACTION = "com.dayspark.app.action.COMPLETE_ACTION"
     const val EXTRA_TARGET = "target"
+    const val EXTRA_ACTION = "action"
+    const val ACTION_COMPLETE = "complete"
+    const val ACTION_UNCOMPLETE = "uncomplete"
     const val EXTRA_TODO_ID = "todoId"
     const val EXTRA_TODO_SYNC_ID = "todoSyncId"
     const val EXTRA_OCCURRENCE_ID = "occurrenceId"
@@ -354,6 +364,7 @@ data class WidgetSnapshot(val json: JSONObject) {
       todoSyncId: String?,
       occurrenceId: String?,
       sourceAllocationId: String? = null,
+      action: String = ACTION_COMPLETE,
     ): String {
       val commandId = java.util.UUID.randomUUID().toString()
       val atIso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
@@ -363,7 +374,10 @@ data class WidgetSnapshot(val json: JSONObject) {
       val obj = JSONObject().apply {
         put("version", 1)
         put("commandId", commandId)
-        put("action", "complete")
+        put(
+          "action",
+          if (action == ACTION_UNCOMPLETE) ACTION_UNCOMPLETE else ACTION_COMPLETE,
+        )
         put("target", target)
         put("todoId", todoId)
         if (!todoSyncId.isNullOrEmpty()) put("todoSyncId", todoSyncId)
@@ -398,6 +412,76 @@ data class WidgetSnapshot(val json: JSONObject) {
     fun ackCommand(context: Context, commandId: String): Boolean {
       val editor = prefs(context).edit()
       return editor.remove("$COMMAND_PREFIX$commandId").commit()
+    }
+
+    // A second tap on the same checkbox is an undo, not a second completion.
+    // Checking the queue first keeps a tap from stacking another complete
+    // command that would run after the app opened and re-apply the action the
+    // user just cancelled. Broadcast receivers run serially on the main thread,
+    // so read-then-remove is ordered with other taps.
+    fun cancelPendingCommands(
+      context: Context,
+      target: String,
+      todoId: Int,
+      occurrenceId: String?,
+    ): Int = cancelPendingCommands(
+      context = context,
+      target = target,
+      todoId = todoId,
+      occurrenceId = occurrenceId,
+      action = null,
+    )
+
+    // `action` narrows the cancel to a command that would do the same thing.
+    // Without it, tapping a checked row after a committed-but-unacked
+    // `complete` would cancel that stale command and enqueue nothing, so the
+    // undo silently did nothing.
+    fun cancelPendingCommands(
+      context: Context,
+      target: String,
+      todoId: Int,
+      occurrenceId: String?,
+      action: String?,
+    ): Int {
+      val prefs = prefs(context)
+      val editor = prefs.edit()
+      var removed = 0
+      for ((key, value) in prefs.all) {
+        if (!key.startsWith(COMMAND_PREFIX) || value !is String) continue
+        if (commandMatches(value, target, todoId, occurrenceId, action)) {
+          editor.remove(key)
+          removed++
+        }
+      }
+      if (removed > 0) editor.commit()
+      return removed
+    }
+
+    // Allocation is deliberately not part of the identity: the same recurring
+    // occurrence scheduled twice is still one completion, and leaving a
+    // duplicate would complete what the user just unchecked.
+    fun commandMatches(
+      raw: String,
+      target: String,
+      todoId: Int,
+      occurrenceId: String?,
+      action: String? = null,
+    ): Boolean {
+      val obj = try {
+        JSONObject(raw)
+      } catch (_: Exception) {
+        return false
+      }
+      val storedAction = obj.optString("action", ACTION_COMPLETE)
+      if (storedAction != ACTION_COMPLETE && storedAction != ACTION_UNCOMPLETE) {
+        return false
+      }
+      if (action != null && storedAction != action) return false
+      if (obj.optString("target", "todo") != target) return false
+      if (obj.optInt("todoId", -1) != todoId) return false
+      if (target != "taskInstance") return true
+      val stored = obj.optString("occurrenceId", "")
+      return stored.isNotEmpty() && stored == occurrenceId
     }
 
     fun readPendingTargets(context: Context): PendingTargets {
@@ -451,10 +535,11 @@ data class WidgetSnapshot(val json: JSONObject) {
       dueEpochMs = o.optionalLong("dueEpochMs"),
       dueDate = o.optionalString("dueDate"),
       startEpochMs = o.optionalLong("startEpochMs"),
+      completed = o.optBoolean("completed", false),
     )
 
     private fun todoMode(o: JSONObject?, includeOverdue: Boolean): TodoModeBlock {
-      if (o == null) return TodoModeBlock(emptyList(), emptyList(), 0, 0, 0)
+      if (o == null) return TodoModeBlock(emptyList(), emptyList(), emptyList(), 0, 0, 0)
       return TodoModeBlock(
         items = o.optJSONArray("items").toObjectList(::todoItem),
         overdue = if (includeOverdue) {
@@ -462,6 +547,7 @@ data class WidgetSnapshot(val json: JSONObject) {
         } else {
           emptyList()
         },
+        completed = o.optJSONArray("completed").toObjectList(::todoItem),
         completedCount = o.optInt("completedCount", 0),
         total = o.optInt("total", 0),
         sixThingsCap = o.optInt("sixThingsCap", 0),
@@ -487,6 +573,7 @@ data class WidgetSnapshot(val json: JSONObject) {
         hasTime = o.optBoolean("hasTime", false),
         recurring = o.optBoolean("recurring", false),
         tagColors = colors,
+        completed = o.optBoolean("completed", false),
       )
     }
   }

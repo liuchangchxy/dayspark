@@ -356,7 +356,18 @@ class CalendarWidgetProvider : AppWidgetProvider() {
         for (index in 0 until emitted) {
           views.addView(
             R.id.calendar_summary,
-            summaryRow(context, items[index], theme, primary, secondary, error, accent, ui, appWidgetId),
+            summaryRow(
+              context,
+              items[index],
+              theme,
+              primary,
+              secondary,
+              error,
+              accent,
+              ui,
+              appWidgetId,
+              selectedIso,
+            ),
           )
         }
         val hidden = dayMark.itemCount - emitted
@@ -369,13 +380,33 @@ class CalendarWidgetProvider : AppWidgetProvider() {
             ui?.withCount(ui.moreCount, hidden) ?: context.getString(R.string.widget_more_count, hidden),
           )
           WidgetSupport.textColor(more, R.id.calendar_summary_title, theme, "accent", accent)
-          more.setOnClickPendingIntent(R.id.calendar_summary_row, openCalendar)
+          WidgetSupport.bindOpen(more, WidgetRows.CALENDAR_SUMMARY_OPEN_IDS, openCalendar)
           views.addView(R.id.calendar_summary, more)
         }
       }
 
       return views
     }
+
+    // Exposed so the row's tap target can be exercised without building a whole
+    // month grid and its snapshot.
+    internal fun summaryRowForTest(
+      context: Context,
+      item: WidgetSnapshot.MonthItemRow,
+      appWidgetId: Int,
+      selectedIso: String,
+    ): RemoteViews = summaryRow(
+      context = context,
+      item = item,
+      theme = null,
+      primary = context.getColor(R.color.widget_text_primary),
+      secondary = context.getColor(R.color.widget_text_secondary),
+      error = context.getColor(R.color.widget_error),
+      accent = context.getColor(R.color.widget_accent),
+      ui = null,
+      appWidgetId = appWidgetId,
+      selectedIso = selectedIso,
+    )
 
     private fun summaryRow(
       context: Context,
@@ -387,6 +418,7 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       accent: Int,
       ui: WidgetSnapshot.UiStrings?,
       appWidgetId: Int,
+      selectedIso: String,
     ): RemoteViews {
       val row = RemoteViews(context.packageName, R.layout.widget_calendar_summary_row)
       val isDeadline = item.kind == "todoDeadline"
@@ -416,14 +448,13 @@ class CalendarWidgetProvider : AppWidgetProvider() {
         item.kind == "eventOccurrence" && (item.eventId ?: -1) > 0 ->
           WidgetSupport.eventUri(item.eventId!!)
         (item.todoId ?: -1) > 0 -> WidgetSupport.todoUri(item.todoId!!)
-        else -> null
+        else -> WidgetSupport.calendarUri(selectedIso)
       }
-      if (uri != null) {
-        row.setOnClickPendingIntent(
-          R.id.calendar_summary_row,
-          WidgetSupport.openUri(context, uri, (uri.toString().hashCode() + appWidgetId) and 0x7FFFFFFF),
-        )
-      }
+      WidgetSupport.bindOpen(
+        row,
+        WidgetRows.CALENDAR_SUMMARY_OPEN_IDS,
+        WidgetSupport.openUri(context, uri, (uri.toString().hashCode() + appWidgetId) and 0x7FFFFFFF),
+      )
       return row
     }
 

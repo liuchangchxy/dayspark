@@ -245,6 +245,7 @@ class HomeWidgetService {
       final action = buildActionBlock(
         projection,
         calendarColors: calendarColors,
+        date: effectiveNow,
       );
       final completedCount =
           projection.completedTodayTodos.length +
@@ -254,6 +255,10 @@ class HomeWidgetService {
         now: effectiveNow,
         sixThingsEnabled: sixThingsEnabled,
         completedCount: completedCount,
+        // Kept in the snapshot so the widget can show a checked row the user
+        // can tap again to undo the completion. Without it the row vanishes on
+        // the first refresh and "undo" has nothing to act on.
+        completedToday: projection.completedTodayTodos,
       );
       final month = await monthCalendar(
         db,
@@ -323,6 +328,7 @@ class HomeWidgetService {
   static Map<String, Object?> buildActionBlock(
     ActionProjectionData data, {
     Map<int, String>? calendarColors,
+    DateTime? date,
   }) {
     final timeline = <({int sortMs, Map<String, dynamic> row})>[];
     for (final e in data.events) {
@@ -345,9 +351,20 @@ class HomeWidgetService {
         },
       ));
     }
+    // A block whose occurrence was completed while it was already running stays
+    // on the timeline. Its checkbox has to know that, or it renders unchecked
+    // and a tap re-sends `complete` to a row that is already done.
+    final completedOccurrences = {
+      for (final instance in data.completedTodayTaskInstances)
+        '${instance.todo.id}:${instance.occurrenceId}',
+    };
+    final completedInTimeline = <String>{};
     for (final a in data.allocations) {
       final localStart = a.allocation.startAt.toLocal();
       final localEnd = a.allocation.endAt.toLocal();
+      final key = '${a.todo.id}:${a.allocation.occurrenceId}';
+      final done = completedOccurrences.contains(key);
+      if (done) completedInTimeline.add(key);
       timeline.add((
         sortMs: localStart.millisecondsSinceEpoch,
         row: {
@@ -362,6 +379,7 @@ class HomeWidgetService {
           'startEpochMs': localStart.millisecondsSinceEpoch,
           'endEpochMs': localEnd.millisecondsSinceEpoch,
           'isAllDay': false,
+          'completed': done,
           if (calendarColors?[a.todo.calendarId] != null)
             'color': calendarColors![a.todo.calendarId],
         },
@@ -388,6 +406,26 @@ class HomeWidgetService {
     for (final todo in dueTodos) {
       dueToday.add(_todoActionRow(todo));
     }
+    // Completed rows get their own key rather than being appended to
+    // `dueToday`. `dueToday` is the shared cross-platform contract: the Apple
+    // widgets decode it without a `completed` field and send a hardcoded
+    // `complete`, so a completed row there would render as an open task whose
+    // box can never fill. Keeping them separate also means they can never take
+    // a row away from an open overdue task.
+    final completed = <Map<String, dynamic>>[];
+    for (final todo in data.completedTodayTodos) {
+      if (!_wasDueToday(todo, date)) continue;
+      completed.add(_todoActionRow(todo));
+    }
+    for (final instance in data.completedTodayTaskInstances) {
+      // An occurrence already drawn on the timeline (its block was running when
+      // it was completed) must not appear a second time here; the timeline row
+      // carries the same undo.
+      if (completedInTimeline.contains('${instance.todo.id}:${instance.occurrenceId}')) {
+        continue;
+      }
+      completed.add(_instanceRow(instance, completed: true));
+    }
 
     final overdue = <Map<String, dynamic>>[];
     final overdueTodos = List<Todo>.of(data.overdueTodos)
@@ -409,6 +447,7 @@ class HomeWidgetService {
       'timeline': timelineRows,
       'dueToday': dueToday.take(_actionCap).toList(),
       'overdue': overdue.take(_actionCap).toList(),
+      'completed': completed.take(_actionCap).toList(),
       'counts': {
         'dueToday': data.todayTaskInstances.length + data.dueTodayTodos.length,
         'overdue': data.overdueTodos.length + data.missedTaskInstances.length,
@@ -417,6 +456,19 @@ class HomeWidgetService {
             data.completedTodayTaskInstances.length,
       },
     };
+  }
+
+  // The widget's completed rows exist to be undone, so they must be rows the
+  // user was looking at: due today (or overdue) and top-level. An inbox task, a
+  // future task or a checklist subtask completed today would otherwise appear
+  // in a "Due today" list it was never part of.
+  static bool _wasDueToday(Todo todo, DateTime? date) {
+    if (todo.parentId != null) return false;
+    final due = todo.dueDate;
+    if (due == null) return false;
+    final ref = date ?? DateTime.now();
+    final endOfDay = DateTime(ref.year, ref.month, ref.day + 1);
+    return due.toLocal().isBefore(endOfDay);
   }
 
   static Map<String, dynamic> _todoActionRow(Todo todo) {
@@ -433,11 +485,15 @@ class HomeWidgetService {
       'priority': todo.priority,
       if (due != null) 'dueEpochMs': due.millisecondsSinceEpoch,
       if (local != null) 'dueDate': _isoDate(local),
+      'completed': todo.status == 'COMPLETED',
       'displayTime': hasTime ? _formatTime(local) : '',
     };
   }
 
-  static Map<String, dynamic> _instanceRow(ProjectedTaskInstance instance) {
+  static Map<String, dynamic> _instanceRow(
+    ProjectedTaskInstance instance, {
+    bool completed = false,
+  }) {
     final anchor = instance.occurrence.nominalAnchor;
     final resolved = instance.occurrence.resolvedStartInstant;
     final localAnchor = anchor is LocalDateTime ? anchor : null;
@@ -449,6 +505,7 @@ class HomeWidgetService {
       'occurrenceId': instance.occurrenceId,
       'summary': instance.todo.summary,
       'priority': instance.todo.priority,
+      'completed': completed,
       if (resolved != null)
         'startEpochMs': resolved.toLocal().millisecondsSinceEpoch,
       if (localAnchor != null)
@@ -463,6 +520,7 @@ class HomeWidgetService {
     required DateTime now,
     required bool sixThingsEnabled,
     required int completedCount,
+    List<Todo> completedToday = const [],
   }) async {
     final today = DateTime(now.year, now.month, now.day);
     final rows =
@@ -534,6 +592,7 @@ class HomeWidgetService {
         if (due != null) 'dueEpochMs': due.millisecondsSinceEpoch,
         'hasTime': hasTime,
         'recurring': recurring,
+        'completed': todo.status == 'COMPLETED',
         'tagColors': tagColors[todo.id] ?? const <String>[],
       };
     }
@@ -547,6 +606,14 @@ class HomeWidgetService {
         'sixThingsCap': sixThingsCap,
         'items': todayEmitted.map(item).toList(),
         'overdue': overdueItems.take(_todosTodayCap).map(item).toList(),
+        // Only rows that belonged to this list: an inbox task, a future task or
+        // a subtask completed today is not a "Today" row and gets no undo row
+        // here (the widget only draws `today.completed`).
+        'completed': completedToday
+            .where((todo) => _wasDueToday(todo, now))
+            .take(_todosTodayCap)
+            .map(item)
+            .toList(),
         'completedCount': completedCount,
         'total': todayItems.length,
       },
