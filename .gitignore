@@ -111,3 +111,6 @@ design/opendesign/todo-mobile-v030/final/
 
 # Playwright CLI session artifacts
 .playwright-cli/
+
+# refshot run log
+docs/design/visual-direction/refs/_last-run.json

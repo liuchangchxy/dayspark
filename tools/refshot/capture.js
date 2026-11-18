@@ -39,10 +39,20 @@ const LOGIN_MARKERS = [
 ];
 
 function parseArgs(argv) {
-  const opts = { targets: path.join(__dirname, 'targets.json'), dryRun: false, only: null };
+  const opts = {
+    targets: path.join(__dirname, 'targets.json'),
+    dryRun: false,
+    only: null,
+    retries: 1,
+    delay: 1600,
+    allowExisting: false,
+  };
   for (const arg of argv.slice(2)) {
     if (arg === '--dry-run') opts.dryRun = true;
+    else if (arg === '--allow-existing') opts.allowExisting = true;
     else if (arg.startsWith('--only=')) opts.only = arg.slice('--only='.length);
+    else if (arg.startsWith('--retries=')) opts.retries = Number(arg.slice('--retries='.length));
+    else if (arg.startsWith('--delay=')) opts.delay = Number(arg.slice('--delay='.length));
     else if (!arg.startsWith('--')) opts.targets = path.resolve(arg);
   }
   return opts;
@@ -95,14 +105,19 @@ async function detectLoginWall(page) {
   return null;
 }
 
-async function collectCandidates(page) {
-  return page.evaluate((min) => {
-    const vw = window.innerWidth;
+async function collectCandidates(page, target) {
+  return page.evaluate(({ min, app, platform }) => {    const vw = window.innerWidth;
     const vh = window.innerHeight;
     const title = (document.querySelector('h1') && document.querySelector('h1').innerText
       ? document.querySelector('h1').innerText
       : document.title || ''
     ).toLowerCase();
+    const appNorm = (app || '').toLowerCase();
+    const platformWords = {
+      phone: ['ios', 'android', 'iphone', 'mobile'],
+      web: ['web', 'desktop'],
+    };
+    const platformMatchers = platformWords[platform] || ['ios', 'android', 'web'];
     const images = Array.from(document.images);
     return images
       .map((im, index) => {
@@ -121,9 +136,15 @@ async function collectCandidates(page) {
         const titleNorm = title.replace(/\s+/g, ' ').trim();
         const altNorm = alt.replace(/\s+/g, ' ').trim();
         const altMatchesTitle = titleNorm.length > 0 && altNorm.includes(titleNorm);
+        const altHasApp = appNorm.length > 0 && alt.includes(appNorm);
+        const altHasPlatform = platformMatchers.some((w) => alt.includes(w));
+        const isLogo = alt.includes('logo') || alt.includes('icon');
         const area = nw * nh;
         let score = area;
         if (altMatchesTitle) score *= 6;
+        if (altHasApp) score *= 3;
+        if (altHasPlatform) score *= 1.5;
+        if (isLogo) score *= 0.001;
         if (inViewport) score *= 2;
         if (visible) score *= 1.5;
         score *= 1 / (1 + dist);
@@ -137,16 +158,42 @@ async function collectCandidates(page) {
           visibleW,
           visibleH,
           altMatchesTitle,
+          altHasApp,
+          altHasPlatform,
           score,
         };
       })
       .filter((c) => c.eligible)
       .sort((a, b) => {
         if (a.altMatchesTitle !== b.altMatchesTitle) return b.altMatchesTitle - a.altMatchesTitle;
-        if (a.altMatchesTitle) return a.index - b.index;
+        if (a.altHasApp !== b.altHasApp) return b.altHasApp - a.altHasApp;
         return b.score - a.score;
       });
-  }, { w: MIN_WIDTH, h: MIN_HEIGHT });
+  }, { min: { w: MIN_WIDTH, h: MIN_HEIGHT }, app: target.app, platform: target.platform });
+}
+
+async function readPageMeta(page) {
+  return page.evaluate(() => {
+    const heads = Array.from(document.querySelectorAll('h1')).map((h) => (h.innerText || '').trim());
+    const og = document.querySelector('meta[property="og:image"]');
+    return {
+      title: document.title || '',
+      h1: heads[0] || '',
+      description: heads[1] || '',
+      ogImage: og ? og.getAttribute('content') || '' : '',
+    };
+  });
+}
+
+function screenUrlFromOg(ogImage) {
+  if (!ogImage) return null;
+  try {
+    const url = new URL(ogImage);
+    const screenUrl = url.searchParams.get('screenUrl');
+    return screenUrl || null;
+  } catch (err) {
+    return null;
+  }
 }
 
 async function captureTarget(browser, target, opts) {
@@ -177,7 +224,45 @@ async function captureTarget(browser, target, opts) {
       return result;
     }
 
-    let candidates = await collectCandidates(page);
+    const meta = await readPageMeta(page);
+    result.pageTitle = meta.title;
+    result.screenTitle = meta.h1;
+    result.screenDescription = meta.description;
+
+    const screenUrl = screenUrlFromOg(meta.ogImage);
+    if (screenUrl) result.ogScreenUrl = screenUrl;
+    if (opts.dryRun) {
+      result.ogScreenUrl = screenUrl || '';
+    } else if (screenUrl && !target.selectorHint) {
+      const direct = await context.request.get(screenUrl, { timeout: 60000 });
+      if (direct.ok()) {
+        const buffer = await direct.body();
+        fs.mkdirSync(OUT_DIR, { recursive: true });
+        const outPath = path.join(OUT_DIR, `${target.id}.png`);
+        fs.writeFileSync(outPath, buffer);
+        shrinkIfNeeded(outPath);
+        const dims = readPngSize(outPath);
+        if (dims.width >= MIN_WIDTH && dims.height >= MIN_HEIGHT) {
+          result.status = 'ok';
+          result.width = dims.width;
+          result.height = dims.height;
+          result.sourceNatural = `${dims.width}x${dims.height}`;
+          result.naturalWidth = dims.width;
+          result.naturalHeight = dims.height;
+          result.bytes = fs.statSync(outPath).size;
+          result.file = path.relative(ROOT, outPath);
+          result.alt = meta.h1;
+          result.source = 'og-image';
+          return result;
+        }
+        fs.unlinkSync(outPath);
+        result.reason = `direct screen too small (${dims.width}x${dims.height})`;
+      } else {
+        result.reason = `direct screen download failed (${direct.status()})`;
+      }
+    }
+
+    let candidates = await collectCandidates(page, target);
     if (target.imgAltContains) {
       const needle = String(target.imgAltContains).toLowerCase();
       candidates = candidates.filter((c) => (c.alt || '').toLowerCase().includes(needle));
@@ -240,6 +325,8 @@ async function captureTarget(browser, target, opts) {
     result.width = dims.width;
     result.height = dims.height;
     result.sourceNatural = `${chosen.naturalWidth}x${chosen.naturalHeight}`;
+    result.naturalWidth = chosen.naturalWidth;
+    result.naturalHeight = chosen.naturalHeight;
     result.bytes = stat.size;
     result.file = path.relative(ROOT, outPath);
     result.alt = chosen.alt;
@@ -259,6 +346,21 @@ async function main() {
     process.exit(1);
   }
   const targets = JSON.parse(fs.readFileSync(opts.targets, 'utf8'));
+  const existingManifest = path.join(ROOT, 'docs', 'design', 'visual-direction', 'refs', 'manifest.json');
+  const existingIds = new Set();
+  if (fs.existsSync(existingManifest)) {
+    try {
+      for (const entry of JSON.parse(fs.readFileSync(existingManifest, 'utf8'))) existingIds.add(entry.id);
+    } catch (err) {
+      console.warn(`could not read existing manifest: ${err.message}`);
+    }
+  }
+  const collisions = targets.filter((t) => existingIds.has(t.id)).map((t) => t.id);
+  if (collisions.length && !opts.allowExisting) {
+    console.error(`refusing to overwrite existing reference ids: ${collisions.join(', ')}`);
+    console.error('remove them from the targets file, or pass --allow-existing');
+    process.exit(1);
+  }
   const list = opts.only ? targets.filter((t) => t.id === opts.only) : targets;
   if (!list.length) {
     console.error(`no targets matched (--only=${opts.only})`);
@@ -276,8 +378,13 @@ async function main() {
   try {
     for (let i = 0; i < list.length; i += 1) {
       const target = list[i];
-      if (i > 0) await new Promise((r) => setTimeout(r, 1600));
-      const result = await captureTarget(browser, target, opts);
+      if (i > 0) await new Promise((r) => setTimeout(r, opts.delay));
+      let result = await captureTarget(browser, target, opts);
+      for (let attempt = 0; attempt < opts.retries && result.status !== 'ok' && !opts.dryRun; attempt += 1) {
+        console.log(`  retry ${result.id} (${result.reason || 'unknown'})`);
+        await new Promise((r) => setTimeout(r, 2500));
+        result = await captureTarget(browser, target, opts);
+      }
       results.push(result);
       if (opts.dryRun) {
         console.log(`[dry-run] ${result.id} | ${target.app} | ${target.screen} | ${result.status}`);

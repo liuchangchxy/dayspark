@@ -36,7 +36,12 @@ NODE_PATH="$HOME/Desktop/Code/dayspark-g0/docs/design/interaction-model/tests/no
 Options:
 
 - `--dry-run` — open each page and print candidate images only, save nothing
-- `--only=<id>` — capture a single target from `targets.json`
+- `--only=<id>` — capture a single target from the targets file
+- `--retries=N` — retry a failed target N times (default 1)
+- `--delay=MS` — pause between targets (default 1600)
+- `--allow-existing` — permit a targets file that reuses an id already in
+  `refs/manifest.json` (off by default, so the original board cannot be
+  overwritten by accident)
 - first positional argument — alternate targets file
 
 Each successful capture prints `id | app | screen | output size (source size) | KB`.
@@ -59,10 +64,18 @@ Array of objects:
 ```
 
 - `id` — output filename stem (`refs/<id>.png`)
-- `category` — one of `today` / `calendar` / `detail` / `composer`
+- `category` — one of `today` / `calendar` / `detail` / `composer` /
+  `search` / `empty`
+- `platform` — `phone` or `web` (used to rank the right screenshot)
+- optional `theme` — recorded in the manifest separately from the pixels
+- optional `style` — array of style tags, recorded in the manifest
 - optional `selectorHint` — CSS selector to screenshot instead of auto-pick
 - optional `imgAltContains` — restrict candidates to images whose `alt` contains
   this string (useful on flow pages)
+
+`targets.json` holds the original twelve-reference set;
+`targets-expand.json`, `targets-expand-2.json` and `targets-expand-3.json`
+hold the later expansion rounds.
 
 Adding a target: find a public Mobbin screen page (`https://mobbin.com/explore/screens/<uuid>`)
 via `searx-search -n 10 "site:mobbin.com <app> iOS <screen>"`, open it without
@@ -70,7 +83,13 @@ logging in, then add the entry.
 
 ## How the image is chosen
 
-1. Wait for DOM, images and 3.5 s settling, scroll to trigger lazy loading.
+0. Prefer the page's `og:image` metadata. Mobbin embeds the original screen asset
+   in its `screenUrl` query parameter, so the tool downloads that PNG directly
+   through the browser context (respecting the proxy) instead of screenshotting
+   a rendered element. This yields the full-resolution screenshot with no
+   page chrome, canvas padding or lazy-load gaps.
+1. If there is no `og:image`, wait for DOM, images and 3.5 s settling, scroll to
+   trigger lazy loading.
 2. Enumerate `document.images`, keep `naturalWidth >= 300 && naturalHeight >= 500`.
 3. Prefer the first image whose `alt` contains the page `h1` (this is the
    screen's primary screenshot; related-screen thumbnails further down the page
@@ -91,7 +110,7 @@ in-app screenshot and fail the candidate check.
 
 - `docs/design/visual-direction/refs/<id>.png`
 - `docs/design/visual-direction/refs/_last-run.json` — machine-readable result log
-  (overwritten on every run; not committed)
+  (overwritten on every run; ignored by git)
 
 ## Boundary
 

@@ -1,0 +1,402 @@
+[
+  {
+    "id": "things3-work",
+    "app": "Things 3",
+    "screen": "Work area tasks",
+    "category": "today",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/f16197bf-3c84-4272-8f80-fa8c7c03a2aa"
+  },
+  {
+    "id": "todoist-android-today",
+    "app": "Todoist",
+    "screen": "Today list (Android)",
+    "category": "today",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/4a057c8a-defd-4a41-bb7b-3530c9939cff"
+  },
+  {
+    "id": "habitify-habits",
+    "app": "Habitify",
+    "screen": "Habit list",
+    "category": "today",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/ed2d861c-0c8d-4f88-8c15-6ab09d86da0e"
+  },
+  {
+    "id": "streaks-today",
+    "app": "Streaks",
+    "screen": "Today tasks",
+    "category": "today",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/52854766-e5a6-4700-8e15-fb2f74ae2fea"
+  },
+  {
+    "id": "asana-ios-tasks",
+    "app": "Asana",
+    "screen": "My tasks (iOS)",
+    "category": "today",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/7d42dc3c-0598-41bb-9ef4-8fbdad7bd955"
+  },
+  {
+    "id": "asana-android-tasks",
+    "app": "Asana",
+    "screen": "My tasks (Android)",
+    "category": "today",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/89e62b13-562c-4b76-9b02-a59f8879a973"
+  },
+  {
+    "id": "superlist-web-dashboard",
+    "app": "Superlist",
+    "screen": "Task dashboard",
+    "category": "today",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/2ab73ef1-c40d-465a-a9b1-d8ccbe8b117b"
+  },
+  {
+    "id": "evernote-web-tasks",
+    "app": "Evernote",
+    "screen": "Tasks dashboard",
+    "category": "today",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/3f3d3b26-c352-4562-b9b0-3e61f337690f"
+  },
+  {
+    "id": "motion-web-productivity",
+    "app": "Motion",
+    "screen": "Productivity dashboard",
+    "category": "today",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/92889ff3-9b81-4cc2-a961-1fd2f9beaf32"
+  },
+  {
+    "id": "saturn-schedule",
+    "app": "Saturn Calendar",
+    "screen": "Calendar schedule",
+    "category": "calendar",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/0d803ed3-1ad7-4404-a94b-7b123547ae3e"
+  },
+  {
+    "id": "timepage-timeline",
+    "app": "Timepage",
+    "screen": "Timeline",
+    "category": "calendar",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/8000a757-100d-4b21-aab9-9c3f86d2ee48"
+  },
+  {
+    "id": "notion-calendar-reminder",
+    "app": "Notion",
+    "screen": "Calendar reminder",
+    "category": "calendar",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/cb9d8cab-f85b-438f-bb06-4d1d07b90322"
+  },
+  {
+    "id": "timepage-calendar-reminder",
+    "app": "Timepage",
+    "screen": "Calendar reminder",
+    "category": "calendar",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/060e242a-7dc9-4041-9a39-c343f9ee1b24"
+  },
+  {
+    "id": "streaks-calendar",
+    "app": "Streaks",
+    "screen": "Calendar history",
+    "category": "calendar",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/0041aafe-ceb4-479b-b508-f342d0fbeaf2"
+  },
+  {
+    "id": "cron-tasks",
+    "app": "Cron Calendar",
+    "screen": "Task list in calendar",
+    "category": "calendar",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/3b91c850-4eff-416f-80ca-b9f0ccde05ba"
+  },
+  {
+    "id": "trello-calendar",
+    "app": "Trello",
+    "screen": "Calendar reminder",
+    "category": "calendar",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/05cdcdcc-3715-43d0-b48a-9e80bbe4e127"
+  },
+  {
+    "id": "motion-web-calendar",
+    "app": "Motion",
+    "screen": "Calendar",
+    "category": "calendar",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/5382db37-b403-43fc-8517-09341833d68a"
+  },
+  {
+    "id": "clickup-web-calendar",
+    "app": "ClickUp",
+    "screen": "Calendar",
+    "category": "calendar",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/4bf68525-4c62-46f9-b9e8-54504cb06414"
+  },
+  {
+    "id": "notion-web-calendar",
+    "app": "Notion",
+    "screen": "Calendar",
+    "category": "calendar",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/fbffb097-caf9-45f0-b9e6-8db0d32a18d8"
+  },
+  {
+    "id": "amie-web-calendar",
+    "app": "Amie",
+    "screen": "Calendar",
+    "category": "calendar",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/05c4146b-77d3-486d-809d-d8173d8aa4d6"
+  },
+  {
+    "id": "height-web-calendar",
+    "app": "Height",
+    "screen": "Calendar",
+    "category": "calendar",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/febdffe1-040a-4bdd-97a7-7e2855b6b360"
+  },
+  {
+    "id": "timepage-event-detail",
+    "app": "Timepage",
+    "screen": "Event detail",
+    "category": "detail",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/b2d5b037-e8d2-4e70-aa75-be23f144671f"
+  },
+  {
+    "id": "timetree-event-detail",
+    "app": "TimeTree",
+    "screen": "Event detail",
+    "category": "detail",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/8789d5f1-8aae-4954-b1b9-a76156caecd3"
+  },
+  {
+    "id": "asana-note-detail",
+    "app": "Asana",
+    "screen": "Task detail",
+    "category": "detail",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/70c69044-933a-49f9-a007-2da2b1c6683f"
+  },
+  {
+    "id": "craft-note-detail",
+    "app": "Craft",
+    "screen": "Note detail",
+    "category": "detail",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/c1ac0e03-c63e-4d8e-84cd-d8a3c4505656"
+  },
+  {
+    "id": "bear-note-detail",
+    "app": "Bear",
+    "screen": "Note detail",
+    "category": "detail",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/db5b095a-d227-43dd-b334-e556563105b0"
+  },
+  {
+    "id": "gcal-event-detail",
+    "app": "Google Calendar",
+    "screen": "Event detail",
+    "category": "detail",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/caff1859-540c-4786-ab12-094d4f81ee4f"
+  },
+  {
+    "id": "gcal-note-detail",
+    "app": "Google Calendar",
+    "screen": "Event detail (2)",
+    "category": "detail",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/9373fa3c-c9b7-4c62-9f7e-3837e369cad9"
+  },
+  {
+    "id": "linear-web-issue",
+    "app": "Linear",
+    "screen": "Issue detail",
+    "category": "detail",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/a0c168b3-153d-4b5a-9af5-32aa299cc2ee"
+  },
+  {
+    "id": "notion-web-note",
+    "app": "Notion",
+    "screen": "Note detail",
+    "category": "detail",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/95cfbdc4-10fb-4f5d-bc9e-84c627e3ef35"
+  },
+  {
+    "id": "saturn-add-event",
+    "app": "Saturn Calendar",
+    "screen": "New event",
+    "category": "composer",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/807b6c29-9050-413c-ad36-9cd6c2669a21"
+  },
+  {
+    "id": "saturn-date-time",
+    "app": "Saturn Calendar",
+    "screen": "Date & time picker",
+    "category": "composer",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/8a1dfb72-930d-4665-8de0-c67e54416dfd"
+  },
+  {
+    "id": "saturn-edit-event",
+    "app": "Saturn Calendar",
+    "screen": "Edit event",
+    "category": "composer",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/c196e73e-54d3-4aec-a4ac-31a431d3035a"
+  },
+  {
+    "id": "craft-ios-edit",
+    "app": "Craft",
+    "screen": "Edit note",
+    "category": "composer",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/dccf8d4b-fa3b-41f6-9e2d-f238ab2ae015"
+  },
+  {
+    "id": "monarch-add",
+    "app": "Monarch",
+    "screen": "Add transaction",
+    "category": "composer",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/1735a783-96f4-4438-80b8-c47666f6a36d"
+  },
+  {
+    "id": "monarch-form",
+    "app": "Monarch",
+    "screen": "Form",
+    "category": "composer",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/ac24fa29-5d51-412c-bb6b-ca854c009682"
+  },
+  {
+    "id": "notion-web-add",
+    "app": "Notion",
+    "screen": "Add & create",
+    "category": "composer",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/699dcb25-0dc3-4cc5-b4df-958873f957c3"
+  },
+  {
+    "id": "craft-web-add",
+    "app": "Craft",
+    "screen": "Add & create",
+    "category": "composer",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/0b88032a-af05-48c3-b6ae-af811d32ad96"
+  },
+  {
+    "id": "saturn-search",
+    "app": "Saturn Calendar",
+    "screen": "Search",
+    "category": "search",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/389918d1-36c9-4505-acb4-addcd00ebfeb"
+  },
+  {
+    "id": "asana-settings",
+    "app": "Asana",
+    "screen": "Settings",
+    "category": "search",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/3da07d47-ff0f-4e17-9d9f-d616abb2e31c"
+  },
+  {
+    "id": "timepage-menu",
+    "app": "Timepage",
+    "screen": "Menu",
+    "category": "search",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/58e1f24c-4c2f-4781-8344-4d96f2caaeec"
+  },
+  {
+    "id": "superlist-menu",
+    "app": "Superlist",
+    "screen": "Menu",
+    "category": "search",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/b887890f-f48b-48a0-be9a-12cfdc86c622"
+  },
+  {
+    "id": "monarch-search",
+    "app": "Monarch",
+    "screen": "Search",
+    "category": "search",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/a211fb2e-7a45-4a1e-b9f3-5a07d97c241e"
+  },
+  {
+    "id": "clickup-ios-menu",
+    "app": "ClickUp",
+    "screen": "Menu",
+    "category": "search",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/048dd33f-de1b-4688-b138-3b28f35d6e29"
+  },
+  {
+    "id": "notion-web-search",
+    "app": "Notion",
+    "screen": "Search",
+    "category": "search",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/b116d619-4b36-4895-bb24-1cbf96fd53ca"
+  },
+  {
+    "id": "linear-web-command",
+    "app": "Linear",
+    "screen": "Command palette",
+    "category": "search",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/83fd593b-94d5-4e5b-a7d2-4e76b7a21154"
+  },
+  {
+    "id": "superhuman-command",
+    "app": "Superhuman",
+    "screen": "Command palette",
+    "category": "search",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/e36ea7b5-114b-43ff-84d2-3b3e344bbc7d"
+  },
+  {
+    "id": "craft-web-search",
+    "app": "Craft",
+    "screen": "Search",
+    "category": "search",
+    "platform": "web",
+    "url": "https://mobbin.com/explore/screens/29a955f2-18ae-4ae5-b679-d479071f229a"
+  },
+  {
+    "id": "todoist-empty",
+    "app": "Todoist",
+    "screen": "Empty state",
+    "category": "empty",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/bafed01a-18a8-4b80-afed-2dec7ddc4d16"
+  },
+  {
+    "id": "reminders-empty",
+    "app": "Reminders",
+    "screen": "Empty state",
+    "category": "empty",
+    "platform": "phone",
+    "url": "https://mobbin.com/explore/screens/052fe281-a17e-421e-92b7-7dc5222aed38"
+  }
+]

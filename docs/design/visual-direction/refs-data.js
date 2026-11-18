@@ -1,0 +1,1250 @@
+window.REFS = [
+  {
+    "id": "things3-anytime",
+    "app": "Things 3",
+    "screen": "Anytime",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/9f0d2a69-0445-4c6d-a4ab-94275b5be1b7",
+    "file": "things3-anytime.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light mode. Anytime list grouped by project.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "minimal-editorial"
+    ]
+  },
+  {
+    "id": "things3-upcoming",
+    "app": "Things 3",
+    "screen": "Upcoming",
+    "category": "calendar",
+    "sourceUrl": "https://mobbin.com/explore/screens/590f4dd6-1a6d-45a3-91c3-3508a762b041",
+    "file": "things3-upcoming.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark mode. Upcoming grouped by day with calendar events.",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "ios-native",
+      "dense-pro"
+    ]
+  },
+  {
+    "id": "things3-detail",
+    "app": "Things 3",
+    "screen": "To-do form",
+    "category": "detail",
+    "sourceUrl": "https://mobbin.com/explore/screens/07cc7ad2-a6ee-410b-a8a0-16cc5786ae65",
+    "file": "things3-detail.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Task edit sheet (to-do form) opened over the list.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native"
+    ]
+  },
+  {
+    "id": "todoist-today",
+    "app": "Todoist",
+    "screen": "Today task list",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/342de899-b7f1-4753-90b8-636764b9554d",
+    "file": "todoist-today.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light mode. Today list with priorities, labels and a floating add button.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "colorful"
+    ]
+  },
+  {
+    "id": "todoist-calendar",
+    "app": "Todoist",
+    "screen": "Calendar",
+    "category": "calendar",
+    "sourceUrl": "https://mobbin.com/explore/screens/a2df34bd-c6e8-465f-831c-46e84ab254f0",
+    "file": "todoist-calendar.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Upcoming/calendar view with a month strip above the grouped list.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "card-based"
+    ]
+  },
+  {
+    "id": "todoist-detail",
+    "app": "Todoist",
+    "screen": "Task detail",
+    "category": "detail",
+    "sourceUrl": "https://mobbin.com/explore/screens/d56f6d81-6afd-490b-9880-bb5fc83b518e",
+    "file": "todoist-detail.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Task detail sheet: scheduling, priority, labels, reminders, sub-tasks, comment field.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "dense-pro"
+    ]
+  },
+  {
+    "id": "cron-calendar",
+    "app": "Cron Calendar",
+    "screen": "Day timeline",
+    "category": "calendar",
+    "sourceUrl": "https://mobbin.com/explore/screens/faa71ad3-3190-4566-ac0b-98e8c7a6e7fc",
+    "file": "cron-calendar.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Two-day timeline with hour grid, all-day row and bottom meeting bar. No events in this capture.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial",
+      "dense-pro"
+    ]
+  },
+  {
+    "id": "ticktick-tasks",
+    "app": "TickTick",
+    "screen": "Tasks & reminders",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/4f6cb999-7199-4125-9658-bf7136e49368",
+    "file": "ticktick-tasks.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light mode. Tasks grouped by list with priority colors, dates and a floating add button.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "material",
+      "colorful"
+    ]
+  },
+  {
+    "id": "ticktick-today-empty",
+    "app": "TickTick",
+    "screen": "Today empty state",
+    "category": "empty",
+    "sourceUrl": "https://mobbin.com/explore/screens/eafeaa8f-4f9c-4ff2-a47e-62b90a7dbe8e",
+    "file": "ticktick-today-empty.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Empty-state design for the Today view.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "material",
+      "minimal-editorial"
+    ]
+  },
+  {
+    "id": "linear-home",
+    "app": "Linear",
+    "screen": "Home",
+    "category": "today",
+    "sourceUrl": "https://mobbin.com/explore/screens/a369b2d1-7456-4698-b618-64fc492e7468",
+    "file": "linear-home.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light mode. Home with My Issues, favorites and teams.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial",
+      "monochrome"
+    ]
+  },
+  {
+    "id": "linear-edit",
+    "app": "Linear",
+    "screen": "Edit issue",
+    "category": "detail",
+    "sourceUrl": "https://mobbin.com/explore/screens/e4ef49b0-7eb1-450b-9eec-e6967ce8592d",
+    "file": "linear-edit.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Issue edit form with title, description, status/assignee/date chips and keyboard open.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial",
+      "dense-pro"
+    ]
+  },
+  {
+    "id": "linear-search",
+    "app": "Linear",
+    "screen": "Search results",
+    "category": "detail",
+    "sourceUrl": "https://mobbin.com/explore/screens/1d79d0f1-c4ad-4d3a-8764-5b0e70afb708",
+    "file": "linear-search.png",
+    "width": 833,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Search screen with results, Issues/Projects tabs and keyboard open.",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial",
+      "monochrome"
+    ]
+  },
+  {
+    "id": "things3-work",
+    "app": "Things 3",
+    "screen": "Work area",
+    "category": "today",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/f16197bf-3c84-4272-8f80-fa8c7c03a2aa",
+    "file": "things3-work.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Work area split into Upcoming and project lists, inline to-do rows."
+  },
+  {
+    "id": "things3-calendar",
+    "app": "Things 3",
+    "screen": "Calendar picker",
+    "category": "calendar",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/056c6af4-02c9-4f35-9a39-378d63eb3b4b",
+    "file": "things3-calendar.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Deadline date picker opened over a to-do."
+  },
+  {
+    "id": "todoist-android-today",
+    "app": "Todoist",
+    "screen": "Task detail (Android)",
+    "category": "detail",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "material",
+      "dense-pro"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/4a057c8a-defd-4a41-bb7b-3530c9939cff",
+    "file": "todoist-android-today.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Android task detail with schedule, sub-tasks and comments."
+  },
+  {
+    "id": "todoist-empty",
+    "app": "Todoist",
+    "screen": "Empty task states",
+    "category": "empty",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "warm-soft"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/bafed01a-18a8-4b80-afed-2dec7ddc4d16",
+    "file": "todoist-empty.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Illustrated empty state for task comments."
+  },
+  {
+    "id": "habitify-habits",
+    "app": "Habitify",
+    "screen": "Meditation progress",
+    "category": "detail",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "colorful",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/ed2d861c-0c8d-4f88-8c15-6ab09d86da0e",
+    "file": "habitify-habits.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Progress chart with weekly streak summary."
+  },
+  {
+    "id": "habitify-note-detail",
+    "app": "Habitify",
+    "screen": "New habit form",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/79c14dfb-e380-4bd4-a8d0-fa864625d3b5",
+    "file": "habitify-note-detail.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. New habit form with repeat, date and reminder rows."
+  },
+  {
+    "id": "streaks-today",
+    "app": "Streaks",
+    "screen": "Task menu",
+    "category": "today",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "colorful"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/52854766-e5a6-4700-8e15-fb2f74ae2fea",
+    "file": "streaks-today.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Six large habit bubbles on a green field."
+  },
+  {
+    "id": "streaks-calendar",
+    "app": "Streaks",
+    "screen": "Exercise task detail",
+    "category": "detail",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "colorful"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/0041aafe-ceb4-479b-b508-f342d0fbeaf2",
+    "file": "streaks-calendar.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Full-bleed orange task detail with a circular add action."
+  },
+  {
+    "id": "streaks-note-detail",
+    "app": "Streaks",
+    "screen": "Feature selection",
+    "category": "detail",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/98adc946-4049-43e5-acc6-de3e2e8f0266",
+    "file": "streaks-note-detail.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Feature picker with two oversized ring controls."
+  },
+  {
+    "id": "asana-ios-tasks",
+    "app": "Asana",
+    "screen": "Assigned task list",
+    "category": "today",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/7d42dc3c-0598-41bb-9ef4-8fbdad7bd955",
+    "file": "asana-ios-tasks.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Assigned tasks with list/board/table segmented control."
+  },
+  {
+    "id": "asana-android-tasks",
+    "app": "Asana",
+    "screen": "Categorized task list",
+    "category": "today",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "material"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/89e62b13-562c-4b76-9b02-a59f8879a973",
+    "file": "asana-android-tasks.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. My Tasks grouped into due buckets on Android."
+  },
+  {
+    "id": "asana-note-detail",
+    "app": "Asana",
+    "screen": "Task details",
+    "category": "detail",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/70c69044-933a-49f9-a007-2da2b1c6683f",
+    "file": "asana-note-detail.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Task detail sheet with status, assignee and description."
+  },
+  {
+    "id": "asana-web-schedule",
+    "app": "Asana",
+    "screen": "Schedule",
+    "category": "calendar",
+    "platform": "web",
+    "theme": "dark",
+    "style": [
+      "dense-pro",
+      "flat-brutalist"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/391722fb-ed8b-46eb-8729-50f3887029ce",
+    "file": "asana-web-schedule.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Dense schedule view with sidebar and month grid."
+  },
+  {
+    "id": "asana-web-tasks",
+    "app": "Asana",
+    "screen": "Task dashboard",
+    "category": "today",
+    "platform": "web",
+    "theme": "dark",
+    "style": [
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/d5a33d16-8ae3-4dff-9b13-0f1678eb1f8d",
+    "file": "asana-web-tasks.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark sidebar. Project task board with approval cards."
+  },
+  {
+    "id": "evernote-web-tasks",
+    "app": "Evernote",
+    "screen": "Task list",
+    "category": "today",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "dense-pro",
+      "flat-brutalist"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/3f3d3b26-c352-4562-b9b0-3e61f337690f",
+    "file": "evernote-web-tasks.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Wide task table with columns and rows."
+  },
+  {
+    "id": "evernote-reminder",
+    "app": "Evernote",
+    "screen": "Reminder sheet",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/2ca9f722-a10b-41e8-b63f-52cd65f72ea5",
+    "file": "evernote-reminder.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Reminder time picker with keyboard open."
+  },
+  {
+    "id": "evernote-web-note",
+    "app": "Evernote",
+    "screen": "Full-screen note",
+    "category": "detail",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "flat-brutalist"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/9ffd8149-fffb-43af-8fc1-c77c06e67cfe",
+    "file": "evernote-web-note.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Wide note editor with sidebar."
+  },
+  {
+    "id": "saturn-schedule",
+    "app": "Saturn Calendar",
+    "screen": "Event form with calendar",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "ios-native",
+      "glassy"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/0d803ed3-1ad7-4404-a94b-7b123547ae3e",
+    "file": "saturn-schedule.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Event form with image header, calendar chip and guests."
+  },
+  {
+    "id": "saturn-add-event",
+    "app": "Saturn Calendar",
+    "screen": "New calendar form",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "glassy",
+      "colorful"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/807b6c29-9050-413c-ad36-9cd6c2669a21",
+    "file": "saturn-add-event.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. New calendar sheet with color swatches and icon grid."
+  },
+  {
+    "id": "saturn-date-time",
+    "app": "Saturn Calendar",
+    "screen": "Scheduled events",
+    "category": "today",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "glassy",
+      "dense-pro"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/8a1dfb72-930d-4665-8de0-c67e54416dfd",
+    "file": "saturn-date-time.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Today/Tomorrow agenda rows with tinted event cards."
+  },
+  {
+    "id": "saturn-edit-event",
+    "app": "Saturn Calendar",
+    "screen": "Edit event form",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "ios-native",
+      "glassy"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/c196e73e-54d3-4aec-a4ac-31a431d3035a",
+    "file": "saturn-edit-event.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Edit event form with all-day, repeat and guest rows."
+  },
+  {
+    "id": "saturn-search",
+    "app": "Saturn Calendar",
+    "screen": "Filtered class selection",
+    "category": "search",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/389918d1-36c9-4505-acb4-addcd00ebfeb",
+    "file": "saturn-search.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Search field with result chips and keyboard."
+  },
+  {
+    "id": "timepage-timeline",
+    "app": "Timepage",
+    "screen": "Timeline settings",
+    "category": "search",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "monochrome",
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/8000a757-100d-4b21-aab9-9c3f86d2ee48",
+    "file": "timepage-timeline.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Monochrome settings list for timeline layout."
+  },
+  {
+    "id": "timepage-calendar-reminder",
+    "app": "Timepage",
+    "screen": "Year overview",
+    "category": "calendar",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/060e242a-7dc9-4041-9a39-c343f9ee1b24",
+    "file": "timepage-calendar-reminder.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Full-year month grid on black."
+  },
+  {
+    "id": "timepage-event-detail",
+    "app": "Timepage",
+    "screen": "Event detail",
+    "category": "detail",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "warm-soft",
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/b2d5b037-e8d2-4e70-aa75-be23f144671f",
+    "file": "timepage-event-detail.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Warm monochrome event detail with circular map and weather."
+  },
+  {
+    "id": "timetree-calendar",
+    "app": "TimeTree",
+    "screen": "Month calendar",
+    "category": "calendar",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "colorful"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/ff2f636b-3e6b-4ae0-9f63-42674962495a",
+    "file": "timetree-calendar.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Month grid with colored dots and a small agenda below."
+  },
+  {
+    "id": "bear-note-detail",
+    "app": "Bear",
+    "screen": "Editor text field",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/db5b095a-d227-43dd-b334-e556563105b0",
+    "file": "bear-note-detail.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Markdown editor with formatting bar and keyboard."
+  },
+  {
+    "id": "timetree-event-detail",
+    "app": "TimeTree",
+    "screen": "Event form",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "dark",
+    "style": [
+      "ios-native",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/8789d5f1-8aae-4954-b1b9-a76156caecd3",
+    "file": "timetree-event-detail.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Event form with a photo hero and attendee rows."
+  },
+  {
+    "id": "notion-calendar-reminder",
+    "app": "Notion",
+    "screen": "Calendar date sheet",
+    "category": "calendar",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/cb9d8cab-f85b-438f-bb06-4d1d07b90322",
+    "file": "notion-calendar-reminder.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Date picker sheet with time, repeat and end-date toggles."
+  },
+  {
+    "id": "notion-web-calendar",
+    "app": "Notion",
+    "screen": "Date picker in table",
+    "category": "calendar",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/fbffb097-caf9-45f0-b9e6-8db0d32a18d8",
+    "file": "notion-web-calendar.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Table view with a floating date/time picker."
+  },
+  {
+    "id": "notion-web-settings",
+    "app": "Notion",
+    "screen": "Notification settings",
+    "category": "search",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "flat-brutalist"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/5dfe50e8-f0c0-4ea8-825c-52ab91b6462e",
+    "file": "notion-web-settings.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Settings modal with grouped toggle rows."
+  },
+  {
+    "id": "notion-web-dark",
+    "app": "Notion",
+    "screen": "Dark mode home",
+    "category": "today",
+    "platform": "web",
+    "theme": "dark",
+    "style": [
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/162fae1f-956f-4c9e-8582-d098ebf35038",
+    "file": "notion-web-dark.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Home dashboard with cards and quick links."
+  },
+  {
+    "id": "cron-tasks",
+    "app": "Cron Calendar",
+    "screen": "Side-by-side calendar",
+    "category": "calendar",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/3b91c850-4eff-416f-80ca-b9f0ccde05ba",
+    "file": "cron-tasks.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Two-day column calendar with colored event blocks."
+  },
+  {
+    "id": "superhuman-command",
+    "app": "Superhuman",
+    "screen": "Command palette",
+    "category": "search",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "dense-pro",
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/e36ea7b5-114b-43ff-84d2-3b3e344bbc7d",
+    "file": "superhuman-command.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Command palette over a dense inbox list with shortcut keys."
+  },
+  {
+    "id": "clickup-web-calendar",
+    "app": "ClickUp",
+    "screen": "Calendar",
+    "category": "calendar",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "dense-pro",
+      "colorful"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/4bf68525-4c62-46f9-b9e8-54504cb06414",
+    "file": "clickup-web-calendar.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Week calendar with stacked colored bars."
+  },
+  {
+    "id": "clickup-web-tasks",
+    "app": "ClickUp",
+    "screen": "Task table",
+    "category": "today",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "dense-pro",
+      "flat-brutalist"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/991b9969-ecda-4bb5-aa0f-52caf8f811a6",
+    "file": "clickup-web-tasks.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Dense task table with sidebar and chart summary."
+  },
+  {
+    "id": "clickup-ios-menu",
+    "app": "ClickUp",
+    "screen": "Navigation menu",
+    "category": "search",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "material"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/048dd33f-de1b-4688-b138-3b28f35d6e29",
+    "file": "clickup-ios-menu.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Navigation drawer with spaces, favorites and dashboards."
+  },
+  {
+    "id": "clickup-ios-reminder",
+    "app": "ClickUp",
+    "screen": "Reminder date sheet",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "material"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/e8eb70be-d6ac-49cb-be9c-8492260f67b6",
+    "file": "clickup-ios-reminder.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Reminder sheet with date chips and keyboard."
+  },
+  {
+    "id": "motion-web-calendar",
+    "app": "Motion",
+    "screen": "Calendar view",
+    "category": "calendar",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "dense-pro",
+      "flat-brutalist"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/5382db37-b403-43fc-8517-09341833d68a",
+    "file": "motion-web-calendar.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Auto-scheduled calendar with task blocks."
+  },
+  {
+    "id": "motion-web-tasks",
+    "app": "Motion",
+    "screen": "Task list",
+    "category": "today",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "dense-pro"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/0955ab12-2387-492c-a404-07d7f4b55f1d",
+    "file": "motion-web-tasks.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Task table with priority and date columns."
+  },
+  {
+    "id": "amie-web-calendar",
+    "app": "Amie",
+    "screen": "Calendar with sidebar",
+    "category": "calendar",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "colorful",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/05c4146b-77d3-486d-809d-d8173d8aa4d6",
+    "file": "amie-web-calendar.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Week calendar with colored events and a task sidebar."
+  },
+  {
+    "id": "gcal-event-detail",
+    "app": "Google Calendar",
+    "screen": "Day view",
+    "category": "calendar",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "dense-pro"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/caff1859-540c-4786-ab12-094d4f81ee4f",
+    "file": "gcal-event-detail.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Day timeline with overlapping colored events."
+  },
+  {
+    "id": "gcal-note-detail",
+    "app": "Google Calendar",
+    "screen": "Event details",
+    "category": "detail",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "card-based",
+      "dense-pro"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/9373fa3c-c9b7-4c62-9f7e-3837e369cad9",
+    "file": "gcal-note-detail.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Event detail with image hero, attendees and reminders."
+  },
+  {
+    "id": "gcal-calendar",
+    "app": "Google Calendar",
+    "screen": "Week calendar",
+    "category": "calendar",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/fc65c8f6-d37f-4696-9271-61089ea3ae9d",
+    "file": "gcal-calendar.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Week grid with multicolored event blocks."
+  },
+  {
+    "id": "monarch-add",
+    "app": "Monarch",
+    "screen": "New transaction",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/1735a783-96f4-4438-80b8-c47666f6a36d",
+    "file": "monarch-add.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Transaction form with amount, date, account and category."
+  },
+  {
+    "id": "monarch-form",
+    "app": "Monarch",
+    "screen": "Household form",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/ac24fa29-5d51-412c-bb6b-ca854c009682",
+    "file": "monarch-form.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Long stacked address form with orange primary action."
+  },
+  {
+    "id": "monarch-search",
+    "app": "Monarch",
+    "screen": "Institution search",
+    "category": "search",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/a211fb2e-7a45-4a1e-b9f3-5a07d97c241e",
+    "file": "monarch-search.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Search sheet with grouped results and keyboard."
+  },
+  {
+    "id": "monarch-filter",
+    "app": "Monarch",
+    "screen": "Filter & sort",
+    "category": "search",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "minimal-editorial"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/bed58d79-a6a8-44d8-ba50-bc97d47249ce",
+    "file": "monarch-filter.png",
+    "width": 830,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Filter sheet with ranges, accounts and tags."
+  },
+  {
+    "id": "craft-web-add",
+    "app": "Craft",
+    "screen": "Assistant popup",
+    "category": "composer",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "minimal-editorial",
+      "warm-soft"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/0b88032a-af05-48c3-b6ae-af811d32ad96",
+    "file": "craft-web-add.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Floating assistant panel over a document."
+  },
+  {
+    "id": "craft-web-search",
+    "app": "Craft",
+    "screen": "Searchable dashboard",
+    "category": "search",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/29a955f2-18ae-4ae5-b679-d479071f229a",
+    "file": "craft-web-search.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Dashboard with a search panel and document cards."
+  },
+  {
+    "id": "craft-ios-dashboard",
+    "app": "Craft",
+    "screen": "Document stats",
+    "category": "today",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/fe03ca7d-d5bd-4c8a-b662-b1462e405f05",
+    "file": "craft-ios-dashboard.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Dashboard with document cards and a stats panel."
+  },
+  {
+    "id": "craft-web-dark",
+    "app": "Craft",
+    "screen": "Dark mode dashboard",
+    "category": "detail",
+    "platform": "web",
+    "theme": "dark",
+    "style": [
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/41242ddb-1fc3-4712-ab8b-87ecdcce3654",
+    "file": "craft-web-dark.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Document dashboard in dark mode."
+  },
+  {
+    "id": "trello-calendar",
+    "app": "Trello",
+    "screen": "Reminder options",
+    "category": "composer",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/05cdcdcc-3715-43d0-b48a-9e80bbe4e127",
+    "file": "trello-calendar.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Reminder bottom sheet with due date and reminder rows."
+  },
+  {
+    "id": "trello-web-kanban",
+    "app": "Trello",
+    "screen": "Board",
+    "category": "today",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "colorful",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/027b1a4d-07e5-41f0-863c-2bc077cd5664",
+    "file": "trello-web-kanban.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Three-column board over a colorful gradient cover."
+  },
+  {
+    "id": "height-web-kanban",
+    "app": "Height",
+    "screen": "Kanban board",
+    "category": "today",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "dense-pro",
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/7af0506b-4d8f-4fbc-b946-066e40f628c8",
+    "file": "height-web-kanban.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Kanban board with a dark sidebar and dense cards."
+  },
+  {
+    "id": "notion-web-kanban",
+    "app": "Notion",
+    "screen": "Pipeline board",
+    "category": "today",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "card-based"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/fb5875ba-8cb1-4ed8-a12f-9fc0b232119f",
+    "file": "notion-web-kanban.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Creative pipeline board with pastel status cards."
+  },
+  {
+    "id": "superhuman-web-schedule",
+    "app": "Superhuman",
+    "screen": "Reminder dropdown",
+    "category": "composer",
+    "platform": "web",
+    "theme": "light",
+    "style": [
+      "dense-pro"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/07d80262-f880-40c4-bff1-cb2a652bfbd2",
+    "file": "superhuman-web-schedule.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Reminder dropdown layered over an email thread."
+  },
+  {
+    "id": "superhuman-web-dark",
+    "app": "Superhuman",
+    "screen": "Dark mode inbox",
+    "category": "today",
+    "platform": "web",
+    "theme": "dark",
+    "style": [
+      "monochrome"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/bcd6318b-cf9d-4f34-88f9-8f63da988c85",
+    "file": "superhuman-web-dark.png",
+    "width": 1800,
+    "height": 1125,
+    "capturedAt": "2026-11-19",
+    "notes": "Dark. Dense inbox list with keyboard hints."
+  },
+  {
+    "id": "reminders-empty",
+    "app": "Reminders",
+    "screen": "Empty state",
+    "category": "empty",
+    "platform": "phone",
+    "theme": "light",
+    "style": [
+      "ios-native"
+    ],
+    "sourceUrl": "https://mobbin.com/explore/screens/052fe281-a17e-421e-92b7-7dc5222aed38",
+    "file": "reminders-empty.png",
+    "width": 831,
+    "height": 1800,
+    "capturedAt": "2026-11-19",
+    "notes": "Light. Empty list with a pencil illustration and add button."
+  }
+];

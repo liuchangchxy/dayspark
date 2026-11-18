@@ -50,7 +50,9 @@
   .counts .like b { color: var(--like); }
   .counts .dislike b { color: var(--dislike); }
   .spacer { flex: 1 1 auto; }
-  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .filters + .filters { margin-top: 8px; }
+  .filter-label { font-size: 12px; color: var(--muted); min-width: 40px; }
   button {
     font: inherit; color: var(--text);
     background: var(--panel);
@@ -61,6 +63,8 @@
   }
   button:hover { border-color: var(--accent); }
   button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  button small { color: var(--muted); font-size: 11px; margin-left: 4px; }
+  button[aria-pressed="true"] small { color: inherit; opacity: .8; }
   .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
   .hint kbd {
     font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -101,8 +105,8 @@
   .num { font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
   .app { font-weight: 650; font-size: 14px; }
   .screen { font-size: 13px; color: var(--muted); }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .tag {
-    align-self: flex-start;
     font-size: 11px; color: var(--muted);
     border: 1px solid var(--line); border-radius: 4px;
     padding: 1px 6px;
@@ -123,12 +127,59 @@
     border: 1px solid var(--line); border-radius: 6px; padding: 10px;
     resize: vertical;
   }
+
+  /* quick mode */
+  .quick {
+    position: fixed; inset: 0; z-index: 50;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    padding: 12px 16px 18px;
+  }
+  .quick[hidden] { display: none; }
+  .quick-top {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    font-size: 13px; color: var(--muted);
+  }
+  .quick-top .title { font-weight: 650; color: var(--text); }
+  .quick-top b { color: var(--text); font-weight: 650; }
+  .quick-top .like b { color: var(--like); }
+  .quick-top .dislike b { color: var(--dislike); }
+  .quick-stage {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px 0;
+  }
+  .quick-figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; max-height: 100%; min-width: 0; }
+  .quick-img-wrap {
+    height: 70vh; max-width: min(92vw, 900px);
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--bg) 60%, var(--panel));
+    border: 1px solid var(--line); border-radius: 8px;
+    overflow: hidden;
+  }
+  .quick-img-wrap img { max-height: 100%; max-width: 100%; width: auto; height: auto; display: block; }
+  .quick-caption { font-size: 13px; color: var(--muted); min-height: 20px; text-align: center; }
+  .quick-caption .app { color: var(--text); }
+  .quick-bottom { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+  .quick-bottom button { padding: 9px 16px; font-size: 15px; }
+  .quick-bottom .skip { color: var(--muted); }
+  .quick-bottom .liked { border-color: var(--like); color: var(--like); }
+  .quick-bottom .disliked { border-color: var(--dislike); color: var(--dislike); }
+  .quick-done { text-align: center; padding: 24px; }
+  .quick-done h2 { font-size: 18px; margin: 0 0 10px; }
+  .quick-done p { color: var(--muted); margin: 0 0 18px; }
+  .quick-error { color: var(--dislike); font-size: 13px; padding: 20px; text-align: center; }
+
   @media (max-width: 640px) {
     header { padding: 12px 14px 10px; }
     main { padding: 14px 14px 32px; }
     .grid { grid-template-columns: 1fr; gap: 14px; }
     .shot { height: 430px; }
     .counts { font-size: 12px; gap: 8px; }
+    .quick { padding: 10px 10px 14px; }
+    .quick-img-wrap { height: 62vh; max-width: 100%; }
+    .quick-top { font-size: 12px; gap: 6px 10px; }
+    .quick-bottom button { padding: 10px 12px; font-size: 14px; }
   }
 </style>
 </head>
@@ -142,16 +193,40 @@
       <span>未评 <b id="count-unrated">0</b></span>
     </div>
     <span class="spacer"></span>
-    <div class="filters" id="filters">
-      <button data-filter="all" aria-pressed="true">全部</button>
-      <button data-filter="unrated" aria-pressed="false">只看未评</button>
-      <button data-filter="liked" aria-pressed="false">只看喜欢</button>
-      <button data-filter="disliked" aria-pressed="false">只看讨厌</button>
-    </div>
-    <button id="export-btn">导出 JSON</button>
+    <button id="quick-btn" type="button">快速模式</button>
+    <button id="export-btn" type="button">导出 JSON</button>
+  </div>
+  <div class="filters" id="filters">
+    <span class="filter-label">状态</span>
+    <button data-filter="all" aria-pressed="true">全部 <small data-count></small></button>
+    <button data-filter="unrated" aria-pressed="false">只看未评 <small data-count></small></button>
+    <button data-filter="liked" aria-pressed="false">只看喜欢 <small data-count></small></button>
+    <button data-filter="disliked" aria-pressed="false">只看讨厌 <small data-count></small></button>
+  </div>
+  <div class="filters" id="category-filters">
+    <span class="filter-label">类型</span>
+    <button data-category="all" aria-pressed="true">全部 <small data-count></small></button>
+    <button data-category="today" aria-pressed="false">today <small data-count></small></button>
+    <button data-category="calendar" aria-pressed="false">calendar <small data-count></small></button>
+    <button data-category="detail" aria-pressed="false">detail <small data-count></small></button>
+    <button data-category="composer" aria-pressed="false">composer <small data-count></small></button>
+    <button data-category="search" aria-pressed="false">search <small data-count></small></button>
+    <button data-category="empty" aria-pressed="false">empty <small data-count></small></button>
+  </div>
+  <div class="filters" id="platform-filters">
+    <span class="filter-label">平台</span>
+    <button data-platform="all" aria-pressed="true">全部 <small data-count></small></button>
+    <button data-platform="phone" aria-pressed="false">手机 <small data-count></small></button>
+    <button data-platform="web" aria-pressed="false">Web/桌面 <small data-count></small></button>
+  </div>
+  <div class="filters" id="theme-filters">
+    <span class="filter-label">主题</span>
+    <button data-theme="all" aria-pressed="true">全部 <small data-count></small></button>
+    <button data-theme="light" aria-pressed="false">浅色 <small data-count></small></button>
+    <button data-theme="dark" aria-pressed="false">深色 <small data-count></small></button>
   </div>
   <div class="hint">
-    <kbd>1</kbd> 喜欢 · <kbd>2</kbd> 讨厌 · <kbd>←</kbd><kbd>→</kbd> 切换当前卡片 · <kbd>Enter</kbd> 下一张
+    网格：<kbd>1</kbd> 喜欢 · <kbd>2</kbd> 讨厌 · <kbd>←</kbd><kbd>→</kbd> 切换当前卡片 · 快速模式：<kbd>1</kbd>/<kbd>2</kbd> 评分并前进 · <kbd>空格</kbd> 跳过 · <kbd>←</kbd> 上一张 · <kbd>Esc</kbd> 退出
   </div>
   <div id="storage-note" hidden></div>
 </header>
@@ -161,164 +236,57 @@
   <div class="empty" id="empty-msg" hidden>当前筛选下没有图片。</div>
   <section class="export-panel" id="export-panel" hidden>
     <p id="export-msg" class="hint"></p>
-    <textarea id="export-area" readonly></textarea>
+    <textarea id="export-area" readonly aria-label="导出的 JSON"></textarea>
   </section>
 </main>
 
-<script>
-const REFS = [
-  {
-    "id": "things3-anytime",
-    "app": "Things 3",
-    "screen": "Anytime",
-    "category": "today",
-    "sourceUrl": "https://mobbin.com/explore/screens/9f0d2a69-0445-4c6d-a4ab-94275b5be1b7",
-    "file": "things3-anytime.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Light mode. Anytime list grouped by project."
-  },
-  {
-    "id": "things3-upcoming",
-    "app": "Things 3",
-    "screen": "Upcoming",
-    "category": "calendar",
-    "sourceUrl": "https://mobbin.com/explore/screens/590f4dd6-1a6d-45a3-91c3-3508a762b041",
-    "file": "things3-upcoming.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Dark mode. Upcoming grouped by day with calendar events."
-  },
-  {
-    "id": "things3-detail",
-    "app": "Things 3",
-    "screen": "To-do form",
-    "category": "detail",
-    "sourceUrl": "https://mobbin.com/explore/screens/07cc7ad2-a6ee-410b-a8a0-16cc5786ae65",
-    "file": "things3-detail.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Task edit sheet (to-do form) opened over the list."
-  },
-  {
-    "id": "todoist-today",
-    "app": "Todoist",
-    "screen": "Today task list",
-    "category": "today",
-    "sourceUrl": "https://mobbin.com/explore/screens/342de899-b7f1-4753-90b8-636764b9554d",
-    "file": "todoist-today.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Light mode. Today list with priorities, labels and a floating add button."
-  },
-  {
-    "id": "todoist-calendar",
-    "app": "Todoist",
-    "screen": "Calendar",
-    "category": "calendar",
-    "sourceUrl": "https://mobbin.com/explore/screens/a2df34bd-c6e8-465f-831c-46e84ab254f0",
-    "file": "todoist-calendar.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Upcoming/calendar view with a month strip above the grouped list."
-  },
-  {
-    "id": "todoist-detail",
-    "app": "Todoist",
-    "screen": "Task detail",
-    "category": "detail",
-    "sourceUrl": "https://mobbin.com/explore/screens/d56f6d81-6afd-490b-9880-bb5fc83b518e",
-    "file": "todoist-detail.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Task detail sheet: scheduling, priority, labels, reminders, sub-tasks, comment field."
-  },
-  {
-    "id": "cron-calendar",
-    "app": "Cron Calendar (now Notion Calendar)",
-    "screen": "Day timeline",
-    "category": "calendar",
-    "sourceUrl": "https://mobbin.com/explore/screens/faa71ad3-3190-4566-ac0b-98e8c7a6e7fc",
-    "file": "cron-calendar.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Two-day timeline with hour grid, all-day row and bottom meeting bar. No events in this capture."
-  },
-  {
-    "id": "ticktick-tasks",
-    "app": "TickTick",
-    "screen": "Tasks & reminders",
-    "category": "today",
-    "sourceUrl": "https://mobbin.com/explore/screens/4f6cb999-7199-4125-9658-bf7136e49368",
-    "file": "ticktick-tasks.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Light mode. Tasks grouped by list with priority colors, dates and a floating add button."
-  },
-  {
-    "id": "ticktick-today-empty",
-    "app": "TickTick",
-    "screen": "Today empty state",
-    "category": "today",
-    "sourceUrl": "https://mobbin.com/explore/screens/eafeaa8f-4f9c-4ff2-a47e-62b90a7dbe8e",
-    "file": "ticktick-today-empty.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Empty-state design for the Today view."
-  },
-  {
-    "id": "linear-home",
-    "app": "Linear",
-    "screen": "Home",
-    "category": "today",
-    "sourceUrl": "https://mobbin.com/explore/screens/a369b2d1-7456-4698-b618-64fc492e7468",
-    "file": "linear-home.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Light mode. Home with My Issues, favorites and teams."
-  },
-  {
-    "id": "linear-edit",
-    "app": "Linear",
-    "screen": "Edit issue",
-    "category": "detail",
-    "sourceUrl": "https://mobbin.com/explore/screens/e4ef49b0-7eb1-450b-9eec-e6967ce8592d",
-    "file": "linear-edit.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Issue edit form with title, description, status/assignee/date chips and keyboard open."
-  },
-  {
-    "id": "linear-search",
-    "app": "Linear",
-    "screen": "Search results",
-    "category": "detail",
-    "sourceUrl": "https://mobbin.com/explore/screens/1d79d0f1-c4ad-4d3a-8764-5b0e70afb708",
-    "file": "linear-search.png",
-    "width": 833,
-    "height": 1800,
-    "capturedAt": "2026-11-19",
-    "notes": "Search screen with results, Issues/Projects tabs and keyboard open."
-  }
-];
+<div class="quick" id="quick" hidden role="dialog" aria-modal="true" aria-label="快速评分">
+  <div class="quick-top">
+    <span class="title">快速模式</span>
+    <span>当前 <b id="quick-pos">0</b> / <b id="quick-total">0</b></span>
+    <span class="like">已评 <b id="quick-rated">0</b></span>
+    <span class="dislike">未评 <b id="quick-unrated">0</b></span>
+    <span class="spacer"></span>
+    <button id="quick-brand" type="button" aria-pressed="false">显示品牌</button>
+    <button id="quick-close" type="button">退出</button>
+  </div>
+  <div class="quick-stage" id="quick-stage">
+    <figure class="quick-figure" id="quick-figure">
+      <div class="quick-img-wrap">
+        <img id="quick-img" alt="">
+      </div>
+      <figcaption class="quick-caption" id="quick-caption"></figcaption>
+    </figure>
+    <div class="quick-done" id="quick-done" hidden>
+      <h2>已评 <span id="done-rated">0</span> / 未评 <span id="done-unrated">0</span></h2>
+      <p>全部看完了。可以退出并导出 JSON。</p>
+      <button id="done-export" type="button">导出 JSON</button>
+    </div>
+  </div>
+  <div class="quick-bottom" id="quick-bottom">
+    <button type="button" data-quick="dislike" class="disliked" title="不喜欢 (2)">👎 2</button>
+    <button type="button" data-quick="skip" class="skip" title="跳过 (空格)">跳过</button>
+    <button type="button" data-quick="like" class="liked" title="喜欢 (1)">👍 1</button>
+  </div>
+</div>
 
+<script src="refs-data.js"></script>
+<script>
 const STORAGE_KEY = 'dayspark-refs-choices-v1';
 const CHOICES = { like: 'like', dislike: 'dislike' };
 let storageOk = true;
 let state = {};
 let filter = 'all';
+let categoryFilter = 'all';
+let platformFilter = 'all';
+let themeFilter = 'all';
 let currentId = null;
+
+let quickOpen = false;
+let quickIndex = 0;
+let quickShowBrand = false;
+let quickAdvanceTimer = null;
+let quickList = [];
 
 function loadState() {
   try {
@@ -370,16 +338,59 @@ function renderCounts() {
   document.getElementById('count-liked').textContent = c.liked;
   document.getElementById('count-disliked').textContent = c.disliked;
   document.getElementById('count-unrated').textContent = c.unrated;
+  document.querySelectorAll('#filters button').forEach((b) => {
+    const key = b.dataset.filter;
+    const n = key === 'all' ? REFS.length
+      : key === 'liked' ? c.liked
+      : key === 'disliked' ? c.disliked
+      : c.unrated;
+    const slot = b.querySelector('[data-count]');
+    if (slot) slot.textContent = n;
+  });
+  document.querySelectorAll('#category-filters button').forEach((b) => {
+    const key = b.dataset.category;
+    const n = key === 'all' ? REFS.length : REFS.filter((r) => r.category === key).length;
+    const slot = b.querySelector('[data-count]');
+    if (slot) slot.textContent = n;
+  });
+  document.querySelectorAll('#platform-filters button').forEach((b) => {
+    const key = b.dataset.platform;
+    const n = key === 'all' ? REFS.length : REFS.filter((r) => r.platform === key).length;
+    const slot = b.querySelector('[data-count]');
+    if (slot) slot.textContent = n;
+  });
+  document.querySelectorAll('#theme-filters button').forEach((b) => {
+    const key = b.dataset.theme;
+    const n = key === 'all' ? REFS.length : REFS.filter((r) => r.theme === key).length;
+    const slot = b.querySelector('[data-count]');
+    if (slot) slot.textContent = n;
+  });
 }
 
 function visibleRefs() {
   return REFS.filter((ref) => {
     const c = state[ref.id];
-    if (filter === 'liked') return c === 'like';
-    if (filter === 'disliked') return c === 'dislike';
-    if (filter === 'unrated') return !c;
+    if (filter === 'liked' && c !== 'like') return false;
+    if (filter === 'disliked' && c !== 'dislike') return false;
+    if (filter === 'unrated' && c) return false;
+    if (categoryFilter !== 'all' && ref.category !== categoryFilter) return false;
+    if (platformFilter !== 'all' && ref.platform !== platformFilter) return false;
+    if (themeFilter !== 'all' && ref.theme !== themeFilter) return false;
     return true;
   });
+}
+
+function makeImage(ref) {
+  const img = document.createElement('img');
+  img.src = 'refs/' + ref.file;
+  img.alt = ref.app + ' — ' + ref.screen;
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  if (ref.width && ref.height) {
+    img.width = ref.width;
+    img.height = ref.height;
+  }
+  return img;
 }
 
 function render() {
@@ -394,12 +405,7 @@ function render() {
 
     const shot = document.createElement('div');
     shot.className = 'shot';
-    const img = document.createElement('img');
-    img.src = 'refs/' + ref.file;
-    img.alt = ref.app + ' — ' + ref.screen;
-    img.loading = 'eager';
-    img.decoding = 'async';
-    shot.appendChild(img);
+    shot.appendChild(makeImage(ref));
 
     const meta = document.createElement('div');
     meta.className = 'meta';
@@ -412,9 +418,14 @@ function render() {
     const screen = document.createElement('span');
     screen.className = 'screen';
     screen.textContent = ref.screen;
-    const tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.textContent = ref.category;
+    const tags = document.createElement('div');
+    tags.className = 'tags';
+    for (const label of [ref.category, ref.platform === 'web' ? 'Web' : 'Phone', ref.theme]) {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = label;
+      tags.appendChild(tag);
+    }
     const source = document.createElement('a');
     source.className = 'source';
     source.href = ref.sourceUrl;
@@ -422,7 +433,7 @@ function render() {
     source.rel = 'noopener noreferrer';
     source.textContent = '来源页面';
     source.addEventListener('click', (e) => e.stopPropagation());
-    meta.append(num, app, screen, tag, source);
+    meta.append(num, app, screen, tags, source);
 
     const actions = document.createElement('div');
     actions.className = 'actions';
@@ -482,14 +493,19 @@ function updateCurrentCard() {
   }
 }
 
-function setChoice(id, choice) {
+function setChoice(id, choice, options = {}) {
   if (state[id] === choice) {
     delete state[id];
   } else {
     state[id] = choice;
   }
   saveState();
-  render();
+  if (options.rerender === false) {
+    renderCounts();
+    updateStorageNote();
+  } else {
+    render();
+  }
 }
 
 function moveCurrent(delta) {
@@ -510,6 +526,30 @@ function setFilter(next) {
   render();
 }
 
+function setCategoryFilter(next) {
+  categoryFilter = next;
+  document.querySelectorAll('#category-filters button').forEach((b) => {
+    b.setAttribute('aria-pressed', b.dataset.category === next ? 'true' : 'false');
+  });
+  render();
+}
+
+function setPlatformFilter(next) {
+  platformFilter = next;
+  document.querySelectorAll('#platform-filters button').forEach((b) => {
+    b.setAttribute('aria-pressed', b.dataset.platform === next ? 'true' : 'false');
+  });
+  render();
+}
+
+function setThemeFilter(next) {
+  themeFilter = next;
+  document.querySelectorAll('#theme-filters button').forEach((b) => {
+    b.setAttribute('aria-pressed', b.dataset.theme === next ? 'true' : 'false');
+  });
+  render();
+}
+
 function buildExport() {
   const c = counts();
   return {
@@ -521,6 +561,8 @@ function buildExport() {
       app: ref.app,
       screen: ref.screen,
       category: ref.category,
+      platform: ref.platform,
+      theme: ref.theme,
       choice: state[ref.id] || null
     }))
   };
@@ -559,18 +601,172 @@ function exportJson() {
   msg.textContent = '已尝试下载 refs-choices.json；若浏览器拦截了下载，可直接复制下方内容。';
 }
 
+function quickSnapshot() {
+  const c = counts();
+  document.getElementById('quick-total').textContent = quickList.length;
+  document.getElementById('quick-rated').textContent = c.liked + c.disliked;
+  document.getElementById('quick-unrated').textContent = c.unrated;
+}
+
+function quickPreload(index) {
+  for (const i of [index + 1, index + 2]) {
+    const ref = quickList[i];
+    if (!ref) continue;
+    const im = new Image();
+    im.src = 'refs/' + ref.file;
+  }
+}
+
+function renderQuick() {
+  quickSnapshot();
+  const done = document.getElementById('quick-done');
+  const figure = document.getElementById('quick-figure');
+  const bottom = document.getElementById('quick-bottom');
+  if (quickIndex >= quickList.length) {
+    done.hidden = false;
+    figure.hidden = true;
+    bottom.hidden = true;
+    const c = counts();
+    document.getElementById('done-rated').textContent = c.unrated === REFS.length ? 0 : c.liked + c.disliked;
+    document.getElementById('done-unrated').textContent = c.unrated;
+    document.getElementById('quick-pos').textContent = quickList.length;
+    return;
+  }
+  done.hidden = true;
+  figure.hidden = false;
+  bottom.hidden = false;
+  const ref = quickList[quickIndex];
+  const img = document.getElementById('quick-img');
+  img.alt = ref.app + ' — ' + ref.screen;
+  img.src = 'refs/' + ref.file;
+  document.getElementById('quick-pos').textContent = quickIndex + 1;
+  const caption = document.getElementById('quick-caption');
+  const choice = state[ref.id];
+  if (quickShowBrand) {
+    caption.textContent = '#' + String(REFS.indexOf(ref) + 1).padStart(2, '0') + ' · ' + ref.app + ' · ' + ref.screen;
+  } else {
+    caption.textContent = '#' + String(REFS.indexOf(ref) + 1).padStart(2, '0') + (choice ? ' · 已评' : '');
+  }
+  const likeBtn = bottom.querySelector('[data-quick="like"]');
+  const dislikeBtn = bottom.querySelector('[data-quick="dislike"]');
+  likeBtn.setAttribute('aria-pressed', choice === 'like' ? 'true' : 'false');
+  dislikeBtn.setAttribute('aria-pressed', choice === 'dislike' ? 'true' : 'false');
+  quickPreload(quickIndex);
+}
+
+function openQuick() {
+  quickOpen = true;
+  quickList = REFS.slice();
+  const start = quickList.findIndex((r) => !state[r.id]);
+  quickIndex = start === -1 ? 0 : start;
+  document.getElementById('quick').hidden = false;
+  document.body.style.overflow = 'hidden';
+  renderQuick();
+}
+
+function closeQuick() {
+  quickOpen = false;
+  if (quickAdvanceTimer) {
+    clearTimeout(quickAdvanceTimer);
+    quickAdvanceTimer = null;
+  }
+  document.getElementById('quick').hidden = true;
+  document.body.style.overflow = '';
+  render();
+}
+
+function quickStep(delta) {
+  if (quickAdvanceTimer) {
+    clearTimeout(quickAdvanceTimer);
+    quickAdvanceTimer = null;
+  }
+  quickIndex = Math.max(0, Math.min(quickList.length, quickIndex + delta));
+  renderQuick();
+}
+
+function quickRate(choice) {
+  if (quickIndex >= quickList.length) return;
+  const ref = quickList[quickIndex];
+  state[ref.id] = choice;
+  saveState();
+  renderCounts();
+  updateStorageNote();
+  quickSnapshot();
+  if (quickAdvanceTimer) clearTimeout(quickAdvanceTimer);
+  quickAdvanceTimer = setTimeout(() => {
+    quickAdvanceTimer = null;
+    quickStep(1);
+  }, 190);
+}
+
+function quickSkip() {
+  quickStep(1);
+}
+
 document.getElementById('filters').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-filter]');
   if (!btn) return;
   setFilter(btn.dataset.filter);
 });
+document.getElementById('category-filters').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-category]');
+  if (!btn) return;
+  setCategoryFilter(btn.dataset.category);
+});
+document.getElementById('platform-filters').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-platform]');
+  if (!btn) return;
+  setPlatformFilter(btn.dataset.platform);
+});
+document.getElementById('theme-filters').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-theme]');
+  if (!btn) return;
+  setThemeFilter(btn.dataset.theme);
+});
 
 document.getElementById('export-btn').addEventListener('click', exportJson);
+document.getElementById('quick-btn').addEventListener('click', openQuick);
+document.getElementById('quick-close').addEventListener('click', closeQuick);
+document.getElementById('done-export').addEventListener('click', exportJson);
+document.getElementById('quick-brand').addEventListener('click', (e) => {
+  quickShowBrand = !quickShowBrand;
+  e.currentTarget.setAttribute('aria-pressed', quickShowBrand ? 'true' : 'false');
+  renderQuick();
+});
+document.getElementById('quick-bottom').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-quick]');
+  if (!btn) return;
+  if (btn.dataset.quick === 'like') quickRate('like');
+  else if (btn.dataset.quick === 'dislike') quickRate('dislike');
+  else quickSkip();
+});
 
 document.addEventListener('keydown', (e) => {
   const target = e.target;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (quickOpen) {
+    if (e.key === '1') {
+      quickRate('like');
+      e.preventDefault();
+    } else if (e.key === '2') {
+      quickRate('dislike');
+      e.preventDefault();
+    } else if (e.key === ' ') {
+      quickSkip();
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft') {
+      quickStep(-1);
+      e.preventDefault();
+    } else if (e.key === 'ArrowRight') {
+      quickStep(1);
+      e.preventDefault();
+    } else if (e.key === 'Escape') {
+      closeQuick();
+      e.preventDefault();
+    }
+    return;
+  }
   if (e.key === '1') {
     if (currentId) setChoice(currentId, 'like');
     e.preventDefault();
