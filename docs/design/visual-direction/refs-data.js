@@ -692,7 +692,7 @@ window.REFS = [
     "screen": "Event form",
     "category": "composer",
     "platform": "phone",
-    "theme": "dark",
+    "theme": "light",
     "style": [
       "ios-native",
       "card-based"
@@ -955,7 +955,7 @@ window.REFS = [
     "screen": "Event details",
     "category": "detail",
     "platform": "phone",
-    "theme": "light",
+    "theme": "dark",
     "style": [
       "ios-native",
       "card-based",
