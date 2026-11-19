@@ -1,0 +1,72 @@
+/* Variant C — cool neutral base plus functional category color (low saturation, 10% fill, 3px bar, dot). */
+
+html[data-variant="c"] {
+  --bg: #F7F8FA;
+  --surface: #FFFFFF;
+  --surface-2: #F1F3F6;
+  --hover: #F0F2F6;
+
+  --ink: #16181D;
+  --muted: #5F6673;
+  --faint: #868C97;
+
+  --line: #E4E7EC;
+  --line-strong: #CBD1DA;
+
+  --accent: #2F5BD7;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(47, 91, 215, .09);
+
+  --overdue: #B3402F;
+  --overdue-soft: rgba(179, 64, 47, .10);
+  --due: #A9741F;
+  --due-soft: rgba(169, 116, 31, .10);
+
+  --today-col: rgba(47, 91, 215, .035);
+  --now: var(--accent);
+
+  --chip-fill: var(--due-soft);
+  --chip-bar: var(--due);
+
+  --ev-fill: var(--accent-soft);
+  --ev-bar: var(--accent);
+  --ev-fill-planned: transparent;
+
+  --cat-work: #3B6FD4;
+  --cat-life: #4F7A55;
+  --cat-health: #A9741F;
+  --cat-home: #6B5B95;
+}
+
+html[data-variant="c"] [data-cat="work"] {
+  --ev-fill: rgba(59, 111, 212, .10);
+  --ev-bar: #3B6FD4;
+  --ev-fill-planned: rgba(59, 111, 212, .035);
+  --row-bar: #3B6FD4;
+}
+
+html[data-variant="c"] [data-cat="life"] {
+  --ev-fill: rgba(79, 122, 85, .11);
+  --ev-bar: #4F7A55;
+  --ev-fill-planned: rgba(79, 122, 85, .035);
+  --row-bar: #4F7A55;
+}
+
+html[data-variant="c"] [data-cat="health"] {
+  --ev-fill: rgba(169, 116, 31, .10);
+  --ev-bar: #A9741F;
+  --ev-fill-planned: rgba(169, 116, 31, .035);
+  --row-bar: #A9741F;
+}
+
+html[data-variant="c"] [data-cat="home"] {
+  --ev-fill: rgba(107, 91, 149, .10);
+  --ev-bar: #6B5B95;
+  --ev-fill-planned: rgba(107, 91, 149, .035);
+  --row-bar: #6B5B95;
+}
+
+html[data-variant="c"] .due-chip.is-overdue {
+  --chip-fill: var(--overdue-soft);
+  --chip-bar: var(--overdue);
+}

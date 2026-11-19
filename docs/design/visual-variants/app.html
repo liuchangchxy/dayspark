@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN" data-variant="a" data-platform="desktop" data-screen="today" data-view="list">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DaySpark 视觉变体</title>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var v = (q.get('variant') || 'A').toLowerCase();
+  var p = q.get('platform') === 'phone' ? 'phone' : 'desktop';
+  var s = (q.get('screen') || 'today').toLowerCase();
+  if (['today', 'todo', 'calendar'].indexOf(s) === -1) s = 'today';
+  if (['a', 'b', 'c'].indexOf(v) === -1) v = 'a';
+  var r = document.documentElement;
+  r.setAttribute('data-variant', v);
+  r.setAttribute('data-platform', p);
+  r.setAttribute('data-screen', s);
+})();
+</script>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="variant-a.css">
+<link rel="stylesheet" href="variant-b.css">
+<link rel="stylesheet" href="variant-c.css">
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-mark" viewBox="0 0 16 16"><path d="M8 1.6 9.55 6.45 14.4 8 9.55 9.55 8 14.4 6.45 9.55 1.6 8 6.45 6.45Z"/></symbol>
+  <symbol id="i-today" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4"/><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 16 16"><rect x="2.4" y="3.4" width="11.2" height="10.2" rx="1.4"/><path d="M2.4 6.4h11.2M5.4 2.2v2.4M10.6 2.2v2.4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 16 16"><circle cx="3.4" cy="4.2" r=".9" fill="currentColor" stroke="none"/><circle cx="3.4" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="3.4" cy="11.8" r=".9" fill="currentColor" stroke="none"/><path d="M6.2 4.2h7.2M6.2 8h7.2M6.2 11.8h7.2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2 13.6 13.6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.2v9.6M3.2 8h9.6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 16 16"><path d="M10 3.4 5.4 8l4.6 4.6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 16 16"><path d="M6 3.4 10.6 8 6 12.6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4"/><path d="M8 4.8V8l2.2 1.4"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 16 16"><path d="M2.4 9.2 4.2 3.4h7.6l1.8 5.8v3.4H2.4Z"/><path d="M2.4 9.2h3l.8 1.6h3.6l.8-1.6h3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4"/><path d="M8 4.6v4.2"/><circle cx="8" cy="11.2" r=".8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.2 8.4 6.4 11.6 12.8 4.8"/></symbol>
+  <symbol id="i-back" viewBox="0 0 16 16"><path d="M13 8H3.2M7 4 3 8l4 4"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 16 16"><path d="M3.6 6 8 10.4 12.4 6"/></symbol>
+</svg>
+
+<div class="app">
+
+  <aside class="rail" aria-label="主导航">
+    <div class="rail-brand">
+      <svg class="brand-mark icon"><use href="#i-mark"/></svg>
+      <span class="rail-name">灵光</span>
+      <span class="rail-sub">DaySpark</span>
+    </div>
+
+    <nav class="rail-nav">
+      <a class="rail-item" data-nav="today" href="#today">
+        <svg class="icon"><use href="#i-today"/></svg><span>今天</span>
+      </a>
+      <a class="rail-item" data-nav="todo" href="#todo">
+        <svg class="icon"><use href="#i-list"/></svg><span>待办</span>
+      </a>
+      <a class="rail-item" data-nav="calendar" href="#calendar">
+        <svg class="icon"><use href="#i-calendar"/></svg><span>日历</span>
+      </a>
+    </nav>
+
+    <div class="rail-group">
+      <div class="rail-label">视图</div>
+      <a class="rail-item rail-sub-item" data-nav="todo" href="#todo">
+        <svg class="icon"><use href="#i-inbox"/></svg><span>未安排</span><span class="rail-count">8</span>
+      </a>
+      <a class="rail-item rail-sub-item" data-nav="todo" href="#todo">
+        <svg class="icon"><use href="#i-alert"/></svg><span>已逾期</span><span class="rail-count">2</span>
+      </a>
+      <a class="rail-item rail-sub-item" data-nav="todo" href="#todo">
+        <svg class="icon"><use href="#i-check"/></svg><span>已完成</span><span class="rail-count">2</span>
+      </a>
+    </div>
+
+    <div class="rail-foot">
+      <span>11月15日 周日</span>
+      <span>15:00</span>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-brand">
+        <svg class="brand-mark icon"><use href="#i-mark"/></svg>
+        <span>灵光</span>
+      </div>
+      <div class="tb-date">
+        <span class="tb-date-main">11月15日</span>
+        <span class="tb-date-sub">周日</span>
+      </div>
+      <button class="tb-today" type="button">今天</button>
+      <div class="tb-grow"></div>
+      <label class="tb-search">
+        <svg class="icon"><use href="#i-search"/></svg>
+        <input type="text" placeholder="搜索任务、事件" aria-label="搜索任务、事件" readonly>
+      </label>
+      <button class="tb-new" type="button">
+        <svg class="icon"><use href="#i-plus"/></svg><span>新建</span>
+      </button>
+    </header>
+
+    <div class="screens">
+
+      <section class="screen screen-today" data-screen="today" aria-label="今天">
+        <div class="today-main">
+          <div class="today-feed" id="today-feed"></div>
+          <aside class="today-side" aria-label="未安排">
+            <div class="side-head">
+              <span class="side-title">未安排</span>
+              <span class="side-count">8</span>
+            </div>
+            <div class="side-list" id="uns-list"></div>
+            <a class="side-more" data-nav="todo" href="#todo">查看全部 8 条</a>
+          </aside>
+        </div>
+        <div class="capture">
+          <button class="capture-btn" type="button">
+            <span class="capture-plus"><svg class="icon"><use href="#i-plus"/></svg></span>
+            <span class="capture-text">添加任务或事件</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="screen screen-todo" data-screen="todo" aria-label="待办">
+        <div class="todo-wrap">
+          <div class="todo-list-pane">
+            <div class="toolbar">
+              <div class="chips" role="tablist" aria-label="待办筛选">
+                <button class="chip" type="button" data-filter="unscheduled" role="tab">未安排</button>
+                <button class="chip is-active" type="button" data-filter="all" role="tab" aria-selected="true">全部</button>
+                <button class="chip" type="button" data-filter="date" role="tab">按日期</button>
+              </div>
+              <div class="toolbar-count" id="todo-count">9</div>
+            </div>
+            <div class="todo-list" id="todo-list"></div>
+          </div>
+          <aside class="todo-detail" id="todo-detail" aria-label="待办详情"></aside>
+        </div>
+      </section>
+
+      <section class="screen screen-calendar" data-screen="calendar" aria-label="日历">
+        <div class="cal-toolbar">
+          <div class="cal-nav">
+            <button class="icon-btn" type="button" aria-label="上一周"><svg class="icon"><use href="#i-left"/></svg></button>
+            <button class="icon-btn" type="button" aria-label="下一周"><svg class="icon"><use href="#i-right"/></svg></button>
+          </div>
+          <div class="cal-range" id="cal-range">11月9日 – 11月15日</div>
+          <div class="cal-views">
+            <button class="seg is-active" type="button">周</button>
+            <button class="seg" type="button">月</button>
+          </div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </section>
+
+    </div>
+
+    <nav class="tabbar" aria-label="底部导航">
+      <a class="tab" data-nav="today" href="#today">
+        <svg class="icon"><use href="#i-today"/></svg><span>今天</span>
+      </a>
+      <a class="tab" data-nav="calendar" href="#calendar">
+        <svg class="icon"><use href="#i-calendar"/></svg><span>日历</span>
+      </a>
+      <a class="tab" data-nav="todo" href="#todo">
+        <svg class="icon"><use href="#i-list"/></svg><span>待办</span>
+      </a>
+    </nav>
+  </div>
+
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

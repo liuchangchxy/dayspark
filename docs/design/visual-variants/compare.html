@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>灵光 DaySpark · 三版并排</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body class="site">
+
+<header class="site-head">
+  <div class="site-brand">
+    <svg class="mark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6 9.55 6.45 14.4 8 9.55 9.55 8 14.4 6.45 9.55 1.6 8 6.45 6.45Z"/></svg>
+    灵光
+    <span class="divider">/</span>
+    <span class="sub">视觉方向受控变体</span>
+  </div>
+  <nav class="site-links">
+    <a href="index.html">入口</a>
+    <a href="compare.html" class="is-active">并排对比</a>
+    <a href="blind.html">盲选</a>
+  </nav>
+</header>
+
+<main class="site-main">
+
+  <div class="page-intro">
+    <h1 class="page-title">同一屏，三版并排</h1>
+    <p class="page-desc">结构、行数、文案完全相同；从左到右只改变颜色、冷暖与功能色用量。</p>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <span class="control-label">平台</span>
+      <div class="segment" id="seg-platform" role="group" aria-label="平台">
+        <button type="button" data-value="desktop">桌面</button>
+        <button type="button" data-value="phone">手机</button>
+      </div>
+    </div>
+    <div class="control">
+      <span class="control-label">屏幕</span>
+      <div class="segment" id="seg-screen" role="group" aria-label="屏幕">
+        <button type="button" data-value="today">今天</button>
+        <button type="button" data-value="todo">待办</button>
+        <button type="button" data-value="calendar">日历</button>
+        <button type="button" data-value="all">全部</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="compare-root"></div>
+
+  <footer class="site-foot">
+    <span>差异仅限 CSS 变量：bg / surface / ink / muted / line / accent / 类别色。</span>
+    <a href="blind.html">去盲选</a>
+    <a href="README.md">说明</a>
+  </footer>
+
+</main>
+
+<script src="site.js"></script>
+<script>
+(function () {
+  var state = {
+    platform: Site.qs('platform', 'desktop') === 'phone' ? 'phone' : 'desktop',
+    screen: Site.qs('screen', 'today'),
+  };
+  if (['today', 'todo', 'calendar', 'all'].indexOf(state.screen) === -1) state.screen = 'today';
+
+  var root = document.getElementById('compare-root');
+  var names = { A: '冷中性', B: '暖中性', C: '功能色' };
+  var descs = { A: '单色 + 1 强调色', B: '暖单色 + 1 强调色', C: '类别色 + 语义色' };
+  var screenNames = { today: '今天', todo: '待办', calendar: '日历' };
+
+  var pSeg = Site.segments(document.getElementById('seg-platform'), function (v) { state.platform = v; render(); });
+  var sSeg = Site.segments(document.getElementById('seg-screen'), function (v) { state.screen = v; render(); });
+  pSeg.select(state.platform, true);
+  sSeg.select(state.screen, true);
+
+  function pane(v) {
+    var pane = document.createElement('div');
+    pane.className = 'compare-pane';
+    var head = document.createElement('div');
+    head.className = 'pane-head';
+    var badge = document.createElement('span');
+    badge.className = 'pane-badge';
+    badge.textContent = v;
+    var name = document.createElement('span');
+    name.className = 'pane-name';
+    name.textContent = names[v];
+    var desc = document.createElement('span');
+    desc.className = 'pane-desc';
+    desc.textContent = descs[v];
+    head.appendChild(badge);
+    head.appendChild(name);
+    head.appendChild(desc);
+    pane.appendChild(head);
+
+    var wrap = document.createElement('div');
+    wrap.className = 'frame-wrap';
+    pane.appendChild(wrap);
+    return { node: pane, wrap: wrap };
+  }
+
+  function render() {
+    root.textContent = '';
+    var screens = state.screen === 'all' ? ['today', 'todo', 'calendar'] : [state.screen];
+    var phone = state.platform === 'phone';
+
+    screens.forEach(function (screen) {
+      var section = document.createElement('section');
+      section.className = 'row-section';
+
+      if (state.screen === 'all') {
+        var head = document.createElement('div');
+        head.className = 'row-section-head';
+        var t = document.createElement('span');
+        t.className = 'row-section-title';
+        t.textContent = screenNames[screen];
+        var m = document.createElement('span');
+        m.className = 'row-section-meta';
+        m.textContent = phone ? '手机 390 × 844' : '桌面 1280 × 800';
+        head.appendChild(t);
+        head.appendChild(m);
+        section.appendChild(head);
+      }
+
+      var grid = document.createElement('div');
+      grid.className = 'compare-grid';
+
+      ['A', 'B', 'C'].forEach(function (v) {
+        var p = pane(v);
+        if (phone) {
+          p.wrap.style.width = 'min(390px, 100%)';
+          p.wrap.style.maxWidth = '390px';
+        }
+        grid.appendChild(p.node);
+        p.wrap.__src = 'app.html?variant=' + v + '&platform=' + state.platform + '&screen=' + screen;
+      });
+
+      section.appendChild(grid);
+      root.appendChild(section);
+
+      Array.prototype.forEach.call(section.querySelectorAll('.frame-wrap'), function (wrap) {
+        Site.mountFrame(wrap, wrap.__src, phone ? 390 : 1280, phone ? 844 : 800, {
+          maxScale: 1,
+          title: wrap.__src,
+        });
+      });
+    });
+
+    history.replaceState(null, '', '?platform=' + state.platform + '&screen=' + state.screen);
+    window.__COMPARE_RENDERED__ = true;
+  }
+
+  render();
+})();
+</script>
+
+</body>
+</html>

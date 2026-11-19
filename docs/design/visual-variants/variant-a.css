@@ -1,0 +1,37 @@
+/* Variant A — cool neutral, one accent. Reference: Linear / Superhuman / Asana Schedule. */
+
+html[data-variant="a"] {
+  --bg: #F7F8FA;
+  --surface: #FFFFFF;
+  --surface-2: #F1F3F6;
+  --hover: #F0F2F6;
+
+  --ink: #16181D;
+  --muted: #5F6673;
+  --faint: #868C97;
+
+  --line: #E4E7EC;
+  --line-strong: #CBD1DA;
+
+  --accent: #2F5BD7;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(47, 91, 215, .09);
+
+  --overdue: #16181D;
+  --overdue-soft: rgba(22, 24, 29, .06);
+
+  --today-col: rgba(47, 91, 215, .035);
+  --now: var(--accent);
+
+  --chip-fill: var(--accent-soft);
+  --chip-bar: var(--accent);
+
+  --ev-fill: var(--accent-soft);
+  --ev-bar: var(--accent);
+  --ev-fill-planned: transparent;
+
+  --cat-work: var(--faint);
+  --cat-life: var(--faint);
+  --cat-health: var(--faint);
+  --cat-home: var(--faint);
+}

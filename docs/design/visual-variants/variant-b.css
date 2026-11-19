@@ -1,0 +1,37 @@
+/* Variant B — warm neutral, one accent. Reference: Bear / Craft warmth, no paper texture. */
+
+html[data-variant="b"] {
+  --bg: #FAF9F5;
+  --surface: #FFFFFF;
+  --surface-2: #F4F1EA;
+  --hover: #F3F0E8;
+
+  --ink: #1A1917;
+  --muted: #6B665C;
+  --faint: #7A756A;
+
+  --line: #E7E3DA;
+  --line-strong: #D5CFC2;
+
+  --accent: #8A4B2A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(138, 75, 42, .09);
+
+  --overdue: #1A1917;
+  --overdue-soft: rgba(26, 25, 23, .06);
+
+  --today-col: rgba(138, 75, 42, .04);
+  --now: var(--accent);
+
+  --chip-fill: var(--accent-soft);
+  --chip-bar: var(--accent);
+
+  --ev-fill: var(--accent-soft);
+  --ev-bar: var(--accent);
+  --ev-fill-planned: transparent;
+
+  --cat-work: var(--faint);
+  --cat-life: var(--faint);
+  --cat-health: var(--faint);
+  --cat-home: var(--faint);
+}

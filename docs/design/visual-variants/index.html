@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>灵光 DaySpark · 视觉方向变体</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body class="site">
+
+<header class="site-head">
+  <div class="site-brand">
+    <svg class="mark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6 9.55 6.45 14.4 8 9.55 9.55 8 14.4 6.45 9.55 1.6 8 6.45 6.45Z"/></svg>
+    灵光
+    <span class="divider">/</span>
+    <span class="sub">视觉方向受控变体</span>
+  </div>
+  <nav class="site-links">
+    <a href="index.html" class="is-active">入口</a>
+    <a href="compare.html">并排对比</a>
+    <a href="blind.html">盲选</a>
+  </nav>
+</header>
+
+<main class="site-main">
+
+  <div class="page-intro">
+    <h1 class="page-title">三个受控变体</h1>
+    <p class="page-desc">同一份 DOM、同一份数据、同一套布局与字阶；只有颜色、冷暖与功能色用量不同。</p>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <span class="control-label">变体</span>
+      <div class="segment" id="seg-variant" role="group" aria-label="变体">
+        <button type="button" data-value="A">A · 冷中性</button>
+        <button type="button" data-value="B">B · 暖中性</button>
+        <button type="button" data-value="C">C · 功能色</button>
+      </div>
+    </div>
+    <div class="control">
+      <span class="control-label">平台</span>
+      <div class="segment" id="seg-platform" role="group" aria-label="平台">
+        <button type="button" data-value="desktop">桌面 1280 × 800</button>
+        <button type="button" data-value="phone">手机 390 × 844</button>
+      </div>
+    </div>
+    <div class="control">
+      <span class="control-label">屏幕</span>
+      <div class="segment" id="seg-screen" role="group" aria-label="屏幕">
+        <button type="button" data-value="today">今天</button>
+        <button type="button" data-value="todo">待办</button>
+        <button type="button" data-value="calendar">日历</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="frame-wrap" id="stage-frame"></div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-card">
+      <div class="legend-head"><span class="legend-badge">A</span><span class="legend-title">冷中性 · 单色 + 1 强调色</span></div>
+      <p class="legend-desc">Linear / Superhuman / Asana Schedule 方向。中性灰底，蓝色只用于主操作与状态。</p>
+      <div class="legend-tokens">
+        <span class="token"><i style="background:#F7F8FA"></i>bg</span>
+        <span class="token"><i style="background:#16181D"></i>ink</span>
+        <span class="token"><i style="background:#2F5BD7"></i>accent</span>
+      </div>
+    </div>
+    <div class="legend-card">
+      <div class="legend-head"><span class="legend-badge">B</span><span class="legend-title">暖中性 · 单色 + 1 强调色</span></div>
+      <p class="legend-desc">Bear / Craft 的暖底，不引入纸纹与渐变。赭色只用于主操作与状态。</p>
+      <div class="legend-tokens">
+        <span class="token"><i style="background:#FAF9F5"></i>bg</span>
+        <span class="token"><i style="background:#1A1917"></i>ink</span>
+        <span class="token"><i style="background:#8A4B2A"></i>accent</span>
+      </div>
+    </div>
+    <div class="legend-card">
+      <div class="legend-head"><span class="legend-badge">C</span><span class="legend-title">冷中性 · 类别 / 语义色</span></div>
+      <p class="legend-desc">TimeTree / ClickUp / Amie 方向。四个低饱和类别色，只出现在圆点、3px 左条与 10% 填充。</p>
+      <div class="legend-tokens">
+        <span class="token"><i style="background:#3B6FD4"></i>工作</span>
+        <span class="token"><i style="background:#4F7A55"></i>生活</span>
+        <span class="token"><i style="background:#A9741F"></i>健康</span>
+        <span class="token"><i style="background:#6B5B95"></i>家事</span>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-foot">
+    <span>数据固定：2026-11-15 周日 · now 15:00 · 4 个日程 · 9 条待办</span>
+    <a href="compare.html">三版并排</a>
+    <a href="blind.html">盲选</a>
+    <a href="README.md">说明</a>
+  </footer>
+
+</main>
+
+<script src="site.js"></script>
+<script>
+(function () {
+  var state = {
+    variant: (Site.qs('variant', 'A') || 'A').toUpperCase(),
+    platform: Site.qs('platform', 'desktop') === 'phone' ? 'phone' : 'desktop',
+    screen: Site.qs('screen', 'today'),
+  };
+  if (['TODAY', 'TODO', 'CALENDAR'].indexOf(state.screen.toUpperCase()) === -1) state.screen = 'today';
+  state.screen = state.screen.toLowerCase();
+
+  var wrap = document.getElementById('stage-frame');
+  var frame = null;
+
+  var vSeg = Site.segments(document.getElementById('seg-variant'), function (v) { state.variant = v; render(); });
+  var pSeg = Site.segments(document.getElementById('seg-platform'), function (v) { state.platform = v; render(); });
+  var sSeg = Site.segments(document.getElementById('seg-screen'), function (v) { state.screen = v; render(); });
+
+  vSeg.select(state.variant, true);
+  pSeg.select(state.platform, true);
+  sSeg.select(state.screen, true);
+
+  function render() {
+    var phone = state.platform === 'phone';
+    var src = 'app.html?variant=' + state.variant + '&platform=' + state.platform + '&screen=' + state.screen;
+    var stage = document.getElementById('stage');
+    frame = Site.mountFrame(wrap, src, phone ? 390 : 1280, phone ? 844 : 800, {
+      title: '变体 ' + state.variant,
+      maxHeight: function () { return stage.clientHeight - 40; },
+      shrink: true,
+    });
+    wrap.style.maxWidth = (phone ? 390 : 1280) + 'px';
+    wrap.style.width = '';
+    history.replaceState(null, '', '?variant=' + state.variant + '&platform=' + state.platform + '&screen=' + state.screen);
+  }
+
+  render();
+})();
+</script>
+
+</body>
+</html>
