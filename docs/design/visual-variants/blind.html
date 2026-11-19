@@ -5,6 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>灵光 DaySpark · 盲选</title>
 <link rel="stylesheet" href="site.css">
+<style>
+  .blind-zoom-btn {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--accent);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .blind-zoom-btn:hover { border-color: var(--accent); }
+  .blind-zoom {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: rgba(16, 18, 22, 0.72);
+    overflow: auto;
+  }
+  .blind-zoom[hidden] { display: none; }
+  .blind-zoom-bar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .blind-zoom-bar b { font-size: 13px; }
+  .blind-zoom-bar button {
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 9px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .blind-zoom-bar button:hover { border-color: var(--accent); color: var(--accent); }
+  .blind-zoom img {
+    display: block;
+    max-width: none;
+    height: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  .blind-zoom[data-platform="phone"][data-scale="1"] img { width: 390px; }
+  .blind-zoom[data-platform="phone"][data-scale="2"] img { width: 780px; }
+  .blind-zoom[data-platform="desktop"][data-scale="1"] img { width: 1280px; }
+  .blind-zoom[data-platform="desktop"][data-scale="2"] img { width: 2560px; }
+</style>
 </head>
 <body class="site">
 
@@ -27,7 +92,7 @@
 
     <div class="page-intro">
       <h1 class="page-title">盲选</h1>
-      <p class="page-desc">每屏只出现一次，三张缩略图随机排序；版本名隐藏，选完再导出。</p>
+      <p class="page-desc">每屏只出现一次，三张缩略图随机排序；版本名隐藏，选完再导出。看不清时点每张下方的「放大」，仍不显示版本名。</p>
     </div>
 
     <div class="blind-top">
@@ -52,6 +117,15 @@
 
   </div>
 </main>
+
+<div class="blind-zoom" id="blind-zoom" hidden data-platform="phone" data-scale="2">
+  <div class="blind-zoom-bar">
+    <b id="blind-zoom-title">第 1 张</b>
+    <button type="button" id="blind-zoom-scale">1×</button>
+    <button type="button" id="blind-zoom-close">关闭（Esc）</button>
+  </div>
+  <img id="blind-zoom-img" alt="放大的候选界面">
+</div>
 
 <script src="site.js"></script>
 <script>
@@ -126,6 +200,43 @@
     return Object.keys(state.picks).length;
   }
 
+  var zoomEl = document.getElementById('blind-zoom');
+  var zoomImg = document.getElementById('blind-zoom-img');
+  var zoomTitle = document.getElementById('blind-zoom-title');
+  var zoomScaleBtn = document.getElementById('blind-zoom-scale');
+  var zoomCloseBtn = document.getElementById('blind-zoom-close');
+  var zoomScale = 2;
+
+  function syncZoomScale() {
+    zoomEl.dataset.scale = String(zoomScale);
+    zoomScaleBtn.textContent = zoomScale === 2 ? '1×' : '2×';
+  }
+
+  function openZoom(variant, slot, board) {
+    zoomScale = board.platform === 'phone' ? 2 : 1;
+    zoomEl.dataset.platform = board.platform;
+    zoomTitle.textContent = '第 ' + slot + ' 张 · ' + board.label;
+    zoomImg.src = 'shots/' + variant + '-' + board.screen + '-' + board.platform + '.png';
+    zoomEl.hidden = false;
+    document.body.style.overflow = 'hidden';
+    syncZoomScale();
+    zoomCloseBtn.focus();
+  }
+
+  function closeZoom() {
+    zoomEl.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  zoomScaleBtn.addEventListener('click', function () {
+    zoomScale = zoomScale === 2 ? 1 : 2;
+    syncZoomScale();
+  });
+  zoomCloseBtn.addEventListener('click', closeZoom);
+  zoomEl.addEventListener('click', function (e) {
+    if (e.target === zoomEl) closeZoom();
+  });
+
   function renderThumbs() {
     var board = BOARDS[state.index];
     var order = orderFor(board);
@@ -152,6 +263,16 @@
       slot.setAttribute('aria-label', '选择第 ' + (i + 1) + ' 张');
       slot.addEventListener('click', function () { pick(i + 1); });
       thumb.appendChild(slot);
+
+      var zoomBtn = document.createElement('button');
+      zoomBtn.type = 'button';
+      zoomBtn.className = 'blind-zoom-btn';
+      zoomBtn.textContent = '放大';
+      zoomBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openZoom(variant, i + 1, board);
+      });
+      thumb.appendChild(zoomBtn);
 
       els.thumbs.appendChild(thumb);
 
@@ -286,6 +407,13 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!zoomEl.hidden) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeZoom();
+      }
+      return;
+    }
     if (e.key === '1' || e.key === '2' || e.key === '3') {
       e.preventDefault();
       pick(parseInt(e.key, 10));

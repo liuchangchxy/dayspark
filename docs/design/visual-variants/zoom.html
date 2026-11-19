@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DaySpark 视觉变体 · 全尺寸查看</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --ink: #16181d;
+    --muted: #5f6673;
+    --line: #e4e7ec;
+    --accent: #2f5bd7;
+    --radius: 6px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; margin-right: 8px; }
+  .brand b { font-size: 14px; }
+  .brand span { color: var(--muted); font-size: 12px; }
+  .group { display: flex; align-items: center; gap: 6px; }
+  .group > span { color: var(--muted); font-size: 12px; }
+  button, select {
+    font: inherit;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 5px 10px;
+    min-height: 32px;
+    cursor: pointer;
+  }
+  button:hover, select:hover { border-color: var(--accent); }
+  button.is-active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: #eef2ff;
+  }
+  .links { margin-left: auto; display: flex; gap: 8px; }
+  .links a { color: var(--muted); text-decoration: none; font-size: 12px; }
+  .links a:hover { color: var(--accent); }
+  .hint {
+    padding: 8px 16px 0;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .hint kbd {
+    font: inherit;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 0 4px;
+    background: var(--surface);
+  }
+  .stage {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    padding: 14px 16px 24px;
+    overflow: auto;
+  }
+  figure { margin: 0; flex: 0 0 auto; }
+  figure img {
+    display: block;
+    max-width: none;
+    height: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: zoom-in;
+  }
+  .stage[data-zoom="half"] figure[data-platform="phone"] img { width: 390px; }
+  .stage[data-zoom="half"] figure[data-platform="desktop"] img { width: 1280px; }
+  .stage[data-zoom="native"] figure[data-platform="phone"] img { width: 780px; }
+  .stage[data-zoom="native"] figure[data-platform="desktop"] img { width: 2560px; }
+  figcaption {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding-top: 6px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  figcaption b { color: var(--ink); font-size: 13px; }
+  figcaption a { color: var(--accent); text-decoration: none; }
+  figcaption a:hover { text-decoration: underline; }
+  .empty { padding: 24px 16px; color: var(--muted); }
+  @media (max-width: 720px) {
+    header { gap: 8px; padding: 8px 12px; }
+    .brand span { display: none; }
+    .links { width: 100%; margin-left: 0; }
+    .stage { padding: 12px; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>DaySpark</b><span>视觉变体 · 全尺寸查看</span></div>
+
+  <div class="group" id="platform-group">
+    <span>平台</span>
+    <button type="button" data-platform="phone">手机</button>
+    <button type="button" data-platform="desktop">桌面</button>
+  </div>
+
+  <div class="group" id="screen-group">
+    <span>屏</span>
+    <button type="button" data-screen="today">今天</button>
+    <button type="button" data-screen="todo">待办</button>
+    <button type="button" data-screen="calendar">日历</button>
+  </div>
+
+  <div class="group" id="variant-group">
+    <span>版本</span>
+    <button type="button" data-variant="a">A</button>
+    <button type="button" data-variant="b">B</button>
+    <button type="button" data-variant="c">C</button>
+    <button type="button" data-variant="all">三版并排</button>
+  </div>
+
+  <div class="group" id="zoom-group">
+    <span>放大</span>
+    <button type="button" data-zoom="half">1×</button>
+    <button type="button" data-zoom="native">2× 原图</button>
+  </div>
+
+  <div class="links">
+    <a href="compare.html">并排对比</a>
+    <a href="blind.html">盲选</a>
+    <a href="index.html">入口</a>
+  </div>
+</header>
+
+<div class="hint">
+  图片按原图分辨率显示，可用浏览器缩放继续放大；点图片或“打开原图”可直接看 PNG。
+  快捷键：<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 切版本，<kbd>0</kbd> 三版并排，<kbd>←</kbd><kbd>→</kbd> 切屏，<kbd>P</kbd> 切平台。
+</div>
+
+<main class="stage" id="stage" data-zoom="half" aria-live="polite"></main>
+
+<script>
+(function () {
+  'use strict';
+
+  var state = { platform: 'phone', screen: 'today', variant: 'all', zoom: 'half' };
+
+  var VARIANTS = [
+    { id: 'a', label: 'A · 冷中性' },
+    { id: 'b', label: 'B · 暖中性' },
+    { id: 'c', label: 'C · 功能色' }
+  ];
+  var SCREENS = {
+    today: '今天',
+    todo: '待办',
+    calendar: '日历'
+  };
+  var PLATFORMS = { phone: '手机', desktop: '桌面' };
+
+  var stage = document.getElementById('stage');
+
+  function shotPath(variant, screen, platform) {
+    return 'shots/' + variant + '-' + screen + '-' + platform + '.png';
+  }
+
+  function render() {
+    stage.dataset.zoom = state.zoom;
+    stage.textContent = '';
+
+    var list = state.variant === 'all' ? VARIANTS : VARIANTS.filter(function (v) {
+      return v.id === state.variant;
+    });
+
+    list.forEach(function (v) {
+      var fig = document.createElement('figure');
+      fig.dataset.platform = state.platform;
+
+      var img = document.createElement('img');
+      img.src = shotPath(v.id, state.screen, state.platform);
+      img.alt = v.label + ' · ' + SCREENS[state.screen] + ' · ' + PLATFORMS[state.platform];
+      img.loading = 'eager';
+      img.decoding = 'async';
+      img.title = '点击打开原图';
+      img.addEventListener('click', function () {
+        window.open(img.src, '_blank', 'noopener');
+      });
+
+      var cap = document.createElement('figcaption');
+      var b = document.createElement('b');
+      b.textContent = v.label;
+      var span = document.createElement('span');
+      span.textContent = SCREENS[state.screen] + ' · ' + PLATFORMS[state.platform] +
+        ' · ' + (state.zoom === 'native' ? '2×' : '1×');
+      var a = document.createElement('a');
+      a.href = img.src;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = '打开原图';
+
+      cap.append(b, span, a);
+      fig.append(img, cap);
+      stage.appendChild(fig);
+    });
+
+    if (!list.length) {
+      var p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = '没有可显示的图。';
+      stage.appendChild(p);
+    }
+
+    syncButtons();
+  }
+
+  function syncButtons() {
+    document.querySelectorAll('#platform-group button').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.dataset.platform === state.platform);
+    });
+    document.querySelectorAll('#screen-group button').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.dataset.screen === state.screen);
+    });
+    document.querySelectorAll('#variant-group button').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.dataset.variant === state.variant);
+    });
+    document.querySelectorAll('#zoom-group button').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.dataset.zoom === state.zoom);
+    });
+  }
+
+  function bindGroup(id, key) {
+    var root = document.getElementById(id);
+    root.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      var value = btn.dataset[key];
+      if (!value) return;
+      state[key] = value;
+      render();
+    });
+  }
+
+  bindGroup('platform-group', 'platform');
+  bindGroup('screen-group', 'screen');
+  bindGroup('variant-group', 'variant');
+  bindGroup('zoom-group', 'zoom');
+
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key.toLowerCase();
+    if (k === '1') { state.variant = 'a'; e.preventDefault(); render(); }
+    else if (k === '2') { state.variant = 'b'; e.preventDefault(); render(); }
+    else if (k === '3') { state.variant = 'c'; e.preventDefault(); render(); }
+    else if (k === '0') { state.variant = 'all'; e.preventDefault(); render(); }
+    else if (k === 'p') {
+      state.platform = state.platform === 'phone' ? 'desktop' : 'phone';
+      e.preventDefault(); render();
+    } else if (k === 'arrowleft' || k === 'arrowright') {
+      var order = ['today', 'todo', 'calendar'];
+      var i = order.indexOf(state.screen);
+      i = (i + (k === 'arrowright' ? 1 : -1) + order.length) % order.length;
+      state.screen = order[i];
+      e.preventDefault(); render();
+    }
+  });
+
+  var params = new URLSearchParams(location.search);
+  if (params.get('platform')) state.platform = params.get('platform');
+  if (params.get('screen')) state.screen = params.get('screen');
+  if (params.get('variant')) state.variant = params.get('variant');
+  if (params.get('zoom')) state.zoom = params.get('zoom');
+
+  render();
+})();
+</script>
+</body>
+</html>
