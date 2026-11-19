@@ -3,119 +3,197 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DaySpark 视觉变体 · 全尺寸查看</title>
+<title>DaySpark 视觉变体 · 直接选</title>
 <style>
   :root {
-    --bg: #f7f8fa;
+    --bg: #eceef1;
     --surface: #ffffff;
     --ink: #16181d;
     --muted: #5f6673;
-    --line: #e4e7ec;
+    --line: #d8dce3;
     --accent: #2f5bd7;
+    --accent-soft: #eef2ff;
     --radius: 6px;
+    --head-h: 54px;
+    --foot-h: 64px;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
   body {
+    padding-top: var(--head-h);
+    padding-bottom: var(--foot-h);
     background: var(--bg);
     color: var(--ink);
     font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
       "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  header {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 14px;
-    padding: 10px 16px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-  }
-  .brand { display: flex; align-items: baseline; gap: 8px; margin-right: 8px; }
-  .brand b { font-size: 14px; }
-  .brand span { color: var(--muted); font-size: 12px; }
-  .group { display: flex; align-items: center; gap: 6px; }
-  .group > span { color: var(--muted); font-size: 12px; }
-  button, select {
+  button, select, input {
     font: inherit;
     color: var(--ink);
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 5px 10px;
-    min-height: 32px;
-    cursor: pointer;
+    padding: 6px 11px;
+    min-height: 34px;
   }
-  button:hover, select:hover { border-color: var(--accent); }
+  button { cursor: pointer; }
+  button:hover, select:hover, input:hover { border-color: var(--accent); }
   button.is-active {
     color: var(--accent);
     border-color: var(--accent);
-    background: #eef2ff;
+    background: var(--accent-soft);
   }
-  .links { margin-left: auto; display: flex; gap: 8px; }
-  .links a { color: var(--muted); text-decoration: none; font-size: 12px; }
-  .links a:hover { color: var(--accent); }
-  .hint {
-    padding: 8px 16px 0;
-    color: var(--muted);
-    font-size: 12px;
+  button:disabled { opacity: .4; cursor: default; }
+  .primary {
+    color: #fff;
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
   }
-  .hint kbd {
-    font: inherit;
-    border: 1px solid var(--line);
-    border-bottom-width: 2px;
-    border-radius: 4px;
-    padding: 0 4px;
+  .primary:hover { background: #2449b8; border-color: #2449b8; }
+
+  header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 50;
+    height: var(--head-h);
+    display: flex;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 0 14px;
     background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    overflow-y: hidden;
   }
+  .brand { display: flex; align-items: baseline; gap: 7px; flex: 0 0 auto; }
+  .brand b { font-size: 14px; }
+  .brand span { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .group { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+  .group > span { color: var(--muted); font-size: 12px; }
+  .group button { padding: 4px 9px; min-height: 30px; }
+  .grow { flex: 1 1 auto; }
+  .head-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .head-right a { color: var(--muted); font-size: 12px; text-decoration: none; white-space: nowrap; }
+  .head-right a:hover { color: var(--accent); }
+  #btn-focus { padding: 4px 12px; min-height: 30px; }
+
   .stage {
     display: flex;
-    gap: 18px;
+    justify-content: center;
     align-items: flex-start;
-    padding: 14px 16px 24px;
+    gap: 18px;
+    padding: 16px;
+    min-height: calc(100vh - var(--head-h) - var(--foot-h));
     overflow: auto;
   }
-  figure { margin: 0; flex: 0 0 auto; }
+  figure { margin: 0; flex: 0 0 auto; min-width: 0; }
   figure img {
     display: block;
-    max-width: none;
+    width: auto;
     height: auto;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(20, 24, 32, .12);
     cursor: zoom-in;
   }
-  .stage[data-zoom="half"] figure[data-platform="phone"] img { width: 390px; }
-  .stage[data-zoom="half"] figure[data-platform="desktop"] img { width: 1280px; }
-  .stage[data-zoom="native"] figure[data-platform="phone"] img { width: 780px; }
-  .stage[data-zoom="native"] figure[data-platform="desktop"] img { width: 2560px; }
+  body[data-zoom="fit"] figure img {
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - var(--head-h) - var(--foot-h) - 46px);
+  }
+  body[data-zoom="actual"] figure[data-platform="phone"] img { width: 780px; max-width: none; }
+  body[data-zoom="actual"] figure[data-platform="desktop"] img { width: 2560px; max-width: none; }
+  .stage[data-count="3"] { align-items: stretch; }
+  .stage[data-count="3"] figure { flex: 1 1 0; }
+  .stage[data-count="3"] figure img { width: 100%; object-fit: contain; }
+  body[data-zoom="fit"] .stage[data-count="3"] figure img {
+    max-width: 100%;
+    max-height: calc(100vh - var(--head-h) - var(--foot-h) - 46px);
+  }
+  body[data-zoom="actual"] .stage[data-count="3"] figure img {
+    width: 100%;
+    max-width: none;
+    max-height: none;
+  }
+
+  .badge {
+    display: none;
+    margin-left: 4px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  figure.is-picked .badge { display: inline; }
+  figure.is-picked img { outline: 2px solid var(--accent); outline-offset: 2px; }
   figcaption {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: 7px;
     padding-top: 6px;
     color: var(--muted);
     font-size: 12px;
+    white-space: nowrap;
   }
   figcaption b { color: var(--ink); font-size: 13px; }
-  figcaption a { color: var(--accent); text-decoration: none; }
-  figcaption a:hover { text-decoration: underline; }
-  .empty { padding: 24px 16px; color: var(--muted); }
-  @media (max-width: 720px) {
-    header { gap: 8px; padding: 8px 12px; }
+  .stage[data-count="3"] figcaption { justify-content: center; }
+
+  footer {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 55;
+    min-height: var(--foot-h);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 8px 14px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -2px 8px rgba(20, 24, 32, .07);
+  }
+  .pick-info { display: flex; align-items: baseline; gap: 8px; min-width: 180px; }
+  .pick-info b { font-size: 13px; }
+  #pick-status { color: var(--muted); font-size: 12px; }
+  #pick-status.is-on { color: var(--accent); font-weight: 600; }
+  .pick-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
+  .pick-actions button { min-height: 34px; }
+  #reason { width: 190px; min-height: 34px; }
+  .kbd-hint { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+  .exit-focus {
+    display: none;
+    position: fixed;
+    top: 12px; right: 12px;
+    z-index: 70;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .22);
+  }
+  body.is-focus { padding-top: 0; }
+  body.is-focus header { display: none; }
+  body.is-focus .exit-focus { display: block; }
+  body.is-focus .stage {
+    position: fixed;
+    inset: 0 0 var(--foot-h) 0;
+    padding: 12px;
+    align-items: center;
+    overflow: auto;
+    min-height: 0;
+  }
+  body.is-focus[data-zoom="fit"] figure img {
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - var(--foot-h) - 24px);
+  }
+  @media (max-width: 760px) {
     .brand span { display: none; }
-    .links { width: 100%; margin-left: 0; }
-    .stage { padding: 12px; gap: 12px; }
+    .kbd-hint { display: none; }
+    #reason { width: 140px; }
   }
 </style>
 </head>
-<body>
+<body data-zoom="fit">
+
 <header>
-  <div class="brand"><b>DaySpark</b><span>视觉变体 · 全尺寸查看</span></div>
+  <div class="brand"><b>DaySpark</b><span>视觉变体 · 直接选</span></div>
 
   <div class="group" id="platform-group">
     <span>平台</span>
@@ -135,55 +213,115 @@
     <button type="button" data-variant="a">A</button>
     <button type="button" data-variant="b">B</button>
     <button type="button" data-variant="c">C</button>
-    <button type="button" data-variant="all">三版并排</button>
+    <button type="button" data-variant="all">并排</button>
   </div>
 
   <div class="group" id="zoom-group">
-    <span>放大</span>
-    <button type="button" data-zoom="half">1×</button>
-    <button type="button" data-zoom="native">2× 原图</button>
+    <span>尺寸</span>
+    <button type="button" data-zoom="fit">适应窗口</button>
+    <button type="button" data-zoom="actual">原始大小</button>
   </div>
 
-  <div class="links">
+  <button type="button" id="btn-focus">全屏查看（F）</button>
+
+  <div class="grow"></div>
+  <div class="head-right">
+    <span id="picked-count">已选 0 / 6</span>
     <a href="compare.html">并排对比</a>
     <a href="blind.html">盲选</a>
     <a href="index.html">入口</a>
   </div>
 </header>
 
-<div class="hint">
-  图片按原图分辨率显示，可用浏览器缩放继续放大；点图片或“打开原图”可直接看 PNG。
-  快捷键：<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 切版本，<kbd>0</kbd> 三版并排，<kbd>←</kbd><kbd>→</kbd> 切屏，<kbd>P</kbd> 切平台。
-</div>
+<button type="button" class="exit-focus" id="btn-exit-focus">退出全屏（Esc）</button>
 
-<main class="stage" id="stage" data-zoom="half" aria-live="polite"></main>
+<main class="stage" id="stage" data-count="1" aria-live="polite"></main>
+
+<footer id="pickbar">
+  <div class="pick-info">
+    <b id="cur-label">A · 今天 · 桌面</b>
+    <span id="pick-status">未选</span>
+  </div>
+  <div class="pick-actions">
+    <input type="text" id="reason" placeholder="哪里不对（可选）" aria-label="哪里不对（可选）">
+    <button type="button" class="primary" id="pick-current">就选这一版</button>
+    <button type="button" data-pick="a">选 A</button>
+    <button type="button" data-pick="b">选 B</button>
+    <button type="button" data-pick="c">选 C</button>
+    <button type="button" id="pick-none">都不行</button>
+    <button type="button" id="next-board">下一屏 →</button>
+    <button type="button" id="btn-copy">复制结果</button>
+  </div>
+  <span class="kbd-hint">1/2/3 切版本 · 0 并排 · ←/→ 切屏 · P 切平台 · F 全屏 · Esc 退出</span>
+</footer>
 
 <script>
 (function () {
   'use strict';
 
-  var state = { platform: 'phone', screen: 'today', variant: 'all', zoom: 'half' };
-
+  var STORE = 'ds-pick-v1';
   var VARIANTS = [
     { id: 'a', label: 'A · 冷中性' },
     { id: 'b', label: 'B · 暖中性' },
     { id: 'c', label: 'C · 功能色' }
   ];
-  var SCREENS = {
-    today: '今天',
-    todo: '待办',
-    calendar: '日历'
-  };
+  var SCREENS = { today: '今天', todo: '待办', calendar: '日历' };
   var PLATFORMS = { phone: '手机', desktop: '桌面' };
+  var BOARDS = [
+    { screen: 'today', platform: 'desktop' },
+    { screen: 'today', platform: 'phone' },
+    { screen: 'todo', platform: 'desktop' },
+    { screen: 'todo', platform: 'phone' },
+    { screen: 'calendar', platform: 'desktop' },
+    { screen: 'calendar', platform: 'phone' }
+  ];
+
+  var state = { platform: 'desktop', screen: 'today', variant: 'a', zoom: 'fit', focus: false };
+  var picks = {};
+  try {
+    picks = JSON.parse(localStorage.getItem(STORE) || '{}') || {};
+  } catch (e) { picks = {}; }
 
   var stage = document.getElementById('stage');
+  var reasonEl = document.getElementById('reason');
+  var statusEl = document.getElementById('pick-status');
+  var curLabel = document.getElementById('cur-label');
+  var pickedCount = document.getElementById('picked-count');
+  var pickCurrent = document.getElementById('pick-current');
+  var footEl = document.getElementById('pickbar');
+
+  function syncHeights() {
+    document.documentElement.style.setProperty('--foot-h', footEl.offsetHeight + 'px');
+  }
+
+  function setPlatform(value) {
+    state.platform = value;
+    state.zoom = value === 'phone' ? 'actual' : 'fit';
+  }
+
+  function boardId(screen, platform) {
+    return (screen || state.screen) + '-' + (platform || state.platform);
+  }
+
+  function currentPick() {
+    return picks[boardId()] || null;
+  }
+
+  function save() {
+    try { localStorage.setItem(STORE, JSON.stringify(picks)); } catch (e) {}
+  }
 
   function shotPath(variant, screen, platform) {
-    return 'shots/' + variant + '-' + screen + '-' + platform + '.png';
+    return 'shots/' + variant + '-' + (screen || state.screen) + '-' + (platform || state.platform) + '.png';
+  }
+
+  function variantLabel(id) {
+    var v = VARIANTS.filter(function (x) { return x.id === id; })[0];
+    return v ? v.label : id;
   }
 
   function render() {
-    stage.dataset.zoom = state.zoom;
+    stage.dataset.count = state.variant === 'all' ? '3' : '1';
     stage.textContent = '';
 
     var list = state.variant === 'all' ? VARIANTS : VARIANTS.filter(function (v) {
@@ -193,45 +331,38 @@
     list.forEach(function (v) {
       var fig = document.createElement('figure');
       fig.dataset.platform = state.platform;
+      var picked = currentPick();
+      if (picked && picked.variant === v.id) fig.classList.add('is-picked');
 
       var img = document.createElement('img');
-      img.src = shotPath(v.id, state.screen, state.platform);
+      img.src = shotPath(v.id);
       img.alt = v.label + ' · ' + SCREENS[state.screen] + ' · ' + PLATFORMS[state.platform];
       img.loading = 'eager';
       img.decoding = 'async';
-      img.title = '点击打开原图';
+      img.title = '点击全屏查看';
       img.addEventListener('click', function () {
-        window.open(img.src, '_blank', 'noopener');
+        state.variant = v.id;
+        state.focus = true;
+        render();
       });
 
       var cap = document.createElement('figcaption');
       var b = document.createElement('b');
       b.textContent = v.label;
+      var badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = '已选';
       var span = document.createElement('span');
-      span.textContent = SCREENS[state.screen] + ' · ' + PLATFORMS[state.platform] +
-        ' · ' + (state.zoom === 'native' ? '2×' : '1×');
-      var a = document.createElement('a');
-      a.href = img.src;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.textContent = '打开原图';
-
-      cap.append(b, span, a);
+      span.textContent = SCREENS[state.screen] + ' · ' + PLATFORMS[state.platform];
+      cap.append(b, badge, span);
       fig.append(img, cap);
       stage.appendChild(fig);
     });
 
-    if (!list.length) {
-      var p = document.createElement('p');
-      p.className = 'empty';
-      p.textContent = '没有可显示的图。';
-      stage.appendChild(p);
-    }
-
-    syncButtons();
+    syncControls();
   }
 
-  function syncButtons() {
+  function syncControls() {
     document.querySelectorAll('#platform-group button').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.dataset.platform === state.platform);
     });
@@ -244,6 +375,92 @@
     document.querySelectorAll('#zoom-group button').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.dataset.zoom === state.zoom);
     });
+
+    document.body.dataset.zoom = state.zoom;
+    document.body.classList.toggle('is-focus', state.focus);
+
+    var picked = currentPick();
+    curLabel.textContent = (state.variant === 'all' ? '三版并排' : variantLabel(state.variant)) +
+      ' · ' + SCREENS[state.screen] + ' · ' + PLATFORMS[state.platform];
+
+    if (picked) {
+      statusEl.textContent = picked.variant === 'none' ? '已标记：都不行' : '已选 ' + picked.variant.toUpperCase();
+      statusEl.classList.add('is-on');
+    } else {
+      statusEl.textContent = '未选';
+      statusEl.classList.remove('is-on');
+    }
+
+    pickCurrent.disabled = state.variant === 'all';
+    pickedCount.textContent = '已选 ' + Object.keys(picks).filter(function (k) {
+      return picks[k] && picks[k].variant;
+    }).length + ' / ' + BOARDS.length;
+
+    syncHeights();
+  }
+
+  window.addEventListener('resize', syncHeights);
+
+  function reloadReason() {
+    var p = currentPick();
+    reasonEl.value = p && p.reason ? p.reason : '';
+  }
+
+  function goTo(screen, platform) {
+    if (screen) state.screen = screen;
+    if (platform) setPlatform(platform);
+    reloadReason();
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function record(variant) {
+    if (variant !== 'none' && state.variant !== 'all') state.variant = variant;
+    picks[boardId()] = {
+      variant: variant,
+      reason: reasonEl.value.trim(),
+      at: new Date().toISOString()
+    };
+    save();
+    render();
+  }
+
+  function nextBoard() {
+    var i = 0;
+    for (var k = 0; k < BOARDS.length; k++) {
+      if (BOARDS[k].screen === state.screen && BOARDS[k].platform === state.platform) { i = k; break; }
+    }
+    var n = BOARDS[(i + 1) % BOARDS.length];
+    goTo(n.screen, n.platform);
+  }
+
+  function toggleFocus(value) {
+    state.focus = typeof value === 'boolean' ? value : !state.focus;
+    syncControls();
+  }
+
+  function copyResult() {
+    var text = JSON.stringify({ exportedAt: new Date().toISOString(), picks: picks }, null, 2);
+    function done() {
+      statusEl.textContent = '结果已复制';
+      statusEl.classList.add('is-on');
+      setTimeout(syncControls, 1200);
+    }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      ta.remove();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
   }
 
   function bindGroup(id, key) {
@@ -253,7 +470,8 @@
       if (!btn) return;
       var value = btn.dataset[key];
       if (!value) return;
-      state[key] = value;
+      if (key === 'platform') setPlatform(value);
+      else state[key] = value;
       render();
     });
   }
@@ -263,33 +481,56 @@
   bindGroup('variant-group', 'variant');
   bindGroup('zoom-group', 'zoom');
 
+  document.getElementById('btn-focus').addEventListener('click', function () { toggleFocus(true); });
+  document.getElementById('btn-exit-focus').addEventListener('click', function () { toggleFocus(false); });
+  pickCurrent.addEventListener('click', function () {
+    if (state.variant !== 'all') record(state.variant);
+  });
+  document.querySelectorAll('[data-pick]').forEach(function (btn) {
+    btn.addEventListener('click', function () { record(btn.dataset.pick); });
+  });
+  document.getElementById('pick-none').addEventListener('click', function () { record('none'); });
+  document.getElementById('next-board').addEventListener('click', nextBoard);
+  document.getElementById('btn-copy').addEventListener('click', copyResult);
+
   document.addEventListener('keydown', function (e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
     var k = e.key.toLowerCase();
-    if (k === '1') { state.variant = 'a'; e.preventDefault(); render(); }
+    if (k === 'escape') {
+      if (state.focus) { e.preventDefault(); toggleFocus(false); }
+    } else if (k === 'f') {
+      e.preventDefault(); toggleFocus();
+    } else if (k === '1') { state.variant = 'a'; e.preventDefault(); render(); }
     else if (k === '2') { state.variant = 'b'; e.preventDefault(); render(); }
     else if (k === '3') { state.variant = 'c'; e.preventDefault(); render(); }
     else if (k === '0') { state.variant = 'all'; e.preventDefault(); render(); }
     else if (k === 'p') {
-      state.platform = state.platform === 'phone' ? 'desktop' : 'phone';
-      e.preventDefault(); render();
+      setPlatform(state.platform === 'phone' ? 'desktop' : 'phone');
+      e.preventDefault(); reloadReason(); render();
     } else if (k === 'arrowleft' || k === 'arrowright') {
       var order = ['today', 'todo', 'calendar'];
       var i = order.indexOf(state.screen);
       i = (i + (k === 'arrowright' ? 1 : -1) + order.length) % order.length;
       state.screen = order[i];
-      e.preventDefault(); render();
+      e.preventDefault(); reloadReason(); render();
     }
   });
 
   var params = new URLSearchParams(location.search);
-  if (params.get('platform')) state.platform = params.get('platform');
+  if (params.get('platform')) setPlatform(params.get('platform'));
   if (params.get('screen')) state.screen = params.get('screen');
   if (params.get('variant')) state.variant = params.get('variant');
   if (params.get('zoom')) state.zoom = params.get('zoom');
+  if (params.get('focus') === '1') state.focus = true;
 
+  reloadReason();
   render();
+  window.__PICK__ = { state: state, picks: picks };
+  window.__READY__ = true;
 })();
 </script>
+
 </body>
 </html>

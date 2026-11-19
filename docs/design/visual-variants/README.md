@@ -10,7 +10,7 @@
 - **入口** `index.html`：右上切换 变体 A/B/C、平台、屏幕。
 - **并排对比** `compare.html`：同一屏三版并排，可切平台与屏幕，`全部` 一次看三屏 × 三版。
 - **盲选** `blind.html`：每屏只出现一次，三张缩略图随机排序（固定 seed，可复现），按 `1 / 2 / 3` 选择；`退格` 返回；每张缩略图下方有「放大」，可全尺寸看且不暴露版本名；结果存 `localStorage`（键 `ds-blind-v1`），可导出 JSON。
-- **全尺寸查看** `zoom.html`：按原图分辨率查看，1× / 2× 切换，点图或「打开原图」直接看 PNG。
+- **直接选** `zoom.html`：单版大图，手机默认按 780px 原图显示；`F` 或「全屏查看」进入全屏（Esc 退出）；底部常驻「就选这一版 / 选 A / B / C / 都不行」，可填一句「哪里不对」；结果存 `localStorage`（键 `ds-pick-v1`），「复制结果」可导出。
 - **截图** `shots/`：18 张 2x 图；`compare-*.png` 为总览。
 
 ## 目录
@@ -20,7 +20,7 @@ docs/design/visual-variants/
   index.html              入口（变体 / 平台 / 屏幕切换）
   compare.html            三版并排
   blind.html              盲选（键盘 1/2/3、放大、localStorage、导出 JSON）
-  zoom.html               全尺寸查看（1×/2×、点开原图）
+  zoom.html               直接选（大图/全屏、选 A/B/C/都不行、复制结果）
   app.html                唯一应用页面（同一个 DOM 服务三版两平台）
   app.css                 共用结构 / 布局 / 字阶 / 间距 / 圆角
   variant-a.css           A 的颜色变量
