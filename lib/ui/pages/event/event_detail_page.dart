@@ -184,6 +184,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.embedded) _drawerHead(context, l),
         Expanded(
           child: ListView(
             key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
@@ -250,6 +251,34 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         ),
         _footer(context, l, live, mobile, side),
       ],
+    );
+  }
+
+  Widget _drawerHead(BuildContext context, AppLocalizations l) {
+    final ds = context.ds;
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.only(left: 18, right: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: ds.line),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'EVENT',
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.09 * 9.5,
+              color: ds.ink3,
+            ),
+          ),
+          _PaneCloseButton(onPressed: widget.onClose, tooltip: l.close),
+        ],
+      ),
     );
   }
 
@@ -324,10 +353,6 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             ],
           ),
         ),
-        if (widget.embedded) ...[
-          const SizedBox(width: 8),
-          _PaneCloseButton(onPressed: widget.onClose, tooltip: l.close),
-        ],
       ],
     );
   }
@@ -1105,15 +1130,18 @@ class _PaneCloseButton extends StatelessWidget {
               : SystemMouseCursors.click,
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onPressed,
               hoverColor: ds.surface2,
-              borderRadius: BorderRadius.circular(6),
+              customBorder: const CircleBorder(),
               child: SizedBox(
                 width: 28,
                 height: 28,
-                child: Icon(CupertinoIcons.xmark, size: 16, color: ds.ink3),
+                child: Center(
+                  child: Icon(CupertinoIcons.xmark, size: 13, color: ds.ink3),
+                ),
               ),
             ),
           ),
