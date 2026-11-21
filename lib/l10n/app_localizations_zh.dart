@@ -2742,6 +2742,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commandFootHint => '内容优先，动作在后';
 
   @override
+  String commandFootSelected(int index) {
+    return '当前选中第 $index 条';
+  }
+
+  @override
+  String commandActionTitleQuery(String query) {
+    return '标题“$query”';
+  }
+
+  @override
+  String get commandCaptureTodoDesc => '进入捕获 · 待办模式';
+
+  @override
+  String get commandCaptureEventDesc => '进入捕获 · 日程模式';
+
+  @override
+  String get commandSideAction => '动作';
+
+  @override
+  String get commandSideTodo => '待办';
+
+  @override
+  String get commandSideEvent => '日程';
+
+  @override
   String get currentCalendarIsDefault => '当前日历是默认日历';
 
   @override

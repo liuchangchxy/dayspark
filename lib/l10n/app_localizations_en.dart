@@ -2766,6 +2766,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandFootHint => 'Content first, actions after';
 
   @override
+  String commandFootSelected(int index) {
+    return 'Item $index selected';
+  }
+
+  @override
+  String commandActionTitleQuery(String query) {
+    return 'Title \"$query\"';
+  }
+
+  @override
+  String get commandCaptureTodoDesc => 'Enter capture · task mode';
+
+  @override
+  String get commandCaptureEventDesc => 'Enter capture · event mode';
+
+  @override
+  String get commandSideAction => 'Action';
+
+  @override
+  String get commandSideTodo => 'Task';
+
+  @override
+  String get commandSideEvent => 'Event';
+
+  @override
   String get currentCalendarIsDefault => 'This calendar is default';
 
   @override

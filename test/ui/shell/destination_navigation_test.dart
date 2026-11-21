@@ -14,7 +14,6 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/domain/providers/search_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
@@ -206,10 +205,23 @@ void main() {
 
     final loadMore = find.text('Load More');
     expect(loadMore, findsOneWidget);
-    expect(find.byType(TodoListTile), findsNWidgets(kSearchPageSize));
-    expect(find.text('milk run 0'), findsOneWidget);
-    expect(find.text('milk run ${total - 1}'), findsNothing);
+    expect(find.widgetWithText(CmdRow, 'Task'), findsNWidgets(kSearchPageSize));
+    expect(
+      find.byWidgetPredicate((w) => w is CmdRow && w.title == 'milk run 0'),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CmdRow && w.title == 'milk run ${total - 1}',
+      ),
+      findsNothing,
+    );
 
+    await tester.scrollUntilVisible(
+      loadMore,
+      500,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(loadMore);
     await _settle(tester);
 
@@ -219,9 +231,17 @@ void main() {
     );
     // The first page is still there: loading the next one appends, it does not
     // replace the answer and scroll the user back to the top.
-    expect(find.byType(TodoListTile), findsNWidgets(total));
-    expect(find.text('milk run 0'), findsOneWidget);
-    expect(find.text('milk run ${total - 1}'), findsOneWidget);
+    expect(find.widgetWithText(CmdRow, 'Task'), findsNWidgets(total));
+    expect(
+      find.byWidgetPredicate((w) => w is CmdRow && w.title == 'milk run 0'),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CmdRow && w.title == 'milk run ${total - 1}',
+      ),
+      findsOneWidget,
+    );
     expect(loadMore, findsNothing);
     await _unmount(tester);
   });

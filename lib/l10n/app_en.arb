@@ -1704,6 +1704,27 @@
   "commandFootOpen": "↵ Open",
   "commandFootClose": "esc Close",
   "commandFootHint": "Content first, actions after",
+  "commandFootSelected": "Item {index} selected",
+  "@commandFootSelected": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "commandActionTitleQuery": "Title \"{query}\"",
+  "@commandActionTitleQuery": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "commandCaptureTodoDesc": "Enter capture · task mode",
+  "commandCaptureEventDesc": "Enter capture · event mode",
+  "commandSideAction": "Action",
+  "commandSideTodo": "Task",
+  "commandSideEvent": "Event",
   "currentCalendarIsDefault": "This calendar is default",
   "currentDefaultPrefix": "Current default: ",
   "goToSettings": "Configure",

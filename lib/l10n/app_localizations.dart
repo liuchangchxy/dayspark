@@ -5081,6 +5081,48 @@ abstract class AppLocalizations {
   /// **'Content first, actions after'**
   String get commandFootHint;
 
+  /// No description provided for @commandFootSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Item {index} selected'**
+  String commandFootSelected(int index);
+
+  /// No description provided for @commandActionTitleQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'Title \"{query}\"'**
+  String commandActionTitleQuery(String query);
+
+  /// No description provided for @commandCaptureTodoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter capture · task mode'**
+  String get commandCaptureTodoDesc;
+
+  /// No description provided for @commandCaptureEventDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter capture · event mode'**
+  String get commandCaptureEventDesc;
+
+  /// No description provided for @commandSideAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get commandSideAction;
+
+  /// No description provided for @commandSideTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get commandSideTodo;
+
+  /// No description provided for @commandSideEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get commandSideEvent;
+
   /// No description provided for @currentCalendarIsDefault.
   ///
   /// In en, this message translates to:
