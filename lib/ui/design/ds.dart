@@ -828,17 +828,17 @@ class DsCheck extends StatelessWidget {
                 height: size,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: checked ? ds.primary : Colors.transparent,
+                  color: checked ? ds.ink : Colors.transparent,
                   border: Border.all(
-                    color: checked ? ds.primary : ds.ink3,
-                    width: 1.5,
+                    color: checked ? ds.ink : const Color(0xFFCFCFC7),
+                    width: 1.4,
                   ),
                 ),
                 child: checked
                     ? Icon(
                         CupertinoIcons.checkmark,
                         size: size * 0.62,
-                        color: ds.onPrimary,
+                        color: Colors.white,
                       )
                     : null,
               ),

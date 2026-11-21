@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
@@ -17,10 +16,13 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
+import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
@@ -107,21 +109,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     }
     final today = _dayOf(widget.now);
     return _dayOf(due).isBefore(today);
-  }
-
-  TextStyle _type(
-    double size,
-    FontWeight weight,
-    Color color, {
-    double? height,
-  }) {
-    return TextStyle(
-      fontSize: size,
-      fontWeight: weight,
-      color: color,
-      height: height,
-      fontFamilyFallback: AppTypography.fallback,
-    );
   }
 
   Future<void> _toggle(
@@ -375,7 +362,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         allAsync.isLoading && !allAsync.hasValue,
       );
     } else {
-      body = _dayBody(l, names, selection, desktop, visible);
+      final noDateTodos = <Todo>[
+        for (final todo in unplanned)
+          if (todo.dueDate == null) todo,
+      ];
+      body = _dayBody(l, names, selection, desktop, visible, noDateTodos);
     }
 
     if (desktop) {
@@ -443,6 +434,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
 
   // ------------------------------------------------------------------ header
 
+  bool get _hasFilter =>
+      ref.watch(todoCalendarFilterProvider) != null ||
+      ref.watch(todoTagFilterProvider).isNotEmpty ||
+      ref.watch(todoPriorityFilterProvider) != null;
+
   Widget _head(
     AppLocalizations l,
     TodosView view,
@@ -450,264 +446,338 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     List<Todo> allRows,
     bool desktop,
   ) {
+    final ds = context.ds;
     final withDue = unplanned.where((todo) => todo.dueDate != null).length;
     final active = allRows.where((todo) => todo.status != 'COMPLETED').length;
-    final String title;
+    final completed = allRows.where((todo) => todo.status == 'COMPLETED').length;
+    final viewed = ref.watch(viewedDateProvider);
+    final day = _dayOf(viewed);
+    final today = _dayOf(widget.now);
+    final delta = _daysBetween(day, today);
+
+    final title = l.todos;
     final String subtitle;
     if (view is TodosInboxView) {
-      title = l.inbox;
       subtitle = l.todoUnplannedContext(unplanned.length, withDue);
     } else if (view is TodosAllView) {
-      title = l.allTasks;
-      subtitle = l.todoAllSummary(allRows.length, active);
+      subtitle = l.todoAllActiveSummary(active, completed);
     } else {
-      title = l.byDateTitle;
-      subtitle = l.byDateContext;
+      final dateText = DateFormat.MMMd(_locale).format(day);
+      final weekText = DateFormat.E(_locale).format(day);
+      final relative = delta == 0
+          ? ''
+          : (delta > 0 ? l.inDaysCount(delta) : l.daysAgo(-delta));
+      subtitle = relative.isEmpty
+          ? '$dateText · $weekText'
+          : '$dateText · $weekText · $relative';
     }
-    final actions = <Widget>[
-      ...widget.trailingActions,
-      A2IconAction(
-        icon: CupertinoIcons.settings,
-        tooltip: l.settings,
-        onPressed: () => context.push('/settings'),
+
+    final hasFilter = _hasFilter;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        desktop ? 28 : 16,
+        desktop ? 20 : 14,
+        desktop ? 28 : 16,
+        13,
       ),
-    ];
-    // The switch used to be an invisible 260x44 hit zone over the title. A
-    // control you cannot see is a control you cannot learn, so the title now
-    // carries the chevron itself and the whole title block is the hit area.
-    final titleBlock = _titleBlock(l, title, subtitle);
-    return desktop
-        ? _cardHead(titleBlock, actions)
-        : _dayHead(titleBlock, actions);
+      decoration: BoxDecoration(
+        color: desktop ? ds.surface : ds.bg,
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.01 * 26,
+                        height: 1.22,
+                        color: ds.ink,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: ds.ink3,
+                          fontFamilyFallback: AppTypography.fallback,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _filterTool(l, hasFilter),
+              ...widget.trailingActions,
+            ],
+          ),
+          const SizedBox(height: 10),
+          _modeSwitch(l, view),
+        ],
+      ),
+    );
   }
 
-  Widget _titleBlock(AppLocalizations l, String title, String subtitle) {
-    final ds = context.ds;
-    return Semantics(
-      button: true,
-      label: l.todosSwitchMode,
+  Widget _filterTool(AppLocalizations l, bool active) {
+    return Tooltip(
+      message: l.filter,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          key: const ValueKey('todos-mode-switch'),
+          key: const ValueKey('todos-filter-tool'),
           behavior: HitTestBehavior.opaque,
-          onTap: () => _openModeSheet(l),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _type(
-                        20,
-                        FontWeight.w600,
-                        ds.ink,
-                        height: 1.3,
-                      ).copyWith(letterSpacing: 0.1),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(CupertinoIcons.chevron_down, size: 15, color: ds.ink3),
-                ],
+          onTap: () => _showFilterSheet(context),
+          child: Container(
+            height: 29,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            decoration: BoxDecoration(
+              color: active ? SpecTokens.wash : Colors.white,
+              border: Border.all(
+                color: active ? SpecTokens.ink2 : SpecTokens.hair2,
               ),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _type(11, FontWeight.w400, ds.ink3, height: 1.5),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _dayHead(Widget titleBlock, List<Widget> actions) {
-    final ds = context.ds;
-    return Container(
-      height: kA2TopBarHeight,
-      padding: const EdgeInsets.only(left: 16, right: 4),
-      color: ds.bg,
-      child: Row(
-        children: [
-          Expanded(child: titleBlock),
-          A2Clock(label: DateFormatters.formatTime(widget.now)),
-          ...actions,
-        ],
-      ),
-    );
-  }
-
-  Widget _cardHead(Widget titleBlock, List<Widget> actions) {
-    final ds = context.ds;
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.only(left: 16, right: 4),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: ds.lineSoft)),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: titleBlock),
-          A2Clock(label: DateFormatters.formatTime(widget.now)),
-          ...actions,
-        ],
-      ),
-    );
-  }
-
-  Future<void> _openModeSheet(AppLocalizations l) async {
-    final ds = context.ds;
-    final view = ref.read(todosViewProvider);
-    // A window has no bottom edge to slide from, so the same three rows open
-    // as the product's dialog instead of a phone sheet.
-    if (isWorkspaceLayout(context)) {
-      await showDialog<void>(
-        context: context,
-        barrierColor: ds.scrim,
-        builder: (dialogContext) => DsDialog(
-          title: l.todosSwitchMode,
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _modeRow(
-                icon: CupertinoIcons.tray,
-                label: l.inbox,
-                active: view is TodosInboxView,
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  _selectMode(const TodosInboxView());
-                },
-              ),
-              _modeRow(
-                icon: CupertinoIcons.list_bullet,
-                label: l.allTasks,
-                active: view is TodosAllView,
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  _selectMode(const TodosAllView());
-                },
-              ),
-              _modeRow(
-                icon: CupertinoIcons.calendar,
-                label: l.byDateTitle,
-                hint: l.pickDateHint,
-                active: view is TodosDayView,
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  _selectMode(const TodosDayView());
-                },
-              ),
-            ],
-          ),
-        ),
-      );
-      return;
-    }
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: ds.scrim,
-      builder: (sheetContext) => Material(
-        color: ds.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-        clipBehavior: Clip.antiAlias,
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: ds.surface3,
-                  borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  CupertinoIcons.slider_horizontal_3,
+                  size: 12,
+                  color: SpecTokens.muted,
                 ),
-              ),
-              _modeRow(
-                icon: CupertinoIcons.tray,
-                label: l.inbox,
-                active: view is TodosInboxView,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _selectMode(const TodosInboxView());
-                },
-              ),
-              _modeRow(
-                icon: CupertinoIcons.list_bullet,
-                label: l.allTasks,
-                active: view is TodosAllView,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _selectMode(const TodosAllView());
-                },
-              ),
-              _modeRow(
-                icon: CupertinoIcons.calendar,
-                label: l.byDateTitle,
-                hint: l.pickDateHint,
-                active: view is TodosDayView,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _selectMode(const TodosDayView());
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
+                const SizedBox(width: 5),
+                Text(
+                  l.filter,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                    color: active ? SpecTokens.ink : SpecTokens.ink2,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _modeRow({
-    required IconData icon,
+  Future<void> _showFilterSheet(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final calendars =
+        ref.read(calendarsProvider).valueOrNull ?? const <Calendar>[];
+    final tags = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
+    return showDsSheet<void>(
+      context: context,
+      title: l.filter,
+      body: Consumer(
+        builder: (ctx, r, _) {
+          final calFilter = r.watch(todoCalendarFilterProvider);
+          final tagFilter = r.watch(todoTagFilterProvider);
+          final prioFilter = r.watch(todoPriorityFilterProvider);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DsGroupLabel(l.calendar),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final calendar in calendars)
+                      DsChip(
+                        label: calendar.name,
+                        selected: calFilter == calendar.id,
+                        leading: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: ColorUtils.parseHex(calendar.color),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        onTap: () =>
+                            r.read(todoCalendarFilterProvider.notifier).state =
+                                calFilter == calendar.id ? null : calendar.id,
+                      ),
+                  ],
+                ),
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  DsGroupLabel(l.tags),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final tag in tags)
+                        DsChip(
+                          label: tag.name,
+                          selected: tagFilter.contains(tag.id),
+                          leading: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: ColorUtils.parseHex(tag.color),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          onTap: () {
+                            final next = {...tagFilter};
+                            if (!next.remove(tag.id)) next.add(tag.id);
+                            r.read(todoTagFilterProvider.notifier).state = next;
+                          },
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                DsGroupLabel(l.priority),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    DsChip(
+                      label: l.priorityNone,
+                      selected: prioFilter == null,
+                      onTap: () =>
+                          r.read(todoPriorityFilterProvider.notifier).state =
+                              null,
+                    ),
+                    for (final entry in [
+                      (1, l.priorityHigh),
+                      (5, l.priorityMedium),
+                      (9, l.priorityLow),
+                    ])
+                      DsChip(
+                        label: entry.$2,
+                        selected: prioFilter == entry.$1,
+                        onTap: () =>
+                            r.read(todoPriorityFilterProvider.notifier).state =
+                                prioFilter == entry.$1 ? null : entry.$1,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    r.read(todoCalendarFilterProvider.notifier).state = null;
+                    r.read(todoTagFilterProvider.notifier).state = const {};
+                    r.read(todoPriorityFilterProvider.notifier).state = null;
+                  },
+                  child: Text(
+                    l.retry,
+                    style: const TextStyle(color: SpecTokens.muted),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _modeSwitch(AppLocalizations l, TodosView view) {
+    final isInbox = view is TodosInboxView;
+    final isAll = view is TodosAllView;
+    final isDate = view is TodosDayView;
+
+    return Container(
+      key: const ValueKey('todos-mode-switch'),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: SpecTokens.wash,
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _modeButton(
+              key: const ValueKey('todo-mode-inbox'),
+              label: l.inbox,
+              active: isInbox,
+              onTap: () => _selectMode(const TodosInboxView()),
+            ),
+            const SizedBox(width: 2),
+            _modeButton(
+              key: const ValueKey('todo-mode-all'),
+              label: l.allLabel,
+              active: isAll,
+              onTap: () => _selectMode(const TodosAllView()),
+            ),
+            const SizedBox(width: 2),
+            _modeButton(
+              key: const ValueKey('todo-mode-date'),
+              label: l.byDateTitle,
+              active: isDate,
+              onTap: () => _selectMode(const TodosDayView()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _modeButton({
+    required Key key,
     required String label,
-    String? hint,
     required bool active,
     required VoidCallback onTap,
   }) {
-    final ds = context.ds;
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: 52,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              Icon(icon, size: 19, color: active ? ds.primary : ds.ink3),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _type(
-                    15,
-                    active ? FontWeight.w600 : FontWeight.w400,
-                    ds.ink,
-                  ),
-                ),
-              ),
-              if (hint != null)
-                Text(hint, style: _type(12, FontWeight.w400, ds.ink3)),
-              if (active) ...[
-                const SizedBox(width: 10),
-                Icon(CupertinoIcons.checkmark, size: 14, color: ds.primary),
-              ],
-            ],
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        key: key,
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          height: 27,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: active ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(5),
+            boxShadow: active
+                ? const [
+                    BoxShadow(
+                      color: Color(0x0F191918),
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              color: active ? SpecTokens.ink : SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
           ),
         ),
       ),
@@ -725,91 +795,137 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final day = _dayOf(viewed);
     final today = _dayOf(widget.now);
     final isToday = _sameDay(day, today);
-    final dateText =
-        '${DateFormat.MMMd(_locale).format(day)} '
-        '${DateFormat.E(_locale).format(day)}';
-    final delta = _daysBetween(day, today);
-    final line1 = isToday ? l.today : dateText;
-    final line2 = isToday
-        ? '$dateText · ${day.year}'
-        // The sign is the point: browsing into the past must not read "In 5
-        // days". Only the relative label differs by direction; the year stays.
-        : delta > 0
-        ? '${l.inDaysCount(delta)} · ${day.year}'
-        : '${l.daysAgo(-delta)} · ${day.year}';
+    final monthText = DateFormat.yMMMM(_locale).format(day);
+    final days = [-3, -2, -1, 0, 1, 2, 3]
+        .map((offset) => day.add(Duration(days: offset)))
+        .toList();
 
-    final chevron = Container(
-      width: 28,
-      height: 28,
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: desktop ? 28 : 16,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
-        color: ds.primarySoft,
-        borderRadius: BorderRadius.circular(6),
+        color: desktop ? ds.surface : ds.bg,
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
       ),
-      child: Center(
-        child: Icon(CupertinoIcons.chevron_down, size: 16, color: ds.primary),
+      child: Row(
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              key: const ValueKey('todos-date-strip'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => showMonthYearPicker(context, initial: day),
+              child: Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: SpecTokens.hair2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      monthText,
+                      style: TextStyle(
+                        fontSize: desktop ? 10.5 : 10.0,
+                        color: SpecTokens.ink2,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    const Icon(
+                      CupertinoIcons.chevron_down,
+                      size: 10,
+                      color: SpecTokens.faint,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final d in days) ...[
+                    _dateStripDay(
+                      d: d,
+                      selected: _sameDay(d, day),
+                      isToday: _sameDay(d, today),
+                      desktop: desktop,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (!isToday) ...[
+            const SizedBox(width: 6),
+            _dateStripTodayButton(l, today),
+          ],
+        ],
       ),
     );
-    final text = Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          line1,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: _type(17, FontWeight.w600, ds.ink, height: 1.4),
-        ),
-        Text(
-          line2,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: _type(
-            12,
-            FontWeight.w400,
-            ds.ink3,
-          ).copyWith(fontFeatures: AppTypography.tabular),
-        ),
-      ],
-    );
+  }
 
+  Widget _dateStripDay({
+    required DateTime d,
+    required bool selected,
+    required bool isToday,
+    required bool desktop,
+  }) {
+    final width = desktop ? 44.0 : 34.0;
+    final height = desktop ? 48.0 : 44.0;
+    final weekdayRaw = DateFormat.E(_locale).format(d);
+    final weekdayStr =
+        weekdayRaw.length > 1 && !weekdayRaw.startsWith(RegExp(r'[A-Za-z]'))
+            ? weekdayRaw.substring(weekdayRaw.length - 1)
+            : weekdayRaw;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        key: const ValueKey('todos-date-strip'),
         behavior: HitTestBehavior.opaque,
-        onTap: () => showMonthYearPicker(context, initial: day),
+        onTap: () => ref.read(viewedDateProvider.notifier).state = d,
         child: Container(
-          // 56 is the design's strip height; the inner controls stay at their
-          // drawn sizes and grow only their touch targets.
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+          width: width,
+          height: height,
           decoration: BoxDecoration(
-            // Inside the desktop card the strip stays on the card's surface;
-            // on the phone it sits on the page background as the design draws.
-            color: desktop ? ds.surface : ds.bg,
-            border: Border(bottom: BorderSide(color: ds.lineSoft)),
+            color: selected ? SpecTokens.ink : Colors.transparent,
+            border: Border.all(
+              color: selected ? SpecTokens.ink : Colors.transparent,
+            ),
+            borderRadius: BorderRadius.circular(7),
           ),
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(child: text),
-              const SizedBox(width: 12),
-              // "Today" is the second thing the design's strip does: tapping
-              // the chevron opens the picker, tapping the day jumps back.
-              if (!isToday)
-                _dateStripAction(
-                  label: l.today,
-                  tooltip: l.goToToday,
-                  onTap: () =>
-                      ref.read(viewedDateProvider.notifier).state = today,
+              Text(
+                weekdayStr,
+                style: TextStyle(
+                  fontSize: 9,
+                  letterSpacing: 0.02 * 9,
+                  color: selected ? Colors.white : SpecTokens.muted,
+                  fontFamilyFallback: AppTypography.fallback,
                 ),
-              if (!isToday) const SizedBox(width: 8),
-              Tooltip(
-                message: l.pickDateHint,
-                child: Semantics(
-                  button: true,
-                  label: l.pickDateHint,
-                  child: chevron,
+              ),
+              const SizedBox(height: 1),
+              Text(
+                '${d.day}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  fontFeatures: AppTypography.tabular,
+                  color: selected
+                      ? Colors.white
+                      : (isToday ? SpecTokens.red : SpecTokens.muted),
+                  fontFamilyFallback: AppTypography.fallback,
                 ),
               ),
             ],
@@ -819,37 +935,31 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
   }
 
-  Widget _dateStripAction({
-    required String label,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    final ds = context.ds;
+  Widget _dateStripTodayButton(AppLocalizations l, DateTime today) {
     return Tooltip(
-      message: tooltip,
+      message: l.goToToday,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           key: const ValueKey('todos-date-strip-today'),
           behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          // The visible pill is 28 high; the touch target is the design's 48.
-          child: SizedBox(
-            height: 48,
-            child: Center(
-              child: Container(
-                height: 28,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: ds.primarySoft,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: _type(13, FontWeight.w500, ds.primary),
-                ),
+          onTap: () => ref.read(viewedDateProvider.notifier).state = today,
+          child: Container(
+            height: 28,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: SpecTokens.hair2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              l.today,
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+                color: SpecTokens.ink,
+                fontFamilyFallback: AppTypography.fallback,
               ),
             ),
           ),
@@ -861,15 +971,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   // ------------------------------------------------------------------ footer
 
   Widget _footer(AppLocalizations l, TodosView view, DateTime viewed) {
-    if (view is TodosDayView) {
-      final day = _dayOf(viewed);
-      final plan = widget.onPlanDay;
-      return A2PlanBar(
-        label: _planLabel(l, day),
-        actionLabel: l.planThisDay,
-        onPressed: plan == null ? () {} : () => plan(day),
-      );
-    }
     return A2CaptureBar(
       placeholder: l.capturePlaceholder,
       hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
@@ -879,13 +980,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         setState(() => _captureFocused = focused);
       },
     );
-  }
-
-  String _planLabel(AppLocalizations l, DateTime day) {
-    final date = DateFormat.MMMd(_locale).format(day);
-    final isToday = _sameDay(day, _dayOf(widget.now));
-    final suffix = isToday ? l.today : DateFormat.E(_locale).format(day);
-    return l.planToDate('$date · $suffix');
   }
 
   // ------------------------------------------------------------------- lists
@@ -1108,6 +1202,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     WorkspaceSelection? selection,
     bool desktop,
     bool Function(Todo) visible,
+    List<Todo> noDateTodos,
   ) {
     final agenda = widget.dayAgenda;
     final allocations = <DayItem>[
@@ -1128,14 +1223,16 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       for (final item in dueAll)
         if (item.completed) item,
     ];
-    if (allocations.isEmpty && due.isEmpty && events.isEmpty) {
-      return A2Empty(title: l.emptyDateTitle, hint: l.emptyDateHint);
-    }
     final openTodo = widget.onOpenTodo;
+    final hasNoContent =
+        allocations.isEmpty && due.isEmpty && noDateTodos.isEmpty;
 
     return ListView(
       padding: EdgeInsets.zero,
       children: [
+        _bgBand(l, events, desktop),
+        if (hasNoContent)
+          A2Empty(title: l.emptyDateTitle, hint: l.emptyDateHint),
         if (allocations.isNotEmpty) ...[
           A2GroupHead(label: l.datePlannedSection, count: allocations.length),
           for (var index = 0; index < allocations.length; index++)
@@ -1171,17 +1268,176 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
               slot: _UndoSlot(_UndoGroup.dayDue, index),
             ),
         ],
-        if (events.isNotEmpty) ...[
-          A2GroupHead(label: l.dateEventsSection, count: events.length),
-          for (final item in events)
-            _eventRow(
-              item,
-              _eventMeta(l, item, names),
+        if (noDateTodos.isNotEmpty) ...[
+          A2GroupHead(
+            label: l.noDateGroupSection,
+            count: noDateTodos.length,
+          ),
+          for (var index = 0;
+              index < (noDateTodos.length > 5 ? 5 : noDateTodos.length);
+              index++)
+            _todoRow(
+              noDateTodos[index],
+              meta: _inboxMeta(l, noDateTodos[index], names),
               desktop: desktop,
-              selected: _isEventSelected(selection, item.event),
+              selected: _isTodoSelected(selection, noDateTodos[index].id),
+              checked: noDateTodos[index].status == 'COMPLETED',
+              onTap: openTodo == null
+                  ? null
+                  : () => openTodo(noDateTodos[index]),
+              slot: _UndoSlot(_UndoGroup.inboxNoDue, index),
+            ),
+          if (noDateTodos.length > 5)
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _selectMode(const TodosInboxView()),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(33, 8, 16, 8),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        CupertinoIcons.arrow_right,
+                        size: 10,
+                        color: SpecTokens.muted,
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        l.viewNoDateCount(noDateTodos.length),
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          color: SpecTokens.muted,
+                          fontFamilyFallback: AppTypography.fallback,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
         ],
       ],
+    );
+  }
+
+  Widget _bgBand(
+    AppLocalizations l,
+    List<DayItem> events,
+    bool desktop,
+  ) {
+    final ds = context.ds;
+    return Container(
+      padding: EdgeInsets.fromLTRB(desktop ? 28 : 16, 10, desktop ? 28 : 16, 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Text(
+                l.events,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: SpecTokens.muted,
+                  letterSpacing: 0.04 * 10,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  l.dayEventsBgSub(events.length),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w400,
+                    color: SpecTokens.faint,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (events.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final item in events) ...[
+                    _bgChip(item),
+                    const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _bgChip(DayItem item) {
+    final start = item.start;
+    final timeStr = start == null ? '' : DateFormatters.formatTime(start);
+    final color = item.calendarColor ?? SpecTokens.work;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (widget.onOpenEvent != null && item.event != null) {
+            widget.onOpenEvent!(item.event!);
+          }
+        },
+        child: Container(
+          height: 24,
+          padding: const EdgeInsets.symmetric(horizontal: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFBFBF8),
+            border: Border.all(color: SpecTokens.hair),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              if (timeStr.isNotEmpty) ...[
+                Text(
+                  timeStr,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: SpecTokens.ink2,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                item.title,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: SpecTokens.ink2,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1200,100 +1456,39 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final l = AppLocalizations.of(context)!;
     final inWindow = _inUndoWindow(todo.id, occurrenceId);
     final onSchedule = widget.onScheduleTodo ?? _schedule;
-    return _maybeHover(
-      desktop: desktop,
+    return SpecTaskRow(
+      title: todo.summary,
+      checked: checked || inWindow,
       selected: selected,
-      onSelect: onTap,
-      builder: (background) => A2Row(
-        title: todo.summary,
-        checked: checked || inWindow,
-        selected: selected,
-        background: background,
-        meta: meta,
-        // The right edge carries the row's own verb: schedule while the task
-        // is at rest, undo while the completion window is open. The title
-        // stays the way into the full detail, so the two actions never share
-        // a gesture.
-        trailing: inWindow
-            ? _A2RowAction(
-                actionKey: ValueKey(
-                  'todo-undo-${todo.id}-${occurrenceId ?? 'series'}',
-                ),
-                label: _undoLabel(l, occurrenceId),
-                tooltip: _undoLabel(l, occurrenceId),
-                highlight: true,
-                onPressed: () => _setCompleted(todo, occurrenceId, false),
-              )
-            : _A2RowAction(
-                actionKey: ValueKey(
-                  'todo-schedule-${todo.id}-${occurrenceId ?? 'series'}',
-                ),
-                label: l.scheduleAction,
-                tooltip: l.scheduleAction,
-                onPressed: () => onSchedule(todo),
+      meta: meta,
+      trailing: inWindow
+          ? _A2RowAction(
+              actionKey: ValueKey(
+                'todo-undo-${todo.id}-${occurrenceId ?? 'series'}',
               ),
-        onToggle: widget.onToggleTodo == null
-            ? null
-            : (value) =>
-                  _toggle(todo, occurrenceId, value, slot: slot),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Widget _eventRow(
-    DayItem item,
-    List<Widget> meta, {
-    required bool desktop,
-    required bool selected,
-  }) {
-    final event = item.event;
-    final open = widget.onOpenEvent;
-    return _maybeHover(
-      desktop: desktop,
-      selected: selected,
-      onSelect: event == null || open == null ? null : () => open(event),
-      builder: (background) => A2Row(
-        title: item.title,
-        showCheck: false,
-        selected: selected,
-        background: background,
-        meta: meta,
-        onTap: event == null || open == null ? null : () => open(event),
-      ),
-    );
-  }
-
-  Widget _maybeHover({
-    required bool desktop,
-    required bool selected,
-    required Widget Function(Color? background) builder,
-    VoidCallback? onSelect,
-  }) {
-    if (!desktop) return builder(null);
-    return FocusableActionDetector(
-      actions: {
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) => onSelect?.call(),
-        ),
-      },
-      child: _HoverWrap(
-        builder: (hovered) =>
-            builder(hovered && !selected ? context.ds.surface2 : null),
-      ),
+              label: _undoLabel(l, occurrenceId),
+              tooltip: _undoLabel(l, occurrenceId),
+              highlight: true,
+              onPressed: () => _setCompleted(todo, occurrenceId, false),
+            )
+          : _A2RowAction(
+              actionKey: ValueKey(
+                'todo-schedule-${todo.id}-${occurrenceId ?? 'series'}',
+              ),
+              label: l.scheduleAction,
+              tooltip: l.scheduleAction,
+              onPressed: () => onSchedule(todo),
+            ),
+      onToggle: widget.onToggleTodo == null
+          ? null
+          : (value) =>
+                _toggle(todo, occurrenceId, value, slot: slot),
+      onTap: onTap,
     );
   }
 
   bool _isTodoSelected(WorkspaceSelection? selection, int id) =>
       selection is TodoSelection && selection.todo.id == id;
-
-  bool _isEventSelected(
-    WorkspaceSelection? selection,
-    CalendaEventAdapter? event,
-  ) =>
-      selection is EventSelection &&
-      event != null &&
-      selection.event.drifId == event.drifId;
 
   // -------------------------------------------------------------------- meta
 
@@ -1408,33 +1603,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     ];
   }
 
-  List<Widget> _eventMeta(
-    AppLocalizations l,
-    DayItem item,
-    Map<int, String> names,
-  ) {
-    final parts = <Widget>[];
-    final start = item.start;
-    final end = item.end;
-    if (start == null) {
-      parts.add(A2MetaText(l.allDay));
-    } else if (end == null) {
-      parts.add(A2MetaText(DateFormatters.formatTime(start)));
-    } else {
-      parts.add(
-        A2MetaText(
-          '${DateFormatters.formatTime(start)}–'
-          '${DateFormatters.formatTime(end)}',
-        ),
-      );
-    }
-    final name = item.calendarName ?? names[item.event?.calendarId];
-    if (name != null && name.isNotEmpty) {
-      parts.add(const A2Sep());
-      parts.add(A2MetaText(name));
-    }
-    return parts;
-  }
 
   String _dueValue(
     AppLocalizations l,
@@ -1478,28 +1646,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       }
     }
     return byTodo;
-  }
-}
-
-class _HoverWrap extends StatefulWidget {
-  const _HoverWrap({required this.builder});
-
-  final Widget Function(bool hovered) builder;
-
-  @override
-  State<_HoverWrap> createState() => _HoverWrapState();
-}
-
-class _HoverWrapState extends State<_HoverWrap> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: widget.builder(_hovered),
-    );
   }
 }
 
@@ -1558,7 +1704,6 @@ class _A2RowAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
     return Tooltip(
       message: tooltip,
       child: Semantics(
@@ -1587,7 +1732,7 @@ class _A2RowAction extends StatelessWidget {
                   ),
                   decoration: highlight
                       ? BoxDecoration(
-                          color: ds.primarySoft,
+                          color: SpecTokens.wash,
                           borderRadius: BorderRadius.circular(4),
                         )
                       : null,
@@ -1598,7 +1743,7 @@ class _A2RowAction extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: ds.primary,
+                      color: SpecTokens.ink,
                       fontFamilyFallback: AppTypography.fallback,
                     ),
                   ),

@@ -1,5 +1,4 @@
 import 'package:drift/native.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +8,6 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/todo/a2_todo_page.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
@@ -162,7 +160,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('desktop switches views through a visible chevron and a dialog', (
+  testWidgets('desktop switches views through mode switch control', (
     tester,
   ) async {
     desktop(tester);
@@ -177,16 +175,11 @@ void main() {
     );
     await _settle(tester);
 
-    // The title says which view is open and the chevron says it can change.
-    expect(find.text('All Tasks'), findsWidgets);
-    expect(find.byIcon(CupertinoIcons.chevron_down), findsOneWidget);
+    // Header has mode switch with 3 modes.
+    expect(find.byKey(const ValueKey('todos-mode-switch')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('todos-mode-switch')));
-    await _settle(tester);
-
-    expect(find.byType(DsDialog), findsOneWidget);
-    expect(find.byType(BottomSheet), findsNothing);
-    await tester.tap(find.text('By date').last);
+    await tester.tap(find.byKey(const ValueKey('todo-mode-date')));
     await _settle(tester);
 
     final container = ProviderScope.containerOf(

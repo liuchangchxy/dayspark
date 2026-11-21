@@ -2008,16 +2008,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get emptyTodayHint => '想好的事随时记下来，回车直接进「未安排」';
 
   @override
-  String get emptyUnplannedTitle => '未安排里什么都没有';
+  String get emptyUnplannedTitle => '未安排是空的';
 
   @override
-  String get emptyUnplannedHint => '捕获一条，回车就进这里';
+  String get emptyUnplannedHint => '从今天或这里捕获的待办会先落到这里。';
 
   @override
-  String get emptyDateTitle => '这一天还没有安排';
+  String get emptyDateTitle => '这一天还没有计划';
 
   @override
-  String get emptyDateHint => '用下面的「安排到这一天」加一条';
+  String get emptyDateHint => '把待办拖 / 安排到这一天，或先从捕获开始。';
 
   @override
   String get allDueTodaySection => '今天截止';
@@ -2038,13 +2038,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noDueSection => '无截止';
 
   @override
+  String get noDateGroupSection => '无日期';
+
+  @override
   String get datePlannedSection => '计划执行';
 
   @override
   String get dateDueSection => '截止';
 
   @override
-  String get dateEventsSection => '事件';
+  String get dateEventsSection => '当天日程';
+
+  @override
+  String dayEventsBgSub(int count) {
+    return '$count 项 · 只做时间背景';
+  }
+
+  @override
+  String todoAllActiveSummary(int active, int completed) {
+    return '$active 项待办 · $completed 项已完成';
+  }
+
+  @override
+  String viewNoDateCount(int count) {
+    return '查看无日期 $count 项';
+  }
+
+  @override
+  String get filter => '筛选';
+
+  @override
+  String get filterEmptyHint => '清除筛选后显示全部。';
 
   @override
   String todoUnplannedContext(int count, int withDue) {

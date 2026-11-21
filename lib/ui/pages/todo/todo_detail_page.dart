@@ -342,7 +342,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'TODO',
+            l.todos,
             style: TextStyle(
               fontSize: 9.5,
               fontWeight: FontWeight.w600,

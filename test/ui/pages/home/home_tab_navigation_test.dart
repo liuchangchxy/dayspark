@@ -260,9 +260,7 @@ void main() {
     await _settle(tester);
     await tester.tap(find.text('Tasks').last);
     await _settle(tester);
-    await tester.tap(find.text('By date'));
-    await _settle(tester);
-    await tester.tap(find.text('Unplanned').last);
+    await tester.tap(find.byKey(const ValueKey('todo-mode-inbox')));
     await _settle(tester);
 
     expect(find.text('Daily standup'), findsOneWidget);
@@ -505,10 +503,8 @@ void main() {
     await _settle(tester, 10);
 
     // Tasks opens on 按日期, which does not carry bare todos; switch to
-    // 未安排 through the header's mode sheet.
-    await tester.tap(find.text('By date'));
-    await _settle(tester, 10);
-    await tester.tap(find.text('Unplanned').last);
+    // 未安排 through the header's mode switch.
+    await tester.tap(find.byKey(const ValueKey('todo-mode-inbox')));
     await _settle(tester, 10);
 
     expectSingleOrigin();
@@ -525,9 +521,8 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    expect(find.text('By date'), findsOneWidget);
-    expect(find.byType(A2PlanBar), findsOneWidget);
-    expect(find.text('Plan this day'), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
+    expect(find.byType(A2CaptureBar), findsOneWidget);
 
     await _unmount(tester);
   });
@@ -539,9 +534,9 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    expect(find.text('By date'), findsOneWidget);
-    // Browsing today: the strip's first line is the day itself.
-    await tester.tap(find.text('Today').first);
+    expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
+    // Browsing today: tap the date strip button to open the picker.
+    await tester.tap(find.byKey(const ValueKey('todos-date-strip')));
     await _settle(tester, 10);
 
     expect(find.text('Month'), findsOneWidget);

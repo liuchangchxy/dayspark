@@ -305,7 +305,9 @@ void main() {
 
     final row = find.ancestor(
       of: find.text('Daily standup'),
-      matching: find.byType(A2Row),
+      matching: find.byWidgetPredicate(
+        (w) => w is A2Row || w.runtimeType.toString() == 'SpecTaskRow',
+      ),
     );
     await tester.tap(find.descendant(of: row, matching: find.byType(DsCheck)));
     await _settle(tester);
@@ -332,7 +334,12 @@ void main() {
     // to the SnackBar's, so the row's own key is the one to press.
     await tester.tap(
       find
-          .descendant(of: find.byType(A2Row), matching: find.text('Undo'))
+          .descendant(
+            of: find.byWidgetPredicate(
+              (w) => w is A2Row || w.runtimeType.toString() == 'SpecTaskRow',
+            ),
+            matching: find.text('Undo'),
+          )
           .first,
     );
     await _settle(tester);

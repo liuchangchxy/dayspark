@@ -3869,6 +3869,12 @@ abstract class AppLocalizations {
   /// **'No deadline'**
   String get noDueSection;
 
+  /// No description provided for @noDateGroupSection.
+  ///
+  /// In en, this message translates to:
+  /// **'No date'**
+  String get noDateGroupSection;
+
   /// No description provided for @datePlannedSection.
   ///
   /// In en, this message translates to:
@@ -3884,8 +3890,38 @@ abstract class AppLocalizations {
   /// No description provided for @dateEventsSection.
   ///
   /// In en, this message translates to:
-  /// **'Events'**
+  /// **'Day schedule'**
   String get dateEventsSection;
+
+  /// No description provided for @dayEventsBgSub.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items · background timeline only'**
+  String dayEventsBgSub(int count);
+
+  /// No description provided for @todoAllActiveSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{active} pending · {completed} completed'**
+  String todoAllActiveSummary(int active, int completed);
+
+  /// No description provided for @viewNoDateCount.
+  ///
+  /// In en, this message translates to:
+  /// **'View {count} unplanned'**
+  String viewNoDateCount(int count);
+
+  /// No description provided for @filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get filter;
+
+  /// No description provided for @filterEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters to show all.'**
+  String get filterEmptyHint;
 
   /// No description provided for @todoUnplannedContext.
   ///

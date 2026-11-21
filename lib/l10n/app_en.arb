@@ -1114,9 +1114,39 @@
   "allUnplannedNoDueSection": "No deadline",
   "withDueUnplannedSection": "With a deadline · unplanned",
   "noDueSection": "No deadline",
+  "noDateGroupSection": "No date",
   "datePlannedSection": "Planned",
   "dateDueSection": "Deadline",
-  "dateEventsSection": "Events",
+  "dateEventsSection": "Day schedule",
+  "dayEventsBgSub": "{count} items · background timeline only",
+  "@dayEventsBgSub": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoAllActiveSummary": "{active} pending · {completed} completed",
+  "@todoAllActiveSummary": {
+    "placeholders": {
+      "active": {
+        "type": "int"
+      },
+      "completed": {
+        "type": "int"
+      }
+    }
+  },
+  "viewNoDateCount": "View {count} unplanned",
+  "@viewNoDateCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filter": "Filter",
+  "filterEmptyHint": "Clear filters to show all.",
   "todoUnplannedContext": "{count} items · {withDue} with a deadline",
   "@todoUnplannedContext": {
     "placeholders": {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'ds.dart';
 
 /// Frozen spec checkbox: 16x16 circle, 1.4px border.
 /// When checked: SpecTokens.ink fill and white checkmark icon.
@@ -23,44 +24,12 @@ class SpecCheck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onChanged != null;
-    return Semantics(
+    return DsCheck(
       checked: checked,
+      onChanged: onChanged,
       label: label,
-      enabled: enabled,
-      child: MouseRegion(
-        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: enabled ? () => onChanged!(!checked) : null,
-          child: SizedBox(
-            width: touchTargetSize,
-            height: touchTargetSize,
-            child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: checked ? SpecTokens.ink : SpecTokens.paper,
-                  border: Border.all(
-                    color: checked ? SpecTokens.ink : const Color(0xFFCFCFC7),
-                    width: 1.4,
-                  ),
-                ),
-                child: checked
-                    ? const Icon(
-                        CupertinoIcons.checkmark,
-                        size: 9.5,
-                        color: SpecTokens.paper,
-                      )
-                    : null,
-              ),
-            ),
-          ),
-        ),
-      ),
+      size: 16,
+      compact: touchTargetSize < 40,
     );
   }
 }
@@ -83,6 +52,7 @@ class SpecTaskRow extends StatefulWidget {
     this.onSchedule,
     this.scheduleTooltip,
     this.touchTargetSize,
+    this.showCheck = true,
   });
 
   final String title;
@@ -98,6 +68,7 @@ class SpecTaskRow extends StatefulWidget {
   final VoidCallback? onSchedule;
   final String? scheduleTooltip;
   final double? touchTargetSize;
+  final bool showCheck;
 
   @override
   State<SpecTaskRow> createState() => _SpecTaskRowState();
@@ -122,6 +93,11 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
 
     return FocusableActionDetector(
       enabled: enabled,
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) => widget.onTap?.call(),
+        ),
+      },
       onShowFocusHighlight: (v) => setState(() => _focused = v),
       onShowHoverHighlight: (v) => setState(() => _hovered = v),
       mouseCursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
@@ -147,12 +123,14 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                 SizedBox(
                   width: isDesktop ? 24 : targetSize,
                   child: Center(
-                    child: SpecCheck(
-                      checked: widget.checked,
-                      onChanged: enabled ? widget.onToggle : null,
-                      label: widget.title,
-                      touchTargetSize: targetSize,
-                    ),
+                    child: widget.showCheck
+                        ? SpecCheck(
+                            checked: widget.checked,
+                            onChanged: enabled ? widget.onToggle : null,
+                            label: widget.title,
+                            touchTargetSize: targetSize,
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -185,9 +163,18 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                             fontFeatures: AppTypography.tabular,
                             fontFamilyFallback: AppTypography.fallback,
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: widget.meta,
+                          child: SizedBox(
+                            height: 18,
+                            child: ClipRect(
+                              child: OverflowBox(
+                                alignment: Alignment.centerLeft,
+                                maxWidth: double.infinity,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: widget.meta,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],

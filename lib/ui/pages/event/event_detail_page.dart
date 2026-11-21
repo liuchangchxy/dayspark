@@ -268,7 +268,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'EVENT',
+            l.eventLabel,
             style: TextStyle(
               fontSize: 9.5,
               fontWeight: FontWeight.w600,
