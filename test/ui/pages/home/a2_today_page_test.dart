@@ -15,7 +15,6 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
@@ -860,14 +859,14 @@ void main() {
       // T3 also keeps the moment it was completed, not just the fact.
       expect(
         find.descendant(
-          of: find.byType(A2Block),
+          of: find.byType(SpecTimeBlock),
           matching: find.textContaining('Completed '),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byType(A2Block),
+          of: find.byType(SpecTimeBlock),
           matching: find.textContaining('Due 18:00'),
         ),
         findsOneWidget,
@@ -974,12 +973,15 @@ void main() {
       );
       await _settle(tester);
 
-      // The timeline block comes before the unplanned shelf's parent row.
-      final checks = find.byWidgetPredicate(
-        (widget) => widget is DsCheck && widget.label == 'Daily Review',
+      // Target the timeline block bound to the concrete occurrence.
+      final instanceCheck = find.descendant(
+        of: find.byType(SpecTimeBlock),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is DsCheck && widget.label == 'Daily Review',
+        ),
       );
-      expect(checks, findsWidgets);
-      await tester.tap(checks.first);
+      expect(instanceCheck, findsOneWidget);
+      await tester.tap(instanceCheck);
       await _settle(tester);
 
       expect(calls, [(seriesId, 'v2:DATE:2026-10-06', true)]);
@@ -1024,7 +1026,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Nothing scheduled today'), findsNothing);
-      expect(find.text('2 items'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
 
       final check = find.byWidgetPredicate(
         (widget) => widget is DsCheck && widget.label == 'Task A',
@@ -1034,12 +1036,12 @@ void main() {
 
       // R5: the projection was re-read in place, so the shelf count already
       // reflects the completion while the row is still held for undo.
-      expect(find.text('1 items'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
       expect(find.text('Task A'), findsOneWidget);
       expect(find.text('Undo'), findsOneWidget);
 
       // Any other interaction closes the window without waiting out the timer.
-      await tester.tap(find.text('Unplanned').first);
+      await tester.tap(find.text('Task B'));
       await _settle(tester);
       expect(find.text('Undo'), findsNothing);
       expect(find.text('Task A'), findsNothing);

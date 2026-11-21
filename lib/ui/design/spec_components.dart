@@ -337,6 +337,7 @@ class SpecTimeBlock extends StatelessWidget {
     this.onToggle,
     this.done = false,
     this.planLabel,
+    this.trailing,
   });
 
   final SpecTimeBlockKind kind;
@@ -349,6 +350,7 @@ class SpecTimeBlock extends StatelessWidget {
   final ValueChanged<bool>? onToggle;
   final bool done;
   final String? planLabel;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -380,6 +382,7 @@ class SpecTimeBlock extends StatelessWidget {
                 SpecCheck(
                   checked: checked,
                   onChanged: onToggle,
+                  label: title,
                   touchTargetSize: 22,
                 ),
                 const SizedBox(width: 4),
@@ -419,6 +422,10 @@ class SpecTimeBlock extends StatelessWidget {
                   ),
                 ),
               ),
+              if (trailing != null) ...[
+                const SizedBox(width: 4),
+                trailing!,
+              ],
             ],
           ),
           if (meta != null && meta!.isNotEmpty) ...[
@@ -790,16 +797,17 @@ class SpecDeleteConfirmDialog extends StatelessWidget {
 
 /// Frozen spec now line (.now-line): 5px red circle + 1.5px red line, left margin 52 aligning with rail.
 class SpecNowLine extends StatelessWidget {
-  const SpecNowLine({super.key, this.time});
+  const SpecNowLine({super.key, this.time, this.marginLeft = 52.0});
 
   /// Deprecated in frozen spec (line does not render time text).
   final String? time;
+  final double marginLeft;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 28,
-      margin: const EdgeInsets.only(left: 52, top: 3, bottom: 3),
+      margin: EdgeInsets.only(left: marginLeft, top: 3, bottom: 3),
       child: Row(
         children: [
           Container(
