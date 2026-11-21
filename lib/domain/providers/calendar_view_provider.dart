@@ -16,6 +16,8 @@ final viewedDateProvider = StateProvider<DateTime>((ref) {
   return DateTime(now.year, now.month, now.day);
 });
 
+final calendarHiddenFilterProvider = StateProvider<Set<int>>((ref) => const <int>{});
+
 final calendarViewModeProvider =
     StateNotifierProvider<CalendarViewModeNotifier, CalendarViewMode>(
   (ref) => CalendarViewModeNotifier(),

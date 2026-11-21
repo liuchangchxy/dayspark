@@ -1514,7 +1514,7 @@ class A2TimeGridView extends StatelessWidget {
           widgets.add(
             _A2NowLine(
               top: axis.offsetOf(now.difference(windowStart).inMinutes),
-              color: ds.primary,
+              color: ds.danger,
             ),
           );
         }

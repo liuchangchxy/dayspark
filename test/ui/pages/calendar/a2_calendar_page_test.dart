@@ -16,6 +16,7 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_filter_sheet.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
@@ -798,6 +799,65 @@ void main() {
 
     // Same +N contract as the month cell and the deadline lane.
     expect(find.text('+1'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('calendar filter hides events and shows restore banner', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final cals = await db.select(db.calendars).get();
+    final workCal = cals.firstWhere((c) => c.name == 'Work');
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: workCal.id,
+          title: 'Filtered event',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    expect(find.text('Display Calendars'), findsOneWidget);
+    expect(find.text('Filtered event'), findsOneWidget);
+
+    // Open filter dialog
+    await tester.tap(find.text('Display Calendars'));
+    await _settle(tester);
+
+    expect(find.byType(CalendarFilterSheet), findsOneWidget);
+
+    // Toggle calendar 1 off
+    await tester.tap(find.text('Work'));
+    await _settle(tester);
+
+    // Close dialog
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+
+    // Event is hidden, banner appears
+    expect(find.text('Filtered event'), findsNothing);
+    expect(find.text('Hidden 1 calendars'), findsOneWidget);
+    expect(find.text('Restore All'), findsOneWidget);
+
+    // Restore all
+    await tester.tap(find.text('Restore All'));
+    await _settle(tester);
+
+    expect(find.text('Filtered event'), findsOneWidget);
+    expect(find.text('Hidden 1 calendars'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
