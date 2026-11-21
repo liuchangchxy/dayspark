@@ -137,13 +137,13 @@ class A2MonthStrip extends StatelessWidget {
   const A2MonthStrip({
     super.key,
     required this.label,
-    required this.onPrevious,
-    required this.onNext,
+    this.onPrevious,
+    this.onNext,
   });
 
   final String label;
-  final VoidCallback onPrevious;
-  final VoidCallback onNext;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -157,15 +157,16 @@ class A2MonthStrip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _A2NavButton(
-            icon: CupertinoIcons.chevron_left,
-            tooltip: l.previousPeriod,
-            onPressed: onPrevious,
-          ),
+          if (onPrevious != null)
+            _A2NavButton(
+              icon: CupertinoIcons.chevron_left,
+              tooltip: l.previousPeriod,
+              onPressed: onPrevious!,
+            ),
           Expanded(
             child: Text(
               label,
-              textAlign: TextAlign.center,
+              textAlign: onPrevious != null ? TextAlign.center : TextAlign.left,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: _a2Text(
@@ -177,11 +178,12 @@ class A2MonthStrip extends StatelessWidget {
               ),
             ),
           ),
-          _A2NavButton(
-            icon: CupertinoIcons.chevron_right,
-            tooltip: l.nextPeriod,
-            onPressed: onNext,
-          ),
+          if (onNext != null)
+            _A2NavButton(
+              icon: CupertinoIcons.chevron_right,
+              tooltip: l.nextPeriod,
+              onPressed: onNext!,
+            ),
         ],
       ),
     );
