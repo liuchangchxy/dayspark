@@ -871,6 +871,31 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('desktop capture bar floats over the todo list at bottom 18', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosAllView()),
+        ],
+        now: now,
+      ),
+    );
+    await _settle(tester);
+
+    final captureRect = tester.getRect(find.byType(A2CaptureBar));
+    // Spec .capture{bottom:18px}: window height 900, capture bottom sits at 900 - 18 = 882
+    expect(captureRect.bottom, 900 - 18);
+
+    await _unmount(tester);
+  });
 }
 
 String _dateKey(DateTime d) =>

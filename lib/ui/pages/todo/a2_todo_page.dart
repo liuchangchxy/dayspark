@@ -374,13 +374,24 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: Stack(
                 children: [
-                  head,
-                  if (strip != null) strip,
-                  Expanded(child: body),
-                  footer,
+                  Positioned.fill(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        head,
+                        if (strip != null) strip,
+                        Expanded(child: body),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 18,
+                    child: footer,
+                  ),
                 ],
               ),
             ),
@@ -1146,9 +1157,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
 
   Widget _footer(AppLocalizations l, TodosView view, DateTime viewed) {
     // The spec floats one 560x54 capture pill over the page, bottom 18.
-    final desktop = isWorkspaceLayout(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, desktop ? 10 : 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Align(
         alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
