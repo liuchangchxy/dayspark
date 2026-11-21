@@ -68,6 +68,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   bool _completedExpanded = false;
   bool _missedExpanded = false;
   bool _earlierMissedExpanded = false;
+  bool _endedExpanded = true;
   bool _toastVisible = false;
   Timer? _toastTimer;
   bool _capturing = false;
@@ -555,53 +556,143 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     List<Todo> unplanned,
     int unplannedCount,
   ) {
-    final ds = context.ds;
     final projection = data.valueOrNull;
-    final preview = <Todo>[
+    final plannedTodoIds = <int>{
+      for (final a in agenda.allocations)
+        if (a.todo != null) a.todo!.id,
+    };
+
+    final noDue = <Todo>[
       for (final todo in unplanned)
-        if (todo.dueDate == null) todo,
+        if (todo.dueDate == null && !plannedTodoIds.contains(todo.id)) todo,
     ];
-    // A row completed from this shelf is held in place for the undo window,
-    // even though the projection has already dropped it.
-    final shelfSource = _injectRecentTodos(preview, _RecentSection.unplanned);
-    final shown = _unplannedExpanded
+    final shelfSource = _injectRecentTodos(noDue, _RecentSection.unplanned);
+    final shownUnplanned = _unplannedExpanded
         ? shelfSource
         : shelfSource.take(3).toList();
-    // What "Show less" can hide, and what the preview never carries: the
-    // Unplanned bucket also holds todos that already have a deadline, and the
-    // design keeps those out of the shelf. The head prints the bucket's real
-    // count, so the shelf must offer a way to reach the rest.
-    final expandable = shelfSource.length - shown.length;
-    final beyondShelf = unplannedCount - preview.length;
-    // T1: every section decides its own presence, and the empty box is only
-    // the whole page when nothing at all remains — no timeline, no shelf.
-    final sections = _sections(
-      l,
-      agenda,
-      timeColumn: kA2TimeColumn,
-      projection: projection,
-    );
-    final hasShelf = shelfSource.isNotEmpty || unplannedCount > 0;
-    final empty = sections.isEmpty && !hasShelf;
+    final expandableUnplanned = shelfSource.length - shownUnplanned.length;
+    final beyondShelf = unplannedCount - noDue.length;
 
-    final overdueCount = agenda.overdueTodos.length +
-        (projection?.missedTaskInstances.length ?? 0);
-    final dueCount = agenda.dueTodos.length;
+    final allCompletedTodos = projection?.completedTodayTodos ?? const <Todo>[];
+    final allCompletedInstances =
+        projection?.completedTodayTaskInstances ??
+        const <ProjectedTaskInstance>[];
+    final recent = _recent;
+    final recentKey = recent == null
+        ? null
+        : _keyOf(recent.todo.id, recent.occurrenceId);
+    final completedTodos = recentKey == null
+        ? allCompletedTodos
+        : [
+            for (final todo in allCompletedTodos)
+              if (_keyOf(todo.id, null) != recentKey) todo,
+          ];
+    final completedInstances = recentKey == null
+        ? allCompletedInstances
+        : [
+            for (final instance in allCompletedInstances)
+              if (_keyOf(instance.todo.id, instance.occurrenceId) != recentKey)
+                instance,
+          ];
+
+    final visibleCompletedTodos = [
+      for (final todo in completedTodos)
+        if (!plannedTodoIds.contains(todo.id)) todo,
+    ];
+    final visibleCompletedInstances = [
+      for (final instance in completedInstances)
+        if (!plannedTodoIds.contains(instance.todo.id)) instance,
+    ];
+    final completedCount =
+        visibleCompletedTodos.length + visibleCompletedInstances.length;
+
+    final overdueItems = _injectRecentDayItems(
+      agenda.overdueTodos,
+      _RecentSection.overdue,
+    );
+    final visibleOverdue = [
+      for (final item in overdueItems)
+        if (item.todo != null && !plannedTodoIds.contains(item.todo!.id)) item,
+    ];
+    final shownOverdue = _overdueExpanded
+        ? visibleOverdue
+        : visibleOverdue.take(3).toList();
+    final expandableOverdue = visibleOverdue.length - shownOverdue.length;
+
+    final dueItems = _injectRecentDayItems(
+      agenda.dueTodos,
+      _RecentSection.dueToday,
+    );
+    final visibleDue = [
+      for (final item in dueItems)
+        if (item.todo != null && !plannedTodoIds.contains(item.todo!.id)) item,
+    ];
+
+    final missed =
+        projection?.missedTaskInstances ?? const <ProjectedTaskInstance>[];
+    final earlierMissed = projection?.earlierMissedSeries ?? const <Todo>[];
+    final hasEarlierMissed = projection?.hasEarlierMissed ?? false;
+    final missedItems = _injectRecentInstances(missed, _RecentSection.missed);
+    final visibleMissed = [
+      for (final item in missedItems)
+        if (!plannedTodoIds.contains(item.todo.id)) item,
+    ];
+    final shownMissed = _missedExpanded
+        ? visibleMissed
+        : visibleMissed.take(3).toList();
+    final moreMissed = visibleMissed.length - shownMissed.length;
+
+    final timed = agenda.timed;
+    bool isRunning(DayItem item) {
+      final start = item.start;
+      final end = item.end;
+      if (start == null || end == null || item.allDay) return false;
+      return !start.isAfter(widget.now) && end.isAfter(widget.now);
+    }
+
+    final running = timed.where(isRunning).toList();
+    final rest = timed
+        .where((item) => !isRunning(item) && !_hasEnded(item))
+        .toList();
+    final ended = timed.where(_hasEnded).toList();
+    final endedItems = _injectRecentDayItems(ended, _RecentSection.ended);
+    final runningItems = _injectRecentDayItems(running, _RecentSection.now);
+
+    final upcoming = <({DayItem item, bool instance})>[
+      for (final item in rest) (item: item, instance: false),
+      for (final instance in agenda.instances) (item: instance, instance: true),
+    ];
+    final upcomingItems = _injectRecentUpcoming(upcoming);
+    final shownUpcoming = _upcomingExpanded
+        ? upcomingItems
+        : upcomingItems.take(3).toList();
+    final upcomingHidden = upcomingItems.length - shownUpcoming.length;
+
+    final allDayEvents = agenda.events.where((e) => e.allDay).toList();
+
+    final hasTimeItems = allDayEvents.isNotEmpty ||
+        endedItems.isNotEmpty ||
+        runningItems.isNotEmpty ||
+        upcomingItems.isNotEmpty;
+
+    final overdueCount = visibleOverdue.length + visibleMissed.length;
+    final dueCount = visibleDue.length;
     final doneCount = (projection?.completedTodayTodos.length ?? 0) +
-        (projection?.completedTodayTaskInstances.length ?? 0);
-    final isPageEmpty = overdueCount == 0 &&
+        (projection?.completedTodayTaskInstances.length ?? 0) +
+        (_recent != null ? 1 : 0);
+    final isPageEmpty = _recent == null &&
+        overdueCount == 0 &&
         dueCount == 0 &&
         unplannedCount == 0 &&
         doneCount == 0 &&
-        agenda.events.isEmpty &&
-        agenda.allocations.isEmpty;
+        !hasTimeItems;
 
     final summary = isPageEmpty
         ? l.emptyTodayTitle
         : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
 
     final mobileContentHeader = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+      padding: const EdgeInsets.fromLTRB(0, 14, 0, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -628,7 +719,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             Text(
               summary,
               style: const TextStyle(
-                  fontSize: 9.5,
+                fontSize: 9.5,
                 color: SpecTokens.faint,
                 fontFeatures: AppTypography.tabular,
                 fontFamilyFallback: AppTypography.fallback,
@@ -641,40 +732,351 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
     final children = <Widget>[
       mobileContentHeader,
-      ...sections,
-      if (hasShelf) ...[
-        A2GroupHead(
+      if (plannedTodoIds.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+          child: Text(
+            l.plannedTodosMovedToTimeline(plannedTodoIds.length),
+            style: const TextStyle(
+              fontSize: 10,
+              color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ),
+      if (visibleOverdue.isNotEmpty) ...[
+        _groupHead(
+          label: l.sectionOverdueLabel,
+          count: visibleOverdue.length,
+          danger: true,
+          expanded: _overdueExpanded,
+          onToggle: visibleOverdue.length > 3
+              ? () => setState(() => _overdueExpanded = !_overdueExpanded)
+              : null,
+        ),
+        for (var i = 0; i < shownOverdue.length; i++)
+          _taskRow(
+            key: ValueKey('overdue-${shownOverdue[i].todo!.id}'),
+            title: shownOverdue[i].title,
+            checked: shownOverdue[i].completed,
+            isOverdue: true,
+            dueLabel: () {
+              final due = shownOverdue[i].todo?.dueDate?.toLocal();
+              if (due == null) return l.sectionOverdueLabel;
+              final days = _today
+                  .difference(DateTime(due.year, due.month, due.day))
+                  .inDays;
+              if (days > 0) return l.overdueDays(days);
+              return DateFormat.Md(_locale).format(due);
+            }(),
+            calendarName: shownOverdue[i].calendarName,
+            calendarColor: shownOverdue[i].calendarColor,
+            rrule: shownOverdue[i].todo?.rrule,
+            highlighted: shownOverdue[i].todo?.id == _recentId,
+            trailing: _undoFor(shownOverdue[i].todo?.id, shownOverdue[i].occurrenceId, _RecentSection.overdue),
+            onToggle: (_) => _toggleItem(shownOverdue[i], _RecentSection.overdue, i),
+            onTap: () => _openTodo(shownOverdue[i].todo!),
+            onSchedule: () => _scheduleTodo(shownOverdue[i].todo!),
+          ),
+        if (expandableOverdue > 0)
+          _moreRow(
+            l,
+            expandableOverdue,
+            paddingLeft: 33,
+            expanded: _overdueExpanded,
+            onTap: () => setState(() => _overdueExpanded = !_overdueExpanded),
+          )
+        else if (_overdueExpanded && visibleOverdue.length > 3)
+          _moreRow(
+            l,
+            0,
+            paddingLeft: 33,
+            expanded: true,
+            onTap: () => setState(() => _overdueExpanded = false),
+          ),
+      ],
+      if (visibleDue.isNotEmpty) ...[
+        _groupHead(
+          label: l.sectionDueToday,
+          count: visibleDue.length,
+        ),
+        for (var i = 0; i < visibleDue.length; i++)
+          _taskRow(
+            key: ValueKey('due-${visibleDue[i].todo!.id}'),
+            title: visibleDue[i].title,
+            checked: visibleDue[i].completed,
+            isOverdue: false,
+            dueLabel: l.today,
+            calendarName: visibleDue[i].calendarName,
+            calendarColor: visibleDue[i].calendarColor,
+            rrule: visibleDue[i].todo?.rrule,
+            highlighted: visibleDue[i].todo?.id == _recentId,
+            trailing: _undoFor(visibleDue[i].todo?.id, visibleDue[i].occurrenceId, _RecentSection.dueToday),
+            onToggle: (_) => _toggleItem(visibleDue[i], _RecentSection.dueToday, i),
+            onTap: () => _openTodo(visibleDue[i].todo!),
+            onSchedule: () => _scheduleTodo(visibleDue[i].todo!),
+          ),
+      ],
+      if (visibleMissed.isNotEmpty || hasEarlierMissed) ...[
+        _groupHead(
+          label: l.missed,
+          count: visibleMissed.isEmpty ? null : visibleMissed.length,
+          danger: true,
+        ),
+        for (var i = 0; i < shownMissed.length; i++)
+          _taskRow(
+            key: ValueKey('missed-${shownMissed[i].occurrenceId}'),
+            title: shownMissed[i].todo.summary,
+            checked: false,
+            isOverdue: true,
+            dueLabel: shownMissed[i].occurrence.displayLabel,
+            calendarName: _calendarName(shownMissed[i].todo),
+            calendarColor: _calendarColor(shownMissed[i].todo),
+            rrule: shownMissed[i].todo.rrule,
+            missedCount: 1,
+            highlighted: shownMissed[i].todo.id == _recentId,
+            trailing: _undoFor(shownMissed[i].todo.id, shownMissed[i].occurrenceId, _RecentSection.missed),
+            onToggle: (_) => _toggleMissed(shownMissed[i], i),
+            onTap: () => _openTodo(shownMissed[i].todo),
+            onSchedule: () => _scheduleTodo(shownMissed[i].todo),
+          ),
+        if (moreMissed > 0)
+          _moreRow(
+            l,
+            moreMissed,
+            paddingLeft: 33,
+            expanded: _missedExpanded,
+            onTap: () => setState(() => _missedExpanded = !_missedExpanded),
+          )
+        else if (_missedExpanded && visibleMissed.length > 3)
+          _moreRow(
+            l,
+            0,
+            paddingLeft: 33,
+            expanded: true,
+            onTap: () => setState(() => _missedExpanded = false),
+          ),
+        if (hasEarlierMissed) ...[
+          _moreRow(
+            l,
+            0,
+            paddingLeft: 33,
+            label: _earlierMissedExpanded ? l.collapseLabel : l.earlierMissed,
+            onTap: () => setState(() => _earlierMissedExpanded = !_earlierMissedExpanded),
+          ),
+          if (_earlierMissedExpanded)
+            for (final todo in earlierMissed)
+              _seriesRow(todo),
+        ],
+      ],
+      if (allDayEvents.isNotEmpty)
+        SpecAlldayStrip(
+          label: l.allDayLabel,
+          items: [
+            for (final ev in allDayEvents)
+              SpecAlldayItem(
+                title: ev.title,
+                barColor: ev.calendarColor,
+                bgColor: ev.calendarColor?.withValues(alpha: 0.12),
+                onTap: () => _openEvent(ev.event!),
+              ),
+          ],
+        ),
+      if (endedItems.isNotEmpty) ...[
+        _groupHead(
+          label: l.actionEarlierToday,
+          count: endedItems.length,
+          expanded: _endedExpanded,
+          onToggle: () => setState(() => _endedExpanded = !_endedExpanded),
+        ),
+        if (_endedExpanded)
+          for (var i = 0; i < endedItems.length; i++)
+            _mobileTimeRow(endedItems[i], isQuiet: true, section: _RecentSection.ended, index: i),
+      ],
+      if (hasTimeItems) ...[
+        _groupHead(
+          label: l.sectionNow,
+          danger: true,
+          trailing: Text(
+            DateFormatters.formatTime(widget.now),
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: SpecTokens.red,
+              fontFeatures: AppTypography.tabular,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ),
+        for (var i = 0; i < runningItems.length; i++)
+          _mobileTimeRow(runningItems[i], section: _RecentSection.now, index: i),
+        const SpecNowLine(marginLeft: 42.0),
+        if (upcomingItems.isNotEmpty) ...[
+          _groupHead(
+            label: l.sectionUpcoming,
+            count: upcomingItems.length,
+            expanded: _upcomingExpanded,
+            onToggle: upcomingItems.length > 3
+                ? () => setState(() => _upcomingExpanded = !_upcomingExpanded)
+                : null,
+          ),
+          for (var i = 0; i < shownUpcoming.length; i++)
+            _mobileTimeRow(
+              shownUpcoming[i].item,
+              section: _RecentSection.upcoming,
+              index: i,
+            ),
+          if (upcomingHidden > 0)
+            _moreRow(
+              l,
+              upcomingHidden,
+              paddingLeft: 42,
+              expanded: _upcomingExpanded,
+              onTap: () => setState(() => _upcomingExpanded = !_upcomingExpanded),
+            )
+          else if (_upcomingExpanded && upcomingItems.length > 3)
+            _moreRow(
+              l,
+              0,
+              paddingLeft: 42,
+              expanded: true,
+              onTap: () => setState(() => _upcomingExpanded = false),
+            ),
+        ],
+      ] else
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 70, horizontal: 12),
+          child: Center(
+            child: Text(
+              l.todayEmptyTime,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: SpecTokens.faint,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+        ),
+      if (completedCount > 0) ...[
+        _groupHead(
+          label: l.completedTodaySection,
+          count: completedCount,
+          expanded: _completedExpanded,
+          onToggle: () => setState(() => _completedExpanded = !_completedExpanded),
+        ),
+        if (_completedExpanded) ...[
+          for (final todo in visibleCompletedTodos)
+            _taskRow(
+              key: ValueKey('completed-${todo.id}'),
+              title: todo.summary,
+              checked: true,
+              calendarName: _calendarName(todo),
+              calendarColor: _calendarColor(todo),
+              rrule: todo.rrule,
+              onToggle: (_) => _setCompleted(todo, null, false),
+              onTap: () => _openTodo(todo),
+              onSchedule: () => _scheduleTodo(todo),
+            ),
+          for (final instance in visibleCompletedInstances)
+            _taskRow(
+              key: ValueKey('completed-inst-${instance.occurrenceId}'),
+              title: instance.todo.summary,
+              checked: true,
+              calendarName: _calendarName(instance.todo),
+              calendarColor: _calendarColor(instance.todo),
+              rrule: instance.todo.rrule,
+              onToggle: (_) => _setCompleted(instance.todo, instance.occurrenceId, false),
+              onTap: () => _openTodo(instance.todo),
+              onSchedule: () => _scheduleTodo(instance.todo),
+            ),
+        ],
+      ],
+      if (shelfSource.isNotEmpty || unplannedCount > 0) ...[
+        _groupHead(
           label: l.todayNoDateGroup,
           count: unplannedCount,
-          countLabel: l.groupCountItems(unplannedCount),
-          topBorder: true,
-          trailing: Icon(
-            // With nothing left to expand the tap leaves for the bucket's
-            // own view, so the chevron must not promise a disclosure.
-            _unplannedExpanded || expandable == 0
-                ? CupertinoIcons.chevron_up
-                : CupertinoIcons.chevron_down,
-            size: 14,
-            color: ds.ink3,
+          trailing: const Icon(
+            CupertinoIcons.chevron_up,
+            size: 11,
+            color: SpecTokens.faint,
           ),
-          onTap: expandable > 0
-              ? () => setState(() => _unplannedExpanded = !_unplannedExpanded)
-              : widget.onOpenUnplanned,
+          onToggle: widget.onOpenUnplanned,
         ),
-        for (final (index, todo) in shown.indexed)
-          _unplannedRow(
-            l,
-            todo,
+        for (final todo in shownUnplanned)
+          _taskRow(
+            key: ValueKey('unplanned-${todo.id}'),
+            title: todo.summary,
+            checked: todo.status == 'COMPLETED',
+            calendarName: _calendarName(todo),
+            calendarColor: _calendarColor(todo),
+            rrule: todo.rrule,
             highlighted: todo.id == _recentId,
-            index: index,
+            trailing: _undoFor(todo.id, null, _RecentSection.unplanned),
+            onToggle: (_) => _toggleUnplanned(todo, 0),
+            onTap: () => _openTodo(todo),
+            onSchedule: () => _scheduleTodo(todo),
           ),
-        if (expandable > 0)
-          _moreRow(l, expandable, paddingLeft: 55)
+        if (expandableUnplanned > 0)
+          _moreRow(
+            l,
+            expandableUnplanned,
+            paddingLeft: 42,
+            expanded: _unplannedExpanded,
+            onTap: () => setState(() => _unplannedExpanded = !_unplannedExpanded),
+          )
+        else if (_unplannedExpanded && shelfSource.length > 3)
+          _moreRow(
+            l,
+            0,
+            paddingLeft: 42,
+            expanded: true,
+            onTap: () => setState(() => _unplannedExpanded = false),
+          )
         else if (beyondShelf > 0)
-          _showAllRow(l, beyondShelf, paddingLeft: 55),
+          _showAllRow(l, beyondShelf, paddingLeft: 42),
       ],
-      const SizedBox(height: 12),
+      const SizedBox(height: 80),
     ];
+
+    final listContent = isPageEmpty
+        ? ListView(
+            key: const ValueKey('a2-today-list'),
+            controller: _scroll,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+            children: [
+              mobileContentHeader,
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 70, horizontal: 12),
+                child: Center(
+                  child: Text(
+                    l.emptyTodayTitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: SpecTokens.faint,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          )
+        : NotificationListener<ScrollMetricsNotification>(
+            onNotification: (notification) {
+              _onViewportChanged(notification.metrics);
+              return false;
+            },
+            child: Listener(
+              onPointerDown: _onListPointerDown,
+              child: ListView(
+                key: const ValueKey('a2-today-list'),
+                controller: _scroll,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                children: children,
+              ),
+            ),
+          );
 
     return Listener(
       onPointerDown: _onListPointerDown,
@@ -690,41 +1092,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: _listSlot(
-                    l,
-                    data,
-                    // The empty box is centred in the space the list would have
-                    // used. Inside the list it sat against the head with the
-                    // whole lower half of the page blank.
-                    empty
-                        ? Column(
-                            children: [
-                              mobileContentHeader,
-                              Expanded(
-                                child: A2Empty(
-                                  icon: CupertinoIcons.time,
-                                  title: l.emptyTodayTitle,
-                                  hint: l.emptyTodayHint,
-                                ),
-                              ),
-                            ],
-                          )
-                        : NotificationListener<ScrollMetricsNotification>(
-                            onNotification: (notification) {
-                              _onViewportChanged(notification.metrics);
-                              return false;
-                            },
-                            child: Listener(
-                              onPointerDown: _onListPointerDown,
-                              child: ListView(
-                                key: const ValueKey('a2-today-list'),
-                                controller: _scroll,
-                                padding: EdgeInsets.zero,
-                                children: children,
-                              ),
-                            ),
-                          ),
-                  ),
+                  child: _listSlot(l, data, listContent),
                 ),
                 if (_toastVisible && _lastToast.isNotEmpty)
                   Positioned(
@@ -1195,6 +1563,10 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     ValueChanged<bool>? onToggle,
     VoidCallback? onTap,
     VoidCallback? onSchedule,
+    Widget? trailing,
+    bool highlighted = false,
+    String? planLabel,
+    bool showCheck = true,
   }) {
     final l = AppLocalizations.of(context)!;
     final meta = <Widget>[
@@ -1221,6 +1593,10 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         ),
         const SizedBox(width: 4),
       ],
+      if (planLabel != null && planLabel.isNotEmpty) ...[
+        Text('· $planLabel'),
+        const SizedBox(width: 4),
+      ],
     ];
 
     return SpecTaskRow(
@@ -1233,6 +1609,107 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       onToggle: onToggle,
       onTap: onTap,
       onSchedule: onSchedule,
+      scheduleTooltip: l.scheduleAction,
+      trailing: trailing,
+      selected: highlighted,
+      showCheck: showCheck,
+    );
+  }
+
+  Widget _mobileTimeRow(
+    DayItem item, {
+    bool isQuiet = false,
+    _RecentSection section = _RecentSection.now,
+    int index = 0,
+  }) {
+    final l = AppLocalizations.of(context)!;
+    final isPlan = item.kind == DayItemKind.allocation;
+    final isPlanOrInstance = item.kind == DayItemKind.allocation || item.kind == DayItemKind.instance;
+    final isSeries = item.todo?.rrule != null && item.todo!.rrule!.isNotEmpty;
+    final timeStr = item.start != null
+        ? DateFormatters.formatTime(item.start!)
+        : (item.allDay ? l.allDayLabel : '');
+    final recent = item.todo != null && _recentMatches(item.todo!.id, item.occurrenceId);
+    final done = item.completed || recent;
+
+    final timeRange = item.start != null && item.end != null
+        ? '${DateFormatters.formatTime(item.start!)}–${DateFormatters.formatTime(item.end!)}'
+        : (item.calendarName ?? '');
+
+    final metaParts = <String>[];
+    if (item.calendarName != null && !isPlan) {
+      metaParts.add(item.calendarName!);
+    }
+    if (isPlan && item.start != null && item.end != null) {
+      metaParts.add(l.plannedRangeLabel(timeRange));
+    } else {
+      metaParts.add(timeRange);
+    }
+
+    if (isPlan) {
+      if (item.todo?.dueDate != null) {
+        final due = item.todo!.dueDate!.toLocal();
+        if (done) {
+          final completedAt = recent ? _recent?.completedAt : item.todo?.completedAt;
+          metaParts.add(_completedText(l, completedAt));
+        }
+        metaParts.add(_dueText(l, due));
+      } else if (done) {
+        final completedAt = recent ? _recent?.completedAt : item.todo?.completedAt;
+        metaParts.add(_completedText(l, completedAt));
+      }
+    } else if (isSeries) {
+      metaParts.add(l.recurringTask);
+    }
+    final metaText = metaParts.join(' · ');
+
+    final checkable = item.kind != DayItemKind.event;
+    final recentState = _recent;
+    final undo = recent && recentState != null ? _undoAction(recentState) : null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 42,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 7, right: 8),
+              child: Text(
+                timeStr,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: SpecTokens.faint,
+                  fontFeatures: AppTypography.tabular,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: SpecTimeBlock(
+              kind: isPlanOrInstance ? SpecTimeBlockKind.plan : SpecTimeBlockKind.event,
+              title: item.title,
+              meta: metaText,
+              barColor: item.calendarColor ?? (isPlan ? SpecTokens.work : SpecTokens.scheduleBlue),
+              bgColor: isQuiet ? SpecTokens.wash : null,
+              done: done,
+              checked: done,
+              trailing: undo,
+              onToggle: checkable ? (_) => _toggleItem(item, section, index) : null,
+              onTap: () {
+                if (item.event != null) {
+                  _openEvent(item.event!);
+                } else if (item.todo != null) {
+                  _openTodo(item.todo!);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1660,354 +2137,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     return _listSlot(l, data, desktopContent);
   }
 
-  // ------------------------------------------------------------- sections
-
-  /// The three-row preview shared by the upcoming and overdue sections, the
-  /// same bound the unplanned shelf uses.
-  static const int _sectionLimit = 3;
-
-  /// Each time section renders only when it has something. A lone overdue item
-  /// must not be read through an "empty day" box, and a section whose last row
-  /// was just completed keeps that row for the undo window.
-  List<Widget> _sections(
-    AppLocalizations l,
-    DayAgenda agenda, {
-    required double timeColumn,
-    ActionProjectionData? projection,
-  }) {
-    final ds = context.ds;
-    final allCompletedTodos = projection?.completedTodayTodos ?? const <Todo>[];
-    final allCompletedInstances =
-        projection?.completedTodayTaskInstances ??
-        const <ProjectedTaskInstance>[];
-    // The freshly completed row already sits in its own section for the undo
-    // window; counting it here too would show it twice once the fold opens.
-    final recent = _recent;
-    final recentKey = recent == null
-        ? null
-        : _keyOf(recent.todo.id, recent.occurrenceId);
-    final completedTodos = recentKey == null
-        ? allCompletedTodos
-        : [
-            for (final todo in allCompletedTodos)
-              if (_keyOf(todo.id, null) != recentKey) todo,
-          ];
-    final completedInstances = recentKey == null
-        ? allCompletedInstances
-        : [
-            for (final instance in allCompletedInstances)
-              if (_keyOf(instance.todo.id, instance.occurrenceId) != recentKey)
-                instance,
-          ];
-    final completedCount = completedTodos.length + completedInstances.length;
-    final missed =
-        projection?.missedTaskInstances ?? const <ProjectedTaskInstance>[];
-    final earlierMissed = projection?.earlierMissedSeries ?? const <Todo>[];
-    final hasEarlierMissed = projection?.hasEarlierMissed ?? false;
-    final timed = agenda.timed;
-    bool isRunning(DayItem item) {
-      final start = item.start;
-      final end = item.end;
-      if (start == null || end == null || item.allDay) return false;
-      return !start.isAfter(widget.now) && end.isAfter(widget.now);
-    }
-
-    final running = timed.where(isRunning).toList();
-    final rest = timed
-        .where((item) => !isRunning(item) && !_hasEnded(item))
-        .toList();
-    // What already ended belongs to the day, not to "upcoming": a 09:00
-    // meeting at 15:00 shown ahead of a 16:00 one reads as a lie about time.
-    final ended = timed.where(_hasEnded).toList();
-    // "Earlier today" is its own section: ticking a row here must keep it here
-    // for the undo window, not clone it into Upcoming.
-    final endedItems = _injectRecentDayItems(ended, _RecentSection.ended);
-    final widgets = <Widget>[];
-
-    // "Now" is the page's only anchor: it is never folded.
-    final runningItems = _injectRecentDayItems(running, _RecentSection.now);
-    if (runningItems.isNotEmpty) {
-      widgets.add(
-        A2GroupHead(
-          label: l.sectionNow,
-          tone: ds.primary,
-          topBorder: false,
-          trailing: Text(
-            DateFormatters.formatTime(widget.now),
-            style: TextStyle(
-              fontSize: 11,
-              color: ds.faint,
-              fontFeatures: AppTypography.tabular,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
-          ),
-        ),
-      );
-      for (var i = 0; i < runningItems.length; i++) {
-        widgets.add(
-          _timelineItem(
-            runningItems[i],
-            timeColumn,
-            section: _RecentSection.now,
-            index: i,
-          ),
-        );
-      }
-    }
-
-    // Upcoming: timed rows then pending recurring instances, capped at three
-    // with "还有 M 项 · 展开" (T2). The head's chevron mirrors the shelf.
-    final upcoming = <({DayItem item, bool instance})>[
-      for (final item in rest) (item: item, instance: false),
-      for (final instance in agenda.instances) (item: instance, instance: true),
-    ];
-    final upcomingItems = _injectRecentUpcoming(upcoming);
-    if (upcomingItems.isNotEmpty) {
-      final expanded = _upcomingExpanded;
-      final collapsible = upcomingItems.length > _sectionLimit;
-      final shown = expanded
-          ? upcomingItems
-          : upcomingItems.take(_sectionLimit).toList();
-      final hidden = upcomingItems.length - shown.length;
-      void toggle() => setState(() => _upcomingExpanded = !_upcomingExpanded);
-      widgets.add(
-        A2GroupHead(
-          label: l.sectionUpcoming,
-          topBorder: false,
-          trailing: collapsible
-              ? Icon(
-                  expanded
-                      ? CupertinoIcons.chevron_up
-                      : CupertinoIcons.chevron_down,
-                  size: 14,
-                  color: ds.ink3,
-                )
-              : null,
-          onTap: collapsible ? toggle : null,
-        ),
-      );
-      for (var i = 0; i < shown.length; i++) {
-        final entry = shown[i];
-        if (entry.instance) {
-          final instance = entry.item;
-          widgets.add(
-            A2TimelineItem(
-              timeLabel: instance.start == null || instance.allDay
-                  ? l.allDayLabel
-                  : DateFormatters.formatTime(instance.start!),
-              timeColumn: timeColumn,
-              child: _block(
-                l,
-                instance,
-                kind: A2BlockKind.due,
-                accent: ds.work,
-                section: _RecentSection.upcoming,
-                index: i,
-              ),
-            ),
-          );
-        } else {
-          widgets.add(
-            _timelineItem(
-              entry.item,
-              timeColumn,
-              section: _RecentSection.upcoming,
-              index: i,
-            ),
-          );
-        }
-      }
-      if (collapsible) {
-        widgets.add(
-          _entryRow(
-            expanded ? l.collapseLabel : l.expandRemaining(hidden),
-            onTap: toggle,
-          ),
-        );
-      }
-    }
-
-    final dueItems = _injectRecentDayItems(
-      agenda.dueTodos,
-      _RecentSection.dueToday,
-    );
-    if (dueItems.isNotEmpty) {
-      widgets.add(
-        A2GroupHead(
-          label: l.sectionDueToday,
-          count: dueItems.length,
-          tone: ds.warn,
-          topBorder: false,
-        ),
-      );
-      for (var i = 0; i < dueItems.length; i++) {
-        widgets.add(
-          _timelineItem(
-            dueItems[i],
-            timeColumn,
-            section: _RecentSection.dueToday,
-            index: i,
-          ),
-        );
-      }
-    }
-
-    // Overdue is capped exactly like Upcoming (T2); it is the other section
-    // that can grow without bound.
-    final overdueItems = _injectRecentDayItems(
-      agenda.overdueTodos,
-      _RecentSection.overdue,
-    );
-    if (overdueItems.isNotEmpty) {
-      final expanded = _overdueExpanded;
-      final collapsible = overdueItems.length > _sectionLimit;
-      final shown = expanded
-          ? overdueItems
-          : overdueItems.take(_sectionLimit).toList();
-      final hidden = overdueItems.length - shown.length;
-      void toggle() => setState(() => _overdueExpanded = !_overdueExpanded);
-      widgets.add(
-        A2GroupHead(
-          label: l.sectionOverdueLabel,
-          count: overdueItems.length,
-          danger: true,
-          tone: ds.danger,
-          topBorder: false,
-          trailing: collapsible
-              ? Icon(
-                  expanded
-                      ? CupertinoIcons.chevron_up
-                      : CupertinoIcons.chevron_down,
-                  size: 14,
-                  color: ds.ink3,
-                )
-              : null,
-          onTap: collapsible ? toggle : null,
-        ),
-      );
-      for (var i = 0; i < shown.length; i++) {
-        widgets.add(
-          _timelineItem(
-            shown[i],
-            timeColumn,
-            section: _RecentSection.overdue,
-            index: i,
-          ),
-        );
-      }
-      if (collapsible) {
-        widgets.add(
-          _entryRow(
-            expanded ? l.collapseLabel : l.expandRemaining(hidden),
-            onTap: toggle,
-          ),
-        );
-      }
-    }
-
-    final missedItems = _injectRecentInstances(missed, _RecentSection.missed);
-    if (missedItems.isNotEmpty || hasEarlierMissed) {
-      widgets.add(
-        A2GroupHead(
-          label: l.missed,
-          count: missedItems.isEmpty ? null : missedItems.length,
-          countLabel: missedItems.isEmpty
-              ? null
-              : l.groupCountItems(missedItems.length),
-          danger: true,
-          tone: ds.danger,
-          topBorder: false,
-        ),
-      );
-      final shownMissed = _missedExpanded
-          ? missedItems
-          : missedItems.take(3).toList();
-      for (var i = 0; i < shownMissed.length; i++) {
-        widgets.add(
-          _missedInstanceRow(
-            shownMissed[i],
-            section: _RecentSection.missed,
-            index: i,
-          ),
-        );
-      }
-      final moreMissed = missedItems.length - shownMissed.length;
-      if (moreMissed > 0) {
-        widgets.add(
-          _entryRow(
-            _missedExpanded ? l.collapseLabel : l.expandRemaining(moreMissed),
-            onTap: () => setState(() => _missedExpanded = !_missedExpanded),
-          ),
-        );
-      }
-      if (hasEarlierMissed) {
-        widgets.add(
-          _entryRow(
-            _earlierMissedExpanded ? l.collapseLabel : l.earlierMissed,
-            onTap: () => setState(
-              () => _earlierMissedExpanded = !_earlierMissedExpanded,
-            ),
-          ),
-        );
-        if (_earlierMissedExpanded) {
-          for (final todo in earlierMissed) {
-            widgets.add(_seriesRow(todo));
-          }
-        }
-      }
-    }
-
-    if (endedItems.isNotEmpty) {
-      widgets.add(
-        A2GroupHead(
-          label: l.actionEarlierToday,
-          count: endedItems.length,
-          topBorder: false,
-        ),
-      );
-      for (var i = 0; i < endedItems.length; i++) {
-        widgets.add(
-          _timelineItem(
-            endedItems[i],
-            timeColumn,
-            section: _RecentSection.ended,
-            index: i,
-          ),
-        );
-      }
-    }
-
-    // Completed work stays folded at the end of the timeline (CORE_UX_SPEC
-    // §2.6 / SPEC rule 18): one head with its count is the whole default.
-    if (completedCount > 0) {
-      widgets.add(
-        A2GroupHead(
-          label: l.completedTodaySection,
-          count: completedCount,
-          countLabel: l.groupCountItems(completedCount),
-          topBorder: false,
-          trailing: Icon(
-            _completedExpanded
-                ? CupertinoIcons.chevron_up
-                : CupertinoIcons.chevron_down,
-            size: 14,
-            color: ds.ink3,
-          ),
-          onTap: () => setState(() => _completedExpanded = !_completedExpanded),
-        ),
-      );
-      if (_completedExpanded) {
-        for (final todo in completedTodos) {
-          widgets.add(_completedTodoRow(todo));
-        }
-        for (final instance in completedInstances) {
-          widgets.add(_completedInstanceRow(instance));
-        }
-      }
-    }
-
-    return widgets;
-  }
+  // ------------------------------------------------------------- recent injections
 
   /// Re-insert a just-completed timeline row where it stood while the
   /// projection no longer carries it.
@@ -2115,230 +2245,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     return !end.isAfter(widget.now);
   }
 
-  Widget _timelineItem(
-    DayItem item,
-    double timeColumn, {
-    _RecentSection section = _RecentSection.upcoming,
-    int index = 0,
-  }) {
-    final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
-    final isOverdue = item.kind == DayItemKind.deadline && _isOverdue(item);
-    final timeLabel = switch (item.kind) {
-      DayItemKind.event || DayItemKind.allocation =>
-        item.allDay ? l.allDayLabel : DateFormatters.formatTime(item.start!),
-      DayItemKind.deadline =>
-        isOverdue
-            ? DateFormat.Md(_locale).format(item.todo!.dueDate!.toLocal())
-            : item.start == null
-            ? l.today
-            : DateFormatters.formatTime(item.start!),
-      DayItemKind.instance =>
-        item.start == null || item.allDay
-            ? l.allDayLabel
-            : DateFormatters.formatTime(item.start!),
-    };
-    final duration =
-        item.kind == DayItemKind.event &&
-            !item.allDay &&
-            item.end != null &&
-            item.start != null
-        ? _minutes(item.end!.difference(item.start!).inMinutes)
-        : null;
-    final kind = switch (item.kind) {
-      DayItemKind.event => A2BlockKind.event,
-      DayItemKind.allocation => A2BlockKind.allocation,
-      DayItemKind.deadline => A2BlockKind.due,
-      DayItemKind.instance => A2BlockKind.due,
-    };
-    final accent = item.kind == DayItemKind.event
-        ? item.calendarColor ?? ds.ink3
-        : item.kind == DayItemKind.allocation
-        ? ds.work
-        : isOverdue
-        ? ds.danger
-        : ds.warn;
-    final fill = item.kind == DayItemKind.event && item.calendarColor != null
-        ? Color.alphaBlend(
-            item.calendarColor!.withValues(alpha: 0.10),
-            ds.surface,
-          )
-        : null;
-    return A2TimelineItem(
-      timeLabel: timeLabel,
-      durationLabel: duration,
-      timeColor: isOverdue
-          ? ds.danger
-          : item.kind == DayItemKind.deadline && !isOverdue
-          ? ds.warn
-          : null,
-      timeColumn: timeColumn,
-      child: _block(
-        l,
-        item,
-        kind: kind,
-        accent: accent,
-        fill: fill,
-        section: section,
-        index: index,
-      ),
-    );
-  }
 
-  Widget _block(
-    AppLocalizations l,
-    DayItem item, {
-    required A2BlockKind kind,
-    required Color accent,
-    Color? fill,
-    _RecentSection section = _RecentSection.upcoming,
-    int index = 0,
-  }) {
-    final ds = context.ds;
-    final isOverdue = item.kind == DayItemKind.deadline && _isOverdue(item);
-    final recent =
-        item.todo != null && _recentMatches(item.todo!.id, item.occurrenceId);
-    final done = item.completed || recent;
-    final meta = <Widget>[];
-    switch (item.kind) {
-      case DayItemKind.event:
-        if (item.calendarName != null) {
-          meta.add(A2MetaText(item.calendarName!));
-          meta.add(const A2Sep());
-        }
-        if (item.start != null && item.end != null) {
-          meta.add(
-            A2MetaText(
-              '${DateFormatters.formatTime(item.start!)}–'
-              '${DateFormatters.formatTime(item.end!)}',
-            ),
-          );
-        }
-      case DayItemKind.allocation:
-        if (item.start != null && item.end != null) {
-          meta.add(
-            A2MetaText(
-              l.plannedRangeLabel(
-                '${DateFormatters.formatTime(item.start!)}–'
-                '${DateFormatters.formatTime(item.end!)}',
-              ),
-              color: ds.work,
-            ),
-          );
-        }
-        final due = item.todo?.dueDate?.toLocal();
-        if (due != null) {
-          // T3: the merged block's tick completes the allocation and the
-          // deadline as one fact, so the meta records both the completion and
-          // the deadline it closed.
-          if (done) {
-            meta.add(const A2Sep());
-            final completedAt = recent
-                ? _recent?.completedAt
-                : item.todo?.completedAt;
-            meta.add(
-              A2MetaText(_completedText(l, completedAt), color: ds.ink3),
-            );
-          }
-          meta.add(const A2Sep());
-          meta.add(A2MetaText(_dueText(l, due), color: ds.ink3));
-        } else if (done) {
-          final completedAt = recent
-              ? _recent?.completedAt
-              : item.todo?.completedAt;
-          meta.add(const A2Sep());
-          meta.add(A2MetaText(_completedText(l, completedAt), color: ds.ink3));
-        }
-      case DayItemKind.deadline:
-        meta.add(
-          A2MetaText(
-            _dueText(l, item.todo!.dueDate!.toLocal(), prefixToday: true),
-            color: isOverdue ? ds.danger : ds.warn,
-            weight: FontWeight.w500,
-          ),
-        );
-        if (done) {
-          meta.add(const A2Sep());
-          meta.add(A2MetaText(l.completed, color: ds.ink3));
-        }
-      case DayItemKind.instance:
-        if (done) {
-          meta.add(A2MetaText(l.completed, color: ds.ink3));
-        }
-    }
-    if (item.kind == DayItemKind.deadline && isOverdue) {
-      final days = _today
-          .difference(
-            DateTime(
-              item.todo!.dueDate!.year,
-              item.todo!.dueDate!.month,
-              item.todo!.dueDate!.day,
-            ),
-          )
-          .inDays;
-      final due = item.todo!.dueDate!.toLocal();
-      final hasTime = due.hour != 0 || due.minute != 0;
-      // The time column already prints the date of an overdue row, so the meta
-      // carries only what the column lacks. Repeating the date there pushed
-      // the lateness past the ellipsis ("Due 11/11 10...").
-      meta
-        ..clear()
-        ..add(
-          A2MetaText(
-            l.dueValueLabel(
-              hasTime
-                  ? DateFormatters.formatTime(due)
-                  : DateFormat.Md(_locale).format(due),
-            ),
-            color: ds.danger,
-            weight: FontWeight.w500,
-          ),
-        )
-        ..add(const A2Sep())
-        ..add(A2MetaText(l.overdueDays(days), color: ds.danger));
-      if (done) {
-        meta.add(const A2Sep());
-        meta.add(A2MetaText(l.completed, color: ds.ink3));
-      }
-    }
-    // The action chip ends the meta line, as in the design. It is a fixed mark
-    // and the prose beside it gives way first, so the two cannot starve each
-    // other; making it a row trailing would cut the two-line title instead.
-    final scheduleChip =
-        (item.kind == DayItemKind.deadline ||
-                item.kind == DayItemKind.instance) &&
-            !done
-        ? A2InlineChip(
-            label: l.scheduleAction,
-            color: ds.warn,
-            background: ds.warnSoft,
-            onTap: () => _scheduleTodo(item.todo!),
-          )
-        : null;
-    if (scheduleChip != null) {
-      meta.add(const SizedBox(width: 6));
-      meta.add(scheduleChip);
-    }
-    final recentState = _recent;
-    final undo = recent && recentState != null
-        ? _undoAction(recentState)
-        : null;
-    final checkable = item.kind != DayItemKind.event;
-    return A2Block(
-      kind: kind,
-      title: item.title,
-      accent: accent,
-      fill: fill,
-      done: done,
-      checked: done,
-      meta: meta,
-      trailing: undo,
-      onToggle: checkable ? (_) => _toggleItem(item, section, index) : null,
-      onTap: item.kind == DayItemKind.event
-          ? () => _openEvent(item.event!)
-          : () => _openTodo(item.todo!),
-    );
-  }
 
   /// T3's other half: when the row knows when it was completed, the meta says
   /// so, because finishing before the deadline is the fact worth keeping.
@@ -2369,64 +2276,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     );
   }
 
-  bool _isOverdue(DayItem item) {
-    final due = item.todo?.dueDate?.toLocal();
-    if (due == null) return false;
-    return DateTime(due.year, due.month, due.day).isBefore(_today);
-  }
-
-  String _minutes(int total) {
-    final l = AppLocalizations.of(context)!;
-    final h = total ~/ 60;
-    final m = total % 60;
-    if (h == 0) return l.durationMinutes(m);
-    if (m == 0) return l.durationHours(h);
-    return l.durationHoursMinutes(h, m);
-  }
-
-  Widget _unplannedRow(
-    AppLocalizations l,
-    Todo todo, {
-    bool highlighted = false,
-    bool compact = false,
-    int index = 0,
-  }) {
-    final ds = context.ds;
-    final recent = todo.id == _recentId;
-    final undo =
-        _recent != null &&
-            _recent!.section == _RecentSection.unplanned &&
-            _recentMatches(todo.id, null)
-        ? _recent
-        : null;
-    return _maybeHover(
-      builder: (background) => A2Row(
-        title: todo.summary,
-        checked: undo != null,
-        background: highlighted ? ds.surface2 : background,
-        padding: compact
-            ? const EdgeInsets.fromLTRB(12, 8, 12, 8)
-            : const EdgeInsets.fromLTRB(12, 8, 16, 8),
-        meta: [
-          A2MetaText(recent ? l.justAddedLabel : l.inbox),
-          const A2Sep(),
-          A2MetaText(_calendarName(todo) ?? ''),
-        ],
-        onToggle: (_) => _toggleUnplanned(todo, index),
-        // The row is the object; scheduling is a distinct, explicit action so
-        // tapping a title can no longer hijack the detail view.
-        onTap: () => _openTodo(todo),
-        trailing: undo != null
-            ? _undoAction(undo)
-            : A2IconAction(
-                icon: CupertinoIcons.calendar,
-                tooltip: l.scheduleAction,
-                onPressed: () => _scheduleTodo(todo),
-              ),
-      ),
-    );
-  }
-
   String? _calendarName(Todo todo) {
     final calendars = ref.read(calendarsProvider).valueOrNull ?? const [];
     for (final calendar in calendars) {
@@ -2435,126 +2284,34 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     return null;
   }
 
-  Widget _missedInstanceRow(
-    ProjectedTaskInstance instance, {
-    _RecentSection section = _RecentSection.missed,
-    int index = 0,
-  }) {
-    final calendar = _calendarName(instance.todo);
-    final undo =
-        _recent != null &&
-            _recent!.section == section &&
-            _recentMatches(instance.todo.id, instance.occurrenceId)
-        ? _recent
-        : null;
-    return _maybeHover(
-      builder: (background) => A2Row(
-        title: instance.todo.summary,
-        checked: undo != null,
-        background: background,
-        meta: [
-          A2MetaText(instance.occurrence.displayLabel),
-          if (calendar != null) ...[const A2Sep(), A2MetaText(calendar)],
-        ],
-        onToggle: (_) => _toggleMissed(instance, index),
-        onTap: () => _openTodo(instance.todo),
-        trailing: undo != null ? _undoAction(undo) : null,
-      ),
-    );
+  Color? _calendarColor(Todo todo) {
+    final calendars = ref.read(calendarsProvider).valueOrNull ?? const [];
+    for (final calendar in calendars) {
+      if (calendar.id == todo.calendarId) {
+        return ColorUtils.parseHex(calendar.color);
+      }
+    }
+    return null;
   }
 
-  Widget _completedTodoRow(Todo todo) {
-    final calendar = _calendarName(todo);
-    return _maybeHover(
-      builder: (background) => A2Row(
-        title: todo.summary,
-        checked: true,
-        background: background,
-        meta: [if (calendar != null) A2MetaText(calendar)],
-        // A completed row cannot be completed again; tapping its check undoes
-        // the completion through the same writer, occurrence id and all.
-        onToggle: (_) => _setCompleted(todo, null, false),
-        onTap: () => _openTodo(todo),
-      ),
-    );
-  }
-
-  Widget _completedInstanceRow(ProjectedTaskInstance instance) {
-    final calendar = _calendarName(instance.todo);
-    return _maybeHover(
-      builder: (background) => A2Row(
-        title: instance.todo.summary,
-        checked: true,
-        background: background,
-        meta: [
-          A2MetaText(instance.occurrence.displayLabel),
-          if (calendar != null) ...[const A2Sep(), A2MetaText(calendar)],
-        ],
-        onToggle: (_) =>
-            _setCompleted(instance.todo, instance.occurrenceId, false),
-        onTap: () => _openTodo(instance.todo),
-      ),
-    );
+  Widget? _undoFor(int? todoId, String? occurrenceId, _RecentSection section) {
+    final recent = _recent;
+    if (recent != null &&
+        recent.section == section &&
+        todoId != null &&
+        _recentMatches(todoId, occurrenceId)) {
+      return _undoAction(recent);
+    }
+    return null;
   }
 
   Widget _seriesRow(Todo todo) {
-    final calendar = _calendarName(todo);
-    return _maybeHover(
-      builder: (background) => A2Row(
-        title: todo.summary,
-        showCheck: false,
-        background: background,
-        meta: [if (calendar != null) A2MetaText(calendar)],
-        onTap: () => _openTodo(todo),
-      ),
-    );
-  }
-
-  /// A disclosure that is a row, not a section head: 13/400 tertiary text in
-  /// the title column, exactly as the design prints "还有 N 项 · 展开全部".
-  Widget _entryRow(
-    String label, {
-    required VoidCallback onTap,
-    double paddingLeft = 12,
-  }) {
-    final ds = context.ds;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          padding: EdgeInsets.fromLTRB(paddingLeft, 8, 16, 8),
-          child: Row(
-            children: [
-              const SizedBox(width: kA2CheckSlot),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: ds.ink3,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Desktop rows highlight on hover, matching the todo list. On touch there
-  /// is no hover, so the extra state is not installed at all.
-  Widget _maybeHover({required Widget Function(Color? background) builder}) {
-    if (!isWorkspaceLayout(context)) return builder(null);
-    return _HoverWrap(
-      builder: (hovered) => builder(hovered ? context.ds.surface2 : null),
+    return _taskRow(
+      title: todo.summary,
+      showCheck: false,
+      calendarName: _calendarName(todo),
+      calendarColor: _calendarColor(todo),
+      onTap: () => _openTodo(todo),
     );
   }
 
@@ -2563,7 +2320,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Widget _showAllRow(
     AppLocalizations l,
     int count, {
-    double paddingLeft = 33,
+    double paddingLeft = 42,
   }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -2601,13 +2358,16 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Widget _moreRow(
     AppLocalizations l,
     int more, {
-    double paddingLeft = 33,
+    String? label,
+    double paddingLeft = 42,
+    VoidCallback? onTap,
+    bool expanded = false,
   }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _unplannedExpanded = !_unplannedExpanded),
+        onTap: onTap ?? () => setState(() => _unplannedExpanded = !_unplannedExpanded),
         child: Container(
           constraints: const BoxConstraints(minHeight: 34),
           padding: EdgeInsets.fromLTRB(paddingLeft, 0, 3, 0),
@@ -2621,9 +2381,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  _unplannedExpanded
-                      ? l.collapseLabel
-                      : l.expandRemaining(more),
+                  label ?? (expanded ? l.collapseLabel : l.expandRemaining(more)),
                   style: const TextStyle(
                     fontSize: 10.5,
                     color: SpecTokens.muted,
@@ -2673,27 +2431,7 @@ class _RecentCompletion {
   final ProjectedTaskInstance? instance;
 }
 
-class _HoverWrap extends StatefulWidget {
-  const _HoverWrap({required this.builder});
 
-  final Widget Function(bool hovered) builder;
-
-  @override
-  State<_HoverWrap> createState() => _HoverWrapState();
-}
-
-class _HoverWrapState extends State<_HoverWrap> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: widget.builder(_hovered),
-    );
-  }
-}
 
 class _Toast extends StatelessWidget {
   const _Toast({required this.label});
