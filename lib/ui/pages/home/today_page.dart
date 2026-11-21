@@ -852,12 +852,12 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             onSchedule: () => _scheduleTodo(visibleDue[i].todo!),
           ),
       ],
-      if (visibleMissed.isNotEmpty) ...[
+      if (visibleMissed.isNotEmpty || hasEarlierMissed) ...[
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _groupHead(
             label: l.missed,
-            count: visibleMissed.length,
+            count: visibleMissed.isEmpty ? null : visibleMissed.length,
             danger: true,
             expanded: _missedExpanded,
             onToggle: visibleMissed.length > 3
@@ -1922,7 +1922,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     final undo = recent && recentState != null ? _undoAction(recentState) : null;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

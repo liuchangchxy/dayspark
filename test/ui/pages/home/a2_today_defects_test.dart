@@ -810,4 +810,112 @@ void main() {
       await _unmount(tester);
     },
   );
+
+  testWidgets(
+    'P1: Earlier missed entry is visible and clickable when 30-day window has no missed items but has earlier missed series',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final earlierTodo = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Ancient recurring task',
+              rrule: const Value('FREQ=DAILY;COUNT=10'),
+            ),
+          );
+
+      final customProjection = ActionProjectionData(
+        missedTaskInstances: const [],
+        hasEarlierMissed: true,
+        earlierMissedSeries: [earlierTodo],
+      );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+            actionProjectionProvider.overrideWithValue(AsyncValue.data(customProjection)),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Missed group header must appear
+      expect(find.text('Missed'), findsOneWidget);
+      // Earlier missed entry must be visible
+      final earlierMissedFinder = find.text('Earlier missed…');
+      expect(earlierMissedFinder, findsOneWidget);
+
+      // Tapping Earlier missed expands the series
+      await tester.tap(earlierMissedFinder);
+      await _settle(tester);
+
+      // Now earlier missed series row appears
+      final ancientRecurringFinder = find.text('Ancient recurring task');
+      expect(ancientRecurringFinder, findsAtLeastNWidgets(1));
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: mobile time row time label left edge aligns with group head (same x = 16 or 19)',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db.into(db.events).insertReturning(
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Morning Standup',
+              startDt: DateTime(2026, 10, 6, 9),
+              endDt: DateTime(2026, 10, 6, 9, 30),
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => DateTime(2026, 10, 6)),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Group head has horizontal padding 16 inside ListView, content has padding horizontal 3 -> x = 19
+      final groupHeadTextFinder = find.text('Earlier today');
+      expect(groupHeadTextFinder, findsOneWidget);
+      final groupHeadRect = tester.getRect(groupHeadTextFinder);
+
+      // Mobile time row has horizontal padding 16 inside ListView -> row starts at x = 16
+      final timeLabelFinder = find.text('09:00');
+      expect(timeLabelFinder, findsOneWidget);
+      final timeLabelParentRowFinder = find.ancestor(
+        of: timeLabelFinder,
+        matching: find.byType(Row),
+      ).first;
+      final timeRowRect = tester.getRect(timeLabelParentRowFinder);
+
+      expect(
+        timeRowRect.left,
+        16.0,
+        reason: '_mobileTimeRow must have horizontal padding 16 so time label column starts at x = 16',
+      );
+      // Group head title text starts at x = 16 + 3 = 19
+      expect(groupHeadRect.left, 19.0);
+
+      await _unmount(tester);
+    },
+  );
 }
