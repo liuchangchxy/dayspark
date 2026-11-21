@@ -230,13 +230,16 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('Quarterly plan'), findsOneWidget);
+    final planRow = find.byWidgetPredicate(
+      (w) => w is CmdRow && w.title == 'Quarterly plan',
+    );
+    expect(planRow, findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'slow');
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     expect(
-      find.text('Quarterly plan'),
+      planRow,
       findsOneWidget,
       reason: 'the previous answer stays readable while the next one loads',
     );
@@ -244,7 +247,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('command-clear-button')).first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('Quarterly plan'), findsNothing);
+    expect(planRow, findsNothing);
     // Spec line 2030: clearing to empty query displays the actions group, not the old non-spec 'Search your calendar'.
     expect(find.text('New Task'), findsOneWidget);
     expect(find.text('Actions'), findsOneWidget);
@@ -306,7 +309,10 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('Quarterly plan'), findsOneWidget);
+    final planRow = find.byWidgetPredicate(
+      (w) => w is CmdRow && w.title == 'Quarterly plan',
+    );
+    expect(planRow, findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'broken');
     await tester.testTextInput.receiveAction(TextInputAction.search);
@@ -314,7 +320,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(
-      find.text('Quarterly plan'),
+      planRow,
       findsNothing,
       reason: 'a failed query must not keep presenting the previous answer',
     );
@@ -654,6 +660,200 @@ void main() {
       expect(find.byType(CmdRow), findsNWidgets(3));
       expect(tester.takeException(), isNull);
 
+      router.dispose();
+    },
+  );
+
+  testWidgets(
+    'P1-1: todo and event result rows both render as homomorphic CmdRow with height in [43, 50), side type, and mark highlight',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final todo = Todo(
+        id: 101,
+        calendarId: 1,
+        summary: 'Submit budget report',
+        priority: 5,
+        status: 'NEEDS-ACTION',
+        recurrenceRevision: 0,
+        percentComplete: 0,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        sortOrder: 0,
+        serverRev: 0,
+      );
+
+      final event = Event(
+        id: 202,
+        calendarId: 1,
+        summary: 'Annual budget review',
+        startDt: DateTime(2026, 11, 22, 10, 0),
+        endDt: DateTime(2026, 11, 22, 11, 0),
+        isAllDay: false,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        serverRev: 0,
+      );
+
+      final router = GoRouter(
+        initialLocation: '/search',
+        routes: [
+          GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+            searchResultsProvider(
+              'budget',
+            ).overrideWith((ref) async => SearchResults([event], [todo])),
+          ],
+          child: MaterialApp.router(
+            routerConfig: router,
+            localizationsDelegates: const [
+              ...AppLocalizations.localizationsDelegates,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField), 'budget');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      // 1. Assert both todo and event are rendered as CmdRow
+      final todoRowFinder = find.byWidgetPredicate(
+        (w) => w is CmdRow && w.title == 'Submit budget report',
+      );
+      final eventRowFinder = find.byWidgetPredicate(
+        (w) => w is CmdRow && w.title == 'Annual budget review',
+      );
+      expect(todoRowFinder, findsOneWidget);
+      expect(eventRowFinder, findsOneWidget);
+
+      // 2. Assert heights are >= 43 and < 50
+      final todoHeight = tester.getSize(todoRowFinder).height;
+      final eventHeight = tester.getSize(eventRowFinder).height;
+      expect(todoHeight, greaterThanOrEqualTo(43.0));
+      expect(todoHeight, lessThan(50.0));
+      expect(eventHeight, greaterThanOrEqualTo(43.0));
+      expect(eventHeight, lessThan(50.0));
+
+      // 3. Assert right column side is 'Task' and 'Event'
+      expect(
+        find.descendant(of: todoRowFinder, matching: find.text('Task')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: eventRowFinder, matching: find.text('Event')),
+        findsOneWidget,
+      );
+
+      // 4. Assert both rows each have a <mark> highlight with color 0xFFF3E7C9
+      final markFinder = find.byWidgetPredicate(
+        (w) =>
+            w is Container &&
+            (w.decoration as BoxDecoration?)?.color == const Color(0xFFF3E7C9),
+      );
+      expect(
+        find.descendant(of: todoRowFinder, matching: markFinder),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: eventRowFinder, matching: markFinder),
+        findsOneWidget,
+      );
+
+      debugDefaultTargetPlatformOverride = null;
+      router.dispose();
+    },
+  );
+
+  testWidgets(
+    'P1-2: desktop cmd palette body has maxHeight constraint of 390px (scrolls when rows exceed 390)',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      // Preset 14 todos which exceed 390px
+      final todos = List.generate(
+        14,
+        (i) => Todo(
+          id: i + 1,
+          calendarId: 1,
+          summary: 'Bulk item number $i for search',
+          priority: 5,
+          status: 'NEEDS-ACTION',
+          recurrenceRevision: 0,
+          percentComplete: 0,
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+          sortOrder: i,
+          serverRev: 0,
+        ),
+      );
+
+      final router = GoRouter(
+        initialLocation: '/search',
+        routes: [
+          GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+            searchResultsProvider(
+              'Bulk',
+            ).overrideWith((ref) async => SearchResults([], todos)),
+          ],
+          child: MaterialApp.router(
+            routerConfig: router,
+            localizationsDelegates: const [
+              ...AppLocalizations.localizationsDelegates,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField), 'Bulk');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+
+      // Find the body container with key 'cmd-body'
+      final bodyFinder = find.byKey(const ValueKey('cmd-body'));
+      expect(bodyFinder, findsOneWidget);
+
+      final bodyHeight = tester.getSize(bodyFinder).height;
+      // Assert body height <= 390 per spec .cmd-body{max-height:390}
+      expect(bodyHeight, lessThanOrEqualTo(390.0));
+      expect(bodyHeight, equals(390.0));
+
+      debugDefaultTargetPlatformOverride = null;
       router.dispose();
     },
   );

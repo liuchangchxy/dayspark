@@ -17,7 +17,6 @@ import 'package:dayspark/domain/providers/search_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
-import 'package:dayspark/ui/widgets/todo/todo_list_tile.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -413,7 +412,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               const SizedBox(height: 2),
                             Flexible(
                               fit: FlexFit.loose,
-                              child: resultBody(shrinkWrap: true),
+                              child: ConstrainedBox(
+                                key: const ValueKey('cmd-body'),
+                                constraints: const BoxConstraints(maxHeight: 390),
+                                child: resultBody(shrinkWrap: true),
+                              ),
                             ),
                             _footer(context, l, selected, hits),
                           ],
@@ -759,29 +762,33 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }) {
     if (_query.isEmpty) {
       var itemIndex = 0;
-      return ListView(
-        shrinkWrap: shrinkWrap,
+      return SingleChildScrollView(
+        key: const PageStorageKey('search-results-empty'),
         padding: const EdgeInsets.symmetric(vertical: 5),
-        children: [
-          if (inbox.isNotEmpty) ...[
-            _cmdGroupHeader(l.commandHintRecent, mobile: !desktop),
-            for (var i = 0; i < inbox.take(5).length; i++)
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (inbox.isNotEmpty) ...[
+              _cmdGroupHeader(l.commandHintRecent, mobile: !desktop),
+              for (var i = 0; i < inbox.take(5).length; i++)
+                _buildRow(
+                  hit: hits[itemIndex],
+                  index: itemIndex++,
+                  selected: selected,
+                  desktop: desktop,
+                ),
+            ],
+            _cmdGroupHeader(l.commandHintActions, mobile: !desktop),
+            for (; itemIndex < hits.length; itemIndex++)
               _buildRow(
                 hit: hits[itemIndex],
-                index: itemIndex++,
+                index: itemIndex,
                 selected: selected,
                 desktop: desktop,
               ),
           ],
-          _cmdGroupHeader(l.commandHintActions, mobile: !desktop),
-          for (; itemIndex < hits.length; itemIndex++)
-            _buildRow(
-              hit: hits[itemIndex],
-              index: itemIndex,
-              selected: selected,
-              desktop: desktop,
-            ),
-        ],
+        ),
       );
     }
 
@@ -795,56 +802,59 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
 
     var itemIndex = 0;
-    return ListView(
+    return SingleChildScrollView(
       key: const PageStorageKey('search-results'),
-      shrinkWrap: shrinkWrap,
       padding: const EdgeInsets.symmetric(vertical: 5),
-      children: [
-        if (results.todos.isNotEmpty) ...[
-          _cmdGroupHeader(l.commandHintTodos, mobile: !desktop),
-          for (var i = 0; i < results.todos.length; i++)
-            _buildRow(
-              hit: hits[itemIndex],
-              index: itemIndex++,
-              selected: selected,
-              desktop: desktop,
-            ),
-          if (results.hasMoreTodos)
-            _loadMore(l, () {
-              setState(() {
-                _todoPage++;
-                _selected = 0;
-              });
-            }, desktop, loading),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (results.todos.isNotEmpty) ...[
+            _cmdGroupHeader(l.commandHintTodos, mobile: !desktop),
+            for (var i = 0; i < results.todos.length; i++)
+              _buildRow(
+                hit: hits[itemIndex],
+                index: itemIndex++,
+                selected: selected,
+                desktop: desktop,
+              ),
+            if (results.hasMoreTodos)
+              _loadMore(l, () {
+                setState(() {
+                  _todoPage++;
+                  _selected = 0;
+                });
+              }, desktop, loading),
+          ],
+          if (results.events.isNotEmpty) ...[
+            _cmdGroupHeader(l.commandHintEvents, mobile: !desktop),
+            for (var i = 0; i < results.events.length; i++)
+              _buildRow(
+                hit: hits[itemIndex],
+                index: itemIndex++,
+                selected: selected,
+                desktop: desktop,
+              ),
+            if (results.hasMoreEvents)
+              _loadMore(l, () {
+                setState(() {
+                  _eventPage++;
+                  _selected = 0;
+                });
+              }, desktop, loading),
+          ],
+          if (itemIndex < hits.length) ...[
+            _cmdGroupHeader(l.commandHintActions, mobile: !desktop),
+            for (; itemIndex < hits.length; itemIndex++)
+              _buildRow(
+                hit: hits[itemIndex],
+                index: itemIndex,
+                selected: selected,
+                desktop: desktop,
+              ),
+          ],
         ],
-        if (results.events.isNotEmpty) ...[
-          _cmdGroupHeader(l.commandHintEvents, mobile: !desktop),
-          for (var i = 0; i < results.events.length; i++)
-            _buildRow(
-              hit: hits[itemIndex],
-              index: itemIndex++,
-              selected: selected,
-              desktop: desktop,
-            ),
-          if (results.hasMoreEvents)
-            _loadMore(l, () {
-              setState(() {
-                _eventPage++;
-                _selected = 0;
-              });
-            }, desktop, loading),
-        ],
-        if (itemIndex < hits.length) ...[
-          _cmdGroupHeader(l.commandHintActions, mobile: !desktop),
-          for (; itemIndex < hits.length; itemIndex++)
-            _buildRow(
-              hit: hits[itemIndex],
-              index: itemIndex,
-              selected: selected,
-              desktop: desktop,
-            ),
-        ],
-      ],
+      ),
     );
   }
 
@@ -854,7 +864,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     required int selected,
     required bool desktop,
   }) {
-    final row = CmdRow(
+    return CmdRow(
       icon: hit.icon,
       title: hit.title,
       meta: hit.meta,
@@ -869,31 +879,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         }
       },
     );
-    if (hit.todo != null) {
-      final todo = hit.todo!;
-      return _SearchRowFrame(
-        selected: selected == index,
-        height: desktop ? 43 : 44,
-        horizontal: 0,
-        onTap: () => _openHit(hit),
-        onHover: () {
-          if (_selected != index) {
-            setState(() => _selected = index);
-          }
-        },
-        child: TodoListTile(
-          summary: todo.summary,
-          isCompleted: todo.status == 'COMPLETED',
-          priority: todo.priority,
-          todoId: todo.id,
-          todo: todo,
-          dueDate: todo.dueDate,
-          selected: selected == index,
-          onTap: () => _openHit(hit),
-        ),
-      );
-    }
-    return row;
   }
 
   Widget _loadMore(
@@ -989,47 +974,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   DateTime _today() {
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day);
-  }
-}
-
-class _SearchRowFrame extends StatelessWidget {
-  const _SearchRowFrame({
-    required this.selected,
-    required this.height,
-    required this.child,
-    this.onTap,
-    this.onHover,
-    this.horizontal = 18,
-  });
-
-  final bool selected;
-  final double height;
-  final Widget child;
-  final VoidCallback? onTap;
-  final VoidCallback? onHover;
-  final double horizontal;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => onHover?.call(),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          constraints: BoxConstraints(minHeight: height),
-          decoration: BoxDecoration(
-            color: selected ? SpecTokens.wash : Colors.transparent,
-            border: const Border(
-              bottom: BorderSide(color: SpecTokens.hair),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(horizontal, 0, horizontal, 0),
-          child: child,
-        ),
-      ),
-    );
   }
 }
 
@@ -1215,31 +1159,42 @@ class CmdRow extends StatelessWidget {
         style: base,
       );
     }
-    return RichText(
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        style: base,
-        children: [
-          if (index > 0) TextSpan(text: text.substring(0, index)),
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3E7C9), // spec <mark> highlight
-                borderRadius: BorderRadius.circular(2),
+    return Stack(
+      alignment: Alignment.centerLeft,
+      children: [
+        RichText(
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            style: base,
+            children: [
+              if (index > 0) TextSpan(text: text.substring(0, index)),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3E7C9), // spec <mark> highlight
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: Text(
+                    text.substring(index, index + queryTrimmed.length),
+                    style: base.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
               ),
-              child: Text(
-                text.substring(index, index + queryTrimmed.length),
-                style: base.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
+              if (index + queryTrimmed.length < text.length)
+                TextSpan(text: text.substring(index + queryTrimmed.length)),
+            ],
           ),
-          if (index + queryTrimmed.length < text.length)
-            TextSpan(text: text.substring(index + queryTrimmed.length)),
-        ],
-      ),
+        ),
+        Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: base.copyWith(color: Colors.transparent),
+        ),
+      ],
     );
   }
 }
