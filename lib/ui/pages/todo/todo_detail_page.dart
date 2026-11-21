@@ -591,6 +591,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     double rowHeight,
   ) {
     return _PaneFieldRow(
+      key: const ValueKey('todo-priority-row'),
       label: l.priority,
       height: rowHeight,
       valueChild: Align(
@@ -616,11 +617,33 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       runSpacing: AppSpacing.s1,
       children: [
         for (final value in const [0, 9, 5, 1])
-          DsChip(
-            label: labels[value]!,
+          Semantics(
+            button: true,
             selected: live.priority == value,
-            compact: true,
-            onTap: () => _savePriority(value),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                key: ValueKey('todo-priority-$value'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _savePriority(value),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                  child: Align(
+                    widthFactor: 1,
+                    heightFactor: 1,
+                    child: DsChip(
+                      key: ValueKey('todo-priority-visual-$value'),
+                      label: labels[value]!,
+                      selected: live.priority == value,
+                      compact: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
       ],
     );
@@ -690,6 +713,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   ) {
     final ds = context.ds;
     final height = mobile ? 48.0 : 36.0;
+    final hitHeight = height < 48 ? 48.0 : height;
     final primaryLabel = completed ? l.markIncomplete : l.markComplete;
     final scheduleDisabledReason = completed
         ? l.completed
@@ -697,6 +721,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         ? l.cancelledTaskAllocation
         : null;
     final primary = _PaneButton(
+      key: const ValueKey('todo-detail-mark-complete'),
       label: primaryLabel,
       height: height,
       primary: true,
@@ -761,7 +786,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                     constraints.maxWidth;
                 if (singleRow) {
                   return SizedBox(
-                    height: height,
+                    height: hitHeight,
                     child: Row(
                       children: [
                         Expanded(child: primary),
@@ -779,12 +804,12 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      height: height,
+                      height: hitHeight,
                       child: Row(children: [Expanded(child: primary)]),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
-                      height: height,
+                      height: hitHeight,
                       child: Row(
                         children: [
                           Expanded(child: schedule),
@@ -852,20 +877,26 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       children: [
         Row(
           children: [
-            Text(
-              l.subtasks,
-              style: AppTypography.small.copyWith(
-                color: ds.ink2,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                l.subtasks,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.small.copyWith(
+                  color: ds.ink2,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-            const Spacer(),
-            DsButton(
-              label: l.addSubtask,
-              tone: DsButtonTone.ghost,
-              small: true,
-              icon: CupertinoIcons.add,
-              onPressed: () => _addSubtask(context, l, live),
+            const SizedBox(width: 8),
+            Flexible(
+              child: DsButton(
+                label: l.addSubtask,
+                tone: DsButtonTone.ghost,
+                small: true,
+                icon: CupertinoIcons.add,
+                onPressed: () => _addSubtask(context, l, live),
+              ),
             ),
           ],
         ),
@@ -1389,6 +1420,7 @@ class _PaneInlineClear extends StatelessWidget {
 
 class _PaneFieldRow extends StatelessWidget {
   const _PaneFieldRow({
+    super.key,
     required this.label,
     required this.height,
     this.value,
@@ -1411,8 +1443,8 @@ class _PaneFieldRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final content = SizedBox(
-      height: height,
+    final content = ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height),
       child: Row(
         children: [
           SizedBox(
@@ -1484,6 +1516,7 @@ class _PaneFieldRow extends StatelessWidget {
 
 class _PaneButton extends StatelessWidget {
   const _PaneButton({
+    super.key,
     required this.label,
     required this.onPressed,
     required this.height,
@@ -1503,6 +1536,31 @@ class _PaneButton extends StatelessWidget {
     final bg = primary ? ds.primary : ds.surface;
     final fg = primary ? ds.onPrimary : (danger ? ds.danger : ds.ink2);
     final enabled = onPressed != null;
+    final visual = Ink(
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: primary ? Colors.transparent : ds.line,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: height >= 44 ? 14 : 12,
+            fontWeight: height >= 44 ? FontWeight.w600 : FontWeight.w500,
+            color: fg,
+            height: 1.2,
+          ),
+        ),
+      ),
+    );
     return Semantics(
       button: true,
       enabled: enabled,
@@ -1511,35 +1569,17 @@ class _PaneButton extends StatelessWidget {
         child: Opacity(
           opacity: enabled ? 1 : 0.45,
           child: Material(
-            color: bg,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(6),
             child: InkWell(
               onTap: onPressed,
               borderRadius: BorderRadius.circular(6),
-              child: Container(
-                height: height,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: primary ? Colors.transparent : ds.line,
-                  ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: 48,
+                  minHeight: 48,
                 ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: height >= 44 ? 14 : 12,
-                    fontWeight: height >= 44
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                    color: fg,
-                    height: 1.2,
-                  ),
-                ),
+                child: Center(child: visual),
               ),
             ),
           ),

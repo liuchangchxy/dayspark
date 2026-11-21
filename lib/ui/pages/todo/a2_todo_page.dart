@@ -521,35 +521,43 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           key: const ValueKey('todos-filter-tool'),
           behavior: HitTestBehavior.opaque,
           onTap: () => _showFilterSheet(context),
-          child: Container(
-            height: 29,
-            padding: const EdgeInsets.symmetric(horizontal: 9),
-            decoration: BoxDecoration(
-              color: active ? SpecTokens.wash : Colors.white,
-              border: Border.all(
-                color: active ? SpecTokens.ink2 : SpecTokens.hair2,
-              ),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  CupertinoIcons.slider_horizontal_3,
-                  size: 12,
-                  color: SpecTokens.muted,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  l.filter,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                    color: active ? SpecTokens.ink : SpecTokens.ink2,
-                    fontFamilyFallback: AppTypography.fallback,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Align(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Container(
+                key: const ValueKey('todos-filter-tool-visual'),
+                height: 29,
+                padding: const EdgeInsets.symmetric(horizontal: 9),
+                decoration: BoxDecoration(
+                  color: active ? SpecTokens.wash : Colors.white,
+                  border: Border.all(
+                    color: active ? SpecTokens.ink2 : SpecTokens.hair2,
                   ),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.slider_horizontal_3,
+                      size: 12,
+                      color: SpecTokens.muted,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      l.filter,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                        color: active ? SpecTokens.ink : SpecTokens.ink2,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -727,39 +735,110 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final isAll = view is TodosAllView;
     final isDate = view is TodosDayView;
 
-    return Container(
+    Widget visual(String label, bool active, Key key) => ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 48),
+      child: Center(child: _modeButtonVisual(label, active, key: key)),
+    );
+
+    return SizedBox(
       key: const ValueKey('todos-mode-switch'),
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: SpecTokens.wash,
-        borderRadius: BorderRadius.circular(7),
-      ),
+      height: 48,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            _modeButton(
-              key: const ValueKey('todo-mode-inbox'),
-              label: l.inbox,
-              active: isInbox,
-              onTap: () => _selectMode(const TodosInboxView()),
+            ExcludeSemantics(
+              child: Container(
+                key: const ValueKey('todos-mode-switch-visual'),
+                height: 33,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: SpecTokens.wash,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    visual(
+                      l.inbox,
+                      isInbox,
+                      const ValueKey('todo-mode-visual-inbox'),
+                    ),
+                    const SizedBox(width: 2),
+                    visual(
+                      l.allLabel,
+                      isAll,
+                      const ValueKey('todo-mode-visual-all'),
+                    ),
+                    const SizedBox(width: 2),
+                    visual(
+                      l.byDateTitle,
+                      isDate,
+                      const ValueKey('todo-mode-visual-date'),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(width: 2),
-            _modeButton(
-              key: const ValueKey('todo-mode-all'),
-              label: l.allLabel,
-              active: isAll,
-              onTap: () => _selectMode(const TodosAllView()),
-            ),
-            const SizedBox(width: 2),
-            _modeButton(
-              key: const ValueKey('todo-mode-date'),
-              label: l.byDateTitle,
-              active: isDate,
-              onTap: () => _selectMode(const TodosDayView()),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _modeButton(
+                  key: const ValueKey('todo-mode-inbox'),
+                  label: l.inbox,
+                  active: isInbox,
+                  onTap: () => _selectMode(const TodosInboxView()),
+                ),
+                const SizedBox(width: 2),
+                _modeButton(
+                  key: const ValueKey('todo-mode-all'),
+                  label: l.allLabel,
+                  active: isAll,
+                  onTap: () => _selectMode(const TodosAllView()),
+                ),
+                const SizedBox(width: 2),
+                _modeButton(
+                  key: const ValueKey('todo-mode-date'),
+                  label: l.byDateTitle,
+                  active: isDate,
+                  onTap: () => _selectMode(const TodosDayView()),
+                ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _modeButtonVisual(String label, bool active, {Key? key}) {
+    return AnimatedContainer(
+      key: key,
+      duration: const Duration(milliseconds: 140),
+      height: 27,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: active ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(5),
+        boxShadow: active
+            ? const [
+                BoxShadow(
+                  color: Color(0x0F191918),
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ]
+            : null,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+          color: active ? SpecTokens.ink : SpecTokens.muted,
+          fontFamilyFallback: AppTypography.fallback,
         ),
       ),
     );
@@ -771,37 +850,25 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     required bool active,
     required VoidCallback onTap,
   }) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        key: key,
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          height: 27,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(5),
-            boxShadow: active
-                ? const [
-                    BoxShadow(
-                      color: Color(0x0F191918),
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? SpecTokens.ink : SpecTokens.muted,
-              fontFamilyFallback: AppTypography.fallback,
+    return Semantics(
+      button: true,
+      selected: active,
+      label: label,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          key: key,
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Center(
+              child: ExcludeSemantics(
+                child: Opacity(
+                  opacity: 0,
+                  child: _modeButtonVisual(label, active),
+                ),
+              ),
             ),
           ),
         ),
@@ -842,32 +909,40 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
               key: const ValueKey('todos-date-strip'),
               behavior: HitTestBehavior.opaque,
               onTap: () => showMonthYearPicker(context, initial: day),
-              child: Container(
-                height: 28,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: SpecTokens.hair2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      monthText,
-                      style: TextStyle(
-                        fontSize: desktop ? 10.5 : 10.0,
-                        color: SpecTokens.ink2,
-                        fontFamilyFallback: AppTypography.fallback,
-                      ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: Align(
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: Container(
+                    key: const ValueKey('todos-date-strip-visual'),
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: SpecTokens.hair2),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    const SizedBox(width: 5),
-                    const Icon(
-                      CupertinoIcons.chevron_down,
-                      size: 10,
-                      color: SpecTokens.faint,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          monthText,
+                          style: TextStyle(
+                            fontSize: desktop ? 10.5 : 10.0,
+                            color: SpecTokens.ink2,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const Icon(
+                          CupertinoIcons.chevron_down,
+                          size: 10,
+                          color: SpecTokens.faint,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -875,19 +950,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           const SizedBox(width: 8),
           Expanded(
             child: SingleChildScrollView(
+              key: const ValueKey('todos-date-strip-scroll'),
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final d in days) ...[
-                    _dateStripDay(
-                      d: d,
-                      selected: _sameDay(d, day),
-                      isToday: _sameDay(d, today),
-                      desktop: desktop,
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                ],
+              child: _dateStripDays(
+                days: days,
+                day: day,
+                today: today,
+                desktop: desktop,
               ),
             ),
           ),
@@ -900,65 +969,136 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
   }
 
-  Widget _dateStripDay({
-    required DateTime d,
-    required bool selected,
-    required bool isToday,
+  Widget _dateStripDays({
+    required List<DateTime> days,
+    required DateTime day,
+    required DateTime today,
     required bool desktop,
   }) {
     final width = desktop ? 44.0 : 34.0;
     final height = desktop ? 48.0 : 44.0;
-    final weekdayRaw = DateFormat.E(_locale).format(d);
-    final weekdayStr =
-        weekdayRaw.length > 1 && !weekdayRaw.startsWith(RegExp(r'[A-Za-z]'))
-            ? weekdayRaw.substring(weekdayRaw.length - 1)
-            : weekdayRaw;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => ref.read(viewedDateProvider.notifier).state = d,
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: selected ? SpecTokens.ink : Colors.transparent,
-            border: Border.all(
-              color: selected ? SpecTokens.ink : Colors.transparent,
-            ),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+    const gap = 4.0;
+    const hitSize = 48.0;
+    final step = width + gap;
+    final totalWidth = days.length * width + (days.length - 1) * gap;
+
+    void selectAt(double x) {
+      final index = ((x - width / 2) / step).round().clamp(
+        0,
+        days.length - 1,
+      );
+      ref.read(viewedDateProvider.notifier).state = days[index];
+    }
+
+    return SizedBox(
+      key: const ValueKey('todos-date-strip-days'),
+      width: totalWidth,
+      height: hitSize,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          excludeFromSemantics: true,
+          onTapUp: (details) => selectAt(details.localPosition.dx),
+          child: Stack(
             children: [
-              Text(
-                weekdayStr,
-                style: TextStyle(
-                  fontSize: 9,
-                  letterSpacing: 0.02 * 9,
-                  color: selected ? Colors.white : SpecTokens.muted,
-                  fontFamilyFallback: AppTypography.fallback,
+              for (var i = 0; i < days.length; i++)
+                Positioned(
+                  left: i * step,
+                  top: (hitSize - height) / 2,
+                  width: width,
+                  height: height,
+                  child: ExcludeSemantics(
+                    child: _dateStripDayVisual(
+                      key: ValueKey(
+                        'todos-date-strip-day-visual-${_dateKey(days[i])}',
+                      ),
+                      d: days[i],
+                      selected: _sameDay(days[i], day),
+                      isToday: _sameDay(days[i], today),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                '${d.day}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  fontFeatures: AppTypography.tabular,
-                  color: selected
-                      ? Colors.white
-                      : (isToday ? SpecTokens.red : SpecTokens.muted),
-                  fontFamilyFallback: AppTypography.fallback,
+              for (var i = 0; i < days.length; i++)
+                Positioned(
+                  left: (i * step - (hitSize - width) / 2).clamp(
+                    0.0,
+                    totalWidth - hitSize,
+                  ),
+                  top: 0,
+                  width: hitSize,
+                  height: hitSize,
+                  child: Semantics(
+                    key: ValueKey('todos-date-strip-day-${_dateKey(days[i])}'),
+                    button: true,
+                    selected: _sameDay(days[i], day),
+                    label:
+                        '${DateFormat.E(_locale).format(days[i])} ${days[i].day}',
+                    onTap: () =>
+                        ref.read(viewedDateProvider.notifier).state = days[i],
+                    child: const SizedBox.expand(),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _dateStripDayVisual({
+    required Key key,
+    required DateTime d,
+    required bool selected,
+    required bool isToday,
+  }) {
+    final weekdayRaw = DateFormat.E(_locale).format(d);
+    final weekdayStr =
+        weekdayRaw.length > 1 && !weekdayRaw.startsWith(RegExp(r'[A-Za-z]'))
+            ? weekdayRaw.substring(weekdayRaw.length - 1)
+            : weekdayRaw;
+    return Container(
+      key: key,
+      decoration: BoxDecoration(
+        color: selected ? SpecTokens.ink : Colors.transparent,
+        border: Border.all(
+          color: selected ? SpecTokens.ink : Colors.transparent,
+        ),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            weekdayStr,
+            style: TextStyle(
+              fontSize: 9,
+              letterSpacing: 0.02 * 9,
+              color: selected ? Colors.white : SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            '${d.day}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              fontFeatures: AppTypography.tabular,
+              color: selected
+                  ? Colors.white
+                  : (isToday ? SpecTokens.red : SpecTokens.muted),
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _dateKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   Widget _dateStripTodayButton(AppLocalizations l, DateTime today) {
     return Tooltip(
@@ -969,22 +1109,30 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           key: const ValueKey('todos-date-strip-today'),
           behavior: HitTestBehavior.opaque,
           onTap: () => ref.read(viewedDateProvider.notifier).state = today,
-          child: Container(
-            height: 28,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: SpecTokens.hair2),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              l.today,
-              style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
-                color: SpecTokens.ink,
-                fontFamilyFallback: AppTypography.fallback,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Align(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Container(
+                key: const ValueKey('todos-date-strip-today-visual'),
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: SpecTokens.hair2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  l.today,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: SpecTokens.ink,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
               ),
             ),
           ),
