@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
@@ -611,7 +612,6 @@ class A2DesktopMonthGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
     final locale = Localizations.localeOf(context).toString();
     final first = DateTime(anchor.year, anchor.month);
     final gridStart = first.subtract(Duration(days: first.weekday - 1));
@@ -658,12 +658,16 @@ class A2DesktopMonthGrid extends StatelessWidget {
     }
     return Column(
       children: [
-        // Spec .month-week: height 30px, 9.5px faint font
+        // Spec .month-week: height 30px, 9.5px faint font, border 1px solid var(--hair)
         Container(
           height: 30,
-          decoration: BoxDecoration(
-            color: ds.surface2,
-            border: Border(bottom: BorderSide(color: ds.lineSoft)),
+          decoration: const BoxDecoration(
+            color: Color(0xFFFBFBF8),
+            border: Border(
+              left: BorderSide(color: SpecTokens.hair, width: 1),
+              top: BorderSide(color: SpecTokens.hair, width: 1),
+              right: BorderSide(color: SpecTokens.hair, width: 1),
+            ),
           ),
           child: Row(
             children: [
@@ -675,22 +679,34 @@ class A2DesktopMonthGrid extends StatelessWidget {
                         locale,
                         gridStart.add(Duration(days: i)),
                       ),
-                      style: _a2Text(9.5, FontWeight.w400, ds.ink3),
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w400,
+                        color: SpecTokens.faint,
+                        letterSpacing: 0.04,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
         ),
-        // Spec .month-grid: 7 cols, min-height 104px per row
+        // Spec .month-grid: 7 cols, min-height 104px per row, border-left & top 1px solid var(--hair)
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
               final minTotal = 104.0 * 6;
               final height = math.max(minTotal, constraints.maxHeight);
               return SingleChildScrollView(
-                child: SizedBox(
+                child: Container(
                   height: height,
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: SpecTokens.hair, width: 1),
+                      top: BorderSide(color: SpecTokens.hair, width: 1),
+                    ),
+                  ),
                   child: Column(children: rows),
                 ),
               );
@@ -702,7 +718,7 @@ class A2DesktopMonthGrid extends StatelessWidget {
   }
 }
 
-class _A2DesktopMonthCell extends StatelessWidget {
+class _A2DesktopMonthCell extends StatefulWidget {
   const _A2DesktopMonthCell({
     required this.date,
     required this.inMonth,
@@ -732,33 +748,41 @@ class _A2DesktopMonthCell extends StatelessWidget {
   final ValueChanged<CalendarDeadline>? onDeadline;
 
   @override
+  State<_A2DesktopMonthCell> createState() => _A2DesktopMonthCellState();
+}
+
+class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
-    final background = isToday
-        ? ds.primaryTint
-        : (isSelected ? ds.surface2 : Colors.transparent);
-    final visible = entries.take(3).toList();
-    final hidden = entries.length - visible.length;
+    // Spec .mcell: border-right & border-bottom 1px solid var(--hair); padding: 6px 7px; background: #fff
+    // .mcell:hover: #fbfbf8; .mcell.is-out: #fbfbf8
+    final background = !widget.inMonth
+        ? const Color(0xFFFBFBF8)
+        : (_hovered ? const Color(0xFFFBFBF8) : SpecTokens.paper);
+    final visible = widget.entries.take(3).toList();
+    final hidden = widget.entries.length - visible.length;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => onSelectDay(date),
-        onDoubleTap: onSlot == null
+        onTap: () => widget.onSelectDay(widget.date),
+        onDoubleTap: widget.onSlot == null
             ? null
-            : () => onSlot!(_nextHourSlot(date, now)),
+            : () => widget.onSlot!(_nextHourSlot(widget.date, widget.now)),
         child: Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: background,
-            border: Border(
-              top: BorderSide(color: ds.lineSoft),
-              left: firstColumn
-                  ? BorderSide.none
-                  : BorderSide(color: ds.lineSoft),
+            border: const Border(
+              right: BorderSide(color: SpecTokens.hair, width: 1),
+              bottom: BorderSide(color: SpecTokens.hair, width: 1),
             ),
           ),
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final capacity = ((constraints.maxHeight - 20) / 22)
@@ -771,37 +795,49 @@ class _A2DesktopMonthCell extends StatelessWidget {
               final shown = visible.take(fits).toList();
               final folded = hidden + (visible.length - shown.length);
 
-              final Widget dateLabel = isToday
+              // Spec .mnum: min-width 20px, height 20px, 10.5px ink-2 tabular.
+              // .mnum.is-today: background: var(--red); color: #fff; border-radius: 10px;
+              // .mcell.is-out .mnum: color: #c3c3ba;
+              final dateLabel = widget.isToday
                   ? Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: ds.primary,
-                        borderRadius: BorderRadius.circular(9),
+                      width: 20,
+                      height: 20,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: SpecTokens.red,
+                        shape: BoxShape.circle,
                       ),
                       child: Text(
-                        '${date.day}',
-                        style: _a2Text(
-                          10.5,
-                          FontWeight.w600,
-                          Colors.white,
+                        widget.date.day.toString(),
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                           height: 1,
-                          tabular: true,
+                          fontFeatures: AppTypography.tabular,
+                          fontFamilyFallback: AppTypography.fallback,
                         ),
                       ),
                     )
-                  : Text(
-                      '${date.day}',
-                      style: _a2Text(
-                        10.5,
-                        inMonth ? FontWeight.w500 : FontWeight.w400,
-                        inMonth
-                            ? ds.ink
-                            : ds.ink3.withValues(alpha: 0.35),
-                        height: 1,
-                        tabular: true,
+                  : SizedBox(
+                      height: 20,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          widget.date.day.toString(),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: widget.inMonth
+                                ? FontWeight.w500
+                                : FontWeight.w400,
+                            color: widget.inMonth
+                                ? SpecTokens.ink2
+                                : const Color(0xFFC3C3BA),
+                            height: 1,
+                            fontFeatures: AppTypography.tabular,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                        ),
                       ),
                     );
 
@@ -815,9 +851,9 @@ class _A2DesktopMonthCell extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 2),
                       child: _A2MonthChip(
                         entry: entry,
-                        onEvent: onEvent,
-                        onAllocation: onAllocation,
-                        onDeadline: onDeadline,
+                        onEvent: widget.onEvent,
+                        onAllocation: widget.onAllocation,
+                        onDeadline: widget.onDeadline,
                       ),
                     ),
                   if (folded > 0)
@@ -825,7 +861,12 @@ class _A2DesktopMonthCell extends StatelessWidget {
                       _a2OverflowLabel(folded),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: _a2Text(8.5, FontWeight.w400, ds.ink3),
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w400,
+                        color: SpecTokens.faint,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
                     ),
                 ],
               );
@@ -865,57 +906,75 @@ class _A2MonthChip extends StatelessWidget {
       final accent = ds.eventAccent(event.color ?? ds.primary);
       background = ds.tint(accent);
       barColor = accent;
-      textColor = ds.ink;
+      textColor = SpecTokens.ink2;
     } else if (allocation != null) {
       background = const Color(0xFFF1F0EA);
-      barColor = ds.work;
-      textColor = const Color(0xFF3B3B33);
+      barColor = SpecTokens.work;
+      textColor = SpecTokens.ink2;
     } else {
-      background = ds.surface2;
-      barColor = ds.warn;
-      textColor = ds.warn;
+      final isOverdue = deadline != null && deadline.due.isBefore(DateTime.now());
+      background = isOverdue ? SpecTokens.redSoft : SpecTokens.amberSoft;
+      barColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
+      textColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
     }
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (event != null) onEvent?.call(event);
-        if (allocation != null) onAllocation?.call(allocation);
-        if (deadline != null) onDeadline?.call(deadline);
-      },
-      child: Container(
-        width: double.infinity,
-        height: 18,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(3),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 3,
-              height: 9,
-              decoration: BoxDecoration(
-                color: barColor,
-                borderRadius: BorderRadius.circular(1),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (event != null) onEvent?.call(event);
+          if (allocation != null) onAllocation?.call(allocation);
+          if (deadline != null) onDeadline?.call(deadline);
+        },
+        child: Container(
+          width: double.infinity,
+          height: 18,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: barColor,
+                  borderRadius: BorderRadius.circular(1),
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                entry.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _a2Text(9, FontWeight.w400, textColor, height: 1.2),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  entry.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.0,
+                    fontWeight: FontWeight.w400,
+                    color: textColor,
+                    height: 1.2,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 2),
-            Text(
-              trailing,
-              maxLines: 1,
-              style: _a2Text(8.5, FontWeight.w400, ds.ink3, tabular: true),
-            ),
-          ],
+              if (trailing.isNotEmpty) ...[
+                const SizedBox(width: 2),
+                Text(
+                  trailing,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w400,
+                    color: SpecTokens.faint,
+                    fontFeatures: AppTypography.tabular,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -1003,6 +1062,7 @@ class A2TimeGridView extends StatelessWidget {
     required this.deadlines,
     required this.calendarNames,
     required this.dayMode,
+    this.isDesktop = true,
     this.onSelectDay,
     this.onEvent,
     this.onAllocation,
@@ -1019,6 +1079,7 @@ class A2TimeGridView extends StatelessWidget {
   final List<CalendarDeadline> deadlines;
   final Map<int, String> calendarNames;
   final bool dayMode;
+  final bool isDesktop;
   final ValueChanged<DateTime>? onSelectDay;
   final ValueChanged<CalendaEventAdapter>? onEvent;
   final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
@@ -1068,7 +1129,13 @@ class A2TimeGridView extends StatelessWidget {
         _deadlineLane(context, l),
         Expanded(
           child: SingleChildScrollView(
-            child: SizedBox(
+            child: Container(
+              decoration: const BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: SpecTokens.hair, width: 1),
+                  bottom: BorderSide(color: SpecTokens.hair, width: 1),
+                ),
+              ),
               height: _axis.height,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1098,7 +1165,6 @@ class A2TimeGridView extends StatelessWidget {
   }
 
   Widget _dayHeadbar(BuildContext context, DateTime day) {
-    final ds = context.ds;
     final l = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).toString();
     final key = calDayOf(day);
@@ -1110,9 +1176,14 @@ class A2TimeGridView extends StatelessWidget {
     return Container(
       height: 42,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: ds.surface2,
-        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFBFBF8),
+        border: Border(
+          left: BorderSide(color: SpecTokens.hair, width: 1),
+          top: BorderSide(color: SpecTokens.hair, width: 1),
+          right: BorderSide(color: SpecTokens.hair, width: 1),
+          bottom: BorderSide(color: SpecTokens.hair, width: 1),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1122,18 +1193,33 @@ class A2TimeGridView extends StatelessWidget {
               children: [
                 TextSpan(
                   text: calWeekdayShort(locale, day),
-                  style: _a2Text(12, FontWeight.w500, ds.ink),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: SpecTokens.ink2,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
                 ),
                 TextSpan(
                   text: ' · ${DateFormat.MMMd(locale).format(day)}',
-                  style: _a2Text(10.5, FontWeight.w400, ds.ink3),
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w400,
+                    color: SpecTokens.muted,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
                 ),
               ],
             ),
           ),
           Text(
             l.timeArrangementsCount(count),
-            style: _a2Text(10.5, FontWeight.w400, ds.ink3),
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w400,
+              color: SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
           ),
         ],
       ),
@@ -1141,56 +1227,36 @@ class A2TimeGridView extends StatelessWidget {
   }
 
   Widget _weekHead(BuildContext context) {
-    final ds = context.ds;
     final locale = Localizations.localeOf(context).toString();
     final today = calDayOf(now);
     return Container(
-      decoration: BoxDecoration(
-        color: ds.bg,
-        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(
+          left: BorderSide(color: SpecTokens.hair, width: 1),
+          top: BorderSide(color: SpecTokens.hair, width: 1),
+        ),
       ),
       child: Row(
         children: [
-          const SizedBox(width: _a2Gutter),
+          Container(
+            width: _a2Gutter,
+            height: 46,
+            decoration: const BoxDecoration(
+              color: SpecTokens.paper,
+              border: Border(
+                right: BorderSide(color: SpecTokens.hair, width: 1),
+                bottom: BorderSide(color: SpecTokens.hair, width: 1),
+              ),
+            ),
+          ),
           for (final day in days)
             Expanded(
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onSelectDay == null ? null : () => onSelectDay!(day),
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: calSameDay(day, today) ? ds.primaryTint : null,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          calWeekdayShort(locale, day),
-                          style: _a2Text(11, FontWeight.w400, ds.ink3),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          '${day.day}',
-                          style: _a2Text(
-                            15,
-                            calSameDay(day, today) || calSameDay(day, selected)
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            calSameDay(day, today) || calSameDay(day, selected)
-                                ? ds.primary
-                                : ds.ink,
-                            height: 1,
-                            tabular: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              child: _DayHeadCell(
+                day: day,
+                isToday: calSameDay(day, today),
+                locale: locale,
+                onTap: onSelectDay == null ? null : () => onSelectDay!(day),
               ),
             ),
         ],
@@ -1203,21 +1269,28 @@ class A2TimeGridView extends StatelessWidget {
     Map<DateTime, List<CalendaEventAdapter>> byDay,
     List<CalendaEventAdapter> allDayEvents,
   ) {
-    if (allDayEvents.isEmpty) return const SizedBox.shrink();
-    final ds = context.ds;
+    if (!isDesktop && allDayEvents.isEmpty) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;
-    final label = SizedBox(
+    final label = Container(
       width: _a2Gutter,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            l.allDayLabel,
-            maxLines: 1,
-            softWrap: false,
-            style: _a2Text(9.5, FontWeight.w400, ds.ink3),
-          ),
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 8),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(
+          right: BorderSide(color: SpecTokens.hair, width: 1),
+          bottom: BorderSide(color: SpecTokens.hair, width: 1),
+        ),
+      ),
+      child: Text(
+        l.allDayLabel,
+        maxLines: 1,
+        softWrap: false,
+        style: const TextStyle(
+          fontSize: 9.0,
+          color: SpecTokens.faint,
+          letterSpacing: 0.04,
+          fontFamilyFallback: AppTypography.fallback,
         ),
       ),
     );
@@ -1226,91 +1299,131 @@ class A2TimeGridView extends StatelessWidget {
     if (dayMode) {
       final items = byDay[calDayOf(days.first)] ?? const [];
       body = Expanded(
-        child: Wrap(
-          spacing: 4,
-          runSpacing: 2,
-          children: [
-            for (final event in items)
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 160),
-                child: _A2AllDayChip(
-                  event: event,
-                  onTap: onEvent == null ? null : () => onEvent!(event),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 30),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          decoration: const BoxDecoration(
+            color: SpecTokens.paper,
+            border: Border(
+              bottom: BorderSide(color: SpecTokens.hair, width: 1),
+            ),
+          ),
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 2,
+            children: [
+              for (final event in items)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  child: _A2AllDayChip(
+                    event: event,
+                    onTap: onEvent == null ? null : () => onEvent!(event),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       );
     } else {
       body = Expanded(
-        child: Row(
-          children: [
-            for (final day in days)
-              Expanded(
-                child: Builder(
-                  builder: (context) {
-                    final items = byDay[calDayOf(day)] ?? const [];
-                    final shown = items.take(maxVisible).toList();
-                    final folded = items.length - shown.length;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final event in shown)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 2, bottom: 2),
-                            child: _A2AllDayChip(
-                              event: event,
-                              onTap: onEvent == null ? null : () => onEvent!(event),
-                            ),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 30),
+          decoration: const BoxDecoration(
+            color: SpecTokens.paper,
+            border: Border(
+              bottom: BorderSide(color: SpecTokens.hair, width: 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              for (final day in days)
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      final items = byDay[calDayOf(day)] ?? const [];
+                      final shown = items.take(maxVisible).toList();
+                      final folded = items.length - shown.length;
+                      return Container(
+                        constraints: const BoxConstraints(minHeight: 30),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            right: BorderSide(color: SpecTokens.hair, width: 1),
                           ),
-                        if (folded > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 2),
-                            child: Text(
-                              _a2OverflowLabel(folded),
-                              maxLines: 1,
-                              softWrap: false,
-                              overflow: TextOverflow.ellipsis,
-                              style: _a2Text(9.5, FontWeight.w400, ds.ink3),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final event in shown)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 2),
+                                child: _A2AllDayChip(
+                                  event: event,
+                                  onTap: onEvent == null ? null : () => onEvent!(event),
+                                ),
+                              ),
+                            if (folded > 0)
+                              Text(
+                                _a2OverflowLabel(folded),
+                                maxLines: 1,
+                                softWrap: false,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w400,
+                                  color: SpecTokens.muted,
+                                  fontFamilyFallback: AppTypography.fallback,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       );
     }
     return Container(
       constraints: const BoxConstraints(minHeight: 30),
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      decoration: BoxDecoration(
-        color: ds.surface,
-        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(
+          left: BorderSide(color: SpecTokens.hair, width: 1),
+        ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [label, body],
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [label, body],
+        ),
       ),
     );
   }
 
   Widget _deadlineLane(BuildContext context, AppLocalizations l) {
-    final ds = context.ds;
-    final label = SizedBox(
+    final label = Container(
       width: _a2Gutter,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            l.deadline,
-            maxLines: 1,
-            softWrap: false,
-            style: _a2Text(9.5, FontWeight.w400, ds.ink3),
-          ),
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 8),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(
+          right: BorderSide(color: SpecTokens.hair, width: 1),
+          bottom: BorderSide(color: SpecTokens.hair, width: 1),
+        ),
+      ),
+      child: Text(
+        l.deadline,
+        maxLines: 1,
+        softWrap: false,
+        style: const TextStyle(
+          fontSize: 9.0,
+          color: SpecTokens.faint,
+          letterSpacing: 0.04,
+          fontFamilyFallback: AppTypography.fallback,
         ),
       ),
     );
@@ -1322,40 +1435,73 @@ class A2TimeGridView extends StatelessWidget {
           if (calSameDay(deadline.due, day)) deadline,
       ];
       body = Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final item in items)
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: _deadlineChip(context, item),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 30),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          decoration: const BoxDecoration(
+            color: SpecTokens.paper,
+            border: Border(
+              bottom: BorderSide(color: SpecTokens.hair, width: 1),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final item in items)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: _deadlineChip(context, item),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       );
     } else {
       body = Expanded(
-        child: Row(
-          children: [
-            for (final day in days)
-              Expanded(child: _weekDeadlineCell(context, l, day)),
-          ],
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 30),
+          decoration: const BoxDecoration(
+            color: SpecTokens.paper,
+            border: Border(
+              bottom: BorderSide(color: SpecTokens.hair, width: 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              for (final day in days)
+                Expanded(
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 30),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        right: BorderSide(color: SpecTokens.hair, width: 1),
+                      ),
+                    ),
+                    child: _weekDeadlineCell(context, l, day),
+                  ),
+                ),
+            ],
+          ),
         ),
       );
     }
     return Container(
       constraints: const BoxConstraints(minHeight: 30),
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      decoration: BoxDecoration(
-        color: ds.surface,
-        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(
+          left: BorderSide(color: SpecTokens.hair, width: 1),
+        ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [label, body],
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [label, body],
+        ),
       ),
     );
   }
@@ -1365,7 +1511,6 @@ class A2TimeGridView extends StatelessWidget {
     AppLocalizations l,
     DateTime day,
   ) {
-    final ds = context.ds;
     final items = [
       for (final value in deadlines)
         if (calSameDay(value.due, day)) value,
@@ -1376,7 +1521,7 @@ class A2TimeGridView extends StatelessWidget {
       children: [
         for (final item in items.take(maxVisible))
           Padding(
-            padding: const EdgeInsets.only(right: 2, bottom: 2),
+            padding: const EdgeInsets.only(bottom: 2),
             child: _deadlineChip(context, item),
           ),
         if (items.length > maxVisible)
@@ -1387,7 +1532,12 @@ class A2TimeGridView extends StatelessWidget {
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.ellipsis,
-              style: _a2Text(9.5, FontWeight.w400, ds.ink3),
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w400,
+                color: SpecTokens.muted,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
             ),
           ),
       ],
@@ -1395,7 +1545,6 @@ class A2TimeGridView extends StatelessWidget {
   }
 
   Widget _deadlineChip(BuildContext context, CalendarDeadline deadline) {
-    final ds = context.ds;
     final l = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).toString();
     final isOverdue = deadline.due.isBefore(now);
@@ -1405,30 +1554,30 @@ class A2TimeGridView extends StatelessWidget {
             : '${l.deadlinePrefix(DateFormat.MMMd(locale).format(deadline.due))} ${deadline.title}')
         : deadline.title;
     final chip = Container(
-      height: 20,
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      decoration: BoxDecoration(
-        color: isOverdue ? ds.dangerSoft : ds.warnSoft,
-        borderRadius: BorderRadius.circular(3),
-        border: Border(
-          left: BorderSide(
-            color: isOverdue ? ds.danger : ds.warn,
-            width: 2,
-          ),
-        ),
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: _a2Text(
-            9.0,
-            FontWeight.w400,
-            isOverdue ? ds.danger : ds.warn,
-            height: 1.2,
-          ),
+      width: double.infinity,
+      padding: isOverdue
+          ? const EdgeInsets.fromLTRB(3, 1, 4, 1)
+          : const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: isOverdue
+          ? const BoxDecoration(
+              color: Colors.transparent,
+              border: Border(
+                left: BorderSide(color: Color(0xFFD9A39D), width: 2),
+              ),
+            )
+          : BoxDecoration(
+              color: SpecTokens.amberSoft,
+              borderRadius: BorderRadius.circular(3),
+            ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 9.0,
+          height: 1.35,
+          color: isOverdue ? SpecTokens.red : SpecTokens.amber,
+          fontFamilyFallback: AppTypography.fallback,
         ),
       ),
     );
@@ -1444,11 +1593,10 @@ class A2TimeGridView extends StatelessWidget {
   }
 
   Widget _hourGutter(BuildContext context) {
-    final ds = context.ds;
     return Container(
-      decoration: BoxDecoration(
-        color: ds.surface,
-        border: Border(right: BorderSide(color: ds.lineSoft)),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(right: BorderSide(color: SpecTokens.hair, width: 1)),
       ),
       child: Stack(
         clipBehavior: Clip.none,
@@ -1462,12 +1610,13 @@ class A2TimeGridView extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: Text(
                   '${hour.toString().padLeft(2, '0')}:00',
-                  style: _a2Text(
-                    9.0,
-                    FontWeight.w400,
-                    ds.ink3,
+                  style: const TextStyle(
+                    fontSize: 9.0,
+                    fontWeight: FontWeight.w400,
+                    color: SpecTokens.faint,
                     height: 1,
-                    tabular: true,
+                    fontFeatures: AppTypography.tabular,
+                    fontFamilyFallback: AppTypography.fallback,
                   ),
                 ),
               ),
@@ -1509,15 +1658,15 @@ class A2TimeGridView extends StatelessWidget {
               top: _axis.offsetOf(hour * 60),
               left: 0,
               right: 0,
-              child: Container(height: 1, color: ds.lineSoft),
+              child: Container(height: 1, color: SpecTokens.hair),
             ),
           // Column right border
-          Positioned(
+          const Positioned(
             top: 0,
             bottom: 0,
             right: 0,
             width: 1,
-            child: ColoredBox(color: ds.lineSoft),
+            child: ColoredBox(color: SpecTokens.hair),
           ),
         ];
 
@@ -1564,7 +1713,7 @@ class A2TimeGridView extends StatelessWidget {
                 title: item.title,
                 meta: meta,
                 fill: isPlan ? const Color(0xFFF1F0EA) : ds.tint(accent),
-                edge: isPlan ? ds.work : accent,
+                edge: isPlan ? SpecTokens.work : accent,
                 isPlan: isPlan,
                 isShort: isShort,
                 hasOverdueDot: hasOverdueDot,
@@ -1607,7 +1756,7 @@ class A2TimeGridView extends StatelessWidget {
             _A2NowLine(
               key: const ValueKey('calendar-now-line'),
               top: _axis.offsetOf(nowM),
-              color: ds.danger,
+              color: SpecTokens.red,
             ),
           );
         }
@@ -1616,7 +1765,6 @@ class A2TimeGridView extends StatelessWidget {
       },
     );
   }
-
   void _openBlock(
     CalBlockItem item,
     Map<int, TaskAllocationCalendarItem> allocationItems,
@@ -1630,6 +1778,125 @@ class A2TimeGridView extends StatelessWidget {
     if (allocation == null) return;
     final original = allocationItems[allocation.id];
     if (original != null) onAllocation?.call(original);
+  }
+}
+
+class _DayHeadCell extends StatefulWidget {
+  const _DayHeadCell({
+    required this.day,
+    required this.isToday,
+    required this.locale,
+    this.onTap,
+  });
+
+  final DateTime day;
+  final bool isToday;
+  final String locale;
+  final VoidCallback? onTap;
+
+  @override
+  State<_DayHeadCell> createState() => _DayHeadCellState();
+}
+
+class _DayHeadCellState extends State<_DayHeadCell> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final weekdayStr = calWeekdayShort(widget.locale, widget.day);
+    final dayNum = widget.day.day.toString();
+
+    final Widget content = Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: _hovered ? const Color(0xFFFBFBF8) : SpecTokens.paper,
+        border: const Border(
+          right: BorderSide(color: SpecTokens.hair, width: 1),
+          bottom: BorderSide(color: SpecTokens.hair, width: 1),
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 64;
+          final weekdayWidget = Text(
+            weekdayStr,
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w400,
+              color: widget.isToday ? SpecTokens.red : SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          );
+
+          final dateWidget = widget.isToday
+              ? Container(
+                  width: isNarrow ? 20 : 22,
+                  height: isNarrow ? 20 : 22,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: SpecTokens.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    dayNum,
+                    style: TextStyle(
+                      fontSize: isNarrow ? 10.0 : 11.0,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      height: 1,
+                      fontFeatures: AppTypography.tabular,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                )
+              : Text(
+                  dayNum,
+                  style: TextStyle(
+                    fontSize: isNarrow ? 12.0 : 13.0,
+                    fontWeight: FontWeight.w500,
+                    color: SpecTokens.ink2,
+                    height: 1,
+                    fontFeatures: AppTypography.tabular,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                );
+
+          if (isNarrow) {
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                weekdayWidget,
+                const SizedBox(height: 1),
+                dateWidget,
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              weekdayWidget,
+              const SizedBox(width: 7),
+              dateWidget,
+            ],
+          );
+        },
+      ),
+    );
+
+    if (widget.onTap == null) return content;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: content,
+      ),
+    );
   }
 }
 

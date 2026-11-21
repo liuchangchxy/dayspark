@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart' show Calendar;
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
@@ -116,7 +116,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
                     ? Icon(
                         CupertinoIcons.checkmark,
                         size: 15,
-                        color: context.ds.primary,
+                        color: SpecTokens.ink,
                       )
                     : null,
                 onTap: () => Navigator.of(sheetContext).pop(entry.$1),
@@ -439,6 +439,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               allocations: visibleAllocations,
               deadlines: visibleDeadlines,
               dayMode: false,
+              isDesktop: false,
             ),
           ),
         ],
@@ -461,6 +462,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               allocations: visibleAllocations,
               deadlines: visibleDeadlines,
               dayMode: true,
+              isDesktop: false,
             ),
           ),
         ],
@@ -516,7 +518,6 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     List<TaskAllocationCalendarItem> visibleAllocations,
     List<CalendarDeadline> visibleDeadlines,
   ) {
-    final ds = context.ds;
     final body = switch (mode) {
       CalendarViewMode.month => A2DesktopMonthGrid(
         anchor: browse,
@@ -542,6 +543,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         allocations: visibleAllocations,
         deadlines: visibleDeadlines,
         dayMode: false,
+        isDesktop: true,
       ),
       CalendarViewMode.day => _timeGrid(
         days: [calDayOf(browse)],
@@ -552,40 +554,49 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         allocations: visibleAllocations,
         deadlines: visibleDeadlines,
         dayMode: true,
+        isDesktop: true,
       ),
     };
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1240),
-          child: SizedBox.expand(
-            child: Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: ds.surface,
-                border: Border.all(color: ds.line),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _desktopHead(l, locale, mode, browse, weekStart, hidden),
-                  if (hidden.isNotEmpty)
-                    _CalHiddenBanner(
-                      hiddenCount: hidden.length,
-                      hiddenItemsCount: hiddenItemsCount,
-                      hiddenNames: hiddenNames,
-                      onRestore: () =>
-                          ref.read(calendarHiddenFilterProvider.notifier).state = const {},
-                      onShowCalendars: () => CalendarFilterSheet.show(context),
-                    ),
-                  Expanded(child: body),
-                ],
+    return Container(
+      color: SpecTokens.paper,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _desktopHead(l, locale, mode, browse, weekStart, hidden),
+          if (hidden.isNotEmpty)
+            _CalHiddenBanner(
+              hiddenCount: hidden.length,
+              hiddenItemsCount: hiddenItemsCount,
+              hiddenNames: hiddenNames,
+              onRestore: () =>
+                  ref.read(calendarHiddenFilterProvider.notifier).state = const {},
+              onShowCalendars: () => CalendarFilterSheet.show(context),
+            ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final minWidth = switch (mode) {
+                    CalendarViewMode.week => 820.0,
+                    CalendarViewMode.month => 760.0,
+                    CalendarViewMode.day => 580.0,
+                  };
+                  if (constraints.maxWidth < minWidth) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: minWidth,
+                        child: body,
+                      ),
+                    );
+                  }
+                  return body;
+                },
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -598,71 +609,115 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     DateTime weekStart,
     Set<int> hidden,
   ) {
-    final ds = context.ds;
-    final title = switch (mode) {
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final sub = switch (mode) {
       CalendarViewMode.month => _yearMonth(l, browse),
-      CalendarViewMode.week =>
-        '${DateFormat.MMMd(locale).format(weekStart)} – '
-            '${DateFormat.d(locale).format(weekStart.add(const Duration(days: 6)))}',
+      CalendarViewMode.week => weekStart.month == weekEnd.month
+          ? '${DateFormat.MMMd(locale).format(weekStart)} – ${DateFormat.d(locale).format(weekEnd)}'
+          : '${DateFormat.MMMd(locale).format(weekStart)} – ${DateFormat.MMMd(locale).format(weekEnd)}',
       CalendarViewMode.day =>
-        '${DateFormat.MMMd(locale).format(browse)} '
-            '${DateFormat.E(locale).format(browse)}',
+        '${calWeekdayShort(locale, browse)} · ${DateFormat.MMMd(locale).format(browse)}',
     };
+
+    final left = Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l.calendar,
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.1,
+            height: 1.22,
+            color: SpecTokens.ink,
+            fontFamilyFallback: AppTypography.fallback,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          sub,
+          style: const TextStyle(
+            fontSize: 11.5,
+            color: SpecTokens.muted,
+            fontFamilyFallback: AppTypography.fallback,
+          ),
+        ),
+      ],
+    );
+
+    final tools = <Widget>[
+      _SpecViewSwitch(
+        mode: mode,
+        onSelected: _setMode,
+      ),
+      _SpecToolButton(
+        icon: CupertinoIcons.chevron_left,
+        tooltip: l.previousPeriod,
+        onTap: () => _shift(-1),
+      ),
+      _SpecToolButton(
+        label: l.today,
+        onTap: _goToToday,
+      ),
+      _SpecToolButton(
+        icon: CupertinoIcons.chevron_right,
+        tooltip: l.nextPeriod,
+        onTap: () => _shift(1),
+      ),
+      _SpecToolButton(
+        key: const ValueKey('calendar-filter-button'),
+        icon: CupertinoIcons.line_horizontal_3_decrease,
+        label: l.showCalendars,
+        active: hidden.isNotEmpty,
+        onTap: () => CalendarFilterSheet.show(context),
+      ),
+    ];
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 13),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1.0)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final leading = <Widget>[
-            Flexible(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _pageText(17, FontWeight.w600, ds.ink, tabular: true),
-              ),
-            ),
-            const SizedBox(width: 12),
-            _A2TodayButton(label: l.today, onPressed: _goToToday),
-            const SizedBox(width: 6),
-            _A2HeadIcon(
-              icon: CupertinoIcons.chevron_left,
-              tooltip: l.previousPeriod,
-              onPressed: () => _shift(-1),
-            ),
-            _A2HeadIcon(
-              icon: CupertinoIcons.chevron_right,
-              tooltip: l.nextPeriod,
-              onPressed: () => _shift(1),
-            ),
-          ];
-          final trailing = <Widget>[
-            _A2FilterButton(
-              label: l.showCalendars,
-              active: hidden.isNotEmpty,
-              onPressed: () => CalendarFilterSheet.show(context),
-            ),
-            const SizedBox(width: 8),
-            _A2CreateButton(
-              label: l.newEventAction,
-              onPressed: () => _createAt(browse),
-            ),
-            const SizedBox(width: 8),
-            _A2ModeSegmented(mode: mode, onSelected: _setMode),
-          ];
           if (constraints.maxWidth >= 1000) {
             return Row(
-              children: [...leading, const Spacer(), ...trailing],
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                left,
+                const Spacer(),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < tools.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      tools[i],
+                    ],
+                  ],
+                ),
+              ],
             );
           }
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: leading),
-              const SizedBox(height: 8),
-              Row(children: [...trailing, const Spacer()]),
+              left,
+              const SizedBox(height: 10),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < tools.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 8),
+                      tools[i],
+                    ],
+                  ],
+                ),
+              ),
             ],
           );
         },
@@ -679,6 +734,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     required List<TaskAllocationCalendarItem> allocations,
     required List<CalendarDeadline> deadlines,
     required bool dayMode,
+    bool isDesktop = true,
   }) {
     return A2TimeGridView(
       days: days,
@@ -689,6 +745,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       deadlines: deadlines,
       calendarNames: names,
       dayMode: dayMode,
+      isDesktop: isDesktop,
       onSelectDay: _setBrowse,
       onEvent: widget.onEventTapped,
       onAllocation: widget.onAllocationTapped,
@@ -699,137 +756,93 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
   }
 }
 
-TextStyle _pageText(
-  double size,
-  FontWeight weight,
-  Color color, {
-  bool tabular = false,
-}) {
-  final style = TextStyle(
-    fontSize: size,
-    fontWeight: weight,
-    color: color,
-    fontFeatures: tabular ? AppTypography.tabular : null,
-  );
-  if (AppTypography.fallback.isEmpty) return style;
-  return style.copyWith(fontFamilyFallback: AppTypography.fallback);
-}
-
-class _A2TodayButton extends StatelessWidget {
-  const _A2TodayButton({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: ds.surface,
-            border: Border.all(color: ds.line),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            label,
-            maxLines: 1,
-            style: _pageText(12, FontWeight.w500, ds.ink2),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _A2CreateButton extends StatelessWidget {
-  const _A2CreateButton({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    return Tooltip(
-      message: label,
-      child: Semantics(
-        button: true,
-        label: label,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onPressed,
-            child: Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: ds.surface,
-                border: Border.all(color: ds.line),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                label,
-                maxLines: 1,
-                style: _pageText(12, FontWeight.w500, ds.ink),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _A2HeadIcon extends StatelessWidget {
-  const _A2HeadIcon({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
+class _SpecToolButton extends StatefulWidget {
+  const _SpecToolButton({
+    super.key,
+    this.icon,
+    this.label,
+    this.tooltip,
+    this.active = false,
+    this.onTap,
   });
 
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
+  final IconData? icon;
+  final String? label;
+  final String? tooltip;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  State<_SpecToolButton> createState() => _SpecToolButtonState();
+}
+
+class _SpecToolButtonState extends State<_SpecToolButton> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
-    return Tooltip(
-      message: tooltip,
-      child: Semantics(
-        button: true,
-        label: tooltip,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(6),
-            splashFactory: NoSplash.splashFactory,
-            overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-            child: SizedBox(
-              width: 28,
-              height: 28,
-              child: Center(child: Icon(icon, size: 14, color: ds.ink3)),
+    final bg = widget.active
+        ? SpecTokens.wash
+        : (_hovered ? SpecTokens.wash : SpecTokens.paper);
+
+    Widget content = Container(
+      height: 29,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border.all(color: SpecTokens.hair2, width: 1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (widget.icon != null)
+            Icon(
+              widget.icon,
+              size: 12,
+              color: SpecTokens.muted,
             ),
-          ),
-        ),
+          if (widget.icon != null && widget.label != null)
+            const SizedBox(width: 5),
+          if (widget.label != null)
+            Text(
+              widget.label!,
+              style: const TextStyle(
+                fontSize: 11,
+                color: SpecTokens.ink2,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (widget.tooltip != null) {
+      content = Tooltip(
+        message: widget.tooltip!,
+        child: content,
+      );
+    }
+
+    return MouseRegion(
+      cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: content,
       ),
     );
   }
 }
 
-class _A2ModeSegmented extends StatelessWidget {
-  const _A2ModeSegmented({required this.mode, required this.onSelected});
+class _SpecViewSwitch extends StatelessWidget {
+  const _SpecViewSwitch({
+    required this.mode,
+    required this.onSelected,
+  });
 
   final CalendarViewMode mode;
   final ValueChanged<CalendarViewMode> onSelected;
@@ -837,109 +850,88 @@ class _A2ModeSegmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
     final options = <(CalendarViewMode, String)>[
       (CalendarViewMode.month, l.month),
       (CalendarViewMode.week, l.week),
       (CalendarViewMode.day, l.daySegmentLabel),
     ];
+
     return Container(
-      padding: const EdgeInsets.all(2),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: ds.surface2,
-        borderRadius: BorderRadius.circular(6),
+        color: SpecTokens.wash,
+        borderRadius: BorderRadius.circular(7),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final option in options)
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => onSelected(option.$1),
-                child: Container(
-                  height: 26,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  alignment: Alignment.center,
-                  decoration: option.$1 == mode
-                      ? BoxDecoration(
-                          color: ds.surface,
-                          border: Border.all(color: ds.line),
-                          borderRadius: BorderRadius.circular(5),
-                        )
-                      : null,
-                  child: Text(
-                    option.$2,
-                    maxLines: 1,
-                    style: _pageText(
-                      12,
-                      option.$1 == mode ? FontWeight.w600 : FontWeight.w500,
-                      option.$1 == mode ? ds.ink : ds.ink2,
-                    ),
-                  ),
-                ),
-              ),
+          for (var i = 0; i < options.length; i++) ...[
+            if (i > 0) const SizedBox(width: 2),
+            _SpecSwitchButton(
+              label: options[i].$2,
+              selected: options[i].$1 == mode,
+              onTap: () => onSelected(options[i].$1),
             ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _A2FilterButton extends StatelessWidget {
-  const _A2FilterButton({
+class _SpecSwitchButton extends StatefulWidget {
+  const _SpecSwitchButton({
     required this.label,
-    required this.active,
-    required this.onPressed,
+    required this.selected,
+    required this.onTap,
   });
 
   final String label;
-  final bool active;
-  final VoidCallback onPressed;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_SpecSwitchButton> createState() => _SpecSwitchButtonState();
+}
+
+class _SpecSwitchButtonState extends State<_SpecSwitchButton> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
-    return Tooltip(
-      message: label,
-      child: Semantics(
-        button: true,
-        label: label,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onPressed,
-            child: Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: active ? ds.surface2 : ds.surface,
-                border: Border.all(color: active ? ds.primary : ds.line),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    CupertinoIcons.line_horizontal_3_decrease,
-                    size: 13,
-                    color: active ? ds.primary : ds.ink2,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    style: _pageText(
-                      12,
-                      active ? FontWeight.w600 : FontWeight.w500,
-                      active ? ds.primary : ds.ink2,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: Container(
+          height: 27,
+          padding: const EdgeInsets.symmetric(horizontal: 11),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: widget.selected
+                ? SpecTokens.paper
+                : (_hovered ? Colors.white.withValues(alpha: 0.5) : Colors.transparent),
+            borderRadius: BorderRadius.circular(5),
+            boxShadow: widget.selected
+                ? const [
+                    BoxShadow(
+                      color: Color.fromRGBO(25, 25, 24, 0.06),
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
                     ),
-                  ),
-                ],
-              ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
+              color: widget.selected ? SpecTokens.ink : SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
             ),
           ),
         ),
@@ -965,22 +957,24 @@ class _CalHiddenBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
     final l = AppLocalizations.of(context)!;
     return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: ds.surface2,
-        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 5),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFBFBF8),
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1.0)),
       ),
       child: Row(
         children: [
-          Icon(CupertinoIcons.eye_slash, size: 14, color: ds.ink3),
-          const SizedBox(width: 8),
+          const Icon(CupertinoIcons.eye_slash, size: 12, color: SpecTokens.muted),
+          const SizedBox(width: 6),
           Text(
             l.hiddenCalendarsSummary(hiddenCount),
-            style: _pageText(12, FontWeight.w500, ds.ink2),
+            style: const TextStyle(
+              fontSize: 9.5,
+              color: SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
           ),
           const Spacer(),
           MouseRegion(
@@ -992,7 +986,12 @@ class _CalHiddenBanner extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
                   l.restoreAllCalendars,
-                  style: _pageText(12, FontWeight.w500, ds.primary),
+                  style: const TextStyle(
+                    fontSize: 9.0,
+                    color: SpecTokens.ink2,
+                    decoration: TextDecoration.underline,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
                 ),
               ),
             ),
@@ -1007,7 +1006,12 @@ class _CalHiddenBanner extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
                   l.showCalendars,
-                  style: _pageText(12, FontWeight.w500, ds.ink2),
+                  style: const TextStyle(
+                    fontSize: 9.0,
+                    color: SpecTokens.ink2,
+                    decoration: TextDecoration.underline,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
                 ),
               ),
             ),
