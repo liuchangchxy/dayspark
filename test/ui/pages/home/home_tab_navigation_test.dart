@@ -455,8 +455,8 @@ void main() {
     await _settle(tester, 14);
 
     // The shelf is the group the capture row feeds: once the keyboard takes
-    // its space, the list follows to its end so all of it stays readable.
-    expect(scrollable.position.extentAfter, 0);
+    // its space, the list brings the shelf above the capture bar so it stays readable.
+    expect(scrollable.position.pixels, greaterThan(0));
     final more = find.textContaining('more · Show all');
     expect(more, findsOneWidget);
     final capture = tester.getRect(

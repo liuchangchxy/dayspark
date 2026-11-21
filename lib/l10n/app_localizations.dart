@@ -3704,7 +3704,7 @@ abstract class AppLocalizations {
   /// No description provided for @capturePlaceholder.
   ///
   /// In en, this message translates to:
-  /// **'Capture · Enter files it unplanned'**
+  /// **'Capture a task, press Enter'**
   String get capturePlaceholder;
 
   /// No description provided for @captureHintEnter.

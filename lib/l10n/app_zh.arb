@@ -787,7 +787,7 @@
   "todoAllContext": "共 {count} 项未完成",
   "calendarTags": "日历与标签",
   "other": "其他",
-  "capturePlaceholder": "记一笔 · 回车直接进「未安排」",
+  "capturePlaceholder": "记一件事，回车记下",
   "captureHintEnter": "⏎ 进未安排",
   "captureHintSubmit": "加入",
   "captureAddedToast": "已加入「未安排」· 继续输入",

@@ -86,6 +86,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   _RecentCompletion? _recent;
   Timer? _undoTimer;
   final GlobalKey _undoButtonKey = GlobalKey();
+  final GlobalKey _shelfKey = GlobalKey();
+  final GlobalKey _shelfBottomKey = GlobalKey();
 
   DateTime get _today =>
       DateTime(widget.now.year, widget.now.month, widget.now.day);
@@ -119,11 +121,21 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   void _scrollToShelf() {
     if (!mounted || !_scroll.hasClients) return;
-    _scroll.animateTo(
-      _scroll.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-    );
+    final ctx = _shelfKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.0,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   @override
@@ -164,11 +176,21 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       });
       _showToast(l.captureAddedToast);
       if (_scroll.hasClients) {
-        await _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-        );
+        final ctx = _shelfKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Scrollable.ensureVisible(
+            ctx,
+            alignment: 0.0,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scroll.animateTo(
+            _scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+          );
+        }
       }
     } catch (error) {
       debugPrint('today: capture failed: $error');
@@ -567,6 +589,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         if (todo.dueDate == null && !plannedTodoIds.contains(todo.id)) todo,
     ];
     final shelfSource = _injectRecentTodos(noDue, _RecentSection.unplanned);
+    final noDueCount =
+        noDue.isEmpty ? unplannedCount : noDue.length;
     final shownUnplanned = _unplannedExpanded
         ? shelfSource
         : shelfSource.take(3).toList();
@@ -689,7 +713,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
     final summary = isPageEmpty
         ? l.emptyTodayTitle
-        : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
+        : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $noDueCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
 
     final mobileContentHeader = Padding(
       padding: const EdgeInsets.fromLTRB(0, 14, 0, 8),
@@ -699,8 +723,11 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           Text(
             DateFormat.MMMd(_locale).format(widget.now),
             style: const TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.w700,
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+              fontVariations: [FontVariation('wght', 650)],
+              letterSpacing: 0.26,
+              height: 1.22,
               color: SpecTokens.ink,
               fontFamilyFallback: AppTypography.fallback,
             ),
@@ -869,95 +896,57 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               _seriesRow(todo),
         ],
       ],
-      if (allDayEvents.isNotEmpty)
-        SpecAlldayStrip(
-          label: l.allDayLabel,
-          items: [
-            for (final ev in allDayEvents)
-              SpecAlldayItem(
-                title: ev.title,
-                barColor: ev.calendarColor,
-                bgColor: ev.calendarColor?.withValues(alpha: 0.12),
-                onTap: () => _openEvent(ev.event!),
-              ),
-          ],
-        ),
-      if (endedItems.isNotEmpty) ...[
+      if (shelfSource.isNotEmpty || unplannedCount > 0) ...[
         _groupHead(
-          label: l.actionEarlierToday,
-          count: endedItems.length,
-          expanded: _endedExpanded,
-          onToggle: () => setState(() => _endedExpanded = !_endedExpanded),
+          key: _shelfKey,
+          label: l.todayNoDateGroup,
+          count: noDueCount,
+          trailing: const Icon(
+            CupertinoIcons.chevron_up,
+            size: 11,
+            color: SpecTokens.faint,
+          ),
+          onToggle: widget.onOpenUnplanned,
         ),
-        if (_endedExpanded)
-          for (var i = 0; i < endedItems.length; i++)
-            _mobileTimeRow(endedItems[i], isQuiet: true, section: _RecentSection.ended, index: i),
+        for (final todo in shownUnplanned)
+          _taskRow(
+            key: ValueKey('unplanned-${todo.id}'),
+            title: todo.summary,
+            checked: todo.status == 'COMPLETED',
+            calendarName: _calendarName(todo),
+            calendarColor: _calendarColor(todo),
+            rrule: todo.rrule,
+            highlighted: todo.id == _recentId,
+            trailing: _undoFor(todo.id, null, _RecentSection.unplanned),
+            onToggle: (_) => _toggleUnplanned(todo, 0),
+            onTap: () => _openTodo(todo),
+            onSchedule: () => _scheduleTodo(todo),
+          ),
+        if (expandableUnplanned > 0)
+          _moreRow(
+            l,
+            expandableUnplanned,
+            paddingLeft: 12,
+            expanded: _unplannedExpanded,
+            onTap: () => setState(() => _unplannedExpanded = !_unplannedExpanded),
+          )
+        else if (_unplannedExpanded && shelfSource.length > 3)
+          _moreRow(
+            l,
+            0,
+            paddingLeft: 12,
+            expanded: true,
+            onTap: () => setState(() => _unplannedExpanded = false),
+          )
+        else if (beyondShelf > 0)
+          _showAllRow(l, beyondShelf, paddingLeft: 12)
+        else if (shelfSource.isEmpty && unplannedCount > 0)
+          _showAllRow(l, unplannedCount, paddingLeft: 12),
+        KeyedSubtree(
+          key: _shelfBottomKey,
+          child: const SizedBox.shrink(),
+        ),
       ],
-      if (hasTimeItems) ...[
-        _groupHead(
-          label: l.sectionNow,
-          danger: true,
-          trailing: Text(
-            DateFormatters.formatTime(widget.now),
-            style: const TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: SpecTokens.red,
-              fontFeatures: AppTypography.tabular,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
-          ),
-        ),
-        for (var i = 0; i < runningItems.length; i++)
-          _mobileTimeRow(runningItems[i], section: _RecentSection.now, index: i),
-        const SpecNowLine(marginLeft: 42.0),
-        if (upcomingItems.isNotEmpty) ...[
-          _groupHead(
-            label: l.sectionUpcoming,
-            count: upcomingItems.length,
-            expanded: _upcomingExpanded,
-            onToggle: upcomingItems.length > 3
-                ? () => setState(() => _upcomingExpanded = !_upcomingExpanded)
-                : null,
-          ),
-          for (var i = 0; i < shownUpcoming.length; i++)
-            _mobileTimeRow(
-              shownUpcoming[i].item,
-              section: _RecentSection.upcoming,
-              index: i,
-            ),
-          if (upcomingHidden > 0)
-            _moreRow(
-              l,
-              upcomingHidden,
-              paddingLeft: 42,
-              expanded: _upcomingExpanded,
-              onTap: () => setState(() => _upcomingExpanded = !_upcomingExpanded),
-            )
-          else if (_upcomingExpanded && upcomingItems.length > 3)
-            _moreRow(
-              l,
-              0,
-              paddingLeft: 42,
-              expanded: true,
-              onTap: () => setState(() => _upcomingExpanded = false),
-            ),
-        ],
-      ] else
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 70, horizontal: 12),
-          child: Center(
-            child: Text(
-              l.todayEmptyTime,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: SpecTokens.faint,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-            ),
-          ),
-        ),
       if (completedCount > 0) ...[
         _groupHead(
           label: l.completedTodaySection,
@@ -992,50 +981,77 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             ),
         ],
       ],
-      if (shelfSource.isNotEmpty || unplannedCount > 0) ...[
-        _groupHead(
-          label: l.todayNoDateGroup,
-          count: unplannedCount,
-          trailing: const Icon(
-            CupertinoIcons.chevron_up,
-            size: 11,
-            color: SpecTokens.faint,
-          ),
-          onToggle: widget.onOpenUnplanned,
+      if (allDayEvents.isNotEmpty)
+        SpecAlldayStrip(
+          label: l.allDayLabel,
+          items: [
+            for (final ev in allDayEvents)
+              SpecAlldayItem(
+                title: ev.title,
+                barColor: ev.calendarColor,
+                bgColor: ev.calendarColor?.withValues(alpha: 0.12),
+                onTap: () => _openEvent(ev.event!),
+              ),
+          ],
         ),
-        for (final todo in shownUnplanned)
-          _taskRow(
-            key: ValueKey('unplanned-${todo.id}'),
-            title: todo.summary,
-            checked: todo.status == 'COMPLETED',
-            calendarName: _calendarName(todo),
-            calendarColor: _calendarColor(todo),
-            rrule: todo.rrule,
-            highlighted: todo.id == _recentId,
-            trailing: _undoFor(todo.id, null, _RecentSection.unplanned),
-            onToggle: (_) => _toggleUnplanned(todo, 0),
-            onTap: () => _openTodo(todo),
-            onSchedule: () => _scheduleTodo(todo),
-          ),
-        if (expandableUnplanned > 0)
-          _moreRow(
-            l,
-            expandableUnplanned,
-            paddingLeft: 42,
-            expanded: _unplannedExpanded,
-            onTap: () => setState(() => _unplannedExpanded = !_unplannedExpanded),
-          )
-        else if (_unplannedExpanded && shelfSource.length > 3)
-          _moreRow(
-            l,
-            0,
-            paddingLeft: 42,
-            expanded: true,
-            onTap: () => setState(() => _unplannedExpanded = false),
-          )
-        else if (beyondShelf > 0)
-          _showAllRow(l, beyondShelf, paddingLeft: 42),
+      if (endedItems.isNotEmpty) ...[
+        _groupHead(
+          label: l.actionEarlierToday,
+          count: endedItems.length,
+          expanded: _endedExpanded,
+          onToggle: () => setState(() => _endedExpanded = !_endedExpanded),
+        ),
+        if (_endedExpanded)
+          for (var i = 0; i < endedItems.length; i++)
+            _mobileTimeRow(endedItems[i], isQuiet: true, section: _RecentSection.ended, index: i),
       ],
+      _groupHead(
+        label: l.sectionNow,
+        danger: true,
+        trailing: Text(
+          DateFormatters.formatTime(widget.now),
+          style: const TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: SpecTokens.red,
+            fontFeatures: AppTypography.tabular,
+            fontFamilyFallback: AppTypography.fallback,
+          ),
+        ),
+      ),
+      for (var i = 0; i < runningItems.length; i++)
+        _mobileTimeRow(runningItems[i], section: _RecentSection.now, index: i),
+      const SpecNowLine(marginLeft: 42.0),
+      _groupHead(
+        label: l.sectionUpcoming,
+        count: upcomingItems.length,
+        expanded: _upcomingExpanded,
+        onToggle: upcomingItems.length > 3
+            ? () => setState(() => _upcomingExpanded = !_upcomingExpanded)
+            : null,
+      ),
+      for (var i = 0; i < shownUpcoming.length; i++)
+        _mobileTimeRow(
+          shownUpcoming[i].item,
+          section: _RecentSection.upcoming,
+          index: i,
+        ),
+      if (upcomingHidden > 0)
+        _moreRow(
+          l,
+          upcomingHidden,
+          paddingLeft: 42,
+          expanded: _upcomingExpanded,
+          onTap: () => setState(() => _upcomingExpanded = !_upcomingExpanded),
+        )
+      else if (_upcomingExpanded && upcomingItems.length > 3)
+        _moreRow(
+          l,
+          0,
+          paddingLeft: 42,
+          expanded: true,
+          onTap: () => setState(() => _upcomingExpanded = false),
+        ),
       const SizedBox(height: 80),
     ];
 
@@ -1107,7 +1123,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           A2CaptureBar(
             fieldKey: const ValueKey('today-capture-field'),
             placeholder: l.capturePlaceholder,
-            hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
+            hint: _captureFocused
+                ? l.captureHintSubmit
+                : (isWorkspaceLayout(context) ? l.captureHintEnter : ''),
             initialDraft: _captureDraft,
             onDraftChanged: (draft) => _captureDraft = draft,
             onSubmit: _capture,
@@ -1158,6 +1176,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   }
 
   Widget _groupHead({
+    Key? key,
     required String label,
     int? count,
     bool danger = false,
@@ -1166,6 +1185,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     Widget? trailing,
   }) {
     final content = Container(
+      key: key,
       constraints: const BoxConstraints(minHeight: 31),
       padding: const EdgeInsets.symmetric(horizontal: 3),
       margin: const EdgeInsets.only(top: 10),
@@ -1220,7 +1240,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     AppLocalizations l,
     AsyncValue<ActionProjectionData> data,
     DayAgenda agenda,
-    int unplannedCount,
+    int noDueCount,
   ) {
     final projection = data.valueOrNull;
     final overdueCount = agenda.overdueTodos.length +
@@ -1230,14 +1250,14 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         (projection?.completedTodayTaskInstances.length ?? 0);
     final isEmpty = overdueCount == 0 &&
         dueCount == 0 &&
-        unplannedCount == 0 &&
+        noDueCount == 0 &&
         doneCount == 0 &&
         agenda.events.isEmpty &&
         agenda.allocations.isEmpty;
 
     final summary = isEmpty
         ? l.emptyTodayTitle
-        : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
+        : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $noDueCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
 
     final weekText = l.weekNumberLabel(isoWeekNumber(widget.now));
     final dateTitle = DateFormat.MMMd(_locale).format(widget.now);
@@ -1265,8 +1285,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                       dateTitle,
                       style: const TextStyle(
                         fontSize: 26,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.1,
+                        fontWeight: FontWeight.w600,
+                        fontVariations: [FontVariation('wght', 650)],
+                        letterSpacing: 0.26,
                         height: 1.22,
                         color: SpecTokens.ink,
                         fontFamilyFallback: AppTypography.fallback,
@@ -1599,6 +1620,24 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       ],
     ];
 
+    if (!isWorkspaceLayout(context)) {
+      return _mobileTaskRow(
+        key: key,
+        title: title,
+        checked: checked,
+        isOverdue: isOverdue,
+        dueLabel: dueLabel,
+        meta: meta,
+        onToggle: onToggle,
+        onTap: onTap,
+        onSchedule: onSchedule,
+        scheduleTooltip: l.scheduleAction,
+        trailing: trailing,
+        highlighted: highlighted,
+        showCheck: showCheck,
+      );
+    }
+
     return SpecTaskRow(
       key: key,
       title: title,
@@ -1613,6 +1652,151 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       trailing: trailing,
       selected: highlighted,
       showCheck: showCheck,
+    );
+  }
+
+  Widget _mobileTaskRow({
+    Key? key,
+    required String title,
+    bool checked = false,
+    bool isOverdue = false,
+    String? dueLabel,
+    List<Widget> meta = const [],
+    ValueChanged<bool>? onToggle,
+    VoidCallback? onTap,
+    VoidCallback? onSchedule,
+    Widget? trailing,
+    bool highlighted = false,
+    bool showCheck = true,
+    String? scheduleTooltip,
+  }) {
+    return GestureDetector(
+      key: key,
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 50),
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: highlighted ? SpecTokens.hair : Colors.transparent,
+          border: const Border(
+            bottom: BorderSide(color: Color(0xFFF3F3EE), width: 1.0),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 22,
+              child: Center(
+                child: showCheck
+                    ? SpecCheck(
+                        checked: checked,
+                        onChanged: onToggle,
+                        label: title,
+                        touchTargetSize: 22,
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: checked ? SpecTokens.faint : SpecTokens.ink,
+                      decoration: checked ? TextDecoration.lineThrough : null,
+                      decorationColor: SpecTokens.faint,
+                      fontFamilyFallback: AppTypography.fallback,
+                      height: 1.35,
+                    ),
+                  ),
+                  if (meta.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    DefaultTextStyle(
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        color: SpecTokens.faint,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                      child: SizedBox(
+                        height: 16,
+                        child: ClipRect(
+                          child: OverflowBox(
+                            alignment: Alignment.centerLeft,
+                            maxWidth: double.infinity,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: meta,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (dueLabel != null && dueLabel.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: isOverdue ? const Color(0x1AEA5545) : SpecTokens.wash,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Text(
+                  dueLabel,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                    color: isOverdue ? SpecTokens.red : SpecTokens.muted,
+                    fontFeatures: AppTypography.tabular,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+            ],
+            if (trailing != null) ...[
+              const SizedBox(width: 6),
+              trailing,
+            ],
+            if (onSchedule != null) ...[
+              const SizedBox(width: 4),
+              Tooltip(
+                message: scheduleTooltip ?? '',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onSchedule,
+                  child: const SizedBox(
+                    width: 32,
+                    height: 36,
+                    child: Center(
+                      child: Icon(
+                        CupertinoIcons.calendar,
+                        size: 13,
+                        color: SpecTokens.muted,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -1763,8 +1947,10 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         if (todo.dueDate == null && !plannedTodoIds.contains(todo.id)) todo,
     ];
     final shelfSource = _injectRecentTodos(noDue, _RecentSection.unplanned);
+    final noDueCount =
+        noDue.isEmpty ? unplannedCount : noDue.length;
     final preview = shelfSource.take(3).toList();
-    final hidden = unplannedCount - preview.length;
+    final hidden = noDueCount - preview.length;
 
     final allCompletedTodos = projection?.completedTodayTodos ?? const <Todo>[];
     final allCompletedInstances =
@@ -1934,7 +2120,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       ],
       _groupHead(
         label: l.todayNoDateGroup,
-        count: shelfSource.length,
+        count: noDueCount,
         trailing: const Icon(
           CupertinoIcons.chevron_up,
           size: 11,
@@ -1942,7 +2128,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         ),
         onToggle: widget.onOpenUnplanned,
       ),
-      if (preview.isEmpty && shelfSource.isEmpty)
+      if (preview.isEmpty && shelfSource.isEmpty && unplannedCount == 0)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 12),
           child: Text(
@@ -2089,7 +2275,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _desktopHead(l, data, agenda, unplannedCount),
+            _desktopHead(l, data, agenda, noDueCount),
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

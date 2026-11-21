@@ -1964,7 +1964,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get other => 'Other';
 
   @override
-  String get capturePlaceholder => 'Capture · Enter files it unplanned';
+  String get capturePlaceholder => 'Capture a task, press Enter';
 
   @override
   String get captureHintEnter => '⏎ Unplanned';
