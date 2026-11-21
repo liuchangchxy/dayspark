@@ -17,8 +17,7 @@ import 'domain/providers/database_provider.dart';
 import 'domain/providers/record_bus_provider.dart';
 import 'domain/providers/sync_client_provider.dart'
     show deviceRegistrationProvider, syncRuntimeProvider;
-import 'domain/providers/theme_provider.dart'
-    show themeModeProvider, themeColorProvider;
+import 'domain/providers/theme_provider.dart' show themeColorProvider;
 import 'domain/providers/locale_provider.dart';
 import 'infrastructure/platform/alarm_service.dart';
 import 'infrastructure/platform/home_widget_interactivity.dart';
@@ -106,7 +105,8 @@ class DaySparkApp extends ConsumerWidget {
     // it is logged in, so the account's device list is populated even for
     // installs that signed in before this feature existed.
     ref.watch(deviceRegistrationProvider);
-    final themeMode = ref.watch(themeModeProvider);
+    // The frozen spec defines only the light paper theme (settings > theme: 浅色),
+    // so the app must not follow the system into a dark palette.
     final accent = ref.watch(themeColorProvider);
     final locale = ref.watch(localeProvider);
     return ScrollConfiguration(
@@ -119,7 +119,7 @@ class DaySparkApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(accent: accent.light),
         darkTheme: AppTheme.dark(accent: accent.dark),
-        themeMode: themeMode,
+        themeMode: ThemeMode.light,
         locale: locale,
         localizationsDelegates: const [
           ...AppLocalizations.localizationsDelegates,
