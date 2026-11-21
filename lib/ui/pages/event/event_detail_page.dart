@@ -24,6 +24,7 @@ import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 
 /// An event that is editable where it is read — the same contract as
 /// [TodoDetailPane], so the two object types never teach different gestures.
@@ -1020,14 +1021,13 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       return;
     }
     if (!mounted) return;
-    _leaveAfterDelete();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.deleted),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(label: l.undo, onPressed: () => restore(id)),
-      ),
+    showUndoBar(
+      context,
+      message: l.deleted,
+      undoLabel: l.undo,
+      onUndo: () => restore(id),
     );
+    _leaveAfterDelete();
   }
 
   Widget _loadFailure(

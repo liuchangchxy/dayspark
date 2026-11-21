@@ -27,6 +27,7 @@ import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -1206,18 +1207,17 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     }
     if (!mounted) return;
     _deletedNotified = true;
+    showUndoBar(
+      context,
+      message: l.deleted,
+      undoLabel: l.undo,
+      onUndo: () => restore(id),
+    );
     if (widget.onDeleted != null) {
       widget.onDeleted!();
     } else {
       _leaveToSource(context);
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.deleted),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(label: l.undo, onPressed: () => restore(id)),
-      ),
-    );
   }
 
   Widget _loadFailure(
