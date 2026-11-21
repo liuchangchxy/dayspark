@@ -849,13 +849,20 @@ class A2CaptureBarState extends State<A2CaptureBar> {
       ),
     );
 
+    final desktopBar = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: bar,
+      ),
+    );
+
     if (shifted && !isNarrow) {
       return Transform.translate(
         offset: const Offset(-190, 0),
-        child: bar,
+        child: desktopBar,
       );
     }
-    return bar;
+    return isNarrow ? bar : desktopBar;
   }
 }
 

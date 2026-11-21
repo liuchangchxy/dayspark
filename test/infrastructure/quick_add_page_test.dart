@@ -183,4 +183,45 @@ void main() {
 
     await teardownTree(tester);
   });
+
+  testWidgets('parsed time defaults to todo and only converts to event when explicitly requested', (tester) async {
+    await seedCalendar();
+    AppRouter.router.go('/');
+    await tester.pumpWidget(buildApp());
+    await settle(tester);
+    AppRouter.router.go('/quick-add');
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Report 2026-11-07 15:00');
+    await settle(tester);
+
+    // Tapping Save defaults to saving as Todo, NOT Event!
+    await tester.tap(find.text('Save'));
+    await settle(tester);
+
+    final todos = await testDb.select(testDb.todos).get();
+    expect(todos, hasLength(1));
+    expect(todos.single.summary, 'Report');
+    expect(await testDb.select(testDb.events).get(), isEmpty);
+
+    // Now open again and explicitly switch to Event
+    AppRouter.router.go('/quick-add');
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Interview 2026-11-07 16:00');
+    await settle(tester);
+
+    // Tap "Change to event"
+    await tester.tap(find.text('Change to Event'));
+    await settle(tester);
+
+    await tester.tap(find.text('Save'));
+    await settle(tester);
+
+    final events = await testDb.select(testDb.events).get();
+    expect(events, hasLength(1));
+    expect(events.single.summary, 'Interview');
+
+    await teardownTree(tester);
+  });
 }
