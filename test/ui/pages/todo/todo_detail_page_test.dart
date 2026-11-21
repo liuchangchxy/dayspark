@@ -242,4 +242,53 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('priority chips wrap at 1.4x text without overflowing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    final legacyId = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: todo.calendarId,
+            summary: 'Legacy recurring task',
+            dueDate: Value(DateTime(2026, 10, 24, 18)),
+            rrule: const Value('FREQ=DAILY'),
+            recurrenceLegacyState: const Value('unknownLegacy'),
+          ),
+        );
+    final legacy = await (db.select(
+      db.todos,
+    )..where((row) => row.id.equals(legacyId))).getSingle();
+
+    await tester.pumpWidget(_app(db, legacy));
+    await _settle(tester);
+
+    final rects = [
+      for (final value in const [0, 9, 5, 1])
+        tester.getRect(find.byKey(ValueKey('todo-priority-$value'))),
+    ];
+    expect(
+      rects.map((rect) => rect.top).toSet().length,
+      greaterThan(1),
+    );
+    final maxBottom = rects
+        .map((rect) => rect.bottom)
+        .reduce((a, b) => a > b ? a : b);
+    final rowHeight = tester
+        .getSize(find.byKey(const ValueKey('todo-priority-row')))
+        .height;
+    expect(rowHeight, greaterThan(56));
+
+    final contentTop = tester.getTopLeft(find.text('Content').first).dy;
+    expect(maxBottom, lessThan(contentTop));
+
+    await _unmount(tester);
+  });
 }

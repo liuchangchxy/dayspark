@@ -590,6 +590,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     double rowHeight,
   ) {
     return _PaneFieldRow(
+      key: const ValueKey('todo-priority-row'),
       label: l.priority,
       height: rowHeight,
       valueChild: Align(
@@ -875,20 +876,26 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       children: [
         Row(
           children: [
-            Text(
-              l.subtasks,
-              style: AppTypography.small.copyWith(
-                color: ds.ink2,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                l.subtasks,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.small.copyWith(
+                  color: ds.ink2,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-            const Spacer(),
-            DsButton(
-              label: l.addSubtask,
-              tone: DsButtonTone.ghost,
-              small: true,
-              icon: CupertinoIcons.add,
-              onPressed: () => _addSubtask(context, l, live),
+            const SizedBox(width: 8),
+            Flexible(
+              child: DsButton(
+                label: l.addSubtask,
+                tone: DsButtonTone.ghost,
+                small: true,
+                icon: CupertinoIcons.add,
+                onPressed: () => _addSubtask(context, l, live),
+              ),
             ),
           ],
         ),
@@ -1413,6 +1420,7 @@ class _PaneInlineClear extends StatelessWidget {
 
 class _PaneFieldRow extends StatelessWidget {
   const _PaneFieldRow({
+    super.key,
     required this.label,
     required this.height,
     this.value,
@@ -1435,8 +1443,8 @@ class _PaneFieldRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final content = SizedBox(
-      height: height,
+    final content = ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height),
       child: Row(
         children: [
           SizedBox(

@@ -986,56 +986,67 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     const hitSize = 48.0;
     final step = width + gap;
     final totalWidth = days.length * width + (days.length - 1) * gap;
+
+    void selectAt(double x) {
+      final index = ((x - width / 2) / step).round().clamp(
+        0,
+        days.length - 1,
+      );
+      ref.read(viewedDateProvider.notifier).state = days[index];
+    }
+
     return SizedBox(
       key: const ValueKey('todos-date-strip-days'),
       width: totalWidth,
       height: hitSize,
-      child: Stack(
-        children: [
-          for (var i = 0; i < days.length; i++)
-            Positioned(
-              left: i * step,
-              top: (hitSize - height) / 2,
-              width: width,
-              height: height,
-              child: _dateStripDayVisual(
-                key: ValueKey(
-                  'todos-date-strip-day-visual-${_dateKey(days[i])}',
-                ),
-                d: days[i],
-                selected: _sameDay(days[i], day),
-                isToday: _sameDay(days[i], today),
-              ),
-            ),
-          for (var i = 0; i < days.length; i++)
-            Positioned(
-              left: (i * step - (hitSize - width) / 2).clamp(
-                0.0,
-                totalWidth - hitSize,
-              ),
-              top: 0,
-              width: hitSize,
-              height: hitSize,
-              child: Semantics(
-                button: true,
-                selected: _sameDay(days[i], day),
-                label:
-                    '${DateFormat.E(_locale).format(days[i])} ${days[i].day}',
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    key: ValueKey(
-                      'todos-date-strip-day-${_dateKey(days[i])}',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          excludeFromSemantics: true,
+          onTapUp: (details) => selectAt(details.localPosition.dx),
+          child: Stack(
+            children: [
+              for (var i = 0; i < days.length; i++)
+                Positioned(
+                  left: i * step,
+                  top: (hitSize - height) / 2,
+                  width: width,
+                  height: height,
+                  child: ExcludeSemantics(
+                    child: _dateStripDayVisual(
+                      key: ValueKey(
+                        'todos-date-strip-day-visual-${_dateKey(days[i])}',
+                      ),
+                      d: days[i],
+                      selected: _sameDay(days[i], day),
+                      isToday: _sameDay(days[i], today),
                     ),
-                    behavior: HitTestBehavior.opaque,
+                  ),
+                ),
+              for (var i = 0; i < days.length; i++)
+                Positioned(
+                  left: (i * step - (hitSize - width) / 2).clamp(
+                    0.0,
+                    totalWidth - hitSize,
+                  ),
+                  top: 0,
+                  width: hitSize,
+                  height: hitSize,
+                  child: Semantics(
+                    key: ValueKey('todos-date-strip-day-${_dateKey(days[i])}'),
+                    button: true,
+                    selected: _sameDay(days[i], day),
+                    label:
+                        '${DateFormat.E(_locale).format(days[i])} ${days[i].day}',
                     onTap: () =>
                         ref.read(viewedDateProvider.notifier).state = days[i],
                     child: const SizedBox.expand(),
                   ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

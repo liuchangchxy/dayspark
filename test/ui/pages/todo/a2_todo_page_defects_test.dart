@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -677,4 +678,137 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('date strip taps map to the day under the finger', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosDayView()),
+          viewedDateProvider.overrideWith((ref) => DateTime(2026, 11, 15)),
+        ],
+        now: now,
+      ),
+    );
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2TodoPage)),
+      listen: false,
+    );
+    final anchor = DateTime(2026, 11, 15);
+    final dates = [
+      for (var i = -3; i <= 3; i++) anchor.add(Duration(days: i)),
+    ];
+
+    for (final target in dates) {
+      final visual = find.byKey(
+        ValueKey('todos-date-strip-day-visual-${_dateKey(target)}'),
+      );
+      for (final inset in const [null, 3.0]) {
+        container.read(viewedDateProvider.notifier).state = anchor;
+        await _settle(tester);
+        await tester.ensureVisible(visual);
+        await tester.pumpAndSettle();
+        final rect = tester.getRect(visual);
+        final point = inset == null
+            ? rect.center
+            : Offset(rect.right - inset, rect.center.dy);
+        await tester.tapAt(point);
+        await _settle(tester);
+        expect(
+          container.read(viewedDateProvider),
+          target,
+          reason: '${inset == null ? 'center' : 'right-3'} $target',
+        );
+      }
+    }
+
+    await _unmount(tester);
+  });
+
+  testWidgets('date strip has one semantics node per day and no text noise', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final semantics = tester.ensureSemantics();
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosDayView()),
+          viewedDateProvider.overrideWith((ref) => DateTime(2026, 11, 15)),
+        ],
+        now: now,
+      ),
+    );
+    await _settle(tester);
+
+    final allLabels = <String>[];
+    final tapLabels = <String>[];
+    void visit(SemanticsNode node) {
+      final data = node.getSemanticsData();
+      if (node.label.isNotEmpty) allLabels.add(node.label);
+      if (data.hasAction(SemanticsAction.tap) && node.label.isNotEmpty) {
+        tapLabels.add(node.label);
+      }
+      node.visitChildren((child) {
+        visit(child);
+        return true;
+      });
+    }
+
+    final root = tester
+        .binding
+        .renderViews
+        .first
+        .owner!
+        .semanticsOwner!
+        .rootSemanticsNode!;
+    visit(root);
+
+    for (final label in const [
+      'Thu 12',
+      'Fri 13',
+      'Sat 14',
+      'Sun 15',
+      'Mon 16',
+      'Tue 17',
+      'Wed 18',
+    ]) {
+      expect(tapLabels.where((value) => value == label), hasLength(1));
+    }
+
+    const noise = [
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+      'Mon',
+      'Tue',
+      'Wed',
+      '12',
+      '13',
+      '14',
+      '15',
+      '16',
+      '17',
+      '18',
+    ];
+    expect(allLabels.where(noise.contains), isEmpty);
+
+    semantics.dispose();
+    await _unmount(tester);
+  });
 }
+
+String _dateKey(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
