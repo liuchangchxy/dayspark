@@ -847,5 +847,103 @@
   "@dawnQuiet": {"placeholders": {"start": {"type": "String"}, "end": {"type": "String"}}},
   "slotRangeExistingEvent": "已有日程",
   "slotRangeDefaultEditable": "默认，可改",
-  "slotEmptyCreateHint": "暂无可安排的待办，新建后会直接排到这个时段。"
+  "slotEmptyCreateHint": "暂无可安排的待办，新建后会直接排到这个时段。",
+  "showCalendars": "显示日历",
+  "restoreAllCalendars": "全部恢复",
+  "hiddenCalendarsSummary": "已隐藏 {count} 个日历",
+  "@hiddenCalendarsSummary": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "selectAll": "全选",
+  "hiddenBadge": "已隐藏",
+  "repeatEndLabel": "结束",
+  "repeatNeverEnd": "永不结束",
+  "repeatOnDate": "在日期",
+  "repeatAfterCount": "在次数",
+  "repeatEndDate": "结束日期",
+  "repeatCount": "次数",
+  "repeatSeriesNotice": "修改频率或结束会应用到整个系列。",
+  "planTodoModalTitle": "安排「{title}」",
+  "@planTodoModalTitle": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "planTodoSub": "只写计划执行，不改截止。",
+  "planEditSub": "正在编辑时间；只改计划执行。",
+  "planDate": "计划日期",
+  "planStartTime": "开始",
+  "planEndTime": "结束",
+  "planDuration": "时长",
+  "planSubmitAction": "安排",
+  "planSaveTimeAction": "保存时间",
+  "planNoConflict": "没有时间冲突",
+  "planConflictWith": "与 {title} 重叠",
+  "@planConflictWith": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "planDurationMinutes": "{count} 分钟",
+  "@planDurationMinutes": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "planDurationHours": "{hours} 小时",
+  "@planDurationHours": {
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  },
+  "planDurationHoursMinutes": "{hours} 小时 {minutes} 分钟",
+  "@planDurationHoursMinutes": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "int" }
+    }
+  },
+  "detailEmptyTitle": "未选择待办",
+  "detailEmptyHint": "从左侧列表选择待办查看详情。",
+  "completeThisOccurrence": "完成这一次",
+  "completedThisOccurrence": "本次已完成",
+  "missedOccurrencesNote": "当前实例 {date} · 已遗漏 {count} 次",
+  "@missedOccurrencesNote": {
+    "placeholders": {
+      "date": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "deleteConfirmTitle": "删除「{title}」？",
+  "@deleteConfirmTitle": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "deleteConfirmBody": "删除后进入回收站，可从设置 · 回收站恢复。",
+  "deleteToTrashAction": "删除到回收站",
+  "cancelAction": "取消",
+  "saveAction": "保存",
+  "titleRequired": "标题不能为空。",
+  "endTimeAfterStartTime": "结束时间必须晚于开始时间。",
+  "timeArrangementsCount": "{count} 项时间安排",
+  "@timeArrangementsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dayAgendaContextNotice": "当天日程 {count} 项 · 只做时间背景",
+  "@dayAgendaContextNotice": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "moreUnplannedItems": "查看无日期 {count} 项",
+  "@moreUnplannedItems": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }
