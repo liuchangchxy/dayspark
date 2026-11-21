@@ -1381,5 +1381,154 @@
         "type": "String"
       }
     }
-  }
+  },
+  "defaultCalendar": "Default Calendar",
+  "defaultCalendarDesc": "Only decides where new items land by default; does not change existing items.",
+  "defaultCalendarSettingDesc": "New tasks and captures land here by default; uses the first calendar if unset, no \"Uncategorized\".",
+  "defaultCalendarAlert": "No \"Uncategorized\": if unset, the first calendar in the list is used.",
+  "saveDefaultCalendar": "Save Default Calendar",
+  "defaultCalendarSaved": "Default calendar saved",
+  "badgeDefault": "Default",
+  "settingsSubtitle": "Default calendar, data and preferences",
+  "settingsHomeDesc": "Set the default calendar first, then manage data and sync.",
+  "general": "General",
+  "generalDesc": "Decide where new tasks land and what to see on startup.",
+  "themeDesc": "Warm paper surface, white content; ink for selection and actions.",
+  "accentColorDesc": "Only affects actions and selection, not calendar colors.",
+  "accentWarmGray": "Warm Gray",
+  "startupViewDesc": "Which primary view to open on cold start.",
+  "languageDesc": "Interface language.",
+  "calendarManagementDesc": "Calendars are shared grouping and color spaces for events and tasks.",
+  "deleteCalendarNotice": "When deleting a calendar, you must choose: migrate contents to another calendar, or delete them together.",
+  "newCalendarDesc": "Choose name and color; new calendars do not become default automatically, select in \"Default Calendar\" after creation.",
+  "editCalendarDesc": "Editing \"{name}\"; name, color. Change default calendar in separate setting.",
+  "@editCalendarDesc": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCalendarHeader": "Before deleting \"{name}\", you must decide where {count} items go.",
+  "@deleteCalendarHeader": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteCalendarWarning": "Will not silently delete contents. Events and tasks must be migrated, or deleted together with the calendar.",
+  "migrateTo": "Migrate to",
+  "migrateItemCount": "{name} · migrate {count} items",
+  "@migrateItemCount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteWithContents": "Delete together with {count} items (move to trash)",
+  "@deleteWithContents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "confirmMigrateAndDelete": "Confirm Migration and Delete",
+  "calendarPlaceholder": "e.g. Side project",
+  "tagPlaceholder": "e.g. Waiting for reply",
+  "tagManagementDesc": "Tags are not calendars; they are used for cross-calendar filtering.",
+  "tagEditDesc": "Editing \"{name}\"; tags are cross-calendar, renaming does not alter items.",
+  "@tagEditDesc": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tagDeleteBanner": "Deleting a tag only removes the tag, not the items.",
+  "trashDesc": "Deleted tasks and events land here; restoring returns them to their original calendar.",
+  "trashRestoredBanner": "Restored \"{title}\", returned to its original calendar.",
+  "@trashRestoredBanner": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashPermanentDeleteConfirm": "Permanently delete \"{title}\"? Cannot be undone, will not sync to other devices.",
+  "@trashPermanentDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashDeletedBanner": "Permanently deleted \"{title}\", no longer kept in trash.",
+  "@trashDeletedBanner": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashClearedBanner": "Trash cleared, no items to restore.",
+  "ioSectionDesc": "ICS is for exchanging with other calendars; backup is for restoring DaySpark.",
+  "ioCardImportDesc": "Select target calendar; events and dated tasks are imported from ICS fields.",
+  "ioCardExportDesc": "Export all calendars; none silently omitted.",
+  "ioCardBackupDesc": "Contains all calendars, tasks, events, tags, reminders and attachment index.",
+  "notifySectionDesc": "Reminders belong to each item; this manages system permissions only.",
+  "notifyDeniedBanner": "System notification permission is off. Reminders are saved, but will not alert when due.",
+  "openSystemSettings": "Open System Settings",
+  "inAppReminders": "In-app Reminders",
+  "inAppRemindersDesc": "Displays in foreground",
+  "available": "Available",
+  "syncSectionDesc": "DaySpark self-hosted multi-device sync.",
+  "syncLoggedOutBanner": "Not logged in yet. Local still works; login for multi-device sync.",
+  "syncFailedBanner": "Sync failed. Server timed out; local changes pending retry.",
+  "retryNow": "Retry Now",
+  "localStatus": "Local Status",
+  "localPriority": "Local Priority",
+  "keepLocal": "Keep Local",
+  "keepServer": "Keep Server",
+  "mergeConflict": "Merge",
+  "acceptDeletion": "Accept Deletion",
+  "aboutDesc": "DaySpark · Local-first personal time management tool.",
+  "dataLocation": "Data",
+  "dataLocationDesc": "Local-first · Self-hosted sync",
+  "license": "License",
+  "viewLicense": "View",
+  "commandPlaceholder": "Search tasks, events, or type an action",
+  "commandHintRecent": "Recent",
+  "commandHintActions": "Actions",
+  "commandHintTodos": "Tasks",
+  "commandHintEvents": "Events",
+  "commandCreateTodo": "New Task",
+  "commandCreateEvent": "New Event",
+  "commandGoSettings": "Go to Settings",
+  "commandGoSettingsDesc": "Default calendar, data and preferences",
+  "commandNotFound": "No results found for \"{query}\"",
+  "@commandNotFound": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "commandFootSelect": "↑↓ Navigate",
+  "commandFootOpen": "↵ Open",
+  "commandFootClose": "esc Close",
+  "commandFootHint": "Content first, actions after",
+  "currentCalendarIsDefault": "This calendar is default",
+  "currentDefaultPrefix": "Current default: ",
+  "goToSettings": "Configure",
+  "orAlternative": "Or",
+  "calendarColorLabel": "Color"
 }

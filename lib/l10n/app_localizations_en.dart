@@ -2336,4 +2336,262 @@ class AppLocalizationsEn extends AppLocalizations {
   String todayDateSubtitle(String date, String weekday) {
     return '$date · $weekday';
   }
+
+  @override
+  String get defaultCalendar => 'Default Calendar';
+
+  @override
+  String get defaultCalendarDesc => 'Only decides where new items land by default; does not change existing items.';
+
+  @override
+  String get defaultCalendarSettingDesc => 'New tasks and captures land here by default; uses the first calendar if unset, no \"Uncategorized\".';
+
+  @override
+  String get defaultCalendarAlert => 'No \"Uncategorized\": if unset, the first calendar in the list is used.';
+
+  @override
+  String get saveDefaultCalendar => 'Save Default Calendar';
+
+  @override
+  String get defaultCalendarSaved => 'Default calendar saved';
+
+  @override
+  String get badgeDefault => 'Default';
+
+  @override
+  String get settingsSubtitle => 'Default calendar, data and preferences';
+
+  @override
+  String get settingsHomeDesc => 'Set the default calendar first, then manage data and sync.';
+
+  @override
+  String get general => 'General';
+
+  @override
+  String get generalDesc => 'Decide where new tasks land and what to see on startup.';
+
+  @override
+  String get themeDesc => 'Warm paper surface, white content; ink for selection and actions.';
+
+  @override
+  String get accentColorDesc => 'Only affects actions and selection, not calendar colors.';
+
+  @override
+  String get accentWarmGray => 'Warm Gray';
+
+  @override
+  String get startupViewDesc => 'Which primary view to open on cold start.';
+
+  @override
+  String get languageDesc => 'Interface language.';
+
+  @override
+  String get calendarManagementDesc => 'Calendars are shared grouping and color spaces for events and tasks.';
+
+  @override
+  String get deleteCalendarNotice => 'When deleting a calendar, you must choose: migrate contents to another calendar, or delete them together.';
+
+  @override
+  String get newCalendarDesc => 'Choose name and color; new calendars do not become default automatically, select in \"Default Calendar\" after creation.';
+
+  @override
+  String editCalendarDesc(String name) {
+    return 'Editing \"$name\"; name, color. Change default calendar in separate setting.';
+  }
+
+  @override
+  String deleteCalendarHeader(String name, int count) {
+    return 'Before deleting \"$name\", you must decide where $count items go.';
+  }
+
+  @override
+  String get deleteCalendarWarning => 'Will not silently delete contents. Events and tasks must be migrated, or deleted together with the calendar.';
+
+  @override
+  String get migrateTo => 'Migrate to';
+
+  @override
+  String migrateItemCount(String name, int count) {
+    return '$name · migrate $count items';
+  }
+
+  @override
+  String deleteWithContents(int count) {
+    return 'Delete together with $count items (move to trash)';
+  }
+
+  @override
+  String get confirmMigrateAndDelete => 'Confirm Migration and Delete';
+
+  @override
+  String get calendarPlaceholder => 'e.g. Side project';
+
+  @override
+  String get tagPlaceholder => 'e.g. Waiting for reply';
+
+  @override
+  String get tagManagementDesc => 'Tags are not calendars; they are used for cross-calendar filtering.';
+
+  @override
+  String tagEditDesc(String name) {
+    return 'Editing \"$name\"; tags are cross-calendar, renaming does not alter items.';
+  }
+
+  @override
+  String get tagDeleteBanner => 'Deleting a tag only removes the tag, not the items.';
+
+  @override
+  String get trashDesc => 'Deleted tasks and events land here; restoring returns them to their original calendar.';
+
+  @override
+  String trashRestoredBanner(String title) {
+    return 'Restored \"$title\", returned to its original calendar.';
+  }
+
+  @override
+  String trashPermanentDeleteConfirm(String title) {
+    return 'Permanently delete \"$title\"? Cannot be undone, will not sync to other devices.';
+  }
+
+  @override
+  String trashDeletedBanner(String title) {
+    return 'Permanently deleted \"$title\", no longer kept in trash.';
+  }
+
+  @override
+  String get trashClearedBanner => 'Trash cleared, no items to restore.';
+
+  @override
+  String get ioSectionDesc => 'ICS is for exchanging with other calendars; backup is for restoring DaySpark.';
+
+  @override
+  String get ioCardImportDesc => 'Select target calendar; events and dated tasks are imported from ICS fields.';
+
+  @override
+  String get ioCardExportDesc => 'Export all calendars; none silently omitted.';
+
+  @override
+  String get ioCardBackupDesc => 'Contains all calendars, tasks, events, tags, reminders and attachment index.';
+
+  @override
+  String get notifySectionDesc => 'Reminders belong to each item; this manages system permissions only.';
+
+  @override
+  String get notifyDeniedBanner => 'System notification permission is off. Reminders are saved, but will not alert when due.';
+
+  @override
+  String get openSystemSettings => 'Open System Settings';
+
+  @override
+  String get inAppReminders => 'In-app Reminders';
+
+  @override
+  String get inAppRemindersDesc => 'Displays in foreground';
+
+  @override
+  String get available => 'Available';
+
+  @override
+  String get syncSectionDesc => 'DaySpark self-hosted multi-device sync.';
+
+  @override
+  String get syncLoggedOutBanner => 'Not logged in yet. Local still works; login for multi-device sync.';
+
+  @override
+  String get syncFailedBanner => 'Sync failed. Server timed out; local changes pending retry.';
+
+  @override
+  String get retryNow => 'Retry Now';
+
+  @override
+  String get localStatus => 'Local Status';
+
+  @override
+  String get localPriority => 'Local Priority';
+
+  @override
+  String get keepLocal => 'Keep Local';
+
+  @override
+  String get keepServer => 'Keep Server';
+
+  @override
+  String get mergeConflict => 'Merge';
+
+  @override
+  String get acceptDeletion => 'Accept Deletion';
+
+  @override
+  String get aboutDesc => 'DaySpark · Local-first personal time management tool.';
+
+  @override
+  String get dataLocation => 'Data';
+
+  @override
+  String get dataLocationDesc => 'Local-first · Self-hosted sync';
+
+  @override
+  String get license => 'License';
+
+  @override
+  String get viewLicense => 'View';
+
+  @override
+  String get commandPlaceholder => 'Search tasks, events, or type an action';
+
+  @override
+  String get commandHintRecent => 'Recent';
+
+  @override
+  String get commandHintActions => 'Actions';
+
+  @override
+  String get commandHintTodos => 'Tasks';
+
+  @override
+  String get commandHintEvents => 'Events';
+
+  @override
+  String get commandCreateTodo => 'New Task';
+
+  @override
+  String get commandCreateEvent => 'New Event';
+
+  @override
+  String get commandGoSettings => 'Go to Settings';
+
+  @override
+  String get commandGoSettingsDesc => 'Default calendar, data and preferences';
+
+  @override
+  String commandNotFound(String query) {
+    return 'No results found for \"$query\"';
+  }
+
+  @override
+  String get commandFootSelect => '↑↓ Navigate';
+
+  @override
+  String get commandFootOpen => '↵ Open';
+
+  @override
+  String get commandFootClose => 'esc Close';
+
+  @override
+  String get commandFootHint => 'Content first, actions after';
+
+  @override
+  String get currentCalendarIsDefault => 'This calendar is default';
+
+  @override
+  String get currentDefaultPrefix => 'Current default: ';
+
+  @override
+  String get goToSettings => 'Configure';
+
+  @override
+  String get orAlternative => 'Or';
+
+  @override
+  String get calendarColorLabel => 'Color';
 }
