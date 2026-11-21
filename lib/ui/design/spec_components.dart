@@ -1098,3 +1098,301 @@ class SpecMobileTopBar extends StatelessWidget {
     );
   }
 }
+
+/// Frozen spec plan picker (.plan-card): 430px wide, 10px radius, 0 26px 80px shadow.
+class SpecPlanPicker extends StatelessWidget {
+  const SpecPlanPicker({
+    super.key,
+    required this.title,
+    required this.dateLabel,
+    required this.subLabel,
+    required this.startLabel,
+    required this.endLabel,
+    required this.durationLabel,
+    this.contextText,
+    this.cancelLabel = 'Cancel',
+    this.submitLabel = 'Plan',
+    this.onCancel,
+    this.onSubmit,
+    this.onTapDate,
+    this.onTapStart,
+    this.onTapEnd,
+    this.isEditing = false,
+  });
+
+  final String title;
+  final String dateLabel;
+  final String subLabel;
+  final String startLabel;
+  final String endLabel;
+  final String durationLabel;
+  final String? contextText;
+  final String cancelLabel;
+  final String submitLabel;
+  final VoidCallback? onCancel;
+  final VoidCallback? onSubmit;
+  final VoidCallback? onTapDate;
+  final VoidCallback? onTapStart;
+  final VoidCallback? onTapEnd;
+  final bool isEditing;
+
+  static Future<void> show(
+    BuildContext context, {
+    required Widget child,
+  }) {
+    return showDialog<void>(
+      context: context,
+      barrierColor: const Color.fromRGBO(25, 25, 24, 0.26),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 430,
+      decoration: BoxDecoration(
+        color: SpecTokens.paper,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(20, 20, 18, 0.26),
+            blurRadius: 80,
+            offset: Offset(0, 26),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Head
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: SpecTokens.hair)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: SpecTokens.ink,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ),
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: onCancel ?? () => Navigator.of(context).maybePop(),
+                      child: const Icon(CupertinoIcons.xmark, size: 12, color: SpecTokens.muted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Body
+            Padding(
+              padding: const EdgeInsets.all(15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: onTapDate,
+                    child: Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: SpecTokens.ink,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subLabel,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: SpecTokens.faint,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                  const SizedBox(height: 13),
+                  // Time boxes
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: onTapStart,
+                          child: _timeBox(
+                            isEditing ? 'Start · Edit' : 'Start',
+                            startLabel,
+                            isEditing,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: onTapEnd,
+                          child: _timeBox(
+                            isEditing ? 'End · Edit' : 'End',
+                            endLabel,
+                            isEditing,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _timeBox('Duration', durationLabel, false),
+                      ),
+                    ],
+                  ),
+                  if (contextText != null && contextText!.isNotEmpty) ...[
+                    const SizedBox(height: 13),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBFBF8),
+                        border: Border.all(color: SpecTokens.hair),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        contextText!,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: SpecTokens.muted,
+                          height: 1.55,
+                          fontFamilyFallback: AppTypography.fallback,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Foot
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFBFBF8),
+                border: Border(top: BorderSide(color: SpecTokens.hair)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: onCancel ?? () => Navigator.of(context).maybePop(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: SpecTokens.hair2),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          cancelLabel,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: SpecTokens.ink,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: onSubmit,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: SpecTokens.ink,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          submitLabel,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _timeBox(String label, String value, bool editing) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: editing ? SpecTokens.ink : SpecTokens.hair2,
+        ),
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: editing
+            ? const [
+                BoxShadow(
+                  color: Color.fromRGBO(25, 25, 24, 0.10),
+                  spreadRadius: 3,
+                ),
+              ]
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 8.5,
+              color: SpecTokens.faint,
+              letterSpacing: 0.04,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              color: SpecTokens.ink,
+              fontFeatures: AppTypography.tabular,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

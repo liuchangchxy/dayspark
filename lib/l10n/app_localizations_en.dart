@@ -2803,4 +2803,163 @@ class AppLocalizationsEn extends AppLocalizations {
   String todayViewNoDate(int count) {
     return 'View $count undated';
   }
+
+  @override
+  String get captureParsedTypeTodoTitle => 'Type remains Task';
+
+  @override
+  String get captureParsedTypeTodoSub => 'Detected time is only a \"Planned execution\" suggestion, not an event or deadline.';
+
+  @override
+  String get captureParsedSuggestRemoved => 'Time suggestion removed';
+
+  @override
+  String get captureParsedSuggestSub => 'Preselected; saved as \"Planned execution\". Can be removed.';
+
+  @override
+  String get captureParsedSuggestSubRemoved => 'Saves title only; no date, no plan, no deadline.';
+
+  @override
+  String get captureActionRemove => 'Remove';
+
+  @override
+  String get captureActionRestore => 'Restore';
+
+  @override
+  String get captureActionChangeToEvent => 'Change to Event';
+
+  @override
+  String get captureActionChangeToTodo => 'Change to Task';
+
+  @override
+  String get captureActionExpandFields => 'Expand fields';
+
+  @override
+  String get captureActionBackToCompact => 'Back to compact';
+
+  @override
+  String get captureActionSaveLater => 'Save to Unplanned first';
+
+  @override
+  String get captureHintParsed => 'Default: Task · No date · Personal\nDeadline remains empty';
+
+  @override
+  String get captureHintExpanded => 'All facts visible before saving; untouched fields are not written.';
+
+  @override
+  String get captureHintEvent => 'Only explicit switch to \"Event\" or entering from Calendar slot creates an event.';
+
+  @override
+  String get captureHintDate => 'Writes date only, not time; will not become an event.';
+
+  @override
+  String get captureHintPlan => 'Overlaps allowed; will not modify deadline.';
+
+  @override
+  String get captureHintCalendar => 'Default calendar comes from settings; no \"uncategorized\".';
+
+  @override
+  String get captureHintReminder => 'Reminder is the item\'s own fact, does not affect deadline.';
+
+  @override
+  String get captureHintValidation => 'Validation error stays on field, no global popup.';
+
+  @override
+  String get captureHintSaveError => 'Failure state does not close Capture or drop input.';
+
+  @override
+  String get captureHintDiscard => 'Dangerous actions require confirmation.';
+
+  @override
+  String get captureHintKeyboard => 'Focus visible; Esc triggers discard confirmation.';
+
+  @override
+  String get captureValidationEmptyTitle => 'Title cannot be empty. Write an action you will understand tomorrow.';
+
+  @override
+  String get captureValidationAlert => 'Fill title before saving; other fields are preserved.';
+
+  @override
+  String get captureSaveErrorServer => 'Could not connect to server.';
+
+  @override
+  String captureSaveErrorDraftHint(String title) {
+    return '\"$title\" is still in this draft; you can retry or keep it in Unplanned.';
+  }
+
+  @override
+  String get captureDiscardTitle => 'Discard this input?';
+
+  @override
+  String captureDiscardSub(String title) {
+    return '\"$title\" has not been saved';
+  }
+
+  @override
+  String get captureDiscardLineTitle => 'Draft will be lost on close';
+
+  @override
+  String get captureDiscardLineSub => 'Keep editing will preserve title, date and reminders.';
+
+  @override
+  String get captureKeyboardTitle => 'Keyboard navigation';
+
+  @override
+  String get captureKeyboardSub => 'Desktop: Tab fields · Enter save · Esc discard';
+
+  @override
+  String get captureKeyboardHelp => 'Focus on title; Tab to deadline, plan, reminder.';
+
+  @override
+  String get captureChoiceTitleDate => 'Select Date';
+
+  @override
+  String get captureChoiceTitlePlan => 'Select Planned Execution';
+
+  @override
+  String get captureChoiceTitleCalendar => 'Select Calendar';
+
+  @override
+  String get captureChoiceTitleReminder => 'Reminder';
+
+  @override
+  String get captureChoiceSubCalendar => 'New tasks land here by default';
+
+  @override
+  String get captureChoiceFooter => 'Only modifies this field; other facts remain unchanged.';
+
+  @override
+  String get captureFieldDateToday => 'Today';
+
+  @override
+  String get captureFieldDateTomorrow => 'Tomorrow';
+
+  @override
+  String get captureFieldDateNextMonday => 'Next Monday';
+
+  @override
+  String get captureFieldDateOther => 'Other date';
+
+  @override
+  String get captureFieldDateOpenCalendar => 'Open calendar';
+
+  @override
+  String get captureSelectedTag => 'Selected';
+
+  @override
+  String get planPickerTitle => 'Schedule Task';
+
+  @override
+  String planPickerTarget(String title) {
+    return 'Schedule \"$title\"';
+  }
+
+  @override
+  String get planPickerEmpty => 'No schedulable tasks';
+
+  @override
+  String get planPickerEmptySub => 'Add a task from the capture bar first, then plan its execution.';
+
+  @override
+  String get planPickerContext => 'Existing today';
 }
