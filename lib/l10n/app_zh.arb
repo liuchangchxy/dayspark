@@ -1427,6 +1427,27 @@
   "commandFootOpen": "↵ 打开",
   "commandFootClose": "esc 关闭",
   "commandFootHint": "内容优先，动作在后",
+  "commandFootSelected": "当前选中第 {index} 条",
+  "@commandFootSelected": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "commandActionTitleQuery": "标题“{query}”",
+  "@commandActionTitleQuery": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "commandCaptureTodoDesc": "进入捕获 · 待办模式",
+  "commandCaptureEventDesc": "进入捕获 · 日程模式",
+  "commandSideAction": "动作",
+  "commandSideTodo": "待办",
+  "commandSideEvent": "日程",
   "currentCalendarIsDefault": "当前日历是默认日历",
   "currentDefaultPrefix": "当前默认：",
   "goToSettings": "去设置",
