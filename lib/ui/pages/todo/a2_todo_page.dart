@@ -27,6 +27,7 @@ import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 import 'a2_composer.dart';
@@ -149,18 +150,12 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     }
     final l = AppLocalizations.of(context);
     if (l == null) return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger
-      ?..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(completed ? l.completed : l.openTask),
-          action: SnackBarAction(
-            label: l.undo,
-            onPressed: () => _setCompleted(todo, occurrenceId, !completed),
-          ),
-        ),
-      );
+    showUndoBar(
+      context,
+      message: completed ? l.completed : l.openTask,
+      undoLabel: l.undo,
+      onUndo: () => _setCompleted(todo, occurrenceId, !completed),
+    );
   }
 
   // R5: completion is one event, so every list that counts or shows todos is

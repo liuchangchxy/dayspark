@@ -34,6 +34,7 @@ import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -1459,13 +1460,12 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       return;
     }
     if (!mounted) return;
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.deleted),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(label: l.undo, onPressed: () => restore(todoId)),
-      ),
+    showUndoBar(
+      context,
+      message: l.deleted,
+      undoLabel: l.undo,
+      onUndo: () => restore(todoId),
     );
+    Navigator.of(context).pop();
   }
 }

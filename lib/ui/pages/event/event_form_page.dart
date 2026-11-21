@@ -26,6 +26,7 @@ import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 
 /// One page for "write an event", mirroring [TodoFormPage]: passing [event]
 /// edits it, omitting it creates one.
@@ -487,14 +488,13 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
       return;
     }
     if (!mounted) return;
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.deleted),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(label: l.undo, onPressed: () => restore(id)),
-      ),
+    showUndoBar(
+      context,
+      message: l.deleted,
+      undoLabel: l.undo,
+      onUndo: () => restore(id),
     );
+    Navigator.of(context).pop();
   }
 
   Future<void> _pickBoundary(bool isStart) async {

@@ -11,6 +11,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 
 /// A scheduled block the user has proposed but not saved yet.
 ///
@@ -242,18 +243,15 @@ class ExecutionScheduleSection extends ConsumerWidget {
     if (id == null) return;
     await ref.read(cancelTaskAllocationProvider)(id);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.cancelledTaskAllocation),
-        action: SnackBarAction(
-          label: l.undo,
-          onPressed: () => ref.read(createTaskAllocationProvider)(
-            todoId: todo!.id,
-            startAt: item.start,
-            endAt: item.end,
-            occurrenceId: item.occurrenceId,
-          ),
-        ),
+    showUndoBar(
+      context,
+      message: l.cancelledTaskAllocation,
+      undoLabel: l.undo,
+      onUndo: () => ref.read(createTaskAllocationProvider)(
+        todoId: todo!.id,
+        startAt: item.start,
+        endAt: item.end,
+        occurrenceId: item.occurrenceId,
       ),
     );
   }
