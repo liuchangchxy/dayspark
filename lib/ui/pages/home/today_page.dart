@@ -38,6 +38,8 @@ class A2TodayPage extends ConsumerStatefulWidget {
     required this.onToggleTodo,
     required this.onOpenUnplanned,
     required this.onScheduleTodo,
+    this.initialCaptureExpanded = false,
+    this.initialDraft = '',
   });
 
   final DateTime now;
@@ -49,6 +51,8 @@ class A2TodayPage extends ConsumerStatefulWidget {
   onToggleTodo;
   final VoidCallback onOpenUnplanned;
   final ValueChanged<Todo> onScheduleTodo;
+  final bool initialCaptureExpanded;
+  final String initialDraft;
 
   @override
   ConsumerState<A2TodayPage> createState() => _A2TodayPageState();
@@ -68,8 +72,12 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Timer? _toastTimer;
   bool _capturing = false;
   bool _captureFocused = false;
-  String _captureDraft = '';
+  late String _captureDraft = widget.initialDraft;
   double? _lastViewport;
+  late bool _captureExpanded = widget.initialCaptureExpanded;
+  late final TextEditingController _desktopCaptureController =
+      TextEditingController(text: widget.initialDraft);
+  final FocusNode _desktopCaptureFocusNode = FocusNode();
 
   /// The one row that was just completed and can still be undone. It is kept
   /// rendered in its own section for five seconds even after the projection
@@ -82,6 +90,13 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       DateTime(widget.now.year, widget.now.month, widget.now.day);
 
   String get _locale => Localizations.localeOf(context).toString();
+
+  static int isoWeekNumber(DateTime date) {
+    final thursday = DateTime(date.year, date.month, date.day + (4 - date.weekday));
+    final firstThursdayOfYear = DateTime(thursday.year, 1, 4);
+    final firstThursday = DateTime(thursday.year, 1, 4 + (4 - firstThursdayOfYear.weekday));
+    return 1 + (thursday.difference(firstThursday).inDays ~/ 7);
+  }
 
   /// The keyboard arrives one or more frames after focus, and the Scaffold
   /// reserves its space by shrinking the body rather than by leaving an inset
@@ -112,6 +127,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   @override
   void dispose() {
+    _desktopCaptureController.dispose();
+    _desktopCaptureFocusNode.dispose();
     _recentTimer?.cancel();
     _toastTimer?.cancel();
     _undoTimer?.cancel();
@@ -567,7 +584,61 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     final hasShelf = shelfSource.isNotEmpty || unplannedCount > 0;
     final empty = sections.isEmpty && !hasShelf;
 
+    final overdueCount = agenda.overdueTodos.length +
+        (projection?.missedTaskInstances.length ?? 0);
+    final dueCount = agenda.dueTodos.length;
+    final doneCount = (projection?.completedTodayTodos.length ?? 0) +
+        (projection?.completedTodayTaskInstances.length ?? 0);
+    final isPageEmpty = overdueCount == 0 &&
+        dueCount == 0 &&
+        unplannedCount == 0 &&
+        doneCount == 0 &&
+        agenda.events.isEmpty &&
+        agenda.allocations.isEmpty;
+
+    final summary = isPageEmpty
+        ? l.emptyTodayTitle
+        : '$overdueCount ${l.sectionOverdueLabel} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.inbox} · $doneCount ${l.completed}';
+
+    final mobileContentHeader = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            DateFormat.MMMd(_locale).format(widget.now),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: SpecTokens.ink,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${DateFormat.E(_locale).format(widget.now)} · ${l.weekNumberLabel(isoWeekNumber(widget.now))}',
+            style: const TextStyle(
+              fontSize: 11,
+              color: SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            summary,
+            style: const TextStyle(
+              fontSize: 10,
+              color: SpecTokens.faint,
+              fontFeatures: AppTypography.tabular,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ],
+      ),
+    );
+
     final children = <Widget>[
+      mobileContentHeader,
       ...sections,
       if (hasShelf) ...[
         A2GroupHead(
@@ -619,11 +690,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                 icon: CupertinoIcons.search,
                 tooltip: l.search,
                 onPressed: () => context.push('/search'),
-              ),
-              A2IconAction(
-                icon: CupertinoIcons.settings,
-                tooltip: l.settings,
-                onPressed: () => context.push('/settings'),
               ),
             ],
           ),
@@ -695,17 +761,19 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   // -------------------------------------------------------------- desktop
 
   Widget _zoneLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Container(
+      height: 25,
+      padding: const EdgeInsets.symmetric(horizontal: 3),
       child: Row(
         children: [
           Text(
             label.toUpperCase(),
             style: const TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
               letterSpacing: 1.3,
               color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
             ),
           ),
           const SizedBox(width: 8),
@@ -719,6 +787,65 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         ],
       ),
     );
+  }
+
+  Widget _groupHead({
+    required String label,
+    int? count,
+    bool danger = false,
+    bool expanded = false,
+    VoidCallback? onToggle,
+    Widget? trailing,
+  }) {
+    final content = Container(
+      constraints: const BoxConstraints(minHeight: 31),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      margin: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: danger ? SpecTokens.red : SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          if (count != null) ...[
+            const SizedBox(width: 4),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w400,
+                color: danger ? const Color(0xFFC98078) : SpecTokens.faint,
+                fontFeatures: AppTypography.tabular,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ],
+          const Spacer(),
+          if (trailing != null)
+            trailing
+          else if (onToggle != null)
+            Icon(
+              expanded ? CupertinoIcons.chevron_down : CupertinoIcons.chevron_right,
+              size: 11,
+              color: SpecTokens.faint,
+            ),
+        ],
+      ),
+    );
+    if (onToggle != null) {
+      return InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(4),
+        child: content,
+      );
+    }
+    return content;
   }
 
   Widget _desktopHead(
@@ -744,45 +871,399 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         ? l.emptyTodayTitle
         : '$overdueCount ${l.sectionOverdueLabel} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.inbox} · $doneCount ${l.completed}';
 
+    final weekText = l.weekNumberLabel(isoWeekNumber(widget.now));
+    final dateTitle = DateFormat.MMMd(_locale).format(widget.now);
+    final dateSub = '${DateFormat.E(_locale).format(widget.now)} · $weekText';
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 14),
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 13),
       decoration: const BoxDecoration(
         color: SpecTokens.paper,
         border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(
-            DateFormat.MMMd(_locale).format(widget.now),
-            style: SpecTokens.t26.copyWith(
-              fontWeight: FontWeight.w700,
-              color: SpecTokens.ink,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            DateFormat.E(_locale).format(widget.now),
-            style: SpecTokens.t13.copyWith(
-              color: SpecTokens.muted,
-            ),
-          ),
-          const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              summary,
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: SpecTokens.t11.copyWith(
-                color: SpecTokens.faint,
-                fontFeatures: AppTypography.tabular,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      dateTitle,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.1,
+                        height: 1.22,
+                        color: SpecTokens.ink,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      dateSub,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: SpecTokens.muted,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  summary,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: SpecTokens.faint,
+                    fontFeatures: AppTypography.tabular,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _submitDesktopCapture() {
+    final text = _desktopCaptureController.text.trim();
+    if (text.isEmpty) return;
+    _desktopCaptureController.clear();
+    setState(() {
+      _captureDraft = '';
+      _captureExpanded = false;
+    });
+    _capture(text);
+  }
+
+  Widget _desktopCaptureBar(AppLocalizations l) {
+    return Positioned(
+      bottom: 18,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          width: 560,
+          height: 54,
+          padding: const EdgeInsets.fromLTRB(15, 0, 8, 0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(27),
+            border: Border.all(color: const Color(0xFFE1E1D9), width: 1),
+            boxShadow: const [
+              BoxShadow(
+                color: Color.fromRGBO(25, 25, 24, 0.08),
+                blurRadius: 28,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                height: 25,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: SpecTokens.wash,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(CupertinoIcons.checkmark_alt, size: 10, color: SpecTokens.muted),
+                    const SizedBox(width: 4),
+                    Text(
+                      l.captureTypeTodo,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: SpecTokens.ink2,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                l.captureDefaultDate,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: SpecTokens.faint,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('desktop-capture-input'),
+                  controller: _desktopCaptureController,
+                  focusNode: _desktopCaptureFocusNode,
+                  decoration: InputDecoration(
+                    hintText: l.captureInputPlaceholder,
+                    hintStyle: const TextStyle(
+                      fontSize: 13,
+                      color: SpecTokens.faint,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: SpecTokens.ink,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                  onSubmitted: (_) => _submitDesktopCapture(),
+                  onChanged: (val) => _captureDraft = val,
+                ),
+              ),
+              const Text(
+                '↵',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: SpecTokens.faint,
+                ),
+              ),
+              const SizedBox(width: 6),
+              InkWell(
+                key: const ValueKey('desktop-capture-expand-btn'),
+                onTap: () {
+                  setState(() => _captureExpanded = !_captureExpanded);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.transparent,
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.plus,
+                    size: 16,
+                    color: SpecTokens.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _desktopCaptureExpandedPanel(AppLocalizations l) {
+    if (!_captureExpanded) return const SizedBox.shrink();
+    return Positioned(
+      bottom: 82,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          width: 620,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE1E1D9), width: 1),
+            boxShadow: const [
+              BoxShadow(
+                color: Color.fromRGBO(25, 25, 24, 0.13),
+                blurRadius: 55,
+                offset: Offset(0, 18),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l.captureTitle,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: SpecTokens.ink,
+                              fontFamilyFallback: AppTypography.fallback,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            l.captureDefaultDate,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: SpecTokens.muted,
+                              fontFamilyFallback: AppTypography.fallback,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    InkWell(
+                      key: const ValueKey('desktop-capture-collapse-btn'),
+                      onTap: () => setState(() => _captureExpanded = false),
+                      borderRadius: BorderRadius.circular(4),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(CupertinoIcons.xmark, size: 12, color: SpecTokens.muted),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _desktopCaptureController,
+                      decoration: InputDecoration(
+                        hintText: l.captureInputPlaceholder,
+                        hintStyle: const TextStyle(fontSize: 13, color: SpecTokens.faint),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: const BorderSide(color: SpecTokens.hair),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      style: const TextStyle(fontSize: 13, color: SpecTokens.ink),
+                      onChanged: (val) => _captureDraft = val,
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => setState(() => _captureExpanded = false),
+                          child: Text(l.cancel, style: const TextStyle(fontSize: 12, color: SpecTokens.muted)),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          key: const ValueKey('desktop-capture-submit-btn'),
+                          onPressed: _submitDesktopCapture,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: SpecTokens.ink,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          ),
+                          child: Text(l.captureSaveTodo, style: const TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _taskRow({
+    Key? key,
+    required String title,
+    bool checked = false,
+    bool isOverdue = false,
+    String? dueLabel,
+    String? calendarName,
+    Color? calendarColor,
+    String? rrule,
+    int? missedCount,
+    ValueChanged<bool>? onToggle,
+    VoidCallback? onTap,
+    VoidCallback? onSchedule,
+  }) {
+    final l = AppLocalizations.of(context)!;
+    final meta = <Widget>[
+      if (calendarColor != null) ...[
+        Container(
+          width: 5,
+          height: 5,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: calendarColor),
+        ),
+        const SizedBox(width: 4),
+      ],
+      if (calendarName != null) ...[
+        Text(calendarName),
+        const SizedBox(width: 4),
+      ],
+      if (rrule != null && rrule.isNotEmpty) ...[
+        Text('· ${l.recurringTask}'),
+        const SizedBox(width: 4),
+      ],
+      if (missedCount != null && missedCount > 0) ...[
+        Text(
+          '· ${l.missed} $missedCount',
+          style: const TextStyle(color: SpecTokens.red),
+        ),
+        const SizedBox(width: 4),
+      ],
+    ];
+
+    return SpecTaskRow(
+      key: key,
+      title: title,
+      checked: checked,
+      isOverdue: isOverdue,
+      dueLabel: dueLabel,
+      meta: meta,
+      onToggle: onToggle,
+      onTap: onTap,
+      onSchedule: onSchedule,
+    );
+  }
+
+  Widget _timeBlockRow(DayItem item, {bool isQuiet = false}) {
+    final isPlan = item.kind == DayItemKind.allocation;
+    final timeStr = item.start != null
+        ? DateFormatters.formatTime(item.start!)
+        : '';
+    final metaStr = item.start != null && item.end != null
+        ? '${DateFormatters.formatTime(item.start!)}–${DateFormatters.formatTime(item.end!)}'
+        : (item.calendarName ?? '');
+    final fullMeta = (item.calendarName != null && !isPlan)
+        ? '${item.calendarName} · $metaStr'
+        : metaStr;
+
+    return SpecTimelineRow(
+      timeLabel: timeStr,
+      dotColor: item.calendarColor ?? (isPlan ? SpecTokens.work : SpecTokens.ink),
+      child: SpecTimeBlock(
+        kind: isPlan ? SpecTimeBlockKind.plan : SpecTimeBlockKind.event,
+        title: item.title,
+        meta: fullMeta,
+        barColor: item.calendarColor ?? (isPlan ? SpecTokens.work : SpecTokens.scheduleBlue),
+        bgColor: isQuiet ? SpecTokens.wash : null,
+        onTap: () {
+          if (item.event != null) {
+            _openEvent(item.event!);
+          } else if (item.todo != null) {
+            _openTodo(item.todo!);
+          }
+        },
       ),
     );
   }
@@ -795,9 +1276,14 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     int unplannedCount,
   ) {
     final projection = data.valueOrNull;
+    final plannedTodoIds = <int>{
+      for (final a in agenda.allocations)
+        if (a.todo != null) a.todo!.id,
+    };
+
     final noDue = <Todo>[
       for (final todo in unplanned)
-        if (todo.dueDate == null) todo,
+        if (todo.dueDate == null && !plannedTodoIds.contains(todo.id)) todo,
     ];
     final shelfSource = _injectRecentTodos(noDue, _RecentSection.unplanned);
     final preview = shelfSource.take(3).toList();
@@ -824,19 +1310,43 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               if (_keyOf(instance.todo.id, instance.occurrenceId) != recentKey)
                 instance,
           ];
-    final completedCount = completedTodos.length + completedInstances.length;
+
+    final visibleCompletedTodos = [
+      for (final todo in completedTodos)
+        if (!plannedTodoIds.contains(todo.id)) todo,
+    ];
+    final visibleCompletedInstances = [
+      for (final instance in completedInstances)
+        if (!plannedTodoIds.contains(instance.todo.id)) instance,
+    ];
+    final completedCount =
+        visibleCompletedTodos.length + visibleCompletedInstances.length;
 
     final overdueItems = _injectRecentDayItems(
       agenda.overdueTodos,
       _RecentSection.overdue,
     );
+    final visibleOverdue = [
+      for (final item in overdueItems)
+        if (item.todo != null && !plannedTodoIds.contains(item.todo!.id)) item,
+    ];
+
     final dueItems = _injectRecentDayItems(
       agenda.dueTodos,
       _RecentSection.dueToday,
     );
+    final visibleDue = [
+      for (final item in dueItems)
+        if (item.todo != null && !plannedTodoIds.contains(item.todo!.id)) item,
+    ];
+
     final missed =
         projection?.missedTaskInstances ?? const <ProjectedTaskInstance>[];
     final missedItems = _injectRecentInstances(missed, _RecentSection.missed);
+    final visibleMissed = [
+      for (final item in missedItems)
+        if (!plannedTodoIds.contains(item.todo.id)) item,
+    ];
 
     final timed = agenda.timed;
     bool isRunning(DayItem item) {
@@ -864,277 +1374,282 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
     final taskChildren = <Widget>[
       _zoneLabel(l.tasksZoneLabel),
-      if (agenda.allocations.isNotEmpty) ...[
-        A2GroupHead(
-          label: l.planTagLabel,
-          count: agenda.allocations.length,
-          countLabel: l.groupCountItems(agenda.allocations.length),
-          tone: SpecTokens.work,
-          topBorder: false,
-        ),
-        for (var i = 0; i < agenda.allocations.length; i++)
-          _timelineItem(
-            agenda.allocations[i],
-            0,
-            section: _RecentSection.upcoming,
-            index: i,
-          ),
-      ],
-      if (overdueItems.isNotEmpty) ...[
-        A2GroupHead(
-          label: l.sectionOverdueLabel,
-          count: overdueItems.length,
-          countLabel: l.groupCountItems(overdueItems.length),
-          danger: true,
-          tone: SpecTokens.red,
-          topBorder: false,
-        ),
-        for (var i = 0; i < overdueItems.length; i++)
-          _timelineItem(
-            overdueItems[i],
-            0,
-            section: _RecentSection.overdue,
-            index: i,
-          ),
-      ],
-      if (dueItems.isNotEmpty) ...[
-        A2GroupHead(
-          label: l.sectionDueToday,
-          count: dueItems.length,
-          countLabel: l.groupCountItems(dueItems.length),
-          tone: SpecTokens.amber,
-          topBorder: false,
-        ),
-        for (var i = 0; i < dueItems.length; i++)
-          _timelineItem(
-            dueItems[i],
-            0,
-            section: _RecentSection.dueToday,
-            index: i,
-          ),
-      ],
-      if (missedItems.isNotEmpty) ...[
-        A2GroupHead(
-          label: l.missed,
-          count: missedItems.length,
-          countLabel: l.groupCountItems(missedItems.length),
-          danger: true,
-          tone: SpecTokens.red,
-          topBorder: false,
-        ),
-        for (var i = 0; i < missedItems.length; i++)
-          _missedInstanceRow(
-            missedItems[i],
-            section: _RecentSection.missed,
-            index: i,
-          ),
-      ],
-      A2GroupHead(
-        label: l.inbox,
-        count: unplannedCount,
-        countLabel: l.groupCountItems(unplannedCount),
-        topBorder: false,
-        trailing: const Icon(
-          CupertinoIcons.chevron_up,
-          size: 14,
-          color: SpecTokens.faint,
-        ),
-        onTap: widget.onOpenUnplanned,
-      ),
-      if (preview.isEmpty && unplannedCount == 0 && shelfSource.isEmpty)
+      if (plannedTodoIds.isNotEmpty)
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
           child: Text(
-            l.unplannedGroupEmpty,
-            style: SpecTokens.t11.copyWith(
+            l.plannedTodosMovedToTimeline(plannedTodoIds.length),
+            style: const TextStyle(
+              fontSize: 10,
               color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
             ),
           ),
         ),
-      for (final (index, todo) in preview.indexed)
-        _unplannedRow(l, todo, compact: true, index: index),
+      if (visibleOverdue.isNotEmpty) ...[
+        _groupHead(
+          label: l.sectionOverdueLabel,
+          count: visibleOverdue.length,
+          danger: true,
+        ),
+        for (final item in visibleOverdue)
+          _taskRow(
+            key: ValueKey('overdue-${item.todo!.id}'),
+            title: item.title,
+            checked: item.completed,
+            isOverdue: true,
+            dueLabel: item.todo?.dueDate != null
+                ? DateFormat.Md(_locale).format(item.todo!.dueDate!.toLocal())
+                : l.sectionOverdueLabel,
+            calendarName: item.calendarName,
+            calendarColor: item.calendarColor,
+            rrule: item.todo?.rrule,
+            onToggle: (_) =>
+                _setCompleted(item.todo!, item.occurrenceId, !item.completed),
+            onTap: () => _openTodo(item.todo!),
+            onSchedule: () => _scheduleTodo(item.todo!),
+          ),
+      ],
+      if (visibleDue.isNotEmpty) ...[
+        _groupHead(
+          label: l.sectionDueToday,
+          count: visibleDue.length,
+        ),
+        for (final item in visibleDue)
+          _taskRow(
+            key: ValueKey('due-${item.todo!.id}'),
+            title: item.title,
+            checked: item.completed,
+            isOverdue: false,
+            dueLabel: l.today,
+            calendarName: item.calendarName,
+            calendarColor: item.calendarColor,
+            rrule: item.todo?.rrule,
+            onToggle: (_) =>
+                _setCompleted(item.todo!, item.occurrenceId, !item.completed),
+            onTap: () => _openTodo(item.todo!),
+            onSchedule: () => _scheduleTodo(item.todo!),
+          ),
+      ],
+      if (visibleMissed.isNotEmpty) ...[
+        _groupHead(
+          label: l.missed,
+          count: visibleMissed.length,
+          danger: true,
+        ),
+        for (final missed in visibleMissed)
+          _taskRow(
+            key: ValueKey('missed-${missed.occurrenceId}'),
+            title: missed.todo.summary,
+            checked: false,
+            isOverdue: true,
+            dueLabel: missed.occurrence.displayLabel,
+            rrule: missed.todo.rrule,
+            missedCount: 1,
+            onToggle: (_) => _setCompleted(
+              missed.todo,
+              missed.occurrenceId,
+              true,
+            ),
+            onTap: () => _openTodo(missed.todo),
+            onSchedule: () => _scheduleTodo(missed.todo),
+          ),
+      ],
+      _groupHead(
+        label: l.inbox,
+        count: shelfSource.length,
+        trailing: const Icon(
+          CupertinoIcons.chevron_up,
+          size: 11,
+          color: SpecTokens.faint,
+        ),
+        onToggle: widget.onOpenUnplanned,
+      ),
+      if (preview.isEmpty && shelfSource.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 12),
+          child: Text(
+            l.unplannedGroupEmpty,
+            style: const TextStyle(
+              fontSize: 11,
+              color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ),
+      for (final todo in preview)
+        _taskRow(
+          key: ValueKey('unplanned-${todo.id}'),
+          title: todo.summary,
+          checked: todo.status == 'COMPLETED',
+          rrule: todo.rrule,
+          onToggle: (_) =>
+              _setCompleted(todo, null, todo.status != 'COMPLETED'),
+          onTap: () => _openTodo(todo),
+          onSchedule: () => _scheduleTodo(todo),
+        ),
       if (hidden > 0) _showAllRow(l, hidden),
+      if (completedCount > 0) ...[
+        _groupHead(
+          label: l.completedTodaySection,
+          count: completedCount,
+          expanded: _completedExpanded,
+          onToggle: () =>
+              setState(() => _completedExpanded = !_completedExpanded),
+        ),
+        if (_completedExpanded) ...[
+          for (final todo in visibleCompletedTodos)
+            _taskRow(
+              key: ValueKey('completed-${todo.id}'),
+              title: todo.summary,
+              checked: true,
+              rrule: todo.rrule,
+              onToggle: (_) => _setCompleted(todo, null, false),
+              onTap: () => _openTodo(todo),
+              onSchedule: () => _scheduleTodo(todo),
+            ),
+          for (final instance in visibleCompletedInstances)
+            _taskRow(
+              key: ValueKey('completed-inst-${instance.occurrenceId}'),
+              title: instance.todo.summary,
+              checked: true,
+              rrule: instance.todo.rrule,
+              onToggle: (_) => _setCompleted(
+                instance.todo,
+                instance.occurrenceId,
+                false,
+              ),
+              onTap: () => _openTodo(instance.todo),
+              onSchedule: () => _scheduleTodo(instance.todo),
+            ),
+        ],
+      ],
+      if (visibleOverdue.isEmpty &&
+          visibleDue.isEmpty &&
+          visibleMissed.isEmpty &&
+          shelfSource.isEmpty &&
+          completedCount == 0)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: SpecEmpty(
+            icon: CupertinoIcons.checkmark_alt,
+            title: l.todayCleanTitle,
+            hint: l.todayCleanSub,
+          ),
+        ),
       const SizedBox(height: 16),
     ];
 
     final timeChildren = <Widget>[
       _zoneLabel(l.timeZoneLabel),
       if (allDayEvents.isNotEmpty)
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: SpecTokens.wash,
-            borderRadius: BorderRadius.circular(SpecTokens.r6),
-            border: Border.all(color: SpecTokens.hair),
-          ),
-          child: Row(
-            children: [
-              Text(
-                l.allDayLabel,
-                style: SpecTokens.t11.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: SpecTokens.muted,
-                ),
+        SpecAlldayStrip(
+          label: l.allDayLabel,
+          items: [
+            for (final ev in allDayEvents)
+              SpecAlldayItem(
+                title: ev.title,
+                barColor: ev.calendarColor,
+                bgColor: ev.calendarColor?.withValues(alpha: 0.12),
+                onTap: () => _openEvent(ev.event!),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  children: [
-                    for (final ev in allDayEvents)
-                      SpecChip(
-                        label: ev.title,
-                        tone: SpecChipTone.plan,
-                        onTap: () => _openEvent(ev.event!),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       if (endedItems.isNotEmpty) ...[
-        A2GroupHead(
+        _groupHead(
           label: l.actionEarlierToday,
           count: endedItems.length,
-          topBorder: false,
         ),
         for (var i = 0; i < endedItems.length; i++)
-          _timelineItem(
-            endedItems[i],
-            46,
-            section: _RecentSection.ended,
-            index: i,
-          ),
+          _timeBlockRow(endedItems[i], isQuiet: true),
       ],
-      SpecNowLine(time: DateFormatters.formatTime(widget.now)),
       if (runningItems.isNotEmpty) ...[
-        A2GroupHead(
+        _groupHead(
           label: l.sectionNow,
-          tone: SpecTokens.scheduleBlue,
-          topBorder: false,
+          trailing: Text(
+            DateFormatters.formatTime(widget.now),
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: SpecTokens.ink,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
         ),
         for (var i = 0; i < runningItems.length; i++)
-          _timelineItem(
-            runningItems[i],
-            46,
-            section: _RecentSection.now,
-            index: i,
-          ),
+          _timeBlockRow(runningItems[i]),
       ],
+      const SpecNowLine(),
       if (upcomingItems.isNotEmpty) ...[
-        A2GroupHead(
+        _groupHead(
           label: l.sectionUpcoming,
           count: upcomingItems.length,
-          topBorder: false,
         ),
         for (var i = 0; i < upcomingItems.length; i++)
-          if (upcomingItems[i].instance)
-            A2TimelineItem(
-              timeLabel: upcomingItems[i].item.start == null ||
-                      upcomingItems[i].item.allDay
-                  ? l.allDayLabel
-                  : DateFormatters.formatTime(upcomingItems[i].item.start!),
-              timeColumn: 46,
-              child: _block(
-                l,
-                upcomingItems[i].item,
-                kind: A2BlockKind.due,
-                accent: SpecTokens.work,
-                section: _RecentSection.upcoming,
-                index: i,
-              ),
-            )
-          else
-            _timelineItem(
-              upcomingItems[i].item,
-              46,
-              section: _RecentSection.upcoming,
-              index: i,
-            ),
-      ],
-      if (completedCount > 0) ...[
-        A2GroupHead(
-          label: l.completedTodaySection,
-          count: completedCount,
-          countLabel: l.groupCountItems(completedCount),
-          topBorder: false,
-          trailing: Icon(
-            _completedExpanded
-                ? CupertinoIcons.chevron_up
-                : CupertinoIcons.chevron_down,
-            size: 14,
-            color: SpecTokens.faint,
-          ),
-          onTap: () => setState(() => _completedExpanded = !_completedExpanded),
-        ),
-        if (_completedExpanded) ...[
-          for (final todo in completedTodos) _completedTodoRow(todo),
-          for (final instance in completedInstances)
-            _completedInstanceRow(instance),
-        ],
+          _timeBlockRow(upcomingItems[i].item),
       ],
       if (allDayEvents.isEmpty &&
           endedItems.isEmpty &&
           runningItems.isEmpty &&
-          upcomingItems.isEmpty &&
-          completedCount == 0)
+          upcomingItems.isEmpty)
         Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Text(
-              l.emptyTodayTitle,
-              style: SpecTokens.t13.copyWith(
-                color: SpecTokens.muted,
-              ),
-            ),
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: SpecEmpty(
+            icon: CupertinoIcons.calendar,
+            title: l.todayEmptyTime,
+            hint: l.todayEmptyTimeWithHint,
           ),
         ),
       const SizedBox(height: 16),
     ];
 
-    final desktopContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final desktopContent = Stack(
       children: [
-        _desktopHead(l, data, agenda, unplannedCount),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: 380,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: SpecTokens.paper,
-                    border: Border(
-                      right: BorderSide(color: SpecTokens.hair, width: 1),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _desktopHead(l, data, agenda, unplannedCount),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 380,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: SpecTokens.paper,
+                        border: Border(
+                          right: BorderSide(color: SpecTokens.hair, width: 1),
+                        ),
+                      ),
+                      child: Listener(
+                        onPointerDown: _onListPointerDown,
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 118),
+                          children: taskChildren,
+                        ),
+                      ),
                     ),
                   ),
-                  child: Listener(
-                    onPointerDown: _onListPointerDown,
-                    child: ListView(
-                      padding: const EdgeInsets.only(top: 8),
-                      children: taskChildren,
+                  Expanded(
+                    child: Container(
+                      color: SpecTokens.paper,
+                      child: Listener(
+                        onPointerDown: _onListPointerDown,
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 118),
+                          children: timeChildren,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-              Expanded(
-                child: Container(
-                  color: SpecTokens.paper,
-                  child: Listener(
-                    onPointerDown: _onListPointerDown,
-                    child: ListView(
-                      padding: const EdgeInsets.only(top: 8),
-                      children: timeChildren,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+        _desktopCaptureExpandedPanel(l),
+        _desktopCaptureBar(l),
       ],
     );
 

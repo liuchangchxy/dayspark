@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,11 +16,12 @@ import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
 /// The Direction C desktop shell: one 52px bar, always present.
 class SparkTopBar extends ConsumerStatefulWidget {
-  const SparkTopBar({super.key, this.clock});
+  const SparkTopBar({super.key, this.clock, this.onSelect});
 
   static const double height = 52;
 
   final DateTime Function()? clock;
+  final ValueChanged<int>? onSelect;
 
   @override
   ConsumerState<SparkTopBar> createState() => _SparkTopBarState();
@@ -27,6 +29,7 @@ class SparkTopBar extends ConsumerStatefulWidget {
 
 class _SparkTopBarState extends ConsumerState<SparkTopBar> {
   Timer? _ticker;
+  bool _searchHovered = false;
 
   @override
   void initState() {
@@ -48,13 +51,15 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
     final l = AppLocalizations.of(context)!;
     final tab = ref.watch(workspaceTabProvider);
     final now = (widget.clock ?? DateTime.now)();
+    final isMac = defaultTargetPlatform == TargetPlatform.macOS;
+    final shortcutText = isMac ? '\u2318 K' : 'Ctrl K';
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 900;
         return Container(
           height: SparkTopBar.height,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           decoration: const BoxDecoration(
             color: SpecTokens.paper,
             border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1.0)),
@@ -62,12 +67,12 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
           child: Row(
             children: [
               Container(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: SpecTokens.ink,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
                   'D',
@@ -91,21 +96,25 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                   fontFamilyFallback: AppTypography.fallback,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 26),
               Row(
                 children: [
                   _DesktopNavButton(
+                    key: const ValueKey('nav-today'),
                     label: l.today,
                     selected: tab == AppTab.action,
                     onTap: () => _goToday(now),
                   ),
+                  const SizedBox(width: 4),
                   _DesktopNavButton(
                     key: const ValueKey('nav-todos'),
                     label: l.todos,
                     selected: tab == AppTab.todos,
                     onTap: () => _selectTodos(),
                   ),
+                  const SizedBox(width: 4),
                   _DesktopNavButton(
+                    key: const ValueKey('nav-calendar'),
                     label: l.calendar,
                     selected: tab == AppTab.calendar,
                     onTap: () => _selectCalendar(),
@@ -115,15 +124,17 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
               const Spacer(),
               MouseRegion(
                 cursor: SystemMouseCursors.click,
+                onEnter: (_) => setState(() => _searchHovered = true),
+                onExit: (_) => setState(() => _searchHovered = false),
                 child: GestureDetector(
                   key: const ValueKey('nav-search'),
                   behavior: HitTestBehavior.opaque,
                   onTap: () => context.push('/search'),
                   child: Container(
-                    height: 28,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    height: 29,
+                    padding: const EdgeInsets.symmetric(horizontal: 9),
                     decoration: BoxDecoration(
-                      color: SpecTokens.wash,
+                      color: _searchHovered ? SpecTokens.wash : Colors.transparent,
                       border: Border.all(color: SpecTokens.hair2, width: 1.0),
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -136,21 +147,19 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                           color: SpecTokens.muted,
                         ),
                         if (isWide) ...[
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 6),
                           Text(
                             l.search,
                             style: const TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 11,
                               color: SpecTokens.muted,
                               fontFamilyFallback: AppTypography.fallback,
                             ),
                           ),
-                        ],
-                        if (isWide) ...[
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 3,
+                              horizontal: 4,
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
@@ -158,10 +167,10 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                               border: Border.all(color: SpecTokens.hair2, width: 1.0),
                               borderRadius: BorderRadius.circular(3),
                             ),
-                            child: const Text(
-                              '⌘ K',
-                              style: TextStyle(
-                                fontSize: 9.5,
+                            child: Text(
+                              shortcutText,
+                              style: const TextStyle(
+                                fontSize: 9,
                                 color: SpecTokens.faint,
                                 fontFamilyFallback: AppTypography.fallback,
                               ),
@@ -173,55 +182,19 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => context.push('/quick-add'),
-                  child: Container(
-                    height: 28,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: SpecTokens.ink,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          CupertinoIcons.plus,
-                          size: 12,
-                          color: SpecTokens.paper,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          l.captureQuickAddLabel,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: SpecTokens.paper,
-                            fontFamilyFallback: AppTypography.fallback,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
               if (isWide) ...[
-                const SizedBox(width: 10),
+                const SizedBox(width: 13),
                 Text(
                   DateFormatters.formatTime(now),
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: SpecTokens.faint,
+                    fontSize: 11,
+                    color: SpecTokens.ink2,
                     fontFeatures: AppTypography.tabular,
                     fontFamilyFallback: AppTypography.fallback,
                   ),
                 ),
               ],
-              const SizedBox(width: 10),
+              const SizedBox(width: 13),
               Tooltip(
                 message: l.settings,
                 child: MouseRegion(
@@ -230,19 +203,20 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () => context.push('/settings'),
                     child: Container(
-                      width: 26,
-                      height: 26,
+                      width: 27,
+                      height: 27,
                       alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: SpecTokens.hair,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFBFBF8),
                         shape: BoxShape.circle,
+                        border: Border.all(color: SpecTokens.hair2, width: 1.0),
                       ),
                       child: Text(
                         l.meLabel,
                         style: const TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: SpecTokens.ink2,
+                          color: SpecTokens.muted,
                           fontFamilyFallback: AppTypography.fallback,
                         ),
                       ),
@@ -259,6 +233,7 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
 
   void _selectCalendar() {
     ref.read(workspaceTabProvider.notifier).setTab(AppTab.calendar);
+    widget.onSelect?.call(1);
     _goTab(1);
   }
 
@@ -269,11 +244,13 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
       now.day,
     );
     ref.read(workspaceTabProvider.notifier).setTab(AppTab.action);
+    widget.onSelect?.call(0);
     _goTab(0);
   }
 
   void _selectTodos() {
     ref.read(workspaceTabProvider.notifier).setTab(AppTab.todos);
+    widget.onSelect?.call(2);
     _goTab(2);
   }
 
@@ -308,42 +285,39 @@ class _DesktopNavButtonState extends State<_DesktopNavButton> {
 
   @override
   Widget build(BuildContext context) {
-    final bg = widget.selected
-        ? SpecTokens.hair
-        : _hovered
-            ? SpecTokens.wash
-            : Colors.transparent;
     final fg = widget.selected
         ? SpecTokens.ink
         : _hovered
             ? SpecTokens.ink
             : SpecTokens.muted;
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap,
-          child: Container(
-            height: 28,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
-                color: fg,
-                fontFamilyFallback: AppTypography.fallback,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: Container(
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: _hovered && !widget.selected ? SpecTokens.wash : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: widget.selected ? SpecTokens.ink : Colors.transparent,
+                width: 2.0,
               ),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
+              color: fg,
+              fontFamilyFallback: AppTypography.fallback,
             ),
           ),
         ),

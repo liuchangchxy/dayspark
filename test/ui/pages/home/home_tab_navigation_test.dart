@@ -21,6 +21,7 @@ import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
@@ -481,7 +482,8 @@ void main() {
     await _settle(tester);
 
     void expectSingleOrigin() {
-      final rows = find.byType(A2Row);
+      final rows =
+          find.byWidgetPredicate((w) => w is A2Row || w is SpecTaskRow);
       expect(rows.evaluate().length, 2);
       final lefts = <double>[
         for (var i = 0; i < rows.evaluate().length; i++)

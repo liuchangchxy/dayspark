@@ -2212,6 +2212,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get captureDefaultDate => '无日期 · 个人';
 
   @override
+  String get captureTitle => '记一件事';
+
+  @override
+  String get captureSaveTodo => '记下待办';
+
+  @override
+  String plannedTodosMovedToTimeline(int count) {
+    return '另有 $count 项已安排，显示在右侧时间区。';
+  }
+
+  @override
   String deleteConfirmTitle(String title) {
     return '删除「$title」？';
   }

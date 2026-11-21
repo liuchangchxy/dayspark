@@ -80,6 +80,9 @@ class SpecTaskRow extends StatefulWidget {
     this.isOverdue = false,
     this.disabled = false,
     this.selected = false,
+    this.onSchedule,
+    this.scheduleTooltip,
+    this.touchTargetSize,
   });
 
   final String title;
@@ -92,6 +95,9 @@ class SpecTaskRow extends StatefulWidget {
   final bool isOverdue;
   final bool disabled;
   final bool selected;
+  final VoidCallback? onSchedule;
+  final String? scheduleTooltip;
+  final double? touchTargetSize;
 
   @override
   State<SpecTaskRow> createState() => _SpecTaskRowState();
@@ -110,6 +116,10 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
             ? SpecTokens.wash
             : Colors.transparent;
 
+    final isDesktop = MediaQuery.maybeSizeOf(context)?.width != null &&
+        MediaQuery.sizeOf(context).width >= 720;
+    final targetSize = widget.touchTargetSize ?? (isDesktop ? 32.0 : 48.0);
+
     return FocusableActionDetector(
       enabled: enabled,
       onShowFocusHighlight: (v) => setState(() => _focused = v),
@@ -121,8 +131,8 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
         child: Opacity(
           opacity: widget.disabled ? 0.45 : 1.0,
           child: Container(
-            constraints: const BoxConstraints(minHeight: 52),
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
+            constraints: const BoxConstraints(minHeight: 55),
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(5),
@@ -134,11 +144,16 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
             ),
             child: Row(
               children: [
-                SpecCheck(
-                  checked: widget.checked,
-                  onChanged: enabled ? widget.onToggle : null,
-                  label: widget.title,
-                  touchTargetSize: 32,
+                SizedBox(
+                  width: isDesktop ? 24 : targetSize,
+                  child: Center(
+                    child: SpecCheck(
+                      checked: widget.checked,
+                      onChanged: enabled ? widget.onToggle : null,
+                      label: widget.title,
+                      touchTargetSize: targetSize,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -163,9 +178,17 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                       ),
                       if (widget.meta.isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: widget.meta,
+                        DefaultTextStyle(
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: SpecTokens.faint,
+                            fontFeatures: AppTypography.tabular,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: widget.meta,
+                          ),
                         ),
                       ],
                     ],
@@ -177,7 +200,7 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                       color: widget.isOverdue
-                          ? SpecTokens.redSoft
+                          ? Colors.transparent
                           : SpecTokens.amberSoft,
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -190,6 +213,32 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                             : SpecTokens.amber,
                         fontFeatures: AppTypography.tabular,
                         fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ),
+                ],
+                if (widget.onSchedule != null) ...[
+                  const SizedBox(width: 4),
+                  Tooltip(
+                    message: widget.scheduleTooltip ?? 'Schedule',
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: widget.onSchedule,
+                        child: Container(
+                          width: 25,
+                          height: 25,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(
+                            CupertinoIcons.calendar,
+                            size: 13.5,
+                            color: SpecTokens.faint,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -749,17 +798,18 @@ class SpecDeleteConfirmDialog extends StatelessWidget {
   }
 }
 
-/// Frozen spec now line (.now-line): 5px red circle + tabular time text + 1.5px red line.
+/// Frozen spec now line (.now-line): 5px red circle + 1.5px red line, left margin 52 aligning with rail.
 class SpecNowLine extends StatelessWidget {
-  const SpecNowLine({super.key, required this.time});
+  const SpecNowLine({super.key, this.time});
 
-  final String time;
+  /// Deprecated in frozen spec (line does not render time text).
+  final String? time;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 28,
-      margin: const EdgeInsets.symmetric(vertical: 3),
+      margin: const EdgeInsets.only(left: 52, top: 3, bottom: 3),
       child: Row(
         children: [
           Container(
@@ -771,18 +821,6 @@ class SpecNowLine extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            time,
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.05,
-              color: SpecTokens.red,
-              fontFeatures: AppTypography.tabular,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
-          ),
-          const SizedBox(width: 8),
           const Expanded(
             child: Divider(
               color: SpecTokens.red,
@@ -791,6 +829,206 @@ class SpecNowLine extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Frozen spec timeline row: 52 time column + 12 rail (hair line + 5px dot + 3px white halo) + 10 gap + content.
+class SpecTimelineRow extends StatelessWidget {
+  const SpecTimelineRow({
+    super.key,
+    required this.timeLabel,
+    required this.child,
+    this.showRail = true,
+    this.dotColor,
+  });
+
+  final String timeLabel;
+  final Widget child;
+  final bool showRail;
+  final Color? dotColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 54),
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 52,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 13),
+              child: Text(
+                timeLabel,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: SpecTokens.faint,
+                  fontFeatures: AppTypography.tabular,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 12,
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                if (showRail)
+                  Positioned(
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 1,
+                      color: SpecTokens.hair,
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 15),
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: dotColor ?? SpecTokens.faint,
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.white,
+                          spreadRadius: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+}
+
+class SpecAlldayItem {
+  const SpecAlldayItem({
+    required this.title,
+    this.bgColor,
+    this.textColor,
+    this.barColor,
+    this.onTap,
+  });
+
+  final String title;
+  final Color? bgColor;
+  final Color? textColor;
+  final Color? barColor;
+  final VoidCallback? onTap;
+}
+
+/// Frozen spec all-day strip (.allday-strip).
+class SpecAlldayStrip extends StatelessWidget {
+  const SpecAlldayStrip({
+    super.key,
+    required this.items,
+    this.label,
+  });
+
+  final List<SpecAlldayItem> items;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.fromLTRB(0, 7, 0, 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1.0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 48,
+            child: Text(
+              label ?? AppLocalizations.of(context)?.allDayLabel ?? 'All Day',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 9.5,
+                color: SpecTokens.faint,
+                letterSpacing: 0.04,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final item in items)
+                  _SpecAlldayChip(item: item),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpecAlldayChip extends StatelessWidget {
+  const _SpecAlldayChip({required this.item});
+
+  final SpecAlldayItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final bar = item.barColor ?? SpecTokens.scheduleBlue;
+    final bg = item.bgColor ?? SpecTokens.scheduleBlueSoft;
+    final ink = item.textColor ?? SpecTokens.ink;
+
+    final chip = Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+        border: Border(left: BorderSide(color: bar, width: 2.0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            item.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+              color: ink,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (item.onTap == null) return chip;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: item.onTap,
+        child: chip,
       ),
     );
   }

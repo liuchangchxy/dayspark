@@ -74,7 +74,7 @@ Future<void> _switchCalendarView(WidgetTester tester, String label) async {
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
-  await tester.tap(find.byIcon(CupertinoIcons.settings));
+  await tester.tap(find.byIcon(CupertinoIcons.person));
   await _settle(tester);
 }
 
@@ -82,14 +82,15 @@ void main() {
   testWidgets('home page renders', (tester) async {
     await _pumpApp(tester);
 
-    // The dock carries the three destinations; there is no floating create
+    // The dock carries the four destinations; there is no floating create
     // button — capture is the row at the bottom of the page.
     expect(find.byKey(const ValueKey('mobile-tab-bar')), findsOneWidget);
     expect(find.byKey(const ValueKey('today-capture-field')), findsOneWidget);
     expect(find.text('Today'), findsWidgets);
     expect(find.text('Calendar'), findsWidgets);
     expect(find.text('Tasks'), findsWidgets);
-    expect(find.byIcon(CupertinoIcons.settings), findsOneWidget);
+    expect(find.text('Me'), findsWidgets);
+    expect(find.byIcon(CupertinoIcons.person), findsOneWidget);
     expect(find.byType(PopupMenuButton<String>), findsNothing);
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });

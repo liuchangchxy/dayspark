@@ -18,6 +18,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
@@ -1106,4 +1107,126 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets(
+    'desktop Today: an allocated todo appears only once (timeline only, not task col)',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final plannedId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Planned Task',
+              dueDate: Value(DateTime(2026, 10, 6, 18)),
+            ),
+          );
+
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Unplanned Task',
+            ),
+          );
+
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      await container.read(createTaskAllocationProvider)(
+        todoId: plannedId,
+        startAt: DateTime(2026, 10, 6, 15),
+        endAt: DateTime(2026, 10, 6, 16),
+      );
+      container.dispose();
+
+      await tester.pumpWidget(
+        _app(
+          now: DateTime(2026, 10, 6, 14),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+        ),
+      );
+      await _settle(tester);
+
+      // P0 1: One todo appears only once today!
+      expect(find.text('Planned Task'), findsOneWidget);
+      expect(find.text('Unplanned Task'), findsOneWidget);
+
+      // Planned Task is in the time column via SpecTimeBlock, not left SpecTaskRow
+      expect(find.byType(SpecTimeBlock), findsWidgets);
+      final timeBlockFinder = find.ancestor(
+        of: find.text('Planned Task'),
+        matching: find.byType(SpecTimeBlock),
+      );
+      expect(timeBlockFinder, findsOneWidget);
+
+      final taskRowFinder = find.ancestor(
+        of: find.text('Planned Task'),
+        matching: find.byType(SpecTaskRow),
+      );
+      expect(taskRowFinder, findsNothing);
+
+      // Unplanned Task is in left task column via SpecTaskRow
+      final unplannedRowFinder = find.ancestor(
+        of: find.text('Unplanned Task'),
+        matching: find.byType(SpecTaskRow),
+      );
+      expect(unplannedRowFinder, findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'desktop Today: asserts day head vertical layout, timeline, now line, and floating capture bar',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _app(
+          now: DateTime(2026, 10, 6, 14),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+        ),
+      );
+      await _settle(tester);
+
+      // Day head: title, subtitle with week number, summary
+      expect(find.text('Oct 6'), findsOneWidget);
+      expect(find.textContaining('Week 41'), findsOneWidget);
+
+      // Timeline components
+      expect(find.byType(SpecNowLine), findsOneWidget);
+
+      // Floating capture bar
+      expect(find.byKey(const ValueKey('desktop-capture-input')), findsOneWidget);
+      expect(find.byKey(const ValueKey('desktop-capture-expand-btn')), findsOneWidget);
+
+      // Expand capture bar into panel
+      await tester.tap(find.byKey(const ValueKey('desktop-capture-expand-btn')));
+      await _settle(tester);
+
+      expect(find.byKey(const ValueKey('desktop-capture-submit-btn')), findsOneWidget);
+      expect(find.byKey(const ValueKey('desktop-capture-collapse-btn')), findsOneWidget);
+
+      // Collapse capture panel
+      await tester.tap(find.byKey(const ValueKey('desktop-capture-collapse-btn')));
+      await _settle(tester);
+
+      expect(find.byKey(const ValueKey('desktop-capture-submit-btn')), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
 }

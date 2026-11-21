@@ -91,15 +91,11 @@ void main() {
 
     await start(tester);
 
-    await tester.tap(find.text('Capture').first);
-    await _settle(tester);
-    expect(find.byKey(const ValueKey('a2-composer-title')), findsOneWidget);
     await tester.enterText(
-      find.byKey(const ValueKey('a2-composer-title')),
+      find.byKey(const ValueKey('desktop-capture-input')),
       'Book the flights',
     );
-    await tester.pump();
-    await tester.tap(find.text('Save to Unplanned'));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await _settle(tester);
 
     final created = (await db.select(db.todos).get()).single;
