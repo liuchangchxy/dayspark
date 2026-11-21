@@ -683,7 +683,9 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                 Text(
                   _suggestionRemoved
                       ? l.captureParsedSuggestRemoved
-                      : '$timeStr · ${l.captureParsedSuggestTitle}',
+                      : (_isEvent
+                          ? '$timeStr · ${l.captureParsedSuggestEventTitle}'
+                          : '$timeStr · ${l.captureParsedSuggestTitle}'),
                   style: const TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -694,7 +696,9 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                 Text(
                   _suggestionRemoved
                       ? l.captureParsedSuggestSubRemoved
-                      : l.captureParsedSuggestSub,
+                      : (_isEvent
+                          ? l.captureParsedSuggestEventSub
+                          : l.captureParsedSuggestSub),
                   style: const TextStyle(
                     fontSize: 9.5,
                     color: SpecTokens.muted,
@@ -705,6 +709,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
           ),
           const SizedBox(width: 6),
           TextButton(
+            key: const ValueKey('quick-add-suggestion-toggle'),
             onPressed: () {
               setState(() {
                 _suggestionRemoved = !_suggestionRemoved;
@@ -714,8 +719,8 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               });
             },
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(48, 48),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: Text(
@@ -731,6 +736,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
           ),
           const SizedBox(width: 4),
           TextButton(
+            key: const ValueKey('quick-add-suggestion-type'),
             onPressed: () {
               setState(() {
                 _isEvent = !_isEvent;
@@ -740,8 +746,8 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               });
             },
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(48, 48),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: Text(
@@ -775,11 +781,13 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
         ? ds.work
         : ColorUtils.parseHex(calendar.color);
     final event = _isEvent && !_suggestionRemoved;
-    final day = event
-        ? ((start != null && !_suggestionRemoved)
-            ? DateTime(start.year, start.month, start.day)
-            : draft.date)
-        : ((start != null && !_suggestionRemoved) ? null : draft.date);
+    final day = _suggestionRemoved
+        ? null
+        : (event
+            ? (start != null
+                ? DateTime(start.year, start.month, start.day)
+                : draft.date)
+            : (start != null ? null : draft.date));
     final main = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

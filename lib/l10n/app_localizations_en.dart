@@ -2814,10 +2814,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captureParsedSuggestTitle => 'Suggested Plan';
 
   @override
+  String get captureParsedSuggestEventTitle => 'Event Schedule';
+
+  @override
   String get captureParsedSuggestRemoved => 'Time suggestion removed';
 
   @override
   String get captureParsedSuggestSub => 'Preselected; saved as \"Planned execution\". Can be removed.';
+
+  @override
+  String get captureParsedSuggestEventSub => 'Changed to Event; saved directly to calendar.';
 
   @override
   String get captureParsedSuggestSubRemoved => 'Saves title only; no date, no plan, no deadline.';
