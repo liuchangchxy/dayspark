@@ -5074,6 +5074,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{timeRange} · Planned'**
   String calendarTimeRowPlanned(String timeRange);
+
+  /// No description provided for @todaySummaryOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get todaySummaryOverdue;
+
+  /// No description provided for @todayNoDateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'No date'**
+  String get todayNoDateGroup;
+
+  /// No description provided for @todayViewNoDate.
+  ///
+  /// In en, this message translates to:
+  /// **'View {count} undated'**
+  String todayViewNoDate(int count);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

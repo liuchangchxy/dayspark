@@ -379,9 +379,10 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    // The "more" label belongs in the column the row titles start in.
+    // The frozen spec puts the more-row arrow on the row titles' column.
     final titleLeft = tester.getTopLeft(find.text('Free item 0')).dx;
-    final more = find.textContaining('more · ');
+    final more = find.text('View 2 undated');
+    expect(more, findsOneWidget);
     final moreLeft = tester.getTopLeft(more).dx;
     expect((titleLeft - moreLeft).abs(), lessThanOrEqualTo(1));
 

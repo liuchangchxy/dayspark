@@ -1398,5 +1398,15 @@
         "type": "String"
       }
     }
+  },
+  "todaySummaryOverdue": "逾期",
+  "todayNoDateGroup": "无日期",
+  "todayViewNoDate": "查看无日期 {count} 项",
+  "@todayViewNoDate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

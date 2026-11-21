@@ -2755,4 +2755,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String calendarTimeRowPlanned(String timeRange) {
     return '$timeRange · Planned';
   }
+
+  @override
+  String get todaySummaryOverdue => 'Overdue';
+
+  @override
+  String get todayNoDateGroup => 'No date';
+
+  @override
+  String todayViewNoDate(int count) {
+    return 'View $count undated';
+  }
 }

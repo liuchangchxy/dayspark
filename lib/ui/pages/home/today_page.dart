@@ -598,7 +598,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
     final summary = isPageEmpty
         ? l.emptyTodayTitle
-        : '$overdueCount ${l.sectionOverdueLabel} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.inbox} · $doneCount ${l.completed}';
+        : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
 
     final mobileContentHeader = Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -642,7 +642,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       ...sections,
       if (hasShelf) ...[
         A2GroupHead(
-          label: l.inbox,
+          label: l.todayNoDateGroup,
           count: unplannedCount,
           countLabel: l.groupCountItems(unplannedCount),
           topBorder: true,
@@ -667,9 +667,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             index: index,
           ),
         if (expandable > 0)
-          _moreRow(l, expandable)
+          _moreRow(l, expandable, paddingLeft: 55)
         else if (beyondShelf > 0)
-          _showAllRow(l, beyondShelf),
+          _showAllRow(l, beyondShelf, paddingLeft: 55),
       ],
       const SizedBox(height: 12),
     ];
@@ -869,7 +869,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
     final summary = isEmpty
         ? l.emptyTodayTitle
-        : '$overdueCount ${l.sectionOverdueLabel} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.inbox} · $doneCount ${l.completed}';
+        : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
 
     final weekText = l.weekNumberLabel(isoWeekNumber(widget.now));
     final dateTitle = DateFormat.MMMd(_locale).format(widget.now);
@@ -1456,7 +1456,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           ),
       ],
       _groupHead(
-        label: l.inbox,
+        label: l.todayNoDateGroup,
         count: shelfSource.length,
         trailing: const Icon(
           CupertinoIcons.chevron_up,
@@ -1563,22 +1563,22 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         for (var i = 0; i < endedItems.length; i++)
           _timeBlockRow(endedItems[i], isQuiet: true),
       ],
-      if (runningItems.isNotEmpty) ...[
-        _groupHead(
-          label: l.sectionNow,
-          trailing: Text(
-            DateFormatters.formatTime(widget.now),
-            style: const TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: SpecTokens.ink,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
+      _groupHead(
+        label: l.sectionNow,
+        danger: true,
+        trailing: Text(
+          DateFormatters.formatTime(widget.now),
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w400,
+            color: SpecTokens.red,
+            fontFeatures: AppTypography.tabular,
+            fontFamilyFallback: AppTypography.fallback,
           ),
         ),
-        for (var i = 0; i < runningItems.length; i++)
-          _timeBlockRow(runningItems[i]),
-      ],
+      ),
+      for (var i = 0; i < runningItems.length; i++)
+        _timeBlockRow(runningItems[i]),
       const SpecNowLine(),
       if (upcomingItems.isNotEmpty) ...[
         _groupHead(
@@ -1593,11 +1593,15 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           runningItems.isEmpty &&
           upcomingItems.isEmpty)
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40),
-          child: SpecEmpty(
-            icon: CupertinoIcons.calendar,
-            title: l.todayEmptyTime,
-            hint: l.todayEmptyTimeWithHint,
+          padding: const EdgeInsets.symmetric(vertical: 70, horizontal: 12),
+          child: Text(
+            l.todayEmptyTime,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
           ),
         ),
       const SizedBox(height: 16),
@@ -1637,7 +1641,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                       child: Listener(
                         onPointerDown: _onListPointerDown,
                         child: ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 118),
+                          padding: const EdgeInsets.fromLTRB(30, 14, 30, 118),
                           children: timeChildren,
                         ),
                       ),
@@ -2556,28 +2560,33 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   /// The bucket holds items the shelf never previews (they have a deadline);
   /// this row is the only honest way to say so and to reach them.
-  Widget _showAllRow(AppLocalizations l, int count, {double paddingLeft = 12}) {
-    final ds = context.ds;
+  Widget _showAllRow(
+    AppLocalizations l,
+    int count, {
+    double paddingLeft = 33,
+  }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onOpenUnplanned,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          padding: EdgeInsets.fromLTRB(paddingLeft, 8, 16, 8),
+          constraints: const BoxConstraints(minHeight: 34),
+          padding: EdgeInsets.fromLTRB(paddingLeft, 0, 3, 0),
           child: Row(
             children: [
-              // The design puts this label in the row's own title column, not
-              // at the page gutter: the ring slot and its gap are kept empty.
-              const SizedBox(width: kA2CheckSlot),
-              const SizedBox(width: 12),
+              const Icon(
+                CupertinoIcons.arrow_right,
+                size: 10,
+                color: SpecTokens.muted,
+              ),
+              const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  l.expandRemaining(count),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: ds.ink3,
+                  l.todayViewNoDate(count),
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: SpecTokens.muted,
                     fontFamilyFallback: AppTypography.fallback,
                   ),
                 ),
@@ -2589,28 +2598,35 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     );
   }
 
-  Widget _moreRow(AppLocalizations l, int more, {double paddingLeft = 12}) {
-    final ds = context.ds;
+  Widget _moreRow(
+    AppLocalizations l,
+    int more, {
+    double paddingLeft = 33,
+  }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => setState(() => _unplannedExpanded = !_unplannedExpanded),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 52),
-          padding: EdgeInsets.fromLTRB(paddingLeft, 8, 16, 8),
+          constraints: const BoxConstraints(minHeight: 34),
+          padding: EdgeInsets.fromLTRB(paddingLeft, 0, 3, 0),
           child: Row(
             children: [
-              const SizedBox(width: kA2CheckSlot),
-              const SizedBox(width: 12),
+              const Icon(
+                CupertinoIcons.arrow_right,
+                size: 10,
+                color: SpecTokens.muted,
+              ),
+              const SizedBox(width: 7),
               Expanded(
                 child: Text(
                   _unplannedExpanded
                       ? l.collapseLabel
                       : l.expandRemaining(more),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: ds.ink3,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: SpecTokens.muted,
                     fontFamilyFallback: AppTypography.fallback,
                   ),
                 ),

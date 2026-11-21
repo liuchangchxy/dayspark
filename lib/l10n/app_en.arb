@@ -1675,5 +1675,15 @@
         "type": "String"
       }
     }
+  },
+  "todaySummaryOverdue": "Overdue",
+  "todayNoDateGroup": "No date",
+  "todayViewNoDate": "View {count} undated",
+  "@todayViewNoDate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

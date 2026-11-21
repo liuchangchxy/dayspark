@@ -112,8 +112,8 @@ void main() {
     // The preview only carries no-due rows, so the deadline-bearing item must
     // still keep the shelf and its count alive.
     expect(find.text('Nothing scheduled today'), findsNothing);
-    expect(find.text('Unplanned'), findsOneWidget);
-    expect(find.textContaining('1 more'), findsOneWidget);
+    expect(find.text('No date'), findsOneWidget);
+    expect(find.text('View 1 undated'), findsOneWidget);
 
     await _unmount(tester);
   });

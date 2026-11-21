@@ -2731,4 +2731,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String calendarTimeRowPlanned(String timeRange) {
     return '$timeRange · 计划执行';
   }
+
+  @override
+  String get todaySummaryOverdue => '逾期';
+
+  @override
+  String get todayNoDateGroup => '无日期';
+
+  @override
+  String todayViewNoDate(int count) {
+    return '查看无日期 $count 项';
+  }
 }

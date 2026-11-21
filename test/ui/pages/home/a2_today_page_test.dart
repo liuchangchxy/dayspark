@@ -625,9 +625,9 @@ void main() {
       expect(find.text('Task 3'), findsOneWidget);
       expect(find.text('Task 4'), findsNothing);
       expect(find.text('Task 5'), findsNothing);
-      expect(find.text('2 more · Show all'), findsOneWidget);
+      expect(find.text('View 2 undated'), findsOneWidget);
 
-      await tester.tap(find.text('2 more · Show all'));
+      await tester.tap(find.text('View 2 undated'));
       await _settle(tester);
       expect(openedUnplanned, 1);
 
