@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,12 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'default_calendar_view.dart';
 import 'settings_sections/about_section.dart';
 import 'settings_sections/account_section.dart';
 import 'settings_sections/ai_section.dart';
@@ -36,6 +37,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final ScrollController _scroll = ScrollController();
   final List<GlobalKey> _groupKeys = [];
   bool _jumping = false;
+  bool _showingDefaultCalendar = false;
 
   @override
   void initState() {
@@ -83,6 +85,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _goTo(int index) {
+    if (_showingDefaultCalendar) {
+      setState(() => _showingDefaultCalendar = false);
+    }
     setState(() => _section = index);
     final target = _keyFor(index).currentContext;
     if (target == null) return;
@@ -96,8 +101,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   List<(String, Widget)> _sections(AppLocalizations l) => [
-    (l.appearance, const AppearanceSection()),
-    (l.calendar, const CalendarSettingsSection()),
+    (
+      l.general,
+      AppearanceSection(
+        onOpenDefaultCalendar: () {
+          setState(() => _showingDefaultCalendar = true);
+        },
+      ),
+    ),
+    (
+      l.calendar,
+      CalendarSettingsSection(
+        onOpenDefaultCalendar: () {
+          setState(() => _showingDefaultCalendar = true);
+        },
+      ),
+    ),
     (l.account, const AccountSection()),
     (l.data, const DataSection()),
     (l.aiAssistant, const AiSection()),
@@ -113,81 +132,105 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     if (!desktop) {
       return Scaffold(
-        backgroundColor: context.ds.bg,
+        backgroundColor: SpecTokens.wash,
         appBar: DsTopBar(
           title: l.settings,
+          subtitle: l.settingsSubtitle,
           leading: DsIconButton(
             icon: CupertinoIcons.back,
             tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: () => _leave(context),
+            onPressed: () {
+              if (_showingDefaultCalendar) {
+                setState(() => _showingDefaultCalendar = false);
+                return;
+              }
+              _leave(context);
+            },
           ),
         ),
-        body: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-          children: [
-            for (final section in sections)
-              SettingsGroupBlock(
-                title: section.$1,
-                mobile: true,
-                child: section.$2,
+        body: _showingDefaultCalendar
+            ? Padding(
+                padding: const EdgeInsets.all(16),
+                child: DefaultCalendarView(
+                  onBack: () => setState(() => _showingDefaultCalendar = false),
+                ),
+              )
+            : ListView(
+                padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+                children: [
+                  for (final section in sections)
+                    SettingsGroupBlock(
+                      title: section.$1,
+                      mobile: true,
+                      child: section.$2,
+                    ),
+                ],
               ),
-          ],
-        ),
       );
     }
 
     final selected = _section.clamp(0, sections.length - 1);
     return WorkspacePage(
-      // The title belongs to the nav it names, not to the top bar: the bar is
-      // pinned to the window edge, so on a wide screen it sat half a window
-      // away from the column it introduced and the page read as two.
       title: '',
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s6),
         child: Center(
           child: ConstrainedBox(
-            // The nav and the column are one object: sizing the pair (not the
-            // page) keeps the empty space even on both sides instead of
-            // stacking it all to the right of the form.
             constraints: const BoxConstraints(maxWidth: 900),
             child: SizedBox(
               height: double.infinity,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Left Nav: .set-nav (width 176px)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
                       0,
-                      AppSpacing.s1,
-                      AppSpacing.s1,
+                      AppSpacing.s2,
+                      AppSpacing.s3,
                       AppSpacing.s6,
                     ),
                     child: SizedBox(
-                      width: 200,
+                      width: 176,
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Padding(
-                              // 2 + 12 puts the title on the same left edge as
-                              // the nav labels under it.
                               padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.s3 + 2,
+                                9,
+                                4,
                                 0,
-                                0,
-                                AppSpacing.s4,
+                                14,
                               ),
-                              child: Text(
-                                l.settings,
-                                style: AppTypography.title.copyWith(
-                                  color: context.ds.ink,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l.settings,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                      color: SpecTokens.ink,
+                                      fontFamilyFallback: AppTypography.fallback,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    l.settingsSubtitle,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: SpecTokens.muted,
+                                      fontFamilyFallback: AppTypography.fallback,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             for (var i = 0; i < sections.length; i++)
                               _NavItem(
                                 label: sections[i].$1,
-                                selected: selected == i,
+                                selected: !_showingDefaultCalendar && selected == i,
                                 onTap: () => _goTo(i),
                               ),
                           ],
@@ -195,33 +238,44 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                     ),
                   ),
-                  Container(width: 1, color: context.ds.line),
+                  const VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: SpecTokens.hair,
+                  ),
+                  // Right Content: .set-content (max-width 700px)
                   Expanded(
                     child: SingleChildScrollView(
                       controller: _scroll,
                       padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.s6 + AppSpacing.s3,
-                        AppSpacing.s1,
+                        28,
+                        AppSpacing.s2,
                         AppSpacing.s6,
                         AppSpacing.s8,
                       ),
                       child: Align(
                         alignment: Alignment.topLeft,
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 640),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (var i = 0; i < sections.length; i++)
-                                KeyedSubtree(
-                                  key: _keyFor(i),
-                                  child: SettingsGroupBlock(
-                                    title: sections[i].$1,
-                                    child: sections[i].$2,
+                          constraints: const BoxConstraints(maxWidth: 700),
+                          child: _showingDefaultCalendar
+                              ? DefaultCalendarView(
+                                  onBack: () => setState(
+                                    () => _showingDefaultCalendar = false,
                                   ),
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    for (var i = 0; i < sections.length; i++)
+                                      KeyedSubtree(
+                                        key: _keyFor(i),
+                                        child: SettingsGroupBlock(
+                                          title: sections[i].$1,
+                                          child: sections[i].$2,
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                            ],
-                          ),
                         ),
                       ),
                     ),
@@ -245,7 +299,7 @@ void _leave(BuildContext context) {
   router?.go('/');
 }
 
-class _NavItem extends StatelessWidget {
+class _NavItem extends StatefulWidget {
   const _NavItem({
     required this.label,
     required this.selected,
@@ -257,44 +311,51 @@ class _NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
+    final bg = widget.selected
+        ? SpecTokens.wash
+        : _hovered
+            ? SpecTokens.wash
+            : Colors.transparent;
+
+    final fg = widget.selected
+        ? SpecTokens.ink
+        : _hovered
+            ? SpecTokens.ink2
+            : SpecTokens.muted;
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: Semantics(
-        button: true,
-        selected: selected,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            hoverColor: ds.surface2,
-            child: SizedBox(
-              height: 44,
-              child: Row(
-                children: [
-                  Container(
-                    width: 2,
-                    height: 16,
-                    color: selected ? ds.primary : Colors.transparent,
-                  ),
-                  const SizedBox(width: AppSpacing.s3),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(
-                        fontSize: 13,
-                        color: selected ? ds.ink : ds.ink3,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: Container(
+          height: 31,
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(5),
+          ),
+          alignment: Alignment.centerLeft,
+          child: Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
+              color: fg,
+              fontFamilyFallback: AppTypography.fallback,
             ),
           ),
         ),

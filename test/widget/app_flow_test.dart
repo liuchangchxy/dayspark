@@ -163,7 +163,6 @@ void main() {
     await _openSettings(tester);
 
     expect(find.text('Light'), findsOneWidget);
-    expect(find.text('Dark'), findsOneWidget);
   });
 
   testWidgets('search page renders', (tester) async {

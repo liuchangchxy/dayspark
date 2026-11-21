@@ -4558,6 +4558,486 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View {count} undated items'**
   String moreUnplannedItems(int count);
+
+  /// No description provided for @defaultCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Default Calendar'**
+  String get defaultCalendar;
+
+  /// No description provided for @defaultCalendarDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Only decides where new items land by default; does not change existing items.'**
+  String get defaultCalendarDesc;
+
+  /// No description provided for @defaultCalendarSettingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'New tasks and captures land here by default; uses the first calendar if unset, no \"Uncategorized\".'**
+  String get defaultCalendarSettingDesc;
+
+  /// No description provided for @defaultCalendarAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'No \"Uncategorized\": if unset, the first calendar in the list is used.'**
+  String get defaultCalendarAlert;
+
+  /// No description provided for @saveDefaultCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Default Calendar'**
+  String get saveDefaultCalendar;
+
+  /// No description provided for @defaultCalendarSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar saved'**
+  String get defaultCalendarSaved;
+
+  /// No description provided for @badgeDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get badgeDefault;
+
+  /// No description provided for @settingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar, data and preferences'**
+  String get settingsSubtitle;
+
+  /// No description provided for @settingsHomeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Set the default calendar first, then manage data and sync.'**
+  String get settingsHomeDesc;
+
+  /// No description provided for @general.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get general;
+
+  /// No description provided for @generalDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Decide where new tasks land and what to see on startup.'**
+  String get generalDesc;
+
+  /// No description provided for @themeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm paper surface, white content; ink for selection and actions.'**
+  String get themeDesc;
+
+  /// No description provided for @accentColorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Only affects actions and selection, not calendar colors.'**
+  String get accentColorDesc;
+
+  /// No description provided for @accentWarmGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm Gray'**
+  String get accentWarmGray;
+
+  /// No description provided for @startupViewDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Which primary view to open on cold start.'**
+  String get startupViewDesc;
+
+  /// No description provided for @languageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface language.'**
+  String get languageDesc;
+
+  /// No description provided for @calendarManagementDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendars are shared grouping and color spaces for events and tasks.'**
+  String get calendarManagementDesc;
+
+  /// No description provided for @deleteCalendarNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'When deleting a calendar, you must choose: migrate contents to another calendar, or delete them together.'**
+  String get deleteCalendarNotice;
+
+  /// No description provided for @newCalendarDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose name and color; new calendars do not become default automatically, select in \"Default Calendar\" after creation.'**
+  String get newCalendarDesc;
+
+  /// No description provided for @editCalendarDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing \"{name}\"; name, color. Change default calendar in separate setting.'**
+  String editCalendarDesc(String name);
+
+  /// No description provided for @deleteCalendarHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Before deleting \"{name}\", you must decide where {count} items go.'**
+  String deleteCalendarHeader(String name, int count);
+
+  /// No description provided for @deleteCalendarWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Will not silently delete contents. Events and tasks must be migrated, or deleted together with the calendar.'**
+  String get deleteCalendarWarning;
+
+  /// No description provided for @migrateTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Migrate to'**
+  String get migrateTo;
+
+  /// No description provided for @migrateItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · migrate {count} items'**
+  String migrateItemCount(String name, int count);
+
+  /// No description provided for @deleteWithContents.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete together with {count} items (move to trash)'**
+  String deleteWithContents(int count);
+
+  /// No description provided for @confirmMigrateAndDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Migration and Delete'**
+  String get confirmMigrateAndDelete;
+
+  /// No description provided for @calendarPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Side project'**
+  String get calendarPlaceholder;
+
+  /// No description provided for @tagPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Waiting for reply'**
+  String get tagPlaceholder;
+
+  /// No description provided for @tagManagementDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags are not calendars; they are used for cross-calendar filtering.'**
+  String get tagManagementDesc;
+
+  /// No description provided for @tagEditDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing \"{name}\"; tags are cross-calendar, renaming does not alter items.'**
+  String tagEditDesc(String name);
+
+  /// No description provided for @tagDeleteBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting a tag only removes the tag, not the items.'**
+  String get tagDeleteBanner;
+
+  /// No description provided for @trashDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted tasks and events land here; restoring returns them to their original calendar.'**
+  String get trashDesc;
+
+  /// No description provided for @trashRestoredBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored \"{title}\", returned to its original calendar.'**
+  String trashRestoredBanner(String title);
+
+  /// No description provided for @trashPermanentDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete \"{title}\"? Cannot be undone, will not sync to other devices.'**
+  String trashPermanentDeleteConfirm(String title);
+
+  /// No description provided for @trashDeletedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently deleted \"{title}\", no longer kept in trash.'**
+  String trashDeletedBanner(String title);
+
+  /// No description provided for @trashClearedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash cleared, no items to restore.'**
+  String get trashClearedBanner;
+
+  /// No description provided for @ioSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'ICS is for exchanging with other calendars; backup is for restoring DaySpark.'**
+  String get ioSectionDesc;
+
+  /// No description provided for @ioCardImportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Select target calendar; events and dated tasks are imported from ICS fields.'**
+  String get ioCardImportDesc;
+
+  /// No description provided for @ioCardExportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Export all calendars; none silently omitted.'**
+  String get ioCardExportDesc;
+
+  /// No description provided for @ioCardBackupDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Contains all calendars, tasks, events, tags, reminders and attachment index.'**
+  String get ioCardBackupDesc;
+
+  /// No description provided for @notifySectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders belong to each item; this manages system permissions only.'**
+  String get notifySectionDesc;
+
+  /// No description provided for @notifyDeniedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'System notification permission is off. Reminders are saved, but will not alert when due.'**
+  String get notifyDeniedBanner;
+
+  /// No description provided for @openSystemSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open System Settings'**
+  String get openSystemSettings;
+
+  /// No description provided for @inAppReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'In-app Reminders'**
+  String get inAppReminders;
+
+  /// No description provided for @inAppRemindersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Displays in foreground'**
+  String get inAppRemindersDesc;
+
+  /// No description provided for @available.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get available;
+
+  /// No description provided for @syncSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark self-hosted multi-device sync.'**
+  String get syncSectionDesc;
+
+  /// No description provided for @syncLoggedOutBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Not logged in yet. Local still works; login for multi-device sync.'**
+  String get syncLoggedOutBanner;
+
+  /// No description provided for @syncFailedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed. Server timed out; local changes pending retry.'**
+  String get syncFailedBanner;
+
+  /// No description provided for @retryNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Now'**
+  String get retryNow;
+
+  /// No description provided for @localStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Status'**
+  String get localStatus;
+
+  /// No description provided for @localPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Priority'**
+  String get localPriority;
+
+  /// No description provided for @keepLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Local'**
+  String get keepLocal;
+
+  /// No description provided for @keepServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Server'**
+  String get keepServer;
+
+  /// No description provided for @mergeConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get mergeConflict;
+
+  /// No description provided for @acceptDeletion.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept Deletion'**
+  String get acceptDeletion;
+
+  /// No description provided for @aboutDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark · Local-first personal time management tool.'**
+  String get aboutDesc;
+
+  /// No description provided for @dataLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get dataLocation;
+
+  /// No description provided for @dataLocationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Local-first · Self-hosted sync'**
+  String get dataLocationDesc;
+
+  /// No description provided for @license.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get license;
+
+  /// No description provided for @viewLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get viewLicense;
+
+  /// No description provided for @commandPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tasks, events, or type an action'**
+  String get commandPlaceholder;
+
+  /// No description provided for @commandHintRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get commandHintRecent;
+
+  /// No description provided for @commandHintActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get commandHintActions;
+
+  /// No description provided for @commandHintTodos.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get commandHintTodos;
+
+  /// No description provided for @commandHintEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Events'**
+  String get commandHintEvents;
+
+  /// No description provided for @commandCreateTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'New Task'**
+  String get commandCreateTodo;
+
+  /// No description provided for @commandCreateEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'New Event'**
+  String get commandCreateEvent;
+
+  /// No description provided for @commandGoSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Settings'**
+  String get commandGoSettings;
+
+  /// No description provided for @commandGoSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar, data and preferences'**
+  String get commandGoSettingsDesc;
+
+  /// No description provided for @commandNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found for \"{query}\"'**
+  String commandNotFound(String query);
+
+  /// No description provided for @commandFootSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'↑↓ Navigate'**
+  String get commandFootSelect;
+
+  /// No description provided for @commandFootOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'↵ Open'**
+  String get commandFootOpen;
+
+  /// No description provided for @commandFootClose.
+  ///
+  /// In en, this message translates to:
+  /// **'esc Close'**
+  String get commandFootClose;
+
+  /// No description provided for @commandFootHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Content first, actions after'**
+  String get commandFootHint;
+
+  /// No description provided for @currentCalendarIsDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'This calendar is default'**
+  String get currentCalendarIsDefault;
+
+  /// No description provided for @currentDefaultPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Current default: '**
+  String get currentDefaultPrefix;
+
+  /// No description provided for @goToSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure'**
+  String get goToSettings;
+
+  /// No description provided for @orAlternative.
+  ///
+  /// In en, this message translates to:
+  /// **'Or'**
+  String get orAlternative;
+
+  /// No description provided for @calendarColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get calendarColorLabel;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

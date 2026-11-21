@@ -2449,4 +2449,262 @@ class AppLocalizationsZh extends AppLocalizations {
   String moreUnplannedItems(int count) {
     return '查看无日期 $count 项';
   }
+
+  @override
+  String get defaultCalendar => '默认日历';
+
+  @override
+  String get defaultCalendarDesc => '只决定“新条目默认落到哪里”，不会改已有条目的日历。';
+
+  @override
+  String get defaultCalendarSettingDesc => '新待办和捕获默认放到这里；没设置时用第一个日历，不存在“未分类”。';
+
+  @override
+  String get defaultCalendarAlert => '没有“未分类”：如果这里没有设置，就使用列表中的第一个日历。';
+
+  @override
+  String get saveDefaultCalendar => '保存默认日历';
+
+  @override
+  String get defaultCalendarSaved => '已保存默认日历';
+
+  @override
+  String get badgeDefault => '默认';
+
+  @override
+  String get settingsSubtitle => '默认日历、数据与偏好';
+
+  @override
+  String get settingsHomeDesc => '先把默认日历定下来，再管数据和同步。';
+
+  @override
+  String get general => '通用';
+
+  @override
+  String get generalDesc => '决定新待办落到哪里，以及打开应用时先看到什么。';
+
+  @override
+  String get themeDesc => '暖灰纸面、白色内容面；选中与操作用墨色。';
+
+  @override
+  String get accentColorDesc => '只影响操作和选中，不影响日历色。';
+
+  @override
+  String get accentWarmGray => '暖灰';
+
+  @override
+  String get startupViewDesc => '冷启动进入哪个一级入口。';
+
+  @override
+  String get languageDesc => '界面文案语言。';
+
+  @override
+  String get calendarManagementDesc => '日历是事件和待办的共享分组 / 颜色空间。';
+
+  @override
+  String get deleteCalendarNotice => '删除日历时必须选择：迁移内容到另一个日历，或连同内容一起删除。';
+
+  @override
+  String get newCalendarDesc => '先定名称和颜色；新日历不会自动成为默认日历，创建后到「默认日历」里选择。';
+
+  @override
+  String editCalendarDesc(String name) {
+    return '正在编辑「$name」；名称、颜色。默认日历在单独设置里改。';
+  }
+
+  @override
+  String deleteCalendarHeader(String name, int count) {
+    return '删除「$name」前，必须决定 $count 项内容去哪里。';
+  }
+
+  @override
+  String get deleteCalendarWarning => '不会静默删除内容。删除日历后，事件和待办需要迁移，或和日历一起删除。';
+
+  @override
+  String get migrateTo => '迁移到';
+
+  @override
+  String migrateItemCount(String name, int count) {
+    return '$name · 迁移 $count 项';
+  }
+
+  @override
+  String deleteWithContents(int count) {
+    return '连同 $count 项内容一起删除（进回收站）';
+  }
+
+  @override
+  String get confirmMigrateAndDelete => '确认迁移并删除';
+
+  @override
+  String get calendarPlaceholder => '例如：副业';
+
+  @override
+  String get tagPlaceholder => '例如：等待回复';
+
+  @override
+  String get tagManagementDesc => '标签不是日历；它用于跨日历的横向筛选。';
+
+  @override
+  String tagEditDesc(String name) {
+    return '正在编辑「$name」；标签跨日历使用，改名不会改变条目。';
+  }
+
+  @override
+  String get tagDeleteBanner => '删除标签只会移除标签，不会删除条目。';
+
+  @override
+  String get trashDesc => '删除的待办和日程先放这里；恢复会回到原来的日历。';
+
+  @override
+  String trashRestoredBanner(String title) {
+    return '已恢复「$title」，它已经回到原来的日历。';
+  }
+
+  @override
+  String trashPermanentDeleteConfirm(String title) {
+    return '永久删除「$title」？不能撤销，也不会同步到其他设备。';
+  }
+
+  @override
+  String trashDeletedBanner(String title) {
+    return '已永久删除「$title」，回收站里不再保留这一项。';
+  }
+
+  @override
+  String get trashClearedBanner => '回收站已清空，没有可以恢复的条目。';
+
+  @override
+  String get ioSectionDesc => 'ICS 用于和别的日历交换；备份用于搬回 DaySpark。';
+
+  @override
+  String get ioCardImportDesc => '选择目标日历；事件和带日期的待办会按 ICS 字段读入。';
+
+  @override
+  String get ioCardExportDesc => '导出全部日历；不静默漏掉任何一个。';
+
+  @override
+  String get ioCardBackupDesc => '包含所有日历、待办、日程、标签、提醒与附件索引。';
+
+  @override
+  String get notifySectionDesc => '提醒是每个条目自己的事实；这里只管系统权限。';
+
+  @override
+  String get notifyDeniedBanner => '系统通知权限已关闭。提醒仍保存，到点不会弹。';
+
+  @override
+  String get openSystemSettings => '打开系统设置';
+
+  @override
+  String get inAppReminders => '应用内提醒';
+
+  @override
+  String get inAppRemindersDesc => '前台仍可显示';
+
+  @override
+  String get available => '可用';
+
+  @override
+  String get syncSectionDesc => 'DaySpark 自托管多设备同步。';
+
+  @override
+  String get syncLoggedOutBanner => '还没有登录。本地仍可用；登录后才多设备同步。';
+
+  @override
+  String get syncFailedBanner => '同步失败。服务器超时；本地修改等待重试。';
+
+  @override
+  String get retryNow => '立即重试';
+
+  @override
+  String get localStatus => '本地状态';
+
+  @override
+  String get localPriority => '本地优先';
+
+  @override
+  String get keepLocal => '保留本地';
+
+  @override
+  String get keepServer => '保留服务器';
+
+  @override
+  String get mergeConflict => '合并';
+
+  @override
+  String get acceptDeletion => '接受删除';
+
+  @override
+  String get aboutDesc => 'DaySpark · 本地优先的个人时间管理工具。';
+
+  @override
+  String get dataLocation => '数据';
+
+  @override
+  String get dataLocationDesc => '本地优先 · 自托管同步';
+
+  @override
+  String get license => '许可';
+
+  @override
+  String get viewLicense => '查看';
+
+  @override
+  String get commandPlaceholder => '搜索待办、日程，或输入动作';
+
+  @override
+  String get commandHintRecent => '最近';
+
+  @override
+  String get commandHintActions => '动作';
+
+  @override
+  String get commandHintTodos => '待办';
+
+  @override
+  String get commandHintEvents => '日程';
+
+  @override
+  String get commandCreateTodo => '新建待办';
+
+  @override
+  String get commandCreateEvent => '新建日程';
+
+  @override
+  String get commandGoSettings => '去设置';
+
+  @override
+  String get commandGoSettingsDesc => '默认日历、数据与偏好';
+
+  @override
+  String commandNotFound(String query) {
+    return '没有找到「$query」';
+  }
+
+  @override
+  String get commandFootSelect => '↑↓ 选择';
+
+  @override
+  String get commandFootOpen => '↵ 打开';
+
+  @override
+  String get commandFootClose => 'esc 关闭';
+
+  @override
+  String get commandFootHint => '内容优先，动作在后';
+
+  @override
+  String get currentCalendarIsDefault => '当前日历是默认日历';
+
+  @override
+  String get currentDefaultPrefix => '当前默认：';
+
+  @override
+  String get goToSettings => '去设置';
+
+  @override
+  String get orAlternative => '或者';
+
+  @override
+  String get calendarColorLabel => '颜色';
 }
