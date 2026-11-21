@@ -134,7 +134,7 @@ void main() {
     await teardownTree(tester);
   });
 
-  testWidgets('timed input previews event and undated task', (tester) async {
+  testWidgets('timed input defaults to task, shows suggestion, and writes plan allocation when accepted', (tester) async {
     await seedCalendar();
     AppRouter.router.go('/');
     await tester.pumpWidget(buildApp());
@@ -144,13 +144,57 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'Meeting 2026-11-07 10:00');
     await settle(tester);
-    expect(find.text('Events'), findsOneWidget);
-    expect(find.text('Tasks · No due date'), findsOneWidget);
-    await tester.tap(find.text('Add task'));
+    expect(find.text('Tasks'), findsOneWidget);
+    expect(find.text('No due date'), findsOneWidget);
+    expect(find.textContaining('10:00–11:00 · Suggested Plan'), findsOneWidget);
+    expect(find.textContaining('Preselected; saved as "Planned execution"'), findsOneWidget);
+
+    await tester.tap(find.text('Save'));
     await settle(tester);
+
     final todo = (await testDb.select(testDb.todos).get()).single;
+    expect(todo.summary, 'Meeting');
     expect(todo.dueDate, isNull);
+
+    final allocations = await testDb.select(testDb.taskAllocations).get();
+    expect(allocations, hasLength(1));
+    expect(allocations.single.todoId, todo.id);
+    expect(allocations.single.startAt.toLocal(), DateTime(2026, 11, 7, 10));
+    expect(allocations.single.endAt.toLocal(), DateTime(2026, 11, 7, 11));
+
     expect(await testDb.select(testDb.reminders).get(), isEmpty);
+    expect(await testDb.select(testDb.events).get(), isEmpty);
+    await teardownTree(tester);
+  });
+
+  testWidgets('removing suggestion does not write plan allocation', (tester) async {
+    await seedCalendar();
+    AppRouter.router.go('/');
+    await tester.pumpWidget(buildApp());
+    await settle(tester);
+    AppRouter.router.go('/quick-add');
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Meeting 2026-11-07 10:00');
+    await settle(tester);
+
+    // Remove suggestion
+    await tester.tap(find.text('Remove'));
+    await settle(tester);
+
+    expect(find.text('Time suggestion removed'), findsOneWidget);
+    expect(find.text('Saves title only; no date, no plan, no deadline.'), findsOneWidget);
+
+    // Save
+    await tester.tap(find.text('Save'));
+    await settle(tester);
+
+    final todo = (await testDb.select(testDb.todos).get()).single;
+    expect(todo.summary, 'Meeting');
+    expect(todo.dueDate, isNull);
+
+    // No allocation written when suggestion removed
+    expect(await testDb.select(testDb.taskAllocations).get(), isEmpty);
     expect(await testDb.select(testDb.events).get(), isEmpty);
     await teardownTree(tester);
   });

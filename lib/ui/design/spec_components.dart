@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
+import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'ds.dart';
 
@@ -1110,8 +1111,11 @@ class SpecPlanPicker extends StatelessWidget {
     required this.endLabel,
     required this.durationLabel,
     this.contextText,
-    this.cancelLabel = 'Cancel',
-    this.submitLabel = 'Plan',
+    this.cancelLabel,
+    this.submitLabel,
+    this.startTitle,
+    this.endTitle,
+    this.durationTitle,
     this.onCancel,
     this.onSubmit,
     this.onTapDate,
@@ -1127,8 +1131,11 @@ class SpecPlanPicker extends StatelessWidget {
   final String endLabel;
   final String durationLabel;
   final String? contextText;
-  final String cancelLabel;
-  final String submitLabel;
+  final String? cancelLabel;
+  final String? submitLabel;
+  final String? startTitle;
+  final String? endTitle;
+  final String? durationTitle;
   final VoidCallback? onCancel;
   final VoidCallback? onSubmit;
   final VoidCallback? onTapDate;
@@ -1153,6 +1160,16 @@ class SpecPlanPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final effectiveCancel = cancelLabel ?? l?.cancel ?? 'Cancel';
+    final effectiveSubmit = submitLabel ??
+        (isEditing
+            ? (l?.planSaveTimeAction ?? 'Save Time')
+            : (l?.planSubmitAction ?? 'Plan'));
+    final effectiveStart = startTitle ?? l?.planStartTime ?? 'Start';
+    final effectiveEnd = endTitle ?? l?.planEndTime ?? 'End';
+    final effectiveDuration = durationTitle ?? l?.planDuration ?? 'Duration';
+
     return Container(
       width: 430,
       decoration: BoxDecoration(
@@ -1239,7 +1256,7 @@ class SpecPlanPicker extends StatelessWidget {
                         child: GestureDetector(
                           onTap: onTapStart,
                           child: _timeBox(
-                            isEditing ? 'Start · Edit' : 'Start',
+                            isEditing ? '$effectiveStart · ${l?.edit ?? 'Edit'}' : effectiveStart,
                             startLabel,
                             isEditing,
                           ),
@@ -1250,7 +1267,7 @@ class SpecPlanPicker extends StatelessWidget {
                         child: GestureDetector(
                           onTap: onTapEnd,
                           child: _timeBox(
-                            isEditing ? 'End · Edit' : 'End',
+                            isEditing ? '$effectiveEnd · ${l?.edit ?? 'Edit'}' : effectiveEnd,
                             endLabel,
                             isEditing,
                           ),
@@ -1258,7 +1275,7 @@ class SpecPlanPicker extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: _timeBox('Duration', durationLabel, false),
+                        child: _timeBox(effectiveDuration, durationLabel, false),
                       ),
                     ],
                   ),
@@ -1308,7 +1325,7 @@ class SpecPlanPicker extends StatelessWidget {
                           borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
-                          cancelLabel,
+                          effectiveCancel,
                           style: const TextStyle(
                             fontSize: 10.5,
                             color: SpecTokens.ink,
@@ -1330,7 +1347,7 @@ class SpecPlanPicker extends StatelessWidget {
                           borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
-                          submitLabel,
+                          effectiveSubmit,
                           style: const TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w500,
@@ -1393,6 +1410,140 @@ class SpecPlanPicker extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Dialog surface wrapping [SpecPlanPicker] for custom slot selection.
+class SpecPlanPickerDialog extends StatefulWidget {
+  const SpecPlanPickerDialog({
+    super.key,
+    required this.title,
+    required this.initialStart,
+    required this.initialEnd,
+    this.contextText,
+  });
+
+  final String title;
+  final DateTime initialStart;
+  final DateTime initialEnd;
+  final String? contextText;
+
+  static Future<(DateTime, DateTime)?> show(
+    BuildContext context, {
+    required String title,
+    required DateTime initialStart,
+    required DateTime initialEnd,
+    String? contextText,
+  }) {
+    return showDialog<(DateTime, DateTime)>(
+      context: context,
+      barrierColor: const Color.fromRGBO(25, 25, 24, 0.26),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: SpecPlanPickerDialog(
+          title: title,
+          initialStart: initialStart,
+          initialEnd: initialEnd,
+          contextText: contextText,
+        ),
+      ),
+    );
+  }
+
+  @override
+  State<SpecPlanPickerDialog> createState() => _SpecPlanPickerDialogState();
+}
+
+class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
+  late DateTime _start;
+  late DateTime _end;
+
+  @override
+  void initState() {
+    super.initState();
+    _start = widget.initialStart;
+    _end = widget.initialEnd;
+  }
+
+  String _durationLabel(AppLocalizations? l, Duration d) {
+    if (l == null) return '${d.inMinutes}m';
+    if (d.inMinutes == 0) return l.durationMinutes(0);
+    if (d.inMinutes % 60 == 0) return l.durationHours(d.inHours);
+    return l.durationHoursMinutes(d.inHours, d.inMinutes % 60);
+  }
+
+  String _dayLabel(BuildContext context, DateTime day) {
+    final l = AppLocalizations.of(context);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(day.year, day.month, day.day);
+    final diff = target.difference(today).inDays;
+    if (diff == 0) return '${day.month}/${day.day} · ${l?.today ?? 'Today'}';
+    if (diff == 1) return '${day.month}/${day.day} · ${l?.tomorrow ?? 'Tomorrow'}';
+    return '${day.month}/${day.day}';
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _start,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null || !mounted) return;
+    final duration = _end.difference(_start);
+    setState(() {
+      _start = DateTime(picked.year, picked.month, picked.day, _start.hour, _start.minute);
+      _end = _start.add(duration);
+    });
+  }
+
+  Future<void> _pickStartTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_start),
+    );
+    if (picked == null || !mounted) return;
+    final duration = _end.difference(_start);
+    setState(() {
+      _start = DateTime(_start.year, _start.month, _start.day, picked.hour, picked.minute);
+      _end = _start.add(duration);
+    });
+  }
+
+  Future<void> _pickEndTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_end),
+    );
+    if (picked == null || !mounted) return;
+    final candidate = DateTime(_end.year, _end.month, _end.day, picked.hour, picked.minute);
+    if (candidate.isAfter(_start)) {
+      setState(() => _end = candidate);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final title = widget.title.isNotEmpty
+        ? (l?.planTodoModalTitle(widget.title) ?? 'Schedule "${widget.title}"')
+        : (l?.planSubmitAction ?? 'Schedule');
+    return SpecPlanPicker(
+      title: title,
+      dateLabel: _dayLabel(context, _start),
+      subLabel: l?.planTodoSub ?? 'Sets planned execution only; does not change deadline.',
+      startLabel: DateFormatters.formatTime(_start),
+      endLabel: DateFormatters.formatTime(_end),
+      durationLabel: _durationLabel(l, _end.difference(_start)),
+      contextText: widget.contextText ?? l?.planNoConflict,
+      onTapDate: _pickDate,
+      onTapStart: _pickStartTime,
+      onTapEnd: _pickEndTime,
+      onCancel: () => Navigator.of(context).pop(),
+      onSubmit: () => Navigator.of(context).pop((_start, _end)),
     );
   }
 }

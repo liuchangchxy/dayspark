@@ -17,6 +17,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
@@ -116,11 +117,14 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
         return;
       }
       final summary = draft.title.isEmpty ? text : draft.title;
-      // A parsed time describes an Event, not a deadline. Saving the task
-      // alternative must not silently turn that time (or its date) into a due
-      // date; only a date-only capture becomes a deadline.
-      final timed = (_pickedStart ?? draft.start) != null;
-      final dueDate = timed ? null : draft.date;
+      // A parsed time describes an Event, not a deadline. When the suggestion
+      // is accepted, it is written as a planned execution (TaskAllocation)
+      // instead of silently mutating dueDate; only a date-only capture becomes
+      // a deadline. When suggestion is removed, only the title is saved.
+      final timed = (_pickedStart ?? draft.start) != null && !_suggestionRemoved;
+      final start = timed ? (_pickedStart ?? draft.start) : null;
+      final duration = timed ? (_pickedDuration ?? draft.duration) : null;
+      final dueDate = timed ? null : (_suggestionRemoved ? null : draft.date);
       final reminder = _reminderMinutes;
       await RecordScope.run(ref.read(databaseProvider), (tx) async {
         final id = await ref.read(createTodoProvider)(
@@ -130,13 +134,24 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
           status: 'NEEDS-ACTION',
           dueDate: dueDate,
         );
+        if (timed && start != null && duration != null) {
+          final db = ref.read(databaseProvider);
+          await TaskAllocationWriter.create(
+            db,
+            tx,
+            todoId: id,
+            startAt: start,
+            endAt: start.add(duration),
+          );
+        }
         // Reminders are written only when the user asked for one and there is
         // a real anchor to count back from.
-        if (reminder != null && reminder >= 0 && dueDate != null) {
+        final anchor = start ?? dueDate;
+        if (reminder != null && reminder >= 0 && anchor != null) {
           await ref.read(createReminderProvider)(
             parentType: 'todo',
             parentId: id,
-            triggerTime: dueDate.subtract(Duration(minutes: reminder)),
+            triggerTime: anchor.subtract(Duration(minutes: reminder)),
           );
         }
       });
@@ -213,6 +228,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     setState(() {
       _pickedStart = picked;
       _pickedDuration = _pickedDuration ?? draft.duration;
+      _suggestionRemoved = false;
     });
   }
 
@@ -667,7 +683,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                 Text(
                   _suggestionRemoved
                       ? l.captureParsedSuggestRemoved
-                      : '$timeStr · ${l.captureParsedTypeTodoTitle}',
+                      : '$timeStr · ${l.captureParsedSuggestTitle}',
                   style: const TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -678,7 +694,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                 Text(
                   _suggestionRemoved
                       ? l.captureParsedSuggestSubRemoved
-                      : l.captureParsedTypeTodoSub,
+                      : l.captureParsedSuggestSub,
                   style: const TextStyle(
                     fontSize: 9.5,
                     color: SpecTokens.muted,
@@ -758,10 +774,12 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     final accent = calendar == null
         ? ds.work
         : ColorUtils.parseHex(calendar.color);
-    final event = start != null;
+    final event = _isEvent && !_suggestionRemoved;
     final day = event
-        ? DateTime(start.year, start.month, start.day)
-        : draft.date;
+        ? ((start != null && !_suggestionRemoved)
+            ? DateTime(start.year, start.month, start.day)
+            : draft.date)
+        : ((start != null && !_suggestionRemoved) ? null : draft.date);
     final main = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -775,7 +793,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                 fontSize: 11,
               ),
             ),
-            if (event) ...[
+            if (event && day != null) ...[
               Text(
                 ' · ',
                 style: AppTypography.small.copyWith(
@@ -785,7 +803,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               ),
               Flexible(
                 child: Text(
-                  _dayLabel(context, day!),
+                  _dayLabel(context, day),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.small.copyWith(
@@ -799,7 +817,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
           ],
         ),
         const SizedBox(height: 4),
-        if (event)
+        if (event && start != null)
           Text.rich(
             TextSpan(
               children: [
@@ -837,20 +855,6 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               height: 1.3,
             ),
           ),
-        if (event) ...[
-          const SizedBox(height: 4),
-          // The primary button saves the event; the secondary one saves only
-          // the task, and that task inherits no deadline from the time above.
-          Text(
-            '${l.todos} · ${l.noDueDate}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.small.copyWith(
-              color: ds.ink3,
-              fontSize: 11,
-            ),
-          ),
-        ],
         const SizedBox(height: 8),
         Wrap(
           spacing: 6,
@@ -929,7 +933,9 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                 child: _mobileField(
                   context,
                   l.executionWhen,
-                  event ? DateFormatters.formatTime(start) : l.notSet,
+                  start != null && !_suggestionRemoved
+                      ? DateFormatters.formatTime(start)
+                      : l.notSet,
                   () => _pickTime(draft),
                 ),
               ),
@@ -980,7 +986,9 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                         _field(
                           context,
                           l.executionWhen,
-                          event ? DateFormatters.formatTime(start) : l.notSet,
+                          start != null && !_suggestionRemoved
+                              ? DateFormatters.formatTime(start)
+                              : l.notSet,
                           () => _pickTime(draft),
                           focused: true,
                         ),

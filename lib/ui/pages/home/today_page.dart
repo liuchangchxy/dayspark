@@ -1408,18 +1408,20 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                 onTap: () {
                   setState(() => _captureExpanded = !_captureExpanded);
                 },
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(17),
                 child: Container(
-                  width: 32,
-                  height: 32,
+                  width: 34,
+                  height: 34,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.transparent,
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.plus,
-                    size: 16,
                     color: SpecTokens.ink,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      CupertinoIcons.plus,
+                      size: 15,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

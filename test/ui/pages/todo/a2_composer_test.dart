@@ -19,6 +19,7 @@ import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 
 Widget _app(
@@ -1288,6 +1289,54 @@ void main() {
     expect(find.byType(A2ComposerSheet), findsNothing);
     expect(container.read(viewedDateProvider), DateTime(2026, 10, 17));
     expect(find.text('Plan to 10/17'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('custom slot opens SpecPlanPicker and backfills slot on submit', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, A2ComposerSheet(contextDate: day)));
+    await _settle(tester);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('a2-composer-title')),
+      'Deep work',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.tap(find.byKey(const ValueKey('a2-composer-plan')));
+    await tester.pump();
+
+    await tester.tap(find.text('Custom…'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SpecPlanPicker), findsOneWidget);
+    expect(find.text('09:00'), findsOneWidget);
+    expect(find.text('10:00'), findsOneWidget);
+
+    await tester.tap(find.text('Schedule'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SpecPlanPicker), findsNothing);
+    expect(find.text('Plan for 10/17 09:00–10:00'), findsOneWidget);
+
+    await tester.tap(find.text('Plan for 10/17 09:00–10:00'));
+    await _settle(tester);
+
+    final todos = await db.select(db.todos).get();
+    expect(todos, hasLength(1));
+    expect(todos.single.summary, 'Deep work');
+    expect(todos.single.dueDate, isNull);
+
+    final allocations = await db.select(db.taskAllocations).get();
+    expect(allocations, hasLength(1));
+    expect(allocations.single.todoId, todos.single.id);
+    expect(allocations.single.startAt.toLocal(), DateTime(2026, 10, 17, 9));
+    expect(allocations.single.endAt.toLocal(), DateTime(2026, 10, 17, 10));
 
     await _unmount(tester);
   });
