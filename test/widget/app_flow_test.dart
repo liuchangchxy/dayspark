@@ -162,6 +162,8 @@ void main() {
     await _pumpApp(tester);
 
     await _openSettings(tester);
+    await tester.tap(find.text('General'));
+    await _settle(tester);
 
     expect(find.text('Light'), findsOneWidget);
   });

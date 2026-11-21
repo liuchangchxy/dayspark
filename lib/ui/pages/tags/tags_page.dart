@@ -31,7 +31,9 @@ const _tagColors = [
 const int _maxTagNameLength = 50;
 
 class TagsPage extends ConsumerWidget {
-  const TagsPage({super.key});
+  const TagsPage({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,50 +41,87 @@ class TagsPage extends ConsumerWidget {
     final ds = context.ds;
     final tagsAsync = ref.watch(tagsProvider);
 
-    return WorkspacePage(
-      title: l.manageTags,
-      maxContentWidth: 720,
-      child: tagsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) {
-          debugPrint('tags: load error: $error');
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  l.actionFailedRetry,
-                  style: AppTypography.body.copyWith(color: ds.ink2),
-                ),
-                const SizedBox(height: AppSpacing.s2),
-                DsButton(
-                  label: l.retry,
-                  tone: DsButtonTone.ghost,
-                  small: true,
-                  onPressed: () => ref.invalidate(tagsProvider),
-                ),
-              ],
+    final content = tagsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) {
+        debugPrint('tags: load error: $error');
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l.actionFailedRetry,
+                style: AppTypography.body.copyWith(color: ds.ink2),
+              ),
+              const SizedBox(height: AppSpacing.s2),
+              DsButton(
+                label: l.retry,
+                tone: DsButtonTone.ghost,
+                small: true,
+                onPressed: () => ref.invalidate(tagsProvider),
+              ),
+            ],
+          ),
+        );
+      },
+      data: (tags) {
+        if (tags.isEmpty) {
+          return EmptyState(
+            icon: CupertinoIcons.tag,
+            title: l.noTags,
+            hint: l.tagEmptyHint,
+            action: DsButton(
+              label: l.tagsEmptyAction,
+              icon: CupertinoIcons.add,
+              onPressed: () => _editTag(context, ref, null),
             ),
           );
-        },
-        data: (tags) {
-          if (tags.isEmpty) {
-            return EmptyState(
-              icon: CupertinoIcons.tag,
-              title: l.noTags,
-              hint: l.tagEmptyHint,
-              action: DsButton(
-                label: l.tagsEmptyAction,
-                icon: CupertinoIcons.add,
-                onPressed: () => _editTag(context, ref, null),
-              ),
-            );
-          }
-          return ListView(
-            key: const ValueKey('tags-list'),
-            padding: const EdgeInsets.only(bottom: AppSpacing.s6),
+        }
+        if (embedded) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DsGroupLabel(l.allTags),
+              for (final tag in tags)
+                DsSettingRow(
+                  label: tag.name,
+                  value: l.dayItemCount(_countFor(ref, tag.id)),
+                  leading: DsDot(
+                    color: ColorUtils.parseHex(tag.color),
+                    size: 8,
+                  ),
+                  trailing: DsIconButton(
+                    icon: CupertinoIcons.delete,
+                    size: 16,
+                    compact: true,
+                    tooltip: l.deleteTag,
+                    onPressed: () => _confirmDeleteTag(context, ref, tag),
+                  ),
+                  onTap: () => _editTag(context, ref, tag),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  AppSpacing.s3,
+                  AppSpacing.s4,
+                  AppSpacing.s1,
+                ),
+                child: DsButton(
+                  label: l.createTag,
+                  icon: CupertinoIcons.add,
+                  tone: DsButtonTone.secondary,
+                  expand: true,
+                  onPressed: () => _editTag(context, ref, null),
+                ),
+              ),
+            ],
+          );
+        }
+        return ListView(
+          key: const ValueKey('tags-list'),
+          padding: const EdgeInsets.only(bottom: AppSpacing.s6),
+          children: [
+            DsGroupLabel(l.allTags),
               DsGroup(
                 children: [
                   for (final tag in tags)
@@ -134,7 +173,16 @@ class TagsPage extends ConsumerWidget {
             ],
           );
         },
-      ),
+      );
+
+    if (embedded) {
+      return content;
+    }
+
+    return WorkspacePage(
+      title: l.manageTags,
+      maxContentWidth: 720,
+      child: content,
     );
   }
 

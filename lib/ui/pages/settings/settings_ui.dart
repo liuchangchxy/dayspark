@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
 /// Provider for the default calendar ID.
 /// Stored in SharedPreferences under 'default_calendar_id'.
@@ -42,6 +43,7 @@ enum SettingsChevron { none, right, down }
 /// Frozen spec settings row:
 /// min-height 55px, border-top hairline, label 12px ink, subtitle 10px faint,
 /// value 10.5px ink2, chevron 11px faint.
+/// Zero horizontal padding on desktop to align with page head; 16px on mobile.
 class SettingsRow extends StatefulWidget {
   const SettingsRow({
     super.key,
@@ -52,7 +54,7 @@ class SettingsRow extends StatefulWidget {
     this.onTap,
     this.chevron = SettingsChevron.none,
     this.danger = false,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    this.padding,
   });
 
   final String label;
@@ -62,7 +64,7 @@ class SettingsRow extends StatefulWidget {
   final VoidCallback? onTap;
   final SettingsChevron chevron;
   final bool danger;
-  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? padding;
 
   @override
   State<SettingsRow> createState() => _SettingsRowState();
@@ -79,9 +81,15 @@ class _SettingsRowState extends State<SettingsRow> {
       SettingsChevron.down => CupertinoIcons.chevron_down,
     };
 
+    final desktop = isWorkspaceLayout(context);
+    final effectivePadding = widget.padding ??
+        (desktop
+            ? const EdgeInsets.symmetric(vertical: 8)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 8));
+
     final body = Container(
       constraints: const BoxConstraints(minHeight: 55),
-      padding: widget.padding,
+      padding: effectivePadding,
       decoration: BoxDecoration(
         color: _hovered && widget.onTap != null
             ? SpecTokens.wash
@@ -199,11 +207,13 @@ class SettingsGroupBlock extends StatelessWidget {
   const SettingsGroupBlock({
     super.key,
     required this.title,
+    this.subtitle,
     required this.child,
     this.mobile = false,
   });
 
   final String title;
+  final String? subtitle;
   final Widget child;
   final bool mobile;
 
@@ -213,7 +223,12 @@ class SettingsGroupBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(mobile ? 16 : 0, 20, mobile ? 16 : 0, 8),
+          padding: EdgeInsets.fromLTRB(
+            mobile ? 16 : 0,
+            mobile ? 16 : 2,
+            mobile ? 16 : 0,
+            subtitle == null ? 8 : 4,
+          ),
           child: Text(
             title,
             maxLines: 1,
@@ -221,11 +236,29 @@ class SettingsGroupBlock extends StatelessWidget {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: SpecTokens.ink2,
+              color: SpecTokens.ink,
               fontFamilyFallback: AppTypography.fallback,
             ),
           ),
         ),
+        if (subtitle != null)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              mobile ? 16 : 0,
+              0,
+              mobile ? 16 : 0,
+              12,
+            ),
+            child: Text(
+              subtitle!,
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.55,
+                color: SpecTokens.faint,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: const BoxDecoration(

@@ -1738,5 +1738,29 @@
         "type": "int"
       }
     }
-  }
+  },
+  "importAndBackup": "Import & Backup",
+  "userAccount": "Account",
+  "dataSectionDesc": "Tags, trash, import/export, and backups.",
+  "accountSectionDesc": "Current account and device session management.",
+  "aiSectionDesc": "Smart suggestions and assistant settings.",
+  "notify": "Notifications",
+  "versionLabel": "Version",
+  "versionDesc": "Current build.",
+  "dataDesc": "Storage location.",
+  "licenseDesc": "Open source license.",
+  "mobileGeneralDesc": "Default calendar, open on launch",
+  "mobileCalendarsDesc": "{count} calendars",
+  "@mobileCalendarsDesc": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mobileDataDesc": "Tags / Trash / Import",
+  "mobileNotifyDesc": "Permissions & reminders",
+  "mobileSyncDesc": "Account, failure, conflict",
+  "sync": "Sync",
+  "mobileAboutDesc": "Version & license"
 }
