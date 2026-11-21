@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -542,7 +543,7 @@ void main() {
     await tester.pump(Duration.zero);
   });
 
-  testWidgets('week and day views expose their own create entry', (
+  testWidgets('month view exposes create entry via FAB, and phone header carries no plus button', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -559,15 +560,19 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
+    // In week and day views, the header does not carry a '+' button per spec
+    final topBar = find.byKey(const ValueKey('m-top'));
+    expect(
+      find.descendant(of: topBar, matching: find.byIcon(CupertinoIcons.add)),
+      findsNothing,
+    );
+
+    // In month view, the create entry is exposed via A2Fab
+    await tester.tap(find.text('Month'));
+    await _settle(tester);
     await tester.tap(find.byTooltip('New Event'));
     await _settle(tester);
     expect(days, [DateTime(2026, 11, 15)]);
-
-    await _switchView(tester, 'Day');
-    await _settle(tester);
-    await tester.tap(find.byTooltip('New Event'));
-    await _settle(tester);
-    expect(days.last, DateTime(2026, 11, 15));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -1059,6 +1064,161 @@ void main() {
 
     expect(find.text('Filtered event'), findsOneWidget);
     expect(find.text('Hidden 1 calendars'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('desktop calendar title matches .ph-title 26/650 wght and subtitle is 11.5', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final titleFinder = find.text('Calendar');
+    expect(titleFinder, findsOneWidget);
+    final titleWidget = tester.widget<Text>(titleFinder);
+    expect(titleWidget.style?.fontSize, 26);
+    expect(titleWidget.style?.fontWeight, FontWeight.w600);
+    expect(
+      titleWidget.style?.fontVariations?.any(
+        (v) => v.axis == 'wght' && v.value == 650,
+      ),
+      isTrue,
+    );
+
+    final rowFinder = find.ancestor(of: titleFinder, matching: find.byType(Row)).first;
+    final textWidgets = tester.widgetList<Text>(
+      find.descendant(of: rowFinder, matching: find.byType(Text)),
+    );
+    expect(textWidgets.length, greaterThanOrEqualTo(2));
+    final subtitleWidget = textWidgets.elementAt(1);
+    expect(subtitleWidget.style?.fontSize, 11.5);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('mobile calendar header matches m-top 50h, 15px title, actions prev/next/filter, and persistent view switch', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final topBarFinder = find.byKey(const ValueKey('m-top'));
+    expect(topBarFinder, findsOneWidget);
+    expect(tester.getSize(topBarFinder).height, 50.0);
+
+    final titleFinder = find.descendant(
+      of: topBarFinder,
+      matching: find.text('Calendar'),
+    );
+    expect(titleFinder, findsOneWidget);
+    final titleWidget = tester.widget<Text>(titleFinder);
+    expect(titleWidget.style?.fontSize, 15);
+
+    expect(find.byKey(const ValueKey('cal-prev')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cal-next')), findsOneWidget);
+    expect(find.byKey(const ValueKey('calendar-filter-button')), findsOneWidget);
+
+    expect(find.text('Month'), findsOneWidget);
+    expect(find.text('Week'), findsOneWidget);
+    expect(find.text('Day'), findsOneWidget);
+
+    await tester.tap(find.text('Month'));
+    await _settle(tester);
+    expect(find.byType(A2PhoneMonthGrid), findsOneWidget);
+
+    await tester.tap(find.text('Day'));
+    await _settle(tester);
+    expect(find.byType(A2TimeGridView), findsOneWidget);
+
+    await tester.tap(find.text('Week'));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('phone-week-list')), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('mobile 390 week and day views have no horizontal overflow and timeline 08:00-20:00 is reachable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Morning Sync',
+          start: DateTime(2026, 11, 15, 8),
+          end: DateTime(2026, 11, 15, 9),
+        ),
+        CalendaEventAdapter(
+          drifId: 2,
+          calendarId: 1,
+          title: 'Evening Wrap',
+          start: DateTime(2026, 11, 15, 20),
+          end: DateTime(2026, 11, 15, 21),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final weekList = find.byKey(const ValueKey('phone-week-list'));
+    expect(weekList, findsOneWidget);
+    expect(tester.getSize(weekList).width, lessThanOrEqualTo(390.0));
+
+    await tester.tap(find.text('Day'));
+    await _settle(tester);
+
+    final dayView = find.byType(A2TimeGridView);
+    expect(dayView, findsOneWidget);
+    expect(tester.getSize(dayView).width, lessThanOrEqualTo(390.0));
+
+    expect(find.text('08:00'), findsOneWidget);
+    final top08 = tester.getTopLeft(find.text('08:00')).dy;
+    expect(top08, greaterThanOrEqualTo(0));
+
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('20:00'),
+      100,
+      scrollable: scrollable,
+    );
+    await _settle(tester);
+
+    expect(find.text('20:00'), findsOneWidget);
+    expect(find.text('Evening Wrap'), findsOneWidget);
+    final top20 = tester.getTopLeft(find.text('20:00')).dy;
+    expect(top20, greaterThanOrEqualTo(0));
+    expect(top20, lessThanOrEqualTo(844));
+
+    expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);

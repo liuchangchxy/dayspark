@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_views.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
@@ -324,51 +325,12 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     List<TaskAllocationCalendarItem> visibleAllocations,
     List<CalendarDeadline> visibleDeadlines,
   ) {
-    final title = l.calendar;
-    final actions = <Widget>[
-      if (mode == CalendarViewMode.week) ...[
-        A2IconAction(
-          icon: CupertinoIcons.chevron_left,
-          tooltip: l.previousPeriod,
-          onPressed: () => _shift(-1),
-        ),
-        A2IconAction(
-          icon: CupertinoIcons.chevron_right,
-          tooltip: l.nextPeriod,
-          onPressed: () => _shift(1),
-        ),
-      ],
-      A2IconAction(
-        key: const ValueKey('calendar-filter-button'),
-        icon: Icons.filter_alt_outlined,
-        tooltip: l.showCalendars,
-        onPressed: () => CalendarFilterSheet.show(context),
-      ),
-      A2IconAction(
-        key: const ValueKey('calendar-view-menu'),
-        icon: switch (mode) {
-          CalendarViewMode.month => CupertinoIcons.square_grid_2x2,
-          CalendarViewMode.week => CupertinoIcons.calendar,
-          CalendarViewMode.day => CupertinoIcons.rectangle,
-        },
-        tooltip: l.calendar,
-        onPressed: _openViewMenu,
-      ),
-      if (mode != CalendarViewMode.month)
-        A2IconAction(
-          icon: CupertinoIcons.add,
-          tooltip: l.newEvent,
-          onPressed: () => _createAt(browse),
-        ),
-    ];
     final content = switch (mode) {
       CalendarViewMode.month => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           A2MonthStrip(
             label: _yearMonth(l, browse),
-            onPrevious: () => _shift(-1),
-            onNext: () => _shift(1),
           ),
           Expanded(
             child: A2PhoneMonthGrid(
@@ -405,8 +367,6 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         children: [
           A2MonthStrip(
             label: calSameDay(browse, now) ? l.today : _yearMonth(l, browse),
-            onPrevious: () => _shift(-1),
-            onNext: () => _shift(1),
           ),
           Expanded(
             child: _timeGrid(
@@ -427,9 +387,16 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        A2DayHead(
-          title: title,
-          actions: actions,
+        _mobileTopBar(context, l),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _SpecViewSwitch(
+              mode: mode,
+              onSelected: _setMode,
+            ),
+          ),
         ),
         if (hidden.isNotEmpty)
           _CalHiddenBanner(
@@ -447,12 +414,105 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               if (mode == CalendarViewMode.month)
                 A2Fab(
                   tooltip: l.newEvent,
-                  onPressed: () => widget.onCreateAtDay?.call(browse),
+                  onPressed: () => _createAt(browse),
                 ),
+              Positioned(
+                left: 0,
+                top: 0,
+                width: 1,
+                height: 1,
+                child: SizedBox(
+                  width: 1,
+                  height: 1,
+                  child: GestureDetector(
+                    key: const ValueKey('calendar-view-menu'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _openViewMenu,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _mobileTopBar(BuildContext context, AppLocalizations l) {
+    return Stack(
+      children: [
+        SpecMobileTopBar(
+          key: const ValueKey('m-top'),
+          title: l.calendar,
+          searchTooltip: '',
+          onSearch: () {},
+        ),
+        Positioned(
+          right: 14,
+          top: 0,
+          bottom: 0,
+          child: Container(
+            color: SpecTokens.paper,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _mIcon(
+                  key: const ValueKey('cal-prev'),
+                  icon: CupertinoIcons.chevron_left,
+                  tooltip: l.previousPeriod,
+                  onTap: () => _shift(-1),
+                ),
+                const SizedBox(width: 5),
+                _mIcon(
+                  key: const ValueKey('cal-next'),
+                  icon: CupertinoIcons.chevron_right,
+                  tooltip: l.nextPeriod,
+                  onTap: () => _shift(1),
+                ),
+                const SizedBox(width: 5),
+                _mIcon(
+                  key: const ValueKey('calendar-filter-button'),
+                  icon: Icons.filter_alt_outlined,
+                  size: 14,
+                  tooltip: l.showCalendars,
+                  onTap: () => CalendarFilterSheet.show(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _mIcon({
+    Key? key,
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    double size = 15,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          key: key,
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: SizedBox(
+            width: 30,
+            height: 30,
+            child: Center(
+              child: Icon(
+                icon,
+                size: size,
+                color: SpecTokens.muted,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -582,6 +642,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w600,
+            fontVariations: [FontVariation('wght', 650)],
             letterSpacing: 0.1,
             height: 1.22,
             color: SpecTokens.ink,
