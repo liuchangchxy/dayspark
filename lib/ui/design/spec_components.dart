@@ -51,6 +51,7 @@ class SpecTaskRow extends StatefulWidget {
     this.selected = false,
     this.onSchedule,
     this.scheduleTooltip,
+    this.scheduleKey,
     this.touchTargetSize,
     this.showCheck = true,
   });
@@ -67,6 +68,7 @@ class SpecTaskRow extends StatefulWidget {
   final bool selected;
   final VoidCallback? onSchedule;
   final String? scheduleTooltip;
+  final Key? scheduleKey;
   final double? touchTargetSize;
   final bool showCheck;
 
@@ -211,11 +213,12 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: GestureDetector(
+                        key: widget.scheduleKey,
                         behavior: HitTestBehavior.opaque,
                         onTap: widget.onSchedule,
                         child: Container(
-                          width: 25,
-                          height: 25,
+                          width: 44,
+                          height: 44,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(4),

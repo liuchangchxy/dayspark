@@ -370,50 +370,31 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     }
 
     if (desktop) {
+      final isMasterDetail = MediaQuery.sizeOf(context).width >= 1180;
+      final detail = widget.detail;
       return Material(
-        color: ds.bg,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1240),
-            child: Builder(
-              builder: (context) {
-                final isMasterDetail = MediaQuery.sizeOf(context).width >= 1180;
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: ds.surface,
-                          border: Border.all(color: ds.line),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            head,
-                            if (strip != null) strip,
-                            Expanded(child: body),
-                            footer,
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (isMasterDetail) ...[
-                      const SizedBox(width: 20),
-                      SizedBox(
-                        width: 380,
-                        child: ClipRect(
-                          child: widget.detail ?? const _EmptyDetailColumn(),
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
+        color: SpecTokens.paper,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  head,
+                  if (strip != null) strip,
+                  Expanded(child: body),
+                  footer,
+                ],
+              ),
             ),
-          ),
+            // The frozen spec only widens the page for a drawer that is open.
+            if (isMasterDetail && detail != null)
+              SizedBox(
+                width: 380,
+                child: ClipRect(child: detail),
+              ),
+          ],
         ),
       );
     }
@@ -1471,14 +1452,12 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
               highlight: true,
               onPressed: () => _setCompleted(todo, occurrenceId, false),
             )
-          : _A2RowAction(
-              actionKey: ValueKey(
-                'todo-schedule-${todo.id}-${occurrenceId ?? 'series'}',
-              ),
-              label: l.scheduleAction,
-              tooltip: l.scheduleAction,
-              onPressed: () => onSchedule(todo),
-            ),
+          : null,
+      onSchedule: inWindow ? null : () => onSchedule(todo),
+      scheduleTooltip: l.scheduleAction,
+      scheduleKey: ValueKey(
+        'todo-schedule-${todo.id}-${occurrenceId ?? 'series'}',
+      ),
       onToggle: widget.onToggleTodo == null
           ? null
           : (value) =>
@@ -1757,67 +1736,3 @@ class _A2RowAction extends StatelessWidget {
   }
 }
 
-class _EmptyDetailColumn extends StatelessWidget {
-  const _EmptyDetailColumn();
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    final l = AppLocalizations.of(context)!;
-    return Container(
-      decoration: BoxDecoration(
-        color: ds.surface,
-        border: Border.all(color: ds.line),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: ds.surface2,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Icon(
-                    CupertinoIcons.square_list,
-                    size: 22,
-                    color: ds.ink3,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                l.detailEmptyTitle,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: ds.ink2,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                l.detailEmptyHint,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: ds.ink3,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
