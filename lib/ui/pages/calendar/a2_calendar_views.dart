@@ -253,6 +253,7 @@ class A2PhoneMonthGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
+    final l = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).toString();
     final first = DateTime(anchor.year, anchor.month);
     final gridStart = first.subtract(Duration(days: first.weekday - 1));
@@ -349,7 +350,7 @@ class A2PhoneMonthGrid extends StatelessWidget {
                 style: _a2Text(11.5, FontWeight.w600, ds.ink),
               ),
               Text(
-                '${selectedEntries.length} 项',
+                l.dayItemCount(selectedEntries.length),
                 style: _a2Text(10.5, FontWeight.w400, ds.ink3),
               ),
             ],
@@ -369,7 +370,7 @@ class A2PhoneMonthGrid extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Text(
-              '无安排',
+              l.noSchedule,
               style: _a2Text(11, FontWeight.w400, ds.ink3),
             ),
           ),
@@ -1098,6 +1099,7 @@ class A2TimeGridView extends StatelessWidget {
 
   Widget _dayHeadbar(BuildContext context, DateTime day) {
     final ds = context.ds;
+    final l = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).toString();
     final key = calDayOf(day);
     final count = calDayBlocks(
@@ -1130,7 +1132,7 @@ class A2TimeGridView extends StatelessWidget {
             ),
           ),
           Text(
-            '$count 项时间安排',
+            l.timeArrangementsCount(count),
             style: _a2Text(10.5, FontWeight.w400, ds.ink3),
           ),
         ],
@@ -1858,6 +1860,7 @@ class _A2DeadlineMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
+    final l = AppLocalizations.of(context)!;
     final color = isOverdue ? ds.danger : ds.warn;
     return Positioned(
       top: top - 2.25,
@@ -1900,7 +1903,7 @@ class _A2DeadlineMarker extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      '$time 截止 · $title',
+                      l.deadlineMarkerLabel(time, title),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _a2Text(8.0, FontWeight.w400, color, height: 1.2),
@@ -2000,7 +2003,7 @@ class A2PhoneWeekList extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$totalCount 项',
+                      l.dayItemCount(totalCount),
                       style: _a2Text(10.5, FontWeight.w400, ds.ink3),
                     ),
                   ],
@@ -2039,7 +2042,7 @@ class A2PhoneWeekList extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Text(
-                          '无安排',
+                          l.noSchedule,
                           style: _a2Text(10.5, FontWeight.w400, ds.ink3),
                         ),
                       ),
@@ -2171,7 +2174,7 @@ class A2PhoneDayList extends StatelessWidget {
                 ),
               ),
               Text(
-                '${items.length} 项时间安排',
+                l.timeArrangementsCount(items.length),
                 style: _a2Text(10.5, FontWeight.w400, ds.ink3),
               ),
             ],
@@ -2213,11 +2216,11 @@ class A2PhoneDayList extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isToday ? '今天' : DateFormat.MMMd(locale).format(day),
+                isToday ? l.today : DateFormat.MMMd(locale).format(day),
                 style: _a2Text(11.5, FontWeight.w600, ds.ink),
               ),
               Text(
-                '${items.length} 项',
+                l.dayItemCount(items.length),
                 style: _a2Text(10.5, FontWeight.w400, ds.ink3),
               ),
             ],
@@ -2233,7 +2236,7 @@ class A2PhoneDayList extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Text(
-              '今天没有时间安排。',
+              l.todayEmptyTime,
               style: _a2Text(11, FontWeight.w400, ds.ink3),
             ),
           ),
@@ -2278,6 +2281,7 @@ class A2PhoneDayList extends StatelessWidget {
     Map<int, TaskAllocationCalendarItem> allocationItems,
   ) {
     final ds = context.ds;
+    final l = AppLocalizations.of(context)!;
     final isPlan = item.isAllocation;
     final accent = ds.eventAccent(item.event?.color ?? ds.primary);
     final barColor = isPlan ? ds.work : accent;
@@ -2333,7 +2337,9 @@ class A2PhoneDayList extends StatelessWidget {
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    '$timeStr–$endStr${isPlan ? ' · 计划执行' : ''}',
+                    isPlan
+                        ? l.calendarTimeRowPlanned('$timeStr–$endStr')
+                        : '$timeStr–$endStr',
                     style: _a2Text(9.5, FontWeight.w400, ds.ink3, tabular: true),
                   ),
                 ],

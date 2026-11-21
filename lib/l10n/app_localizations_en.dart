@@ -2473,4 +2473,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String moreUnplannedItems(int count) {
     return 'View $count undated items';
   }
+
+  @override
+  String get noSchedule => 'No schedule';
+
+  @override
+  String deadlineMarkerLabel(String time, String title) {
+    return 'Due $time · $title';
+  }
+
+  @override
+  String calendarTimeRowPlanned(String timeRange) {
+    return '$timeRange · Planned';
+  }
 }

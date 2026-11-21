@@ -135,7 +135,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     _end = widget.initialEnd;
     _priority = widget.todo?.priority ?? 0;
     _calendarId = widget.todo?.calendarId;
-    _planOpen = _start != null;
+    _planOpen = false;
   }
 
   void _setMode(bool scheduling) {

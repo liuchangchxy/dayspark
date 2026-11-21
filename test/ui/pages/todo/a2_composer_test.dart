@@ -509,6 +509,9 @@ void main() {
 
     expect(find.text('10/17 11:00–12:00'), findsOneWidget);
 
+    await tester.tap(find.byKey(const ValueKey('a2-composer-plan')));
+    await tester.pump();
+
     await tester.tap(find.text('Custom…'));
     await tester.pump();
 
