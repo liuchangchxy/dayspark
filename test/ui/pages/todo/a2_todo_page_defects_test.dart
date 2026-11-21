@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:drift/drift.dart' hide isNull, isNotNull, Column;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -15,7 +15,9 @@ import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/pages/todo/a2_todo_page.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 
 Widget _app({
   required List<Override> overrides,
@@ -25,7 +27,24 @@ Widget _app({
   onToggleTodo,
   ValueChanged<Todo>? onScheduleTodo,
   DayAgenda? dayAgenda,
+  Widget Function(Widget page)? wrapPage,
 }) {
+  final page = A2TodoPage(
+    now: now,
+    dayAgenda:
+        dayAgenda ??
+        DayAgenda(
+          day: DateTime(now.year, now.month, now.day),
+          events: const [],
+          allocations: const [],
+          dueTodos: const [],
+          overdueTodos: const [],
+          instances: const [],
+        ),
+    onOpenTodo: onOpenTodo,
+    onToggleTodo: onToggleTodo,
+    onScheduleTodo: onScheduleTodo,
+  );
   return ProviderScope(
     overrides: overrides,
     child: MaterialApp(
@@ -33,22 +52,7 @@ Widget _app({
       supportedLocales: AppLocalizations.supportedLocales,
       locale: const Locale('en'),
       home: Scaffold(
-        body: A2TodoPage(
-          now: now,
-          dayAgenda:
-              dayAgenda ??
-              DayAgenda(
-                day: DateTime(now.year, now.month, now.day),
-                events: const [],
-                allocations: const [],
-                dueTodos: const [],
-                overdueTodos: const [],
-                instances: const [],
-              ),
-          onOpenTodo: onOpenTodo,
-          onToggleTodo: onToggleTodo,
-          onScheduleTodo: onScheduleTodo,
-        ),
+        body: wrapPage != null ? wrapPage(page) : page,
       ),
     ),
   );
@@ -346,6 +350,12 @@ void main() {
 
     await tester.pump(const Duration(seconds: 5));
     await tester.pump();
+
+    // Spec allList() (dayspark-spec.html:1493-1510): 'Completed Today' is an
+    // independent fold group; expanding it confirms Alpha has sunk into the
+    // completed group below active todos.
+    await tester.tap(find.text('Completed Today'));
+    await _settle(tester);
 
     expect(find.byKey(ValueKey('todo-undo-$first-series')), findsNothing);
     expect(
@@ -730,7 +740,6 @@ void main() {
 
     await _unmount(tester);
   });
-
   testWidgets('date strip has one semantics node per day and no text noise', (
     tester,
   ) async {
@@ -805,6 +814,61 @@ void main() {
     expect(allLabels.where(noise.contains), isEmpty);
 
     semantics.dispose();
+    await _unmount(tester);
+  });
+
+  testWidgets('mobile undo bar clears the capture bar above the 56px dock', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosAllView()),
+        ],
+        now: now,
+        wrapPage: (page) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: page),
+            const SizedBox(height: 56),
+          ],
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    final context = tester.element(find.byType(A2TodoPage));
+    showUndoBar(
+      context,
+      message: 'Todo completed',
+      undoLabel: 'Undo',
+      onUndo: () {},
+    );
+    await tester.pumpAndSettle();
+
+    final undoRect = tester.getRect(
+      find.byKey(const ValueKey('undo-bar-content')),
+    );
+    final captureRect = tester.getRect(find.byType(A2CaptureBar));
+
+    // Spec .m-capture{bottom:62px} & .m-undo{bottom:118px}: rects must not overlap
+    expect(
+      undoRect.overlaps(captureRect),
+      isFalse,
+      reason:
+          'Spec .m-capture{bottom:62px} and .m-undo{bottom:118px} must not intersect',
+    );
+    expect(
+      undoRect.bottom,
+      lessThanOrEqualTo(captureRect.top),
+      reason: 'Undo bar bottom must sit above or clear capture bar top',
+    );
+
     await _unmount(tester);
   });
 }
