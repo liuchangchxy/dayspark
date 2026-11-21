@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -43,6 +44,8 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
   int? _reminderMinutes;
   DateTime? _pickedStart;
   Duration? _pickedDuration;
+  bool _isEvent = false;
+  bool _suggestionRemoved = false;
 
   @override
   void dispose() {
@@ -86,7 +89,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
   Future<void> _save() async {
     final draft = _draft();
     if (_controller.text.trim().isEmpty || _saving) return;
-    if ((_pickedStart ?? draft.start) != null) {
+    if (_isEvent && (_pickedStart ?? draft.start) != null && !_suggestionRemoved) {
       await _saveEvent(draft);
       return;
     }
@@ -329,14 +332,28 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                         if (hasText)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                            child: _card(
-                              context,
-                              l,
-                              draft,
-                              start,
-                              duration,
-                              calendar,
-                              desktop: true,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (start != null)
+                                  _suggestBlock(
+                                    context,
+                                    l,
+                                    draft,
+                                    start,
+                                    duration,
+                                  ),
+                                _card(
+                                  context,
+                                  l,
+                                  draft,
+                                  start,
+                                  duration,
+                                  calendar,
+                                  desktop: true,
+                                ),
+                              ],
                             ),
                           )
                         else
@@ -421,14 +438,29 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                               if (hasText)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 10),
-                                  child: _card(
-                                    context,
-                                    l,
-                                    draft,
-                                    start,
-                                    duration,
-                                    calendar,
-                                    desktop: false,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (start != null)
+                                        _suggestBlock(
+                                          context,
+                                          l,
+                                          draft,
+                                          start,
+                                          duration,
+                                        ),
+                                      _card(
+                                        context,
+                                        l,
+                                        draft,
+                                        start,
+                                        duration,
+                                        calendar,
+                                        desktop: false,
+                                      ),
+                                    ],
                                   ),
                                 ),
                             ],
@@ -565,6 +597,8 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
       onChanged: (_) => setState(() {
         _pickedStart = null;
         _pickedDuration = null;
+        _isEvent = false;
+        _suggestionRemoved = false;
       }),
       decoration: InputDecoration(
         hintText: l.quickCreateHint,
@@ -600,6 +634,113 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
       child: Text(
         _error ?? l.widgetSaveFailed,
         style: TextStyle(fontSize: 12, color: context.ds.danger),
+      ),
+    );
+  }
+
+  Widget _suggestBlock(
+    BuildContext context,
+    AppLocalizations l,
+    _QuickAddDraft draft,
+    DateTime start,
+    Duration duration,
+  ) {
+    final timeStr =
+        '${DateFormatters.formatTime(start)}–${DateFormatters.formatTime(start.add(duration))}';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: SpecTokens.wash,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: const Color(0xFFDFE3E5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.clock, size: 13, color: SpecTokens.work),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _suggestionRemoved
+                      ? l.captureParsedSuggestRemoved
+                      : '$timeStr · ${l.captureParsedTypeTodoTitle}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: SpecTokens.ink,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  _suggestionRemoved
+                      ? l.captureParsedSuggestSubRemoved
+                      : l.captureParsedTypeTodoSub,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    color: SpecTokens.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _suggestionRemoved = !_suggestionRemoved;
+                if (_suggestionRemoved) {
+                  _isEvent = false;
+                }
+              });
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              _suggestionRemoved
+                  ? l.captureActionRestore
+                  : l.captureActionRemove,
+              style: const TextStyle(
+                fontSize: 10,
+                color: SpecTokens.work,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _isEvent = !_isEvent;
+                if (_isEvent) {
+                  _suggestionRemoved = false;
+                }
+              });
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              _isEvent
+                  ? l.captureActionChangeToTodo
+                  : l.captureActionChangeToEvent,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: _isEvent ? SpecTokens.ink : SpecTokens.work,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
