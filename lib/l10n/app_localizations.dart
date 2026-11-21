@@ -5159,6 +5159,12 @@ abstract class AppLocalizations {
   /// **'Detected time is only a \"Planned execution\" suggestion, not an event or deadline.'**
   String get captureParsedTypeTodoSub;
 
+  /// No description provided for @captureParsedSuggestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested Plan'**
+  String get captureParsedSuggestTitle;
+
   /// No description provided for @captureParsedSuggestRemoved.
   ///
   /// In en, this message translates to:

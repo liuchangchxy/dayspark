@@ -21,6 +21,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
@@ -117,14 +118,6 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   bool _writeFailed = false;
   String? _occurrenceId;
   Todo? _boundTodo;
-  bool _isEvent = false;
-  bool _suggestionRemoved = false;
-  bool _discardConfirm = false;
-
-  bool get _hasParsedSuggestion =>
-      widget.todo == null &&
-      widget.initialStart != null &&
-      widget.initialEnd != null;
 
   // The mode is the binding, not a separate flag: switching to "create" drops
   // the todo so nothing can be written against it by accident.
@@ -146,9 +139,6 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     _priority = widget.todo?.priority ?? 0;
     _calendarId = widget.todo?.calendarId;
     _planOpen = false;
-    _isEvent = false;
-    _suggestionRemoved = false;
-    _discardConfirm = false;
   }
 
   void _setMode(bool scheduling) {
@@ -242,42 +232,26 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   }
 
   Future<void> _pickCustomSlot() async {
-    final l = AppLocalizations.of(context)!;
-    final start = await pickDateTime(
+    final title = _title.text.trim().isNotEmpty
+        ? _title.text.trim()
+        : (_boundTodo?.summary ?? '');
+    final defaultStart = _start ??
+        DateTime(
+          widget.contextDate.year,
+          widget.contextDate.month,
+          widget.contextDate.day,
+          9,
+        );
+    final defaultEnd = _end ?? defaultStart.add(const Duration(hours: 1));
+    final picked = await SpecPlanPickerDialog.show(
       context,
-      initial:
-          _start ??
-          DateTime(
-            widget.contextDate.year,
-            widget.contextDate.month,
-            widget.contextDate.day,
-            9,
-          ),
+      title: title,
+      initialStart: defaultStart,
+      initialEnd: defaultEnd,
     );
-    if (start == null || !mounted) return;
-    final length = await showDsSheet<Duration>(
-      context: context,
-      title: l.executionBlock,
-      body: Column(
-        children: [
-          for (final option in kExecutionLengths)
-            DsSettingRow(
-              label: _durationLabel(option),
-              onTap: () => Navigator.of(context).pop(option),
-            ),
-        ],
-      ),
-    );
-    if (length == null || !mounted) return;
-    _setSlot(start, start.add(length));
+    if (picked == null || !mounted) return;
+    _setSlot(picked.$1, picked.$2);
     setState(() => _planOpen = true);
-  }
-
-  String _durationLabel(Duration d) {
-    final l = AppLocalizations.of(context)!;
-    if (d.inMinutes == 0) return l.durationMinutes(0);
-    if (d.inMinutes % 60 == 0) return l.durationHours(d.inHours);
-    return l.durationHoursMinutes(d.inHours, d.inMinutes % 60);
   }
 
   Future<void> _pickReminder() async {
@@ -496,46 +470,6 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     }
   }
 
-  Future<void> _saveEvent() async {
-    final l = AppLocalizations.of(context)!;
-    final title = _title.text.trim();
-    if (title.isEmpty) return;
-    if (_saving) return;
-    setState(() {
-      _saving = true;
-      _writeFailed = false;
-    });
-    try {
-      final calendars = await ref.read(calendarsProvider.future);
-      if (calendars.isEmpty) {
-        _toast(l.noCalendar);
-        setState(() => _saving = false);
-        return;
-      }
-      final calendarId = _calendarId ?? calendars.first.id;
-      final start = _start ?? widget.contextDate;
-      final end = _end ?? start.add(const Duration(hours: 1));
-      await RecordScope.run(ref.read(databaseProvider), (tx) async {
-        await ref.read(createEventProvider)(
-          calendarId: calendarId,
-          summary: title,
-          startDt: start,
-          endDt: end,
-          isAllDay: false,
-        );
-      });
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      _toast(l.eventCreated);
-    } catch (error) {
-      debugPrint('composer: save event failed: $error');
-      if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _writeFailed = true;
-      });
-    }
-  }
 
   /// A write the user asked for happened on [day]; leaving the calendar on the
   /// day they were looking at made them hunt for the block they just made.
@@ -694,11 +628,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     if (desktop) {
       final isShifted = ref.watch(workspaceSelectionProvider) != null &&
           isMasterDetailLayout(context);
-      final panelWidth = _discardConfirm
-          ? 440.0
-          : _writeFailed
-              ? 520.0
-              : 620.0;
+      final panelWidth = _writeFailed ? 520.0 : 620.0;
       return CallbackShortcuts(
         bindings: shortcuts,
         child: Focus(
@@ -799,24 +729,12 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     String weekday, {
     required bool desktop,
   }) {
-    final title = _discardConfirm
-        ? l.captureDiscardTitle
-        : _writeFailed
-            ? l.widgetSaveFailed
-            : _isEvent
-                ? l.newEvent
-                : l.planToDate('$dateText · $weekday');
-    final sub = _discardConfirm
-        ? l.captureDiscardSub(
-            _title.text.isNotEmpty ? _title.text : l.capturePlaceholder,
-          )
-        : _writeFailed
-            ? l.captureSaveErrorServer
-            : _isEvent
-                ? l.captureHintEvent
-                : (_hasParsedSuggestion && !_suggestionRemoved
-                    ? l.captureParsedTypeTodoSub
-                    : l.captureHintExpanded);
+    final title = _writeFailed
+        ? l.widgetSaveFailed
+        : l.planToDate('$dateText · $weekday');
+    final sub = _writeFailed
+        ? l.captureSaveErrorServer
+        : l.captureHintExpanded;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 11, 10, 8),
       decoration: BoxDecoration(
@@ -861,13 +779,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
             padding: const EdgeInsets.all(4),
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             splashRadius: 14,
-            onPressed: () {
-              if (_discardConfirm) {
-                setState(() => _discardConfirm = false);
-              } else {
-                Navigator.of(context).maybePop();
-              }
-            },
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
         ],
       ),
@@ -875,13 +787,9 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   }
 
   Widget _footer(DsColors ds, AppLocalizations l, {required bool desktop}) {
-    final hint = _discardConfirm
-        ? l.captureHintDiscard
-        : _writeFailed
-            ? l.captureHintSaveError
-            : (_hasParsedSuggestion && !_suggestionRemoved
-                ? l.captureHintParsed
-                : l.captureHintExpanded);
+    final hint = _writeFailed
+        ? l.captureHintSaveError
+        : l.captureHintExpanded;
 
     if (desktop) {
       return Container(
@@ -911,64 +819,25 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
                 ),
               ),
               const SizedBox(width: 8),
-              if (_discardConfirm) ...[
-                TextButton(
-                  onPressed: () => setState(() => _discardConfirm = false),
-                  style: TextButton.styleFrom(
-                    foregroundColor: SpecTokens.ink,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    minimumSize: const Size(0, 29),
-                  ),
-                  child: Text(l.keepEditing),
-                ),
-                const SizedBox(width: 6),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: SpecTokens.red,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    minimumSize: const Size(0, 29),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
-                  child: Text(l.discard),
-                ),
-              ] else ...[
-                if (_isEvent) ...[
+              _ellipsisButton(ds, l, desktop: true),
+              const SizedBox(width: 8),
+              if (_writeFailed) ...[
+                Flexible(child: _writeFailureLabel(ds, l)),
+                const SizedBox(width: 8),
+                if (!_scheduling) ...[
                   TextButton(
-                    onPressed: () => setState(() => _isEvent = false),
+                    onPressed: _saveToUnplanned,
                     style: TextButton.styleFrom(
-                      foregroundColor: SpecTokens.work,
+                      foregroundColor: SpecTokens.ink2,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       minimumSize: const Size(0, 29),
                     ),
-                    child: Text(l.captureActionChangeToTodo),
+                    child: Text(l.captureActionSaveLater),
                   ),
                   const SizedBox(width: 6),
-                ] else ...[
-                  _ellipsisButton(ds, l, desktop: true),
-                  const SizedBox(width: 8),
                 ],
-                if (_writeFailed) ...[
-                  Flexible(child: _writeFailureLabel(ds, l)),
-                  const SizedBox(width: 8),
-                  if (!_scheduling) ...[
-                    TextButton(
-                      onPressed: _saveToUnplanned,
-                      style: TextButton.styleFrom(
-                        foregroundColor: SpecTokens.ink2,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: const Size(0, 29),
-                      ),
-                      child: Text(l.captureActionSaveLater),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                ],
-                Flexible(child: _primaryButton(ds, l, desktop: true)),
               ],
+              Flexible(child: _primaryButton(ds, l, desktop: true)),
             ],
           ),
         ),
@@ -988,59 +857,20 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
         top: false,
         child: Row(
           children: [
-            if (_discardConfirm) ...[
-              TextButton(
-                onPressed: () => setState(() => _discardConfirm = false),
-                style: TextButton.styleFrom(
-                  foregroundColor: SpecTokens.ink,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  minimumSize: const Size(0, 44),
-                ),
-                child: Text(l.keepEditing),
-              ),
-              const Spacer(),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: SpecTokens.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  minimumSize: const Size(0, 44),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(l.discard),
-              ),
-            ] else ...[
-              if (_isEvent) ...[
-                TextButton(
-                  onPressed: () => setState(() => _isEvent = false),
-                  style: TextButton.styleFrom(
-                    foregroundColor: SpecTokens.work,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 44),
-                  ),
-                  child: Text(l.captureActionChangeToTodo),
-                ),
-                const SizedBox(width: 8),
-              ] else ...[
-                _ellipsisButton(ds, l, desktop: false),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (_writeFailed) ...[
-                      Flexible(child: _writeFailureLabel(ds, l)),
-                      const SizedBox(width: 8),
-                    ],
-                    Flexible(child: _primaryButton(ds, l, desktop: false)),
+            _ellipsisButton(ds, l, desktop: false),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (_writeFailed) ...[
+                    Flexible(child: _writeFailureLabel(ds, l)),
+                    const SizedBox(width: 8),
                   ],
-                ),
+                  Flexible(child: _primaryButton(ds, l, desktop: false)),
+                ],
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -1115,7 +945,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     return SizedBox(
       height: desktop ? 29 : 44,
       child: FilledButton(
-        onPressed: _canSave ? (_isEvent ? _saveEvent : _save) : null,
+        onPressed: _canSave ? _save : null,
         style: FilledButton.styleFrom(
           backgroundColor: SpecTokens.ink,
           disabledBackgroundColor: SpecTokens.hair2,
@@ -1127,7 +957,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
         child: Text(
-          _isEvent ? l.newEvent : _primaryLabel(l),
+          _primaryLabel(l),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(

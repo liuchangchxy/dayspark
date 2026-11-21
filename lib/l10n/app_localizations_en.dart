@@ -2811,6 +2811,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captureParsedTypeTodoSub => 'Detected time is only a \"Planned execution\" suggestion, not an event or deadline.';
 
   @override
+  String get captureParsedSuggestTitle => 'Suggested Plan';
+
+  @override
   String get captureParsedSuggestRemoved => 'Time suggestion removed';
 
   @override

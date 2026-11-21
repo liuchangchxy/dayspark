@@ -2787,6 +2787,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get captureParsedTypeTodoSub => '识别到时间只作为“计划执行”建议，不会自动变成日程，也不会写截止。';
 
   @override
+  String get captureParsedSuggestTitle => '建议安排';
+
+  @override
   String get captureParsedSuggestRemoved => '时间建议已移除';
 
   @override

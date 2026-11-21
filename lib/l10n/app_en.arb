@@ -1741,6 +1741,7 @@
   },
   "captureParsedTypeTodoTitle": "Type remains Task",
   "captureParsedTypeTodoSub": "Detected time is only a \"Planned execution\" suggestion, not an event or deadline.",
+  "captureParsedSuggestTitle": "Suggested Plan",
   "captureParsedSuggestRemoved": "Time suggestion removed",
   "captureParsedSuggestSub": "Preselected; saved as \"Planned execution\". Can be removed.",
   "captureParsedSuggestSubRemoved": "Saves title only; no date, no plan, no deadline.",
