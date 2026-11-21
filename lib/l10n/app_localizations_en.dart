@@ -2236,6 +2236,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captureDefaultDate => 'No date · Personal';
 
   @override
+  String get captureTitle => 'Capture a task';
+
+  @override
+  String get captureSaveTodo => 'Save task';
+
+  @override
+  String plannedTodosMovedToTimeline(int count) {
+    return '$count planned items shown in timeline.';
+  }
+
+  @override
   String deleteConfirmTitle(String title) {
     return 'Delete \"$title\"?';
   }

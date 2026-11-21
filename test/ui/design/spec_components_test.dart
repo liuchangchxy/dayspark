@@ -67,6 +67,46 @@ void main() {
       expect(toggled, isTrue);
     });
 
+    testWidgets('renders overdue due pill with transparent background and red text', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SpecTaskRow(
+              title: 'Overdue task',
+              dueLabel: '10/20',
+              isOverdue: true,
+            ),
+          ),
+        ),
+      );
+
+      final text = tester.widget<Text>(find.text('10/20'));
+      expect(text.style?.color, const Color(0xFFC92A1E)); // SpecTokens.red
+      final container = tester.widget<Container>(
+        find.ancestor(of: find.text('10/20'), matching: find.byType(Container)).first,
+      );
+      final decoration = container.decoration as BoxDecoration;
+      expect(decoration.color, Colors.transparent);
+    });
+
+    testWidgets('renders schedule action button when onSchedule is provided', (tester) async {
+      var scheduled = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpecTaskRow(
+              title: 'Schedule task',
+              onSchedule: () => scheduled = true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(CupertinoIcons.calendar), findsOneWidget);
+      await tester.tap(find.byIcon(CupertinoIcons.calendar));
+      expect(scheduled, isTrue);
+    });
+
     testWidgets('handles disabled state', (tester) async {
       var tapped = false;
       await tester.pumpWidget(
@@ -107,7 +147,7 @@ void main() {
     });
   });
 
-  group('SpecTimeBlock', () {
+  group('SpecTimeBlock & SpecTimelineRow', () {
     testWidgets('renders event block with custom bar and bg', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -123,6 +163,25 @@ void main() {
 
       expect(find.text('Team sync'), findsOneWidget);
       expect(find.text('10:00 - 11:00'), findsOneWidget);
+    });
+
+    testWidgets('renders timeline row with 52 time column, 12 rail and content', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SpecTimelineRow(
+              timeLabel: '10:00',
+              child: SpecTimeBlock(
+                kind: SpecTimeBlockKind.event,
+                title: 'Review',
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('10:00'), findsOneWidget);
+      expect(find.text('Review'), findsOneWidget);
     });
 
     testWidgets('renders plan block with tag and check', (tester) async {
@@ -144,6 +203,32 @@ void main() {
       expect(find.text('计划'), findsOneWidget);
       await tester.tap(find.byType(SpecCheck));
       expect(checked, isTrue);
+    });
+  });
+
+  group('SpecAlldayStrip', () {
+    testWidgets('renders all-day strip with 48px label and chips', (tester) async {
+      var tapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpecAlldayStrip(
+              label: '全天',
+              items: [
+                SpecAlldayItem(
+                  title: 'Offsite',
+                  onTap: () => tapped = true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('全天'), findsOneWidget);
+      expect(find.text('Offsite'), findsOneWidget);
+      await tester.tap(find.text('Offsite'));
+      expect(tapped, isTrue);
     });
   });
 
@@ -208,16 +293,18 @@ void main() {
       expect(retried, isTrue);
     });
 
-    testWidgets('renders now line with tabular time', (tester) async {
+    testWidgets('renders now line with left margin 52 and red line without text', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: SpecNowLine(time: '15:30'),
+            body: SpecNowLine(),
           ),
         ),
       );
 
-      expect(find.text('15:30'), findsOneWidget);
+      final container = tester.widget<Container>(find.byType(Container).first);
+      expect(container.margin, const EdgeInsets.only(left: 52, top: 3, bottom: 3));
+      expect(find.byType(Divider), findsOneWidget);
     });
   });
 

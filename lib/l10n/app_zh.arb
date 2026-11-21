@@ -983,6 +983,16 @@
   "captureInputPlaceholder": "记一件事，回车记下",
   "captureTypeTodo": "待办",
   "captureDefaultDate": "无日期 · 个人",
+  "captureTitle": "记一件事",
+  "captureSaveTodo": "记下待办",
+  "plannedTodosMovedToTimeline": "另有 {count} 项已安排，显示在右侧时间区。",
+  "@plannedTodosMovedToTimeline": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "deleteConfirmTitle": "删除「{title}」？",
   "@deleteConfirmTitle": {
     "placeholders": {

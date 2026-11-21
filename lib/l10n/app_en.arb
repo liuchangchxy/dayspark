@@ -1260,6 +1260,16 @@
   "captureInputPlaceholder": "Capture a task, press Enter",
   "captureTypeTodo": "Task",
   "captureDefaultDate": "No date · Personal",
+  "captureTitle": "Capture a task",
+  "captureSaveTodo": "Save task",
+  "plannedTodosMovedToTimeline": "{count} planned items shown in timeline.",
+  "@plannedTodosMovedToTimeline": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "deleteConfirmTitle": "Delete \"{title}\"?",
   "@deleteConfirmTitle": {
     "placeholders": {

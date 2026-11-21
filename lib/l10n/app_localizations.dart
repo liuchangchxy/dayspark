@@ -4169,6 +4169,24 @@ abstract class AppLocalizations {
   /// **'No date · Personal'**
   String get captureDefaultDate;
 
+  /// No description provided for @captureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a task'**
+  String get captureTitle;
+
+  /// No description provided for @captureSaveTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Save task'**
+  String get captureSaveTodo;
+
+  /// No description provided for @plannedTodosMovedToTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} planned items shown in timeline.'**
+  String plannedTodosMovedToTimeline(int count);
+
   /// No description provided for @deleteConfirmTitle.
   ///
   /// In en, this message translates to:
