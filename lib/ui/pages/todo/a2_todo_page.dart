@@ -526,35 +526,40 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           key: const ValueKey('todos-filter-tool'),
           behavior: HitTestBehavior.opaque,
           onTap: () => _showFilterSheet(context),
-          child: Container(
-            height: 29,
-            padding: const EdgeInsets.symmetric(horizontal: 9),
-            decoration: BoxDecoration(
-              color: active ? SpecTokens.wash : Colors.white,
-              border: Border.all(
-                color: active ? SpecTokens.ink2 : SpecTokens.hair2,
-              ),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  CupertinoIcons.slider_horizontal_3,
-                  size: 12,
-                  color: SpecTokens.muted,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  l.filter,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                    color: active ? SpecTokens.ink : SpecTokens.ink2,
-                    fontFamilyFallback: AppTypography.fallback,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Center(
+              child: Container(
+                height: 29,
+                padding: const EdgeInsets.symmetric(horizontal: 9),
+                decoration: BoxDecoration(
+                  color: active ? SpecTokens.wash : Colors.white,
+                  border: Border.all(
+                    color: active ? SpecTokens.ink2 : SpecTokens.hair2,
                   ),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.slider_horizontal_3,
+                      size: 12,
+                      color: SpecTokens.muted,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      l.filter,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                        color: active ? SpecTokens.ink : SpecTokens.ink2,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -732,39 +737,94 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final isAll = view is TodosAllView;
     final isDate = view is TodosDayView;
 
-    return Container(
+    Widget visual(String label, bool active) => ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 48),
+      child: Center(child: _modeButtonVisual(label, active)),
+    );
+
+    return SizedBox(
       key: const ValueKey('todos-mode-switch'),
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: SpecTokens.wash,
-        borderRadius: BorderRadius.circular(7),
-      ),
+      height: 48,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            _modeButton(
-              key: const ValueKey('todo-mode-inbox'),
-              label: l.inbox,
-              active: isInbox,
-              onTap: () => _selectMode(const TodosInboxView()),
+            Container(
+              height: 33,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: SpecTokens.wash,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  visual(l.inbox, isInbox),
+                  const SizedBox(width: 2),
+                  visual(l.allLabel, isAll),
+                  const SizedBox(width: 2),
+                  visual(l.byDateTitle, isDate),
+                ],
+              ),
             ),
-            const SizedBox(width: 2),
-            _modeButton(
-              key: const ValueKey('todo-mode-all'),
-              label: l.allLabel,
-              active: isAll,
-              onTap: () => _selectMode(const TodosAllView()),
-            ),
-            const SizedBox(width: 2),
-            _modeButton(
-              key: const ValueKey('todo-mode-date'),
-              label: l.byDateTitle,
-              active: isDate,
-              onTap: () => _selectMode(const TodosDayView()),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _modeButton(
+                  key: const ValueKey('todo-mode-inbox'),
+                  label: l.inbox,
+                  active: isInbox,
+                  onTap: () => _selectMode(const TodosInboxView()),
+                ),
+                const SizedBox(width: 2),
+                _modeButton(
+                  key: const ValueKey('todo-mode-all'),
+                  label: l.allLabel,
+                  active: isAll,
+                  onTap: () => _selectMode(const TodosAllView()),
+                ),
+                const SizedBox(width: 2),
+                _modeButton(
+                  key: const ValueKey('todo-mode-date'),
+                  label: l.byDateTitle,
+                  active: isDate,
+                  onTap: () => _selectMode(const TodosDayView()),
+                ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _modeButtonVisual(String label, bool active) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      height: 27,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: active ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(5),
+        boxShadow: active
+            ? const [
+                BoxShadow(
+                  color: Color(0x0F191918),
+                  blurRadius: 2,
+                  offset: Offset(0, 1),
+                ),
+              ]
+            : null,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+          color: active ? SpecTokens.ink : SpecTokens.muted,
+          fontFamilyFallback: AppTypography.fallback,
         ),
       ),
     );
@@ -776,37 +836,22 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     required bool active,
     required VoidCallback onTap,
   }) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        key: key,
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          height: 27,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(5),
-            boxShadow: active
-                ? const [
-                    BoxShadow(
-                      color: Color(0x0F191918),
-                      blurRadius: 2,
-                      offset: Offset(0, 1),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: active ? SpecTokens.ink : SpecTokens.muted,
-              fontFamilyFallback: AppTypography.fallback,
+    return Semantics(
+      button: true,
+      selected: active,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          key: key,
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Center(
+              child: Opacity(
+                opacity: 0,
+                child: _modeButtonVisual(label, active),
+              ),
             ),
           ),
         ),
@@ -921,44 +966,54 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
+        key: ValueKey(
+          'todos-date-strip-day-${d.year}-'
+          '${d.month.toString().padLeft(2, '0')}-'
+          '${d.day.toString().padLeft(2, '0')}',
+        ),
         behavior: HitTestBehavior.opaque,
         onTap: () => ref.read(viewedDateProvider.notifier).state = d,
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: selected ? SpecTokens.ink : Colors.transparent,
-            border: Border.all(
-              color: selected ? SpecTokens.ink : Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          child: Center(
+            child: Container(
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                color: selected ? SpecTokens.ink : Colors.transparent,
+                border: Border.all(
+                  color: selected ? SpecTokens.ink : Colors.transparent,
+                ),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    weekdayStr,
+                    style: TextStyle(
+                      fontSize: 9,
+                      letterSpacing: 0.02 * 9,
+                      color: selected ? Colors.white : SpecTokens.muted,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '${d.day}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      fontFeatures: AppTypography.tabular,
+                      color: selected
+                          ? Colors.white
+                          : (isToday ? SpecTokens.red : SpecTokens.muted),
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                weekdayStr,
-                style: TextStyle(
-                  fontSize: 9,
-                  letterSpacing: 0.02 * 9,
-                  color: selected ? Colors.white : SpecTokens.muted,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                '${d.day}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  fontFeatures: AppTypography.tabular,
-                  color: selected
-                      ? Colors.white
-                      : (isToday ? SpecTokens.red : SpecTokens.muted),
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
-              ),
-            ],
           ),
         ),
       ),

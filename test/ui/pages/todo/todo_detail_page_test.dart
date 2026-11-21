@@ -189,4 +189,30 @@ void main() {
     expect(find.byType(TodoFormPage), findsNothing);
     await _unmount(tester);
   });
+
+  testWidgets('priority chips and primary action expose 48dp hit targets', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, todo));
+    await _settle(tester);
+
+    for (final value in const [0, 9, 5, 1]) {
+      final key = 'todo-priority-$value';
+      final size = tester.getSize(find.byKey(ValueKey(key)));
+      expect(size.width, greaterThanOrEqualTo(48), reason: key);
+      expect(size.height, greaterThanOrEqualTo(48), reason: key);
+    }
+
+    final primary = tester.getSize(
+      find.byKey(const ValueKey('todo-detail-mark-complete')),
+    );
+    expect(primary.width, greaterThanOrEqualTo(48));
+    expect(primary.height, greaterThanOrEqualTo(48));
+
+    await _unmount(tester);
+  });
 }

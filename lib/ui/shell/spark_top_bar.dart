@@ -130,54 +130,70 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                   key: const ValueKey('nav-search'),
                   behavior: HitTestBehavior.opaque,
                   onTap: () => context.push('/search'),
-                  child: Container(
-                    height: 29,
-                    padding: const EdgeInsets.symmetric(horizontal: 9),
-                    decoration: BoxDecoration(
-                      color: _searchHovered ? SpecTokens.wash : Colors.transparent,
-                      border: Border.all(color: SpecTokens.hair2, width: 1.0),
-                      borderRadius: BorderRadius.circular(6),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          CupertinoIcons.search,
-                          size: 12,
-                          color: SpecTokens.muted,
+                    child: Center(
+                      child: Container(
+                        height: 29,
+                        padding: const EdgeInsets.symmetric(horizontal: 9),
+                        decoration: BoxDecoration(
+                          color: _searchHovered
+                              ? SpecTokens.wash
+                              : Colors.transparent,
+                          border: Border.all(
+                            color: SpecTokens.hair2,
+                            width: 1.0,
+                          ),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        if (isWide) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            l.search,
-                            style: const TextStyle(
-                              fontSize: 11,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              CupertinoIcons.search,
+                              size: 12,
                               color: SpecTokens.muted,
-                              fontFamilyFallback: AppTypography.fallback,
                             ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: SpecTokens.hair2, width: 1.0),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              shortcutText,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: SpecTokens.faint,
-                                fontFamilyFallback: AppTypography.fallback,
+                            if (isWide) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                l.search,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: SpecTokens.muted,
+                                  fontFamilyFallback: AppTypography.fallback,
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ],
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(
+                                    color: SpecTokens.hair2,
+                                    width: 1.0,
+                                  ),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: Text(
+                                  shortcutText,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: SpecTokens.faint,
+                                    fontFamilyFallback: AppTypography.fallback,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),

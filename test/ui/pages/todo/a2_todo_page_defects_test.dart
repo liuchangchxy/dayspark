@@ -538,4 +538,38 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('filter, mode switch and date cells expose 48dp hit targets', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosDayView()),
+          viewedDateProvider.overrideWith((ref) => DateTime(2026, 11, 15)),
+        ],
+        now: now,
+      ),
+    );
+    await _settle(tester);
+
+    for (final key in const [
+      'todos-filter-tool',
+      'todo-mode-inbox',
+      'todo-mode-all',
+      'todo-mode-date',
+      'todos-date-strip-day-2026-11-15',
+    ]) {
+      final size = tester.getSize(find.byKey(ValueKey(key)));
+      expect(size.width, greaterThanOrEqualTo(48), reason: key);
+      expect(size.height, greaterThanOrEqualTo(48), reason: key);
+    }
+
+    await _unmount(tester);
+  });
 }
