@@ -629,8 +629,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                     minWidth: 48,
                     minHeight: 48,
                   ),
-                  child: Center(
+                  child: Align(
+                    widthFactor: 1,
+                    heightFactor: 1,
                     child: DsChip(
+                      key: ValueKey('todo-priority-visual-$value'),
                       label: labels[value]!,
                       selected: live.priority == value,
                       compact: true,
@@ -1525,10 +1528,9 @@ class _PaneButton extends StatelessWidget {
     final bg = primary ? ds.primary : ds.surface;
     final fg = primary ? ds.onPrimary : (danger ? ds.danger : ds.ink2);
     final enabled = onPressed != null;
-    final visual = Container(
+    final visual = Ink(
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(6),
@@ -1536,16 +1538,18 @@ class _PaneButton extends StatelessWidget {
           color: primary ? Colors.transparent : ds.line,
         ),
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: height >= 44 ? 14 : 12,
-          fontWeight: height >= 44 ? FontWeight.w600 : FontWeight.w500,
-          color: fg,
-          height: 1.2,
+      child: Center(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: height >= 44 ? 14 : 12,
+            fontWeight: height >= 44 ? FontWeight.w600 : FontWeight.w500,
+            color: fg,
+            height: 1.2,
+          ),
         ),
       ),
     );

@@ -200,11 +200,31 @@ void main() {
     await tester.pumpWidget(_app(db, todo));
     await _settle(tester);
 
+    final tops = <double>[];
     for (final value in const [0, 9, 5, 1]) {
       final key = 'todo-priority-$value';
-      final size = tester.getSize(find.byKey(ValueKey(key)));
-      expect(size.width, greaterThanOrEqualTo(48), reason: key);
-      expect(size.height, greaterThanOrEqualTo(48), reason: key);
+      final rect = tester.getRect(find.byKey(ValueKey(key)));
+      expect(rect.width, greaterThanOrEqualTo(48), reason: key);
+      expect(rect.height, greaterThanOrEqualTo(48), reason: key);
+      tops.add(rect.top);
+      final visual = tester.getSize(
+        find.byKey(ValueKey('todo-priority-visual-$value')),
+      );
+      expect(visual.height, 28, reason: key);
+    }
+    expect(tops.toSet(), hasLength(1), reason: 'chips must share one row');
+    expect(tops.length, 4);
+    for (final key in const [
+      'todo-priority-0',
+      'todo-priority-9',
+      'todo-priority-5',
+      'todo-priority-1',
+    ]) {
+      expect(
+        tester.getRect(find.byKey(ValueKey(key))).height,
+        lessThanOrEqualTo(56),
+        reason: key,
+      );
     }
 
     final primary = tester.getSize(
@@ -212,6 +232,13 @@ void main() {
     );
     expect(primary.width, greaterThanOrEqualTo(48));
     expect(primary.height, greaterThanOrEqualTo(48));
+    final primaryVisual = tester.getSize(
+      find.descendant(
+        of: find.byKey(const ValueKey('todo-detail-mark-complete')),
+        matching: find.byType(Ink),
+      ),
+    );
+    expect(primaryVisual.height, 36);
 
     await _unmount(tester);
   });

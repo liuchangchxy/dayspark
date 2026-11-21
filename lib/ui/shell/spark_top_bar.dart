@@ -135,8 +135,11 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                       minWidth: 48,
                       minHeight: 48,
                     ),
-                    child: Center(
+                    child: Align(
+                      widthFactor: 1,
+                      heightFactor: 1,
                       child: Container(
+                        key: const ValueKey('nav-search-visual'),
                         height: 29,
                         padding: const EdgeInsets.symmetric(horizontal: 9),
                         decoration: BoxDecoration(

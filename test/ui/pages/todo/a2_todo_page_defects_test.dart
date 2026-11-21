@@ -545,6 +545,97 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    final semantics = tester.ensureSemantics();
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosDayView()),
+          viewedDateProvider.overrideWith((ref) => DateTime(2026, 11, 10)),
+        ],
+        now: now,
+      ),
+    );
+    await _settle(tester);
+
+    for (final key in const [
+      'todos-filter-tool',
+      'todo-mode-inbox',
+      'todo-mode-all',
+      'todo-mode-date',
+      'todos-date-strip',
+      'todos-date-strip-today',
+      'todos-date-strip-day-2026-11-10',
+    ]) {
+      final size = tester.getSize(find.byKey(ValueKey(key)));
+      expect(size.width, greaterThanOrEqualTo(48), reason: key);
+      expect(size.height, greaterThanOrEqualTo(48), reason: key);
+    }
+
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('todos-filter-tool-visual')))
+          .height,
+      29,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('todos-mode-switch-visual')))
+          .height,
+      33,
+    );
+    for (final key in const [
+      'todo-mode-visual-inbox',
+      'todo-mode-visual-all',
+      'todo-mode-visual-date',
+    ]) {
+      expect(tester.getSize(find.byKey(ValueKey(key))).height, 27, reason: key);
+    }
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('todos-date-strip-visual')))
+          .height,
+      28,
+    );
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('todos-date-strip-today-visual')),
+          )
+          .height,
+      28,
+    );
+    expect(
+      tester.getSize(
+        find.byKey(const ValueKey('todos-date-strip-day-visual-2026-11-10')),
+      ),
+      const Size(34, 44),
+    );
+
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('todo-mode-inbox'))).label,
+      'Unplanned',
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('todo-mode-all'))).label,
+      'All',
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('todo-mode-date'))).label,
+      'By date',
+    );
+
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
+  testWidgets('date strip keeps its layout and the selected day is not clipped', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       _app(
@@ -558,17 +649,31 @@ void main() {
     );
     await _settle(tester);
 
-    for (final key in const [
-      'todos-filter-tool',
-      'todo-mode-inbox',
-      'todo-mode-all',
-      'todo-mode-date',
-      'todos-date-strip-day-2026-11-15',
-    ]) {
-      final size = tester.getSize(find.byKey(ValueKey(key)));
-      expect(size.width, greaterThanOrEqualTo(48), reason: key);
-      expect(size.height, greaterThanOrEqualTo(48), reason: key);
-    }
+    // Seven mobile cells (34) and six 4px gaps: 262, the original layout width.
+    expect(
+      tester.getSize(find.byKey(const ValueKey('todos-date-strip-days'))).width,
+      262,
+    );
+
+    final viewport = tester.getRect(
+      find.byKey(const ValueKey('todos-date-strip-scroll')),
+    );
+    final selected = tester.getRect(
+      find.byKey(
+        const ValueKey('todos-date-strip-day-visual-2026-11-15'),
+      ),
+    );
+    expect(selected.size, const Size(34, 44));
+    expect(selected.right, lessThanOrEqualTo(viewport.right));
+
+    // The pre-existing content scrolled 82.25px; the overlay must not add more.
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byKey(const ValueKey('todos-date-strip-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(scrollable.position.maxScrollExtent, lessThanOrEqualTo(83));
 
     await _unmount(tester);
   });

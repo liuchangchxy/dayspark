@@ -31,6 +31,11 @@ void main() {
     expect(size.width, greaterThanOrEqualTo(48));
     expect(size.height, greaterThanOrEqualTo(48));
 
+    final visual = tester.getSize(
+      find.byKey(const ValueKey('nav-search-visual')),
+    );
+    expect(visual.height, 29);
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
   });
