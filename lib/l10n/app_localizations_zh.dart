@@ -2857,4 +2857,163 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mobileAboutDesc => '版本与许可';
+
+  @override
+  String get captureParsedTypeTodoTitle => '类型仍是待办';
+
+  @override
+  String get captureParsedTypeTodoSub => '识别到时间只作为“计划执行”建议，不会自动变成日程，也不会写截止。';
+
+  @override
+  String get captureParsedSuggestRemoved => '时间建议已移除';
+
+  @override
+  String get captureParsedSuggestSub => '已预选；保存后写为“计划执行”。可以移除。';
+
+  @override
+  String get captureParsedSuggestSubRemoved => '保存后只记标题；无日期、无计划、无截止。';
+
+  @override
+  String get captureActionRemove => '移除';
+
+  @override
+  String get captureActionRestore => '恢复';
+
+  @override
+  String get captureActionChangeToEvent => '改为日程';
+
+  @override
+  String get captureActionChangeToTodo => '改回待办';
+
+  @override
+  String get captureActionExpandFields => '展开字段';
+
+  @override
+  String get captureActionBackToCompact => '回到紧凑';
+
+  @override
+  String get captureActionSaveLater => '先记到未安排';
+
+  @override
+  String get captureHintParsed => '默认：待办 · 无日期 · 个人\n截止仍为空';
+
+  @override
+  String get captureHintExpanded => '保存前所有事实可见；没有被点开的字段不写入。';
+
+  @override
+  String get captureHintEvent => '只有主动切换“日程”，或从 Calendar 时间槽进入，才是日程。';
+
+  @override
+  String get captureHintDate => '只写日期，不写时间；不会自动变成日程。';
+
+  @override
+  String get captureHintPlan => '允许重叠；不会把截止改成 16:00。';
+
+  @override
+  String get captureHintCalendar => '默认日历来自设置；没有“未分类”。';
+
+  @override
+  String get captureHintReminder => '提醒是条目自己的事实，不影响截止。';
+
+  @override
+  String get captureHintValidation => '校验错误贴着字段，不弹全局错误。';
+
+  @override
+  String get captureHintSaveError => '失败态不关闭 Capture，不吞输入。';
+
+  @override
+  String get captureHintDiscard => '危险动作先确认。';
+
+  @override
+  String get captureHintKeyboard => '焦点可见；Esc 走放弃确认。';
+
+  @override
+  String get captureValidationEmptyTitle => '标题不能为空。写一个能让你明天看懂的动作。';
+
+  @override
+  String get captureValidationAlert => '保存前先补标题；其他字段已经保留。';
+
+  @override
+  String get captureSaveErrorServer => '没有连上服务器。';
+
+  @override
+  String captureSaveErrorDraftHint(String title) {
+    return '“$title”还在这条草稿里；可以重试或先留在未安排。';
+  }
+
+  @override
+  String get captureDiscardTitle => '放弃这次输入？';
+
+  @override
+  String captureDiscardSub(String title) {
+    return '“$title”还没有保存';
+  }
+
+  @override
+  String get captureDiscardLineTitle => '关闭后草稿会消失';
+
+  @override
+  String get captureDiscardLineSub => '继续编辑会保留标题、日期和提醒。';
+
+  @override
+  String get captureKeyboardTitle => '键盘操作';
+
+  @override
+  String get captureKeyboardSub => '桌面：Tab 切字段 · Enter 保存 · Esc 放弃';
+
+  @override
+  String get captureKeyboardHelp => '焦点在标题；Tab 到截止、计划、提醒。';
+
+  @override
+  String get captureChoiceTitleDate => '选择日期';
+
+  @override
+  String get captureChoiceTitlePlan => '选择计划执行';
+
+  @override
+  String get captureChoiceTitleCalendar => '选择日历';
+
+  @override
+  String get captureChoiceTitleReminder => '提醒';
+
+  @override
+  String get captureChoiceSubCalendar => '新待办默认落到这里';
+
+  @override
+  String get captureChoiceFooter => '只改这一项；其他事实保持不变。';
+
+  @override
+  String get captureFieldDateToday => '今天';
+
+  @override
+  String get captureFieldDateTomorrow => '明天';
+
+  @override
+  String get captureFieldDateNextMonday => '下周一';
+
+  @override
+  String get captureFieldDateOther => '其他日期';
+
+  @override
+  String get captureFieldDateOpenCalendar => '打开日历';
+
+  @override
+  String get captureSelectedTag => '选中';
+
+  @override
+  String get planPickerTitle => '安排待办';
+
+  @override
+  String planPickerTarget(String title) {
+    return '安排「$title」';
+  }
+
+  @override
+  String get planPickerEmpty => '没有可安排的待办';
+
+  @override
+  String get planPickerEmptySub => '从捕获条添加待办后，再安排计划执行。';
+
+  @override
+  String get planPickerContext => '当天已有';
 }

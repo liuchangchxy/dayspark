@@ -1506,5 +1506,77 @@
   "mobileNotifyDesc": "权限与提醒",
   "mobileSyncDesc": "账号、失败、冲突",
   "sync": "同步",
-  "mobileAboutDesc": "版本与许可"
+  "mobileAboutDesc": "版本与许可",
+  "captureParsedTypeTodoTitle": "类型仍是待办",
+  "captureParsedTypeTodoSub": "识别到时间只作为“计划执行”建议，不会自动变成日程，也不会写截止。",
+  "captureParsedSuggestRemoved": "时间建议已移除",
+  "captureParsedSuggestSub": "已预选；保存后写为“计划执行”。可以移除。",
+  "captureParsedSuggestSubRemoved": "保存后只记标题；无日期、无计划、无截止。",
+  "captureActionRemove": "移除",
+  "captureActionRestore": "恢复",
+  "captureActionChangeToEvent": "改为日程",
+  "captureActionChangeToTodo": "改回待办",
+  "captureActionExpandFields": "展开字段",
+  "captureActionBackToCompact": "回到紧凑",
+  "captureActionSaveLater": "先记到未安排",
+  "captureHintParsed": "默认：待办 · 无日期 · 个人\n截止仍为空",
+  "captureHintExpanded": "保存前所有事实可见；没有被点开的字段不写入。",
+  "captureHintEvent": "只有主动切换“日程”，或从 Calendar 时间槽进入，才是日程。",
+  "captureHintDate": "只写日期，不写时间；不会自动变成日程。",
+  "captureHintPlan": "允许重叠；不会把截止改成 16:00。",
+  "captureHintCalendar": "默认日历来自设置；没有“未分类”。",
+  "captureHintReminder": "提醒是条目自己的事实，不影响截止。",
+  "captureHintValidation": "校验错误贴着字段，不弹全局错误。",
+  "captureHintSaveError": "失败态不关闭 Capture，不吞输入。",
+  "captureHintDiscard": "危险动作先确认。",
+  "captureHintKeyboard": "焦点可见；Esc 走放弃确认。",
+  "captureValidationEmptyTitle": "标题不能为空。写一个能让你明天看懂的动作。",
+  "captureValidationAlert": "保存前先补标题；其他字段已经保留。",
+  "captureSaveErrorServer": "没有连上服务器。",
+  "captureSaveErrorDraftHint": "“{title}”还在这条草稿里；可以重试或先留在未安排。",
+  "@captureSaveErrorDraftHint": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDiscardTitle": "放弃这次输入？",
+  "captureDiscardSub": "“{title}”还没有保存",
+  "@captureDiscardSub": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDiscardLineTitle": "关闭后草稿会消失",
+  "captureDiscardLineSub": "继续编辑会保留标题、日期和提醒。",
+  "captureKeyboardTitle": "键盘操作",
+  "captureKeyboardSub": "桌面：Tab 切字段 · Enter 保存 · Esc 放弃",
+  "captureKeyboardHelp": "焦点在标题；Tab 到截止、计划、提醒。",
+  "captureChoiceTitleDate": "选择日期",
+  "captureChoiceTitlePlan": "选择计划执行",
+  "captureChoiceTitleCalendar": "选择日历",
+  "captureChoiceTitleReminder": "提醒",
+  "captureChoiceSubCalendar": "新待办默认落到这里",
+  "captureChoiceFooter": "只改这一项；其他事实保持不变。",
+  "captureFieldDateToday": "今天",
+  "captureFieldDateTomorrow": "明天",
+  "captureFieldDateNextMonday": "下周一",
+  "captureFieldDateOther": "其他日期",
+  "captureFieldDateOpenCalendar": "打开日历",
+  "captureSelectedTag": "选中",
+  "planPickerTitle": "安排待办",
+  "planPickerTarget": "安排「{title}」",
+  "@planPickerTarget": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planPickerEmpty": "没有可安排的待办",
+  "planPickerEmptySub": "从捕获条添加待办后，再安排计划执行。",
+  "planPickerContext": "当天已有"
 }
