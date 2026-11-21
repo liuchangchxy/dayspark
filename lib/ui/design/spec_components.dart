@@ -1033,3 +1033,70 @@ class _SpecAlldayChip extends StatelessWidget {
     );
   }
 }
+
+/// Frozen spec mobile top bar: 50px tall, 15px title, one 30px round action.
+class SpecMobileTopBar extends StatelessWidget {
+  const SpecMobileTopBar({
+    super.key,
+    required this.title,
+    required this.searchTooltip,
+    required this.onSearch,
+  });
+
+  final String title;
+  final String searchTooltip;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.15,
+                color: SpecTokens.ink,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+          Semantics(
+            label: searchTooltip,
+            button: true,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                key: const ValueKey('mobile-top-search'),
+                behavior: HitTestBehavior.opaque,
+                onTap: onSearch,
+                child: const SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: Center(
+                    child: Icon(
+                      CupertinoIcons.search,
+                      size: 15,
+                      color: SpecTokens.muted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

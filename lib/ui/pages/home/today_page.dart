@@ -601,14 +601,14 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
 
     final mobileContentHeader = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             DateFormat.MMMd(_locale).format(widget.now),
             style: const TextStyle(
-              fontSize: 24,
+              fontSize: 25,
               fontWeight: FontWeight.w700,
               color: SpecTokens.ink,
               fontFamilyFallback: AppTypography.fallback,
@@ -618,21 +618,23 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           Text(
             '${DateFormat.E(_locale).format(widget.now)} · ${l.weekNumberLabel(isoWeekNumber(widget.now))}',
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 10.5,
               color: SpecTokens.muted,
               fontFamilyFallback: AppTypography.fallback,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            summary,
-            style: const TextStyle(
-              fontSize: 10,
-              color: SpecTokens.faint,
-              fontFeatures: AppTypography.tabular,
-              fontFamilyFallback: AppTypography.fallback,
+          if (!isPageEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              summary,
+              style: const TextStyle(
+                  fontSize: 9.5,
+                color: SpecTokens.faint,
+                fontFeatures: AppTypography.tabular,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -679,19 +681,10 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          A2DayHead(
+          SpecMobileTopBar(
             title: l.today,
-            subtitle:
-                '${DateFormat.yMMMMd(_locale).format(widget.now)} · '
-                '${DateFormat.E(_locale).format(widget.now)}',
-            clock: DateFormatters.formatTime(widget.now),
-            actions: [
-              A2IconAction(
-                icon: CupertinoIcons.search,
-                tooltip: l.search,
-                onPressed: () => context.push('/search'),
-              ),
-            ],
+            searchTooltip: l.search,
+            onSearch: () => context.push('/search'),
           ),
           Expanded(
             child: Stack(
@@ -704,10 +697,17 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                     // used. Inside the list it sat against the head with the
                     // whole lower half of the page blank.
                     empty
-                        ? A2Empty(
-                            icon: CupertinoIcons.time,
-                            title: l.emptyTodayTitle,
-                            hint: l.emptyTodayHint,
+                        ? Column(
+                            children: [
+                              mobileContentHeader,
+                              Expanded(
+                                child: A2Empty(
+                                  icon: CupertinoIcons.time,
+                                  title: l.emptyTodayTitle,
+                                  hint: l.emptyTodayHint,
+                                ),
+                              ),
+                            ],
                           )
                         : NotificationListener<ScrollMetricsNotification>(
                             onNotification: (notification) {

@@ -328,9 +328,11 @@ void main() {
     await tester.tap(find.text('Today').last);
     await _settle(tester);
     expect(container.read(viewedDateProvider).day, target.day);
+    // The frozen spec prints Today's date once, as the content header's
+    // MMMd title; the mobile top bar carries no second copy of it.
     expect(
       find.textContaining(
-        DateFormat.MMMMd(
+        DateFormat.MMMd(
           Localizations.localeOf(tester.element(find.byType(HomePage)))
               .toString(),
         ).format(now),
